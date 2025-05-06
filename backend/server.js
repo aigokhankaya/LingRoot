@@ -18,6 +18,7 @@ const contentRoutes = require("./routes/contentRoutes");
 const subscriptionRoutes = require("./routes/subscriptionRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const ttsRoutes = require("./routes/ttsRoutes");
+const topicSuggestRoutes = require("./routes/topicSuggestRoutes");
 
 // Initialize Express app
 const app = express();
@@ -60,6 +61,7 @@ app.use("/api/content", contentRoutes);
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/tts", ttsRoutes);
+app.use("/api/topic-suggest", topicSuggestRoutes);
 
 // Root route
 app.get("/", (req, res) => {
