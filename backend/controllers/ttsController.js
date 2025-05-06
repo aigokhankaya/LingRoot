@@ -4,13 +4,12 @@ const os = require("os");
 const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../utils/logger"); // Import Winston logger
-const { extractTextFromInput, generateTopicText, generateEnglishNarrationForTopic } = require("../utils/inputExtractor");
+const { extractTextFromInput, generateTopicText, generateEnglishNarrationForTopic, translateToEnglishWithOpenAI } = require("../utils/inputExtractor");
 const { cleanText, chunkText } = require("../utils/textProcessor");
 const { adaptToCEFR } = require("../utils/cefrAdapter");
 const { synthesizeSpeechChunks, synthesizeChunkWithTimepoints } = require("../utils/googleTts");
 const { mergeAudioSegments } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
-const { translate } = require("@vitalets/google-translate-api"); // Added for translation
 const tmp = require("tmp");
 
 // Helper function for consistent temp file cleanup
@@ -110,21 +109,13 @@ const processTtsRequest = async (req, res) => {
         logger.info(`[${requestId}] Step 2.5: Detecting language and translating if needed...`);
         let textToAdapt = cleanedText;
         try {
-            const translationResult = await translate(cleanedText, { to: 'en' });
-            detectedLang = translationResult.from.language.iso;
-            logger.info(`[${requestId}] Detected language: ${detectedLang}`);
-            if (detectedLang !== 'en') {
-                logger.info(`[${requestId}] Translating text from ${detectedLang} to English.`);
-                textToAdapt = translationResult.text;
-                logger.info(`[${requestId}] Translation successful.`);
-            } else {
-                logger.info(`[${requestId}] Text is already in English. No translation needed.`);
-            }
+            const translationResult = await translateToEnglishWithOpenAI(cleanedText);
+            textToAdapt = translationResult.text;
+            logger.info(`[${requestId}] Translation successful.`);
         } catch (translateError) {
             logger.error(`[${requestId}] Error during language detection/translation: ${translateError.message}. Proceeding with original cleaned text.`);
-            // Proceed with the original cleaned text if translation fails
             textToAdapt = cleanedText;
-            detectedLang = 'en'; // Reset detectedLang if translation fails
+            detectedLang = 'en';
         }
 
         // --- Step 3: Adapt to CEFR Level (OpenAI) ---

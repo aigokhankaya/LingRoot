@@ -7,7 +7,6 @@ const { Readability } = require("@mozilla/readability");
 const pdf = require("pdf-parse");
 const mammoth = require("mammoth");
 const OpenAI = require("openai"); // Added for topic generation
-const { translate } = require("@vitalets/google-translate-api");
 require("dotenv").config();
 
 // Initialize OpenAI client (similar to cefrAdapter, consider refactoring to a shared client)
@@ -23,6 +22,26 @@ try {
 } catch (error) {
     logger.error("Failed to initialize OpenAI client for input extraction:", error);
     openai = null;
+}
+
+/**
+ * OpenAI ile metni İngilizce'ye çevirir.
+ * @param {string} text
+ * @returns {Promise<{text: string, detectedLang: string}>}
+ */
+async function translateToEnglishWithOpenAI(text) {
+    if (!openai) throw new Error("OpenAI client is not initialized.");
+    const prompt = `Detect the language of the following text. If it is not English, translate it to English. Return only the English translation. Text:\n\n${text}`;
+    const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+            { role: "system", content: "You are a translation assistant." },
+            { role: "user", content: prompt }
+        ],
+        temperature: 0.2,
+    });
+    const translated = completion.choices[0]?.message?.content?.trim() || text;
+    return { text: translated, detectedLang: "auto" };
 }
 
 /**
@@ -73,7 +92,7 @@ async function generateEnglishNarrationForTopic(topic, level) {
     // Başlığı önce İngilizceye çevir
     let topicEn = topic;
     try {
-        const translationResult = await translate(topic, { to: 'en' });
+        const translationResult = await translateToEnglishWithOpenAI(topic);
         topicEn = translationResult.text;
         logger.info(`Translated topic to English: ${topicEn}`);
     } catch (err) {
@@ -244,5 +263,6 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
 module.exports = {
     extractTextFromInput,
     generateEnglishNarrationForTopic,
+    translateToEnglishWithOpenAI,
 };
 
