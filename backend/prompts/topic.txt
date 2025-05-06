@@ -1,38 +1,6 @@
-🎯 TASK:
-The user submitted a topic title: {{konu}}.  
-Your task is to generate a **well-researched**, **spoken-style monologue** suitable for a 15-minute narration.  
-The topic may be a concept, event, place, person, or recent issue.
-
-📌 CONTENT RULES:
-- First, identify the **true meaning and context** of the topic.
-- If it is a **country, location, or government-related entity**, focus on its **current affairs** (e.g. political situation, economy, society, diplomacy, news events).
-- If it is a **concept or idea**, focus on its **origin, function, examples, and impact**.
-- If the topic contains a **date or "today/now/recent" type expression**, include **up-to-date information**.
-- You may consult recent global knowledge, trends, or common facts.
-- Do NOT create fictional or speculative information.
-
-📌 LANGUAGE & STYLE:
-- The output must be written in the **same language** as the input topic (detected automatically).
-- Use **natural, fluent, spoken narration style**, like a radio documentary.
-- Length: **2000–2500 words**.
-- Structure: Clear **introduction → development → conclusion**.
-- Tone: Professional but easy to follow. No academic tone.
-- Do NOT use: emojis, lists, special characters, markdown, headlines.
-
-📌 TECHNICAL RULES:
-- No bullet points or subheadings.
-- Do not write explanations, comments, or summaries.
-- Ensure compatibility with Text-to-Speech (TTS) systems.
-- Paragraphs only.
-
-📥 INPUT TOPIC:
----
-{{konu}}
----
-
-📤 OUTPUT:
-Return only the full, continuous narration text.
-
-Write a CEFR {{level}} level English narration about the following topic:
-{{konu}}
-Return only the narration text, no explanations or comments.
+Write a CEFR {{level}} level spoken-style narration in the same language as the topic: {{konu}}.  
+Length must be 2000–2500 words. Structure should follow: introduction → development → conclusion.  
+If the topic refers to a country or political entity, focus on its **current affairs**.  
+If the topic includes "today", "now", or a recent date, use up-to-date knowledge.  
+Do not invent facts. Use fluent, natural language suitable for TTS.  
+Avoid lists, special symbols, markdown, or explanations. Return only the clean narration text as plain paragraphs.
