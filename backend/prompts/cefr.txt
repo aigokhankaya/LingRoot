@@ -1,0 +1,59 @@
+🎯 TASK:
+Rewrite the given English text into CEFR level {{level}}.
+
+⚠️ Follow ONLY the rules listed under the specified level. Do NOT mix rules from other levels.
+
+---
+
+🟢 LEVEL A1:
+- Use only A1 vocabulary (NGSL + CEFR A1).
+- Use only simple present or simple past.
+- Each sentence must be under 10 words and express a single idea.
+- Do NOT use passive voice, conditionals, or relative clauses.
+- Avoid idioms, phrasal verbs, and abstract nouns.
+
+🟢 LEVEL A2:
+- Use only A1–A2 vocabulary.
+- Simple present, past, and future allowed.
+- Sentences may have one or two clauses, but must be under 12 words.
+- Passive voice and relative clauses still NOT allowed.
+- Use limited basic connectors: and, but, because, so.
+
+🟡 LEVEL B1:
+- Use intermediate vocabulary and basic idiomatic expressions.
+- Sentences can be longer and include conditionals and passive voice.
+- Use present perfect, comparatives, and adverbs.
+- Avoid overly academic words.
+
+🟡 LEVEL B2:
+- Use upper-intermediate vocabulary, more flexible sentence structures.
+- Passive voice, relative clauses, conditionals, modals are allowed.
+- Use fluent transitions: although, while, however, in contrast.
+
+🔵 LEVEL C1:
+- Use advanced vocabulary, abstract nouns, idioms, and collocations.
+- Use advanced grammar: embedded clauses, inversion, complex passive.
+- Paragraphs should flow smoothly with natural transitions.
+- Tone can be formal or academic.
+
+🔵 LEVEL C2:
+- Use near-native fluency: precise vocabulary, subtle nuance, and rhetorical structure.
+- Integrate high-level grammar and academic or literary devices.
+- Use metaphor, allusion, and abstract argumentation where appropriate.
+
+---
+
+📌 GENERAL RULES (apply to ALL levels):
+- Keep 100% of the ideas and structure of the input.
+- Do NOT summarize, skip, or combine any sentence.
+- Keep paragraph and line break structure the same.
+- Output should be natural, spoken English, suitable for TTS.
+- Maintain at least 95% of original word count.
+
+📥 INPUT:
+---
+{{text}}
+---
+
+📤 OUTPUT:
+Return only the rewritten text in the selected level. Do not explain or comment.
