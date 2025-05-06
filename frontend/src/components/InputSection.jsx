@@ -6,6 +6,11 @@ export default function InputSection({ onSubmit, isLoading }) {
   const [inputType, setInputType] = useState('text');
   const [text, setText] = useState('');
   const [topic, setTopic] = useState('');
+  const [topicSuggestions, setTopicSuggestions] = useState([]);
+  const [selectedTopic, setSelectedTopic] = useState(null);
+  const [showTopicStep, setShowTopicStep] = useState(false);
+  const [topicLoading, setTopicLoading] = useState(false);
+  const [topicError, setTopicError] = useState('');
   const [youtubeLink, setYoutubeLink] = useState('');
   const [webLink, setWebLink] = useState('');
   const [spotifyLink, setSpotifyLink] = useState('');
@@ -20,20 +25,68 @@ export default function InputSection({ onSubmit, isLoading }) {
     setSpeakingRate(level === 'A1' ? 0.8 : 1.0);
   }, [level]);
 
+  // 1. Konu başlığı girildiğinde öneri iste
+  const handleTopicSuggest = async (e) => {
+    e.preventDefault();
+    setTopicLoading(true);
+    setTopicError('');
+    setTopicSuggestions([]);
+    setSelectedTopic(null);
+    setShowTopicStep(false);
+    try {
+      // Backend'de /api/topic-suggest gibi bir endpoint olmalı
+      const res = await fetch('/api/topic-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: topic })
+      });
+      if (!res.ok) throw new Error('Failed to fetch topic suggestions');
+      const data = await res.json();
+      setTopicSuggestions(data.suggestions || []);
+      setShowTopicStep(true);
+    } catch (err) {
+      setTopicError('Konu önerileri alınamadı.');
+    } finally {
+      setTopicLoading(false);
+    }
+  };
+
+  // 2. Kullanıcı bir öneri seçtiğinde detaylı anlatım iste
+  const handleTopicSelect = async (suggestion) => {
+    setSelectedTopic(suggestion);
+    setShowTopicStep(false);
+    // Detaylı anlatım için onSubmit ile backend'e gönder
+    onSubmit({
+      input: suggestion,
+      type: 'topic',
+      level,
+      voice,
+      speakingRate
+    });
+  };
+
+  // 3. Geri dön ve başka konu seç
+  const handleTopicBack = () => {
+    setShowTopicStep(false);
+    setSelectedTopic(null);
+    setTopicSuggestions([]);
+  };
+
+  // Eski handleSubmit diğer input tipleri için
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+    if (inputType === 'topic') {
+      handleTopicSuggest(e);
+      return;
+    }
     let inputData = {
       level,
       voice,
       speakingRate,
       type: inputType === 'youtube' ? 'text' : inputType
     };
-    
     if (inputType === 'text') {
       inputData.input = text;
-    } else if (inputType === 'topic') {
-      inputData.input = topic;
     } else if (inputType === 'youtube') {
       inputData.input = youtubeLink;
     } else if (inputType === 'weblink') {
@@ -47,7 +100,6 @@ export default function InputSection({ onSubmit, isLoading }) {
       inputData.input = bookName;
       inputData.chapter = bookChapter;
     }
-    
     onSubmit(inputData);
   };
 
@@ -168,7 +220,7 @@ export default function InputSection({ onSubmit, isLoading }) {
               </div>
             )}
 
-            {inputType === 'topic' && (
+            {inputType === 'topic' && !showTopicStep && !selectedTopic && (
               <div className="space-y-2">
                 <label htmlFor="topic-input" className="block text-sm font-semibold text-gray-700">
                   {t('enter_topic')}
@@ -182,7 +234,25 @@ export default function InputSection({ onSubmit, isLoading }) {
                   placeholder={t('enter_topic_placeholder')}
                   required
                 />
+                <button type="submit" className="btn-primary mt-2" disabled={topicLoading}>{topicLoading ? '...' : 'Konu için öneri al'}</button>
+                {topicError && <div className="text-red-500 text-sm mt-2">{topicError}</div>}
                 <p className="text-sm text-gray-500">{t('topic_description')}</p>
+              </div>
+            )}
+
+            {inputType === 'topic' && showTopicStep && topicSuggestions.length > 0 && !selectedTopic && (
+              <div className="space-y-4">
+                <div className="font-semibold">Konu başlığına göre öneriler:</div>
+                <ul className="space-y-2">
+                  {topicSuggestions.map((s, i) => (
+                    <li key={i}>
+                      <button type="button" className="w-full text-left border rounded-lg p-3 hover:bg-blue-50" onClick={() => handleTopicSelect(s)}>
+                        {s}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <button type="button" className="btn-secondary mt-4" onClick={handleTopicBack}>Geri dön ve başka konu seç</button>
               </div>
             )}
 
