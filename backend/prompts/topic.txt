@@ -1,3 +1,7 @@
+# 1. 5 Farklı Detaylı Konu Başlığı Önerisi Promptu
+Based on the keyword '{{input}}', suggest 5 different, specific and engaging spoken-content topics suitable for a 15-minute narration. Each topic should be detailed and clearly described in 1-2 sentences so the user can easily choose. Return only the list of topics with their descriptions, no explanations or extra text.
+
+# 2. Seçilen Başlıktan Uzun Anlatım Üretimi Promptu
 Write a CEFR {{level}} level spoken-style narration in the same language as the topic: {{konu}}.  
 Length must be 2000–2500 words. Structure should follow: introduction → development → conclusion.  
 If the topic refers to a country or political entity, focus on its **current affairs**.  
