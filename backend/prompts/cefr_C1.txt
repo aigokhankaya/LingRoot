@@ -1,0 +1,25 @@
+🎯 TASK:
+Rewrite the given English text into CEFR level C1.
+
+⚠️ Follow ONLY the rules listed under C1. Do NOT mix rules from other levels.
+
+🔵 LEVEL C1:
+- Use advanced vocabulary, abstract nouns, idioms, and collocations.
+- Use advanced grammar: embedded clauses, inversion, complex passive.
+- Paragraphs should flow smoothly with natural transitions.
+- Tone can be formal or academic.
+
+📌 GENERAL RULES:
+- Keep 100% of the ideas and structure of the input.
+- Do NOT summarize, skip, or combine any sentence.
+- Keep paragraph and line break structure the same.
+- Output should be natural, spoken English, suitable for TTS.
+- Maintain at least 95% of original word count.
+
+📥 INPUT:
+---
+{{text}}
+---
+
+📤 OUTPUT:
+Return only the rewritten text in C1 level. Do not explain or comment. 

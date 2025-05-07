@@ -1,0 +1,58 @@
+import { useEffect, useState } from 'react';
+import { fetchUsers, deleteUser } from '@/services/userService';
+import { User } from '@/types/user';
+import Button from '../common/Button';
+import MembershipBadge from '../user/MembershipBadge';
+
+export default function UserTable() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUsers().then(setUsers).finally(() => setLoading(false));
+  }, []);
+
+  const handleDelete = async (userId: string) => {
+    await deleteUser(userId);
+    setUsers(users.filter(u => u.id !== userId));
+  };
+
+  if (loading) return <div>Yükleniyor...</div>;
+
+  return (
+    <table className="min-w-full bg-white rounded shadow">
+      <thead>
+        <tr>
+          <th className="p-2">E-posta</th>
+          <th className="p-2">Üyelik</th>
+          <th className="p-2">Kayıt Tarihi</th>
+          <th className="p-2">Son Aktif</th>
+          <th className="p-2">Durum</th>
+          <th className="p-2">Giriş Sayısı</th>
+          <th className="p-2">Toplam İçerik</th>
+          <th className="p-2">İşlemler</th>
+        </tr>
+      </thead>
+      <tbody>
+        {users.map(user => (
+          <tr key={user.id}>
+            <td className="p-2">{user.email}</td>
+            <td className="p-2">
+              <MembershipBadge level={user.membership_level} />
+            </td>
+            <td className="p-2">{user.created_at}</td>
+            <td className="p-2">{user.last_active}</td>
+            <td className="p-2">{user.status}</td>
+            <td className="p-2">{user.login_count}</td>
+            <td className="p-2">{user.content_count}</td>
+            <td className="p-2">
+              <Button variant="danger" onClick={() => handleDelete(user.id)}>
+                Sil
+              </Button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+} 
