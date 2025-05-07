@@ -16,26 +16,25 @@
     "@radix-ui/react-toast": "^1.2.1",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.4",
-    "autoprefixer": "^10.4.14",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "geist": "^1.3.1",
     "lucide-react": "^0.417.0",
-    "next": "^14.2.28",
-    "postcss": "^8.4.21",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "next": "14.2.28",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "recharts": "^2.15.3",
-    "tailwind-merge": "^2.4.0",
-    "tailwindcss": "^3.3.2"
+    "tailwind-merge": "^2.4.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
     "@types/react": "^18.2.67",
     "@types/react-dom": "^18.2.22",
+    "autoprefixer": "^10.4.14",
     "eslint": "^8",
     "eslint-config-next": "14.2.5",
-    "typescript": "^5.4.2",
-    "@types/react/jsx-runtime": "^18.2.67"
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.3.2",
+    "typescript": "^5.4.2"
   }
 }
