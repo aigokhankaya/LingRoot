@@ -2,4 +2,5 @@
 **/gcp-service-account-key.json
 **/backend/gcp-service-account-key.json 
    node_modules/
+.next/
    
