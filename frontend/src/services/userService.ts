@@ -2,6 +2,27 @@ import { User, UserUpdateData } from '@/types/user';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
+function mapUserFromApi(apiUser: any): User {
+  return {
+    id: apiUser.id,
+    name: apiUser.name,
+    email: apiUser.email,
+    role: apiUser.role,
+    membershipStatus: apiUser.membership_status || apiUser.membershipStatus,
+    avatar: apiUser.avatar,
+    createdAt: apiUser.created_at || apiUser.createdAt,
+    updatedAt: apiUser.updated_at || apiUser.updatedAt,
+    firstName: apiUser.first_name || apiUser.firstName,
+    lastName: apiUser.last_name || apiUser.lastName,
+    lastLogin: apiUser.last_login || apiUser.lastLogin,
+    isActive: apiUser.is_active ?? apiUser.isActive,
+    phoneNumber: apiUser.phone_number || apiUser.phoneNumber,
+    preferences: apiUser.preferences,
+    loginCount: apiUser.login_count ?? apiUser.loginCount,
+    contentCount: apiUser.content_count ?? apiUser.contentCount,
+  };
+}
+
 // Fetch all users
 export const fetchUsers = async (): Promise<User[]> => {
   try {
@@ -10,7 +31,7 @@ export const fetchUsers = async (): Promise<User[]> => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
-    return data;
+    return Array.isArray(data) ? data.map(mapUserFromApi) : [];
   } catch (error) {
     console.error('Error fetching users:', error);
     throw error;
@@ -46,7 +67,7 @@ export const updateUser = async (id: string, userData: UserUpdateData): Promise<
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
-    return data;
+    return mapUserFromApi(data);
   } catch (error) {
     console.error(`Error updating user ${id}:`, error);
     throw error;
@@ -61,7 +82,7 @@ export const getUserById = async (id: string): Promise<User> => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
-    return data;
+    return mapUserFromApi(data);
   } catch (error) {
     console.error(`Error fetching user ${id}:`, error);
     throw error;

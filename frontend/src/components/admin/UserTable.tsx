@@ -38,15 +38,15 @@ export default function UserTable() {
           <tr key={user.id}>
             <td className="p-2">{user.email}</td>
             <td className="p-2">
-              <MembershipBadge level={user.membership_level} />
+              <MembershipBadge status={user.membershipStatus} />
             </td>
-            <td className="p-2">{user.created_at}</td>
-            <td className="p-2">{user.last_active}</td>
-            <td className="p-2">{user.status}</td>
-            <td className="p-2">{user.login_count}</td>
-            <td className="p-2">{user.content_count}</td>
+            <td className="p-2">{user.createdAt}</td>
+            <td className="p-2">{user.lastLogin || '-'}</td>
+            <td className="p-2">{user.isActive ? 'Aktif' : 'Pasif'}</td>
+            <td className="p-2">{user.loginCount ?? '-'}</td>
+            <td className="p-2">{user.contentCount ?? '-'}</td>
             <td className="p-2">
-              <Button variant="danger" onClick={() => handleDelete(user.id)}>
+              <Button variant="destructive" onClick={() => handleDelete(user.id)}>
                 Sil
               </Button>
             </td>

@@ -17,6 +17,8 @@ export interface User {
     notifications: boolean;
     theme: 'light' | 'dark' | 'system';
   };
+  loginCount?: number;
+  contentCount?: number;
 }
 
 export interface UserUpdateData {
