@@ -71,7 +71,7 @@ const testSupabaseConnection = async () => {
   }
 
   try {
-    const { data, error } = await supabase.from('health_check').select('*').limit(1);
+    const { data, error } = await supabase.from('Health_check').select('*').limit(1);
     
     if (error) {
       logger.error('Supabase connection test failed:', error);

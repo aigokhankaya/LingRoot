@@ -26,7 +26,7 @@ logger.info("Supabase client created.");
   try {
     // Test with a simple query that doesn't expose sensitive data
     logger.debug("Testing Supabase connection...");
-    const { error } = await supabase.from("users").select("id", { count: "exact", head: true }).limit(1);
+    const { error } = await supabase.from("Users").select("id", { count: "exact", head: true }).limit(1);
     if (error) {
       logger.error("Supabase connection test failed:", error.message);
     } else {

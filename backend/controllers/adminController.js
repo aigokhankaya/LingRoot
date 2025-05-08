@@ -13,29 +13,29 @@ exports.getDashboardStats = async (req, res) => {
     logger.info("Fetching dashboard stats");
     // Get total users count
     const { count: userCount, error: userError } = await supabase
-      .from("users")
+      .from("Users")
       .select("*", { count: "exact", head: true });
 
     // Get total content count
     const { count: contentCount, error: contentError } = await supabase
-      .from("content_history")
+      .from("Content_history")
       .select("*", { count: "exact", head: true });
 
     // Get total subscriptions count
     const { count: subscriptionCount, error: subscriptionError } = await supabase
-      .from("subscriptions")
+      .from("Subscriptions")
       .select("*", { count: "exact", head: true });
 
     // Get recent users
     const { data: recentUsers, error: recentUsersError } = await supabase
-      .from("users")
+      .from("Users")
       .select("id, name, email, created_at")
       .order("created_at", { ascending: false })
       .limit(5);
 
     // Get recent content
     const { data: recentContent, error: recentContentError } = await supabase
-      .from("content_history")
+      .from("Content_history")
       .select("id, input, input_type, level, created_at, user_id")
       .order("created_at", { ascending: false })
       .limit(5);
@@ -82,7 +82,7 @@ exports.getAllUsers = async (req, res) => {
     logger.info(`Fetching users - Page: ${page}, Limit: ${limit}, Search: '${search}'`);
 
     let query = supabase
-      .from("users")
+      .from("Users")
       .select("id, name, email, role, created_at", { count: "exact" });
 
     // Add search if provided
@@ -134,7 +134,7 @@ exports.getUserById = async (req, res) => {
     logger.info(`Fetching user by ID: ${id}`);
 
     const { data, error } = await supabase
-      .from("users")
+      .from("Users")
       .select("id, name, email, role, created_at")
       .eq("id", id)
       .single();
@@ -186,7 +186,7 @@ exports.updateUser = async (req, res) => {
     if (role) updateData.role = role;
 
     const { data, error } = await supabase
-      .from("users")
+      .from("Users")
       .update(updateData)
       .eq("id", id)
       .select();
@@ -232,7 +232,7 @@ exports.deleteUser = async (req, res) => {
 
     // Check if user exists
     const { data: existingUser, error: checkError } = await supabase
-      .from("users")
+      .from("Users")
       .select("id")
       .eq("id", id)
       .single();
@@ -246,7 +246,7 @@ exports.deleteUser = async (req, res) => {
     }
 
     // Delete user
-    const { error } = await supabase.from("users").delete().eq("id", id);
+    const { error } = await supabase.from("Users").delete().eq("id", id);
 
     if (error) {
       logger.error(`Error deleting user ID ${id} from Supabase:`, error);
@@ -280,7 +280,7 @@ exports.getAllContent = async (req, res) => {
     logger.info(`Fetching content - Page: ${page}, Limit: ${limit}, Search: '${search}'`);
 
     let query = supabase
-      .from("content_history")
+      .from("Content_history")
       .select("id, input, input_type, level, created_at, user_id", { count: "exact" });
 
     // Add search if provided
@@ -333,7 +333,7 @@ exports.deleteContent = async (req, res) => {
 
     // Check if content exists
     const { data: existingContent, error: checkError } = await supabase
-      .from("content_history")
+      .from("Content_history")
       .select("id")
       .eq("id", id)
       .single();
@@ -347,7 +347,7 @@ exports.deleteContent = async (req, res) => {
     }
 
     // Delete content
-    const { error } = await supabase.from("content_history").delete().eq("id", id);
+    const { error } = await supabase.from("Content_history").delete().eq("id", id);
 
     if (error) {
       logger.error(`Error deleting content ID ${id} from Supabase:`, error);
@@ -381,7 +381,7 @@ exports.getAllSubscriptions = async (req, res) => {
     logger.info(`Fetching subscriptions - Page: ${page}, Limit: ${limit}`);
 
     const { data, count, error } = await supabase
-      .from("subscriptions")
+      .from("Subscriptions")
       .select("*", { count: "exact" })
       .range(offset, offset + limit - 1)
       .order("created_at", { ascending: false });
@@ -433,7 +433,7 @@ exports.updateSubscription = async (req, res) => {
     }
 
     const { data, error } = await supabase
-      .from("subscriptions")
+      .from("Subscriptions")
       .update({ status })
       .eq("id", id)
       .select();

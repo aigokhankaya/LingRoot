@@ -194,7 +194,7 @@ async function handleCheckoutSessionCompleted(session) {
     logger.info(`Processing completed checkout session for User ID: ${userId}, Plan ID: ${planId}, Subscription ID: ${session.subscription}`);
 
     // Create subscription record in database
-    const { error } = await supabase.from("subscriptions").insert([
+    const { error } = await supabase.from("Subscriptions").insert([
       {
         user_id: userId,
         plan_id: planId,
