@@ -1,13 +1,16 @@
-import { User } from '@/types/user';
+import { User, UserUpdateData } from '@/types/user';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 // Fetch all users
 export const fetchUsers = async (): Promise<User[]> => {
   try {
-    const response = await fetch('/api/users');
+    const response = await fetch(`${API_URL}/users`);
     if (!response.ok) {
-      throw new Error('Failed to fetch users');
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return await response.json();
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error fetching users:', error);
     throw error;
@@ -15,24 +18,24 @@ export const fetchUsers = async (): Promise<User[]> => {
 };
 
 // Delete a user
-export const deleteUser = async (userId: string): Promise<void> => {
+export const deleteUser = async (id: string): Promise<void> => {
   try {
-    const response = await fetch(`/api/users/${userId}`, {
+    const response = await fetch(`${API_URL}/users/${id}`, {
       method: 'DELETE',
     });
     if (!response.ok) {
-      throw new Error('Failed to delete user');
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
   } catch (error) {
-    console.error('Error deleting user:', error);
+    console.error(`Error deleting user ${id}:`, error);
     throw error;
   }
 };
 
 // Update user
-export const updateUser = async (userId: string, userData: Partial<User>): Promise<User> => {
+export const updateUser = async (id: string, userData: UserUpdateData): Promise<User> => {
   try {
-    const response = await fetch(`/api/users/${userId}`, {
+    const response = await fetch(`${API_URL}/users/${id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -40,25 +43,27 @@ export const updateUser = async (userId: string, userData: Partial<User>): Promi
       body: JSON.stringify(userData),
     });
     if (!response.ok) {
-      throw new Error('Failed to update user');
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return await response.json();
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.error('Error updating user:', error);
+    console.error(`Error updating user ${id}:`, error);
     throw error;
   }
 };
 
 // Get user by ID
-export const getUserById = async (userId: string): Promise<User> => {
+export const getUserById = async (id: string): Promise<User> => {
   try {
-    const response = await fetch(`/api/users/${userId}`);
+    const response = await fetch(`${API_URL}/users/${id}`);
     if (!response.ok) {
-      throw new Error('Failed to fetch user');
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return await response.json();
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.error('Error fetching user:', error);
+    console.error(`Error fetching user ${id}:`, error);
     throw error;
   }
 }; 

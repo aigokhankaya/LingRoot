@@ -1,18 +1,40 @@
 import React from 'react';
+import { cn } from '@/lib/utils';
 
-const badges = [
-  { color: 'gray', label: 'Free', icon: '⚪️' },
-  { color: 'blue', label: 'Basic', icon: '🔵' },
-  { color: 'green', label: 'Pro', icon: '🟢' },
-  { color: 'purple', label: 'Enterprise', icon: '🟣' },
-];
+interface MembershipBadgeProps {
+  status: 'free' | 'premium' | 'enterprise';
+  className?: string;
+}
 
-export default function MembershipBadge({ level }: { level: number }) {
-  const badge = badges[level] || badges[0];
+const statusConfig = {
+  free: {
+    label: 'Free',
+    className: 'bg-gray-100 text-gray-800',
+  },
+  premium: {
+    label: 'Premium',
+    className: 'bg-blue-100 text-blue-800',
+  },
+  enterprise: {
+    label: 'Enterprise',
+    className: 'bg-purple-100 text-purple-800',
+  },
+};
+
+const MembershipBadge: React.FC<MembershipBadgeProps> = ({ status, className }) => {
+  const config = statusConfig[status];
+
   return (
-    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-${badge.color}-100 text-${badge.color}-700`}>
-      <span className="mr-1">{badge.icon}</span>
-      {badge.label}
+    <span
+      className={cn(
+        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+        config.className,
+        className
+      )}
+    >
+      {config.label}
     </span>
   );
-} 
+};
+
+export default MembershipBadge; 
