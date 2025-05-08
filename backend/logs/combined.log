@@ -50,3 +50,20 @@
 2025-05-01 15:01:42 [INFO]: Starting server...
 2025-05-01 15:01:42 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
 2025-05-01 15:01:42 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-08 10:52:22 [INFO]: Logger initialized with level: debug
+2025-05-08 10:52:24 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-08 10:52:24 [INFO]: OpenAI client initialized successfully.
+2025-05-08 10:52:24 [INFO]: Supabase client initialized successfully.
+2025-05-08 10:52:24 [INFO]: Uploads directory created at: C:\Users\USER\Documents\GitHub\LingRoot\backend\uploads
+2025-05-08 10:52:24 [INFO]: Attempting to start server on port 5001
+2025-05-08 10:52:24 [INFO]: Environment: development
+2025-05-08 10:52:24 [INFO]: Process environment PORT variable: 5001
+2025-05-08 10:52:24 [INFO]: Starting server...
+2025-05-08 10:52:24 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-08 10:52:24 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-08 10:55:01 [INFO]: [e19c31ef-1814-47db-8b95-3591fd80691f] Received TTS request.
+2025-05-08 10:55:01 [INFO]: [e19c31ef-1814-47db-8b95-3591fd80691f] Parsing input...
+2025-05-08 10:55:01 [INFO]: [e19c31ef-1814-47db-8b95-3591fd80691f] Processing application/json request.
+2025-05-08 10:55:01 [INFO]: [e19c31ef-1814-47db-8b95-3591fd80691f] JSON details: type=text, level=A1, rate=0.8
+2025-05-08 10:55:01 [ERROR]: [e19c31ef-1814-47db-8b95-3591fd80691f] Missing required input parameters.
+2025-05-08 10:55:01 [INFO]: [e19c31ef-1814-47db-8b95-3591fd80691f] Performing final cleanup.

@@ -37,7 +37,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
       SesHızı: speakingRate,
       text: inputType === "text" ? text : undefined,
       input: inputType === "youtube" ? youtubeLink : (inputType === "spotify" ? spotifyLink : undefined),
-      file: inputType === "file" ? file : undefined,
+      file: inputType === "file" ? (file || undefined) : undefined,
     };
 
     if ((inputType === "text" && !data.text?.trim()) ||
