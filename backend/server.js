@@ -8,6 +8,7 @@ require("dotenv").config();
 const logger = require("./utils/logger"); // Winston logger
 const { errorHandler, notFound } = require("./middleware/errorHandler");
 const { configureSecurity } = require("./middleware/security");
+const requestIdMiddleware = require('./middleware/requestId');
 
 // Import database connection
 // const { sequelize } = require("./models"); // Removed Sequelize
@@ -27,10 +28,11 @@ const app = express();
 configureSecurity(app);
 
 // CORS middleware
+app.use(requestIdMiddleware);
 app.use(cors({
-  origin: ["https://www.lingroot.com", "http://localhost:3000"],
+  origin: ["http://localhost:3000", "http://localhost:3001"],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "X-Request-ID"],
   credentials: true
 }));
 

@@ -22,6 +22,16 @@ api.interceptors.request.use((request: CustomAxiosRequestConfig) => {
   const startTime = Date.now();
   (request as any).metadata = { startTime };
   
+  // RequestId varsa header'a ekle
+  const requestId = localStorage.getItem('requestId');
+  if (requestId) {
+    if (request.headers) {
+      (request.headers as any)['X-Request-ID'] = requestId;
+    } else {
+      request.headers = { 'X-Request-ID': requestId } as any;
+    }
+  }
+  
   console.log('API İsteği:', {
     url: request.url,
     method: request.method,
