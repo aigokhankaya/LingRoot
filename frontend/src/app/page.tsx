@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from "@/lib/auth";
-import { processTts, submitContent, getContentHistory } from '../lib/api';
+import { processTts, submitContent, getContentHistory, ProcessInputData } from '../lib/api';
 import Header from '../components/Header';
 import InputSection from '../components/InputSection';
 import OutputSection from '../components/OutputSection';
@@ -10,10 +10,13 @@ import Footer from '../components/Footer';
 import { useTranslation } from '@/lib/i18n';
 
 interface InputData {
-  type: string;
+  type: ProcessInputData['type'];
   text?: string;
   input?: string;
+  file?: File;
   level: string;
+  SesHızı?: number;
+  voice?: string;
 }
 
 interface AudioResult {
@@ -61,7 +64,16 @@ const Page: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await processTts(inputData);
+      const processInput: ProcessInputData = {
+        type: inputData.type,
+        text: inputData.text,
+        input: inputData.input,
+        file: inputData.file,
+        level: inputData.level,
+        SesHızı: inputData.SesHızı,
+        voice: inputData.voice,
+      };
+      const result = await processTts(processInput);
       if (result && result.mp3_url) {
         setAudioResult({
           message: result.message || t('audio_generated_success'),
@@ -70,14 +82,14 @@ const Page: React.FC = () => {
           level: inputData.level
         });
         const input = inputData.type === 'text' ? inputData.text : inputData.input;
-        await submitContent(input, inputData.type, inputData.level, result.mp3_url);
+        await submitContent(input || '', inputData.type, inputData.level, result.mp3_url);
         if (isAuthenticated) {
           fetchContentHistory();
         }
       } else {
         setError(result.message || t('audio_generation_failed'));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating audio:', error);
       setError(error.message || t('unexpected_error'));
     } finally {
