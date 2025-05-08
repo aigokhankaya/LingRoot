@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { useTranslation } from '@/lib/i18n';
 
 const Header: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
   const { t } = useTranslation();
 
   return (
@@ -29,7 +29,7 @@ const Header: React.FC = () => {
         {user ? (
           <>
             <span className="text-gray-700 font-medium">{user.email}</span>
-            <button onClick={signOut} className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all">
+            <button onClick={logout} className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all">
               {t('logout')}
             </button>
           </>
