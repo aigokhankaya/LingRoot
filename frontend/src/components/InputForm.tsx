@@ -50,7 +50,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
     }
 
     try {
-      const result: ApiResponse<TtsResponseData> = await processTts(data);
+      const result: TtsResponseData = await processTts(data);
       if (result.mp3_url) {
         setIsSuccess(true);
         if (onSuccess) {
