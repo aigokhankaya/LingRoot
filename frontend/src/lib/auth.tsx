@@ -72,13 +72,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       return { success: false, message: error.message || 'Kayıt sırasında bir hata oluştu.' };
     }
   };
-
   return (
     <AuthContext.Provider value={{ user, isAuthenticated, login, logout, register }}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
