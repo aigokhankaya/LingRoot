@@ -8,6 +8,7 @@ interface User {
   id: string;
   email: string;
   role: string;
+  membershipStatus: 'free' | 'premium' | 'enterprise';
 }
 
 interface AuthContextType {

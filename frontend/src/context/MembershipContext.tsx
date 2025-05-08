@@ -1,7 +1,14 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { useUser } from '@/lib/hooks/useUser';
+import { useAuth } from '@/lib/auth';
 
 export type MembershipLevel = 0 | 1 | 2 | 3;
+
+function getLevelFromStatus(status: string | undefined): MembershipLevel {
+  if (status === 'free') return 1;
+  if (status === 'premium') return 2;
+  if (status === 'enterprise') return 3;
+  return 0;
+}
 
 interface MembershipContextType {
   level: MembershipLevel;
@@ -32,13 +39,13 @@ const defaultValue: MembershipContextType = {
 const MembershipContext = createContext<MembershipContextType>(defaultValue);
 
 export const MembershipProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useUser();
+  const { user } = useAuth();
   const [level, setLevel] = useState<MembershipLevel>(0);
   const [remaining, setRemaining] = useState(1);
 
   useEffect(() => {
     if (user) {
-      setLevel(user.membership_level ?? 0);
+      setLevel(getLevelFromStatus(user.membershipStatus));
       // Günlük hak sorgusu
       // fetchDailyRemaining(user.id).then(setRemaining);
     }
