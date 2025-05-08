@@ -7,16 +7,20 @@ declare const process: {
 };
 
 import { useAuth } from "./auth";
-import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
+import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
+
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  baseURL: API_BASE_URL,
 });
 
 // İstek interceptor'ı
-api.interceptors.request.use((request: AxiosRequestConfig) => {
+type CustomAxiosRequestConfig = InternalAxiosRequestConfig & { metadata?: { startTime: number } };
+
+api.interceptors.request.use((request: CustomAxiosRequestConfig) => {
   const startTime = Date.now();
-  request.metadata = { startTime };
+  (request as any).metadata = { startTime };
   
   console.log('API İsteği:', {
     url: request.url,
@@ -31,7 +35,7 @@ api.interceptors.request.use((request: AxiosRequestConfig) => {
 // Yanıt interceptor'ı
 api.interceptors.response.use(
   (response: AxiosResponse) => {
-    const duration = Date.now() - response.config.metadata.startTime;
+    const duration = Date.now() - ((response.config as any).metadata?.startTime || 0);
     
     console.log('API Yanıtı:', {
       url: response.config.url,
@@ -43,7 +47,7 @@ api.interceptors.response.use(
     return response;
   },
   (error: AxiosError) => {
-    const duration = Date.now() - error.config?.metadata?.startTime;
+    const duration = Date.now() - ((error.config as any)?.metadata?.startTime || 0);
     
     console.error('API Hatası:', {
       url: error.config?.url,
