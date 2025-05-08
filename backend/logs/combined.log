@@ -1,0 +1,69 @@
+2025-05-08 23:21:04 [INFO]: Logger initialized with level: debug
+2025-05-08 23:21:06 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-08 23:21:06 [INFO]: OpenAI client initialized successfully.
+2025-05-08 23:21:06 [INFO]: Supabase client initialized successfully.
+2025-05-08 23:21:06 [INFO]: Attempting to start server on port 5001
+2025-05-08 23:21:06 [INFO]: Environment: development
+2025-05-08 23:21:06 [INFO]: Process environment PORT variable: 5001
+2025-05-08 23:21:06 [INFO]: Starting server...
+2025-05-08 23:21:06 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-08 23:21:06 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-08 23:22:24 [INFO]: Request started: POST /api/tts/process
+2025-05-08 23:22:24 [INFO]: [da11db27-1284-405f-8bc8-374cda1b14eb] Received TTS request.
+2025-05-08 23:22:24 [INFO]: [da11db27-1284-405f-8bc8-374cda1b14eb] Parsing input...
+2025-05-08 23:22:24 [INFO]: [da11db27-1284-405f-8bc8-374cda1b14eb] Processing application/json request.
+2025-05-08 23:22:24 [INFO]: [da11db27-1284-405f-8bc8-374cda1b14eb] JSON details: type=text, level=A1, rate=0.8
+2025-05-08 23:22:24 [ERROR]: [da11db27-1284-405f-8bc8-374cda1b14eb] Missing required input parameters.
+2025-05-08 23:22:24 [INFO]: [da11db27-1284-405f-8bc8-374cda1b14eb] Performing final cleanup.
+2025-05-08 23:37:06 [INFO]: Request started: POST /api/tts/process
+2025-05-08 23:37:06 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Received TTS request.
+2025-05-08 23:37:06 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Parsing input...
+2025-05-08 23:37:06 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Processing application/json request.
+2025-05-08 23:37:06 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] JSON details: type=text, level=A1, rate=0.8
+2025-05-08 23:37:06 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Step 1: Extracting text...
+2025-05-08 23:37:06 [INFO]: Extracting text for input type: text
+2025-05-08 23:37:06 [INFO]: Rewriting input text to English narration via prompt.
+2025-05-08 23:37:06 [INFO]: Rewriting input text to English narration at level: A1...
+2025-05-08 23:37:16 [INFO]: Successfully rewrote input to English narration.
+2025-05-08 23:37:16 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Text extracted successfully.
+2025-05-08 23:37:16 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Step 2: Cleaning text...
+2025-05-08 23:37:16 [DEBUG]: Starting TTS cleaning...
+2025-05-08 23:37:16 [DEBUG]: After HTML tag removal (first 100): Hello, this is a test. Today, we are embarking on a journey to explore the fascinating world of lang
+2025-05-08 23:37:16 [DEBUG]: After HTML entity decoding (first 100): Hello, this is a test. Today, we are embarking on a journey to explore the fascinating world of lang
+2025-05-08 23:37:16 [DEBUG]: After emoji removal (first 100): Hello, this is a test. Today, we are embarking on a journey to explore the fascinating world of lang
+2025-05-08 23:37:16 [DEBUG]: After unwanted character removal (first 100): Hello, this is a test. Today, we are embarking on a journey to explore the fascinating world of lang
+2025-05-08 23:37:16 [DEBUG]: After line break normalization (first 100): Hello, this is a test. Today, we are embarking on a journey to explore the fascinating world of lang
+2025-05-08 23:37:16 [DEBUG]: After marking paragraph breaks (first 100): Hello, this is a test. Today, we are embarking on a journey to explore the fascinating world of lang
+2025-05-08 23:37:16 [DEBUG]: After removing single newlines (first 100): Hello, this is a test. Today, we are embarking on a journey to explore the fascinating world of lang
+2025-05-08 23:37:16 [DEBUG]: After restoring paragraph breaks (first 100): Hello, this is a test. Today, we are embarking on a journey to explore the fascinating world of lang
+2025-05-08 23:37:16 [DEBUG]: After space normalization (first 100): Hello, this is a test. Today, we are embarking on a journey to explore the fascinating world of lang
+2025-05-08 23:37:16 [DEBUG]: After final trim (first 100): Hello, this is a test. Today, we are embarking on a journey to explore the fascinating world of lang
+2025-05-08 23:37:16 [INFO]: Text cleaning for TTS completed (preserving paragraphs).
+2025-05-08 23:37:16 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Text cleaned successfully.
+2025-05-08 23:37:16 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Step 2.5: Detecting language and translating if needed...
+2025-05-08 23:37:17 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Translation successful.
+2025-05-08 23:37:17 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Step 3: Adapting text to CEFR level A1...
+2025-05-08 23:37:17 [INFO]: Sending request to OpenAI (model: gpt-4o) for CEFR level A1 adaptation.
+2025-05-08 23:37:18 [INFO]: Received adapted text from OpenAI.
+2025-05-08 23:37:18 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Text adapted successfully.
+2025-05-08 23:37:18 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Step 4: Chunking text for TTS...
+2025-05-08 23:37:18 [DEBUG]: Split text into 1 paragraphs.
+2025-05-08 23:37:18 [DEBUG]: Processing paragraph 1 with 2 potential sentences.
+2025-05-08 23:37:18 [DEBUG]: Appended sentence to current chunk. New length: 68, New bytes: 68
+2025-05-08 23:37:18 [DEBUG]: Appended sentence to current chunk. New length: 147, New bytes: 147
+2025-05-08 23:37:18 [DEBUG]: Added final remaining chunk. Length: 147, Bytes: 147
+2025-05-08 23:37:18 [INFO]: Text processing resulted in 1 final chunks.
+2025-05-08 23:37:18 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Text chunked into 1 parts.
+2025-05-08 23:37:18 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Step 5: Synthesizing speech using Google TTS...
+2025-05-08 23:37:18 [ERROR]: Credential file not found at path: /etc/secrets/google-tts.json
+2025-05-08 23:37:18 [ERROR]: Error: Google Cloud credentials file not found. Please ensure the credentials file exists at: /etc/secrets/google-tts.json
+    at initializeClient (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:39:19)
+    at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:141:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-08 23:37:18 [ERROR]: Error: Google TTS client failed to initialize. Please check your credentials and ensure the Text-to-Speech API is enabled in your Google Cloud project.
+    at initializeClient (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:53:15)
+    at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:141:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-08 23:37:18 [INFO]: [4107d8f4-e8ba-406a-a260-512a48e9f99c] Performing final cleanup.

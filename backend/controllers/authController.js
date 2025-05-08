@@ -51,7 +51,7 @@ exports.register = async (req, res) => {
 
     // Check if email already exists
     const { data: existingUser } = await supabase
-      .from("users")
+      .from('Users')
       .select("email")
       .eq("email", email)
       .maybeSingle();
@@ -62,9 +62,10 @@ exports.register = async (req, res) => {
 
     // Check if phone number already exists
     const { data: existingPhone } = await supabase
-      .from("users")
-      .select("phoneNumber")
+      .from("Users")
+      .select("id")
       .eq("phoneNumber", phoneNumber)
+      .neq("id", userId)
       .maybeSingle();
 
     if (existingPhone) {
@@ -74,7 +75,7 @@ exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, await bcrypt.genSalt(10));
 
     const { data: newUser, error } = await supabase
-      .from("users")
+      .from("Users")
       .insert([
         {
           firstName,
@@ -124,7 +125,7 @@ exports.login = async (req, res) => {
     }
 
     const { data: user, error } = await supabase
-      .from("users")
+      .from("Users")
       .select("*")
       .eq("email", email)
       .single();
@@ -162,7 +163,7 @@ exports.getCurrentUser = async (req, res) => {
     const { id } = req.user;
     
     const { data: user, error } = await supabase
-      .from("users")
+      .from("Users")
       .select("*")
       .eq("id", id)
       .single();
@@ -195,7 +196,7 @@ exports.updateProfile = async (req, res) => {
     // If phone number is being updated, check if it's already in use
     if (phoneNumber) {
       const { data: existingPhone } = await supabase
-        .from("users")
+        .from("Users")
         .select("id")
         .eq("phoneNumber", phoneNumber)
         .neq("id", userId)
@@ -217,7 +218,7 @@ exports.updateProfile = async (req, res) => {
     }
 
     const { data, error } = await supabase
-      .from("users")
+      .from("Users")
       .update(updateData)
       .eq("id", userId)
       .select();
@@ -252,7 +253,7 @@ exports.changePassword = async (req, res) => {
     }
 
     const { data: user } = await supabase
-      .from("users")
+      .from("Users")
       .select("*")
       .eq("id", userId)
       .single();
@@ -263,7 +264,7 @@ exports.changePassword = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
     const { error } = await supabase
-      .from("users")
+      .from("Users")
       .update({
         password: hashedPassword,
         updated_at: new Date().toISOString()
