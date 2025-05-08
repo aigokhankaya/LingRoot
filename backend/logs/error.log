@@ -1,6 +1,0 @@
-2025-05-01 06:09:15 [ERROR]: ❌ Unable to connect to the database: column "createdAt" of relation "Users" contains null values
-2025-05-01 06:09:35 [ERROR]: ❌ Unable to connect to the database: column "createdAt" of relation "Users" contains null values
-2025-05-01 06:09:35 [ERROR]: ❌ Server failed to start: listen EADDRINUSE: address already in use 0.0.0.0:5000
-2025-05-01 06:09:35 [ERROR]: ❌ Port 5000 is already in use
-2025-05-01 06:11:02 [ERROR]: ❌ Unable to connect to the database: column "createdAt" of relation "Users" contains null values
-2025-05-08 10:55:01 [ERROR]: [e19c31ef-1814-47db-8b95-3591fd80691f] Missing required input parameters.
