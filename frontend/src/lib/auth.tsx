@@ -13,7 +13,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   register: (firstName: string, lastName: string, email: string, phoneNumber: string, password: string) => Promise<{ success: boolean; message?: string }>;
 }
@@ -24,8 +24,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
-  const login = async (email: string, password: string) => {
-    // ... existing code ...
+  const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setUser(data.user);
+        setIsAuthenticated(true);
+        // Token veya başka bir şey kaydedilecekse burada yapılabilir
+        return { success: true };
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+        return { success: false, message: data.message || 'Giriş başarısız.' };
+      }
+    } catch (error: any) {
+      setUser(null);
+      setIsAuthenticated(false);
+      return { success: false, message: error.message || 'Giriş sırasında bir hata oluştu.' };
+    }
   };
 
   const logout = () => {
