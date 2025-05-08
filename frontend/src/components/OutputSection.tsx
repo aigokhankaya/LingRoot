@@ -24,7 +24,7 @@ interface ContentHistoryItem {
 }
 
 interface OutputSectionProps {
-  audioResult?: AudioResult;
+  audioResult?: AudioResult | null;
   isLoggedIn: boolean;
   contentHistory?: ContentHistoryItem[];
 }
