@@ -182,6 +182,25 @@ Create a `.env.local` file in the `frontend/` directory:
     *   Set the `NEXT_PUBLIC_API_URL` environment variable in Vercel to the deployed backend URL.
     *   Vercel should automatically detect and build the Next.js application.
 
+## MCP (Main Codebase Pattern) Uyumlu Kod Standartları
+
+LingRoot projesinde kodun sürdürülebilirliği ve hatasız build için aşağıdaki MCP standartlarına uyulmaktadır:
+
+- **Tipler (Types/Interfaces):**
+  - Tüm ana tipler (ör. `User`, `AuthContextType`, `MembershipLevel`) `src/types/` altında merkezi olarak tanımlanır ve her yerde import edilerek kullanılır.
+  - Tekrar tip tanımı yapılmaz.
+- **API Mapping:**
+  - API'den gelen snake_case veriler, frontend'de camelCase'e map edilir. Mapping fonksiyonları `src/lib/` altında merkezi olarak tutulur.
+- **Context ve Hook Kullanımı:**
+  - Kullanıcı ve auth işlemleri için sadece `useAuth` kullanılır. Diğer context'ler merkezi hook'tan veri alır.
+- **Dosya ve Dizin Yapısı:**
+  - Her ana modül için ayrı dosya/dizin, ortak tipler ve yardımcılar merkezi bir yerde.
+- **Bileşen Prop ve Enum Standartları:**
+  - Bileşenlerde kullanılacak prop'lar (ör. `variant`, `status`) union type veya enum olarak merkezi bir yerde tanımlanır ve her yerde aynı isim/değerler kullanılır.
+- **.gitignore:**
+  - Sadece kökte bulunur, tüm alt dizinler için geçerlidir.
+- **Bağımlılıklar:**
+  - Tüm bağımlılıklar güncel ve eksiksiz olarak `package.json'da tutulur.
 
 ---
 
@@ -352,38 +371,3 @@ Aşağıda verilen konu başlığı, kullanıcının ilgi alanına göre seçti�
    SUPABASE_SERVICE_KEY=xxx
    SUPABASE_BUCKET=xxx
    ```
-
-3. **Bağımlılıkları yükle:**
-   ```sh
-   npm install
-   # veya
-   yarn install
-   ```
-
-4. **Geliştirme sunucusunu başlat:**
-   ```sh
-   npm run dev
-   # veya
-   yarn dev
-   ```
-
-## Deployment
-
-- Vercel, Netlify veya kendi sunucunda deploy edebilirsin.
-- Ortam değişkenlerini production ortamında da tanımlamayı unutma.
-- Supadata API anahtarını asla client-side koda gömme! (Next.js ile .env.local'da tanımlanır ve sadece fetch sırasında header'a eklenir.)
-
-## YouTube Transcript Servisi
-- Transcript almak için Supadata API kullanılır:
-  - Endpoint: `https://api.supadata.ai/v1/youtube/transcript?url=YOUTUBE_VIDEO_URL`
-  - Header: `x-api-key: <API_KEY>`
-- API anahtarını almak için: https://dash.supadata.ai/
-
-## Geliştirici Notları
-- Tüm servis fonksiyonları `apps/frontend/src/services/` klasöründe modülerdir.
-- Eski ngrok transcript servisi kodda yedek olarak kalmıştır, istenirse tekrar bağlanabilir.
-- Kodun tamamı modüler ve test edilebilir yapıdadır.
-
----
-Herhangi bir sorunda veya katkı için PR gönderebilirsin!
-

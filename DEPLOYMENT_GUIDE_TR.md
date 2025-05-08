@@ -1,5 +1,13 @@
 # LingRoot GitHub Dağıtım Kılavuzu (Vercel & Render)
 
+## MCP (Main Codebase Pattern) Uyumlu Dağıtım Standartları
+
+- Tüm ana tipler ve contextler merkezi dosyalarda tutulur (`src/types/`, `src/lib/auth.tsx`).
+- API mapping fonksiyonları merkezi bir yerde (`src/lib/`) bulunur.
+- Ortam değişkenleri `.env.example` dosyasında eksiksiz ve güncel tutulur.
+- Sadece kökte `.gitignore` bulunur, tüm alt dizinler için geçerlidir.
+- Her yeni özellik veya alan önce tip dosyasında tanımlanır, sonra kullanılır.
+
 Bu kılavuz, LingRoot projesini GitHub üzerinden Vercel (frontend) ve Render (backend) platformlarına nasıl dağıtacağınızı açıklar.
 
 ## Proje Yapısı
