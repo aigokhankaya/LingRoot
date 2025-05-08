@@ -99,7 +99,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdate }) => {
             />
           </div>
           <div className="flex space-x-3">
-            <Button type="submit" variant="primary">
+            <Button type="submit" variant="default">
               Save Changes
             </Button>
             <Button
@@ -131,7 +131,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdate }) => {
             </p>
           </div>
           <Button
-            variant="primary"
+            variant="default"
             onClick={() => setIsEditing(true)}
           >
             Edit Profile
