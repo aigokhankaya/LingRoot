@@ -11,13 +11,14 @@ import { useAuth } from "./auth";
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://lingloops-backend.onrender.com/api";
 
 export interface ProcessInputData {
-    type: "text" | "youtube" | "spotify" | "file" | "weblink";
+    type: "text" | "youtube" | "spotify" | "file" | "weblink" | "topic" | "book";
     input?: string;
     text?: string;
     file?: File;
     level: string;
     SesHızı?: number;
     voice?: string;
+    chapter?: string;
 }
 
 export interface TtsResponseData {

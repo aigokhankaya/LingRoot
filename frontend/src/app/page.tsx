@@ -17,6 +17,7 @@ interface InputData {
   level: string;
   SesHızı?: number;
   voice?: string;
+  chapter?: string;
 }
 
 interface AudioResult {
@@ -72,6 +73,7 @@ const Page: React.FC = () => {
         level: inputData.level,
         SesHızı: inputData.SesHızı,
         voice: inputData.voice,
+        chapter: (inputData as any).chapter,
       };
       const result = await processTts(processInput);
       if (result && result.mp3_url) {

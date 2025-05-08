@@ -1,21 +1,14 @@
 'use client';
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useTranslation } from '@/lib/i18n';
+import { ProcessInputData } from '../lib/api';
 
-type InputType = 'text' | 'topic' | 'youtube' | 'weblink' | 'file' | 'book' | 'spotify';
+type InputType = ProcessInputData['type'];
 type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 type Voice = 'en-GB-Wavenet-B' | 'en-US-Wavenet-D' | 'en-US-Wavenet-F';
 
 interface InputSectionProps {
-  onSubmit: (data: {
-    input: string;
-    type: InputType;
-    level: Level;
-    voice: Voice;
-    speakingRate: number;
-    file?: File;
-    chapter?: string;
-  }) => void;
+  onSubmit: (data: ProcessInputData) => void;
   isLoading: boolean;
 }
 
@@ -77,11 +70,11 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     setSelectedTopic(suggestion);
     setShowTopicStep(false);
     onSubmit({
-      input: suggestion,
       type: 'topic',
+      text: suggestion,
       level,
       voice,
-      speakingRate
+      SesHızı: speakingRate
     });
   };
 
@@ -99,36 +92,21 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       handleTopicSuggest(e);
       return;
     }
-    let inputData = {
+    const inputData: ProcessInputData = {
+      type: inputType,
+      text: inputType === 'text' ? text : undefined,
+      input:
+        inputType === 'youtube' ? youtubeLink :
+        inputType === 'weblink' ? webLink :
+        inputType === 'spotify' ? spotifyLink :
+        inputType === 'book' ? bookName :
+        undefined,
+      file: inputType === 'file' ? file || undefined : undefined,
       level,
+      SesHızı: speakingRate,
       voice,
-      speakingRate,
-      type: inputType === 'youtube' ? 'text' : inputType
-    } as {
-      input: string;
-      type: InputType;
-      level: Level;
-      voice: Voice;
-      speakingRate: number;
-      file?: File;
-      chapter?: string;
+      chapter: inputType === 'book' ? bookChapter : undefined,
     };
-
-    if (inputType === 'text') {
-      inputData.input = text;
-    } else if (inputType === 'youtube') {
-      inputData.input = youtubeLink;
-    } else if (inputType === 'weblink') {
-      inputData.input = webLink;
-    } else if (inputType === 'spotify') {
-      inputData.input = spotifyLink;
-    } else if (inputType === 'file' && file) {
-      inputData.file = file;
-      inputData.input = file.name;
-    } else if (inputType === 'book') {
-      inputData.input = bookName;
-      inputData.chapter = bookChapter;
-    }
     onSubmit(inputData);
   };
 
@@ -205,17 +183,6 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
                 <span>{t('document')}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setInputType('book')}
-                className={`icon-button group ${inputType === 'book' ? 'icon-button-selected' : 'icon-button-default'}`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-                <span>{t('book')}</span>
               </button>
 
               <button
