@@ -9,6 +9,14 @@
 6. [Sık Sorulan Sorular](#sık-sorulan-sorular)
 7. [Teknik Destek](#teknik-destek)
 
+## MCP (Main Codebase Pattern) Uyumlu Kullanım Standartları
+
+- Kullanıcı ve admin panelinde gösterilen tüm bilgiler merkezi tiplerden (`src/types/`) ve context'ten (`useAuth`, `useMembership`) alınır.
+- Üyelik seviyesi, kullanıcı bilgisi, içerik geçmişi gibi alanlar, merkezi tip ve context ile yönetilir.
+- API'den gelen veriler mapping fonksiyonları ile camelCase'e çevrilir.
+- Her yeni özellik veya alan önce tip dosyasında tanımlanır, sonra kullanılır.
+- Kodun her yerinde aynı isim, aynı yapı, aynı tip kullanılır.
+
 ## 🚀 Giriş
 
 LingRoot, dil öğrenmeyi kolaylaştıran, yapay zeka destekli bir dil öğrenme platformudur. Platform, kullanıcıların seviyelerine uygun içerikler oluşturarak, dinleme ve konuşma becerilerini geliştirmelerine yardımcı olur.
