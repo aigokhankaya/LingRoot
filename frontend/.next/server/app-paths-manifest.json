@@ -1,1 +1,13 @@
-{}
+{
+  "/_not-found": "app/_not-found.js",
+  "/admin/content/page": "app/admin/content/page.js",
+  "/admin/dashboard/page": "app/admin/dashboard/page.js",
+  "/admin/login/page": "app/admin/login/page.js",
+  "/admin/payments/page": "app/admin/payments/page.js",
+  "/admin/roles/page": "app/admin/roles/page.js",
+  "/admin/statistics/page": "app/admin/statistics/page.js",
+  "/admin/users/page": "app/admin/users/page.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/register/page": "app/register/page.js"
+}
