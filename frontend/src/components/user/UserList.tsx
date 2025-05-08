@@ -116,7 +116,7 @@ const UserList: React.FC = () => {
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <Button
-                  variant="danger"
+                  variant="destructive"
                   size="sm"
                   onClick={() => handleDeleteUser(user.id)}
                 >
