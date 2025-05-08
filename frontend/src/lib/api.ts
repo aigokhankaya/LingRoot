@@ -7,8 +7,57 @@ declare const process: {
 };
 
 import { useAuth } from "./auth";
+import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://lingloops-backend.onrender.com/api";
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+});
+
+// İstek interceptor'ı
+api.interceptors.request.use((request: AxiosRequestConfig) => {
+  const startTime = Date.now();
+  request.metadata = { startTime };
+  
+  console.log('API İsteği:', {
+    url: request.url,
+    method: request.method,
+    data: request.data,
+    headers: request.headers
+  });
+  
+  return request;
+});
+
+// Yanıt interceptor'ı
+api.interceptors.response.use(
+  (response: AxiosResponse) => {
+    const duration = Date.now() - response.config.metadata.startTime;
+    
+    console.log('API Yanıtı:', {
+      url: response.config.url,
+      status: response.status,
+      duration: `${duration}ms`,
+      data: response.data
+    });
+    
+    return response;
+  },
+  (error: AxiosError) => {
+    const duration = Date.now() - error.config?.metadata?.startTime;
+    
+    console.error('API Hatası:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      duration: `${duration}ms`,
+      message: error.message,
+      data: error.response?.data
+    });
+    
+    return Promise.reject(error);
+  }
+);
+
+export default api;
 
 export interface ProcessInputData {
     type: "text" | "youtube" | "spotify" | "file" | "weblink" | "topic" | "book";

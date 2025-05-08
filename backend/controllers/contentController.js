@@ -2,6 +2,7 @@
 const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 const logger = require("../utils/logger"); // Import logger
+const { logStep } = require('../utils/stepLogger');
 
 // Supabase istemcisini oluştur
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -284,6 +285,50 @@ exports.submitContent = async (req, res) => {
       message: "İşlem sırasında beklenmeyen bir hata oluştu.",
       error: error.message,
     });
+  }
+};
+
+exports.createContent = async (req, res) => {
+  const startTime = process.hrtime();
+  let stepSequence = 1;
+
+  try {
+    // Başlangıç logu
+    logStep({
+      requestId: req.requestId,
+      stepName: 'content:create:start',
+      stepSequence: stepSequence++,
+      inputData: req.body,
+      userId: req.user?.id
+    });
+
+    // İçerik oluşturma işlemi
+    const content = await Content.create(req.body);
+    
+    // Başarılı sonuç logu
+    logStep({
+      requestId: req.requestId,
+      stepName: 'content:create:end',
+      stepSequence: stepSequence++,
+      outputData: content,
+      userId: req.user?.id,
+      startTime
+    });
+
+    res.status(201).json(content);
+  } catch (error) {
+    // Hata logu
+    logStep({
+      requestId: req.requestId,
+      stepName: 'content:create:error',
+      stepSequence: stepSequence++,
+      status: 'failure',
+      error,
+      userId: req.user?.id,
+      startTime
+    });
+
+    res.status(500).json({ error: 'İçerik oluşturulurken bir hata oluştu' });
   }
 };
 
