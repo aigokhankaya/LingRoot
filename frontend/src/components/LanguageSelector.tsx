@@ -1,7 +1,8 @@
 'use client';
 
 // Import useTranslation and useLanguage using alias paths
-import { useTranslation, useLanguage } from '@/lib/i18n';
+import { useTranslation, useLanguage, Locale } from '@/lib/i18n';
+import React from 'react';
 
 export default function LanguageSelector() {
   // Keep useLanguage for changeLanguage functionality and currentLocale
@@ -13,7 +14,7 @@ export default function LanguageSelector() {
     <div className="relative">
       <select
         value={currentLocale}
-        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => changeLanguage(e.target.value)}
+        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => changeLanguage(e.target.value as Locale)}
         className="appearance-none bg-transparent pl-8 pr-10 py-2 text-white
           border border-blue-400 rounded-lg cursor-pointer
           hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 
@@ -26,7 +27,7 @@ export default function LanguageSelector() {
         }}
       >
         {/* Dynamically generate options based on supportedLocales */}
-        {supportedLocales.map((locale: string) => (
+        {supportedLocales.map((locale: Locale) => (
           <option 
             key={locale} 
             value={locale}
@@ -37,11 +38,10 @@ export default function LanguageSelector() {
           </option>
         ))}
       </select>
-      <div className="absolute inset-y-0 left-2 flex items-center pointer-events-none">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-        </svg>
-      </div>
+      
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+      </svg>
     </div>
   );
 } 
