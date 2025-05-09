@@ -85,7 +85,7 @@ async function extractFromWebLink(url) {
  */
 async function generateEnglishNarrationForTopic(topic, level) {
     if (!openai) {
-        logger.error("OpenAI client is not initialized. Cannot generate narration for topic.");
+        logger.error("OpenAI API key not found. Cannot generate narration for topic.");
         return null;
     }
     logger.info(`Generating narration for topic: ${topic} at level: ${level}`);
@@ -98,8 +98,8 @@ async function generateEnglishNarrationForTopic(topic, level) {
     } catch (err) {
         logger.warn(`Failed to translate topic to English, using original: ${err.message}`);
     }
-    // Promptu dosyadan oku
-    const promptPath = path.join(__dirname, "../prompts/topic.txt");
+    // Yeni prompt dosyasını kullan
+    const promptPath = path.join(__dirname, "../prompts/rewrite_to_narration.txt");
     let promptTemplate = fs.readFileSync(promptPath, "utf-8");
     const prompt = promptTemplate
         .replace(/\{\{konu\}\}/g, topicEn)
@@ -136,7 +136,7 @@ async function generateEnglishNarrationForTopic(topic, level) {
  */
 async function rewriteToEnglishNarration(inputText, level = "A1") {
     if (!openai) {
-        logger.error("OpenAI client is not initialized. Cannot rewrite narration.");
+        logger.error("OpenAI API key not found. Cannot rewrite narration.");
         return null;
     }
     logger.info(`Rewriting input text to English narration at level: ${level}...`);
@@ -258,6 +258,57 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
             logger.error(`Unsupported input type: ${inputType}`);
             return null;
     }
+}
+
+// Transcript temizleme fonksiyonu (örnek)
+async function cleanTranscriptWithPrompt(rawTranscript) {
+    if (!openai) {
+        logger.error("OpenAI API key not found. Cannot clean transcript.");
+        return null;
+    }
+    logger.info(`Cleaning transcript with prompt...`);
+    const promptPath = path.join(__dirname, "../prompts/rewrite_transcript_clean.txt");
+    let promptTemplate = fs.readFileSync(promptPath, "utf-8");
+    const prompt = promptTemplate.replace(/\{\{transkript\}\}/g, rawTranscript);
+    try {
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                { role: "system", content: "You are a transcript cleaner for TTS systems." },
+                { role: "user", content: prompt },
+            ],
+            temperature: 0.2,
+        });
+        const cleaned = completion.choices[0]?.message?.content?.trim();
+        if (cleaned) {
+            logger.info(`Successfully cleaned transcript.`);
+            return cleaned;
+        } else {
+            logger.error(`OpenAI response did not contain cleaned transcript.`);
+            return null;
+        }
+    } catch (error) {
+        logger.error(`Error cleaning transcript: ${error.message}`);
+        return null;
+    }
+}
+
+// İngilizceye çeviri fonksiyonu (örnek)
+async function translateToEnglishWithPrompt(text) {
+    if (!openai) throw new Error("OpenAI client is not initialized.");
+    const promptPath = path.join(__dirname, "../prompts/translate_to_english.txt");
+    let promptTemplate = fs.readFileSync(promptPath, "utf-8");
+    const prompt = promptTemplate.replace(/\{\{metin\}\}/g, text);
+    const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+            { role: "system", content: "You are a translation assistant." },
+            { role: "user", content: prompt }
+        ],
+        temperature: 0.2,
+    });
+    const translated = completion.choices[0]?.message?.content?.trim() || text;
+    return { text: translated, detectedLang: "auto" };
 }
 
 module.exports = {

@@ -20,3 +20,13 @@ Convert the input text below — which may be in any language — into a 15-minu
 
 📤 OUTPUT:
 Return a single, continuous, paragraph-based English narration that sounds natural when read aloud. 
+
+// 🇹🇷 Kullanım: "Konu ile Metin Oluştur" adımında kullanılır.
+// Kullanıcının verdiği konu başlığından 15 dakikalık (~2000–2500 kelime) anlatım üretir.
+
+Write a CEFR C2 level spoken-style narration in the same language as the topic: {{konu}}.  
+Length must be 2000–2500 words. Use introduction → development → conclusion structure.  
+If the topic refers to a country, focus on current events and national agenda.  
+If the topic includes "today", "now", or recent events, include up-to-date context.  
+Use fluent, spoken English. No lists, headlines, symbols, or explanations.  
+Return only the final narration text in paragraph format. 
