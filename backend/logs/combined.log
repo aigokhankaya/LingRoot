@@ -102,3 +102,13 @@
 2025-05-09 10:40:40 [INFO]: [61c99f79-bf32-4eff-8cfe-ac7bbae04d7d] JSON details: type=text, level=A1, rate=0.8
 2025-05-09 10:40:40 [ERROR]: [61c99f79-bf32-4eff-8cfe-ac7bbae04d7d] Missing required input parameters.
 2025-05-09 10:40:40 [INFO]: [61c99f79-bf32-4eff-8cfe-ac7bbae04d7d] Performing final cleanup.
+2025-05-09 10:43:57 [INFO]: Logger initialized with level: debug
+2025-05-09 10:43:59 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-09 10:43:59 [INFO]: OpenAI client initialized successfully.
+2025-05-09 10:43:59 [INFO]: Supabase client initialized successfully.
+2025-05-09 10:43:59 [INFO]: Attempting to start server on port 5001
+2025-05-09 10:43:59 [INFO]: Environment: development
+2025-05-09 10:43:59 [INFO]: Process environment PORT variable: 5001
+2025-05-09 10:43:59 [INFO]: Starting server...
+2025-05-09 10:43:59 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-09 10:43:59 [INFO]: ✅ Server successfully bound to port 5001

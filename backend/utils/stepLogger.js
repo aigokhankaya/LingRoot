@@ -63,7 +63,11 @@ const logStep = ({
   outputData = null,
   error = null,
   userId = null,
-  startTime = null
+  startTime = null,
+  serviceName = null,
+  endpoint = null,
+  promptName = null,
+  promptText = null
 }) => {
   const logData = {
     requestId,
@@ -71,7 +75,11 @@ const logStep = ({
     stepSequence,
     status,
     timestamp: new Date().toISOString(),
-    userId
+    userId,
+    serviceName,
+    endpoint,
+    promptName,
+    promptText
   };
 
   // Add duration if startTime is provided
