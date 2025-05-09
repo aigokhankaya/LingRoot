@@ -10,3 +10,17 @@
     at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
     at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:141:33)
     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-09 10:34:56 [ERROR]: Error: Not Found - /favicon.ico
+    at exports.notFound (C:\Users\USER\Documents\GitHub\LingRoot\backend\middleware\errorHandler.js:33:17)
+    at Layer.handle [as handle_request] (C:\Users\USER\Documents\GitHub\LingRoot\backend\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\Users\USER\Documents\GitHub\LingRoot\backend\node_modules\express\lib\router\index.js:328:13)
+    at C:\Users\USER\Documents\GitHub\LingRoot\backend\node_modules\express\lib\router\index.js:286:9
+    at Function.process_params (C:\Users\USER\Documents\GitHub\LingRoot\backend\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\USER\Documents\GitHub\LingRoot\backend\node_modules\express\lib\router\index.js:280:10)
+    at SendStream.error (C:\Users\USER\Documents\GitHub\LingRoot\backend\node_modules\serve-static\index.js:121:7)
+    at SendStream.emit (node:events:518:28)
+    at SendStream.error (C:\Users\USER\Documents\GitHub\LingRoot\backend\node_modules\send\index.js:270:17)
+    at SendStream.onStatError (C:\Users\USER\Documents\GitHub\LingRoot\backend\node_modules\send\index.js:417:12)
+    at onstat (C:\Users\USER\Documents\GitHub\LingRoot\backend\node_modules\send\index.js:721:26)
+    at FSReqCallback.oncomplete (node:fs:198:21)
+2025-05-09 10:40:40 [ERROR]: [61c99f79-bf32-4eff-8cfe-ac7bbae04d7d] Missing required input parameters.
