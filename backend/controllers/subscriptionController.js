@@ -2,7 +2,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 const logger = require("../utils/logger"); // Import logger
-const { logStep } = require('../utils/stepLogger');
+// const { logStep } = require('../utils/stepLogger');
 const { v4: uuidv4 } = require('uuid');
 
 // Supabase client
@@ -13,8 +13,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // Get subscription plans
 exports.getSubscriptionPlans = async (req, res) => {
   const requestId = uuidv4();
-  let stepSequence = 1;
-  logStep({ ... });
+  // let stepSequence = 1;
+  // logStep({ ... });
 
   try {
     logger.info("Fetching subscription plans");
@@ -50,8 +50,8 @@ exports.getSubscriptionPlans = async (req, res) => {
 // Create checkout session
 exports.createCheckoutSession = async (req, res) => {
   const requestId = uuidv4();
-  let stepSequence = 1;
-  logStep({ ... });
+  // let stepSequence = 1;
+  // logStep({ ... });
 
   try {
     const { planId } = req.body;
@@ -154,8 +154,8 @@ exports.handleWebhook = async (req, res) => {
   let event;
 
   const requestId = uuidv4();
-  let stepSequence = 1;
-  logStep({ ... });
+  // let stepSequence = 1;
+  // logStep({ ... });
 
   try {
     logger.info("Received Stripe webhook event");
@@ -204,8 +204,8 @@ exports.handleWebhook = async (req, res) => {
 // Helper function to handle checkout session completed
 async function handleCheckoutSessionCompleted(session) {
   const requestId = uuidv4();
-  let stepSequence = 1;
-  logStep({ ... });
+  // let stepSequence = 1;
+  // logStep({ ... });
 
   try {
     const { userId, planId } = session.metadata;
@@ -253,8 +253,8 @@ async function handleCheckoutSessionCompleted(session) {
 // Helper function to handle subscription updated
 async function handleSubscriptionUpdated(subscription) {
   const requestId = uuidv4();
-  let stepSequence = 1;
-  logStep({ ... });
+  // let stepSequence = 1;
+  // logStep({ ... });
 
   try {
     logger.info(`Processing updated subscription for Stripe Subscription ID: ${subscription.id}, Status: ${subscription.status}`);
@@ -313,8 +313,8 @@ async function handleSubscriptionUpdated(subscription) {
 // Helper function to handle subscription canceled (deleted in Stripe)
 async function handleSubscriptionCanceled(subscription) {
   const requestId = uuidv4();
-  let stepSequence = 1;
-  logStep({ ... });
+  // let stepSequence = 1;
+  // logStep({ ... });
 
   try {
     logger.info(`Processing canceled subscription for Stripe Subscription ID: ${subscription.id}`);
@@ -370,8 +370,8 @@ async function handleSubscriptionCanceled(subscription) {
 // Get user subscription
 exports.getUserSubscription = async (req, res) => {
   const requestId = uuidv4();
-  let stepSequence = 1;
-  logStep({ ... });
+  // let stepSequence = 1;
+  // logStep({ ... });
 
   try {
     const userId = req.user.id;
@@ -433,8 +433,8 @@ exports.getUserSubscription = async (req, res) => {
 // Cancel subscription (at period end)
 exports.cancelSubscription = async (req, res) => {
   const requestId = uuidv4();
-  let stepSequence = 1;
-  logStep({ ... });
+  // let stepSequence = 1;
+  // logStep({ ... });
 
   try {
     const userId = req.user.id;
@@ -505,8 +505,8 @@ exports.cancelSubscription = async (req, res) => {
 // Resume subscription
 exports.resumeSubscription = async (req, res) => {
   const requestId = uuidv4();
-  let stepSequence = 1;
-  logStep({ ... });
+  // let stepSequence = 1;
+  // logStep({ ... });
 
   try {
     const userId = req.user.id;
@@ -578,8 +578,8 @@ exports.resumeSubscription = async (req, res) => {
 // Update subscription (Change Plan) - Creates a checkout session for update
 exports.updateSubscription = async (req, res) => {
   const requestId = uuidv4();
-  let stepSequence = 1;
-  logStep({ ... });
+  // let stepSequence = 1;
+  // logStep({ ... });
 
   try {
     const userId = req.user.id;
