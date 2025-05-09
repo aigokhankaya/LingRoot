@@ -8,6 +8,7 @@ import InputSection from '../components/InputSection';
 import OutputSection from '../components/OutputSection';
 import Footer from '../components/Footer';
 import { useTranslation } from '@/lib/i18n';
+import { generateAudioAndSubtitle } from '../lib/ttsCommon';
 
 interface InputData {
   type: ProcessInputData['type'];
