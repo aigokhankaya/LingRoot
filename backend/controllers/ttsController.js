@@ -11,6 +11,7 @@ const { synthesizeSpeechChunks, synthesizeChunkWithTimepoints } = require("../ut
 const { mergeAudioSegments } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
 const tmp = require("tmp");
+const { logStep } = require('../utils/stepLogger');
 
 // Helper function for consistent temp file cleanup
 const cleanupTempFile = (filePath) => {
@@ -33,14 +34,22 @@ const cleanupTempFile = (filePath) => {
  * @param {import("express").Response} res Express response object.
  */
 const processTtsRequest = async (req, res) => {
-    const requestId = uuidv4(); // Unique ID for this request for logging
+    const requestId = uuidv4();
+    let stepSequence = 1;
     logger.info(`[${requestId}] Received TTS request.`);
-    let tempFilePath = null; // To track temporary file for cleanup
-    let detectedLang = 'en'; // Default language
+    let tempFilePath = null;
+    let detectedLang = 'en';
 
     try {
         // --- Input Parsing ---
-        logger.info(`[${requestId}] Parsing input...`);
+        logStep({
+            requestId,
+            stepName: 'tts:input:parse',
+            stepSequence: stepSequence++,
+            serviceName: 'Express',
+            endpoint: '/api/tts/process',
+            inputData: req.body
+        });
         let inputData, inputType, level, speakingRate, file;
 
         if (req.is("multipart/form-data")) {
@@ -72,7 +81,14 @@ const processTtsRequest = async (req, res) => {
         }
 
         // --- Step 1: Extract Text ---
-        logger.info(`[${requestId}] Step 1: Extracting text...`);
+        logStep({
+            requestId,
+            stepName: 'tts:extractText:start',
+            stepSequence: stepSequence++,
+            serviceName: 'LocalFunction',
+            endpoint: 'extractTextFromInput',
+            inputData: { inputData, inputType, file, level, detectedLang }
+        });
         let rawText;
         let originalTurkishText = null;
         let englishNarration = null;
@@ -99,14 +115,38 @@ const processTtsRequest = async (req, res) => {
             return res.status(400).json({ success: false, message: "Extracted text is empty." });
         }
         logger.info(`[${requestId}] Text extracted successfully.`);
+        logStep({
+            requestId,
+            stepName: 'tts:extractText:end',
+            stepSequence: stepSequence++,
+            serviceName: 'LocalFunction',
+            endpoint: 'extractTextFromInput',
+            outputData: { rawText }
+        });
 
         // --- Step 2: Clean Text ---
-        logger.info(`[${requestId}] Step 2: Cleaning text...`);
+        logStep({
+            requestId,
+            stepName: 'tts:cleanText',
+            stepSequence: stepSequence++,
+            serviceName: 'LocalFunction',
+            endpoint: 'cleanText',
+            inputData: { rawText },
+            outputData: { cleanedText }
+        });
         const cleanedText = cleanText(rawText);
         logger.info(`[${requestId}] Text cleaned successfully.`);
 
         // --- Step 2.5: Detect Language and Translate if Necessary ---
-        logger.info(`[${requestId}] Step 2.5: Detecting language and translating if needed...`);
+        logStep({
+            requestId,
+            stepName: 'tts:translate:openai:start',
+            stepSequence: stepSequence++,
+            serviceName: 'OpenAI',
+            endpoint: 'https://api.openai.com/v1/completions',
+            promptName: 'translateToEnglishWithOpenAI',
+            promptText: cleanedText
+        });
         let textToAdapt = cleanedText;
         try {
             const translationResult = await translateToEnglishWithOpenAI(cleanedText);
@@ -117,18 +157,50 @@ const processTtsRequest = async (req, res) => {
             textToAdapt = cleanedText;
             detectedLang = 'en';
         }
+        logStep({
+            requestId,
+            stepName: 'tts:translate:openai:end',
+            stepSequence: stepSequence++,
+            serviceName: 'OpenAI',
+            endpoint: 'https://api.openai.com/v1/completions',
+            outputData: { textToAdapt }
+        });
 
         // --- Step 3: Adapt to CEFR Level (OpenAI) ---
-        logger.info(`[${requestId}] Step 3: Adapting text to CEFR level ${level}...`);
+        logStep({
+            requestId,
+            stepName: 'tts:adapt:cefr:start',
+            stepSequence: stepSequence++,
+            serviceName: 'OpenAI',
+            endpoint: 'https://api.openai.com/v1/completions',
+            promptName: 'adaptToCEFR',
+            promptText: textToAdapt
+        });
         const adaptedText = await adaptToCEFR(textToAdapt, level);
         if (adaptedText === null) {
             logger.error(`[${requestId}] Failed to adapt text using OpenAI.`);
             return res.status(500).json({ success: false, message: "Failed to adapt text to the specified CEFR level." });
         }
         logger.info(`[${requestId}] Text adapted successfully.`);
+        logStep({
+            requestId,
+            stepName: 'tts:adapt:cefr:end',
+            stepSequence: stepSequence++,
+            serviceName: 'OpenAI',
+            endpoint: 'https://api.openai.com/v1/completions',
+            outputData: { adaptedText }
+        });
 
         // --- Step 4: Chunk Text for TTS ---
-        logger.info(`[${requestId}] Step 4: Chunking text for TTS...`);
+        logStep({
+            requestId,
+            stepName: 'tts:chunkText',
+            stepSequence: stepSequence++,
+            serviceName: 'LocalFunction',
+            endpoint: 'chunkText',
+            inputData: { adaptedText },
+            outputData: { chunkCount: textChunks.length }
+        });
         const textChunks = chunkText(adaptedText);
         if (!textChunks || textChunks.length === 0) {
             logger.warn(`[${requestId}] Text resulted in zero chunks after processing.`);
@@ -137,13 +209,28 @@ const processTtsRequest = async (req, res) => {
         logger.info(`[${requestId}] Text chunked into ${textChunks.length} parts.`);
 
         // --- Step 5: Synthesize Speech (Google TTS) ---
-        logger.info(`[${requestId}] Step 5: Synthesizing speech using Google TTS...`);
+        logStep({
+            requestId,
+            stepName: 'tts:googleTTS:start',
+            stepSequence: stepSequence++,
+            serviceName: 'GoogleTTS',
+            endpoint: 'https://texttospeech.googleapis.com/v1/text:synthesize',
+            inputData: { adaptedText, voice: 'en-US-Wavenet-D', speakingRate }
+        });
         const ttsResult = await synthesizeChunkWithTimepoints(adaptedText, "en-US", "en-US-Wavenet-D", speakingRate);
         if (!ttsResult || !ttsResult.audioContent) {
             logger.error(`[${requestId}] Failed to synthesize speech with timepoints.`);
             return res.status(500).json({ success: false, message: "Failed to generate audio with timepoints." });
         }
         logger.info(`[${requestId}] Speech synthesized successfully with timepoints.`);
+        logStep({
+            requestId,
+            stepName: 'tts:googleTTS:end',
+            stepSequence: stepSequence++,
+            serviceName: 'GoogleTTS',
+            endpoint: 'https://texttospeech.googleapis.com/v1/text:synthesize',
+            outputData: { audioLength: ttsResult.audioContent?.length }
+        });
 
         // --- Step 5.5: Generate VTT from timepoints ---
         let vttUrl = "";
@@ -184,7 +271,14 @@ const processTtsRequest = async (req, res) => {
         logger.info(`[${requestId}] Audio saved to temp file: ${tempFilePath}`);
 
         // --- Step 7: Upload to Storage (Supabase) ---
-        logger.info(`[${requestId}] Step 7: Uploading merged audio to Supabase...`);
+        logStep({
+            requestId,
+            stepName: 'tts:supabase:upload:start',
+            stepSequence: stepSequence++,
+            serviceName: 'Supabase',
+            endpoint: 'Storage: uploadToSupabase',
+            inputData: { tempFilePath, outputFilename }
+        });
         const supabaseUrl = await uploadToSupabase(tempFilePath, outputFilename);
         // Cleanup handled in finally block
 
@@ -193,9 +287,24 @@ const processTtsRequest = async (req, res) => {
             return res.status(500).json({ success: false, message: "Failed to save generated audio to storage." });
         }
         logger.info(`[${requestId}] Audio uploaded successfully to: ${supabaseUrl}`);
+        logStep({
+            requestId,
+            stepName: 'tts:supabase:upload:end',
+            stepSequence: stepSequence++,
+            serviceName: 'Supabase',
+            endpoint: 'Storage: uploadToSupabase',
+            outputData: { supabaseUrl }
+        });
 
         // --- Step 8: Return Success Response (Updated Format) ---
         logger.info(`[${requestId}] Processing complete. Returning success response.`);
+        logStep({
+            requestId,
+            stepName: 'tts:success',
+            stepSequence: stepSequence++,
+            status: 'success',
+            outputData: { mp3_url: supabaseUrl, vtt_url: vttUrl }
+        });
         return res.status(200).json({
             success: true,
             message: adaptedText,
@@ -209,7 +318,13 @@ const processTtsRequest = async (req, res) => {
         });
 
     } catch (error) {
-        logger.error(`[${requestId}] An unexpected error occurred in TTS controller: ${error.message}`, { stack: error.stack });
+        logStep({
+            requestId,
+            stepName: 'tts:error',
+            stepSequence: stepSequence++,
+            status: 'failure',
+            error
+        });
         // Cleanup handled in finally block
         return res.status(500).json({ success: false, message: "An internal server error occurred." });
     } finally {

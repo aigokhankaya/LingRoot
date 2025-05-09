@@ -3,6 +3,7 @@ const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 const logger = require("../utils/logger"); // Import logger
 const { logStep } = require('../utils/stepLogger');
+const { v4: uuidv4 } = require('uuid');
 
 // Supabase istemcisini oluştur
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -43,21 +44,33 @@ function convertGoogleDriveUrl(url) {
 
 // Placeholder functions - keep as is or implement later
 exports.processLink = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+
   logger.info("processLink called (placeholder)");
   res.json({ message: "Link processed (placeholder)" });
 };
 
 exports.processText = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+
   logger.info("processText called (placeholder)");
   res.json({ message: "Text processed (placeholder)" });
 };
 
 exports.processFile = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+
   logger.info("processFile called (placeholder)");
   res.json({ message: "File processed (placeholder)" });
 };
 
 exports.getContentHistory = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+
   try {
     const userId = req.user.id;
     logger.info(`Fetching content history for user ID: ${userId}`);
@@ -91,6 +104,9 @@ exports.getContentHistory = async (req, res) => {
 };
 
 exports.getContentById = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -126,6 +142,9 @@ exports.getContentById = async (req, res) => {
 };
 
 exports.deleteContent = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -179,6 +198,9 @@ exports.deleteContent = async (req, res) => {
 
 // Supabase Storage"a ses dosyası yükleme fonksiyonu (Bu fonksiyon doğrudan route tarafından çağrılmıyor, diğer servisler kullanabilir)
 async function uploadAudioToSupabase(audioBuffer, fileName) {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+
   try {
     // Dosya adı formatı: audio_YYYYMMDD_HHMMSS.mp3
     const timestamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0].replace("T", "_");
@@ -227,6 +249,9 @@ async function uploadAudioToSupabase(audioBuffer, fileName) {
 
 // Birleştirilmiş submitContent fonksiyonu (Bu fonksiyon muhtemelen TTS servisi tarafından çağrılacak)
 exports.submitContent = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+
   try {
     const { input, input_type, level, mp3_url, user_id } = req.body;
     logger.info(`submitContent request received for user ID: ${user_id || 'anon'}`, { input_type, level });
@@ -289,13 +314,13 @@ exports.submitContent = async (req, res) => {
 };
 
 exports.createContent = async (req, res) => {
-  const startTime = process.hrtime();
+  const requestId = uuidv4();
   let stepSequence = 1;
 
   try {
     // Başlangıç logu
     logStep({
-      requestId: req.requestId,
+      requestId: requestId,
       stepName: 'content:create:start',
       stepSequence: stepSequence++,
       inputData: req.body,
@@ -307,7 +332,7 @@ exports.createContent = async (req, res) => {
     
     // Başarılı sonuç logu
     logStep({
-      requestId: req.requestId,
+      requestId: requestId,
       stepName: 'content:create:end',
       stepSequence: stepSequence++,
       outputData: content,
@@ -319,7 +344,7 @@ exports.createContent = async (req, res) => {
   } catch (error) {
     // Hata logu
     logStep({
-      requestId: req.requestId,
+      requestId: requestId,
       stepName: 'content:create:error',
       stepSequence: stepSequence++,
       status: 'failure',

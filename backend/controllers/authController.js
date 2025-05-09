@@ -3,6 +3,8 @@ const bcrypt = require("bcryptjs");
 const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 const logger = require("../utils/logger");
+const { logStep } = require('../utils/stepLogger');
+const { v4: uuidv4 } = require('uuid');
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
@@ -20,7 +22,17 @@ const generateRefreshToken = (id) =>
   jwt.sign({ id }, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN });
 
 exports.register = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
   try {
+    logStep({
+      requestId,
+      stepName: 'auth:register:start',
+      stepSequence: stepSequence++,
+      serviceName: 'Express',
+      endpoint: '/api/auth/register',
+      inputData: req.body
+    });
     logger.info("Register request received", { body: req.body });
     const { firstName, lastName, email, phoneNumber, password } = req.body;
 
@@ -101,6 +113,22 @@ exports.register = async (req, res) => {
     const token = generateToken(newUser[0].id, newUser[0].email, newUser[0].role);
     const refreshToken = generateRefreshToken(newUser[0].id);
 
+    logStep({
+      requestId,
+      stepName: 'auth:register:supabase:insert',
+      stepSequence: stepSequence++,
+      serviceName: 'Supabase',
+      endpoint: 'Users',
+      inputData: { email, phoneNumber },
+      outputData: { userId: newUser?.[0]?.id }
+    });
+    logStep({
+      requestId,
+      stepName: 'auth:register:success',
+      stepSequence: stepSequence++,
+      status: 'success',
+      outputData: { userId: newUser?.[0]?.id }
+    });
     return res.status(201).json({
       success: true,
       message: "Kayıt başarılı",
@@ -112,6 +140,13 @@ exports.register = async (req, res) => {
     });
 
   } catch (error) {
+    logStep({
+      requestId,
+      stepName: 'auth:register:error',
+      stepSequence: stepSequence++,
+      status: 'failure',
+      error
+    });
     logger.error("Registration error", error);
     return res.status(500).json({ success: false, message: "Sunucu hatası" });
   }

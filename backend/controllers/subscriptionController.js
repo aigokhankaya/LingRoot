@@ -2,6 +2,8 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 const logger = require("../utils/logger"); // Import logger
+const { logStep } = require('../utils/stepLogger');
+const { v4: uuidv4 } = require('uuid');
 
 // Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -10,6 +12,10 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Get subscription plans
 exports.getSubscriptionPlans = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+  logStep({ ... });
+
   try {
     logger.info("Fetching subscription plans");
     const { data, error } = await supabase
@@ -43,6 +49,10 @@ exports.getSubscriptionPlans = async (req, res) => {
 
 // Create checkout session
 exports.createCheckoutSession = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+  logStep({ ... });
+
   try {
     const { planId } = req.body;
     const userId = req.user.id;
@@ -143,6 +153,10 @@ exports.handleWebhook = async (req, res) => {
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
   let event;
 
+  const requestId = uuidv4();
+  let stepSequence = 1;
+  logStep({ ... });
+
   try {
     logger.info("Received Stripe webhook event");
     try {
@@ -189,6 +203,10 @@ exports.handleWebhook = async (req, res) => {
 
 // Helper function to handle checkout session completed
 async function handleCheckoutSessionCompleted(session) {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+  logStep({ ... });
+
   try {
     const { userId, planId } = session.metadata;
     logger.info(`Processing completed checkout session for User ID: ${userId}, Plan ID: ${planId}, Subscription ID: ${session.subscription}`);
@@ -234,6 +252,10 @@ async function handleCheckoutSessionCompleted(session) {
 
 // Helper function to handle subscription updated
 async function handleSubscriptionUpdated(subscription) {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+  logStep({ ... });
+
   try {
     logger.info(`Processing updated subscription for Stripe Subscription ID: ${subscription.id}, Status: ${subscription.status}`);
     // Get subscription from database
@@ -290,6 +312,10 @@ async function handleSubscriptionUpdated(subscription) {
 
 // Helper function to handle subscription canceled (deleted in Stripe)
 async function handleSubscriptionCanceled(subscription) {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+  logStep({ ... });
+
   try {
     logger.info(`Processing canceled subscription for Stripe Subscription ID: ${subscription.id}`);
     // Get subscription from database
@@ -343,6 +369,10 @@ async function handleSubscriptionCanceled(subscription) {
 
 // Get user subscription
 exports.getUserSubscription = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+  logStep({ ... });
+
   try {
     const userId = req.user.id;
     logger.info(`Fetching subscription details for user ID: ${userId}`);
@@ -402,6 +432,10 @@ exports.getUserSubscription = async (req, res) => {
 
 // Cancel subscription (at period end)
 exports.cancelSubscription = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+  logStep({ ... });
+
   try {
     const userId = req.user.id;
     logger.info(`Request to cancel subscription at period end for user ID: ${userId}`);
@@ -470,6 +504,10 @@ exports.cancelSubscription = async (req, res) => {
 
 // Resume subscription
 exports.resumeSubscription = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+  logStep({ ... });
+
   try {
     const userId = req.user.id;
     logger.info(`Request to resume subscription for user ID: ${userId}`);
@@ -539,6 +577,10 @@ exports.resumeSubscription = async (req, res) => {
 
 // Update subscription (Change Plan) - Creates a checkout session for update
 exports.updateSubscription = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+  logStep({ ... });
+
   try {
     const userId = req.user.id;
     const { planId } = req.body;

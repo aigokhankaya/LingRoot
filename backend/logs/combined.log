@@ -112,3 +112,40 @@
 2025-05-09 10:43:59 [INFO]: Starting server...
 2025-05-09 10:43:59 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
 2025-05-09 10:43:59 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-09 10:45:19 [INFO]: Request started: POST /api/tts/process
+2025-05-09 10:45:19 [INFO]: [160b6d91-8c55-41dd-b090-af3044e772ce] Received TTS request.
+2025-05-09 10:45:19 [INFO]: [160b6d91-8c55-41dd-b090-af3044e772ce] Parsing input...
+2025-05-09 10:45:19 [INFO]: [160b6d91-8c55-41dd-b090-af3044e772ce] Processing application/json request.
+2025-05-09 10:45:19 [INFO]: [160b6d91-8c55-41dd-b090-af3044e772ce] JSON details: type=text, level=A1, rate=0.8
+2025-05-09 10:45:19 [ERROR]: [160b6d91-8c55-41dd-b090-af3044e772ce] Missing required input parameters.
+2025-05-09 10:45:19 [INFO]: [160b6d91-8c55-41dd-b090-af3044e772ce] Performing final cleanup.
+2025-05-09 10:50:49 [INFO]: Logger initialized with level: debug
+2025-05-09 10:50:51 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-09 10:50:51 [INFO]: OpenAI client initialized successfully.
+2025-05-09 10:50:51 [INFO]: Supabase client initialized successfully.
+2025-05-09 10:50:51 [INFO]: Attempting to start server on port 5001
+2025-05-09 10:50:51 [INFO]: Environment: development
+2025-05-09 10:50:51 [INFO]: Process environment PORT variable: 5001
+2025-05-09 10:50:51 [INFO]: Starting server...
+2025-05-09 10:50:51 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-09 10:50:51 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-09 10:53:57 [INFO]: Logger initialized with level: debug
+2025-05-09 10:53:59 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-09 10:53:59 [INFO]: OpenAI client initialized successfully.
+2025-05-09 10:54:00 [INFO]: Supabase client initialized successfully.
+2025-05-09 10:54:00 [INFO]: Attempting to start server on port 5001
+2025-05-09 10:54:00 [INFO]: Environment: development
+2025-05-09 10:54:00 [INFO]: Process environment PORT variable: 5001
+2025-05-09 10:54:00 [INFO]: Starting server...
+2025-05-09 10:54:00 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-09 10:54:00 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-09 10:56:16 [INFO]: Logger initialized with level: debug
+2025-05-09 10:56:18 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-09 10:56:18 [INFO]: OpenAI client initialized successfully.
+2025-05-09 10:56:18 [INFO]: Supabase client initialized successfully.
+2025-05-09 10:56:18 [INFO]: Attempting to start server on port 5001
+2025-05-09 10:56:18 [INFO]: Environment: development
+2025-05-09 10:56:18 [INFO]: Process environment PORT variable: 5001
+2025-05-09 10:56:18 [INFO]: Starting server...
+2025-05-09 10:56:18 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-09 10:56:18 [INFO]: ✅ Server successfully bound to port 5001
