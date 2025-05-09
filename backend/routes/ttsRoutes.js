@@ -1,7 +1,14 @@
 // backend/routes/ttsRoutes.js
 const express = require("express");
 const multer = require("multer");
-const { processTtsRequest } = require("../controllers/ttsController");
+const { 
+    processTtsRequest,
+    translateToEnglish,
+    adaptToCEFR,
+    chunkTextAPI,
+    synthesizeChunkAPI,
+    mergeAudioAPI
+} = require("../controllers/ttsController");
 const logger = require("../utils/logger");
 
 const router = express.Router();
@@ -55,6 +62,11 @@ router.post("/process", upload.single("file"), (req, res, next) => {
     next();
 });
 
+router.post("/translateToEnglish", translateToEnglish);
+router.post("/adaptToCEFR", adaptToCEFR);
+router.post("/chunkText", chunkTextAPI);
+router.post("/synthesizeChunk", synthesizeChunkAPI);
+router.post("/mergeAudio", mergeAudioAPI);
 
 module.exports = router;
 

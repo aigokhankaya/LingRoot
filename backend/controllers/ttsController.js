@@ -334,7 +334,83 @@ const processTtsRequest = async (req, res) => {
     }
 };
 
+// --- TTS Step Endpoints ---
+exports.translateToEnglish = async (req, res) => {
+  const { text } = req.body;
+  const requestId = uuidv4();
+  try {
+    logStep({ requestId, stepName: 'tts:translateToEnglish', inputData: { text } });
+    const result = await translateToEnglishWithOpenAI(text);
+    logStep({ requestId, stepName: 'tts:translateToEnglish:end', outputData: result });
+    res.json({ text: result.text });
+  } catch (e) {
+    logStep({ requestId, stepName: 'tts:translateToEnglish:error', error: e.message });
+    res.status(500).json({ error: e.message });
+  }
+};
+
+exports.adaptToCEFR = async (req, res) => {
+  const { text, level } = req.body;
+  const requestId = uuidv4();
+  try {
+    logStep({ requestId, stepName: 'tts:adaptToCEFR', inputData: { text, level } });
+    const result = await adaptToCEFR(text, level);
+    logStep({ requestId, stepName: 'tts:adaptToCEFR:end', outputData: result });
+    res.json({ text: result });
+  } catch (e) {
+    logStep({ requestId, stepName: 'tts:adaptToCEFR:error', error: e.message });
+    res.status(500).json({ error: e.message });
+  }
+};
+
+exports.chunkTextAPI = (req, res) => {
+  const { text } = req.body;
+  const requestId = uuidv4();
+  try {
+    logStep({ requestId, stepName: 'tts:chunkText', inputData: { text } });
+    const chunks = chunkText(text);
+    logStep({ requestId, stepName: 'tts:chunkText:end', outputData: { chunks } });
+    res.json({ chunks });
+  } catch (e) {
+    logStep({ requestId, stepName: 'tts:chunkText:error', error: e.message });
+    res.status(500).json({ error: e.message });
+  }
+};
+
+exports.synthesizeChunkAPI = async (req, res) => {
+  const { text, voice, rate } = req.body;
+  const requestId = uuidv4();
+  try {
+    logStep({ requestId, stepName: 'tts:synthesizeChunk', inputData: { text, voice, rate } });
+    const result = await synthesizeChunkWithTimepoints(text, "en-US", voice || "en-US-Wavenet-D", rate || 1.0);
+    logStep({ requestId, stepName: 'tts:synthesizeChunk:end', outputData: result });
+    res.json(result);
+  } catch (e) {
+    logStep({ requestId, stepName: 'tts:synthesizeChunk:error', error: e.message });
+    res.status(500).json({ error: e.message });
+  }
+};
+
+exports.mergeAudioAPI = async (req, res) => {
+  const { files } = req.body;
+  const requestId = uuidv4();
+  try {
+    logStep({ requestId, stepName: 'tts:mergeAudio', inputData: { files } });
+    const result = await mergeAudioSegments(files);
+    logStep({ requestId, stepName: 'tts:mergeAudio:end', outputData: result });
+    res.json(result);
+  } catch (e) {
+    logStep({ requestId, stepName: 'tts:mergeAudio:error', error: e.message });
+    res.status(500).json({ error: e.message });
+  }
+};
+
 module.exports = {
     processTtsRequest,
+    translateToEnglish,
+    adaptToCEFR,
+    chunkTextAPI,
+    synthesizeChunkAPI,
+    mergeAudioAPI,
 };
 
