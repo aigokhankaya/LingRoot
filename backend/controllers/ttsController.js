@@ -377,7 +377,7 @@ const chunkTextAPI = (req, res) => {
   }
 };
 
-exports.synthesizeChunkAPI = async (req, res) => {
+const synthesizeChunkAPI = async (req, res) => {
   const { text, voice, rate } = req.body;
   const requestId = uuidv4();
   try {
