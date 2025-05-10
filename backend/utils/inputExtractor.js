@@ -188,8 +188,8 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
     switch (inputType) {
         case "text":
             if (typeof inputData === "string") {
-                logger.info("Rewriting input text to English narration via prompt.");
-                return await rewriteToEnglishNarration(inputData, level);
+                logger.info("Received plain text input. Passing directly to cleaning step.");
+                return inputData;
             } else {
                 logger.error("Input data is not a string for type 'text'.");
                 return null;

@@ -1,0 +1,8 @@
+[2025-05-10T11:03:05.035Z] [extractText:start]
+{
+  "inputData": "Tüm dosyalar ve raporlar gönderildi, süreç tamamlandı",
+  "inputType": "text",
+  "level": "A1",
+  "detectedLang": "en"
+}
+

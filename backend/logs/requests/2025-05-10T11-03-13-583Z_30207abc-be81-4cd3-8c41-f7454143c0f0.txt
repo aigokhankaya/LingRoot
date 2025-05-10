@@ -1,0 +1,6 @@
+[2025-05-10T11:03:13.583Z] [adaptCEFR:start]
+{
+  "textToAdapt": "The text is already in English.",
+  "level": "A1"
+}
+

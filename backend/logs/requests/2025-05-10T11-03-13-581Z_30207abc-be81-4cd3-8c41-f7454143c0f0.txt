@@ -1,0 +1,5 @@
+[2025-05-10T11:03:13.581Z] [translate:end]
+{
+  "textToAdapt": "The text is already in English."
+}
+

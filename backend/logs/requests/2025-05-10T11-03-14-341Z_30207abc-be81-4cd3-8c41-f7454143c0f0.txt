@@ -1,0 +1,7 @@
+[2025-05-10T11:03:14.341Z] [tts:start]
+{
+  "chunkCount": 1,
+  "voice": "en-US-Wavenet-D",
+  "speakingRate": 0.8
+}
+
