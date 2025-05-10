@@ -192,3 +192,21 @@
 2025-05-10 12:40:20 [INFO]: [2c328784-2aca-4a4a-a38c-701ba23f1a04] JSON details: type=text, level=A1, rate=0.8
 2025-05-10 12:40:20 [ERROR]: [2c328784-2aca-4a4a-a38c-701ba23f1a04] Missing required input parameters.
 2025-05-10 12:40:20 [INFO]: [2c328784-2aca-4a4a-a38c-701ba23f1a04] Performing final cleanup.
+2025-05-10 12:45:07 [INFO]: Request started: POST /api/tts/process
+2025-05-10 12:45:07 [INFO]: [4bbd0b7e-8ed8-4fd5-bb6e-23c27cc2c849] Received TTS request.
+2025-05-10 12:45:07 [INFO]: [4bbd0b7e-8ed8-4fd5-bb6e-23c27cc2c849] Processing application/json request.
+2025-05-10 12:45:07 [INFO]: [4bbd0b7e-8ed8-4fd5-bb6e-23c27cc2c849] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 12:45:07 [ERROR]: [4bbd0b7e-8ed8-4fd5-bb6e-23c27cc2c849] Missing required input parameters.
+2025-05-10 12:45:07 [INFO]: [4bbd0b7e-8ed8-4fd5-bb6e-23c27cc2c849] Performing final cleanup.
+2025-05-10 12:45:09 [INFO]: Request started: POST /api/tts/process
+2025-05-10 12:45:09 [INFO]: [dd000202-7943-4696-8128-c1914cdb9454] Received TTS request.
+2025-05-10 12:45:09 [INFO]: [dd000202-7943-4696-8128-c1914cdb9454] Processing application/json request.
+2025-05-10 12:45:09 [INFO]: [dd000202-7943-4696-8128-c1914cdb9454] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 12:45:09 [ERROR]: [dd000202-7943-4696-8128-c1914cdb9454] Missing required input parameters.
+2025-05-10 12:45:09 [INFO]: [dd000202-7943-4696-8128-c1914cdb9454] Performing final cleanup.
+2025-05-10 12:46:12 [INFO]: Request started: POST /api/tts/process
+2025-05-10 12:46:12 [INFO]: [c17e7b1c-dc7c-423a-8a4c-3f6c64a3c3c6] Received TTS request.
+2025-05-10 12:46:12 [INFO]: [c17e7b1c-dc7c-423a-8a4c-3f6c64a3c3c6] Processing application/json request.
+2025-05-10 12:46:12 [INFO]: [c17e7b1c-dc7c-423a-8a4c-3f6c64a3c3c6] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 12:46:12 [ERROR]: [c17e7b1c-dc7c-423a-8a4c-3f6c64a3c3c6] Missing required input parameters.
+2025-05-10 12:46:12 [INFO]: [c17e7b1c-dc7c-423a-8a4c-3f6c64a3c3c6] Performing final cleanup.
