@@ -104,3 +104,14 @@
     at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
     at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:237:33)
     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 15:16:56 [ERROR]: Credential file not found at path: /etc/secrets/google-tts.json
+2025-05-10 15:16:56 [ERROR]: Error: Google Cloud credentials file not found. Please ensure the credentials file exists at: /etc/secrets/google-tts.json
+    at initializeClient (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:39:19)
+    at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:237:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 15:16:56 [ERROR]: Error: Google TTS client failed to initialize. Please check your credentials and ensure the Text-to-Speech API is enabled in your Google Cloud project.
+    at initializeClient (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:53:15)
+    at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:237:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
