@@ -125,6 +125,7 @@ const processTtsRequest = async (req, res) => {
         });
 
         // --- Step 2: Clean Text ---
+        const cleanedText = cleanText(rawText);
         logStep({
             requestId,
             stepName: 'tts:cleanText',
@@ -134,7 +135,6 @@ const processTtsRequest = async (req, res) => {
             inputData: { rawText },
             outputData: { cleanedText }
         });
-        const cleanedText = cleanText(rawText);
         logger.info(`[${requestId}] Text cleaned successfully.`);
 
         // --- Step 2.5: Detect Language and Translate if Necessary ---

@@ -240,3 +240,33 @@
 2025-05-10 13:25:56 [INFO]: Starting server...
 2025-05-10 13:25:56 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
 2025-05-10 13:25:56 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 13:28:08 [INFO]: Request started: POST /api/tts/process
+2025-05-10 13:28:08 [INFO]: [be2d9b5e-c2ff-4f1e-84b3-92ac013148ea] Received TTS request.
+2025-05-10 13:28:08 [INFO]: [be2d9b5e-c2ff-4f1e-84b3-92ac013148ea] Processing application/json request.
+2025-05-10 13:28:08 [INFO]: [be2d9b5e-c2ff-4f1e-84b3-92ac013148ea] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 13:28:08 [INFO]: Extracting text for input type: text
+2025-05-10 13:28:08 [INFO]: Rewriting input text to English narration via prompt.
+2025-05-10 13:28:08 [INFO]: Rewriting input text to English narration at level: A1...
+2025-05-10 13:28:21 [INFO]: Successfully rewrote input to English narration.
+2025-05-10 13:28:21 [INFO]: [be2d9b5e-c2ff-4f1e-84b3-92ac013148ea] Text extracted successfully.
+2025-05-10 13:28:21 [INFO]: [be2d9b5e-c2ff-4f1e-84b3-92ac013148ea] Performing final cleanup.
+2025-05-10 13:29:54 [INFO]: Logger initialized with level: debug
+2025-05-10 13:29:57 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 13:29:57 [INFO]: OpenAI client initialized successfully.
+2025-05-10 13:29:57 [INFO]: Supabase client initialized successfully.
+2025-05-10 13:29:57 [INFO]: Attempting to start server on port 5001
+2025-05-10 13:29:57 [INFO]: Environment: development
+2025-05-10 13:29:57 [INFO]: Process environment PORT variable: 5001
+2025-05-10 13:29:57 [INFO]: Starting server...
+2025-05-10 13:29:57 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 13:29:57 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 13:30:11 [INFO]: Logger initialized with level: debug
+2025-05-10 13:30:13 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 13:30:13 [INFO]: OpenAI client initialized successfully.
+2025-05-10 13:30:13 [INFO]: Supabase client initialized successfully.
+2025-05-10 13:30:13 [INFO]: Attempting to start server on port 5001
+2025-05-10 13:30:13 [INFO]: Environment: development
+2025-05-10 13:30:13 [INFO]: Process environment PORT variable: 5001
+2025-05-10 13:30:13 [INFO]: Starting server...
+2025-05-10 13:30:13 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 13:30:13 [INFO]: ✅ Server successfully bound to port 5001
