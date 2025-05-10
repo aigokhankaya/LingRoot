@@ -7,6 +7,7 @@ const { Readability } = require("@mozilla/readability");
 const pdf = require("pdf-parse");
 const mammoth = require("mammoth");
 const OpenAI = require("openai"); // Added for topic generation
+const fetch = require('node-fetch');
 require("dotenv").config();
 
 // Initialize OpenAI client (similar to cefrAdapter, consider refactoring to a shared client)
@@ -173,6 +174,40 @@ async function rewriteToEnglishNarration(inputText, level = "A1") {
 }
 
 /**
+ * Fetches YouTube transcript using Supadata API
+ * @param {string} youtubeUrl
+ * @returns {Promise<string|null>}
+ */
+async function fetchYoutubeTranscriptWithSupadata(youtubeUrl) {
+    const SUPADATA_API_KEY = process.env.SUPADATA_API_KEY;
+    if (!SUPADATA_API_KEY) {
+        logger.error('Supadata API key is not set in environment variables.');
+        return null;
+    }
+    try {
+        const res = await fetch(`https://api.supadata.ai/v1/youtube/transcript?url=${encodeURIComponent(youtubeUrl)}`, {
+            headers: {
+                'x-api-key': SUPADATA_API_KEY
+            }
+        });
+        if (!res.ok) {
+            logger.error(`Supadata API transcript fetch failed. Status: ${res.status}`);
+            return null;
+        }
+        const data = await res.json();
+        if (!data.content || !data.content.trim()) {
+            logger.error('Supadata API: Transcript not found or empty.');
+            return null;
+        }
+        logger.info('Fetched YouTube transcript from Supadata API.');
+        return data.content;
+    } catch (err) {
+        logger.error('Error fetching YouTube transcript from Supadata API:', err);
+        return null;
+    }
+}
+
+/**
  * Extracts text content based on the input type.
  * Supports text, topic, weblink, file (pdf, docx, txt, md, html).
  * Placeholders for youtube, spotify, book.
@@ -251,8 +286,13 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
             return `Content for book "${inputData}", chapter "${chapter}" would be processed here. This is placeholder text.`;
 
         case "youtube":
-            logger.warn(`YouTube link processing (${inputData}) is not yet implemented.`);
-            return null; // Indicate not implemented
+            if (typeof inputData === "string") {
+                logger.info("Fetching YouTube transcript using Supadata API...");
+                return await fetchYoutubeTranscriptWithSupadata(inputData);
+            } else {
+                logger.error("Input data (YouTube URL) is not a string for type 'youtube'.");
+                return null;
+            }
 
         case "spotify":
             logger.warn(`Spotify link processing (${inputData}) is not yet implemented.`);
