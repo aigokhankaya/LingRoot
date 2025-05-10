@@ -18,7 +18,7 @@ exports.suggestTopics = async (req, res) => {
     });
     const text = completion.choices[0]?.message?.content?.trim() || "";
     const suggestions = text.split(/\n+/).filter(Boolean).map(s => s.replace(/^[0-9\-\.\)]*\s*/, ''));
-    res.json({ success: true, suggestions });
+    res.json({ success: true, suggestions, prompt });
   } catch (err) {
     res.status(500).json({ success: false, message: "OpenAI error", error: err.message });
   }

@@ -36,13 +36,17 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [voice, setVoice] = useState<Voice>('en-GB-Wavenet-B');
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
   const [pollyVoices, setPollyVoices] = useState<any[]>([]);
+  const [lastPrompt, setLastPrompt] = useState<string>('');
 
   useEffect(() => {
     setSpeakingRate(level === 'A1' ? 0.8 : 1.0);
   }, [level]);
 
   useEffect(() => {
-    fetch('/api/tts/polly-voices')
+    const backendUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+      ? 'http://localhost:5001/api/tts/polly-voices'
+      : '/api/tts/polly-voices';
+    fetch(backendUrl)
       .then(res => res.json())
       .then(data => setPollyVoices(data.voices || []))
       .catch(() => setPollyVoices([]));
@@ -65,6 +69,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       if (!res.ok) throw new Error('Failed to fetch topic suggestions');
       const data = await res.json();
       setTopicSuggestions(data.suggestions || []);
+      setLastPrompt(data.prompt || '');
       setShowTopicStep(true);
     } catch (err) {
       setTopicError('Konu önerileri alınamadı.');
@@ -249,6 +254,11 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
 
             {inputType === 'topic' && showTopicStep && topicSuggestions.length > 0 && !selectedTopic && (
               <div className="space-y-4">
+                {lastPrompt && (
+                  <div className="bg-gray-100 p-2 rounded text-xs text-gray-600 mb-2">
+                    <strong>Prompt:</strong> {lastPrompt}
+                  </div>
+                )}
                 <div className="font-semibold">{t('topic_suggestions_title')}</div>
                 <ul className="space-y-2">
                   {topicSuggestions.map((s, i) => (
