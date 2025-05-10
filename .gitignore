@@ -30,3 +30,6 @@ Thumbs.db
 **/gcp-service-account-key.json
 **/backend/gcp-service-account-key.json
 
+# Backend logs
+backend/logs/
+

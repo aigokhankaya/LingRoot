@@ -613,3 +613,46 @@ Imagine the culmination of a lo
 2025-05-10 14:45:11 [INFO]: Starting server...
 2025-05-10 14:45:11 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
 2025-05-10 14:45:11 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 14:45:50 [INFO]: Request started: POST /api/tts/process
+2025-05-10 14:45:50 [INFO]: [22b761d8-7e94-498a-b89b-ebc2ca08a43b] Received TTS request.
+2025-05-10 14:45:50 [INFO]: [22b761d8-7e94-498a-b89b-ebc2ca08a43b] Processing application/json request.
+2025-05-10 14:45:50 [INFO]: [22b761d8-7e94-498a-b89b-ebc2ca08a43b] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 14:45:50 [INFO]: Extracting text for input type: text
+2025-05-10 14:45:50 [INFO]: Received plain text input. Passing directly to cleaning step.
+2025-05-10 14:45:50 [INFO]: [22b761d8-7e94-498a-b89b-ebc2ca08a43b] Text extracted successfully.
+2025-05-10 14:45:50 [DEBUG]: Starting TTS cleaning...
+2025-05-10 14:45:50 [DEBUG]: After HTML tag removal (first 100): Tüm dosyalar ve raporlar gönderildi, süreç tamamlandı
+2025-05-10 14:45:50 [DEBUG]: After HTML entity decoding (first 100): Tüm dosyalar ve raporlar gönderildi, süreç tamamlandı
+2025-05-10 14:45:50 [DEBUG]: After emoji removal (first 100): Tüm dosyalar ve raporlar gönderildi, süreç tamamlandı
+2025-05-10 14:45:50 [DEBUG]: After unwanted character removal (first 100): Tüm dosyalar ve raporlar gönderildi, süreç tamamlandı
+2025-05-10 14:45:50 [DEBUG]: After line break normalization (first 100): Tüm dosyalar ve raporlar gönderildi, süreç tamamlandı
+2025-05-10 14:45:50 [DEBUG]: After marking paragraph breaks (first 100): Tüm dosyalar ve raporlar gönderildi, süreç tamamlandı
+2025-05-10 14:45:50 [DEBUG]: After removing single newlines (first 100): Tüm dosyalar ve raporlar gönderildi, süreç tamamlandı
+2025-05-10 14:45:50 [DEBUG]: After restoring paragraph breaks (first 100): Tüm dosyalar ve raporlar gönderildi, süreç tamamlandı
+2025-05-10 14:45:50 [DEBUG]: After space normalization (first 100): Tüm dosyalar ve raporlar gönderildi, süreç tamamlandı
+2025-05-10 14:45:50 [DEBUG]: After final trim (first 100): Tüm dosyalar ve raporlar gönderildi, süreç tamamlandı
+2025-05-10 14:45:50 [INFO]: Text cleaning for TTS completed (preserving paragraphs).
+2025-05-10 14:45:50 [INFO]: [22b761d8-7e94-498a-b89b-ebc2ca08a43b] Text cleaned successfully.
+2025-05-10 14:45:51 [INFO]: [22b761d8-7e94-498a-b89b-ebc2ca08a43b] Translation successful.
+2025-05-10 14:45:51 [INFO]: Sending request to OpenAI (model: gpt-4o) for CEFR level A1 adaptation.
+2025-05-10 14:45:52 [INFO]: Received adapted text from OpenAI.
+2025-05-10 14:45:52 [INFO]: [22b761d8-7e94-498a-b89b-ebc2ca08a43b] Text adapted successfully.
+2025-05-10 14:45:52 [DEBUG]: Split text into 1 paragraphs.
+2025-05-10 14:45:52 [DEBUG]: Processing paragraph 1 with 2 potential sentences.
+2025-05-10 14:45:52 [DEBUG]: Appended sentence to current chunk. New length: 63, New bytes: 63
+2025-05-10 14:45:52 [DEBUG]: Appended sentence to current chunk. New length: 115, New bytes: 115
+2025-05-10 14:45:52 [DEBUG]: Added final remaining chunk. Length: 115, Bytes: 115
+2025-05-10 14:45:52 [INFO]: Text processing resulted in 1 final chunks.
+2025-05-10 14:45:52 [INFO]: [22b761d8-7e94-498a-b89b-ebc2ca08a43b] Text chunked into 1 parts.
+2025-05-10 14:45:52 [ERROR]: Credential file not found at path: /etc/secrets/google-tts.json
+2025-05-10 14:45:52 [ERROR]: Error: Google Cloud credentials file not found. Please ensure the credentials file exists at: /etc/secrets/google-tts.json
+    at initializeClient (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:39:19)
+    at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:237:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 14:45:52 [ERROR]: Error: Google TTS client failed to initialize. Please check your credentials and ensure the Text-to-Speech API is enabled in your Google Cloud project.
+    at initializeClient (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:53:15)
+    at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:237:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 14:45:52 [INFO]: [22b761d8-7e94-498a-b89b-ebc2ca08a43b] Performing final cleanup.
