@@ -35,10 +35,18 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [level, setLevel] = useState<Level>('A1');
   const [voice, setVoice] = useState<Voice>('en-GB-Wavenet-B');
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
+  const [pollyVoices, setPollyVoices] = useState<any[]>([]);
 
   useEffect(() => {
     setSpeakingRate(level === 'A1' ? 0.8 : 1.0);
   }, [level]);
+
+  useEffect(() => {
+    fetch('/api/tts/polly-voices')
+      .then(res => res.json())
+      .then(data => setPollyVoices(data.voices || []))
+      .catch(() => setPollyVoices([]));
+  }, []);
 
   // 1. Konu başlığı girildiğinde öneri iste
   const handleTopicSuggest = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -449,12 +457,22 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               </label>
               <select
                 value={voice}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setVoice(e.target.value as Voice)}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) => setVoice(e.target.value as any)}
                 className="input-field focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="en-GB-Wavenet-B">{t('voice_male_uk')}</option>
-                <option value="en-US-Wavenet-D">{t('voice_male_us')}</option>
-                <option value="en-US-Wavenet-F">{t('voice_female_us')}</option>
+                {pollyVoices.length > 0 ? (
+                  pollyVoices.map((v) => (
+                    <option key={v.Id} value={v.Id}>
+                      {v.Name} ({v.LanguageName}, {v.Gender})
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="en-GB-Wavenet-B">{t('voice_male_uk')}</option>
+                    <option value="en-US-Wavenet-D">{t('voice_male_us')}</option>
+                    <option value="en-US-Wavenet-F">{t('voice_female_us')}</option>
+                  </>
+                )}
               </select>
             </div>
           </div>
