@@ -192,6 +192,7 @@ const processTtsRequest = async (req, res) => {
         });
 
         // --- Step 4: Chunk Text for TTS ---
+        const textChunks = chunkText(adaptedText);
         logStep({
             requestId,
             stepName: 'tts:chunkText',
@@ -201,7 +202,6 @@ const processTtsRequest = async (req, res) => {
             inputData: { adaptedText },
             outputData: { chunkCount: textChunks.length }
         });
-        const textChunks = chunkText(adaptedText);
         if (!textChunks || textChunks.length === 0) {
             logger.warn(`[${requestId}] Text resulted in zero chunks after processing.`);
             return res.status(400).json({ success: false, message: "Processed text resulted in no content for audio generation." });

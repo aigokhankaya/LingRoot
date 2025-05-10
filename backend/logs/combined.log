@@ -378,3 +378,43 @@ Imagine the culmination of a lo
 2025-05-10 13:47:11 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
 2025-05-10 13:47:11 [INFO]: ✅ Server successfully bound to port 5001
 2025-05-10 13:47:45 [INFO]: Request started: GET /
+2025-05-10 13:50:25 [INFO]: Request started: POST /api/tts/process
+2025-05-10 13:50:25 [INFO]: [aa4a50a9-48fb-4083-9895-853949f54441] Received TTS request.
+2025-05-10 13:50:25 [INFO]: [aa4a50a9-48fb-4083-9895-853949f54441] Processing application/json request.
+2025-05-10 13:50:25 [INFO]: [aa4a50a9-48fb-4083-9895-853949f54441] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 13:50:25 [INFO]: Extracting text for input type: text
+2025-05-10 13:50:25 [INFO]: Rewriting input text to English narration via prompt.
+2025-05-10 13:50:25 [INFO]: Rewriting input text to English narration at level: A1...
+2025-05-10 13:50:38 [INFO]: Successfully rewrote input to English narration.
+2025-05-10 13:50:38 [INFO]: [aa4a50a9-48fb-4083-9895-853949f54441] Text extracted successfully.
+2025-05-10 13:50:38 [DEBUG]: Starting TTS cleaning...
+2025-05-10 13:50:38 [DEBUG]: After HTML tag removal (first 100): All files and reports have been sent, and the process is complete. Now, imagine this scenario: you'v
+2025-05-10 13:50:38 [DEBUG]: After HTML entity decoding (first 100): All files and reports have been sent, and the process is complete. Now, imagine this scenario: you'v
+2025-05-10 13:50:38 [DEBUG]: After emoji removal (first 100): All files and reports have been sent, and the process is complete. Now, imagine this scenario: you'v
+2025-05-10 13:50:38 [DEBUG]: After unwanted character removal (first 100): All files and reports have been sent, and the process is complete. Now, imagine this scenario: you'v
+2025-05-10 13:50:38 [DEBUG]: After line break normalization (first 100): All files and reports have been sent, and the process is complete. Now, imagine this scenario: you'v
+2025-05-10 13:50:38 [DEBUG]: After marking paragraph breaks (first 100): All files and reports have been sent, and the process is complete. Now, imagine this scenario: you'v
+2025-05-10 13:50:38 [DEBUG]: After removing single newlines (first 100): All files and reports have been sent, and the process is complete. Now, imagine this scenario: you'v
+2025-05-10 13:50:38 [DEBUG]: After restoring paragraph breaks (first 100): All files and reports have been sent, and the process is complete. Now, imagine this scenario: you'v
+2025-05-10 13:50:38 [DEBUG]: After space normalization (first 100): All files and reports have been sent, and the process is complete. Now, imagine this scenario: you'v
+2025-05-10 13:50:38 [DEBUG]: After final trim (first 100): All files and reports have been sent, and the process is complete. Now, imagine this scenario: you'v
+2025-05-10 13:50:38 [INFO]: Text cleaning for TTS completed (preserving paragraphs).
+2025-05-10 13:50:38 [INFO]: [aa4a50a9-48fb-4083-9895-853949f54441] Text cleaned successfully.
+2025-05-10 13:50:38 [INFO]: [aa4a50a9-48fb-4083-9895-853949f54441] Translation successful.
+2025-05-10 13:50:38 [INFO]: Sending request to OpenAI (model: gpt-4o) for CEFR level A1 adaptation.
+2025-05-10 13:50:39 [INFO]: Received adapted text from OpenAI.
+2025-05-10 13:50:39 [INFO]: [aa4a50a9-48fb-4083-9895-853949f54441] Text adapted successfully.
+2025-05-10 13:50:39 [ERROR]: ReferenceError: Cannot access 'textChunks' before initialization
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:202:39)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 13:50:39 [INFO]: [aa4a50a9-48fb-4083-9895-853949f54441] Performing final cleanup.
+2025-05-10 13:52:05 [INFO]: Logger initialized with level: debug
+2025-05-10 13:52:07 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 13:52:07 [INFO]: OpenAI client initialized successfully.
+2025-05-10 13:52:07 [INFO]: Supabase client initialized successfully.
+2025-05-10 13:52:07 [INFO]: Attempting to start server on port 5001
+2025-05-10 13:52:07 [INFO]: Environment: development
+2025-05-10 13:52:07 [INFO]: Process environment PORT variable: 5001
+2025-05-10 13:52:07 [INFO]: Starting server...
+2025-05-10 13:52:07 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 13:52:07 [INFO]: ✅ Server successfully bound to port 5001

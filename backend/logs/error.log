@@ -33,3 +33,6 @@
 2025-05-10 13:42:54 [ERROR]: ReferenceError: adaptToCEFRFunc is not defined
     at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:179:29)
     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 13:50:39 [ERROR]: ReferenceError: Cannot access 'textChunks' before initialization
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:202:39)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
