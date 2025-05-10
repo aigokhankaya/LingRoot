@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require("uuid");
 const logger = require("../utils/logger"); // Import Winston logger
 const { extractTextFromInput, generateTopicText, generateEnglishNarrationForTopic, translateToEnglishWithOpenAI } = require("../utils/inputExtractor");
 const { cleanText, chunkText } = require("../utils/textProcessor");
-const { adaptToCEFR } = require("../utils/cefrAdapter");
+const { adaptToCEFR: adaptToCEFRFunc } = require("../utils/cefrAdapter");
 const { synthesizeSpeechChunks, synthesizeChunkWithTimepoints } = require("../utils/googleTts");
 const { mergeAudioSegments } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
@@ -176,7 +176,7 @@ const processTtsRequest = async (req, res) => {
             promptName: 'adaptToCEFR',
             promptText: textToAdapt
         });
-        const adaptedText = await adaptToCEFR(textToAdapt, level);
+        const adaptedText = await adaptToCEFRFunc(textToAdapt, level);
         if (adaptedText === null) {
             logger.error(`[${requestId}] Failed to adapt text using OpenAI.`);
             return res.status(500).json({ success: false, message: "Failed to adapt text to the specified CEFR level." });
@@ -354,7 +354,7 @@ const adaptToCEFR = async (req, res) => {
   const requestId = uuidv4();
   try {
     logStep({ requestId, stepName: 'tts:adaptToCEFR', inputData: { text, level } });
-    const result = await adaptToCEFR(text, level);
+    const result = await adaptToCEFRFunc(text, level);
     logStep({ requestId, stepName: 'tts:adaptToCEFR:end', outputData: result });
     res.json({ text: result });
   } catch (e) {

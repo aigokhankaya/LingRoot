@@ -149,3 +149,23 @@
 2025-05-09 10:56:18 [INFO]: Starting server...
 2025-05-09 10:56:18 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
 2025-05-09 10:56:18 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 12:22:27 [INFO]: Logger initialized with level: debug
+2025-05-10 12:22:30 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 12:22:30 [INFO]: OpenAI client initialized successfully.
+2025-05-10 12:22:30 [INFO]: Supabase client initialized successfully.
+2025-05-10 12:22:30 [INFO]: Attempting to start server on port 5001
+2025-05-10 12:22:30 [INFO]: Environment: development
+2025-05-10 12:22:30 [INFO]: Process environment PORT variable: 5001
+2025-05-10 12:22:30 [INFO]: Starting server...
+2025-05-10 12:22:30 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 12:22:30 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 12:22:53 [INFO]: Logger initialized with level: debug
+2025-05-10 12:22:56 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 12:22:56 [INFO]: OpenAI client initialized successfully.
+2025-05-10 12:22:57 [INFO]: Supabase client initialized successfully.
+2025-05-10 12:22:57 [INFO]: Attempting to start server on port 5001
+2025-05-10 12:22:57 [INFO]: Environment: development
+2025-05-10 12:22:57 [INFO]: Process environment PORT variable: 5001
+2025-05-10 12:22:57 [INFO]: Starting server...
+2025-05-10 12:22:57 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 12:22:57 [INFO]: ✅ Server successfully bound to port 5001
