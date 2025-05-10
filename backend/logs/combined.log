@@ -418,3 +418,78 @@ Imagine the culmination of a lo
 2025-05-10 13:52:07 [INFO]: Starting server...
 2025-05-10 13:52:07 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
 2025-05-10 13:52:07 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 13:55:03 [INFO]: Request started: POST /api/tts/process
+2025-05-10 13:55:03 [INFO]: [2d0b5828-e150-4763-858a-049363bdee65] Received TTS request.
+2025-05-10 13:55:03 [INFO]: [2d0b5828-e150-4763-858a-049363bdee65] Processing application/json request.
+2025-05-10 13:55:03 [INFO]: [2d0b5828-e150-4763-858a-049363bdee65] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 13:55:03 [INFO]: Extracting text for input type: text
+2025-05-10 13:55:03 [INFO]: Rewriting input text to English narration via prompt.
+2025-05-10 13:55:03 [INFO]: Rewriting input text to English narration at level: A1...
+2025-05-10 13:55:11 [INFO]: Successfully rewrote input to English narration.
+2025-05-10 13:55:11 [INFO]: [2d0b5828-e150-4763-858a-049363bdee65] Text extracted successfully.
+2025-05-10 13:55:11 [DEBUG]: Starting TTS cleaning...
+2025-05-10 13:55:11 [DEBUG]: After HTML tag removal (first 100): All files and reports have been sent, and the process is complete. Now, let's delve into what this m
+2025-05-10 13:55:11 [DEBUG]: After HTML entity decoding (first 100): All files and reports have been sent, and the process is complete. Now, let's delve into what this m
+2025-05-10 13:55:11 [DEBUG]: After emoji removal (first 100): All files and reports have been sent, and the process is complete. Now, let's delve into what this m
+2025-05-10 13:55:11 [DEBUG]: After unwanted character removal (first 100): All files and reports have been sent, and the process is complete. Now, let's delve into what this m
+2025-05-10 13:55:11 [DEBUG]: After line break normalization (first 100): All files and reports have been sent, and the process is complete. Now, let's delve into what this m
+2025-05-10 13:55:11 [DEBUG]: After marking paragraph breaks (first 100): All files and reports have been sent, and the process is complete. Now, let's delve into what this m
+2025-05-10 13:55:11 [DEBUG]: After removing single newlines (first 100): All files and reports have been sent, and the process is complete. Now, let's delve into what this m
+2025-05-10 13:55:11 [DEBUG]: After restoring paragraph breaks (first 100): All files and reports have been sent, and the process is complete. Now, let's delve into what this m
+2025-05-10 13:55:11 [DEBUG]: After space normalization (first 100): All files and reports have been sent, and the process is complete. Now, let's delve into what this m
+2025-05-10 13:55:11 [DEBUG]: After final trim (first 100): All files and reports have been sent, and the process is complete. Now, let's delve into what this m
+2025-05-10 13:55:11 [INFO]: Text cleaning for TTS completed (preserving paragraphs).
+2025-05-10 13:55:11 [INFO]: [2d0b5828-e150-4763-858a-049363bdee65] Text cleaned successfully.
+2025-05-10 13:55:12 [INFO]: [2d0b5828-e150-4763-858a-049363bdee65] Translation successful.
+2025-05-10 13:55:12 [INFO]: Sending request to OpenAI (model: gpt-4o) for CEFR level A1 adaptation.
+2025-05-10 13:55:13 [INFO]: Received adapted text from OpenAI.
+2025-05-10 13:55:13 [INFO]: [2d0b5828-e150-4763-858a-049363bdee65] Text adapted successfully.
+2025-05-10 13:55:13 [DEBUG]: Split text into 1 paragraphs.
+2025-05-10 13:55:13 [DEBUG]: Processing paragraph 1 with 2 potential sentences.
+2025-05-10 13:55:13 [DEBUG]: Appended sentence to current chunk. New length: 54, New bytes: 54
+2025-05-10 13:55:13 [DEBUG]: Appended sentence to current chunk. New length: 146, New bytes: 146
+2025-05-10 13:55:13 [DEBUG]: Added final remaining chunk. Length: 146, Bytes: 146
+2025-05-10 13:55:13 [INFO]: Text processing resulted in 1 final chunks.
+2025-05-10 13:55:13 [INFO]: [2d0b5828-e150-4763-858a-049363bdee65] Text chunked into 1 parts.
+2025-05-10 13:55:13 [ERROR]: Credential file not found at path: /etc/secrets/google-tts.json
+2025-05-10 13:55:13 [ERROR]: Error: Google Cloud credentials file not found. Please ensure the credentials file exists at: /etc/secrets/google-tts.json
+    at initializeClient (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:39:19)
+    at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:220:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 13:55:13 [ERROR]: Error: Google TTS client failed to initialize. Please check your credentials and ensure the Text-to-Speech API is enabled in your Google Cloud project.
+    at initializeClient (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:53:15)
+    at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:220:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 13:55:13 [INFO]: [2d0b5828-e150-4763-858a-049363bdee65] Performing final cleanup.
+2025-05-10 13:57:26 [INFO]: Logger initialized with level: debug
+2025-05-10 13:57:28 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 13:57:28 [INFO]: OpenAI client initialized successfully.
+2025-05-10 13:57:28 [INFO]: Supabase client initialized successfully.
+2025-05-10 13:57:28 [INFO]: Attempting to start server on port 5001
+2025-05-10 13:57:28 [INFO]: Environment: development
+2025-05-10 13:57:28 [INFO]: Process environment PORT variable: 5001
+2025-05-10 13:57:28 [INFO]: Starting server...
+2025-05-10 13:57:28 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 13:57:28 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 13:58:49 [INFO]: Logger initialized with level: debug
+2025-05-10 13:58:50 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 13:58:50 [INFO]: OpenAI client initialized successfully.
+2025-05-10 13:58:51 [INFO]: Supabase client initialized successfully.
+2025-05-10 13:58:51 [INFO]: Attempting to start server on port 5001
+2025-05-10 13:58:51 [INFO]: Environment: development
+2025-05-10 13:58:51 [INFO]: Process environment PORT variable: 5001
+2025-05-10 13:58:51 [INFO]: Starting server...
+2025-05-10 13:58:51 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 13:58:51 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 14:01:30 [INFO]: Logger initialized with level: debug
+2025-05-10 14:01:34 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 14:01:34 [INFO]: OpenAI client initialized successfully.
+2025-05-10 14:01:34 [INFO]: Supabase client initialized successfully.
+2025-05-10 14:01:34 [INFO]: Attempting to start server on port 5001
+2025-05-10 14:01:34 [INFO]: Environment: development
+2025-05-10 14:01:34 [INFO]: Process environment PORT variable: 5001
+2025-05-10 14:01:34 [INFO]: Starting server...
+2025-05-10 14:01:34 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 14:01:34 [INFO]: ✅ Server successfully bound to port 5001
