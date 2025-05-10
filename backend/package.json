@@ -5,18 +5,19 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js", 
+    "start": "node server.js",
     "test": "jest"
   },
   "engines": {
-   "node": "20.x"
+    "node": "20.x"
   },
   "dependencies": {
+    "@aws-sdk/client-polly": "^3.806.0",
     "@google-cloud/text-to-speech": "^5.3.0",
     "@mozilla/readability": "^0.6.0",
     "@supabase/supabase-js": "^2.39.0",
     "@vitalets/google-translate-api": "^9.2.1",
-    "axios": "^1.6.2", 
+    "axios": "^1.6.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
