@@ -371,3 +371,39 @@ Aşağıda verilen konu başlığı, kullanıcının ilgi alanına göre seçti�
    SUPABASE_SERVICE_KEY=xxx
    SUPABASE_BUCKET=xxx
    ```
+
+## YouTube Transcript Microservice (Playwright + FastAPI)
+
+This microservice scrapes YouTube video transcripts from https://youtubetotranscript.com using Playwright and exposes a FastAPI endpoint.
+
+### Kurulum
+
+1. Gerekli Python paketlerini yükleyin:
+   ```bash
+   pip install -r backend/youtubetranscriptservice/requirements.txt
+   python -m playwright install
+   ```
+
+2. Servisi başlatın:
+   ```bash
+   uvicorn backend.youtubetranscriptservice.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+
+### API Kullanımı
+
+- **POST /scrape-transcript**
+
+  **Body:**
+  ```json
+  { "url": "https://www.youtube.com/watch?v=bhAawejnIrg" }
+  ```
+
+  **Yanıt:**
+  ```json
+  { "transcript": "Welcome to this video. In this lesson..." }
+  ```
+
+### Notlar
+- Playwright Chromium browser otomatik kurulur.
+- DOM selector değişirse `transcript_scraper.py` güncellenmelidir.
+- Geliştirme sırasında `headless=False` ile debug yapılabilir.
