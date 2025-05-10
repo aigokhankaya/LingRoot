@@ -30,3 +30,6 @@
 2025-05-10 12:45:07 [ERROR]: [4bbd0b7e-8ed8-4fd5-bb6e-23c27cc2c849] Missing required input parameters.
 2025-05-10 12:45:09 [ERROR]: [dd000202-7943-4696-8128-c1914cdb9454] Missing required input parameters.
 2025-05-10 12:46:12 [ERROR]: [c17e7b1c-dc7c-423a-8a4c-3f6c64a3c3c6] Missing required input parameters.
+2025-05-10 13:42:54 [ERROR]: ReferenceError: adaptToCEFRFunc is not defined
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:179:29)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)

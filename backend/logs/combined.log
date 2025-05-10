@@ -314,3 +314,67 @@
 2025-05-10 13:39:34 [INFO]: Starting server...
 2025-05-10 13:39:34 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
 2025-05-10 13:39:34 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 13:42:42 [INFO]: Request started: POST /api/tts/process
+2025-05-10 13:42:42 [INFO]: [1c062b94-86ba-4ffd-a249-d1ecdc2a4c0e] Received TTS request.
+2025-05-10 13:42:42 [INFO]: [1c062b94-86ba-4ffd-a249-d1ecdc2a4c0e] Processing application/json request.
+2025-05-10 13:42:42 [INFO]: [1c062b94-86ba-4ffd-a249-d1ecdc2a4c0e] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 13:42:42 [INFO]: Extracting text for input type: text
+2025-05-10 13:42:42 [INFO]: Rewriting input text to English narration via prompt.
+2025-05-10 13:42:42 [INFO]: Rewriting input text to English narration at level: A1...
+2025-05-10 13:42:54 [INFO]: Successfully rewrote input to English narration.
+2025-05-10 13:42:54 [INFO]: [1c062b94-86ba-4ffd-a249-d1ecdc2a4c0e] Text extracted successfully.
+2025-05-10 13:42:54 [DEBUG]: Starting TTS cleaning...
+2025-05-10 13:42:54 [DEBUG]: After HTML tag removal (first 100): All files and reports have been sent, and the process is complete. 
+
+Imagine the culmination of a lo
+2025-05-10 13:42:54 [DEBUG]: After HTML entity decoding (first 100): All files and reports have been sent, and the process is complete. 
+
+Imagine the culmination of a lo
+2025-05-10 13:42:54 [DEBUG]: After emoji removal (first 100): All files and reports have been sent, and the process is complete. 
+
+Imagine the culmination of a lo
+2025-05-10 13:42:54 [DEBUG]: After unwanted character removal (first 100): All files and reports have been sent, and the process is complete. 
+
+Imagine the culmination of a lo
+2025-05-10 13:42:54 [DEBUG]: After line break normalization (first 100): All files and reports have been sent, and the process is complete. 
+
+Imagine the culmination of a lo
+2025-05-10 13:42:54 [DEBUG]: After marking paragraph breaks (first 100): All files and reports have been sent, and the process is complete. __PARAGRAPH_BREAK__Imagine the cu
+2025-05-10 13:42:54 [DEBUG]: After removing single newlines (first 100): All files and reports have been sent, and the process is complete. __PARAGRAPH_BREAK__Imagine the cu
+2025-05-10 13:42:54 [DEBUG]: After restoring paragraph breaks (first 100): All files and reports have been sent, and the process is complete. 
+
+Imagine the culmination of a lo
+2025-05-10 13:42:54 [DEBUG]: After space normalization (first 100): All files and reports have been sent, and the process is complete. 
+
+Imagine the culmination of a lo
+2025-05-10 13:42:54 [DEBUG]: After final trim (first 100): All files and reports have been sent, and the process is complete. 
+
+Imagine the culmination of a lo
+2025-05-10 13:42:54 [INFO]: Text cleaning for TTS completed (preserving paragraphs).
+2025-05-10 13:42:54 [INFO]: [1c062b94-86ba-4ffd-a249-d1ecdc2a4c0e] Text cleaned successfully.
+2025-05-10 13:42:54 [INFO]: [1c062b94-86ba-4ffd-a249-d1ecdc2a4c0e] Translation successful.
+2025-05-10 13:42:54 [ERROR]: ReferenceError: adaptToCEFRFunc is not defined
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:179:29)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 13:42:54 [INFO]: [1c062b94-86ba-4ffd-a249-d1ecdc2a4c0e] Performing final cleanup.
+2025-05-10 13:47:05 [INFO]: Logger initialized with level: debug
+2025-05-10 13:47:08 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 13:47:08 [INFO]: OpenAI client initialized successfully.
+2025-05-10 13:47:08 [INFO]: Supabase client initialized successfully.
+2025-05-10 13:47:08 [INFO]: Attempting to start server on port 5001
+2025-05-10 13:47:08 [INFO]: Environment: development
+2025-05-10 13:47:08 [INFO]: Process environment PORT variable: 5001
+2025-05-10 13:47:08 [INFO]: Starting server...
+2025-05-10 13:47:08 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 13:47:08 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 13:47:09 [INFO]: Logger initialized with level: debug
+2025-05-10 13:47:11 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 13:47:11 [INFO]: OpenAI client initialized successfully.
+2025-05-10 13:47:11 [INFO]: Supabase client initialized successfully.
+2025-05-10 13:47:11 [INFO]: Attempting to start server on port 5001
+2025-05-10 13:47:11 [INFO]: Environment: development
+2025-05-10 13:47:11 [INFO]: Process environment PORT variable: 5001
+2025-05-10 13:47:11 [INFO]: Starting server...
+2025-05-10 13:47:11 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 13:47:11 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 13:47:45 [INFO]: Request started: GET /
