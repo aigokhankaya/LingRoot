@@ -96,6 +96,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       type: inputType,
       text: inputType === 'text' ? text : undefined,
       input:
+        inputType === 'text' ? text :
         inputType === 'youtube' ? youtubeLink :
         inputType === 'weblink' ? webLink :
         inputType === 'spotify' ? spotifyLink :
