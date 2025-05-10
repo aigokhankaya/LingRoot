@@ -1,6 +1,0 @@
-[2025-05-10T11:03:14.334Z] [chunkText]
-{
-  "adaptedText": "I'm here to help with your request. Please provide the text you would like me to rewrite at CEFR level A1.",
-  "chunkCount": 1
-}
-

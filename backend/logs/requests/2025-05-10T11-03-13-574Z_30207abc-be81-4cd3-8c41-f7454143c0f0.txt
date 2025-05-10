@@ -1,8 +1,0 @@
-[2025-05-10T11:03:13.574Z] [translate:success]
-{
-  "translationResult": {
-    "text": "The text is already in English.",
-    "detectedLang": "auto"
-  }
-}
-
