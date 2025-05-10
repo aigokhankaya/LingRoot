@@ -18,6 +18,13 @@ const DEFAULT_CONFIG = {
 // Cache for the TTS client
 let client = null;
 
+console.log("🧪 Checking GOOGLE_APPLICATION_CREDENTIALS:", process.env.GOOGLE_APPLICATION_CREDENTIALS);
+if (!fs.existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)) {
+    console.error("❌ Credential file NOT FOUND at expected path!", process.env.GOOGLE_APPLICATION_CREDENTIALS);
+} else {
+    console.log("✅ Credential file FOUND.");
+}
+
 /**
  * Initialize the Google TTS client
  * @returns {Promise<textToSpeech.TextToSpeechClient>} The initialized client
