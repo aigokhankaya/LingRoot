@@ -48,9 +48,13 @@ async function synthesizeWithPolly({ text, voiceId, languageCode }) {
 async function listPollyVoices() {
     try {
         const { DescribeVoicesCommand } = require('@aws-sdk/client-polly');
-        const command = new DescribeVoicesCommand({});
+        const command = new DescribeVoicesCommand({ LanguageCode: 'en-US' });
         const { Voices } = await polly.send(command);
-        return Voices || [];
+        // Sort by Gender then Name for better UX
+        return (Voices || []).sort((a, b) => {
+            if (a.Gender === b.Gender) return a.Name.localeCompare(b.Name);
+            return a.Gender.localeCompare(b.Gender);
+        });
     } catch (error) {
         logger.error('Amazon Polly list voices error:', { message: error.message, stack: error.stack });
         return [];
