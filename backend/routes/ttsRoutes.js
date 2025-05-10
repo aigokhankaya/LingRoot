@@ -11,6 +11,7 @@ const {
   mergeAudioAPI
 } = require("../controllers/ttsController");
 const logger = require("../utils/logger");
+const { synthesizeWithPolly } = require('../utils/amazonPolly');
 
 const router = express.Router();
 
@@ -65,5 +66,22 @@ router.post("/adaptToCEFR", adaptToCEFR);
 router.post("/chunkText", chunkTextAPI);
 router.post("/synthesizeChunk", synthesizeChunkAPI);
 router.post("/mergeAudio", mergeAudioAPI);
+
+// Amazon Polly TTS endpoint
+router.post('/polly', async (req, res) => {
+    const { text, voiceId, languageCode } = req.body;
+    if (!text || !voiceId || !languageCode) {
+        return res.status(400).json({ error: 'Missing required parameters: text, voiceId, languageCode' });
+    }
+    try {
+        const audioBase64 = await synthesizeWithPolly({ text, voiceId, languageCode });
+        if (!audioBase64) {
+            return res.status(500).json({ error: 'Amazon Polly failed to synthesize speech.' });
+        }
+        res.json({ audioBase64 });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 module.exports = router;
