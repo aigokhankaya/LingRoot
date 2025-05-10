@@ -349,7 +349,7 @@ const translateToEnglish = async (req, res) => {
   }
 };
 
-exports.adaptToCEFR = async (req, res) => {
+const adaptToCEFR = async (req, res) => {
   const { text, level } = req.body;
   const requestId = uuidv4();
   try {
@@ -391,7 +391,7 @@ const synthesizeChunkAPI = async (req, res) => {
   }
 };
 
-exports.mergeAudioAPI = async (req, res) => {
+const mergeAudioAPI = async (req, res) => {
   const { files } = req.body;
   const requestId = uuidv4();
   try {
