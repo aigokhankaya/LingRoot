@@ -6,6 +6,7 @@
     "generate-pdf": "node scripts/generate_pdf.js"
   },
   "dependencies": {
+    "@aws-sdk/client-polly": "^3.806.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.4",
     "markdown-it-emoji": "^2.0.0",

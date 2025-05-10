@@ -41,4 +41,23 @@ async function synthesizeWithPolly({ text, voiceId, languageCode }) {
     }
 }
 
-module.exports = { synthesizeWithPolly }; 
+/**
+ * List all available Amazon Polly voices
+ * @returns {Promise<Array>} Array of voice objects
+ */
+async function listPollyVoices() {
+    try {
+        const { Voices } = await polly.send({
+            input: {},
+            commandName: 'DescribeVoicesCommand',
+            // The AWS SDK v3 way:
+            ...new (require('@aws-sdk/client-polly').DescribeVoicesCommand)({})
+        });
+        return Voices || [];
+    } catch (error) {
+        logger.error('Amazon Polly list voices error:', { message: error.message, stack: error.stack });
+        return [];
+    }
+}
+
+module.exports = { synthesizeWithPolly, listPollyVoices }; 
