@@ -797,3 +797,157 @@ Imagine the culmination of a lo
 2025-05-10 15:22:14 [INFO]: Starting server...
 2025-05-10 15:22:14 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
 2025-05-10 15:22:14 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 15:22:42 [INFO]: Request started: POST /api/tts/process
+2025-05-10 15:22:42 [INFO]: [023baf2e-d029-4af5-b271-1f9984da788d] Received TTS request.
+2025-05-10 15:22:42 [INFO]: [023baf2e-d029-4af5-b271-1f9984da788d] Processing application/json request.
+2025-05-10 15:22:42 [INFO]: [023baf2e-d029-4af5-b271-1f9984da788d] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 15:22:42 [ERROR]: [023baf2e-d029-4af5-b271-1f9984da788d] Missing required input parameters.
+2025-05-10 15:22:42 [INFO]: [023baf2e-d029-4af5-b271-1f9984da788d] Performing final cleanup.
+2025-05-10 15:23:10 [INFO]: Request started: POST /api/tts/process
+2025-05-10 15:23:10 [INFO]: [bc478090-019b-40d1-bc6f-e27fbf4e4d4c] Received TTS request.
+2025-05-10 15:23:10 [INFO]: [bc478090-019b-40d1-bc6f-e27fbf4e4d4c] Processing application/json request.
+2025-05-10 15:23:10 [INFO]: [bc478090-019b-40d1-bc6f-e27fbf4e4d4c] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 15:23:10 [INFO]: Extracting text for input type: text
+2025-05-10 15:23:10 [INFO]: Received plain text input. Passing directly to cleaning step.
+2025-05-10 15:23:10 [INFO]: [bc478090-019b-40d1-bc6f-e27fbf4e4d4c] Text extracted successfully.
+2025-05-10 15:23:10 [DEBUG]: Starting TTS cleaning...
+2025-05-10 15:23:10 [DEBUG]: After HTML tag removal (first 100): istanbul inanılmaz güzellkte bir şehir
+2025-05-10 15:23:10 [DEBUG]: After HTML entity decoding (first 100): istanbul inanılmaz güzellkte bir şehir
+2025-05-10 15:23:10 [DEBUG]: After emoji removal (first 100): istanbul inanılmaz güzellkte bir şehir
+2025-05-10 15:23:10 [DEBUG]: After unwanted character removal (first 100): istanbul inanılmaz güzellkte bir şehir
+2025-05-10 15:23:10 [DEBUG]: After line break normalization (first 100): istanbul inanılmaz güzellkte bir şehir
+2025-05-10 15:23:10 [DEBUG]: After marking paragraph breaks (first 100): istanbul inanılmaz güzellkte bir şehir
+2025-05-10 15:23:10 [DEBUG]: After removing single newlines (first 100): istanbul inanılmaz güzellkte bir şehir
+2025-05-10 15:23:10 [DEBUG]: After restoring paragraph breaks (first 100): istanbul inanılmaz güzellkte bir şehir
+2025-05-10 15:23:10 [DEBUG]: After space normalization (first 100): istanbul inanılmaz güzellkte bir şehir
+2025-05-10 15:23:10 [DEBUG]: After final trim (first 100): istanbul inanılmaz güzellkte bir şehir
+2025-05-10 15:23:10 [INFO]: Text cleaning for TTS completed (preserving paragraphs).
+2025-05-10 15:23:10 [INFO]: [bc478090-019b-40d1-bc6f-e27fbf4e4d4c] Text cleaned successfully.
+2025-05-10 15:23:11 [INFO]: [bc478090-019b-40d1-bc6f-e27fbf4e4d4c] Translation successful.
+2025-05-10 15:23:11 [INFO]: Sending request to OpenAI (model: gpt-4o) for CEFR level A1 adaptation.
+2025-05-10 15:23:11 [INFO]: Received adapted text from OpenAI.
+2025-05-10 15:23:11 [INFO]: [bc478090-019b-40d1-bc6f-e27fbf4e4d4c] Text adapted successfully.
+2025-05-10 15:23:11 [DEBUG]: Split text into 1 paragraphs.
+2025-05-10 15:23:11 [DEBUG]: Processing paragraph 1 with 1 potential sentences.
+2025-05-10 15:23:11 [DEBUG]: Appended sentence to current chunk. New length: 44, New bytes: 44
+2025-05-10 15:23:11 [DEBUG]: Added final remaining chunk. Length: 44, Bytes: 44
+2025-05-10 15:23:11 [INFO]: Text processing resulted in 1 final chunks.
+2025-05-10 15:23:11 [INFO]: [bc478090-019b-40d1-bc6f-e27fbf4e4d4c] Text chunked into 1 parts.
+2025-05-10 15:23:11 [ERROR]: Credential file not found at path: /etc/secrets/google-tts.json
+2025-05-10 15:23:11 [ERROR]: Error: Google Cloud credentials file not found. Please ensure the credentials file exists at: /etc/secrets/google-tts.json
+    at initializeClient (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:39:19)
+    at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:237:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 15:23:11 [ERROR]: Error: Google TTS client failed to initialize. Please check your credentials and ensure the Text-to-Speech API is enabled in your Google Cloud project.
+    at initializeClient (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:53:15)
+    at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:237:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 15:23:11 [INFO]: [bc478090-019b-40d1-bc6f-e27fbf4e4d4c] Performing final cleanup.
+2025-05-10 15:36:50 [INFO]: Request started: POST /api/tts/process
+2025-05-10 15:36:50 [INFO]: [36cd73ef-5015-4307-8f7f-0648983ec6f5] Received TTS request.
+2025-05-10 15:36:50 [INFO]: [36cd73ef-5015-4307-8f7f-0648983ec6f5] Processing application/json request.
+2025-05-10 15:36:50 [INFO]: [36cd73ef-5015-4307-8f7f-0648983ec6f5] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 15:36:50 [INFO]: Extracting text for input type: text
+2025-05-10 15:36:50 [INFO]: Received plain text input. Passing directly to cleaning step.
+2025-05-10 15:36:50 [INFO]: [36cd73ef-5015-4307-8f7f-0648983ec6f5] Text extracted successfully.
+2025-05-10 15:36:50 [DEBUG]: Starting TTS cleaning...
+2025-05-10 15:36:50 [DEBUG]: After HTML tag removal (first 100): istanbul harika bir şehir
+2025-05-10 15:36:50 [DEBUG]: After HTML entity decoding (first 100): istanbul harika bir şehir
+2025-05-10 15:36:50 [DEBUG]: After emoji removal (first 100): istanbul harika bir şehir
+2025-05-10 15:36:50 [DEBUG]: After unwanted character removal (first 100): istanbul harika bir şehir
+2025-05-10 15:36:50 [DEBUG]: After line break normalization (first 100): istanbul harika bir şehir
+2025-05-10 15:36:50 [DEBUG]: After marking paragraph breaks (first 100): istanbul harika bir şehir
+2025-05-10 15:36:50 [DEBUG]: After removing single newlines (first 100): istanbul harika bir şehir
+2025-05-10 15:36:50 [DEBUG]: After restoring paragraph breaks (first 100): istanbul harika bir şehir
+2025-05-10 15:36:50 [DEBUG]: After space normalization (first 100): istanbul harika bir şehir
+2025-05-10 15:36:50 [DEBUG]: After final trim (first 100): istanbul harika bir şehir
+2025-05-10 15:36:50 [INFO]: Text cleaning for TTS completed (preserving paragraphs).
+2025-05-10 15:36:50 [INFO]: [36cd73ef-5015-4307-8f7f-0648983ec6f5] Text cleaned successfully.
+2025-05-10 15:36:51 [INFO]: [36cd73ef-5015-4307-8f7f-0648983ec6f5] Translation successful.
+2025-05-10 15:36:51 [INFO]: Sending request to OpenAI (model: gpt-4o) for CEFR level A1 adaptation.
+2025-05-10 15:36:51 [INFO]: Received adapted text from OpenAI.
+2025-05-10 15:36:51 [INFO]: [36cd73ef-5015-4307-8f7f-0648983ec6f5] Text adapted successfully.
+2025-05-10 15:36:51 [DEBUG]: Split text into 1 paragraphs.
+2025-05-10 15:36:51 [DEBUG]: Processing paragraph 1 with 2 potential sentences.
+2025-05-10 15:36:51 [DEBUG]: Appended sentence to current chunk. New length: 17, New bytes: 17
+2025-05-10 15:36:51 [DEBUG]: Appended sentence to current chunk. New length: 91, New bytes: 91
+2025-05-10 15:36:51 [DEBUG]: Added final remaining chunk. Length: 91, Bytes: 91
+2025-05-10 15:36:51 [INFO]: Text processing resulted in 1 final chunks.
+2025-05-10 15:36:51 [INFO]: [36cd73ef-5015-4307-8f7f-0648983ec6f5] Text chunked into 1 parts.
+2025-05-10 15:36:51 [ERROR]: Credential file not found at path: /etc/secrets/google-tts.json
+2025-05-10 15:36:51 [ERROR]: Error: Google Cloud credentials file not found. Please ensure the credentials file exists at: /etc/secrets/google-tts.json
+    at initializeClient (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:39:19)
+    at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:237:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 15:36:51 [ERROR]: Error: Google TTS client failed to initialize. Please check your credentials and ensure the Text-to-Speech API is enabled in your Google Cloud project.
+    at initializeClient (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:53:15)
+    at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:237:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 15:36:51 [INFO]: [36cd73ef-5015-4307-8f7f-0648983ec6f5] Performing final cleanup.
+2025-05-10 15:53:07 [INFO]: Logger initialized with level: debug
+2025-05-10 15:53:10 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 15:53:10 [INFO]: OpenAI client initialized successfully.
+2025-05-10 15:53:10 [INFO]: Supabase client initialized successfully.
+2025-05-10 15:53:10 [INFO]: Attempting to start server on port 5001
+2025-05-10 15:53:10 [INFO]: Environment: development
+2025-05-10 15:53:10 [INFO]: Process environment PORT variable: 5001
+2025-05-10 15:53:10 [INFO]: Starting server...
+2025-05-10 15:53:10 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 15:53:10 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 15:53:32 [INFO]: Logger initialized with level: debug
+2025-05-10 15:53:34 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 15:53:34 [INFO]: OpenAI client initialized successfully.
+2025-05-10 15:53:34 [INFO]: Supabase client initialized successfully.
+2025-05-10 15:53:34 [INFO]: Attempting to start server on port 5001
+2025-05-10 15:53:34 [INFO]: Environment: development
+2025-05-10 15:53:34 [INFO]: Process environment PORT variable: 5001
+2025-05-10 15:53:34 [INFO]: Starting server...
+2025-05-10 15:53:34 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 15:53:34 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 16:00:01 [INFO]: Request started: POST /api/tts/process
+2025-05-10 16:00:01 [INFO]: [48cbbb7b-4420-4155-809e-596fa593d1eb] Received TTS request.
+2025-05-10 16:00:01 [INFO]: [48cbbb7b-4420-4155-809e-596fa593d1eb] Processing application/json request.
+2025-05-10 16:00:01 [INFO]: [48cbbb7b-4420-4155-809e-596fa593d1eb] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 16:00:01 [INFO]: Extracting text for input type: text
+2025-05-10 16:00:01 [INFO]: Received plain text input. Passing directly to cleaning step.
+2025-05-10 16:00:01 [INFO]: [48cbbb7b-4420-4155-809e-596fa593d1eb] Text extracted successfully.
+2025-05-10 16:00:01 [DEBUG]: Starting TTS cleaning...
+2025-05-10 16:00:01 [DEBUG]: After HTML tag removal (first 100): havalar iyice güzelleşti yaz geliyır.
+2025-05-10 16:00:01 [DEBUG]: After HTML entity decoding (first 100): havalar iyice güzelleşti yaz geliyır.
+2025-05-10 16:00:01 [DEBUG]: After emoji removal (first 100): havalar iyice güzelleşti yaz geliyır.
+2025-05-10 16:00:01 [DEBUG]: After unwanted character removal (first 100): havalar iyice güzelleşti yaz geliyır.
+2025-05-10 16:00:01 [DEBUG]: After line break normalization (first 100): havalar iyice güzelleşti yaz geliyır.
+2025-05-10 16:00:01 [DEBUG]: After marking paragraph breaks (first 100): havalar iyice güzelleşti yaz geliyır.
+2025-05-10 16:00:01 [DEBUG]: After removing single newlines (first 100): havalar iyice güzelleşti yaz geliyır.
+2025-05-10 16:00:01 [DEBUG]: After restoring paragraph breaks (first 100): havalar iyice güzelleşti yaz geliyır.
+2025-05-10 16:00:01 [DEBUG]: After space normalization (first 100): havalar iyice güzelleşti yaz geliyır.
+2025-05-10 16:00:01 [DEBUG]: After final trim (first 100): havalar iyice güzelleşti yaz geliyır.
+2025-05-10 16:00:01 [INFO]: Text cleaning for TTS completed (preserving paragraphs).
+2025-05-10 16:00:01 [INFO]: [48cbbb7b-4420-4155-809e-596fa593d1eb] Text cleaned successfully.
+2025-05-10 16:00:03 [INFO]: [48cbbb7b-4420-4155-809e-596fa593d1eb] Translation successful.
+2025-05-10 16:00:03 [INFO]: Sending request to OpenAI (model: gpt-4o) for CEFR level A1 adaptation.
+2025-05-10 16:00:04 [INFO]: Received adapted text from OpenAI.
+2025-05-10 16:00:04 [INFO]: [48cbbb7b-4420-4155-809e-596fa593d1eb] Text adapted successfully.
+2025-05-10 16:00:04 [DEBUG]: Split text into 1 paragraphs.
+2025-05-10 16:00:04 [DEBUG]: Processing paragraph 1 with 2 potential sentences.
+2025-05-10 16:00:04 [DEBUG]: Appended sentence to current chunk. New length: 20, New bytes: 20
+2025-05-10 16:00:04 [DEBUG]: Appended sentence to current chunk. New length: 39, New bytes: 39
+2025-05-10 16:00:04 [DEBUG]: Added final remaining chunk. Length: 39, Bytes: 39
+2025-05-10 16:00:04 [INFO]: Text processing resulted in 1 final chunks.
+2025-05-10 16:00:04 [INFO]: [48cbbb7b-4420-4155-809e-596fa593d1eb] Text chunked into 1 parts.
+2025-05-10 16:00:04 [ERROR]: Credential file not found at path: /etc/secrets/google-tts.json
+2025-05-10 16:00:04 [ERROR]: Error: Google Cloud credentials file not found. Please ensure the credentials file exists at: /etc/secrets/google-tts.json
+    at initializeClient (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:39:19)
+    at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:237:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 16:00:04 [ERROR]: Error: Google TTS client failed to initialize. Please check your credentials and ensure the Text-to-Speech API is enabled in your Google Cloud project.
+    at initializeClient (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:53:15)
+    at synthesizeChunkWithTimepoints (C:\Users\USER\Documents\GitHub\LingRoot\backend\utils\googleTts.js:218:11)
+    at processTtsRequest (C:\Users\USER\Documents\GitHub\LingRoot\backend\controllers\ttsController.js:237:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+2025-05-10 16:00:04 [INFO]: [48cbbb7b-4420-4155-809e-596fa593d1eb] Performing final cleanup.
