@@ -18,7 +18,7 @@ Rewrite the given English text into CEFR level B1.
 
 📥 INPUT:
 ---
-{{text}}
+{{input_text}}
 ---
 
 📤 OUTPUT:

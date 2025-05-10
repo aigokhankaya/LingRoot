@@ -55,12 +55,17 @@ async function adaptToCEFR(text, level) {
             temperature: 0.6,
         });
         const adaptedText = completion.choices[0]?.message?.content?.trim();
-        if (adaptedText) {
+        if (
+            !adaptedText ||
+            adaptedText.toLowerCase().includes("please provide the text") ||
+            adaptedText.toLowerCase().includes("i'm here to help") ||
+            adaptedText.toLowerCase().includes("i can't assist")
+        ) {
+            logger.error("OpenAI CEFR adaptation failed: Model did not return a valid adaptation.");
+            return null;
+        } else {
             logger.info("Received adapted text from OpenAI.");
             return adaptedText;
-        } else {
-            logger.error("OpenAI response did not contain expected content.");
-            return text;
         }
     } catch (error) {
         logger.error(`An error occurred during OpenAI API call: ${error.message}`);

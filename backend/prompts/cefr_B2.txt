@@ -17,7 +17,7 @@ Rewrite the given English text into CEFR level B2.
 
 📥 INPUT:
 ---
-{{text}}
+{{input_text}}
 ---
 
 📤 OUTPUT:

@@ -32,4 +32,5 @@ Thumbs.db
 
 # Backend logs
 backend/logs/
+backend/logs/requests/
 

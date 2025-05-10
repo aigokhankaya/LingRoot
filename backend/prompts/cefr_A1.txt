@@ -15,7 +15,7 @@ Rewrite the given English text into strict **CEFR level A1**.
   - Contain **only one idea**
   - Be fully understandable by a beginner
 - Do **NOT** use:
-  - Passive voice (e.g., “is built”, “was made”)
+  - Passive voice (e.g., "is built", "was made")
   - Conditionals (e.g., if, would, could)
   - Relative clauses (e.g., who, which, that + verb)
   - Abstract nouns (e.g., culture, tradition, experience, community)
@@ -28,9 +28,9 @@ Rewrite the given English text into strict **CEFR level A1**.
 - Do not try to make the text sound advanced or stylish.
 
 ❗Examples:
-✅ “The bazaar is big.”  
-✅ “People buy food here.”  
-❌ “The bazaar reflects local cultural traditions.”
+✅ "The bazaar is big."  
+✅ "People buy food here."  
+❌ "The bazaar reflects local cultural traditions."
 
 📌 GENERAL RULES:
 - Keep all ideas and facts from the input. Do NOT summarize, merge, or skip.
@@ -40,7 +40,7 @@ Rewrite the given English text into strict **CEFR level A1**.
 
 📥 INPUT:
 ---
-{{text}}
+{{input_text}}
 ---
 
 📤 OUTPUT:

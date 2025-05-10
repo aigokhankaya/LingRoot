@@ -19,7 +19,7 @@ Rewrite the given English text into CEFR level A2.
 
 📥 INPUT:
 ---
-{{text}}
+{{input_text}}
 ---
 
 📤 OUTPUT:
