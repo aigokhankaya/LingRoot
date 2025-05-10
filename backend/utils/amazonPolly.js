@@ -47,12 +47,9 @@ async function synthesizeWithPolly({ text, voiceId, languageCode }) {
  */
 async function listPollyVoices() {
     try {
-        const { Voices } = await polly.send({
-            input: {},
-            commandName: 'DescribeVoicesCommand',
-            // The AWS SDK v3 way:
-            ...new (require('@aws-sdk/client-polly').DescribeVoicesCommand)({})
-        });
+        const { DescribeVoicesCommand } = require('@aws-sdk/client-polly');
+        const command = new DescribeVoicesCommand({});
+        const { Voices } = await polly.send(command);
         return Voices || [];
     } catch (error) {
         logger.error('Amazon Polly list voices error:', { message: error.message, stack: error.stack });
