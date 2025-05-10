@@ -57,7 +57,7 @@ async function mergeAudioSegments(audioSegments, outputFilePath) {
             return false;
         }
 
-        fs.writeFileSync(listFilePath, mergeInputList);
+        fs.writeFileSync(listFilePath, mergeInputList, 'utf8');
         logger.debug(`📄 FFmpeg list file created: ${listFilePath}`);
 
         // Ensure output directory exists

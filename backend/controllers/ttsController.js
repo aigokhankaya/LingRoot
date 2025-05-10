@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require("uuid");
 const logger = require("../utils/logger"); // Import Winston logger
 const { extractTextFromInput, generateTopicText, generateEnglishNarrationForTopic, translateToEnglishWithOpenAI } = require("../utils/inputExtractor");
 const { cleanText, chunkText } = require("../utils/textProcessor");
-const { adaptToCEFR: adaptToCEFRFunc } = require("../utils/cefrAdapter");
+const { adaptToCEFR: adaptToCEFRPrompt } = require("../utils/cefrAdapter");
 const { synthesizeSpeechChunks, synthesizeChunkWithTimepoints } = require("../utils/googleTts");
 const { mergeAudioSegments } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
@@ -255,7 +255,7 @@ const processTtsRequest = async (req, res) => {
             }
             // Geçici dosyaya yaz
             const vttFile = tmp.fileSync({ postfix: '.vtt' });
-            fs.writeFileSync(vttFile.name, vttContent);
+            fs.writeFileSync(vttFile.name, vttContent, 'utf8');
             // Supabase'e yükle
             const vttFilename = `lingroot_${level}_${uuidv4()}.vtt`;
             vttUrl = await uploadToSupabase(vttFile.name, vttFilename);
