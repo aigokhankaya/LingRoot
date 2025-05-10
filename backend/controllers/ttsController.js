@@ -335,7 +335,7 @@ const processTtsRequest = async (req, res) => {
 };
 
 // --- TTS Step Endpoints ---
-exports.translateToEnglish = async (req, res) => {
+const translateToEnglish = async (req, res) => {
   const { text } = req.body;
   const requestId = uuidv4();
   try {
