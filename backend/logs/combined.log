@@ -270,3 +270,47 @@
 2025-05-10 13:30:13 [INFO]: Starting server...
 2025-05-10 13:30:13 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
 2025-05-10 13:30:13 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 13:30:39 [INFO]: Request started: POST /api/tts/process
+2025-05-10 13:30:39 [INFO]: [55181bd0-6b1e-482e-bbba-34715ee1fde9] Received TTS request.
+2025-05-10 13:30:39 [INFO]: [55181bd0-6b1e-482e-bbba-34715ee1fde9] Processing application/json request.
+2025-05-10 13:30:39 [INFO]: [55181bd0-6b1e-482e-bbba-34715ee1fde9] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 13:30:39 [INFO]: Extracting text for input type: text
+2025-05-10 13:30:39 [INFO]: Rewriting input text to English narration via prompt.
+2025-05-10 13:30:39 [INFO]: Rewriting input text to English narration at level: A1...
+2025-05-10 13:30:50 [INFO]: Successfully rewrote input to English narration.
+2025-05-10 13:30:50 [INFO]: [55181bd0-6b1e-482e-bbba-34715ee1fde9] Text extracted successfully.
+2025-05-10 13:30:50 [DEBUG]: Starting TTS cleaning...
+2025-05-10 13:30:50 [DEBUG]: After HTML tag removal (first 100): Istanbul is a city that seamlessly blends the old with the new, a place where history and modernity 
+2025-05-10 13:30:50 [DEBUG]: After HTML entity decoding (first 100): Istanbul is a city that seamlessly blends the old with the new, a place where history and modernity 
+2025-05-10 13:30:50 [DEBUG]: After emoji removal (first 100): Istanbul is a city that seamlessly blends the old with the new, a place where history and modernity 
+2025-05-10 13:30:50 [DEBUG]: After unwanted character removal (first 100): Istanbul is a city that seamlessly blends the old with the new, a place where history and modernity 
+2025-05-10 13:30:50 [DEBUG]: After line break normalization (first 100): Istanbul is a city that seamlessly blends the old with the new, a place where history and modernity 
+2025-05-10 13:30:50 [DEBUG]: After marking paragraph breaks (first 100): Istanbul is a city that seamlessly blends the old with the new, a place where history and modernity 
+2025-05-10 13:30:50 [DEBUG]: After removing single newlines (first 100): Istanbul is a city that seamlessly blends the old with the new, a place where history and modernity 
+2025-05-10 13:30:50 [DEBUG]: After restoring paragraph breaks (first 100): Istanbul is a city that seamlessly blends the old with the new, a place where history and modernity 
+2025-05-10 13:30:50 [DEBUG]: After space normalization (first 100): Istanbul is a city that seamlessly blends the old with the new, a place where history and modernity 
+2025-05-10 13:30:50 [DEBUG]: After final trim (first 100): Istanbul is a city that seamlessly blends the old with the new, a place where history and modernity 
+2025-05-10 13:30:50 [INFO]: Text cleaning for TTS completed (preserving paragraphs).
+2025-05-10 13:30:50 [INFO]: [55181bd0-6b1e-482e-bbba-34715ee1fde9] Text cleaned successfully.
+2025-05-10 13:30:50 [INFO]: [55181bd0-6b1e-482e-bbba-34715ee1fde9] Translation successful.
+2025-05-10 13:30:50 [INFO]: [55181bd0-6b1e-482e-bbba-34715ee1fde9] Performing final cleanup.
+2025-05-10 13:39:02 [INFO]: Logger initialized with level: debug
+2025-05-10 13:39:04 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 13:39:04 [INFO]: OpenAI client initialized successfully.
+2025-05-10 13:39:04 [INFO]: Supabase client initialized successfully.
+2025-05-10 13:39:04 [INFO]: Attempting to start server on port 5001
+2025-05-10 13:39:04 [INFO]: Environment: development
+2025-05-10 13:39:04 [INFO]: Process environment PORT variable: 5001
+2025-05-10 13:39:04 [INFO]: Starting server...
+2025-05-10 13:39:04 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 13:39:04 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 13:39:32 [INFO]: Logger initialized with level: debug
+2025-05-10 13:39:34 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 13:39:34 [INFO]: OpenAI client initialized successfully.
+2025-05-10 13:39:34 [INFO]: Supabase client initialized successfully.
+2025-05-10 13:39:34 [INFO]: Attempting to start server on port 5001
+2025-05-10 13:39:34 [INFO]: Environment: development
+2025-05-10 13:39:34 [INFO]: Process environment PORT variable: 5001
+2025-05-10 13:39:34 [INFO]: Starting server...
+2025-05-10 13:39:34 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 13:39:34 [INFO]: ✅ Server successfully bound to port 5001

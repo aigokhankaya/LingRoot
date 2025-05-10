@@ -318,12 +318,14 @@ const processTtsRequest = async (req, res) => {
         });
 
     } catch (error) {
+        logger.error(`[${requestId}] Uncaught error: ${error.message}`, { stack: error.stack });
         logStep({
             requestId,
             stepName: 'tts:error',
             stepSequence: stepSequence++,
             status: 'failure',
-            error
+            error: error.message,
+            stack: error.stack
         });
         // Cleanup handled in finally block
         return res.status(500).json({ success: false, message: "An internal server error occurred." });
