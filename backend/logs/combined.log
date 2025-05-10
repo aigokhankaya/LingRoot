@@ -169,3 +169,26 @@
 2025-05-10 12:22:57 [INFO]: Starting server...
 2025-05-10 12:22:57 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
 2025-05-10 12:22:57 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 12:35:19 [INFO]: Logger initialized with level: debug
+2025-05-10 12:35:21 [INFO]: OpenAI client initialized for input extraction (topic generation).
+2025-05-10 12:35:21 [INFO]: OpenAI client initialized successfully.
+2025-05-10 12:35:21 [INFO]: Supabase client initialized successfully.
+2025-05-10 12:35:21 [INFO]: Attempting to start server on port 5001
+2025-05-10 12:35:21 [INFO]: Environment: development
+2025-05-10 12:35:21 [INFO]: Process environment PORT variable: 5001
+2025-05-10 12:35:21 [INFO]: Starting server...
+2025-05-10 12:35:21 [INFO]: ✅ Server is running on http://0.0.0.0:5001 in development mode
+2025-05-10 12:35:21 [INFO]: ✅ Server successfully bound to port 5001
+2025-05-10 12:35:38 [INFO]: Request started: GET /
+2025-05-10 12:39:58 [INFO]: Request started: POST /api/tts/process
+2025-05-10 12:39:58 [INFO]: [0153399e-f3e2-4d79-91f0-f9599b8edcf9] Received TTS request.
+2025-05-10 12:39:58 [INFO]: [0153399e-f3e2-4d79-91f0-f9599b8edcf9] Processing application/json request.
+2025-05-10 12:39:58 [INFO]: [0153399e-f3e2-4d79-91f0-f9599b8edcf9] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 12:39:58 [ERROR]: [0153399e-f3e2-4d79-91f0-f9599b8edcf9] Missing required input parameters.
+2025-05-10 12:39:58 [INFO]: [0153399e-f3e2-4d79-91f0-f9599b8edcf9] Performing final cleanup.
+2025-05-10 12:40:20 [INFO]: Request started: POST /api/tts/process
+2025-05-10 12:40:20 [INFO]: [2c328784-2aca-4a4a-a38c-701ba23f1a04] Received TTS request.
+2025-05-10 12:40:20 [INFO]: [2c328784-2aca-4a4a-a38c-701ba23f1a04] Processing application/json request.
+2025-05-10 12:40:20 [INFO]: [2c328784-2aca-4a4a-a38c-701ba23f1a04] JSON details: type=text, level=A1, rate=0.8
+2025-05-10 12:40:20 [ERROR]: [2c328784-2aca-4a4a-a38c-701ba23f1a04] Missing required input parameters.
+2025-05-10 12:40:20 [INFO]: [2c328784-2aca-4a4a-a38c-701ba23f1a04] Performing final cleanup.
