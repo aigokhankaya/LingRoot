@@ -40,7 +40,11 @@ async function translateToEnglishWithOpenAI(text) {
         ],
         temperature: 0.2,
     });
-    const translated = completion.choices[0]?.message?.content?.trim() || text;
+    let translated = completion.choices[0]?.message?.content?.trim() || text;
+    // If OpenAI returns a generic message, use the original text
+    if (/^the text is already in english\.?$/i.test(translated)) {
+        translated = text;
+    }
     return { text: translated, detectedLang: "auto" };
 }
 

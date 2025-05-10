@@ -47,9 +47,10 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     e.preventDefault();
     const inputData: ProcessInputData = {
       type: inputType,
-      text: inputType === 'text' ? text : undefined,
+      text: inputType === 'text' ? text : inputType === 'topic' ? topic : undefined,
       input:
         inputType === 'text' ? text :
+        inputType === 'topic' ? topic :
         inputType === 'youtube' ? youtubeLink :
         inputType === 'weblink' ? webLink :
         inputType === 'spotify' ? spotifyLink :
