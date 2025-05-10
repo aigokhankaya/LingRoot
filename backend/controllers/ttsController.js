@@ -363,7 +363,7 @@ exports.adaptToCEFR = async (req, res) => {
   }
 };
 
-exports.chunkTextAPI = (req, res) => {
+const chunkTextAPI = (req, res) => {
   const { text } = req.body;
   const requestId = uuidv4();
   try {
