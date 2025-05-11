@@ -68,6 +68,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         body: JSON.stringify({ firstName, lastName, email, phoneNumber, password })
       });
       const data = await response.json();
+      if (data.success) {
+        // Kayıt başarılıysa otomatik login
+        await login(email, password);
+      }
       return data;
     } catch (error: any) {
       return { success: false, message: error.message || 'Kayıt sırasında bir hata oluştu.' };
