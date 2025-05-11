@@ -22,7 +22,7 @@ async def scrape_transcript(req: TranscriptRequest):
     """
     try:
         logging.info(f"Received request for URL: {req.url}")
-        transcript = get_transcript_from_yttranscript_com(req.url)
+        transcript = await get_transcript_from_yttranscript_com(req.url)
         return {"transcript": transcript}
     except Exception as e:
         logging.error(f"Error processing request: {str(e)}")
