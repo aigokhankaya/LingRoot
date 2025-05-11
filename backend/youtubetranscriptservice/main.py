@@ -1,5 +1,11 @@
 from fastapi import FastAPI
-from transcriptController import router as transcript_router
+from pydantic import BaseModel
 
 app = FastAPI()
-app.include_router(transcript_router) 
+
+class TranscriptRequest(BaseModel):
+    url: str
+
+@app.post("/scrape-transcript")
+async def scrape_transcript(req: TranscriptRequest):
+    return {"transcript": "dummy transcript for " + req.url} 
