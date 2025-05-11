@@ -24,7 +24,7 @@ async def get_transcript_from_yttranscript_com(video_url: str) -> str:
             await page.goto("https://youtubetotranscript.com/")
             await page.fill('input[name="youtube-url"]', video_url)
             await page.click('button[type="submit"]')
-            await page.wait_for_selector('.transcript-text', timeout=20000)
+            await page.wait_for_selector('.transcript-text', timeout=60000)
             transcript = await page.inner_text('.transcript-text')
             await browser.close()
             return transcript
