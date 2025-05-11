@@ -77,7 +77,6 @@ exports.register = async (req, res) => {
       .from("Users")
       .select("id")
       .eq("phoneNumber", phoneNumber)
-      .neq("id", userId)
       .maybeSingle();
 
     if (existingPhone) {
@@ -234,7 +233,6 @@ exports.updateProfile = async (req, res) => {
         .from("Users")
         .select("id")
         .eq("phoneNumber", phoneNumber)
-        .neq("id", userId)
         .maybeSingle();
 
       if (existingPhone) {
