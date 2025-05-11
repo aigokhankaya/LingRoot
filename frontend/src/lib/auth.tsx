@@ -34,7 +34,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       });
       const data = await response.json();
       if (response.ok && data.success) {
-        setUser(data.data.user);
+        // User nesnesini normalize et
+        const rawUser = data.data.user;
+        const user: User = {
+          id: rawUser.id,
+          email: rawUser.email,
+          role: rawUser.role || 'user',
+          membershipStatus: rawUser.membershipStatus || 'free',
+        };
+        setUser(user);
         setIsAuthenticated(true);
         // Token veya başka bir şey kaydedilecekse burada yapılabilir
         return { success: true };
