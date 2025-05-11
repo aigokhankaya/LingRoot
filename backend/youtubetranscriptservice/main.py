@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import logging
-from transcript_scraper import get_transcript_from_yttranscript_com
+from backend.youtubetranscriptservice.transcript_scraper import get_transcript_from_yttranscript_com
 
 # Configure logging
 logging.basicConfig(

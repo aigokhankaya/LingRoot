@@ -5,7 +5,6 @@ import { ProcessInputData } from '../lib/api';
 
 type InputType = ProcessInputData['type'];
 type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
-type Voice = 'en-GB-Wavenet-B' | 'en-US-Wavenet-D' | 'en-US-Wavenet-F';
 
 interface InputSectionProps {
   onSubmit: (data: ProcessInputData) => void;
@@ -14,9 +13,7 @@ interface InputSectionProps {
 
 // Polly'nin desteklediği İngilizce sesler (örnek, tam liste için backend'den çekilebilir)
 const POLLY_VOICES = [
-  { Id: 'Joanna', Name: 'Joanna', LanguageName: 'English (US)', Gender: 'Female', Engine: 'Neural/Standard' },
   { Id: 'Matthew', Name: 'Matthew', LanguageName: 'English (US)', Gender: 'Male', Engine: 'Neural' },
-  { Id: 'Ivy', Name: 'Ivy', LanguageName: 'English (US)', Gender: 'Female', Engine: 'Standard' },
   { Id: 'Amy', Name: 'Amy', LanguageName: 'English (UK)', Gender: 'Female', Engine: 'Neural' },
 ];
 
@@ -32,7 +29,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [bookName, setBookName] = useState<string>('');
   const [bookChapter, setBookChapter] = useState<string>('');
   const [level, setLevel] = useState<Level>('A1');
-  const [voice, setVoice] = useState<Voice>('en-GB-Wavenet-B');
+  const [voice, setVoice] = useState<string>(POLLY_VOICES[0].Id);
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
   const [pollyVoices, setPollyVoices] = useState<any[]>([]);
 
@@ -50,9 +47,17 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       .catch(() => setPollyVoices([]));
   }, []);
 
+  useEffect(() => {
+    if (!POLLY_VOICES.some(v => v.Id === voice)) {
+      setVoice(POLLY_VOICES[0].Id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voice]);
+
   // Eski handleSubmit diğer input tipleri için
   const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
+    const safeVoice = POLLY_VOICES.some(v => v.Id === voice) ? voice : POLLY_VOICES[0].Id;
     const inputData: ProcessInputData = {
       type: inputType,
       text: inputType === 'text' ? text : inputType === 'topic' ? topic : undefined,
@@ -67,7 +72,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       file: inputType === 'file' ? file || undefined : undefined,
       level,
       SesHızı: speakingRate,
-      voice,
+      voice: safeVoice,
       chapter: inputType === 'book' ? bookChapter : undefined,
     };
     onSubmit(inputData);
