@@ -34,7 +34,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       });
       const data = await response.json();
       if (response.ok && data.success) {
-        setUser(data.user);
+        setUser(data.data.user);
         setIsAuthenticated(true);
         // Token veya başka bir şey kaydedilecekse burada yapılabilir
         return { success: true };
