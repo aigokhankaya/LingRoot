@@ -154,7 +154,7 @@ export default function OutputSection({ audioResult, isLoggedIn, contentHistory:
           </div>
         )}
         {/* Çevrilmiş İngilizce metin */}
-        <div className="text-base text-gray-800 whitespace-pre-line">
+        <div className="text-base text-gray-800 whitespace-pre-line font-semibold">
           {audioResult.message}
         </div>
       </div>
