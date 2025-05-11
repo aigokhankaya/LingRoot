@@ -254,7 +254,7 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
 
         case "youtube":
             if (typeof inputData === "string") {
-                logger.info("Fetching YouTube transcript using Supadata API...");
+                logger.info("Fetching YouTube transcript using local Playwright FastAPI service...");
                 return await fetchYoutubeTranscript(inputData);
             } else {
                 logger.error("Input data (YouTube URL) is not a string for type 'youtube'.");
