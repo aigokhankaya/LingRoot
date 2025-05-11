@@ -27,12 +27,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
 
   const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
+      console.log('[AUTH] login() called', { email });
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
       const data = await response.json();
+      console.log('[AUTH] login() response', data);
       if (response.ok && data.success) {
         // User nesnesini normalize et
         const rawUser = data.data.user;
@@ -44,16 +46,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         };
         setUser(user);
         setIsAuthenticated(true);
-        // Token veya başka bir şey kaydedilecekse burada yapılabilir
+        console.log('[AUTH] setUser & setIsAuthenticated', user);
         return { success: true };
       } else {
         setUser(null);
         setIsAuthenticated(false);
+        console.log('[AUTH] login() failed', data.message);
         return { success: false, message: data.message || 'Giriş başarısız.' };
       }
     } catch (error: any) {
       setUser(null);
       setIsAuthenticated(false);
+      console.log('[AUTH] login() error', error);
       return { success: false, message: error.message || 'Giriş sırasında bir hata oluştu.' };
     }
   };
@@ -70,18 +74,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     password: string
   ): Promise<{ success: boolean; message?: string }> => {
     try {
+      console.log('[AUTH] register() called', { email });
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ firstName, lastName, email, phoneNumber, password })
       });
       const data = await response.json();
+      console.log('[AUTH] register() response', data);
       if (data.success) {
         // Kayıt başarılıysa otomatik login
         await login(email, password);
       }
       return data;
     } catch (error: any) {
+      console.log('[AUTH] register() error', error);
       return { success: false, message: error.message || 'Kayıt sırasında bir hata oluştu.' };
     }
   };
