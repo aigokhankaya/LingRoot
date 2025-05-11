@@ -1,0 +1,34 @@
+özetle www.youtubetotranscrtipt.com web sitesine link verip transcript alan bir bot
+
+http://localhost:8000/scrape-transcript endpoint’ini çalıştıran Python servisini nasıl başlatacağınızı ve ne yapmanız gerektiğini öğrenmek istiyorsunuz.
+1. Gerekli Dosyalar ve Kod
+Bu endpoint, genellikle bir FastAPI uygulaması ile sağlanır. Projenizde şöyle bir dosya yapısı ve kod olması gerekir:
+Örnek dosya yolu:
+backend/youtubetranscriptservice/main.py
+Örnek FastAPI kodu:
+Apply to main.py
+2. Gerekli Python Paketleri
+Aşağıdaki paketlerin kurulu olması gerekir:
+fastapi
+uvicorn
+youtube-transcript-api
+Kurmak için:
+Apply to main.py
+Run
+3. Servisi Başlatmak
+Aşağıdaki komutu, FastAPI uygulamanızın bulunduğu dizinde çalıştırın:
+Apply to main.py
+Run
+backend.youtubetranscriptservice.main:app kısmı, FastAPI uygulamanızın Python import yoludur (main.py dosyasında app = FastAPI() olmalı).
+--reload geliştirme için otomatik yeniden başlatma sağlar.
+4. Kontrol
+Tarayıcıda veya Postman’da:
+Apply to main.py
+diyerek test edebilirsiniz.
+5. Özet
+Gerekli Python dosyasını ve kodunu oluşturun (örnek yukarıda).
+Gerekli paketleri yükleyin.
+Komut satırında FastAPI servisini başlatın.
+Node.js backend’iniz artık bu servise istek atabilir.
+Ekstra:
+Eğer projenizde bu dosya veya kod yoksa, örnek kodu sağlayabilirim. İsterseniz tam dosya şablonu göndereyim!

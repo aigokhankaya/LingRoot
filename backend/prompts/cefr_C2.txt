@@ -1,0 +1,24 @@
+🎯 TASK:
+Rewrite the given English text into CEFR level C2.
+
+⚠️ Follow ONLY the rules listed under C2. Do NOT mix rules from other levels.
+
+🔵 LEVEL C2:
+- Use near-native fluency: precise vocabulary, subtle nuance, and rhetorical structure.
+- Integrate high-level grammar and academic or literary devices.
+- Use metaphor, allusion, and abstract argumentation where appropriate.
+
+📌 GENERAL RULES:
+- Keep 100% of the ideas and structure of the input.
+- Do NOT summarize, skip, or combine any sentence.
+- Keep paragraph and line break structure the same.
+- Output should be natural, spoken English, suitable for TTS.
+- Maintain at least 95% of original word count.
+
+📥 INPUT:
+---
+{{input_text}}
+---
+
+📤 OUTPUT:
+Return only the rewritten text in C2 level. Do not explain or comment. 
