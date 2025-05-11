@@ -20,6 +20,7 @@ const subscriptionRoutes = require("./routes/subscriptionRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const ttsRoutes = require("./routes/ttsRoutes");
 const topicSuggestRoutes = require("./routes/topicSuggestRoutes");
+const booksRouter = require('./routes/books');
 
 // Initialize Express app
 const app = express();
@@ -64,6 +65,7 @@ app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/tts", ttsRoutes);
 app.use("/api/topic-suggest", topicSuggestRoutes);
+app.use('/api/books', booksRouter);
 
 // Root route
 app.get("/", (req, res) => {

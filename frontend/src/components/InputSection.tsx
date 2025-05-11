@@ -2,6 +2,7 @@
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useTranslation } from '@/lib/i18n';
 import { ProcessInputData } from '../lib/api';
+import { searchBooks, fetchBookContent } from '../services/bookService';
 
 type InputType = ProcessInputData['type'];
 type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
@@ -16,6 +17,37 @@ const POLLY_VOICES = [
   { Id: 'Matthew', Name: 'Matthew', LanguageName: 'English (US)', Gender: 'Male', Engine: 'Neural' },
   { Id: 'Amy', Name: 'Amy', LanguageName: 'English (UK)', Gender: 'Female', Engine: 'Neural' },
 ];
+
+// Kitap metnini bölümlere ayıran fonksiyon (örnek: Chapter/Letter başlıkları)
+function splitBookIntoChapters(bookText: string) {
+  const chapterPattern = /(Chapter \d+|Letter \d+|CHAPTER [IVXLC]+|CHAPTER [0-9]+)/gi;
+  const chapters = [];
+  let lastIndex = 0;
+  let match;
+  match = chapterPattern.exec(bookText);
+  if (match && match.index > 0) {
+    chapters.push({ title: "Introduction / Preface", content: bookText.substring(0, match.index).trim() });
+    lastIndex = match.index;
+  }
+  chapterPattern.lastIndex = 0;
+  while ((match = chapterPattern.exec(bookText)) !== null) {
+    const chapterTitle = match[0];
+    let nextMatch = chapterPattern.exec(bookText);
+    let chapterContent = "";
+    if (nextMatch) {
+      chapterContent = bookText.substring(match.index + chapterTitle.length, nextMatch.index).trim();
+      chapterPattern.lastIndex = nextMatch.index - chapterTitle.length;
+    } else {
+      chapterContent = bookText.substring(match.index + chapterTitle.length).trim();
+    }
+    chapters.push({ title: chapterTitle, content: chapterContent });
+    lastIndex = match.index;
+  }
+  if (chapters.length === 0 && bookText.trim().length > 0) {
+    chapters.push({ title: "Full Text", content: bookText.trim() });
+  }
+  return chapters;
+}
 
 export default function InputSection({ onSubmit, isLoading }: InputSectionProps): React.ReactElement {
   const { t } = useTranslation();
@@ -32,6 +64,13 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [voice, setVoice] = useState<string>(POLLY_VOICES[0].Id);
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
   const [pollyVoices, setPollyVoices] = useState<any[]>([]);
+  const [bookSearch, setBookSearch] = useState<string>("");
+  const [pendingSearch, setPendingSearch] = useState<string>("");
+  const [bookResults, setBookResults] = useState<any[]>([]);
+  const [selectedBook, setSelectedBook] = useState<any | null>(null);
+  const [bookChapters, setBookChapters] = useState<{ title: string; content: string }[]>([]);
+  const [selectedChapterIdx, setSelectedChapterIdx] = useState<number | null>(null);
+  const [bookLoading, setBookLoading] = useState<boolean>(false);
 
   useEffect(() => {
     setSpeakingRate(level === 'A1' ? 0.8 : 1.0);
@@ -53,6 +92,38 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voice]);
+
+  // Kitap arama butonuna basınca tetiklenecek fonksiyon
+  const handleBookSearch = async () => {
+    if (pendingSearch.length < 3) return;
+    setBookLoading(true);
+    const results = await searchBooks(pendingSearch);
+    setBookResults(results);
+    setBookSearch(pendingSearch);
+    setSelectedBook(null);
+    setBookChapters([]);
+    setSelectedChapterIdx(null);
+    setBookLoading(false);
+  };
+
+  // Kitap seçilince içeriği ve bölümleri çek
+  useEffect(() => {
+    if (selectedBook) {
+      setBookLoading(true);
+      fetchBookContent(selectedBook.id).then(res => {
+        if (res.content) {
+          const chapters = splitBookIntoChapters(res.content);
+          setBookChapters(chapters);
+        } else {
+          setBookChapters([]);
+        }
+        setBookLoading(false);
+      });
+    } else {
+      setBookChapters([]);
+      setSelectedChapterIdx(null);
+    }
+  }, [selectedBook]);
 
   // Eski handleSubmit diğer input tipleri için
   const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
@@ -162,6 +233,18 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                 </svg>
                 <span>{t('spotify')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setInputType('book')}
+                className={`icon-button group ${inputType === 'book' ? 'icon-button-selected' : 'icon-button-default'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth={2} stroke="currentColor" fill="none" />
+                  <path d="M8 8h8M8 12h8M8 16h4" strokeWidth={2} stroke="currentColor" />
+                </svg>
+                <span>Kitap</span>
               </button>
             </div>
           </div>
@@ -312,33 +395,54 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
 
             {inputType === 'book' && (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="book-name" className="block text-sm font-semibold text-gray-700">
-                    {t('book_name')}
-                  </label>
+                <label className="block text-sm font-semibold text-gray-700">Kitap Seçin</label>
+                <div className="flex gap-2">
                   <input
-                    id="book-name"
                     type="text"
-                    value={bookName}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setBookName(e.target.value)}
-                    className="input-field focus:ring-blue-500 focus:border-blue-500"
-                    placeholder={t('enter_book_name')}
-                    required
+                    className="input-field w-full"
+                    placeholder="Ara: Kitap Adı / Yazar / Tür / vb."
+                    value={pendingSearch}
+                    onChange={e => setPendingSearch(e.target.value)}
                   />
+                  <button type="button" onClick={handleBookSearch} className="btn-primary px-4 py-2">Ara</button>
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor="book-chapter" className="block text-sm font-semibold text-gray-700">
-                    {t('book_chapter')}
-                  </label>
-                  <input
-                    id="book-chapter"
-                    type="text"
-                    value={bookChapter}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setBookChapter(e.target.value)}
-                    className="input-field focus:ring-blue-500 focus:border-blue-500"
-                    placeholder={t('enter_chapter_number')}
-                  />
-                </div>
+                {bookLoading && <div className="text-blue-600 text-sm">Yükleniyor...</div>}
+                {!bookLoading && bookResults.length > 0 && (
+                  <div className="border rounded bg-white max-h-48 overflow-auto">
+                    {bookResults.map(book => (
+                      <div
+                        key={book.id}
+                        className={`p-2 cursor-pointer hover:bg-blue-100 ${selectedBook && selectedBook.id === book.id ? 'bg-blue-200' : ''}`}
+                        onClick={() => setSelectedBook(book)}
+                      >
+                        <div className="font-semibold">{book.title}</div>
+                        <div className="text-xs text-gray-600">{book.authors?.map((a: { name: string }) => a.name).join(', ')}</div>
+                        <div className="text-xs text-gray-400">{book.subjects?.slice(0, 3).join(', ')}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedBook && bookChapters.length > 0 && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-semibold text-gray-700">Kitap Bölüm Seç</label>
+                    <div className="border rounded bg-white max-h-48 overflow-auto">
+                      {bookChapters.map((ch, idx) => (
+                        <div
+                          key={idx}
+                          className={`p-2 cursor-pointer hover:bg-blue-100 ${selectedChapterIdx === idx ? 'bg-blue-200' : ''}`}
+                          onClick={() => {
+                            setSelectedChapterIdx(idx);
+                            setBookName(selectedBook.title);
+                            setBookChapter(ch.content);
+                          }}
+                        >
+                          <div className="font-semibold">{ch.title}</div>
+                          <div className="text-xs text-gray-500 truncate">{ch.content.substring(0, 80)}...</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
