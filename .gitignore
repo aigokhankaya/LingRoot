@@ -34,3 +34,6 @@ Thumbs.db
 backend/logs/
 backend/logs/requests/
 
+# Next.js build output
+/.next
+.next
