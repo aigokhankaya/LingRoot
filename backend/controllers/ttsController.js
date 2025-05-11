@@ -225,17 +225,17 @@ const processTtsRequest = async (req, res) => {
         logger.info(`[${requestId}] Text chunked into ${textChunks.length} parts.`);
 
         // --- Step 5: Synthesize Speech (Amazon Polly) ---
-        const selectedVoice = req.body.voice || 'Joanna';
-        logRequestStep(requestId, 'tts:start', { chunkCount: textChunks.length, voice: selectedVoice, speakingRate });
+        logRequestStep(requestId, 'tts:start', { chunkCount: textChunks.length, voice: 'Joanna', speakingRate });
         logStep({
             requestId,
             stepName: 'tts:amazonPolly:start',
             stepSequence: stepSequence++,
             serviceName: 'AmazonPolly',
             endpoint: 'https://polly.us-east-1.amazonaws.com/v1/speech',
-            inputData: { adaptedText, voice: selectedVoice, speakingRate }
+            inputData: { adaptedText, voice: 'Joanna', speakingRate }
         });
-        const audioBase64 = await synthesizeWithPolly({ text: adaptedText, voiceId: selectedVoice, languageCode: 'en-US' });
+        // Polly sadece tek parça metinle çalışacak şekilde örnekleniyor (geliştirilebilir)
+        const audioBase64 = await synthesizeWithPolly({ text: adaptedText, voiceId: 'Joanna', languageCode: 'en-US' });
         if (!audioBase64) {
             logger.error(`[${requestId}] Failed to synthesize speech with Amazon Polly.`);
             logRequestStep(requestId, 'tts:error', { error: 'Failed to synthesize speech with Amazon Polly.' });

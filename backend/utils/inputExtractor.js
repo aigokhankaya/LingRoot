@@ -7,8 +7,6 @@ const { Readability } = require("@mozilla/readability");
 const pdf = require("pdf-parse");
 const mammoth = require("mammoth");
 const OpenAI = require("openai"); // Added for topic generation
-const fetch = require('node-fetch');
-const { fetchYoutubeTranscript } = require('./youtubeTranscriptService');
 require("dotenv").config();
 
 // Initialize OpenAI client (similar to cefrAdapter, consider refactoring to a shared client)
@@ -42,11 +40,7 @@ async function translateToEnglishWithOpenAI(text) {
         ],
         temperature: 0.2,
     });
-    let translated = completion.choices[0]?.message?.content?.trim() || text;
-    // If OpenAI returns a generic message, use the original text
-    if (/^the text is already in english\.?$/i.test(translated)) {
-        translated = text;
-    }
+    const translated = completion.choices[0]?.message?.content?.trim() || text;
     return { text: translated, detectedLang: "auto" };
 }
 
@@ -253,13 +247,8 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
             return `Content for book "${inputData}", chapter "${chapter}" would be processed here. This is placeholder text.`;
 
         case "youtube":
-            if (typeof inputData === "string") {
-                logger.info("Fetching YouTube transcript using local Playwright FastAPI service...");
-                return await fetchYoutubeTranscript(inputData);
-            } else {
-                logger.error("Input data (YouTube URL) is not a string for type 'youtube'.");
-                return null;
-            }
+            logger.warn(`YouTube link processing (${inputData}) is not yet implemented.`);
+            return null; // Indicate not implemented
 
         case "spotify":
             logger.warn(`Spotify link processing (${inputData}) is not yet implemented.`);

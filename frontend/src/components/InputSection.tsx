@@ -12,11 +12,20 @@ interface InputSectionProps {
   isLoading: boolean;
 }
 
+interface TopicSuggestion {
+  text: string;
+}
+
 export default function InputSection({ onSubmit, isLoading }: InputSectionProps): React.ReactElement {
   const { t } = useTranslation();
   const [inputType, setInputType] = useState<InputType>('text');
   const [text, setText] = useState<string>('');
   const [topic, setTopic] = useState<string>('');
+  const [topicSuggestions, setTopicSuggestions] = useState<string[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [showTopicStep, setShowTopicStep] = useState<boolean>(false);
+  const [topicLoading, setTopicLoading] = useState<boolean>(false);
+  const [topicError, setTopicError] = useState<string>('');
   const [youtubeLink, setYoutubeLink] = useState<string>('');
   const [webLink, setWebLink] = useState<string>('');
   const [spotifyLink, setSpotifyLink] = useState<string>('');
@@ -26,31 +35,68 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [level, setLevel] = useState<Level>('A1');
   const [voice, setVoice] = useState<Voice>('en-GB-Wavenet-B');
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
-  const [pollyVoices, setPollyVoices] = useState<any[]>([]);
 
   useEffect(() => {
     setSpeakingRate(level === 'A1' ? 0.8 : 1.0);
   }, [level]);
 
-  useEffect(() => {
-    const backendUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-      ? 'http://localhost:5001/api/tts/polly-voices'
-      : '/api/tts/polly-voices';
-    fetch(backendUrl)
-      .then(res => res.json())
-      .then(data => setPollyVoices(data.voices || []))
-      .catch(() => setPollyVoices([]));
-  }, []);
+  // 1. Konu başlığı girildiğinde öneri iste
+  const handleTopicSuggest = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault();
+    setTopicLoading(true);
+    setTopicError('');
+    setTopicSuggestions([]);
+    setSelectedTopic(null);
+    setShowTopicStep(false);
+    try {
+      const res = await fetch('/api/topic-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: topic })
+      });
+      if (!res.ok) throw new Error('Failed to fetch topic suggestions');
+      const data = await res.json();
+      setTopicSuggestions(data.suggestions || []);
+      setShowTopicStep(true);
+    } catch (err) {
+      setTopicError('Konu önerileri alınamadı.');
+    } finally {
+      setTopicLoading(false);
+    }
+  };
+
+  // 2. Kullanıcı bir öneri seçtiğinde detaylı anlatım iste
+  const handleTopicSelect = async (suggestion: string): Promise<void> => {
+    setSelectedTopic(suggestion);
+    setShowTopicStep(false);
+    onSubmit({
+      type: 'topic',
+      text: suggestion,
+      level,
+      voice,
+      SesHızı: speakingRate
+    });
+  };
+
+  // 3. Geri dön ve başka konu seç
+  const handleTopicBack = (): void => {
+    setShowTopicStep(false);
+    setSelectedTopic(null);
+    setTopicSuggestions([]);
+  };
 
   // Eski handleSubmit diğer input tipleri için
   const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
+    if (inputType === 'topic') {
+      handleTopicSuggest(e);
+      return;
+    }
     const inputData: ProcessInputData = {
       type: inputType,
-      text: inputType === 'text' ? text : inputType === 'topic' ? topic : undefined,
+      text: inputType === 'text' ? text : undefined,
       input:
         inputType === 'text' ? text :
-        inputType === 'topic' ? topic :
         inputType === 'youtube' ? youtubeLink :
         inputType === 'weblink' ? webLink :
         inputType === 'spotify' ? spotifyLink :
@@ -171,7 +217,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               </div>
             )}
 
-            {inputType === 'topic' && (
+            {inputType === 'topic' && !showTopicStep && !selectedTopic && (
               <div className="space-y-2">
                 <label htmlFor="topic-input" className="block text-sm font-semibold text-gray-700">
                   {t('enter_topic')}
@@ -185,6 +231,27 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                   placeholder={t('enter_topic_placeholder')}
                   required
                 />
+                <button type="submit" className="btn-primary mt-2" disabled={topicLoading}>
+                  {topicLoading ? '...' : t('get_topic_suggestions')}
+                </button>
+                {topicError && <div className="text-red-500 text-sm mt-2">{t('topic_suggestions_error')}</div>}
+                <p className="text-sm text-gray-500">{t('topic_description')}</p>
+              </div>
+            )}
+
+            {inputType === 'topic' && showTopicStep && topicSuggestions.length > 0 && !selectedTopic && (
+              <div className="space-y-4">
+                <div className="font-semibold">{t('topic_suggestions_title')}</div>
+                <ul className="space-y-2">
+                  {topicSuggestions.map((s, i) => (
+                    <li key={i}>
+                      <button type="button" className="w-full text-left border rounded-lg p-3 hover:bg-blue-50" onClick={() => handleTopicSelect(s)}>
+                        {s}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <button type="button" className="btn-secondary mt-4" onClick={handleTopicBack}>{t('back_and_select_other_topic')}</button>
               </div>
             )}
 
@@ -382,22 +449,12 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               </label>
               <select
                 value={voice}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setVoice(e.target.value as any)}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) => setVoice(e.target.value as Voice)}
                 className="input-field focus:ring-blue-500 focus:border-blue-500"
               >
-                {pollyVoices.length > 0 ? (
-                  pollyVoices.map((v) => (
-                    <option key={v.Id} value={v.Id}>
-                      {v.Name} ({v.LanguageName}, {v.Gender})
-                    </option>
-                  ))
-                ) : (
-                  <>
-                    <option value="en-GB-Wavenet-B">{t('voice_male_uk')}</option>
-                    <option value="en-US-Wavenet-D">{t('voice_male_us')}</option>
-                    <option value="en-US-Wavenet-F">{t('voice_female_us')}</option>
-                  </>
-                )}
+                <option value="en-GB-Wavenet-B">{t('voice_male_uk')}</option>
+                <option value="en-US-Wavenet-D">{t('voice_male_us')}</option>
+                <option value="en-US-Wavenet-F">{t('voice_female_us')}</option>
               </select>
             </div>
           </div>

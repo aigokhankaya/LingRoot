@@ -11,7 +11,7 @@ const {
   mergeAudioAPI
 } = require("../controllers/ttsController");
 const logger = require("../utils/logger");
-const { synthesizeWithPolly, listPollyVoices } = require('../utils/amazonPolly');
+const { synthesizeWithPolly } = require('../utils/amazonPolly');
 
 const router = express.Router();
 
@@ -79,16 +79,6 @@ router.post('/polly', async (req, res) => {
             return res.status(500).json({ error: 'Amazon Polly failed to synthesize speech.' });
         }
         res.json({ audioBase64 });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Amazon Polly voices list endpoint
-router.get('/polly-voices', async (req, res) => {
-    try {
-        const voices = await listPollyVoices();
-        res.json({ voices });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

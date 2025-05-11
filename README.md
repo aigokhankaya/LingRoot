@@ -346,6 +346,7 @@ Aşağıda verilen konu başlığı, kullanıcının ilgi alanına göre seçti�
 # LingRoot - YouTube Transcript & TTS Platformu
 
 ## Özellikler
+- YouTube videosundan transcript alma (Supadata API ile)
 - Transcript temizleme (LLM prompt)
 - TTS ile ses dosyası oluşturma
 - Modern, modüler frontend mimarisi
@@ -361,6 +362,8 @@ Aşağıda verilen konu başlığı, kullanıcının ilgi alanına göre seçti�
 2. **Gerekli ortam değişkenlerini ayarla:**
    `.env.local` dosyasına şunları ekle:
    ```env
+   NEXT_PUBLIC_SUPADATA_API_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6IjEifQ.eyJpc3MiOiJuYWRsZXMiLCJpYXQiOiIxNzQ2Mzg5Nzc0IiwicHVycG9zZSI6ImFwaV9hdXRoZW50aWNhdGlvbiIsInN1YiI6Ijg4NzRhOTBlYWIxNjQwMzk5MmMyOWJkMTkwNTA3M2FkIn0.FCi7GyPe0pcIyIojKzFGlkiHc77CvlBeQAAYdwJQ5Ok
+   # Diğer API anahtarları ve backend için
    JWT_SECRET=xxx
    DB_URL=xxx
    TTS_API_KEY=xxx
@@ -368,39 +371,3 @@ Aşağıda verilen konu başlığı, kullanıcının ilgi alanına göre seçti�
    SUPABASE_SERVICE_KEY=xxx
    SUPABASE_BUCKET=xxx
    ```
-
-## YouTube Transcript Microservice (Playwright + FastAPI)
-
-This microservice scrapes YouTube video transcripts from https://youtubetotranscript.com using Playwright and exposes a FastAPI endpoint.
-
-### Kurulum
-
-1. Gerekli Python paketlerini yükleyin:
-   ```bash
-   pip install -r backend/youtubetranscriptservice/requirements.txt
-   python -m playwright install
-   ```
-
-2. Servisi başlatın:
-   ```bash
-   uvicorn backend.youtubetranscriptservice.main:app --host 0.0.0.0 --port 8000 --reload
-   ```
-
-### API Kullanımı
-
-- **POST /scrape-transcript**
-
-  **Body:**
-  ```json
-  { "url": "https://www.youtube.com/watch?v=bhAawejnIrg" }
-  ```
-
-  **Yanıt:**
-  ```json
-  { "transcript": "Welcome to this video. In this lesson..." }
-  ```
-
-### Notlar
-- Playwright Chromium browser otomatik kurulur.
-- DOM selector değişirse `transcript_scraper.py` güncellenmelidir.
-- Geliştirme sırasında `headless=False` ile debug yapılabilir.
