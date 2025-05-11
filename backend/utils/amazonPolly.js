@@ -10,6 +10,12 @@ const polly = new PollyClient({
     },
 });
 
+// Polly'nin desteklediği İngilizce sesler (örnek, tam liste için backend'den çekilebilir)
+const POLLY_VOICE_IDS = [
+  'Amy', 'Brian', 'Emma', 'Joanna', 'Matthew',
+  // ... diğer Polly sesleri ...
+];
+
 /**
  * Synthesize speech using Amazon Polly
  * @param {Object} params
@@ -20,6 +26,11 @@ const polly = new PollyClient({
  */
 async function synthesizeWithPolly({ text, voiceId, languageCode }) {
     try {
+        // Polly'nin desteklediği seslerden biri mi kontrol et
+        if (!POLLY_VOICE_IDS.includes(voiceId)) {
+            logger.error(`Polly voiceId '${voiceId}' desteklenmiyor. Polly ile uyumlu bir ses seçin.`);
+            throw new Error(`Polly voiceId '${voiceId}' is not supported. Please select a valid Polly voice.`);
+        }
         const command = new SynthesizeSpeechCommand({
             OutputFormat: 'mp3',
             Text: text,

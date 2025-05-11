@@ -12,6 +12,14 @@ interface InputSectionProps {
   isLoading: boolean;
 }
 
+// Polly'nin desteklediği İngilizce sesler (örnek, tam liste için backend'den çekilebilir)
+const POLLY_VOICES = [
+  { Id: 'Joanna', Name: 'Joanna', LanguageName: 'English (US)', Gender: 'Female', Engine: 'Neural/Standard' },
+  { Id: 'Matthew', Name: 'Matthew', LanguageName: 'English (US)', Gender: 'Male', Engine: 'Neural' },
+  { Id: 'Ivy', Name: 'Ivy', LanguageName: 'English (US)', Gender: 'Female', Engine: 'Standard' },
+  { Id: 'Amy', Name: 'Amy', LanguageName: 'English (UK)', Gender: 'Female', Engine: 'Neural' },
+];
+
 export default function InputSection({ onSubmit, isLoading }: InputSectionProps): React.ReactElement {
   const { t } = useTranslation();
   const [inputType, setInputType] = useState<InputType>('text');
@@ -385,19 +393,11 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                 onChange={(e: ChangeEvent<HTMLSelectElement>) => setVoice(e.target.value as any)}
                 className="input-field focus:ring-blue-500 focus:border-blue-500"
               >
-                {pollyVoices.length > 0 ? (
-                  pollyVoices.map((v) => (
-                    <option key={v.Id} value={v.Id}>
-                      {v.Name} ({v.LanguageName}, {v.Gender})
-                    </option>
-                  ))
-                ) : (
-                  <>
-                    <option value="en-GB-Wavenet-B">{t('voice_male_uk')}</option>
-                    <option value="en-US-Wavenet-D">{t('voice_male_us')}</option>
-                    <option value="en-US-Wavenet-F">{t('voice_female_us')}</option>
-                  </>
-                )}
+                {POLLY_VOICES.map((v) => (
+                  <option key={v.Id} value={v.Id}>
+                    {v.Name} ({v.LanguageName}, {v.Gender}, {v.Engine})
+                  </option>
+                ))}
               </select>
             </div>
           </div>
