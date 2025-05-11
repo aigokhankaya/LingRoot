@@ -1,11 +1,14 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import logging
-from youtube_transcript_api import YouTubeTranscriptApi
-import re
+from transcript_scraper import get_transcript_from_yttranscript_com
 
-# Log ayarı
-logging.basicConfig(filename='transcript_service.log', level=logging.INFO)
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filename='backend/logs/transcript_service.log'
+)
 
 app = FastAPI()
 
@@ -14,17 +17,17 @@ class TranscriptRequest(BaseModel):
 
 @app.post("/scrape-transcript")
 async def scrape_transcript(req: TranscriptRequest):
-    logging.info(f"Request received: {req.url}")
-    match = re.search(r"v=([a-zA-Z0-9_-]+)", req.url)
-    if not match:
-        logging.error("Invalid YouTube URL")
-        return {"transcript": ""}
-    video_id = match.group(1)
+    """
+    Endpoint to scrape transcript from a YouTube video URL
+    """
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        text = " ".join([x['text'] for x in transcript])
-        logging.info("Transcript fetched successfully")
-        return {"transcript": text}
+        logging.info(f"Received request for URL: {req.url}")
+        transcript = get_transcript_from_yttranscript_com(req.url)
+        return {"transcript": transcript}
     except Exception as e:
-        logging.error(f"Error fetching transcript: {e}")
-        return {"transcript": ""} 
+        logging.error(f"Error processing request: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000) 
