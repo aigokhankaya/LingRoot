@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, ChangeEvent } from 'react';
-import { fetchYoutubeTranscript } from '../services/transcriptService';
 import { cleanTranscriptWithPrompt } from '../services/cleanTranscriptService';
 import { getTtsAudio } from '../services/ttsService';
 
@@ -30,8 +29,17 @@ export default function ProcessInput(): React.ReactElement {
     setCleanedTranscript('');
     setAudioUrl('');
     try {
-      const transcript = await fetchYoutubeTranscript(youtubeUrl);
-      setRawTranscript(transcript);
+      const response = await fetch('http://localhost:8000/scrape-transcript', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: youtubeUrl })
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || 'Transcript alınamadı');
+      }
+      const data = await response.json();
+      setRawTranscript(data.transcript);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
