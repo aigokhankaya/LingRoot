@@ -2,36 +2,30 @@ const fetch = require('node-fetch');
 const logger = require('./logger');
 
 /**
- * Fetches YouTube transcript using Supadata API
+ * Fetches YouTube transcript using local Playwright FastAPI microservice
  * @param {string} youtubeUrl
  * @returns {Promise<string|null>}
  */
 async function fetchYoutubeTranscript(youtubeUrl) {
-    const SUPADATA_API_KEY = process.env.SUPADATA_API_KEY;
-    if (!SUPADATA_API_KEY) {
-        logger.error('Supadata API key is not set in environment variables.');
-        return null;
-    }
     try {
-        const res = await fetch(`https://api.supadata.ai/v1/youtube/transcript?url=${encodeURIComponent(youtubeUrl)}`, {
-            headers: {
-                'x-api-key': SUPADATA_API_KEY
-            }
+        const res = await fetch('http://localhost:8000/scrape-transcript', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: youtubeUrl })
         });
         if (!res.ok) {
-            logger.error(`Supadata API transcript fetch failed. Status: ${res.status}`);
+            logger.error('Playwright transcript service error:', res.status, await res.text());
             return null;
         }
         const data = await res.json();
-        logger.info('Supadata API response:', data);
-        if (!data.content || typeof data.content !== 'string' || !data.content.trim()) {
-            logger.error('Supadata API: Transcript not found or empty.');
+        logger.info('Playwright transcript service response:', data);
+        if (!data.transcript || typeof data.transcript !== 'string' || !data.transcript.trim()) {
+            logger.error('Transcript not found or empty from Playwright service.');
             return null;
         }
-        logger.info('Fetched YouTube transcript from Supadata API.');
-        return data.content;
+        return data.transcript.trim();
     } catch (err) {
-        logger.error('Error fetching YouTube transcript from Supadata API:', err);
+        logger.error('Error calling Playwright transcript service:', err);
         return null;
     }
 }
