@@ -30,10 +30,22 @@ configureSecurity(app);
 
 // CORS middleware
 app.use(requestIdMiddleware);
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://lingroot.com',
+  'https://www.lingroot.com'
+];
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:3001"],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "X-Request-ID"],
+  origin: function(origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      logger.info(`CORS allowed for origin: ${origin}`);
+      callback(null, true);
+    } else {
+      logger.warn(`CORS blocked for origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 

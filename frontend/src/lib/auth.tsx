@@ -33,7 +33,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        console.log('[AUTH] login() JSON parse error', jsonErr);
+        return { success: false, message: 'Sunucudan geçersiz yanıt alındı.' };
+      }
       console.log('[AUTH] login() response', data);
       if (response.ok && data.success) {
         // User nesnesini normalize et
@@ -58,6 +64,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       setUser(null);
       setIsAuthenticated(false);
       console.log('[AUTH] login() error', error);
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        return { success: false, message: 'Sunucuya bağlanılamadı, lütfen internet bağlantınızı kontrol edin veya daha sonra tekrar deneyin.' };
+      }
       return { success: false, message: error.message || 'Giriş sırasında bir hata oluştu.' };
     }
   };
@@ -80,7 +89,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ firstName, lastName, email, phoneNumber, password })
       });
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        console.log('[AUTH] register() JSON parse error', jsonErr);
+        return { success: false, message: 'Sunucudan geçersiz yanıt alındı.' };
+      }
       console.log('[AUTH] register() response', data);
       if (data.success) {
         // Kayıt başarılıysa otomatik login
@@ -89,6 +104,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       return data;
     } catch (error: any) {
       console.log('[AUTH] register() error', error);
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        return { success: false, message: 'Sunucuya bağlanılamadı, lütfen internet bağlantınızı kontrol edin veya daha sonra tekrar deneyin.' };
+      }
       return { success: false, message: error.message || 'Kayıt sırasında bir hata oluştu.' };
     }
   };

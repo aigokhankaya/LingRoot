@@ -15,6 +15,10 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "lingroot-refresh-secret-key";
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "30d";
 
+logger.info('Supabase URL:', supabaseUrl);
+logger.info('Supabase Service Key exists:', !!supabaseKey);
+logger.info('JWT_SECRET exists:', !!JWT_SECRET);
+
 const generateToken = (id, email, role) =>
   jwt.sign({ id, email, role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
@@ -25,6 +29,7 @@ exports.register = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;
   try {
+    logger.info(`[REGISTER] req.body:`, req.body);
     logStep({
       requestId,
       stepName: 'auth:register:start',
@@ -62,22 +67,24 @@ exports.register = async (req, res) => {
     }
 
     // Check if email already exists
-    const { data: existingUser } = await supabase
+    const { data: existingUser, error: fetchError } = await supabase
       .from('Users')
       .select("email")
       .eq("email", email)
       .maybeSingle();
+    if (fetchError) logger.error('[REGISTER] Error fetching user for register:', fetchError);
 
     if (existingUser) {
       return res.status(400).json({ success: false, message: "Bu e-posta adresi zaten kullanılıyor" });
     }
 
     // Check if phone number already exists
-    const { data: existingPhone } = await supabase
+    const { data: existingPhone, error: phoneFetchError } = await supabase
       .from("Users")
       .select("id")
       .eq("phoneNumber", phoneNumber)
       .maybeSingle();
+    if (phoneFetchError) logger.error('[REGISTER] Error fetching phone for register:', phoneFetchError);
 
     if (existingPhone) {
       return res.status(400).json({ success: false, message: "Bu telefon numarası zaten kullanılıyor" });
@@ -85,7 +92,7 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, await bcrypt.genSalt(10));
 
-    const { data: newUser, error } = await supabase
+    const { data: newUser, error: insertError } = await supabase
       .from("Users")
       .insert([
         {
@@ -103,9 +110,10 @@ exports.register = async (req, res) => {
         }
       ])
       .select();
+    if (insertError) logger.error('[REGISTER] Error inserting new user:', insertError);
 
-    if (error || !newUser?.length) {
-      logger.error("User registration error:", error);
+    if (insertError || !newUser?.length) {
+      logger.error("User registration error:", insertError);
       return res.status(500).json({ success: false, message: "Kullanıcı kaydı sırasında bir hata oluştu" });
     }
 
@@ -147,12 +155,13 @@ exports.register = async (req, res) => {
       error
     });
     logger.error("Registration error", error);
-    return res.status(500).json({ success: false, message: "Sunucu hatası" });
+    return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
   }
 };
 
 exports.login = async (req, res) => {
   try {
+    logger.info('[LOGIN] req.body:', req.body);
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ success: false, message: "Lütfen e-posta ve şifre girin" });
@@ -163,8 +172,10 @@ exports.login = async (req, res) => {
       .select("*")
       .eq("email", email)
       .single();
+    if (error) logger.error('[LOGIN] Error fetching user:', error);
 
     if (error || !user || !(await bcrypt.compare(password, user.password))) {
+      logger.warn('[LOGIN] Invalid credentials for email:', email);
       return res.status(401).json({ success: false, message: "Geçersiz e-posta veya şifre" });
     }
 
@@ -188,7 +199,7 @@ exports.login = async (req, res) => {
 
   } catch (error) {
     logger.error("Login error", error);
-    return res.status(500).json({ success: false, message: "Sunucu hatası" });
+    return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
   }
 };
 
