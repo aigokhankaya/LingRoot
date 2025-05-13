@@ -41,7 +41,7 @@ export const fetchUsers = async (): Promise<User[]> => {
 // Delete a user
 export const deleteUser = async (id: string): Promise<void> => {
   try {
-    const response = await fetch(`${API_URL}/users/${id}`, {
+    const response = await fetch(`${API_URL}/admin/users/${id}`, {
       method: 'DELETE',
     });
     if (!response.ok) {
@@ -56,7 +56,7 @@ export const deleteUser = async (id: string): Promise<void> => {
 // Update user
 export const updateUser = async (id: string, userData: UserUpdateData): Promise<User> => {
   try {
-    const response = await fetch(`${API_URL}/users/${id}`, {
+    const response = await fetch(`${API_URL}/admin/users/${id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -77,7 +77,7 @@ export const updateUser = async (id: string, userData: UserUpdateData): Promise<
 // Get user by ID
 export const getUserById = async (id: string): Promise<User> => {
   try {
-    const response = await fetch(`${API_URL}/users/${id}`);
+    const response = await fetch(`${API_URL}/admin/users/${id}`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
