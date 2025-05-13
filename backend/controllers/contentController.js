@@ -229,7 +229,8 @@ exports.submitContent = async (req, res) => {
   let stepSequence = 1;
 
   try {
-    const { input, input_type, level, mp3_url, user_id } = req.body;
+    const { input, input_type, level, mp3_url } = req.body;
+    const user_id = req.user?.id;
     logger.info(`submitContent request received for user ID: ${user_id || 'anon'}`, { input_type, level });
 
     // Gerekli alanları kontrol et
@@ -241,7 +242,7 @@ exports.submitContent = async (req, res) => {
       });
     }
 
-    // Google Drive URL"sini doğrudan indirme formatına dönüştür
+    // Google Drive URL'sini doğrudan indirme formatına dönüştür
     const convertedMp3Url = convertGoogleDriveUrl(mp3_url);
     if (convertedMp3Url !== mp3_url) {
         logger.info(`Converted Google Drive URL to direct download link: ${convertedMp3Url}`);
@@ -257,7 +258,7 @@ exports.submitContent = async (req, res) => {
           input_type,
           level,
           mp3_url: convertedMp3Url,
-          user_id: user_id || "anon", // Ensure user_id is handled
+          user_id: user_id || "anon", // Artık user_id JWT'den geliyor
         },
       ])
       .select();
@@ -280,7 +281,7 @@ exports.submitContent = async (req, res) => {
       data: data[0],
     });
   } catch (error) {
-    logger.error(`Error in submitContent process for user ID ${req.body?.user_id || 'anon'}:`, error);
+    logger.error(`Error in submitContent process for user ID ${req.user?.id || 'anon'}:`, error);
     return res.status(500).json({
       success: false,
       message: "İşlem sırasında beklenmeyen bir hata oluştu.",
