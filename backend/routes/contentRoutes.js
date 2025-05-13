@@ -9,7 +9,7 @@ router.post('/process-text', contentController.processText);
 router.post('/process-file', contentController.processFile);
 
 // ✅ Yeni eklenen route:
-router.post('/submit', contentController.submitContent);
+router.post('/submit', authenticate, contentController.submitContent);
 
 // Content history routes
 router.get('/history', authenticate, contentController.getContentHistory);
