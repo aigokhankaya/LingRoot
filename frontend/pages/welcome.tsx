@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { useAuth } from '../src/lib/auth';
 import { useMembership } from '../src/context/MembershipContext';
 // import { getContentHistory } from '../src/lib/api'; // Gerekirse son aktiviteler için
@@ -8,10 +9,18 @@ export default function Welcome() {
   const { user, logout } = useAuth();
   const { badge, dailyLimit, remaining } = useMembership();
 
-  if (!user) {
+  if (user === undefined) {
     return (
       <main className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </main>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main className="min-h-screen flex items-center justify-center text-xl text-gray-500">
+        Kullanıcı bulunamadı. Lütfen tekrar giriş yapın.
       </main>
     );
   }
@@ -42,7 +51,7 @@ export default function Welcome() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
-              <img src="/logo.png" alt="LingRoot" className="h-8 w-auto" />
+              <Image src="/logo.svg" alt="LingRoot" width={32} height={32} sizes="32px" priority />
               <h1 className="text-xl font-semibold text-gray-900">LingRoot Dashboard</h1>
             </div>
             <button
@@ -63,12 +72,12 @@ export default function Welcome() {
             {/* Profil Kartı */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center space-x-4">
-                <img src={avatar} alt={displayName} className="h-16 w-16 rounded-full border-2 border-blue-200 object-cover" />
+                <Image src={avatar} alt={displayName} width={64} height={64} sizes="64px" className="rounded-full border-2 border-blue-200 object-cover" />
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">{displayName}</h2>
                   <p className="text-gray-500 text-sm">{user.email}</p>
                   <span className={`inline-flex items-center px-2 py-1 mt-2 rounded text-xs font-semibold bg-blue-100 text-blue-700`}>
-                    {badge.label} Üyelik
+                    {badge?.label || 'Ücretsiz'} Üyelik
                   </span>
                 </div>
               </div>

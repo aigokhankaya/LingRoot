@@ -206,7 +206,6 @@ exports.login = async (req, res) => {
 exports.getCurrentUser = async (req, res) => {
   try {
     const { id } = req.user;
-    
     const { data: user, error } = await supabase
       .from("Users")
       .select("*")
@@ -221,6 +220,10 @@ exports.getCurrentUser = async (req, res) => {
     delete user.password;
     delete user.verificationToken;
     delete user.resetPasswordToken;
+
+    // Normalize user fields for frontend
+    user.role = user.role || 'user';
+    user.membershipStatus = user.membershipStatus || user.membership_status || 'free';
 
     return res.status(200).json({ success: true, data: user });
   } catch (error) {

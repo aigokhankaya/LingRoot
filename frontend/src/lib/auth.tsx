@@ -25,6 +25,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
+  // Otomatik kullanıcı yükleme
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+    if (token && !user) {
+      fetch(`${API_BASE_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data && (data.user || data.data?.user)) {
+            const rawUser = data.user || data.data.user;
+            const loadedUser: User = {
+              id: rawUser.id,
+              email: rawUser.email,
+              role: rawUser.role || 'user',
+              membershipStatus: rawUser.membershipStatus || 'free',
+            };
+            setUser(loadedUser);
+            setIsAuthenticated(true);
+          } else {
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+        })
+        .catch(() => {
+          setUser(null);
+          setIsAuthenticated(false);
+        });
+    }
+  }, []);
+
   const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log('[AUTH] login() called', { email });
