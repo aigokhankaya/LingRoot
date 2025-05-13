@@ -78,6 +78,11 @@ app.use("/api/tts", ttsRoutes);
 app.use("/api/topic-suggest", topicSuggestRoutes);
 app.use('/api/books', booksRouter);
 
+// Health check endpoint (Render için)
+app.get('/healthz', (req, res) => {
+  res.status(200).send('OK');
+});
+
 // Root route
 app.get("/", (req, res) => {
   res.json({ message: "Welcome to LingLoop API" });
