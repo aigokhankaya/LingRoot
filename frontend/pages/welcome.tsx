@@ -3,7 +3,6 @@ import { useAuth } from '../src/lib/auth';
 import { useMembership } from '../src/context/MembershipContext';
 // import { getContentHistory } from '../src/lib/api'; // Gerekirse son aktiviteler için
 import Link from 'next/link';
-import { FiUser, FiLogOut, FiActivity, FiBook, FiHeadphones, FiMessageSquare } from 'react-icons/fi';
 
 export default function Welcome() {
   const { user, logout } = useAuth();
@@ -17,7 +16,6 @@ export default function Welcome() {
     );
   }
 
-  // Avatar fallback
   const displayName = (user as any).name || user.email;
   const avatar = (user as any).avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
   const role = user.role || 'user';
@@ -32,9 +30,9 @@ export default function Welcome() {
 
   // Örnek son aktiviteler (gerçek projede API'den alınır)
   const activities = [
-    { type: 'TTS', desc: 'Metinden Sese oluşturuldu', date: '2025-05-12', icon: <FiHeadphones className="text-blue-500" /> },
-    { type: 'Vocabulary', desc: 'Kelime listesi indirildi', date: '2025-05-10', icon: <FiBook className="text-green-500" /> },
-    { type: 'Pronunciation', desc: 'Telaffuz egzersizi yapıldı', date: '2025-05-09', icon: <FiMessageSquare className="text-yellow-500" /> },
+    { type: 'TTS', desc: 'Metinden Sese oluşturuldu', date: '2025-05-12' },
+    { type: 'Vocabulary', desc: 'Kelime listesi indirildi', date: '2025-05-10' },
+    { type: 'Pronunciation', desc: 'Telaffuz egzersizi yapıldı', date: '2025-05-09' },
   ];
 
   return (
@@ -49,9 +47,8 @@ export default function Welcome() {
             </div>
             <button
               onClick={logout}
-              className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition"
+              className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition border border-red-100"
             >
-              <FiLogOut className="mr-2" />
               Çıkış Yap
             </button>
           </div>
@@ -71,7 +68,7 @@ export default function Welcome() {
                   <h2 className="text-xl font-bold text-gray-900">{displayName}</h2>
                   <p className="text-gray-500 text-sm">{user.email}</p>
                   <span className={`inline-flex items-center px-2 py-1 mt-2 rounded text-xs font-semibold bg-blue-100 text-blue-700`}>
-                    {badge.icon} {badge.label} Üyelik
+                    {badge.label} Üyelik
                   </span>
                 </div>
               </div>
@@ -116,48 +113,28 @@ export default function Welcome() {
           <div className="lg:col-span-2 space-y-6">
             {/* Hızlı Erişim Kartları */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Link href="/text-to-speech" className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <FiHeadphones className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Metinden Sese</h3>
-                    <p className="text-gray-500 text-sm">Metinlerinizi sesli hale getirin</p>
-                  </div>
+              <Link href="/text-to-speech" className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition border border-blue-100">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Metinden Sese</h3>
+                  <p className="text-gray-500 text-sm">Metinlerinizi sesli hale getirin</p>
                 </div>
               </Link>
-              <Link href="/pronunciation" className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <FiMessageSquare className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Telaffuz</h3>
-                    <p className="text-gray-500 text-sm">Telaffuz egzersizleri yapın</p>
-                  </div>
+              <Link href="/pronunciation" className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition border border-green-100">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Telaffuz</h3>
+                  <p className="text-gray-500 text-sm">Telaffuz egzersizleri yapın</p>
                 </div>
               </Link>
-              <Link href="/vocabulary" className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-yellow-100 rounded-lg">
-                    <FiBook className="h-6 w-6 text-yellow-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Kelime Hazinesi</h3>
-                    <p className="text-gray-500 text-sm">Kelime listelerinizi yönetin</p>
-                  </div>
+              <Link href="/vocabulary" className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition border border-yellow-100">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Kelime Hazinesi</h3>
+                  <p className="text-gray-500 text-sm">Kelime listelerinizi yönetin</p>
                 </div>
               </Link>
-              <Link href="/profile" className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-purple-100 rounded-lg">
-                    <FiUser className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Profil</h3>
-                    <p className="text-gray-500 text-sm">Hesap ayarlarınızı yönetin</p>
-                  </div>
+              <Link href="/profile" className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition border border-purple-100">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Profil</h3>
+                  <p className="text-gray-500 text-sm">Hesap ayarlarınızı yönetin</p>
                 </div>
               </Link>
             </div>
@@ -166,17 +143,14 @@ export default function Welcome() {
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Son Aktiviteler</h3>
-                <FiActivity className="h-5 w-5 text-gray-400" />
               </div>
               <div className="space-y-4">
                 {activities.map((activity, index) => (
                   <div key={index} className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg transition">
-                    <div className="p-2 bg-gray-100 rounded-lg">
-                      {activity.icon}
-                    </div>
+                    <div className="w-24 text-xs text-gray-500 font-semibold">{activity.type}</div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900">{activity.desc}</p>
-                      <p className="text-xs text-gray-500">{activity.date}</p>
+                      <p className="text-xs text-gray-400">{activity.date}</p>
                     </div>
                   </div>
                 ))}
