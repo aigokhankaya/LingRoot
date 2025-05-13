@@ -29,6 +29,9 @@ const Header: React.FC = () => {
         {user ? (
           <>
             <span className="text-gray-700 font-medium">{user.email}</span>
+            <Link href="/profile" className="ml-2 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-all font-medium">
+              Profil
+            </Link>
             <button onClick={logout} className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all">
               {t('logout')}
             </button>

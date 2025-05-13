@@ -96,6 +96,12 @@ export default function Profile() {
               <h1 className="text-xl font-semibold text-gray-900">LingRoot Dashboard</h1>
             </div>
             <div className="flex items-center space-x-2">
+              <Link href="/profile" className="flex items-center space-x-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+                <span className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 text-gray-600 font-bold text-sm border border-gray-300">
+                  {displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0,2)}
+                </span>
+                <span className="text-gray-700 text-sm font-medium">{user.email}</span>
+              </Link>
               <button
                 onClick={logout}
                 className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition border border-red-100"
