@@ -68,7 +68,7 @@ exports.register = async (req, res) => {
 
     // Check if email already exists
     const { data: existingUser, error: fetchError } = await supabase
-      .from('Users')
+      .from('"Users"')
       .select("email")
       .eq("email", email)
       .maybeSingle();
@@ -80,7 +80,7 @@ exports.register = async (req, res) => {
 
     // Check if phone number already exists
     const { data: existingPhone, error: phoneFetchError } = await supabase
-      .from("Users")
+      .from('"Users"')
       .select("id")
       .eq("phoneNumber", phoneNumber)
       .maybeSingle();
@@ -93,7 +93,7 @@ exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, await bcrypt.genSalt(10));
 
     const { data: newUser, error: insertError } = await supabase
-      .from("Users")
+      .from('"Users"')
       .insert([
         {
           firstName,
@@ -125,7 +125,7 @@ exports.register = async (req, res) => {
       stepName: 'auth:register:supabase:insert',
       stepSequence: stepSequence++,
       serviceName: 'Supabase',
-      endpoint: 'Users',
+      endpoint: '"Users"',
       inputData: { email, phoneNumber },
       outputData: { userId: newUser?.[0]?.id }
     });
@@ -168,7 +168,7 @@ exports.login = async (req, res) => {
     }
 
     const { data: user, error } = await supabase
-      .from("Users")
+      .from('"Users"')
       .select("*")
       .eq("email", email)
       .single();
@@ -207,7 +207,7 @@ exports.getCurrentUser = async (req, res) => {
   try {
     const { id } = req.user;
     const { data: user, error } = await supabase
-      .from("Users")
+      .from('"Users"')
       .select("*")
       .eq("id", id)
       .single();
@@ -244,7 +244,7 @@ exports.updateProfile = async (req, res) => {
     // If phone number is being updated, check if it's already in use
     if (phoneNumber) {
       const { data: existingPhone } = await supabase
-        .from("Users")
+        .from('"Users"')
         .select("id")
         .eq("phoneNumber", phoneNumber)
         .maybeSingle();
@@ -265,7 +265,7 @@ exports.updateProfile = async (req, res) => {
     }
 
     const { data, error } = await supabase
-      .from("Users")
+      .from('"Users"')
       .update(updateData)
       .eq("id", userId)
       .select();
@@ -300,7 +300,7 @@ exports.changePassword = async (req, res) => {
     }
 
     const { data: user } = await supabase
-      .from("Users")
+      .from('"Users"')
       .select("*")
       .eq("id", userId)
       .single();
@@ -311,7 +311,7 @@ exports.changePassword = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
     const { error } = await supabase
-      .from("Users")
+      .from('"Users"')
       .update({
         password: hashedPassword,
         updated_at: new Date().toISOString()
