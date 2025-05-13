@@ -1,4 +1,199 @@
 import React from 'react';
+import { useAuth } from '../src/lib/auth';
+import { useMembership } from '../src/context/MembershipContext';
+// import { getContentHistory } from '../src/lib/api'; // Gerekirse son aktiviteler için
+import Link from 'next/link';
+import { FiUser, FiLogOut, FiActivity, FiBook, FiHeadphones, FiMessageSquare } from 'react-icons/fi';
+
 export default function Welcome() {
-  return <main className="min-h-screen flex items-center justify-center text-3xl font-bold">Hoşgeldin</main>;
+  const { user, logout } = useAuth();
+  const { badge, dailyLimit, remaining } = useMembership();
+
+  if (!user) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </main>
+    );
+  }
+
+  // Avatar fallback
+  const displayName = (user as any).name || user.email;
+  const avatar = (user as any).avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
+  const role = user.role || 'user';
+  const membershipStatus = user.membershipStatus || 'free';
+
+  // Örnek istatistikler (gerçek projede API'den alınır)
+  const stats = {
+    contentCreated: 12,
+    totalLogins: 5,
+    lastLogin: '2025-05-13 10:42',
+  };
+
+  // Örnek son aktiviteler (gerçek projede API'den alınır)
+  const activities = [
+    { type: 'TTS', desc: 'Metinden Sese oluşturuldu', date: '2025-05-12', icon: <FiHeadphones className="text-blue-500" /> },
+    { type: 'Vocabulary', desc: 'Kelime listesi indirildi', date: '2025-05-10', icon: <FiBook className="text-green-500" /> },
+    { type: 'Pronunciation', desc: 'Telaffuz egzersizi yapıldı', date: '2025-05-09', icon: <FiMessageSquare className="text-yellow-500" /> },
+  ];
+
+  return (
+    <main className="min-h-screen bg-gray-50">
+      {/* Üst Bar */}
+      <div className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center space-x-4">
+              <img src="/logo.png" alt="LingRoot" className="h-8 w-auto" />
+              <h1 className="text-xl font-semibold text-gray-900">LingRoot Dashboard</h1>
+            </div>
+            <button
+              onClick={logout}
+              className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition"
+            >
+              <FiLogOut className="mr-2" />
+              Çıkış Yap
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Ana İçerik */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Sol Kolon - Profil ve İstatistikler */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Profil Kartı */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center space-x-4">
+                <img src={avatar} alt={displayName} className="h-16 w-16 rounded-full border-2 border-blue-200 object-cover" />
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">{displayName}</h2>
+                  <p className="text-gray-500 text-sm">{user.email}</p>
+                  <span className={`inline-flex items-center px-2 py-1 mt-2 rounded text-xs font-semibold bg-blue-100 text-blue-700`}>
+                    {badge.icon} {badge.label} Üyelik
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* İstatistikler */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">İstatistikler</h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Oluşturulan İçerik</span>
+                  <span className="text-2xl font-bold text-blue-600">{stats.contentCreated}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Toplam Giriş</span>
+                  <span className="text-2xl font-bold text-green-600">{stats.totalLogins}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Son Giriş</span>
+                  <span className="text-sm text-gray-500">{stats.lastLogin}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Günlük Haklar */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Günlük Haklar</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Günlük Limit</span>
+                  <span className="font-semibold text-blue-600">{dailyLimit === Infinity ? 'Sınırsız' : dailyLimit}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Kalan</span>
+                  <span className="font-semibold text-green-600">{remaining}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sağ Kolon - Hızlı Erişim ve Aktiviteler */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Hızlı Erişim Kartları */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Link href="/text-to-speech" className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-blue-100 rounded-lg">
+                    <FiHeadphones className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Metinden Sese</h3>
+                    <p className="text-gray-500 text-sm">Metinlerinizi sesli hale getirin</p>
+                  </div>
+                </div>
+              </Link>
+              <Link href="/pronunciation" className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <FiMessageSquare className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Telaffuz</h3>
+                    <p className="text-gray-500 text-sm">Telaffuz egzersizleri yapın</p>
+                  </div>
+                </div>
+              </Link>
+              <Link href="/vocabulary" className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-yellow-100 rounded-lg">
+                    <FiBook className="h-6 w-6 text-yellow-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Kelime Hazinesi</h3>
+                    <p className="text-gray-500 text-sm">Kelime listelerinizi yönetin</p>
+                  </div>
+                </div>
+              </Link>
+              <Link href="/profile" className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <FiUser className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Profil</h3>
+                    <p className="text-gray-500 text-sm">Hesap ayarlarınızı yönetin</p>
+                  </div>
+                </div>
+              </Link>
+            </div>
+
+            {/* Son Aktiviteler */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Son Aktiviteler</h3>
+                <FiActivity className="h-5 w-5 text-gray-400" />
+              </div>
+              <div className="space-y-4">
+                {activities.map((activity, index) => (
+                  <div key={index} className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg transition">
+                    <div className="p-2 bg-gray-100 rounded-lg">
+                      {activity.icon}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">{activity.desc}</p>
+                      <p className="text-xs text-gray-500">{activity.date}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="bg-white border-t mt-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <p className="text-center text-sm text-gray-500">
+            &copy; {new Date().getFullYear()} LingRoot. Tüm hakları saklıdır.
+          </p>
+        </div>
+      </footer>
+    </main>
+  );
 } 
