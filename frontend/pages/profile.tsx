@@ -5,7 +5,7 @@ import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
 import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 
-export default function Welcome() {
+export default function Profile() {
   const { user, logout } = useAuth();
   const { badge, dailyLimit, remaining } = useMembership();
   const [activities, setActivities] = useState<any[]>([]);
