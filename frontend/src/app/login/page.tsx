@@ -41,15 +41,18 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
+      {/* Sadece logo ve slogan */}
+      <header className="w-full flex justify-center items-center py-8">
+        <img src="/LingRoot_MainLogo.png" alt="LingRoot Logo" className="h-12" />
+      </header>
       <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8 bg-white p-8 shadow-md rounded-lg">
           <div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            <h2 className="mt-2 text-center text-3xl font-extrabold text-gray-900">
               {t('login')}
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
-              {t('login_description')}
+              AI-powered English learning platform
             </p>
           </div>
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -89,16 +92,14 @@ export default function LoginPage() {
                 />
               </div>
             </div>
-
-            {/* Add forgot password link if needed */}
-            {/* <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
+              {/* Şifremi unuttum linki */}
               <div className="text-sm">
-                <a href="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
+                <Link href="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
                   Forgot your password?
-                </a>
+                </Link>
               </div>
-            </div> */}
-
+            </div>
             <div>
               <button
                 type="submit"
@@ -109,14 +110,21 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
-          <div className="text-sm text-center">
+          <div className="text-sm text-center mt-4">
             <button onClick={() => router.push('/register')} className="font-medium text-blue-600 hover:text-blue-500">
               {t('no_account_register')}
             </button>
           </div>
         </div>
       </main>
-      <Footer />
+      {/* Sade footer */}
+      <footer className="w-full flex flex-col items-center py-4 text-xs text-gray-400">
+        <div>&copy; {new Date().getFullYear()} LingRoot. All rights reserved.</div>
+        <div className="flex gap-4 mt-1">
+          <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
+          <Link href="/terms" className="hover:underline">Terms of Service</Link>
+        </div>
+      </footer>
     </div>
   );
 }
