@@ -30,11 +30,11 @@ if (supabaseUrl && supabaseKey) {
 
 // PostgreSQL havuzu
 const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME,
+  host: process.env.PGHOST || process.env.DB_HOST,
+  port: process.env.PGPORT || process.env.DB_PORT,
+  user: process.env.PGUSER || process.env.DB_USER,
+  password: process.env.PGPASSWORD || process.env.DB_PASSWORD || process.env.DB_PASS,
+  database: process.env.PGDATABASE || process.env.DB_NAME,
   ssl: process.env.NODE_ENV === 'production',
   max: 20, // Bağlantı havuzu boyutu
   idleTimeoutMillis: 30000,
@@ -86,10 +86,21 @@ const testSupabaseConnection = async () => {
   }
 };
 
+const dbConfig = {
+  host: process.env.PGHOST || process.env.DB_HOST,
+  port: process.env.PGPORT || process.env.DB_PORT,
+  user: process.env.PGUSER || process.env.DB_USER,
+  password: process.env.PGPASSWORD || process.env.DB_PASSWORD || process.env.DB_PASS,
+  database: process.env.PGDATABASE || process.env.DB_NAME,
+};
+
 module.exports = {
   pool,
   supabase,
   testConnection,
   testSupabaseConnection,
   query: (text, params) => pool.query(text, params),
+  supabaseUrl,
+  supabaseKey,
+  dbConfig,
 };

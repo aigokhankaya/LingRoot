@@ -12,11 +12,11 @@ const { Pool } = require('pg');
 
 // PostgreSQL bağlantı ayarları (gerekirse .env'den alabilirsin)
 const pool = new Pool({
-  user: process.env.PGUSER || 'postgres',
-  host: process.env.PGHOST || 'localhost',
-  database: process.env.PGDATABASE || 'lingroot',
-  password: process.env.PGPASSWORD || 'postgres',
-  port: process.env.PGPORT || 5432,
+  user: process.env.PGUSER || process.env.DB_USER || 'postgres',
+  host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
+  database: process.env.PGDATABASE || process.env.DB_NAME || 'lingroot',
+  password: process.env.PGPASSWORD || process.env.DB_PASSWORD || process.env.DB_PASS || 'postgres',
+  port: process.env.PGPORT || process.env.DB_PORT || 5432,
 });
 
 async function createTableIfNotExists() {

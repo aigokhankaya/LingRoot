@@ -9,7 +9,7 @@ const logger = require("./logger"); // Import Winston logger
 let supabase;
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-const bucketName = process.env.SUPABASE_BUCKET_NAME || "lingroot-audio";
+const bucketName = process.env.SUPABASE_BUCKET_NAME;
 
 if (supabaseUrl && supabaseServiceKey) {
     try {
