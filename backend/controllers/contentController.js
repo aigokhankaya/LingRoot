@@ -76,7 +76,7 @@ exports.getContentHistory = async (req, res) => {
     logger.info(`Fetching content history for user ID: ${userId}`);
 
     const { data, error } = await supabase
-      .from('"content_history"')
+      .from('content_history')
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
@@ -113,7 +113,7 @@ exports.getContentById = async (req, res) => {
     logger.info(`Fetching content by ID: ${id} for user ID: ${userId}`);
 
     const { data, error } = await supabase
-      .from('"content_history"')
+      .from('content_history')
       .select("*")
       .eq("id", id)
       .eq("user_id", userId)
@@ -152,7 +152,7 @@ exports.deleteContent = async (req, res) => {
 
     // Önce kaydın kullanıcıya ait olduğunu doğrula
     const { data: existingData, error: fetchError } = await supabase
-      .from('"content_history"')
+      .from('content_history')
       .select("id")
       .eq("id", id)
       .eq("user_id", userId)
@@ -169,7 +169,7 @@ exports.deleteContent = async (req, res) => {
     // Kaydı sil
     logger.info(`Deleting content ID: ${id} from database for user ID: ${userId}`);
     const { error: deleteError } = await supabase
-      .from('"content_history"')
+      .from('content_history')
       .delete()
       .eq("id", id)
       .eq("user_id", userId);
@@ -274,7 +274,7 @@ exports.submitContent = async (req, res) => {
     // Supabase veritabanına kaydet
     logger.info(`Saving content history to database for user ID: ${user_id || 'anon'}`);
     const { data, error } = await supabase
-      .from('"content_history"')
+      .from('content_history')
       .insert([
         {
           input,
