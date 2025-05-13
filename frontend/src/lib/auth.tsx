@@ -28,7 +28,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log('[AUTH] login() called', { email });
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${API_BASE_URL} 
+        /auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -58,6 +59,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           console.log('[AUTH] Token kaydedildi:', data.data.token);
         }
         console.log('[AUTH] setUser & setIsAuthenticated', user);
+        // Backend'e log gönder
+        try {
+          await fetch(`${API_BASE_URL}/log`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'login_response',
+              email,
+              response: data,
+              timestamp: new Date().toISOString(),
+            })
+          });
+        } catch (logErr) {
+          console.warn('Login yanıtı backend loguna kaydedilemedi:', logErr);
+        }
         return { success: true };
       } else {
         setUser(null);

@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { useLanguage, translations } from "@/lib/i18n";
 import Header from '../../components/Header'; // Assuming Header is needed on login page
 import Footer from '../../components/Footer'; // Assuming Footer is needed
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -43,7 +44,14 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Sadece logo ve slogan */}
       <header className="w-full flex justify-center items-center py-8">
-        <img src="/LingRoot_MainLogo.png" alt="LingRoot Logo" className="h-12" />
+        <Image
+          src="/LingRoot_MainLogo.png"
+          alt="LingRoot Logo"
+          width={160}
+          height={48}
+          priority
+          className="object-contain"
+        />
       </header>
       <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8 bg-white p-8 shadow-md rounded-lg">
