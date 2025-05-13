@@ -7,13 +7,16 @@ import Footer from "../src/components/Footer";
 
 export default function HomePage() {
   return (
-    <main>
-      <Header />
-      <Hero />
-      <DemoVideoTabs />
-      <HowItWorks />
-      <CTASection />
-      <Footer />
-    </main>
+    <>
+      <div style={{background: 'yellow', color: 'black', padding: 8, textAlign: 'center'}}>TEST ANA SAYFA - Bu yazıyı görüyorsan importlar çalışıyor!</div>
+      <main>
+        <Header />
+        <Hero />
+        <DemoVideoTabs />
+        <HowItWorks />
+        <CTASection />
+        <Footer />
+      </main>
+    </>
   );
 } 
