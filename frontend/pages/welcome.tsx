@@ -1,13 +1,43 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useAuth } from '../src/lib/auth';
 import { useMembership } from '../src/context/MembershipContext';
 // import { getContentHistory } from '../src/lib/api'; // Gerekirse son aktiviteler için
 import Link from 'next/link';
+import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 
 export default function Welcome() {
   const { user, logout } = useAuth();
   const { badge, dailyLimit, remaining } = useMembership();
+  const [activities, setActivities] = useState<any[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(true);
+
+  useEffect(() => {
+    async function fetchActivities() {
+      try {
+        const res = await fetch('/api/content/history');
+        if (res.ok) {
+          const data = await res.json();
+          setActivities(data.data || []);
+        } else {
+          setActivities([
+            { type: 'TTS', desc: 'Metinden Sese oluşturuldu', date: '2025-05-12', status: 'success' },
+            { type: 'Vocabulary', desc: 'Kelime listesi indirildi', date: '2025-05-10', status: 'success' },
+            { type: 'Pronunciation', desc: 'Telaffuz egzersizi yapıldı', date: '2025-05-09', status: 'error' },
+          ]);
+        }
+      } catch {
+        setActivities([
+          { type: 'TTS', desc: 'Metinden Sese oluşturuldu', date: '2025-05-12', status: 'success' },
+          { type: 'Vocabulary', desc: 'Kelime listesi indirildi', date: '2025-05-10', status: 'success' },
+          { type: 'Pronunciation', desc: 'Telaffuz egzersizi yapıldı', date: '2025-05-09', status: 'error' },
+        ]);
+      } finally {
+        setLoadingActivities(false);
+      }
+    }
+    fetchActivities();
+  }, []);
 
   if (user === undefined) {
     return (
@@ -37,13 +67,6 @@ export default function Welcome() {
     lastLogin: '2025-05-13 10:42',
   };
 
-  // Örnek son aktiviteler (gerçek projede API'den alınır)
-  const activities = [
-    { type: 'TTS', desc: 'Metinden Sese oluşturuldu', date: '2025-05-12' },
-    { type: 'Vocabulary', desc: 'Kelime listesi indirildi', date: '2025-05-10' },
-    { type: 'Pronunciation', desc: 'Telaffuz egzersizi yapıldı', date: '2025-05-09' },
-  ];
-
   return (
     <main className="min-h-screen bg-gray-50">
       {/* Üst Bar */}
@@ -54,12 +77,25 @@ export default function Welcome() {
               <Image src="/logo.svg" alt="LingRoot" width={32} height={32} sizes="32px" priority />
               <h1 className="text-xl font-semibold text-gray-900">LingRoot Dashboard</h1>
             </div>
-            <button
-              onClick={logout}
-              className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition border border-red-100"
-            >
-              Çıkış Yap
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={logout}
+                className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition border border-red-100"
+              >
+                Çıkış Yap
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Hoş geldin mesajı */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+        <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-6 flex items-center space-x-4">
+          <Image src={avatar} alt={displayName} width={56} height={56} className="rounded-full border-2 border-blue-200 object-cover" />
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Hoş geldin, {displayName}!</h2>
+            <p className="text-gray-600">Bugün ne öğrenmek istersin?</p>
           </div>
         </div>
       </div>
@@ -81,6 +117,9 @@ export default function Welcome() {
                   </span>
                 </div>
               </div>
+              <Link href="/profile" className="mt-4 inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-100 transition">
+                <FaUserEdit className="mr-2" /> Profili Düzenle
+              </Link>
             </div>
 
             {/* İstatistikler */}
@@ -153,17 +192,30 @@ export default function Welcome() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Son Aktiviteler</h3>
               </div>
-              <div className="space-y-4">
-                {activities.map((activity, index) => (
-                  <div key={index} className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg transition">
-                    <div className="w-24 text-xs text-gray-500 font-semibold">{activity.type}</div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{activity.desc}</p>
-                      <p className="text-xs text-gray-400">{activity.date}</p>
+              {loadingActivities ? (
+                <div className="text-gray-400 text-sm">Yükleniyor...</div>
+              ) : (
+                <div className="space-y-4">
+                  {activities.map((activity, index) => (
+                    <div key={index} className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg transition">
+                      <div className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-50">
+                        {activity.type === 'TTS' && <FaVolumeUp className="text-blue-500" />}
+                        {activity.type === 'Vocabulary' && <FaBook className="text-yellow-500" />}
+                        {activity.type === 'Pronunciation' && <FaCheckCircle className="text-green-500" />}
+                        {!['TTS','Vocabulary','Pronunciation'].includes(activity.type) && <FaExclamationCircle className="text-gray-400" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900">{activity.desc}</p>
+                        <p className="text-xs text-gray-400">{activity.date}</p>
+                      </div>
+                      <div>
+                        {activity.status === 'success' && <FaCheckCircle className="text-green-500" title="Başarılı" />}
+                        {activity.status === 'error' && <FaExclamationCircle className="text-red-500" title="Hata" />}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
