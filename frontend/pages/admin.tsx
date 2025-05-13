@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../src/lib/auth';
 import UserTable from '../src/components/admin/UserTable';
+import { useRouter } from 'next/router';
 
 export default function AdminPage() {
   const { user, login, logout } = useAuth();
+  const router = useRouter();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,6 +21,11 @@ export default function AdminPage() {
     const res = await login(form.email, form.password);
     if (!res.success) setError(res.message || 'Giriş başarısız');
     setLoading(false);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
   };
 
   if (!user) {
@@ -43,7 +50,7 @@ export default function AdminPage() {
         <div className="bg-white p-8 rounded shadow w-full max-w-md text-center">
           <h1 className="text-2xl font-bold mb-4">Yetkisiz Erişim</h1>
           <p>Bu sayfaya erişim için admin olmalısınız.</p>
-          <button onClick={logout} className="mt-4 px-4 py-2 bg-red-500 text-white rounded">Çıkış Yap</button>
+          <button onClick={handleLogout} className="mt-4 px-4 py-2 bg-red-500 text-white rounded">Çıkış Yap</button>
         </div>
       </main>
     );
@@ -54,7 +61,7 @@ export default function AdminPage() {
       <div className="max-w-5xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <button onClick={logout} className="px-4 py-2 bg-red-500 text-white rounded">Çıkış Yap</button>
+          <button onClick={handleLogout} className="px-4 py-2 bg-red-500 text-white rounded">Çıkış Yap</button>
         </div>
         <UserTable />
       </div>

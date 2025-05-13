@@ -13,7 +13,7 @@ exports.getDashboardStats = async (req, res) => {
     logger.info("Fetching dashboard stats");
     // Get total users count
     const { count: userCount, error: userError } = await supabase
-      .from("Users")
+      .from("users")
       .select("*", { count: "exact", head: true });
 
     // Get total content count
@@ -28,7 +28,7 @@ exports.getDashboardStats = async (req, res) => {
 
     // Get recent users
     const { data: recentUsers, error: recentUsersError } = await supabase
-      .from("Users")
+      .from("users")
       .select("id, name, email, created_at")
       .order("created_at", { ascending: false })
       .limit(5);
@@ -82,7 +82,7 @@ exports.getAllUsers = async (req, res) => {
     logger.info(`Fetching users - Page: ${page}, Limit: ${limit}, Search: '${search}'`);
 
     let query = supabase
-      .from("Users")
+      .from("users")
       .select("id, name, email, role, created_at", { count: "exact" });
 
     // Add search if provided
@@ -134,7 +134,7 @@ exports.getUserById = async (req, res) => {
     logger.info(`Fetching user by ID: ${id}`);
 
     const { data, error } = await supabase
-      .from("Users")
+      .from("users")
       .select("id, name, email, role, created_at")
       .eq("id", id)
       .single();
@@ -186,7 +186,7 @@ exports.updateUser = async (req, res) => {
     if (role) updateData.role = role;
 
     const { data, error } = await supabase
-      .from("Users")
+      .from("users")
       .update(updateData)
       .eq("id", id)
       .select();
@@ -232,7 +232,7 @@ exports.deleteUser = async (req, res) => {
 
     // Check if user exists
     const { data: existingUser, error: checkError } = await supabase
-      .from("Users")
+      .from("users")
       .select("id")
       .eq("id", id)
       .single();
@@ -246,7 +246,7 @@ exports.deleteUser = async (req, res) => {
     }
 
     // Delete user
-    const { error } = await supabase.from("Users").delete().eq("id", id);
+    const { error } = await supabase.from("users").delete().eq("id", id);
 
     if (error) {
       logger.error(`Error deleting user ID ${id} from Supabase:`, error);
