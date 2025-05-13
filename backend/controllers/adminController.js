@@ -83,11 +83,11 @@ exports.getAllUsers = async (req, res) => {
 
     let query = supabase
       .from("users")
-      .select("id, name, email, role, created_at", { count: "exact" });
+      .select("id, firstname, lastname, email, role, created_at, phonenumber", { count: "exact" });
 
     // Add search if provided
     if (search) {
-      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+      query = query.or(`firstname.ilike.%${search}%,lastname.ilike.%${search}%,email.ilike.%${search}%`);
     }
 
     // Add pagination
@@ -135,7 +135,7 @@ exports.getUserById = async (req, res) => {
 
     const { data, error } = await supabase
       .from("users")
-      .select("id, name, email, role, created_at")
+      .select("id, firstname, lastname, email, role, created_at, phonenumber")
       .eq("id", id)
       .single();
 
@@ -181,7 +181,8 @@ exports.updateUser = async (req, res) => {
 
     // Create update object with only provided fields
     const updateData = {};
-    if (name) updateData.name = name;
+    if (name) updateData.firstname = name.split(' ')[0];
+    if (name) updateData.lastname = name.split(' ')[1];
     if (email) updateData.email = email;
     if (role) updateData.role = role;
 

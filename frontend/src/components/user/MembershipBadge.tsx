@@ -22,7 +22,7 @@ const statusConfig = {
 };
 
 const MembershipBadge: React.FC<MembershipBadgeProps> = ({ status, className }) => {
-  const config = statusConfig[status];
+  const config = statusConfig[status] || statusConfig['free'];
 
   return (
     <span

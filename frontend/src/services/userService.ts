@@ -26,12 +26,17 @@ function mapUserFromApi(apiUser: any): User {
 // Fetch all users
 export const fetchUsers = async (): Promise<User[]> => {
   try {
-    const response = await fetch(`${API_URL}/admin/users`);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+    const response = await fetch(`${API_URL}/admin/users`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    const data = await response.json();
-    return Array.isArray(data) ? data.map(mapUserFromApi) : [];
+    const result = await response.json();
+    return Array.isArray(result.data) ? result.data.map(mapUserFromApi) : [];
   } catch (error) {
     console.error('Error fetching users:', error);
     throw error;
@@ -41,8 +46,12 @@ export const fetchUsers = async (): Promise<User[]> => {
 // Delete a user
 export const deleteUser = async (id: string): Promise<void> => {
   try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
     const response = await fetch(`${API_URL}/admin/users/${id}`, {
       method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
     });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -56,10 +65,12 @@ export const deleteUser = async (id: string): Promise<void> => {
 // Update user
 export const updateUser = async (id: string, userData: UserUpdateData): Promise<User> => {
   try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
     const response = await fetch(`${API_URL}/admin/users/${id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify(userData),
     });
@@ -77,7 +88,12 @@ export const updateUser = async (id: string, userData: UserUpdateData): Promise<
 // Get user by ID
 export const getUserById = async (id: string): Promise<User> => {
   try {
-    const response = await fetch(`${API_URL}/admin/users/${id}`);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+    const response = await fetch(`${API_URL}/admin/users/${id}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
