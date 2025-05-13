@@ -225,7 +225,7 @@ exports.getCurrentUser = async (req, res) => {
     user.role = user.role || 'user';
     user.membershipStatus = user.membershipStatus || user.membership_status || 'free';
 
-    return res.status(200).json({ success: true, data: user });
+    return res.status(200).json({ success: true, user });
   } catch (error) {
     logger.error("Get current user error", error);
     return res.status(500).json({ success: false, message: "Sunucu hatası" });
