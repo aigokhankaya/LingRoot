@@ -29,7 +29,7 @@ export default function LoginPage() {
     try {
       const result = await login(email, password);
       if (result.success) {
-        router.push('/dashboard'); // Redirect to dashboard or home on successful login
+        router.push('/welcome'); // Başarılı login sonrası welcome sayfasına yönlendir
       } else {
         setError(result.message || t('login_failed_generic'));
       }
