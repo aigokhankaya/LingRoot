@@ -68,39 +68,15 @@ exports.processFile = async (req, res) => {
 };
 
 exports.getContentHistory = async (req, res) => {
-  const requestId = uuidv4();
-  let stepSequence = 1;
+  const userId = req.user.id;
+  const { data, error } = await supabase
+    .from('contenthistory')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
 
-  try {
-    const userId = req.user.id;
-    logger.info(`Fetching content history for user ID: ${userId}`);
-
-    const { data, error } = await supabase
-      .from('contenthistory')
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      logger.error(`Supabase query error fetching content history for user ID ${userId}:`, error);
-      return res.status(500).json({
-        success: false,
-        message: "İçerik geçmişi alınırken hata oluştu.",
-      });
-    }
-
-    logger.info(`Successfully fetched ${data.length} content history items for user ID: ${userId}`);
-    return res.status(200).json({
-      success: true,
-      data: data,
-    });
-  } catch (error) {
-    logger.error(`Error fetching content history for user ID ${req.user?.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: "İşlem sırasında beklenmeyen bir hata oluştu.",
-    });
-  }
+  if (error) return res.status(500).json({ success: false, error: error.message });
+  return res.json({ success: true, data });
 };
 
 exports.getContentById = async (req, res) => {
@@ -316,44 +292,58 @@ exports.submitContent = async (req, res) => {
 exports.createContent = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;
+  const userId = req.user?.id;
 
   try {
-    // Başlangıç logu
     logStep({
-      requestId: requestId,
-      stepName: 'content:create:start',
+      requestId,
+      stepName: "content:create:start",
       stepSequence: stepSequence++,
       inputData: req.body,
-      userId: req.user?.id
+      userId,
     });
 
-    // İçerik oluşturma işlemi
-    const content = await Content.create(req.body);
-    
-    // Başarılı sonuç logu
+    const { input, input_type, level, mp3_url } = req.body;
+
+    const { data, error } = await supabase
+      .from("contenthistory")
+      .insert([
+        {
+          input,
+          input_type,
+          level,
+          mp3_url,
+          user_id: userId,
+        },
+      ])
+      .select();
+
+    if (error) throw error;
+
     logStep({
-      requestId: requestId,
-      stepName: 'content:create:end',
+      requestId,
+      stepName: "content:create:end",
       stepSequence: stepSequence++,
-      outputData: content,
-      userId: req.user?.id,
-      startTime
+      outputData: data,
+      userId,
     });
 
-    res.status(201).json(content);
+    return res.status(201).json({ success: true, data: data[0] });
   } catch (error) {
-    // Hata logu
     logStep({
-      requestId: requestId,
-      stepName: 'content:create:error',
+      requestId,
+      stepName: "content:create:error",
       stepSequence: stepSequence++,
-      status: 'failure',
+      status: "failure",
       error,
-      userId: req.user?.id,
-      startTime
+      userId,
     });
 
-    res.status(500).json({ error: 'İçerik oluşturulurken bir hata oluştu' });
+    return res.status(500).json({
+      success: false,
+      message: "İçerik oluşturulurken bir hata oluştu.",
+      error: error.message,
+    });
   }
 };
 

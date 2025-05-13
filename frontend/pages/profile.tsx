@@ -4,12 +4,15 @@ import { useAuth } from '../src/lib/auth';
 import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
 import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+import { getContentHistory } from '../src/lib/api';
 
 export default function Profile() {
   const { user, logout } = useAuth();
   const { badge, dailyLimit, remaining } = useMembership();
   const [activities, setActivities] = useState<any[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
+  const [contentHistory, setContentHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
 
   useEffect(() => {
     async function fetchActivities() {
@@ -36,6 +39,22 @@ export default function Profile() {
       }
     }
     fetchActivities();
+  }, []);
+
+  useEffect(() => {
+    async function fetchHistory() {
+      try {
+        const res = await getContentHistory();
+        if (res.success) {
+          setContentHistory(res.data || []);
+        }
+      } catch (e) {
+        setContentHistory([]);
+      } finally {
+        setLoadingHistory(false);
+      }
+    }
+    fetchHistory();
   }, []);
 
   if (user === undefined) {
@@ -186,30 +205,26 @@ export default function Profile() {
               </Link>
             </div>
 
-            {/* Son Aktiviteler */}
+            {/* Geçmiş İçerikler */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Son Aktiviteler</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Geçmiş Sesli İçeriklerim</h3>
               </div>
-              {loadingActivities ? (
+              {loadingHistory ? (
                 <div className="text-gray-400 text-sm">Yükleniyor...</div>
+              ) : contentHistory.length === 0 ? (
+                <div className="text-gray-500 text-sm">Henüz içerik üretilmemiş.</div>
               ) : (
                 <div className="space-y-4">
-                  {activities.map((activity, index) => (
-                    <div key={index} className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg transition">
-                      <div className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-50">
-                        {activity.type === 'TTS' && <FaVolumeUp className="text-blue-500" />}
-                        {activity.type === 'Vocabulary' && <FaBook className="text-yellow-500" />}
-                        {activity.type === 'Pronunciation' && <FaCheckCircle className="text-green-500" />}
-                        {!['TTS','Vocabulary','Pronunciation'].includes(activity.type) && <FaExclamationCircle className="text-gray-400" />}
-                      </div>
+                  {contentHistory.map((item: any) => (
+                    <div key={item.id} className="bg-gray-50 rounded-lg p-4 shadow flex flex-col md:flex-row md:items-center md:justify-between">
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">{activity.desc}</p>
-                        <p className="text-xs text-gray-400">{activity.date}</p>
-                      </div>
-                      <div>
-                        {activity.status === 'success' && <FaCheckCircle className="text-green-500" title="Başarılı" />}
-                        {activity.status === 'error' && <FaExclamationCircle className="text-red-500" title="Hata" />}
+                        <div className="font-semibold text-blue-700 mb-1">{item.input_source}</div>
+                        <div className="text-xs text-gray-500 mb-1">Seviye: {item.level} | {new Date(item.created_at).toLocaleString()}</div>
+                        <audio controls src={item.mp3_url} className="w-full mb-1" />
+                        {item.vtt_url && (
+                          <a href={item.vtt_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-xs">Altyazı dosyasını indir</a>
+                        )}
                       </div>
                     </div>
                   ))}
