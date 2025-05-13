@@ -9,6 +9,7 @@ declare const process: {
 import { useAuth } from "./auth";
 import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
+// API_BASE_URL, .env dosyasındaki NEXT_PUBLIC_API_URL ile belirlenir. Örnek: NEXT_PUBLIC_API_URL=https://api.lingroot.com
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
 const api = axios.create({

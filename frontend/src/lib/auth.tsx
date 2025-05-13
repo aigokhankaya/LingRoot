@@ -52,6 +52,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         };
         setUser(user);
         setIsAuthenticated(true);
+        // Eğer backend token döndürüyorsa localStorage'a kaydet
+        if (data.data.token) {
+          localStorage.setItem('lingroot_token', data.data.token);
+          console.log('[AUTH] Token kaydedildi:', data.data.token);
+        }
         console.log('[AUTH] setUser & setIsAuthenticated', user);
         return { success: true };
       } else {
