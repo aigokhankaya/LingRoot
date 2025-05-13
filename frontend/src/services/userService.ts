@@ -26,7 +26,7 @@ function mapUserFromApi(apiUser: any): User {
 // Fetch all users
 export const fetchUsers = async (): Promise<User[]> => {
   try {
-    const response = await fetch(`${API_URL}/users`);
+    const response = await fetch(`${API_URL}/admin/users`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
