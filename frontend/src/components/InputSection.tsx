@@ -149,6 +149,34 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     onSubmit(inputData);
   };
 
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.text) {
+      setText(data.text); // textarea'ya yaz
+      setInputType('text'); // metin moduna geç
+      // Otomatik submit
+      setTimeout(() => {
+        const safeVoice = POLLY_VOICES.some(v => v.Id === voice) ? voice : POLLY_VOICES[0].Id;
+        const inputData: ProcessInputData = {
+          type: 'text',
+          text: data.text,
+          input: data.text,
+          file: undefined,
+          level,
+          SesHızı: speakingRate,
+          voice: safeVoice,
+          chapter: undefined,
+        };
+        onSubmit(inputData);
+      }, 100);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
@@ -376,8 +404,8 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                           name="file-upload"
                           type="file"
                           className="sr-only"
-                          onChange={(e: ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] || null)}
-                          accept=".pdf,.doc,.docx,.txt"
+                          onChange={handleFileUpload}
+                          accept=".pdf,.doc,.docx,.txt,.md,.rtf,.html,.odt,.epub"
                         />
                       </label>
                       <p className="pl-1">{t('or_drag_and_drop')}</p>
