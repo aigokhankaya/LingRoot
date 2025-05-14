@@ -10,60 +10,25 @@ export default function Header() {
   const { t } = useTranslation();
 
   return (
-    <header className="w-full fixed top-0 left-0 z-30 bg-white/80 backdrop-blur border-b border-gray-100 shadow-sm transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-row justify-between items-center py-3">
-          {/* Logo ve Slogan */}
-          <nav className="flex items-center space-x-4">
-            <Link href="/" className="flex items-center space-x-3 group">
-              {/* Desktop: Tam logo + slogan */}
-              <div className="relative h-12 w-36 hidden sm:block">
-                <Image
-                  src="/LingRoot_MainLogo.png"
-                  alt="LingRoot Logo"
-                  fill
-                  className="object-contain"
-                  priority
-                />
-              </div>
-              <div className="relative h-10 w-10 sm:hidden">
-                <Image
-                  src="/LingRoot_IconOnly.png"
-                  alt="LingRoot Icon Logo"
-                  fill
-                  className="object-contain"
-                  priority
-                />
-              </div>
-              {/* Slogan sadece desktop'ta */}
-              <span className="hidden sm:block text-xs font-medium text-gray-500 ml-2 mt-2 tracking-wide">
-                Your routines turn into English
-              </span>
-            </Link>
-          </nav>
-
-          {/* Menü Elemanları */}
-          <div className="flex items-center space-x-6">
-            <Link 
-              href="/dashboard" 
-              className="text-gray-700 hover:text-blue-700 font-medium transition-colors"
-            >
-              {t('dashboard')}
-            </Link>
-            <Link 
-              href="/how-it-works" 
-              className="text-gray-700 hover:text-blue-700 font-medium transition-colors"
-            >
-              {t('how_it_works')}
-            </Link>
-            <Link 
-              href="/login" 
-              className="text-gray-700 hover:text-blue-700 font-medium transition-colors"
-            >
-              {user ? t('logout') : t('login')}
-            </Link>
-          </div>
-        </div>
+    <header className="w-full bg-white shadow-md border-b border-gray-200">
+      <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-20">
+        {/* Logo */}
+        <Link href="/" className="flex items-center select-none">
+          <span className="font-extrabold text-3xl">
+            <span className="text-blue-600">Ling</span>
+            <span className="text-yellow-400">Root</span>
+          </span>
+        </Link>
+        {/* Menü */}
+        <nav className="flex items-center gap-8 text-lg font-medium text-gray-700">
+          <Link href="#neden" className="hover:text-blue-600 transition-colors">Neden LingRoot?</Link>
+          <Link href="#nasil" className="hover:text-blue-600 transition-colors">Nasıl Çalışır?</Link>
+          <Link href="#yorumlar" className="hover:text-blue-600 transition-colors">Yorumlar</Link>
+        </nav>
+        {/* Hemen Başla Butonu */}
+        <Link href="/login" className="ml-4 px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-white font-bold rounded-xl shadow transition-all text-lg">
+          Hemen Başla
+        </Link>
       </div>
     </header>
   );
