@@ -154,7 +154,11 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     if (!file) return;
     const formData = new FormData();
     formData.append('file', file);
-    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    const apiUrl =
+      typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        ? 'http://localhost:5001/api/upload'
+        : '/api/upload';
+    const res = await fetch(apiUrl, { method: 'POST', body: formData });
     const data = await res.json();
     if (data.text) {
       setText(data.text); // textarea'ya yaz

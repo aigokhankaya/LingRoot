@@ -55,14 +55,18 @@ async function adaptToCEFR(text, level) {
             temperature: 0.6,
         });
         const adaptedText = completion.choices[0]?.message?.content?.trim();
+        logger.info(`OpenAI CEFR raw response: ${adaptedText}`);
         if (
             !adaptedText ||
             adaptedText.toLowerCase().includes("please provide the text") ||
             adaptedText.toLowerCase().includes("i'm here to help") ||
-            adaptedText.toLowerCase().includes("i can't assist")
+            adaptedText.toLowerCase().includes("i can't assist") ||
+            adaptedText.toLowerCase().includes("the text is english") ||
+            adaptedText.toLowerCase().includes("this text is already simple") ||
+            adaptedText.toLowerCase().includes("input is english")
         ) {
-            logger.error("OpenAI CEFR adaptation failed: Model did not return a valid adaptation.");
-            return null;
+            logger.error("OpenAI CEFR adaptation failed or returned trivial response. Returning original text.");
+            return text;
         } else {
             logger.info("Received adapted text from OpenAI.");
             return adaptedText;
