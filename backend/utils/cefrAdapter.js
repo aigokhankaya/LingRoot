@@ -28,9 +28,10 @@ try {
  * Uses a more structured prompt based on user feedback.
  * @param {string} text The text to adapt.
  * @param {string} level The target CEFR level (e.g., "A1", "B2").
+ * @param {object} requestLogger The request logger object.
  * @returns {Promise<string|null>} The adapted text or null if an error occurs or adaptation is skipped.
  */
-async function adaptToCEFR(text, level) {
+async function adaptToCEFR(text, level, requestLogger) {
     if (!openai) {
         logger.error("OpenAI client is not initialized. Skipping CEFR adaptation and returning original text.");
         return text;
@@ -45,7 +46,11 @@ async function adaptToCEFR(text, level) {
     let promptTemplate = fs.readFileSync(promptPath, "utf-8");
     // Değişkenleri yerleştir
     const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, text);
+    // Hem ana loga hem de request loguna yaz
     logger.info({ promptName: promptFile, promptText: prompt }, 'adaptToCEFR: Kullanılan prompt');
+    if (requestLogger) {
+        requestLogger.log(`[adaptCEFR:prompt]\n${JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2)}`);
+    }
     try {
         logger.info(`Sending request to OpenAI (model: gpt-4o) for CEFR level ${level} adaptation.`);
         const completion = await openai.chat.completions.create({

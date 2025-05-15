@@ -31,10 +31,16 @@ try {
  * @param {string} text
  * @returns {Promise<{text: string, detectedLang: string}>}
  */
-async function translateToEnglishWithOpenAI(text) {
+async function translateToEnglishWithOpenAI(text, requestLogger) {
     if (!openai) throw new Error("OpenAI client is not initialized.");
-    const prompt = `Detect the language of the following text. If it is not English, translate it to English. Return only the English translation. Text:\n\n${text}`;
-    logger.info({ prompt }, 'translateToEnglishWithOpenAI: Kullanılan prompt');
+    const promptFile = 'translate_to_english.txt';
+    const promptPath = path.join(__dirname, '../prompts/translate_to_english.txt');
+    const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
+    const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, text);
+    if (requestLogger) {
+        requestLogger.log(`[prompt:translateToEnglish]\n${JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2)}`);
+    }
+    logger.info({ promptName: promptFile, promptText: prompt }, 'translateToEnglishWithOpenAI: Kullanılan prompt');
     const completion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -43,12 +49,8 @@ async function translateToEnglishWithOpenAI(text) {
         ],
         temperature: 0.2,
     });
-    let translated = completion.choices[0]?.message?.content?.trim() || text;
-    // If OpenAI returns a generic message, use the original text
-    if (/^the text is already in english\.?$/i.test(translated)) {
-        translated = text;
-    }
-    return { text: translated, detectedLang: "auto" };
+    let translated = completion.choices[0]?.message?.content?.trim();
+    return translated;
 }
 
 /**
@@ -141,18 +143,20 @@ async function generateEnglishNarrationForTopic(topic, level) {
  * @param {string} level Optional CEFR level for topic type.
  * @returns {Promise<string|null>} The English narration or null on error.
  */
-async function rewriteToEnglishNarration(inputText, level = "A1") {
+async function rewriteToEnglishNarration(inputText, level = "A1", requestLogger) {
     if (!openai) {
         logger.error("OpenAI API key not found. Cannot rewrite narration.");
         return null;
     }
     logger.info(`Rewriting input text to English narration at level: ${level}...`);
-    const promptPath = path.join(__dirname, "../prompts/rewrite_to_narration.txt");
-    let promptTemplate = fs.readFileSync(promptPath, "utf-8");
-    const prompt = promptTemplate
-        .replace(/\{\{input_text\}\}/g, inputText)
-        .replace(/\{\{level\}\}/g, level);
-    logger.info({ prompt }, 'rewriteToEnglishNarration: Kullanılan prompt');
+    const promptFile = 'rewrite_to_narration.txt';
+    const promptPath = path.join(__dirname, '../prompts/rewrite_to_narration.txt');
+    const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
+    const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, inputText).replace(/\{\{level\}\}/g, level);
+    if (requestLogger) {
+        requestLogger.log(`[prompt:rewriteToNarration]\n${JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2)}`);
+    }
+    logger.info({ promptName: promptFile, promptText: prompt }, 'rewriteToEnglishNarration: Kullanılan prompt');
     try {
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",
@@ -322,6 +326,28 @@ async function translateToEnglishWithPrompt(text) {
     });
     const translated = completion.choices[0]?.message?.content?.trim() || text;
     return { text: translated, detectedLang: "auto" };
+}
+
+async function rewriteTranscriptClean(text, requestLogger) {
+    if (!openai) throw new Error("OpenAI client is not initialized.");
+    const promptFile = 'rewrite_transcript_clean.txt';
+    const promptPath = path.join(__dirname, '../prompts/rewrite_transcript_clean.txt');
+    const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
+    const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, text);
+    if (requestLogger) {
+        requestLogger.log(`[prompt:rewriteTranscriptClean]\n${JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2)}`);
+    }
+    logger.info({ promptName: promptFile, promptText: prompt }, 'rewriteTranscriptClean: Kullanılan prompt');
+    const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+            { role: "system", content: "You are a transcript cleaning assistant." },
+            { role: "user", content: prompt }
+        ],
+        temperature: 0.2,
+    });
+    let cleaned = completion.choices[0]?.message?.content?.trim();
+    return cleaned;
 }
 
 module.exports = {
