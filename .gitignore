@@ -33,3 +33,21 @@ backend/logs/requests/
 # Next.js build output
 /.next
 .next
+
+
+# Google Cloud TTS credentials (secret JSON key)
+*.json
+!package.json
+!tsconfig.json
+!*.config.json
+!*.test.json
+
+# Explicitly ignore the key file
+/google-tts-key.json
+/backend/google-tts-key.json
+/secrets/google-tts-key.json
+
+
+# Env files
+.env
+.env.*

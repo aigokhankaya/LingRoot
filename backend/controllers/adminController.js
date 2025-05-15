@@ -472,3 +472,44 @@ exports.updateSubscription = async (req, res) => {
   }
 };
 
+// TTS Provider ayarını getir
+exports.getTtsProviderSetting = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'tts_provider')
+      .single();
+    if (error && error.code !== 'PGRST116') { // PGRST116: no rows found
+      logger.error('Error fetching tts_provider from settings:', error);
+      return res.status(500).json({ success: false, message: 'Error fetching tts_provider' });
+    }
+    return res.json({ success: true, tts_provider: data ? data.value : 'amazon' }); // default: amazon
+  } catch (err) {
+    logger.error('Server error while fetching tts_provider:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// TTS Provider ayarını güncelle
+exports.setTtsProviderSetting = async (req, res) => {
+  try {
+    const { tts_provider } = req.body;
+    if (!['amazon', 'google'].includes(tts_provider)) {
+      return res.status(400).json({ success: false, message: 'Invalid tts_provider value' });
+    }
+    // Upsert
+    const { error } = await supabase
+      .from('settings')
+      .upsert([{ key: 'tts_provider', value: tts_provider }], { onConflict: ['key'] });
+    if (error) {
+      logger.error('Error updating tts_provider in settings:', error);
+      return res.status(500).json({ success: false, message: 'Error updating tts_provider' });
+    }
+    return res.json({ success: true, tts_provider });
+  } catch (err) {
+    logger.error('Server error while updating tts_provider:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+

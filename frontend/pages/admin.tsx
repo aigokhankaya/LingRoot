@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../src/lib/auth';
 import UserTable from '../src/components/admin/UserTable';
 import { useRouter } from 'next/router';
+import TtsProviderSelector from '../src/components/admin/TtsProviderSelector';
 
 export default function AdminPage() {
   const { user, login, logout } = useAuth();
@@ -63,7 +64,10 @@ export default function AdminPage() {
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
           <button onClick={handleLogout} className="px-4 py-2 bg-red-500 text-white rounded">Çıkış Yap</button>
         </div>
-        <UserTable />
+        <div>
+          <TtsProviderSelector />
+          <UserTable />
+        </div>
       </div>
     </main>
   );

@@ -8,7 +8,8 @@ const {
   adaptToCEFR,
   chunkTextAPI,
   synthesizeChunkAPI,
-  mergeAudioAPI
+  mergeAudioAPI,
+  listVoices
 } = require("../controllers/ttsController");
 const logger = require("../utils/logger");
 const { synthesizeWithPolly, listPollyVoices } = require('../utils/amazonPolly');
@@ -93,5 +94,8 @@ router.get('/polly-voices', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// Dinamik ses listesi endpointi
+router.get('/voices', listVoices);
 
 module.exports = router;

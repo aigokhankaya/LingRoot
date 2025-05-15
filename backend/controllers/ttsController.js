@@ -7,12 +7,17 @@ const logger = require("../utils/logger"); // Import Winston logger
 const { extractTextFromInput, generateTopicText, generateEnglishNarrationForTopic, translateToEnglishWithOpenAI } = require("../utils/inputExtractor");
 const { cleanText, chunkText, chunkTextByCharLimit } = require("../utils/textProcessor");
 const { adaptToCEFR: adaptToCEFRFunc } = require("../utils/cefrAdapter");
-const { synthesizeWithPolly } = require("../utils/amazonPolly");
+const { synthesizeWithPolly, listPollyVoices } = require("../utils/amazonPolly");
+const { synthesizeWithGoogle, listGoogleVoices } = require("../utils/googleTTS");
 const { mergeAudioSegments } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
 const tmp = require("tmp");
 const { logStep } = require('../utils/stepLogger');
 const { logRequestStep } = require("../utils/requestLogger");
+const { createClient } = require("@supabase/supabase-js");
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Helper function for consistent temp file cleanup
 const cleanupTempFile = (filePath) => {
@@ -26,6 +31,17 @@ const cleanupTempFile = (filePath) => {
         }
     }
 };
+
+// Yardımcı: tts_provider'ı settings tablosundan oku (default: amazon)
+async function getTtsProvider() {
+  const { data, error } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'tts_provider')
+    .single();
+  if (error || !data) return 'amazon';
+  return data.value;
+}
 
 /**
  * Handles the text-to-speech processing request.
@@ -240,21 +256,20 @@ const processTtsRequest = async (req, res) => {
         const selectedVoice = req.body.voice || 'Joanna';
         const adaptedText = finalChunks.join('\n\n');
         logRequestStep(requestId, 'tts:start', { chunkCount: finalChunks.length, voice: selectedVoice, speakingRate });
-        logStep({
-            requestId,
-            stepName: 'tts:amazonPolly:start',
-            stepSequence: stepSequence++,
-            serviceName: 'AmazonPolly',
-            endpoint: 'https://polly.us-east-1.amazonaws.com/v1/speech',
-            inputData: { adaptedText, voice: selectedVoice, speakingRate }
-        });
-        const audioBase64 = await synthesizeWithPolly({ text: adaptedText, voiceId: selectedVoice, languageCode: 'en-US' });
-        if (!audioBase64) {
-            logger.error(`[${requestId}] Failed to synthesize speech with Amazon Polly.`);
-            logRequestStep(requestId, 'tts:error', { error: 'Failed to synthesize speech with Amazon Polly.' });
-            return res.status(500).json({ success: false, message: "Failed to generate audio with Amazon Polly." });
+        // --- TTS provider seçimi ---
+        const ttsProvider = await getTtsProvider();
+        let audioBase64;
+        if (ttsProvider === 'google') {
+            audioBase64 = await synthesizeWithGoogle({ text: adaptedText, voiceName: selectedVoice, languageCode: 'en-US' });
+        } else {
+            audioBase64 = await synthesizeWithPolly({ text: adaptedText, voiceId: selectedVoice, languageCode: 'en-US' });
         }
-        logger.info(`[${requestId}] Speech synthesized successfully with Amazon Polly.`);
+        if (!audioBase64) {
+            logger.error(`[${requestId}] Failed to synthesize speech with ${ttsProvider}.`);
+            logRequestStep(requestId, 'tts:error', { error: `Failed to synthesize speech with ${ttsProvider}.` });
+            return res.status(500).json({ success: false, message: `Failed to generate audio with ${ttsProvider === 'google' ? 'Google TTS' : 'Amazon Polly'}.` });
+        }
+        logger.info(`[${requestId}] Speech synthesized successfully with ${ttsProvider}.`);
         logStep({
             requestId,
             stepName: 'tts:amazonPolly:end',
@@ -419,6 +434,18 @@ const mergeAudioAPI = async (req, res) => {
   }
 };
 
+// Ses listesi endpointi (dinamik)
+const listVoices = async (req, res) => {
+  const ttsProvider = await getTtsProvider();
+  if (ttsProvider === 'google') {
+    const voices = await listGoogleVoices('en-US');
+    return res.json({ provider: 'google', voices });
+  } else {
+    const voices = await listPollyVoices();
+    return res.json({ provider: 'amazon', voices });
+  }
+};
+
 module.exports = {
     processTtsRequest,
     translateToEnglish,
@@ -426,5 +453,6 @@ module.exports = {
     chunkTextAPI,
     synthesizeChunkAPI,
     mergeAudioAPI,
+    listVoices,
 };
 
