@@ -4,7 +4,7 @@ import { useTranslation } from '@/lib/i18n';
 import { ProcessInputData } from '../lib/api';
 import { searchBooks, fetchBookContent } from '../services/bookService';
 
-type InputType = ProcessInputData['type'];
+type InputType = ProcessInputData['type'] | 'suggestion' | 'hashtag';
 type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 interface InputSectionProps {
@@ -128,9 +128,10 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   // Eski handleSubmit diğer input tipleri için
   const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
+    if (inputType === 'suggestion' || inputType === 'hashtag') return; // Bu tiplerde submit yok
     const safeVoice = POLLY_VOICES.some(v => v.Id === voice) ? voice : POLLY_VOICES[0].Id;
     const inputData: ProcessInputData = {
-      type: inputType,
+      type: inputType as ProcessInputData['type'],
       text: inputType === 'text' ? text : inputType === 'topic' ? topic : undefined,
       input:
         inputType === 'text' ? text :
@@ -277,6 +278,28 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                   <path d="M8 8h8M8 12h8M8 16h4" strokeWidth={2} stroke="currentColor" />
                 </svg>
                 <span>Kitap</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setInputType('suggestion')}
+                className={`icon-button group ${inputType === 'suggestion' ? 'icon-button-selected' : 'icon-button-default'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Öneriler</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setInputType('hashtag')}
+                className={`icon-button group ${inputType === 'hashtag' ? 'icon-button-selected' : 'icon-button-default'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h10M7 12h10M7 17h10" />
+                </svg>
+                <span>Hashtag</span>
               </button>
             </div>
           </div>
@@ -475,6 +498,17 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {inputType === 'suggestion' && (
+              <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 text-blue-700 text-center">
+                Yakında ilginç konu önerileri burada görünecek.
+              </div>
+            )}
+            {inputType === 'hashtag' && (
+              <div className="p-4 bg-green-50 rounded-xl border border-green-200 text-green-700 text-center">
+                Takip ettiğiniz hashtag'lere göre öneriler burada listelenecek.
               </div>
             )}
 

@@ -67,3 +67,11 @@ lingroot/
 *   **Veritabanı:** Supabase veritabanınızın ve tablolarınızın backend tarafından kullanılmaya hazır olduğundan emin olun. Gerekirse `backend/migrations` klasöründeki migration'ları çalıştırın.
 
 Bu adımları takip ederek projenizi başarıyla GitHub üzerinden Vercel ve Render'a dağıtabilirsiniz.
+
+## Backend Pipeline ve Endpointler (Güncel)
+
+- Backend'de tüm içerik türleri için ortak bir metin işleme pipeline'ı (extract, clean, process) kullanılmaktadır.
+- Aşağıdaki endpointler ile her içerik türü için aynı iş akışı tetiklenir:
+  - /process-text, /process-file, /process-link, /process-youtube, /process-web, /process-book, /process-spotify
+- Henüz tamamlanmamış türler için endpointler hazır, fonksiyonlar "not implemented" döndürür.
+- Deployment sonrası yeni içerik türleri kolayca aktif edilebilir.

@@ -4,6 +4,7 @@ require("dotenv").config();
 const logger = require("../utils/logger"); // Import logger
 const { logStep } = require('../utils/stepLogger');
 const { v4: uuidv4 } = require('uuid');
+const { processTextPipeline } = require('../utils/pipeline');
 
 // Supabase istemcisini oluştur
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -44,27 +45,49 @@ function convertGoogleDriveUrl(url) {
 
 // Placeholder functions - keep as is or implement later
 exports.processLink = async (req, res) => {
-  const requestId = uuidv4();
-  let stepSequence = 1;
-
-  logger.info("processLink called (placeholder)");
-  res.json({ message: "Link processed (placeholder)" });
+  const { input, level } = req.body;
+  const result = await processTextPipeline({ inputData: input, inputType: 'weblink', level });
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+  res.json({ success: true, data: result.cleanedText });
 };
 
 exports.processText = async (req, res) => {
-  const requestId = uuidv4();
-  let stepSequence = 1;
-
-  logger.info("processText called (placeholder)");
-  res.json({ message: "Text processed (placeholder)" });
+  const { input, level } = req.body;
+  const result = await processTextPipeline({ inputData: input, inputType: 'text', level });
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+  res.json({ success: true, data: result.cleanedText });
 };
 
 exports.processFile = async (req, res) => {
-  const requestId = uuidv4();
-  let stepSequence = 1;
+  const { level } = req.body;
+  const file = req.file;
+  const result = await processTextPipeline({ inputData: undefined, inputType: 'file', file, level });
+  if (result.error) return res.status(400).json({ success: false, error: result.error });
+  res.json({ success: true, data: result.cleanedText });
+};
 
-  logger.info("processFile called (placeholder)");
-  res.json({ message: "File processed (placeholder)" });
+exports.processYoutube = async (req, res) => {
+  return res.status(501).json({ success: false, error: 'YouTube transcript processing not implemented yet.' });
+};
+
+exports.processWeb = async (req, res) => {
+  return res.status(501).json({ success: false, error: 'Web link processing not implemented yet.' });
+};
+
+exports.processBook = async (req, res) => {
+  return res.status(501).json({ success: false, error: 'Book processing not implemented yet.' });
+};
+
+exports.processSpotify = async (req, res) => {
+  return res.status(501).json({ success: false, error: 'Spotify processing not implemented yet.' });
+};
+
+exports.processSuggestions = async (req, res) => {
+  return res.status(501).json({ success: false, error: 'Öneriler (suggestions) özelliği henüz uygulanmadı.' });
+};
+
+exports.processHashtag = async (req, res) => {
+  return res.status(501).json({ success: false, error: 'Hashtag öneri özelliği henüz uygulanmadı.' });
 };
 
 exports.getContentHistory = async (req, res) => {

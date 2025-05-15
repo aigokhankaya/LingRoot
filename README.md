@@ -343,6 +343,47 @@ Aşağıda verilen konu başlığı, kullanıcının ilgi alanına göre seçti�
 
 Şimdi yukarıdaki kurallara uygun olarak, bu konuda seviyeye uygun İngilizce anlatım metni oluşturun. Paragraf paragraf ilerleyin, ancak başlık veya numaralandırma kullanmayın. Giriş bölümünden başlayın.
 
+## Backend Pipeline (Ortak Metin İşleme Akışı)
+
+Tüm içerik türleri için backend'de ortak bir metin işleme pipeline'ı kullanılır. Bu pipeline şunları içerir:
+
+1. **Metin Çıkarma:**
+   - `text`, `topic`, `file`, `weblink`, `youtube`, `book`, `spotify` gibi farklı türlerden metin çıkarılır.
+2. **Metin Temizleme:**
+   - Çıkarılan metin, TTS ve seviye dönüştürme için temizlenir.
+3. **Seviye Dönüştürme & TTS:**
+   - (Opsiyonel) CEFR seviyesine göre dönüştürme ve TTS için parçalara ayırma.
+
+### Ortak Pipeline Kullanımı
+
+Aşağıdaki endpointler, ilgili içerik türü için pipeline'ı tetikler:
+
+- `POST /api/content/process-text`      → Metin
+- `POST /api/content/process-file`      → Dosya (PDF, DOCX, TXT, vb.)
+- `POST /api/content/process-link`      → Web Linki
+- `POST /api/content/process-youtube`   → YouTube (Not implemented)
+- `POST /api/content/process-web`       → Web (Not implemented)
+- `POST /api/content/process-book`      → Kitap (Not implemented)
+- `POST /api/content/process-spotify`   → Spotify (Not implemented)
+
+Henüz yapılmamış türler için endpointler hazır, fonksiyonlar "not implemented" döndürür.
+
+### Örnek Akış
+
+1. Kullanıcı bir içerik türü seçer ve input gönderir.
+2. İlgili endpoint'e istek atılır.
+3. Pipeline:
+   - Metin çıkarır
+   - Temizler
+   - (Varsa) seviye dönüştürür, TTS için işler
+4. Sonuç frontend'e döner.
+
+## Deployment Guide (Güncel)
+
+- Backend ve frontend kurulum adımları değişmedi.
+- Backend'de yeni pipeline ve endpointler eklendi. Tüm içerik türleri için ortak bir iş akışı vardır.
+- Henüz tamamlanmamış içerik türleri için endpointler hazır, ileride kolayca geliştirilebilir.
+
 # LingRoot - YouTube Transcript & TTS Platformu
 
 ## Özellikler

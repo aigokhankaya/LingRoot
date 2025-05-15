@@ -17,6 +17,12 @@ const upload = multer({ dest: 'uploads/' });
 router.post('/process-link', contentController.processLink);
 router.post('/process-text', contentController.processText);
 router.post('/process-file', contentController.processFile);
+router.post('/process-youtube', contentController.processYoutube);
+router.post('/process-web', contentController.processWeb);
+router.post('/process-book', contentController.processBook);
+router.post('/process-spotify', contentController.processSpotify);
+router.post('/process-suggestions', contentController.processSuggestions);
+router.post('/process-hashtag', contentController.processHashtag);
 
 // ✅ Yeni eklenen route:
 router.post('/submit', authenticate, contentController.submitContent);
