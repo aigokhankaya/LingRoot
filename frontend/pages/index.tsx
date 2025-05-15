@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
 export default function HomePage() {
-  const [selectedLevel, setSelectedLevel] = useState('A1');
-
   return (
     <div className="bg-[#f4f7f6] text-[#333] min-h-screen">
       {/* Header */}
@@ -33,7 +31,7 @@ export default function HomePage() {
         <div className="flex-1.2 flex justify-center items-center">
           <div className="bg-white p-8 rounded-xl shadow-lg border w-full max-w-xl">
             <div className="w-full h-64 bg-black rounded flex justify-center items-center text-white text-xl mb-6">
-              Örnek Video Alanı ({selectedLevel} Ses ve Altyazı Aktif)
+              Örnek Video Alanı (A1 Ses ve Altyazı Aktif)
             </div>
             <p className="text-center font-bold mb-2 text-base">İzlediğiniz videonun seslendirmesini ve altyazısını değiştirmek için seviyenizi seçin:</p>
             <div className="flex flex-wrap justify-around mb-4">
@@ -41,18 +39,17 @@ export default function HomePage() {
                 <button
                   key={level}
                   className={`px-4 py-2 border-2 rounded font-bold m-1 transition ${
-                    selectedLevel === level
+                    level === 'A1'
                       ? "bg-green-600 text-white border-green-600"
                       : "bg-white text-green-600 border-green-600 hover:bg-green-600 hover:text-white"
                   }`}
-                  onClick={() => setSelectedLevel(level)}
                 >
                   {level}
                 </button>
               ))}
             </div>
             <div className="bg-[#f0f0f0] p-3 rounded min-h-[40px] text-left text-[#444] italic text-sm">
-              {selectedLevel} Seviyesi Altyazı burada görünecektir...
+              A1 Seviyesi Altyazı burada görünecektir...
             </div>
             <p className="text-xs text-center mt-2 text-[#666]">
               Açıklama: Yukarıdaki video oynatıcı sabit kalacaktır. Seviye butonlarına tıklandığında, videonun sesi ve altyazıları seçilen İngilizce seviyesine göre anında güncellenecektir.
