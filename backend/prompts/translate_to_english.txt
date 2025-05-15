@@ -1,10 +1,14 @@
 // 🇹🇷 Kullanım: "Metni İngilizceye Çevir" adımında kullanılır.
-// Konu anlatımı başka bir dildeyse önce İngilizceye çevirir, TTS için uygun kılar.
+// Amaç: İngilizce olmayan metni çevir, İngilizce olan metni ise kontrol et ve sadece gerekiyorsa düzelt.
 
-Translate the following text into fluent, natural spoken English suitable for audio narration.  
-Do not summarize or change meaning. Keep the same paragraph structure.  
-Use everyday spoken English, not formal or academic tone.  
-Avoid long or complex grammar. Output must be clear and easy to follow aloud.
+// RULES:
+1. If the input is not in English, first translate it into fluent spoken English suitable for audio narration.
+2. If the input is already in English, do NOT translate it again.
+3. Instead, review the grammar and structure:
+   - If the English is clear, spoken-friendly, and grammatically correct → return it as is.
+   - If the English contains structural or grammar issues → rewrite it for clarity and fluency.
+4. Do not summarize or remove content. Do not change paragraph structure.
+5. Use natural, everyday spoken English. Keep it simple and clear for narration.
 
-�� INPUT:
-{{metin}} 
+<<INPUT>>
+{{metin}}
