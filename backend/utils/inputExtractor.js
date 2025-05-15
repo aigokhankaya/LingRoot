@@ -183,22 +183,13 @@ async function rewriteToEnglishNarration(inputText, level = "A1", requestLogger)
 }
 
 /**
- * Extracts text content based on the input type.
- * Supports text, topic, weblink, file (pdf, docx, txt, md, html).
- * Placeholders for youtube, spotify, book.
- * @param {string | undefined} inputData Text, URL, or topic input.
- * @param {string} inputType Type of input (
- * 'text', 'topic', 'youtube', 'weblink', 'file', 'book', 'spotify'
- * ).
- * @param {Express.Multer.File | undefined} file Uploaded file object (from multer).
- * @param {string | undefined} chapter Optional chapter info for book type.
- * @param {string} [level] Optional CEFR level for topic type.
- * @param {string} [detectedLanguage] Optional detected language for topic type.
- * @returns {Promise<string|null>} The extracted text or null on error/not implemented.
+ * Konu başlığından detaylı İngilizce anlatım üretir ve metin pipeline'ına gönderir.
+ * 1. rewrite_to_narration.txt promptu ile başlıktan ~2000 kelimelik anlatım üretir.
+ * 2. Dönen metni pipeline'ın kalan adımlarında metin gibi işle
+ * Eğer OpenAI başlıktan içerik üretemezse, hata döner.
  */
 async function extractTextFromInput(inputData, inputType, file, chapter, level = "A1", detectedLanguage = "en", requestLogger) {
     logger.info(`Extracting text for input type: ${inputType}`);
-
     switch (inputType) {
         case "text":
             if (typeof inputData === "string") {
@@ -208,15 +199,20 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
                 logger.error("Input data is not a string for type 'text'.");
                 return null;
             }
-
         case "topic":
             if (typeof inputData === "string") {
-                return await generateEnglishNarrationForTopic(inputData, level, detectedLanguage, requestLogger);
+                // 1. rewrite_to_narration.txt promptu ile detaylı anlatım üret
+                const narration = await generateEnglishNarrationForTopic(inputData, level, detectedLanguage, requestLogger);
+                if (!narration || narration.toLowerCase().includes("i need the text") || narration.toLowerCase().includes("please provide")) {
+                    logger.error("OpenAI could not generate narration from topic. User should provide a more descriptive topic.");
+                    return null;
+                }
+                // 2. Dönen metni pipeline'ın kalan adımlarında metin gibi işle
+                return narration;
             } else {
                 logger.error("Input data (topic) is not a string.");
                 return null;
             }
-
         case "weblink":
             if (typeof inputData === "string") {
                 return await extractFromWebLink(inputData);

@@ -43,7 +43,9 @@ function convertGoogleDriveUrl(url) {
   }
 }
 
-// Placeholder functions - keep as is or implement later
+/**
+ * Web linkten içerik işleme fonksiyonu. Kullanıcıdan gelen web linkini alır, metin çıkarma ve işleme pipeline'ına gönderir.
+ */
 exports.processLink = async (req, res) => {
   const { input, level } = req.body;
   const result = await processTextPipeline({ inputData: input, inputType: 'weblink', level });
@@ -51,6 +53,9 @@ exports.processLink = async (req, res) => {
   res.json({ success: true, data: result.cleanedText });
 };
 
+/**
+ * Düz metin işleme fonksiyonu. Kullanıcıdan gelen metni alır, işleme pipeline'ına gönderir.
+ */
 exports.processText = async (req, res) => {
   const { input, level } = req.body;
   const result = await processTextPipeline({ inputData: input, inputType: 'text', level });
@@ -58,6 +63,9 @@ exports.processText = async (req, res) => {
   res.json({ success: true, data: result.cleanedText });
 };
 
+/**
+ * Dosya işleme fonksiyonu. Kullanıcıdan yüklenen dosyadan metin çıkarır ve işleme pipeline'ına gönderir.
+ */
 exports.processFile = async (req, res) => {
   const { level } = req.body;
   const file = req.file;
@@ -66,30 +74,51 @@ exports.processFile = async (req, res) => {
   res.json({ success: true, data: result.cleanedText });
 };
 
+/**
+ * YouTube videosundan transcript çıkarma fonksiyonu. Henüz uygulanmadı.
+ */
 exports.processYoutube = async (req, res) => {
   return res.status(501).json({ success: false, error: 'YouTube transcript processing not implemented yet.' });
 };
 
+/**
+ * Web linkten içerik çıkarma fonksiyonu. Henüz uygulanmadı.
+ */
 exports.processWeb = async (req, res) => {
   return res.status(501).json({ success: false, error: 'Web link processing not implemented yet.' });
 };
 
+/**
+ * Kitap içeriği işleme fonksiyonu. Henüz uygulanmadı.
+ */
 exports.processBook = async (req, res) => {
   return res.status(501).json({ success: false, error: 'Book processing not implemented yet.' });
 };
 
+/**
+ * Spotify içeriği işleme fonksiyonu. Henüz uygulanmadı.
+ */
 exports.processSpotify = async (req, res) => {
   return res.status(501).json({ success: false, error: 'Spotify processing not implemented yet.' });
 };
 
+/**
+ * Kullanıcıya öneriler sunan fonksiyon. Henüz uygulanmadı.
+ */
 exports.processSuggestions = async (req, res) => {
   return res.status(501).json({ success: false, error: 'Öneriler (suggestions) özelliği henüz uygulanmadı.' });
 };
 
+/**
+ * Kullanıcının takip ettiği hashtag'lere göre öneriler sunan fonksiyon. Henüz uygulanmadı.
+ */
 exports.processHashtag = async (req, res) => {
   return res.status(501).json({ success: false, error: 'Hashtag öneri özelliği henüz uygulanmadı.' });
 };
 
+/**
+ * Kullanıcının içerik geçmişini getiren fonksiyon. Supabase'den ilgili kayıtları çeker.
+ */
 exports.getContentHistory = async (req, res) => {
   const userId = req.user.id;
   const { data, error } = await supabase
@@ -102,6 +131,9 @@ exports.getContentHistory = async (req, res) => {
   return res.json({ success: true, data });
 };
 
+/**
+ * Belirli bir içeriği ID ile getiren fonksiyon. Supabase'den ilgili kaydı çeker.
+ */
 exports.getContentById = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;
@@ -140,6 +172,9 @@ exports.getContentById = async (req, res) => {
   }
 };
 
+/**
+ * Belirli bir içeriği silen fonksiyon. Supabase'den ilgili kaydı siler.
+ */
 exports.deleteContent = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;
@@ -195,7 +230,9 @@ exports.deleteContent = async (req, res) => {
   }
 };
 
-// Supabase Storage"a ses dosyası yükleme fonksiyonu (Bu fonksiyon doğrudan route tarafından çağrılmıyor, diğer servisler kullanabilir)
+/**
+ * Supabase Storage'a ses dosyası yükleyen yardımcı fonksiyon.
+ */
 async function uploadAudioToSupabase(audioBuffer, fileName) {
   const requestId = uuidv4();
   let stepSequence = 1;
@@ -246,7 +283,9 @@ async function uploadAudioToSupabase(audioBuffer, fileName) {
   }
 }
 
-// Birleştirilmiş submitContent fonksiyonu (Bu fonksiyon muhtemelen TTS servisi tarafından çağrılacak)
+/**
+ * İçerik ve ses dosyasını Supabase'e kaydeden fonksiyon. TTS sonrası çağrılır.
+ */
 exports.submitContent = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;
@@ -313,6 +352,9 @@ exports.submitContent = async (req, res) => {
   }
 };
 
+/**
+ * İçerik oluşturma fonksiyonu. Supabase'e yeni içerik kaydı ekler.
+ */
 exports.createContent = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;
