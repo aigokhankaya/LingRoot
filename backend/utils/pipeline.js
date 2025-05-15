@@ -16,7 +16,11 @@ async function processTextPipeline({ inputData, inputType, file, chapter, level 
     // const leveledText = await adaptToCEFR(cleanedText, level); // Eğer seviye dönüştürme fonksiyonu varsa
     // const ttsChunks = chunkText(leveledText);
 
-    return { cleanedText };
+    // 4. Chunk sonrası, TTS öncesi her chunk'ı tekrar temizle
+    const chunks = chunkText(cleanedText);
+    const cleanedChunks = chunks.map(chunk => cleanTextForTTS(chunk));
+
+    return { cleanedText, cleanedChunks };
 }
 
 module.exports = { processTextPipeline }; 
