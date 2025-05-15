@@ -36,21 +36,27 @@ async function translateToEnglishWithOpenAI(text, requestLogger) {
     const promptFile = 'translate_to_english.txt';
     const promptPath = path.join(__dirname, '../prompts/translate_to_english.txt');
     const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
-    const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, text);
-    if (requestLogger) {
-        requestLogger.log(`[prompt:translateToEnglish]\n${JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2)}`);
+    const { chunkText } = require('./textProcessor');
+    const chunks = chunkText(text);
+    let translatedChunks = [];
+    for (let i = 0; i < chunks.length; i++) {
+        const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, chunks[i]);
+        if (requestLogger) {
+            requestLogger.log(`[prompt:translateToEnglishWithOpenAI:chunk:${i}][input]` + JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2));
+        }
+        logger.info({ promptName: promptFile, promptText: prompt }, 'translateToEnglishWithOpenAI: Kullanılan prompt');
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                { role: "system", content: "You are a translation assistant." },
+                { role: "user", content: prompt }
+            ],
+            temperature: 0.2,
+        });
+        let translated = completion.choices[0]?.message?.content?.trim();
+        translatedChunks.push(translated);
     }
-    logger.info({ promptName: promptFile, promptText: prompt }, 'translateToEnglishWithOpenAI: Kullanılan prompt');
-    const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-            { role: "system", content: "You are a translation assistant." },
-            { role: "user", content: prompt }
-        ],
-        temperature: 0.2,
-    });
-    let translated = completion.choices[0]?.message?.content?.trim();
-    return translated;
+    return translatedChunks.join('\n\n');
 }
 
 /**
@@ -101,12 +107,15 @@ async function generateNarrationForTopic(topic, requestLogger) {
     const promptFile = 'rewrite_to_narration.txt';
     const promptPath = path.join(__dirname, '../prompts/rewrite_to_narration.txt');
     let promptTemplate = fs.readFileSync(promptPath, 'utf-8');
-    const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, topic);
-    if (requestLogger) {
-        requestLogger.log(`[prompt:generateNarrationForTopic]\n${JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2)}`);
-    }
-    logger.info({ promptName: promptFile, promptText: prompt }, 'generateNarrationForTopic: Kullanılan prompt');
-    try {
+    const { chunkText } = require('./textProcessor');
+    const chunks = chunkText(topic);
+    let narrationChunks = [];
+    for (let i = 0; i < chunks.length; i++) {
+        const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, chunks[i]);
+        if (requestLogger) {
+            requestLogger.log(`[prompt:generateNarrationForTopic:chunk:${i}][input]` + JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2));
+        }
+        logger.info({ promptName: promptFile, promptText: prompt }, 'generateNarrationForTopic: Kullanılan prompt');
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
@@ -116,17 +125,9 @@ async function generateNarrationForTopic(topic, requestLogger) {
             temperature: 0.6,
         });
         const generatedText = completion.choices[0]?.message?.content?.trim();
-        if (generatedText) {
-            logger.info(`Successfully generated narration for topic: ${topic}`);
-            return generatedText;
-        } else {
-            logger.error(`OpenAI response did not contain content for narration topic: ${topic}`);
-            return null;
-        }
-    } catch (error) {
-        logger.error(`Error generating narration for topic ${topic} via OpenAI: ${error.message}`);
-        return null;
+        narrationChunks.push(generatedText);
     }
+    return narrationChunks.join('\n\n');
 }
 
 /**

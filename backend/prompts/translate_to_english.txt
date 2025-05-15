@@ -1,14 +1,26 @@
 // 🇹🇷 Kullanım: "Metni İngilizceye Çevir" adımında kullanılır.
-// Amaç: İngilizce olmayan metni çevir, İngilizce olan metni ise kontrol et ve sadece gerekiyorsa düzelt.
+// Bu adımda, farklı bir dilde gelen anlatım metni akıcı, doğal ve paragraflı bir İngilizce anlatıma çevrilir.
+// Çeviri metni, bir sonraki “chunkText” adımında güvenle parçalanabilecek şekilde yapılandırılmalıdır.
+// Çıktı sade, paragraflı, sembolsüz ve TTS’ye dolaylı uyumlu olmalıdır (ama TTS sadeleştirmesi yapılmaz).
 
-// RULES:
-1. If the input is not in English, first translate it into fluent spoken English suitable for audio narration.
-2. If the input is already in English, do NOT translate it again.
-3. Instead, review the grammar and structure:
-   - If the English is clear, spoken-friendly, and grammatically correct → return it as is.
-   - If the English contains structural or grammar issues → rewrite it for clarity and fluency.
-4. Do not summarize or remove content. Do not change paragraph structure.
-5. Use natural, everyday spoken English. Keep it simple and clear for narration.
+🎯 TASK:
+Translate the following text into fluent, natural, spoken English suitable for a long-form narration.  
+This output will be used in the next step for chunking, so you must follow strict formatting rules.
 
-<<INPUT>>
-{{metin}}
+📌 FORMAT RULES:
+- Keep paragraph breaks exactly as in the original input.
+- Use normal sentence length. Avoid overly long or overly short sentences.
+- Do NOT use bullet points, lists, emojis, special characters, headings, or formatting symbols.
+- Do NOT skip or summarize content. Translate everything fully and naturally.
+- Do NOT rephrase — preserve the tone and structure of the original.
+- Use spoken, listener-friendly English — avoid formal, academic, or overly complex language.
+
+📌 EXAMPLES (acceptable formatting):
+- ✅ Paragraph 1. Sentence. Sentence.
+- ✅ Paragraph 2. Sentence. Sentence.
+
+📥 INPUT TEXT:
+{{input_text}}
+
+📤 OUTPUT:
+Return only the fully translated English narration in clean, paragraph-based format — no comments, no metadata, no formatting.

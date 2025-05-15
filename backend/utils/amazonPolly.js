@@ -36,7 +36,7 @@ async function synthesizeWithPolly({ text, voiceId, languageCode }) {
             Text: text,
             VoiceId: voiceId,
             LanguageCode: languageCode,
-            Engine: 'standard', // or 'neural' if supported
+            Engine: 'neural',
         });
         const response = await polly.send(command);
         if (response.AudioStream) {

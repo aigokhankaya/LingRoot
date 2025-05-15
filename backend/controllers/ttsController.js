@@ -5,7 +5,7 @@ const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../utils/logger"); // Import Winston logger
 const { extractTextFromInput, generateTopicText, generateEnglishNarrationForTopic, translateToEnglishWithOpenAI } = require("../utils/inputExtractor");
-const { cleanText, chunkText } = require("../utils/textProcessor");
+const { cleanText, chunkText, chunkTextByCharLimit } = require("../utils/textProcessor");
 const { adaptToCEFR: adaptToCEFRFunc } = require("../utils/cefrAdapter");
 const { synthesizeWithPolly } = require("../utils/amazonPolly");
 const { mergeAudioSegments } = require("../utils/audioMerger");
@@ -158,7 +158,13 @@ const processTtsRequest = async (req, res) => {
         let textToAdapt = cleanedText;
         try {
             const translationResult = await translateToEnglishWithOpenAI(cleanedText);
-            textToAdapt = translationResult.text;
+            console.log("[DEBUG] Translated result:", translationResult);
+            if (!translationResult || translationResult.trim() === "") {
+                logger.error(`[${requestId}] Translation result is empty, chunkText will not be called.`);
+                logRequestStep(requestId, 'translate:error', { error: 'Translation result is empty.' });
+                return res.status(400).json({ success: false, message: "Translation result is empty." });
+            }
+            textToAdapt = translationResult;
             logger.info(`[${requestId}] Translation successful.`);
             logRequestStep(requestId, 'translate:success', { translationResult });
         } catch (translateError) {
@@ -177,56 +183,63 @@ const processTtsRequest = async (req, res) => {
         });
         logRequestStep(requestId, 'translate:end', { textToAdapt });
 
-        // --- Step 3: Adapt to CEFR Level (OpenAI) ---
-        logRequestStep(requestId, 'adaptCEFR:start', { textToAdapt, level });
-        logStep({
-            requestId,
-            stepName: 'tts:adapt:cefr:start',
-            stepSequence: stepSequence++,
-            serviceName: 'OpenAI',
-            endpoint: 'https://api.openai.com/v1/completions',
-            promptName: 'adaptToCEFR',
-            promptText: textToAdapt
-        });
-        const adaptedText = await adaptToCEFRFunc(textToAdapt, level);
-        if (adaptedText === null) {
-            logger.error(`[${requestId}] Failed to adapt text using OpenAI.`);
-            logRequestStep(requestId, 'adaptCEFR:error', { error: 'Failed to adapt text to CEFR.' });
-            return res.status(500).json({ success: false, message: "Failed to adapt text to the specified CEFR level." });
+        // --- Step 3: Chunk Text (ilk, translate sonrası) ---
+        if (!textToAdapt || textToAdapt.trim() === "") {
+            logger.error(`[${requestId}] textToAdapt is empty, chunkText will not be called.`);
+            logRequestStep(requestId, 'chunkText:preTTS:error', { error: 'textToAdapt is empty.' });
+            return res.status(400).json({ success: false, message: "No text to chunk after translation." });
         }
-        logger.info(`[${requestId}] Text adapted successfully.`);
+        console.log("[DEBUG] chunkText input (preTTS):", textToAdapt);
+        const preTtsChunks = chunkText(textToAdapt);
+        logRequestStep(requestId, 'chunkText:preTTS:start', { textToAdapt, chunkCount: preTtsChunks.length });
         logStep({
             requestId,
-            stepName: 'tts:adapt:cefr:end',
-            stepSequence: stepSequence++,
-            serviceName: 'OpenAI',
-            endpoint: 'https://api.openai.com/v1/completions',
-            outputData: { adaptedText }
-        });
-        logRequestStep(requestId, 'adaptCEFR:end', { adaptedText });
-
-        // --- Step 4: Chunk Text for TTS ---
-        const textChunks = chunkText(adaptedText);
-        logRequestStep(requestId, 'chunkText', { adaptedText, chunkCount: textChunks.length });
-        logStep({
-            requestId,
-            stepName: 'tts:chunkText',
+            stepName: 'tts:chunkText:preTTS:start',
             stepSequence: stepSequence++,
             serviceName: 'LocalFunction',
             endpoint: 'chunkText',
-            inputData: { adaptedText },
-            outputData: { chunkCount: textChunks.length }
+            inputData: { textToAdapt },
+            outputData: { chunkCount: preTtsChunks.length }
         });
-        if (!textChunks || textChunks.length === 0) {
-            logger.warn(`[${requestId}] Text resulted in zero chunks after processing.`);
-            logRequestStep(requestId, 'chunkText:error', { error: 'No chunks generated.' });
+        if (!preTtsChunks || preTtsChunks.length === 0) {
+            logger.warn(`[${requestId}] Text resulted in zero chunks after translate.`);
+            logRequestStep(requestId, 'chunkText:preTTS:error', { error: 'No chunks generated.' });
             return res.status(400).json({ success: false, message: "Processed text resulted in no content for audio generation." });
         }
-        logger.info(`[${requestId}] Text chunked into ${textChunks.length} parts.`);
+        logRequestStep(requestId, 'chunkText:preTTS:end', { chunkCount: preTtsChunks.length });
+        logStep({
+            requestId,
+            stepName: 'tts:chunkText:preTTS:end',
+            stepSequence: stepSequence++,
+            serviceName: 'LocalFunction',
+            endpoint: 'chunkText',
+            outputData: { chunkCount: preTtsChunks.length }
+        });
 
-        // --- Step 5: Synthesize Speech (Amazon Polly) ---
+        // --- Step 4: (Opsiyonel) CEFR adaptasyonu burada yapılacaksa, her preTtsChunk için yapılabilir ---
+        // ...
+
+        // --- Step 5: Her chunk için tekrar chunkText (TTS öncesi) ---
+        let finalChunks = [];
+        for (let i = 0; i < preTtsChunks.length; i++) {
+            // Polly için güvenli sınır: 1000 karakter
+            let pollyChunks = chunkTextByCharLimit(preTtsChunks[i], 1000);
+            pollyChunks = pollyChunks.map((chunk, i) => {
+                if (chunk.length > 1000) {
+                    logger.warn(`[Polly chunk] [${i}] length exceeds safe limit: ${chunk.length}, truncating to 1000.`);
+                    return chunk.substring(0, 1000);
+                }
+                return chunk;
+            });
+            pollyChunks.forEach((chunk, i) => {
+                logger.info(`[Polly chunk] [${i}] length: ${chunk.length}`);
+            });
+            finalChunks = finalChunks.concat(pollyChunks);
+        }
+        // Polly'ye gönderme işlemi burada finalChunks ile devam edecek
         const selectedVoice = req.body.voice || 'Joanna';
-        logRequestStep(requestId, 'tts:start', { chunkCount: textChunks.length, voice: selectedVoice, speakingRate });
+        const adaptedText = finalChunks.join('\n\n');
+        logRequestStep(requestId, 'tts:start', { chunkCount: finalChunks.length, voice: selectedVoice, speakingRate });
         logStep({
             requestId,
             stepName: 'tts:amazonPolly:start',

@@ -44,44 +44,49 @@ async function adaptToCEFR(text, level, requestLogger) {
     const promptFile = `cefr_${level.toUpperCase()}.txt`;
     const promptPath = path.join(__dirname, `../prompts/${promptFile}`);
     let promptTemplate = fs.readFileSync(promptPath, "utf-8");
-    // Değişkenleri yerleştir
-    const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, text);
-    // Hem ana loga hem de request loguna yaz
-    logger.info({ promptName: promptFile, promptText: prompt }, 'adaptToCEFR: Kullanılan prompt');
-    if (requestLogger) {
-        requestLogger.log(`[adaptCEFR:prompt]\n${JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2)}`);
-    }
-    try {
-        logger.info(`Sending request to OpenAI (model: gpt-4o) for CEFR level ${level} adaptation.`);
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                { role: "system", content: "You are a professional English teacher." },
-                { role: "user", content: prompt },
-            ],
-            temperature: 0.6,
-        });
-        const adaptedText = completion.choices[0]?.message?.content?.trim();
-        logger.info(`OpenAI CEFR raw response: ${adaptedText}`);
-        if (
-            !adaptedText ||
-            adaptedText.toLowerCase().includes("please provide the text") ||
-            adaptedText.toLowerCase().includes("i'm here to help") ||
-            adaptedText.toLowerCase().includes("i can't assist") ||
-            adaptedText.toLowerCase().includes("the text is english") ||
-            adaptedText.toLowerCase().includes("this text is already simple") ||
-            adaptedText.toLowerCase().includes("input is english")
-        ) {
-            logger.error("OpenAI CEFR adaptation failed or returned trivial response. Returning original text.");
-            return text;
-        } else {
-            logger.info("Received adapted text from OpenAI.");
-            return adaptedText;
+    // CHUNK: metni küçük parçalara böl
+    const { chunkText } = require('./textProcessor');
+    const chunks = chunkText(text);
+    let adaptedChunks = [];
+    for (let i = 0; i < chunks.length; i++) {
+        const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, chunks[i]);
+        logger.info({ promptName: promptFile, promptText: prompt }, 'adaptToCEFR: Kullanılan prompt');
+        if (requestLogger) {
+            requestLogger.log(`[adaptCEFR:prompt:chunk:${i}][input]` + JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2));
         }
-    } catch (error) {
-        logger.error(`An error occurred during OpenAI API call: ${error.message}`);
-        return text;
+        try {
+            logger.info(`Sending request to OpenAI (model: gpt-4o) for CEFR level ${level} adaptation.`);
+            const completion = await openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [
+                    { role: "system", content: "You are a professional English teacher." },
+                    { role: "user", content: prompt },
+                ],
+                temperature: 0.6,
+            });
+            const adaptedText = completion.choices[0]?.message?.content?.trim();
+            logger.info(`OpenAI CEFR raw response: ${adaptedText}`);
+            if (
+                !adaptedText ||
+                adaptedText.toLowerCase().includes("please provide the text") ||
+                adaptedText.toLowerCase().includes("i'm here to help") ||
+                adaptedText.toLowerCase().includes("i can't assist") ||
+                adaptedText.toLowerCase().includes("the text is english") ||
+                adaptedText.toLowerCase().includes("this text is already simple") ||
+                adaptedText.toLowerCase().includes("input is english")
+            ) {
+                logger.error("OpenAI CEFR adaptation failed or returned trivial response. Returning original text chunk.");
+                adaptedChunks.push(chunks[i]);
+            } else {
+                logger.info("Received adapted text from OpenAI.");
+                adaptedChunks.push(adaptedText);
+            }
+        } catch (error) {
+            logger.error(`An error occurred during OpenAI API call: ${error.message}`);
+            adaptedChunks.push(chunks[i]);
+        }
     }
+    return adaptedChunks.join('\n\n');
 }
 
 module.exports = { adaptToCEFR };

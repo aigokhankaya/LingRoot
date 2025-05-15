@@ -72,38 +72,31 @@ function cleanTextForTTS(text) {
  * Splits text into chunks based on a maximum byte limit (UTF-8), trying to preserve sentences
  * and respecting paragraph breaks (double newlines).
  * @param {string} text The text to chunk.
- * @param {number} maxBytes Maximum bytes per chunk (default: 4800, slightly less than Google's 5000 limit).
+ * @param {number} maxBytes Maximum bytes per chunk (default: 2400, slightly less than Google's 5000 limit).
  * @returns {string[]} An array of text chunks.
  */
-function chunkText(text, maxBytes = 4800) {
+function chunkText(text, maxBytes = 2400) {
+    logger.info(`chunkText received input with length: ${text ? text.length : 0}, bytes: ${text ? Buffer.byteLength(text, 'utf-8') : 0}`);
+    console.log(`[CHUNKTEXT-DEBUG] text.length: ${text ? text.length : 0}, Buffer.byteLength: ${text ? Buffer.byteLength(text, 'utf-8') : 0}, maxBytes: ${maxBytes}`);
     if (!text) {
         logger.warn("chunkText received empty or null text, returning empty array.");
         return [];
     }
-
     const chunks = [];
     let currentChunk = "";
     let currentBytes = 0;
-
-    // Split by paragraph first, then by sentences within paragraphs
     const paragraphs = text.split("\n\n");
     logger.debug(`Split text into ${paragraphs.length} paragraphs.`);
-
     for (let paraIndex = 0; paraIndex < paragraphs.length; paraIndex++) {
         const paragraph = paragraphs[paraIndex].trim();
         if (!paragraph) continue;
-
-        const sentences = paragraph.split(/(?<=[.!?])(?:\s+|$)/); // Split paragraph into sentences
+        const sentences = paragraph.split(/(?<=[.!?])(?:\s+|$)/);
         logger.debug(`Processing paragraph ${paraIndex + 1} with ${sentences.length} potential sentences.`);
-
         for (const sentence of sentences) {
             const trimmedSentence = sentence.trim();
             if (!trimmedSentence) continue;
-
             const sentenceBytes = Buffer.byteLength(trimmedSentence, "utf-8");
             const separatorBytes = currentBytes > 0 ? Buffer.byteLength(" ", "utf-8") : 0;
-
-            // If the sentence itself exceeds the limit, split it aggressively
             if (sentenceBytes > maxBytes) {
                 logger.warn(`Single sentence exceeds maxBytes (${sentenceBytes}/${maxBytes}). Aggressively splitting: "${trimmedSentence.substring(0, 50)}..."`);
                 if (currentChunk) {
@@ -112,7 +105,6 @@ function chunkText(text, maxBytes = 4800) {
                     currentChunk = "";
                     currentBytes = 0;
                 }
-                // Aggressive splitting logic (simplified for brevity, consider a more robust word boundary split)
                 let remainingSentence = trimmedSentence;
                 while (Buffer.byteLength(remainingSentence, "utf-8") > maxBytes) {
                     let splitIndex = 0;
@@ -124,7 +116,6 @@ function chunkText(text, maxBytes = 4800) {
                         splitIndex = i + 1;
                     }
                     let chunkToAdd = remainingSentence.substring(0, splitIndex);
-                    // Try to split at last space
                     const lastSpace = chunkToAdd.lastIndexOf(" ");
                     if (lastSpace > 0) {
                         chunkToAdd = chunkToAdd.substring(0, lastSpace);
@@ -139,9 +130,7 @@ function chunkText(text, maxBytes = 4800) {
                     currentBytes = Buffer.byteLength(remainingSentence, "utf-8");
                     logger.debug(`Started new chunk with remaining part of long sentence. Length: ${currentChunk.length}, Bytes: ${currentBytes}`);
                 }
-            }
-            // If adding the sentence fits within the limit
-            else if (currentBytes + separatorBytes + sentenceBytes <= maxBytes) {
+            } else if (currentBytes + separatorBytes + sentenceBytes <= maxBytes) {
                 if (currentChunk) {
                     currentChunk += " " + trimmedSentence;
                     currentBytes += separatorBytes + sentenceBytes;
@@ -150,9 +139,7 @@ function chunkText(text, maxBytes = 4800) {
                     currentBytes = sentenceBytes;
                 }
                 logger.debug(`Appended sentence to current chunk. New length: ${currentChunk.length}, New bytes: ${currentBytes}`);
-            }
-            // If adding the sentence exceeds the limit, finalize the current chunk and start a new one
-            else {
+            } else {
                 if (currentChunk) {
                     chunks.push(currentChunk);
                     logger.debug(`Finalized chunk as new sentence exceeds limit. Length: ${currentChunk.length}, Bytes: ${currentBytes}`);
@@ -162,27 +149,20 @@ function chunkText(text, maxBytes = 4800) {
                 logger.debug(`Started new chunk with sentence. Length: ${currentChunk.length}, Bytes: ${currentBytes}`);
             }
         }
-
-        // After processing sentences in a paragraph, check if we need to add a paragraph break
-        // If the current chunk is not empty and it's not the last paragraph, consider adding break
         if (currentChunk && paraIndex < paragraphs.length - 1) {
             const breakBytes = Buffer.byteLength("\n\n", "utf-8");
-            // If adding break fits, add it
             if (currentBytes + breakBytes <= maxBytes) {
                 currentChunk += "\n\n";
                 currentBytes += breakBytes;
                 logger.debug(`Added paragraph break to current chunk. New length: ${currentChunk.length}, New bytes: ${currentBytes}`);
-            }
-            // If adding break doesn't fit, finalize current chunk and start new one with break (if possible)
-            else {
+            } else {
                 chunks.push(currentChunk);
                 logger.debug(`Finalized chunk as paragraph break exceeds limit. Length: ${currentChunk.length}, Bytes: ${currentBytes}`);
                 if (breakBytes <= maxBytes) {
-                    currentChunk = "\n\n"; // Start new chunk with just the break
+                    currentChunk = "\n\n";
                     currentBytes = breakBytes;
                     logger.debug(`Started new chunk with paragraph break. Length: ${currentChunk.length}, Bytes: ${currentBytes}`);
                 } else {
-                    // This case is unlikely (break > maxBytes), but handle it
                     currentChunk = "";
                     currentBytes = 0;
                     logger.warn("Paragraph break itself exceeds maxBytes, cannot add.");
@@ -190,18 +170,126 @@ function chunkText(text, maxBytes = 4800) {
             }
         }
     }
-
-    // Add the last remaining chunk
     if (currentChunk) {
         chunks.push(currentChunk);
         logger.debug(`Added final remaining chunk. Length: ${currentChunk.length}, Bytes: ${currentBytes}`);
     }
-
-    // Filter out empty chunks and trim each chunk
     const finalChunks = chunks.map(c => c.trim()).filter(c => c);
     logger.info(`Text processing resulted in ${finalChunks.length} final chunks.`);
+    // Fallback: Eğer hiç chunk üretilmediyse, metni otomatik olarak maxBytes uzunluğunda böl
+    if (finalChunks.length === 0 && text.length > 0) {
+        logger.warn("No chunks generated with paragraph/sentence logic. Using fallback: splitting by maxBytes.");
+        console.log("[CHUNKTEXT-FALLBACK] Fallback chunking is being used! Text length:", text.length);
+        const fallbackChunks = [];
+        let start = 0;
+        while (start < text.length) {
+            let end = start + maxBytes;
+            while (Buffer.byteLength(text.substring(start, end), "utf-8") > maxBytes && end > start) {
+                end--;
+            }
+            if (end === start) {
+                end = start + 1;
+            }
+            fallbackChunks.push(text.substring(start, end).trim());
+            start = end;
+        }
+        logger.info(`[CHUNKTEXT-FALLBACK] Fallback chunking produced ${fallbackChunks.length} chunks.`);
+        console.log(`[CHUNKTEXT-FALLBACK] Fallback chunking produced ${fallbackChunks.length} chunks.`);
+        return fallbackChunks;
+    }
+    // --- TEKRAR KONTROLÜ ---
+    const chunkSet = new Set();
+    const chunkCountMap = {};
+    finalChunks.forEach(chunk => {
+        if (chunkSet.has(chunk)) {
+            chunkCountMap[chunk] = (chunkCountMap[chunk] || 1) + 1;
+        } else {
+            chunkSet.add(chunk);
+            chunkCountMap[chunk] = 1;
+        }
+    });
+    Object.entries(chunkCountMap).forEach(([chunk, count]) => {
+        if (count > 3) {
+            logger.warn(`[CHUNKTEXT-REPEAT] Chunk repeated ${count} times: "${chunk.substring(0, 80)}..."`);
+        }
+    });
     return finalChunks;
 }
 
-module.exports = { cleanText: cleanTextForTTS, chunkText }; // Export the new function as cleanText
+/**
+ * Splits long text into chunks based on character length,
+ * for use with Amazon Polly (max 3000 characters, safe limit: 1300).
+ * It preserves sentence boundaries and avoids mid-word breaks when possible.
+ * @param {string} text - The input text to split.
+ * @param {number} maxChars - Max character length per chunk (default 1000).
+ * @returns {string[]} - An array of safe-length text chunks.
+ */
+function chunkTextByCharLimit(text, maxChars = 1000) {
+    if (!text || typeof text !== "string") return [];
+    const chunks = [];
+    let start = 0;
+    let chunkIndex = 1;
+    while (start < text.length) {
+        let end = start + maxChars;
+        if (end < text.length) {
+            const sentenceEnd = Math.max(
+                text.lastIndexOf(".", end),
+                text.lastIndexOf("!", end),
+                text.lastIndexOf("?", end)
+            );
+            if (sentenceEnd > start && sentenceEnd - start <= maxChars) {
+                end = sentenceEnd + 1;
+            } else {
+                const comma = text.lastIndexOf(",", end);
+                const space = text.lastIndexOf(" ", end);
+                if (comma > start && comma - start <= maxChars) {
+                    end = comma + 1;
+                } else if (space > start && space - start <= maxChars) {
+                    end = space + 1;
+                }
+            }
+        }
+        let chunk = text.substring(start, end).trim();
+        // Chunk başına internal etiket ekle
+        chunk = `<!-- chunk ${chunkIndex} -->\n` + chunk;
+        chunkIndex++;
+        while (chunk.length > maxChars) {
+            let splitAt = Math.max(
+                chunk.lastIndexOf(".", maxChars),
+                chunk.lastIndexOf("!", maxChars),
+                chunk.lastIndexOf("?", maxChars)
+            );
+            if (splitAt > 0) {
+                chunks.push(chunk.substring(0, splitAt + 1).trim());
+                chunk = chunk.substring(splitAt + 1).trim();
+            } else {
+                splitAt = chunk.lastIndexOf(",", maxChars);
+                if (splitAt > 0) {
+                    chunks.push(chunk.substring(0, splitAt + 1).trim());
+                    chunk = chunk.substring(splitAt + 1).trim();
+                } else {
+                    splitAt = chunk.lastIndexOf(" ", maxChars);
+                    if (splitAt > 0) {
+                        chunks.push(chunk.substring(0, splitAt + 1).trim());
+                        chunk = chunk.substring(splitAt + 1).trim();
+                    } else {
+                        chunks.push(chunk.substring(0, maxChars).trim());
+                        chunk = chunk.substring(maxChars).trim();
+                    }
+                }
+            }
+        }
+        if (chunk.length > 0) {
+            chunks.push(chunk);
+        }
+        start = end;
+    }
+    return chunks.filter(c => c.length > 0 && c.length <= maxChars);
+}
+
+module.exports = {
+    cleanText: cleanTextForTTS,
+    chunkText,
+    chunkTextByCharLimit // Polly için karakter bazlı bölme
+};
 
