@@ -92,7 +92,7 @@ async function extractFromWebLink(url) {
  * @param {string} level The CEFR level (A1, A2, B1, ...)
  * @returns {Promise<string|null>} The generated English narration or null on error.
  */
-async function generateEnglishNarrationForTopic(topic, level) {
+async function generateEnglishNarrationForTopic(topic, level, detectedLanguage = 'en', requestLogger) {
     if (!openai) {
         logger.error("OpenAI API key not found. Cannot generate narration for topic.");
         return null;
@@ -101,19 +101,21 @@ async function generateEnglishNarrationForTopic(topic, level) {
     // Başlığı önce İngilizceye çevir
     let topicEn = topic;
     try {
-        const translationResult = await translateToEnglishWithOpenAI(topic);
-        topicEn = translationResult.text;
+        const translationResult = await translateToEnglishWithOpenAI(topic, requestLogger);
+        topicEn = translationResult;
         logger.info(`Translated topic to English: ${topicEn}`);
     } catch (err) {
         logger.warn(`Failed to translate topic to English, using original: ${err.message}`);
     }
     // Yeni prompt dosyasını kullan
-    const promptPath = path.join(__dirname, "../prompts/rewrite_to_narration.txt");
-    let promptTemplate = fs.readFileSync(promptPath, "utf-8");
-    const prompt = promptTemplate
-        .replace(/\{\{konu\}\}/g, topicEn)
-        .replace(/\{\{level\}\}/g, level);
-
+    const promptFile = 'rewrite_to_narration.txt';
+    const promptPath = path.join(__dirname, '../prompts/rewrite_to_narration.txt');
+    let promptTemplate = fs.readFileSync(promptPath, 'utf-8');
+    const prompt = promptTemplate.replace(/\{\{konu\}\}/g, topicEn).replace(/\{\{level\}\}/g, level);
+    if (requestLogger) {
+        requestLogger.log(`[prompt:generateEnglishNarrationForTopic]\n${JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2)}`);
+    }
+    logger.info({ promptName: promptFile, promptText: prompt }, 'generateEnglishNarrationForTopic: Kullanılan prompt');
     try {
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",
@@ -194,7 +196,7 @@ async function rewriteToEnglishNarration(inputText, level = "A1", requestLogger)
  * @param {string} [detectedLanguage] Optional detected language for topic type.
  * @returns {Promise<string|null>} The extracted text or null on error/not implemented.
  */
-async function extractTextFromInput(inputData, inputType, file, chapter, level = "A1", detectedLanguage = "en") {
+async function extractTextFromInput(inputData, inputType, file, chapter, level = "A1", detectedLanguage = "en", requestLogger) {
     logger.info(`Extracting text for input type: ${inputType}`);
 
     switch (inputType) {
@@ -209,7 +211,7 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
 
         case "topic":
             if (typeof inputData === "string") {
-                return await generateEnglishNarrationForTopic(inputData, level, detectedLanguage);
+                return await generateEnglishNarrationForTopic(inputData, level, detectedLanguage, requestLogger);
             } else {
                 logger.error("Input data (topic) is not a string.");
                 return null;
