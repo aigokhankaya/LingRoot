@@ -40,10 +40,12 @@ async function adaptToCEFR(text, level) {
         return "";
     }
     // Promptu seviyeye göre dosyadan oku
-    const promptPath = path.join(__dirname, `../prompts/cefr_${level.toUpperCase()}.txt`);
+    const promptFile = `cefr_${level.toUpperCase()}.txt`;
+    const promptPath = path.join(__dirname, `../prompts/${promptFile}`);
     let promptTemplate = fs.readFileSync(promptPath, "utf-8");
     // Değişkenleri yerleştir
     const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, text);
+    logger.info({ promptName: promptFile, promptText: prompt }, 'adaptToCEFR: Kullanılan prompt');
     try {
         logger.info(`Sending request to OpenAI (model: gpt-4o) for CEFR level ${level} adaptation.`);
         const completion = await openai.chat.completions.create({
