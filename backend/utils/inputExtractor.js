@@ -34,6 +34,7 @@ try {
 async function translateToEnglishWithOpenAI(text) {
     if (!openai) throw new Error("OpenAI client is not initialized.");
     const prompt = `Detect the language of the following text. If it is not English, translate it to English. Return only the English translation. Text:\n\n${text}`;
+    logger.info({ prompt }, 'translateToEnglishWithOpenAI: Kullanılan prompt');
     const completion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -151,6 +152,7 @@ async function rewriteToEnglishNarration(inputText, level = "A1") {
     const prompt = promptTemplate
         .replace(/\{\{input_text\}\}/g, inputText)
         .replace(/\{\{level\}\}/g, level);
+    logger.info({ prompt }, 'rewriteToEnglishNarration: Kullanılan prompt');
     try {
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",
