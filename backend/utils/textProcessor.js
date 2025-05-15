@@ -228,7 +228,6 @@ function chunkTextByCharLimit(text, maxChars = 1000) {
     if (!text || typeof text !== "string") return [];
     const chunks = [];
     let start = 0;
-    let chunkIndex = 1;
     while (start < text.length) {
         let end = start + maxChars;
         if (end < text.length) {
@@ -250,9 +249,6 @@ function chunkTextByCharLimit(text, maxChars = 1000) {
             }
         }
         let chunk = text.substring(start, end).trim();
-        // Chunk başına internal etiket ekle
-        chunk = `<!-- chunk ${chunkIndex} -->\n` + chunk;
-        chunkIndex++;
         while (chunk.length > maxChars) {
             let splitAt = Math.max(
                 chunk.lastIndexOf(".", maxChars),

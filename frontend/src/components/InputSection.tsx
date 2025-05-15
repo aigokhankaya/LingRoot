@@ -61,9 +61,9 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [bookName, setBookName] = useState<string>('');
   const [bookChapter, setBookChapter] = useState<string>('');
   const [level, setLevel] = useState<Level>('A1');
-  const [voice, setVoice] = useState<string>(POLLY_VOICES[0].Id);
+  const [voice, setVoice] = useState<string>('');
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
-  const [pollyVoices, setPollyVoices] = useState<any[]>([]);
+  const [googleVoices, setGoogleVoices] = useState<any[]>([]);
   const [bookSearch, setBookSearch] = useState<string>("");
   const [pendingSearch, setPendingSearch] = useState<string>("");
   const [bookResults, setBookResults] = useState<any[]>([]);
@@ -71,19 +71,32 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [bookChapters, setBookChapters] = useState<{ title: string; content: string }[]>([]);
   const [selectedChapterIdx, setSelectedChapterIdx] = useState<number | null>(null);
   const [bookLoading, setBookLoading] = useState<boolean>(false);
+  const [ttsProvider, setTtsProvider] = useState<'amazon' | 'google'>('google');
 
   useEffect(() => {
     setSpeakingRate(level === 'A1' ? 0.8 : 1.0);
   }, [level]);
 
   useEffect(() => {
+    // TTS provider bilgisini backend'den çek
+    const fetchProvider = async () => {
+      try {
+        const res = await fetch('/api/admin/settings/tts-provider');
+        const data = await res.json();
+        setTtsProvider(data.tts_provider || 'google');
+      } catch {
+        setTtsProvider('google');
+      }
+    };
+    fetchProvider();
+    // Google seslerini çek
     const backendUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-      ? 'http://localhost:5001/api/tts/polly-voices'
-      : '/api/tts/polly-voices';
+      ? 'http://localhost:5001/api/tts/voices'
+      : '/api/tts/voices';
     fetch(backendUrl)
       .then(res => res.json())
-      .then(data => setPollyVoices(data.voices || []))
-      .catch(() => setPollyVoices([]));
+      .then(data => setGoogleVoices(data.voices || []))
+      .catch(() => setGoogleVoices([]));
   }, []);
 
   useEffect(() => {
@@ -567,12 +580,22 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                 value={voice}
                 onChange={(e: ChangeEvent<HTMLSelectElement>) => setVoice(e.target.value as any)}
                 className="input-field focus:ring-blue-500 focus:border-blue-500"
+                disabled={ttsProvider !== 'google' || googleVoices.length === 0}
               >
-                {POLLY_VOICES.map((v) => (
-                  <option key={v.Id} value={v.Id}>
-                    {v.Name} ({v.LanguageName}, {v.Gender}, {v.Engine})
-                  </option>
-                ))}
+                {ttsProvider === 'google' && googleVoices.length > 0 ? (
+                  googleVoices.filter(v => v.name).map((v) => {
+                    const lang = v.languageCodes?.[0] || 'Bilinmiyor';
+                    const gender = v.ssmlGender || v.gender || 'Bilinmiyor';
+                    const hz = v.naturalSampleRateHertz ? `${v.naturalSampleRateHertz}Hz` : 'Bilinmiyor';
+                    return (
+                      <option key={v.name} value={v.name}>
+                        {v.name} ({lang}, {gender}, {hz})
+                      </option>
+                    );
+                  })
+                ) : (
+                  <option value="">Google TTS aktif değil</option>
+                )}
               </select>
             </div>
           </div>

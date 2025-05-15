@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { supabase } from '@/lib/supabaseClient';
 
 const TtsProviderSelector: React.FC = () => {
   const [provider, setProvider] = useState<'amazon' | 'google'>('amazon');
@@ -9,16 +10,21 @@ const TtsProviderSelector: React.FC = () => {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
-    axios.get('/api/admin/settings/tts-provider')
-      .then(res => {
+    const fetchProvider = async () => {
+      setLoading(true);
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token || null;
+      try {
+        const res = await axios.get('/api/admin/settings/tts-provider', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
         setProvider(res.data.tts_provider || 'amazon');
-        setLoading(false);
-      })
-      .catch(() => {
-        setLoading(false);
+      } catch {
         setError('Ayarlar yüklenemedi');
-      });
+      }
+      setLoading(false);
+    };
+    fetchProvider();
   }, []);
 
   const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -27,8 +33,12 @@ const TtsProviderSelector: React.FC = () => {
     setSaving(true);
     setError('');
     setSuccess(false);
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token || null;
     try {
-      await axios.post('/api/admin/settings/tts-provider', { tts_provider: newProvider });
+      await axios.post('/api/admin/settings/tts-provider', { tts_provider: newProvider }, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       setSuccess(true);
     } catch (err) {
       setError('Güncelleme başarısız');

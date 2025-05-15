@@ -3,194 +3,172 @@ import Link from 'next/link';
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
-// The user should ensure the CSS from the original 'lingroot_homepage_v1_modern_video 2.html' 
-// (specifically the <style> block) is available globally in their project for this component to be styled correctly.
-
 export default function HomePage() {
   const [selectedLevel, setSelectedLevel] = useState('A1');
 
-  // Emoji fallback for icons if PNGs are not present in public/
-  const icons = {
-    upload: '/placeholder_icon_upload.png',
-    level: '/placeholder_icon_level.png',
-    learn: '/placeholder_icon_learn.png',
-    adaptive: '/placeholder_icon_adaptive.png',
-    pronunciation: '/placeholder_icon_pronunciation.png',
-    vocabulary: '/placeholder_icon_vocabulary.png',
-    real_content: '/placeholder_icon_real_content.png',
-    progress: '/placeholder_icon_progress.png',
-    flexible: '/placeholder_icon_flexible.png',
-  };
-  const iconFallback = {
-    upload: '📤',
-    level: '🎯',
-    learn: '🚀',
-    adaptive: '🧠',
-    pronunciation: '🗣️',
-    vocabulary: '📚',
-    real_content: '🌍',
-    progress: '📈',
-    flexible: '🕒',
-  };
-
-  // Helper to render icon or fallback
-  const ImgOrEmoji = ({ src, alt, fallback }: { src: string; alt: string; fallback: string }) => (
-    <img
-      src={src}
-      alt={alt}
-      style={{ width: 60, height: 60, marginBottom: '1rem', backgroundColor: '#e0e0e0', borderRadius: '50%' }}
-      onError={e => {
-        const img = e.target as HTMLImageElement;
-        img.onerror = null;
-        img.style.display = 'none';
-        if (img.parentNode) {
-          const span = document.createElement('span');
-          span.style.fontSize = '2.5rem';
-          span.style.display = 'inline-block';
-          span.textContent = fallback;
-          img.parentNode.appendChild(span);
-        }
-      }}
-    />
-  );
-
   return (
-    // The body tag's styles from the original CSS will apply to the parent element in a real app context or via a global stylesheet.
-    // We'll start with the header and main content wrapper if needed.
-    <>
-      <header>
-        <div className="logo"><span className="ling">Ling</span><span className="root">Root</span></div>
-        <nav>
-          <a href="#how-it-works">Nasıl Çalışır?</a>
-          <a href="#features">Özellikler</a>
-          <a href="#pricing">Fiyatlandırma</a>
-          {/* Assuming Next.js Link is a project requirement for navigation */}
-          <Link href="/login" legacyBehavior><a className="">Giriş Yap</a></Link>
-          <Link href="/register" legacyBehavior><a className="cta-button-nav">Kayıt Ol</a></Link>
+    <div className="bg-[#f4f7f6] text-[#333] min-h-screen">
+      {/* Header */}
+      <header className="bg-white px-8 py-4 shadow flex justify-between items-center">
+        <div className="text-2xl font-bold">
+          <span className="text-green-600">Ling</span>
+          <span className="text-[#333]">Root</span>
+        </div>
+        <nav className="flex items-center">
+          <a href="#how-it-works" className="ml-6 text-[#555] font-medium hover:text-green-600">Nasıl Çalışır?</a>
+          <a href="#features" className="ml-6 text-[#555] font-medium hover:text-green-600">Özellikler</a>
+          <a href="#pricing" className="ml-6 text-[#555] font-medium hover:text-green-600">Fiyatlandırma</a>
+          <Link href="/login" className="ml-6 text-[#555] font-medium hover:text-green-600">Giriş Yap</Link>
+          <Link href="/register" className="ml-6 bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700 transition">Kayıt Ol</Link>
         </nav>
       </header>
 
-      <section className="hero">
-        <div className="hero-content-left">
-          <h1>Tek Video, 6 Farklı Seviye: İngilizceyi Kendi Hızınızda Deneyimleyin!</h1>
-          <p>LingRoot ile aynı ilgi çekici videoyu izleyin, seslendirme ve altyazıları A1'den C2'ye kadar kendi İngilizce seviyenize göre anında değiştirin. Dinleyerek ve izleyerek öğrenmenin en etkili yolu!</p>
-          {/* Assuming Next.js Link is a project requirement */}
-          <Link href="/register" legacyBehavior><a className="cta-button-hero">Hemen Ücretsiz Deneyin!</a></Link>
+      {/* Hero Section */}
+      <section className="bg-[#e9f5ee] py-12 px-4 flex flex-col md:flex-row items-center gap-8">
+        <div className="flex-1 text-left md:pr-8">
+          <h1 className="text-4xl font-bold mb-4">Tek Video, 6 Farklı Seviye: İngilizceyi Kendi Hızınızda Deneyimleyin!</h1>
+          <p className="text-lg text-[#555] mb-8">LingRoot ile aynı ilgi çekici videoyu izleyin, seslendirme ve altyazıları A1'den C2'ye kadar kendi İngilizce seviyenize göre anında değiştirin. Dinleyerek ve izleyerek öğrenmenin en etkili yolu!</p>
+          <Link href="/register" className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded font-bold text-lg transition">Hemen Ücretsiz Deneyin!</Link>
         </div>
-        <div className="interactive-video-module-container">
-          <div className="interactive-video-module">
-            <div className="video-placeholder">
-              {/* Content of video placeholder can be dynamic if needed, matching original HTML's text for now */}
-              <span>Örnek Video Alanı ({selectedLevel} Ses ve Altyazı Aktif)</span>
+        <div className="flex-1.2 flex justify-center items-center">
+          <div className="bg-white p-8 rounded-xl shadow-lg border w-full max-w-xl">
+            <div className="w-full h-64 bg-black rounded flex justify-center items-center text-white text-xl mb-6">
+              Örnek Video Alanı ({selectedLevel} Ses ve Altyazı Aktif)
             </div>
-            <p style={{textAlign:"center", fontWeight:"bold", marginBottom:"0.8rem", fontSize:"0.95rem"}}>İzlediğiniz videonun seslendirmesini ve altyazısını değiştirmek için seviyenizi seçin:</p>
-            <div className="level-selector">
+            <p className="text-center font-bold mb-2 text-base">İzlediğiniz videonun seslendirmesini ve altyazısını değiştirmek için seviyenizi seçin:</p>
+            <div className="flex flex-wrap justify-around mb-4">
               {LEVELS.map(level => (
                 <button
                   key={level}
-                  className={`level-button ${selectedLevel === level ? "active" : ""}`}
+                  className={`px-4 py-2 border-2 rounded font-bold m-1 transition ${
+                    selectedLevel === level
+                      ? "bg-green-600 text-white border-green-600"
+                      : "bg-white text-green-600 border-green-600 hover:bg-green-600 hover:text-white"
+                  }`}
                   onClick={() => setSelectedLevel(level)}
-                  data-level={level} // Keep data-level as in original HTML if its script relied on it, though React handles state
                 >
                   {level}
                 </button>
               ))}
             </div>
-            <div className="subtitle-placeholder">
-              <span>{selectedLevel} Seviyesi Altyazı burada görünecektir...</span>
+            <div className="bg-[#f0f0f0] p-3 rounded min-h-[40px] text-left text-[#444] italic text-sm">
+              {selectedLevel} Seviyesi Altyazı burada görünecektir...
             </div>
-            <p style={{fontSize:"0.8rem", textAlign:"center", marginTop:"0.8rem", color:"#666"}}>Açıklama: Yukarıdaki video oynatıcı sabit kalacaktır. Seviye butonlarına tıklandığında, videonun sesi ve altyazıları seçilen İngilizce seviyesine göre anında güncellenecektir.</p>
+            <p className="text-xs text-center mt-2 text-[#666]">
+              Açıklama: Yukarıdaki video oynatıcı sabit kalacaktır. Seviye butonlarına tıklandığında, videonun sesi ve altyazıları seçilen İngilizce seviyesine göre anında güncellenecektir.
+            </p>
           </div>
         </div>
       </section>
 
-      <section id="how-it-works" className="section">
-        <h2>LingRoot Nasıl Çalışır? Sadece 3 Adımda!</h2>
-        <div className="how-it-works-grid">
-          <div className="step-item">
-            <ImgOrEmoji src={icons.upload} alt="Upload Icon" fallback={iconFallback.upload} />
-            <h3>1. İçeriğinizi Yükleyin</h3>
+      {/* How it works */}
+      <section id="how-it-works" className="section py-12 px-4 text-center">
+        <h2 className="text-3xl font-bold mb-8">LingRoot Nasıl Çalışır? Sadece 3 Adımda!</h2>
+        <div className="flex flex-wrap justify-around gap-8 mt-8">
+          <div className="bg-white p-6 rounded-lg shadow flex-1 min-w-[250px] max-w-[350px] mx-auto">
+            <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <span className="text-2xl">📤</span>
+            </div>
+            <h3 className="text-lg font-bold text-green-600 mb-2">1. İçeriğinizi Yükleyin</h3>
             <p>İstediğiniz YouTube videosunu, Spotify podcast'ini, metni veya dosyayı platforma yapıştırın veya yükleyin.</p>
           </div>
-          <div className="step-item">
-            <ImgOrEmoji src={icons.level} alt="Level Icon" fallback={iconFallback.level} />
-            <h3>2. Seviyenizi Seçin</h3>
+          <div className="bg-white p-6 rounded-lg shadow flex-1 min-w-[250px] max-w-[350px] mx-auto">
+            <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <span className="text-2xl">🎯</span>
+            </div>
+            <h3 className="text-lg font-bold text-green-600 mb-2">2. Seviyenizi Seçin</h3>
             <p>A1'den C2'ye kadar olan İngilizce seviyelerinden size en uygun olanı seçin.</p>
           </div>
-          <div className="step-item">
-            <ImgOrEmoji src={icons.learn} alt="Learn Icon" fallback={iconFallback.learn} />
-            <h3>3. Öğrenmeye Başlayın!</h3>
+          <div className="bg-white p-6 rounded-lg shadow flex-1 min-w-[250px] max-w-[350px] mx-auto">
+            <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <span className="text-2xl">🚀</span>
+            </div>
+            <h3 className="text-lg font-bold text-green-600 mb-2">3. Öğrenmeye Başlayın!</h3>
             <p>LingRoot, içeriği sizin için anında uyarlar. Aynı videoyu farklı seviyelerde dinleyin, altyazıları takip edin ve İngilizcenizi geliştirin!</p>
           </div>
         </div>
       </section>
 
-      <section id="features" className="section" style={{backgroundColor: "#fff"}}>
-        <h2>Neden LingRoot? Benzersiz Özelliklerimiz</h2>
-        <div className="features-grid">
-          <div className="feature-item">
-            <ImgOrEmoji src={icons.adaptive} alt="Adaptive Learning Icon" fallback={iconFallback.adaptive} />
-            <h3>Kişiselleştirilmiş Öğrenme</h3>
+      {/* Features */}
+      <section id="features" className="section py-12 px-4 text-center bg-white">
+        <h2 className="text-3xl font-bold mb-8">Neden LingRoot? Benzersiz Özelliklerimiz</h2>
+        <div className="flex flex-wrap justify-around gap-8 mt-8">
+          <div className="bg-white p-6 rounded-lg shadow flex-1 min-w-[250px] max-w-[350px] mx-auto">
+            <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <span className="text-2xl">🧠</span>
+            </div>
+            <h3 className="text-lg font-bold text-green-600 mb-2">Kişiselleştirilmiş Öğrenme</h3>
             <p>Her içerik, sizin seviyenize ve ilgi alanlarınıza göre özel olarak uyarlanır.</p>
           </div>
-          <div className="feature-item">
-            <ImgOrEmoji src={icons.pronunciation} alt="Pronunciation Icon" fallback={iconFallback.pronunciation} />
-            <h3>Telaffuz Pratiği</h3>
+          <div className="bg-white p-6 rounded-lg shadow flex-1 min-w-[250px] max-w-[350px] mx-auto">
+            <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <span className="text-2xl">🗣️</span>
+            </div>
+            <h3 className="text-lg font-bold text-green-600 mb-2">Telaffuz Pratiği</h3>
             <p>Gelişmiş yapay zeka ile konuşma becerilerinizi ve telaffuzunuzu mükemmelleştirin.</p>
           </div>
-          <div className="feature-item">
-            <ImgOrEmoji src={icons.vocabulary} alt="Vocabulary Icon" fallback={iconFallback.vocabulary} />
-            <h3>Geniş Kelime Havuzu</h3>
+          <div className="bg-white p-6 rounded-lg shadow flex-1 min-w-[250px] max-w-[350px] mx-auto">
+            <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <span className="text-2xl">📚</span>
+            </div>
+            <h3 className="text-lg font-bold text-green-600 mb-2">Geniş Kelime Havuzu</h3>
             <p>Karşılaştığınız yeni kelimeleri kolayca öğrenin ve kalıcı hale getirin.</p>
           </div>
-          <div className="feature-item">
-            <ImgOrEmoji src={icons.real_content} alt="Real Content Icon" fallback={iconFallback.real_content} />
-            <h3>Gerçek Dünya İçerikleri</h3>
+          <div className="bg-white p-6 rounded-lg shadow flex-1 min-w-[250px] max-w-[350px] mx-auto">
+            <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <span className="text-2xl">🌍</span>
+            </div>
+            <h3 className="text-lg font-bold text-green-600 mb-2">Gerçek Dünya İçerikleri</h3>
             <p>Sıkıcı ders kitapları yerine, sevdiğiniz videolar ve podcast'lerle öğrenin.</p>
           </div>
-          <div className="feature-item">
-            <ImgOrEmoji src={icons.progress} alt="Progress Tracking Icon" fallback={iconFallback.progress} />
-            <h3>İlerleme Takibi</h3>
+          <div className="bg-white p-6 rounded-lg shadow flex-1 min-w-[250px] max-w-[350px] mx-auto">
+            <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <span className="text-2xl">📈</span>
+            </div>
+            <h3 className="text-lg font-bold text-green-600 mb-2">İlerleme Takibi</h3>
             <p>Gelişiminizi adım adım takip edin ve motivasyonunuzu yüksek tutun.</p>
           </div>
-          <div className="feature-item">
-            <ImgOrEmoji src={icons.flexible} alt="Flexible Learning Icon" fallback={iconFallback.flexible} />
-            <h3>Esnek ve Erişilebilir</h3>
+          <div className="bg-white p-6 rounded-lg shadow flex-1 min-w-[250px] max-w-[350px] mx-auto">
+            <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <span className="text-2xl">🕒</span>
+            </div>
+            <h3 className="text-lg font-bold text-green-600 mb-2">Esnek ve Erişilebilir</h3>
             <p>İstediğiniz zaman, istediğiniz yerden öğrenme özgürlüğünün tadını çıkarın.</p>
           </div>
         </div>
       </section>
 
-      <section className="testimonials section">
-        <h2>Kullanıcılarımız Ne Diyor?</h2>
-        <div className="testimonial-item">
-          <p>"LingRoot sayesinde daha önce anlamakta zorlandığım videoları bile kendi seviyemde izleyebiliyorum. Aynı içeriği farklı seviyelerde dinlemek inanılmaz faydalı!"</p>
-          <span>- Ayşe K.</span>
-        </div>
-        <div className="testimonial-item">
-          <p>"İngilizce öğrenmek hiç bu kadar keyifli olmamıştı. Özellikle 6 seviyeli video özelliği harika bir fikir. Kesinlikle tavsiye ederim."</p>
-          <span>- Mehmet Y.</span>
+      {/* Testimonials */}
+      <section className="testimonials section py-12 px-4 bg-[#e9f5ee] text-center">
+        <h2 className="text-3xl font-bold mb-8">Kullanıcılarımız Ne Diyor?</h2>
+        <div className="max-w-xl mx-auto">
+          <div className="bg-white p-6 rounded-lg shadow mb-6">
+            <p className="italic text-[#555]">"LingRoot sayesinde daha önce anlamakta zorlandığım videoları bile kendi seviyemde izleyebiliyorum. Aynı içeriği farklı seviyelerde dinlemek inanılmaz faydalı!"</p>
+            <span className="block text-right font-bold mt-2 text-[#333]">- Ayşe K.</span>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <p className="italic text-[#555]">"İngilizce öğrenmek hiç bu kadar keyifli olmamıştı. Özellikle 6 seviyeli video özelliği harika bir fikir. Kesinlikle tavsiye ederim."</p>
+            <span className="block text-right font-bold mt-2 text-[#333]">- Mehmet Y.</span>
+          </div>
         </div>
       </section>
 
-      <section className="section final-cta">
-        <h2>İngilizce Öğrenme Yolculuğunuza Bugün Başlayın!</h2>
-        <p>LingRoot'un benzersiz özelliklerini keşfedin ve İngilizce hedeflerinize daha hızlı ulaşın.</p>
-        {/* Assuming Next.js Link is a project requirement */}
-        <Link href="#signup" legacyBehavior><a className="cta-button-hero" style={{backgroundColor: "#28a745"}}>Hemen Kayıt Ol ve Ücretsiz Dene!</a></Link>
+      {/* Final CTA */}
+      <section className="section final-cta py-12 px-4 text-center">
+        <h2 className="text-3xl font-bold mb-4">İngilizce Öğrenme Yolculuğunuza Bugün Başlayın!</h2>
+        <p className="mb-6">LingRoot'un benzersiz özelliklerini keşfedin ve İngilizce hedeflerinize daha hızlı ulaşın.</p>
+        <Link href="/register" className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded font-bold text-lg transition">Hemen Kayıt Ol ve Ücretsiz Dene!</Link>
       </section>
 
-      <footer>
-        <p>&copy; 2025 LingRoot. Tüm hakları saklıdır.</p>
+      {/* Footer */}
+      <footer className="bg-[#333] text-white text-center py-8">
+        <p className="mb-2">&copy; 2025 LingRoot. Tüm hakları saklıdır.</p>
         <p>
-          <a href="#privacy">Gizlilik Politikası</a> | 
-          <a href="#terms">Kullanım Şartları</a> | 
-          <a href="#contact">İletişim</a>
+          <a href="#privacy" className="text-green-500 hover:underline">Gizlilik Politikası</a> |
+          <a href="#terms" className="text-green-500 hover:underline mx-2">Kullanım Şartları</a> |
+          <a href="#contact" className="text-green-500 hover:underline">İletişim</a>
         </p>
       </footer>
-      {/* The <script> block from the original HTML for level buttons is not needed here 
-          as React handles the interactivity with useState and onClick handlers. */}
-    </>
+    </div>
   );
 }
-
