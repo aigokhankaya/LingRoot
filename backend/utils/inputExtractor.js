@@ -87,97 +87,44 @@ async function extractFromWebLink(url) {
 }
 
 /**
- * Generates a ~15-minute, CEFR-levelled English narration for a given topic using OpenAI and a custom prompt.
- * @param {string} topic The topic to generate content for.
- * @param {string} level The CEFR level (A1, A2, B1, ...)
- * @returns {Promise<string|null>} The generated English narration or null on error.
+ * Konu başlığından, girilen dilde ve seviye bağımsız olarak detaylı anlatım üretir.
+ * rewrite_to_narration.txt promptu ile başlıktan ~2000 kelimelik anlatım üretir.
+ * Seviye veya dil parametresi gönderilmez, sadece input_text kullanılır.
+ * Eğer OpenAI başlıktan içerik üretemezse, hata döner.
  */
-async function generateEnglishNarrationForTopic(topic, level, detectedLanguage = 'en', requestLogger) {
+async function generateNarrationForTopic(topic, requestLogger) {
     if (!openai) {
         logger.error("OpenAI API key not found. Cannot generate narration for topic.");
         return null;
     }
-    logger.info(`Generating narration for topic: ${topic} at level: ${level}`);
-    // Başlığı önce İngilizceye çevir
-    let topicEn = topic;
-    try {
-        const translationResult = await translateToEnglishWithOpenAI(topic, requestLogger);
-        topicEn = translationResult;
-        logger.info(`Translated topic to English: ${topicEn}`);
-    } catch (err) {
-        logger.warn(`Failed to translate topic to English, using original: ${err.message}`);
-    }
-    // Yeni prompt dosyasını kullan
+    logger.info(`Generating narration for topic: ${topic}`);
     const promptFile = 'rewrite_to_narration.txt';
     const promptPath = path.join(__dirname, '../prompts/rewrite_to_narration.txt');
     let promptTemplate = fs.readFileSync(promptPath, 'utf-8');
-    const prompt = promptTemplate.replace(/\{\{konu\}\}/g, topicEn).replace(/\{\{level\}\}/g, level);
+    const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, topic);
     if (requestLogger) {
-        requestLogger.log(`[prompt:generateEnglishNarrationForTopic]\n${JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2)}`);
+        requestLogger.log(`[prompt:generateNarrationForTopic]\n${JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2)}`);
     }
-    logger.info({ promptName: promptFile, promptText: prompt }, 'generateEnglishNarrationForTopic: Kullanılan prompt');
+    logger.info({ promptName: promptFile, promptText: prompt }, 'generateNarrationForTopic: Kullanılan prompt');
     try {
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
-                { role: "system", content: "You are a professional narration generator for language learners." },
+                { role: "system", content: "You are a professional narrator and content writer." },
                 { role: "user", content: prompt },
             ],
             temperature: 0.6,
         });
         const generatedText = completion.choices[0]?.message?.content?.trim();
         if (generatedText) {
-            logger.info(`Successfully generated narration for topic: ${topicEn}`);
+            logger.info(`Successfully generated narration for topic: ${topic}`);
             return generatedText;
         } else {
-            logger.error(`OpenAI response did not contain content for narration topic: ${topicEn}`);
+            logger.error(`OpenAI response did not contain content for narration topic: ${topic}`);
             return null;
         }
     } catch (error) {
-        logger.error(`Error generating narration for topic ${topicEn} via OpenAI: ${error.message}`);
-        return null;
-    }
-}
-
-/**
- * Rewrites any input text (any language) into a professional English narration using OpenAI and the rewrite_to_narration.txt prompt.
- * @param {string} inputText The input text (any language)
- * @param {string} level Optional CEFR level for topic type.
- * @returns {Promise<string|null>} The English narration or null on error.
- */
-async function rewriteToEnglishNarration(inputText, level = "A1", requestLogger) {
-    if (!openai) {
-        logger.error("OpenAI API key not found. Cannot rewrite narration.");
-        return null;
-    }
-    logger.info(`Rewriting input text to English narration at level: ${level}...`);
-    const promptFile = 'rewrite_to_narration.txt';
-    const promptPath = path.join(__dirname, '../prompts/rewrite_to_narration.txt');
-    const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
-    const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, inputText).replace(/\{\{level\}\}/g, level);
-    if (requestLogger) {
-        requestLogger.log(`[prompt:rewriteToNarration]\n${JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2)}`);
-    }
-    logger.info({ promptName: promptFile, promptText: prompt }, 'rewriteToEnglishNarration: Kullanılan prompt');
-    try {
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                { role: "system", content: "You are a professional content writer for English narration." },
-                { role: "user", content: prompt },
-            ],
-            temperature: 0.6,
-        });
-        const narration = completion.choices[0]?.message?.content?.trim();
-        if (narration) {
-            logger.info(`Successfully rewrote input to English narration.`);
-            return narration;
-        } else {
-            logger.error(`OpenAI response did not contain narration content.`);
-            return null;
-        }
-    } catch (error) {
-        logger.error(`Error rewriting narration: ${error.message}`);
+        logger.error(`Error generating narration for topic ${topic} via OpenAI: ${error.message}`);
         return null;
     }
 }
@@ -201,13 +148,12 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
             }
         case "topic":
             if (typeof inputData === "string") {
-                // 1. rewrite_to_narration.txt promptu ile detaylı anlatım üret
-                const narration = await generateEnglishNarrationForTopic(inputData, level, detectedLanguage, requestLogger);
+                // rewrite_to_narration.txt promptu ile detaylı anlatım üret (seviye ve dil bağımsız)
+                const narration = await generateNarrationForTopic(inputData, requestLogger);
                 if (!narration || narration.toLowerCase().includes("i need the text") || narration.toLowerCase().includes("please provide")) {
                     logger.error("OpenAI could not generate narration from topic. User should provide a more descriptive topic.");
                     return null;
                 }
-                // 2. Dönen metni pipeline'ın kalan adımlarında metin gibi işle
                 return narration;
             } else {
                 logger.error("Input data (topic) is not a string.");
@@ -350,7 +296,7 @@ async function rewriteTranscriptClean(text, requestLogger) {
 
 module.exports = {
     extractTextFromInput,
-    generateEnglishNarrationForTopic,
+    generateNarrationForTopic,
     translateToEnglishWithOpenAI,
 };
 
