@@ -14,7 +14,7 @@ interface InputSectionProps {
 
 // Polly'nin desteklediği İngilizce sesler (örnek, tam liste için backend'den çekilebilir)
 const POLLY_VOICES = [
-  { Id: 'Matthew', Name: 'Matthew', LanguageName: 'English (US)', Gender: 'Male', Engine: 'Neural' },
+  { Id: 'en-US-Wavenet-F', Name: 'en-US-Wavenet-F', LanguageName: 'English (US)', Gender: 'Female', Engine: 'Neural' },
   { Id: 'Amy', Name: 'Amy', LanguageName: 'English (UK)', Gender: 'Female', Engine: 'Neural' },
 ];
 
@@ -61,7 +61,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [bookName, setBookName] = useState<string>('');
   const [bookChapter, setBookChapter] = useState<string>('');
   const [level, setLevel] = useState<Level>('A1');
-  const [voice, setVoice] = useState<string>('');
+  const [voice, setVoice] = useState<string>("en-US-Wavenet-F");
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
   const [googleVoices, setGoogleVoices] = useState<any[]>([]);
   const [bookSearch, setBookSearch] = useState<string>("");
@@ -138,11 +138,23 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     }
   }, [selectedBook]);
 
-  // Eski handleSubmit diğer input tipleri için
+  // Google TTS için tüm sesleri getir (filtreleme yok)
+  const getAllGoogleVoices = () => googleVoices;
+
+  // Google sesleri yüklendiğinde ilk sesi otomatik seç
+  useEffect(() => {
+    if (googleVoices.length > 0 && !voice) {
+      setVoice(googleVoices[0].name);
+    }
+  }, [googleVoices]);
+
+  // Form submit fonksiyonu
   const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
-    if (inputType === 'suggestion' || inputType === 'hashtag') return; // Bu tiplerde submit yok
-    const safeVoice = POLLY_VOICES.some(v => v.Id === voice) ? voice : POLLY_VOICES[0].Id;
+    if (!voice) {
+      alert("Lütfen bir ses seçin!");
+      return;
+    }
     const inputData: ProcessInputData = {
       type: inputType as ProcessInputData['type'],
       text: inputType === 'text' ? text : inputType === 'topic' ? topic : undefined,
@@ -157,7 +169,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       file: inputType === 'file' ? file || undefined : undefined,
       level,
       SesHızı: speakingRate,
-      voice: safeVoice,
+      voice, // Seçili ses burada gönderiliyor
       chapter: inputType === 'book' ? bookChapter : undefined,
     };
     onSubmit(inputData);
@@ -179,7 +191,6 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       setInputType('text'); // metin moduna geç
       // Otomatik submit
       setTimeout(() => {
-        const safeVoice = POLLY_VOICES.some(v => v.Id === voice) ? voice : POLLY_VOICES[0].Id;
         const inputData: ProcessInputData = {
           type: 'text',
           text: data.text,
@@ -187,7 +198,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
           file: undefined,
           level,
           SesHızı: speakingRate,
-          voice: safeVoice,
+          voice,
           chapter: undefined,
         };
         onSubmit(inputData);
@@ -577,25 +588,11 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                 {t('voice_selection')}
               </label>
               <select
-                value={voice}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setVoice(e.target.value as any)}
+                value="en-US-Wavenet-F"
+                disabled
                 className="input-field focus:ring-blue-500 focus:border-blue-500"
-                disabled={ttsProvider !== 'google' || googleVoices.length === 0}
               >
-                {ttsProvider === 'google' && googleVoices.length > 0 ? (
-                  googleVoices.filter(v => v.name).map((v) => {
-                    const lang = v.languageCodes?.[0] || 'Bilinmiyor';
-                    const gender = v.ssmlGender || v.gender || 'Bilinmiyor';
-                    const hz = v.naturalSampleRateHertz ? `${v.naturalSampleRateHertz}Hz` : 'Bilinmiyor';
-                    return (
-                      <option key={v.name} value={v.name}>
-                        {v.name} ({lang}, {gender}, {hz})
-                      </option>
-                    );
-                  })
-                ) : (
-                  <option value="">Google TTS aktif değil</option>
-                )}
+                <option value="en-US-Wavenet-F">en-US-Wavenet-F (Kadın)</option>
               </select>
             </div>
           </div>

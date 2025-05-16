@@ -72,65 +72,110 @@ function cleanTextForTTS(text) {
  * Splits text into chunks based on a maximum byte limit (UTF-8), trying to preserve sentences
  * and respecting paragraph breaks (double newlines).
  * @param {string} text The text to chunk.
- * @param {number} maxBytes Maximum bytes per chunk (default: 2400, slightly less than Google's 5000 limit).
+ * @param {number} maxBytes Maximum bytes per chunk (default: 5000, Google TTS limit).
  * @returns {string[]} An array of text chunks.
  */
-function chunkText(text, maxBytes = 2400) {
+function chunkText(text, maxBytes = 5000) {
     logger.info(`chunkText received input with length: ${text ? text.length : 0}, bytes: ${text ? Buffer.byteLength(text, 'utf-8') : 0}`);
     console.log(`[CHUNKTEXT-DEBUG] text.length: ${text ? text.length : 0}, Buffer.byteLength: ${text ? Buffer.byteLength(text, 'utf-8') : 0}, maxBytes: ${maxBytes}`);
     if (!text) {
         logger.warn("chunkText received empty or null text, returning empty array.");
         return [];
     }
+
+    // Önce paragrafları ayır
+    const paragraphs = text.split("\n\n");
+    logger.debug(`Split text into ${paragraphs.length} paragraphs.`);
+    
     const chunks = [];
     let currentChunk = "";
     let currentBytes = 0;
-    const paragraphs = text.split("\n\n");
-    logger.debug(`Split text into ${paragraphs.length} paragraphs.`);
+
     for (let paraIndex = 0; paraIndex < paragraphs.length; paraIndex++) {
         const paragraph = paragraphs[paraIndex].trim();
         if (!paragraph) continue;
+
+        // Paragrafı cümlelere böl
         const sentences = paragraph.split(/(?<=[.!?])(?:\s+|$)/);
         logger.debug(`Processing paragraph ${paraIndex + 1} with ${sentences.length} potential sentences.`);
+
         for (const sentence of sentences) {
             const trimmedSentence = sentence.trim();
             if (!trimmedSentence) continue;
+
             const sentenceBytes = Buffer.byteLength(trimmedSentence, "utf-8");
             const separatorBytes = currentBytes > 0 ? Buffer.byteLength(" ", "utf-8") : 0;
+
+            // Eğer cümle tek başına maxBytes'ı aşıyorsa, cümleyi daha küçük parçalara böl
             if (sentenceBytes > maxBytes) {
-                logger.warn(`Single sentence exceeds maxBytes (${sentenceBytes}/${maxBytes}). Aggressively splitting: "${trimmedSentence.substring(0, 50)}..."`);
+                logger.warn(`Single sentence exceeds maxBytes (${sentenceBytes}/${maxBytes}). Splitting sentence: "${trimmedSentence.substring(0, 50)}..."`);
+                
+                // Mevcut chunk'ı kaydet
                 if (currentChunk) {
                     chunks.push(currentChunk);
-                    logger.debug(`Added pending chunk before splitting long sentence. Length: ${currentChunk.length}, Bytes: ${currentBytes}`);
                     currentChunk = "";
                     currentBytes = 0;
                 }
-                let remainingSentence = trimmedSentence;
-                while (Buffer.byteLength(remainingSentence, "utf-8") > maxBytes) {
-                    let splitIndex = 0;
-                    let currentSegmentBytes = 0;
-                    for (let i = 0; i < remainingSentence.length; i++) {
-                        const charBytes = Buffer.byteLength(remainingSentence[i], "utf-8");
-                        if (currentSegmentBytes + charBytes > maxBytes) break;
-                        currentSegmentBytes += charBytes;
-                        splitIndex = i + 1;
+
+                // Cümleyi kelimelere böl
+                const words = trimmedSentence.split(/\s+/);
+                let tempChunk = "";
+                let tempBytes = 0;
+
+                for (const word of words) {
+                    const wordBytes = Buffer.byteLength(word, "utf-8");
+                    const spaceBytes = tempBytes > 0 ? Buffer.byteLength(" ", "utf-8") : 0;
+
+                    if (tempBytes + spaceBytes + wordBytes > maxBytes) {
+                        if (tempChunk) {
+                            chunks.push(tempChunk);
+                            tempChunk = word;
+                            tempBytes = wordBytes;
+                        } else {
+                            // Tek kelime bile maxBytes'ı aşıyorsa, kelimeyi karakterlere böl
+                            let remainingWord = word;
+                            while (Buffer.byteLength(remainingWord, "utf-8") > maxBytes) {
+                                let splitIndex = 0;
+                                let currentSegmentBytes = 0;
+                                
+                                for (let i = 0; i < remainingWord.length; i++) {
+                                    const charBytes = Buffer.byteLength(remainingWord[i], "utf-8");
+                                    if (currentSegmentBytes + charBytes > maxBytes) break;
+                                    currentSegmentBytes += charBytes;
+                                    splitIndex = i + 1;
+                                }
+                                
+                                chunks.push(remainingWord.substring(0, splitIndex));
+                                remainingWord = remainingWord.substring(splitIndex);
+                            }
+                            
+                            if (remainingWord) {
+                                tempChunk = remainingWord;
+                                tempBytes = Buffer.byteLength(remainingWord, "utf-8");
+                            }
+                        }
+                    } else {
+                        if (tempChunk) {
+                            tempChunk += " " + word;
+                            tempBytes += spaceBytes + wordBytes;
+                        } else {
+                            tempChunk = word;
+                            tempBytes = wordBytes;
+                        }
                     }
-                    let chunkToAdd = remainingSentence.substring(0, splitIndex);
-                    const lastSpace = chunkToAdd.lastIndexOf(" ");
-                    if (lastSpace > 0) {
-                        chunkToAdd = chunkToAdd.substring(0, lastSpace);
-                        splitIndex = lastSpace + 1;
-                    }
-                    chunks.push(chunkToAdd.trim());
-                    logger.debug(`Added aggressively split chunk. Length: ${chunkToAdd.trim().length}, Bytes: ${Buffer.byteLength(chunkToAdd.trim(), "utf-8")}`);
-                    remainingSentence = remainingSentence.substring(splitIndex).trim();
                 }
-                if (remainingSentence) {
-                    currentChunk = remainingSentence;
-                    currentBytes = Buffer.byteLength(remainingSentence, "utf-8");
-                    logger.debug(`Started new chunk with remaining part of long sentence. Length: ${currentChunk.length}, Bytes: ${currentBytes}`);
+
+                if (tempChunk) {
+                    currentChunk = tempChunk;
+                    currentBytes = tempBytes;
                 }
-            } else if (currentBytes + separatorBytes + sentenceBytes <= maxBytes) {
+            } else if (currentBytes + separatorBytes + sentenceBytes > maxBytes) {
+                // Mevcut chunk dolu, yeni chunk başlat
+                chunks.push(currentChunk);
+                currentChunk = trimmedSentence;
+                currentBytes = sentenceBytes;
+            } else {
+                // Mevcut chunk'a ekle
                 if (currentChunk) {
                     currentChunk += " " + trimmedSentence;
                     currentBytes += separatorBytes + sentenceBytes;
@@ -138,81 +183,40 @@ function chunkText(text, maxBytes = 2400) {
                     currentChunk = trimmedSentence;
                     currentBytes = sentenceBytes;
                 }
-                logger.debug(`Appended sentence to current chunk. New length: ${currentChunk.length}, New bytes: ${currentBytes}`);
-            } else {
-                if (currentChunk) {
-                    chunks.push(currentChunk);
-                    logger.debug(`Finalized chunk as new sentence exceeds limit. Length: ${currentChunk.length}, Bytes: ${currentBytes}`);
-                }
-                currentChunk = trimmedSentence;
-                currentBytes = sentenceBytes;
-                logger.debug(`Started new chunk with sentence. Length: ${currentChunk.length}, Bytes: ${currentBytes}`);
             }
         }
+
+        // Paragraf sonunda, eğer sonraki paragraf varsa ve yer varsa paragraf boşluğunu ekle
         if (currentChunk && paraIndex < paragraphs.length - 1) {
             const breakBytes = Buffer.byteLength("\n\n", "utf-8");
             if (currentBytes + breakBytes <= maxBytes) {
                 currentChunk += "\n\n";
                 currentBytes += breakBytes;
-                logger.debug(`Added paragraph break to current chunk. New length: ${currentChunk.length}, New bytes: ${currentBytes}`);
             } else {
                 chunks.push(currentChunk);
-                logger.debug(`Finalized chunk as paragraph break exceeds limit. Length: ${currentChunk.length}, Bytes: ${currentBytes}`);
-                if (breakBytes <= maxBytes) {
-                    currentChunk = "\n\n";
-                    currentBytes = breakBytes;
-                    logger.debug(`Started new chunk with paragraph break. Length: ${currentChunk.length}, Bytes: ${currentBytes}`);
-                } else {
-                    currentChunk = "";
-                    currentBytes = 0;
-                    logger.warn("Paragraph break itself exceeds maxBytes, cannot add.");
-                }
+                currentChunk = "\n\n";
+                currentBytes = breakBytes;
             }
         }
     }
+
+    // Son chunk'ı ekle
     if (currentChunk) {
         chunks.push(currentChunk);
-        logger.debug(`Added final remaining chunk. Length: ${currentChunk.length}, Bytes: ${currentBytes}`);
     }
+
+    // Boş chunk'ları temizle ve trim yap
     const finalChunks = chunks.map(c => c.trim()).filter(c => c);
     logger.info(`Text processing resulted in ${finalChunks.length} final chunks.`);
-    // Fallback: Eğer hiç chunk üretilmediyse, metni otomatik olarak maxBytes uzunluğunda böl
-    if (finalChunks.length === 0 && text.length > 0) {
-        logger.warn("No chunks generated with paragraph/sentence logic. Using fallback: splitting by maxBytes.");
-        console.log("[CHUNKTEXT-FALLBACK] Fallback chunking is being used! Text length:", text.length);
-        const fallbackChunks = [];
-        let start = 0;
-        while (start < text.length) {
-            let end = start + maxBytes;
-            while (Buffer.byteLength(text.substring(start, end), "utf-8") > maxBytes && end > start) {
-                end--;
-            }
-            if (end === start) {
-                end = start + 1;
-            }
-            fallbackChunks.push(text.substring(start, end).trim());
-            start = end;
-        }
-        logger.info(`[CHUNKTEXT-FALLBACK] Fallback chunking produced ${fallbackChunks.length} chunks.`);
-        console.log(`[CHUNKTEXT-FALLBACK] Fallback chunking produced ${fallbackChunks.length} chunks.`);
-        return fallbackChunks;
-    }
-    // --- TEKRAR KONTROLÜ ---
-    const chunkSet = new Set();
-    const chunkCountMap = {};
-    finalChunks.forEach(chunk => {
-        if (chunkSet.has(chunk)) {
-            chunkCountMap[chunk] = (chunkCountMap[chunk] || 1) + 1;
-        } else {
-            chunkSet.add(chunk);
-            chunkCountMap[chunk] = 1;
+
+    // Her chunk'ın byte uzunluğunu kontrol et
+    finalChunks.forEach((chunk, index) => {
+        const chunkBytes = Buffer.byteLength(chunk, "utf-8");
+        if (chunkBytes > maxBytes) {
+            logger.warn(`Chunk ${index + 1} exceeds maxBytes (${chunkBytes}/${maxBytes}). This should not happen!`);
         }
     });
-    Object.entries(chunkCountMap).forEach(([chunk, count]) => {
-        if (count > 3) {
-            logger.warn(`[CHUNKTEXT-REPEAT] Chunk repeated ${count} times: "${chunk.substring(0, 80)}..."`);
-        }
-    });
+
     return finalChunks;
 }
 

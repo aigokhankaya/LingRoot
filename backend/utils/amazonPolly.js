@@ -12,7 +12,7 @@ const polly = new PollyClient({
 
 // Polly'nin desteklediği İngilizce sesler (örnek, tam liste için backend'den çekilebilir)
 const POLLY_VOICE_IDS = [
-  'Amy', 'Brian', 'Emma', 'Joanna', 'Matthew',
+  'Amy', 'Brian', 'Emma', 'Joanna', 'en-US-Wavenet-F',
   // ... diğer Polly sesleri ...
 ];
 

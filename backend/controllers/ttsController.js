@@ -438,8 +438,16 @@ const mergeAudioAPI = async (req, res) => {
 const listVoices = async (req, res) => {
   const ttsProvider = await getTtsProvider();
   if (ttsProvider === 'google') {
-    const voices = await listGoogleVoices('en-US');
-    return res.json({ provider: 'google', voices });
+    // Sadece belirli Google seslerini döndür
+    const googleVoices = [
+      { level: 'A1-B1', gender: 'female', name: 'en-US-Wavenet-F' },
+      { level: 'A1-B1', gender: 'male', name: 'en-US-Wavenet-D' },
+      { level: 'B2-C1', gender: 'female', name: 'en-US-Studio-M' },
+      { level: 'B2-C1', gender: 'male', name: 'en-US-Studio-B' },
+      { level: 'C2', gender: 'female', name: 'en-US-Studio-O' },
+      { level: 'C2', gender: 'male', name: 'en-US-Studio-J' },
+    ];
+    return res.json({ provider: 'google', voices: googleVoices });
   } else {
     const voices = await listPollyVoices();
     return res.json({ provider: 'amazon', voices });
