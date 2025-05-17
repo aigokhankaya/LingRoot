@@ -228,6 +228,35 @@ const processTtsRequest = async (req, res) => {
         });
         logRequestStep(requestId, 'translate:end', { textToAdapt });
 
+        // --- Step 2.6: Adapt to CEFR Level ---
+        logRequestStep(requestId, 'adaptToCEFR:start', { textToAdapt, level });
+        logStep({
+            requestId,
+            stepName: 'tts:adaptToCEFR:start',
+            stepSequence: stepSequence++,
+            serviceName: 'LocalFunction',
+            endpoint: 'adaptToCEFR',
+            inputData: { text: textToAdapt, level }
+        });
+
+        try {
+            const adaptedResult = await adaptToCEFRFunc(textToAdapt, level);
+            textToAdapt = adaptedResult;
+            logger.info(`[${requestId}] CEFR adaptation successful.`);
+            logRequestStep(requestId, 'adaptToCEFR:end', { adaptedResult });
+            logStep({
+                requestId,
+                stepName: 'tts:adaptToCEFR:end',
+                stepSequence: stepSequence++,
+                serviceName: 'LocalFunction',
+                endpoint: 'adaptToCEFR',
+                outputData: { textToAdapt }
+            });
+        } catch (adaptError) {
+            logger.error(`[${requestId}] Error during CEFR adaptation: ${adaptError.message}. Proceeding with untranslated text.`);
+            logRequestStep(requestId, 'adaptToCEFR:error', { error: adaptError.message });
+        }
+
         // --- Step 3: Chunk Text (ilk, translate sonrası) ---
         if (!textToAdapt || textToAdapt.trim() === "") {
             logger.error(`[${requestId}] textToAdapt is empty, chunkText will not be called.`);
@@ -422,107 +451,111 @@ const processTtsRequest = async (req, res) => {
 
 // --- TTS Step Endpoints ---
 const translateToEnglish = async (req, res) => {
-  const { text } = req.body;
-  const requestId = uuidv4();
-  try {
-    logStep({ requestId, stepName: 'tts:translateToEnglish', inputData: { text } });
-    const result = await translateToEnglishWithOpenAI(text);
-    logStep({ requestId, stepName: 'tts:translateToEnglish:end', outputData: result });
-    res.json({ text: result.text });
-  } catch (e) {
-    logStep({ requestId, stepName: 'tts:translateToEnglish:error', error: e.message });
-    res.status(500).json({ error: e.message });
-  }
-};
-
-const adaptToCEFR = async (req, res) => {
-  const { text, level } = req.body;
-  const requestId = uuidv4();
-  try {
-    logStep({ requestId, stepName: 'tts:adaptToCEFR', inputData: { text, level } });
-    const result = await adaptToCEFRFunc(text, level);
-    logStep({ requestId, stepName: 'tts:adaptToCEFR:end', outputData: result });
-    res.json({ text: result });
-  } catch (e) {
-    logStep({ requestId, stepName: 'tts:adaptToCEFR:error', error: e.message });
-    res.status(500).json({ error: e.message });
-  }
-};
-
-const chunkTextAPI = (req, res) => {
-  const { text } = req.body;
-  const requestId = uuidv4();
-  try {
-    logStep({ requestId, stepName: 'tts:chunkText', inputData: { text } });
-    const chunks = chunkText(text);
-    logStep({ requestId, stepName: 'tts:chunkText:end', outputData: { chunks } });
-    res.json({ chunks });
-  } catch (e) {
-    logStep({ requestId, stepName: 'tts:chunkText:error', error: e.message });
-    res.status(500).json({ error: e.message });
-  }
-};
-
-const synthesizeChunkAPI = async (req, res) => {
-  const { text, voice, rate } = req.body;
-  const requestId = uuidv4();
-  try {
-    logStep({ requestId, stepName: 'tts:synthesizeChunk', inputData: { text, voice, rate } });
-    const result = await synthesizeWithGoogle({
-        text: text,
-        voiceName: voice || "Joanna",
-        languageCode: "en-US",
-        speakingRate: rate || 1.0
-    });
-    logStep({ requestId, stepName: 'tts:synthesizeChunk:end', outputData: result });
-    res.json(result);
-  } catch (e) {
-    logStep({ requestId, stepName: 'tts:synthesizeChunk:error', error: e.message });
-    res.status(500).json({ error: e.message });
-  }
-};
-
-const mergeAudioAPI = async (req, res) => {
-  const { files } = req.body;
-  const requestId = uuidv4();
-  try {
-    logStep({ requestId, stepName: 'tts:mergeAudio', inputData: { files } });
-    const result = await mergeAudioSegments(files);
-    logStep({ requestId, stepName: 'tts:mergeAudio:end', outputData: result });
-    res.json(result);
-  } catch (e) {
-    logStep({ requestId, stepName: 'tts:mergeAudio:error', error: e.message });
-    res.status(500).json({ error: e.message });
-  }
-};
-
-// Ses listesi endpointi (dinamik)
-const listVoices = async (req, res) => {
-  const ttsProvider = await getTtsProvider();
-  if (ttsProvider === 'google') {
-    // Sadece belirli Google seslerini döndür
-    const googleVoices = [
-      { level: 'A1-B1', gender: 'female', name: 'en-US-Wavenet-F' },
-      { level: 'A1-B1', gender: 'male', name: 'en-US-Wavenet-D' },
-      { level: 'B2-C1', gender: 'female', name: 'en-US-Studio-M' },
-      { level: 'B2-C1', gender: 'male', name: 'en-US-Studio-B' },
-      { level: 'C2', gender: 'female', name: 'en-US-Studio-O' },
-      { level: 'C2', gender: 'male', name: 'en-US-Studio-J' },
-    ];
-    return res.json({ provider: 'google', voices: googleVoices });
-  } else {
-    logger.error(`[${requestId}] Unsupported TTS provider: ${ttsProvider}`);
-    return res.status(500).json({ success: false, message: `Unsupported TTS provider: ${ttsProvider}` });
-  }
-};
-
-module.exports = {
-    processTtsRequest,
-    translateToEnglish,
-    adaptToCEFR,
-    chunkTextAPI,
-    synthesizeChunkAPI,
-    mergeAudioAPI,
-    listVoices,
-};
-
+    const { text, level } = req.body;
+    const requestId = uuidv4();
+    try {
+      logStep({ requestId, stepName: 'tts:translateToEnglish', inputData: { text, level } });
+      // Select the appropriate CEFR prompt based on the level
+      const promptFile = `cefr_${level}.txt`;
+      const promptPath = path.join(__dirname, '../prompts', promptFile);
+      const promptText = fs.readFileSync(promptPath, 'utf-8');
+      // Use the prompt in the translation process
+      const result = await translateToEnglishWithOpenAI(text, promptText);
+      logStep({ requestId, stepName: 'tts:translateToEnglish:end', outputData: result });
+      res.json({ text: result.text });
+    } catch (e) {
+      logStep({ requestId, stepName: 'tts:translateToEnglish:error', error: e.message });
+      res.status(500).json({ error: e.message });
+    }
+  };
+  
+  const adaptToCEFR = async (req, res) => {
+    const { text, level } = req.body;
+    const requestId = uuidv4();
+    try {
+      logStep({ requestId, stepName: 'tts:adaptToCEFR', inputData: { text, level } });
+      const result = await adaptToCEFRFunc(text, level);
+      logStep({ requestId, stepName: 'tts:adaptToCEFR:end', outputData: result });
+      res.json({ text: result });
+    } catch (e) {
+      logStep({ requestId, stepName: 'tts:adaptToCEFR:error', error: e.message });
+      res.status(500).json({ error: e.message });
+    }
+  };
+  
+  const chunkTextAPI = (req, res) => {
+    const { text } = req.body;
+    const requestId = uuidv4();
+    try {
+      logStep({ requestId, stepName: 'tts:chunkText', inputData: { text } });
+      const chunks = chunkText(text);
+      logStep({ requestId, stepName: 'tts:chunkText:end', outputData: { chunks } });
+      res.json({ chunks });
+    } catch (e) {
+      logStep({ requestId, stepName: 'tts:chunkText:error', error: e.message });
+      res.status(500).json({ error: e.message });
+    }
+  };
+  
+  const synthesizeChunkAPI = async (req, res) => {
+    const { text, voice, rate } = req.body;
+    const requestId = uuidv4();
+    try {
+      logStep({ requestId, stepName: 'tts:synthesizeChunk', inputData: { text, voice, rate } });
+      const result = await synthesizeWithGoogle({
+          text: text,
+          voiceName: voice || "Joanna",
+          languageCode: "en-US",
+          speakingRate: rate || 1.0
+      });
+      logStep({ requestId, stepName: 'tts:synthesizeChunk:end', outputData: result });
+      res.json(result);
+    } catch (e) {
+      logStep({ requestId, stepName: 'tts:synthesizeChunk:error', error: e.message });
+      res.status(500).json({ error: e.message });
+    }
+  };
+  
+  const mergeAudioAPI = async (req, res) => {
+    const { files } = req.body;
+    const requestId = uuidv4();
+    try {
+      logStep({ requestId, stepName: 'tts:mergeAudio', inputData: { files } });
+      const result = await mergeAudioSegments(files);
+      logStep({ requestId, stepName: 'tts:mergeAudio:end', outputData: result });
+      res.json(result);
+    } catch (e) {
+      logStep({ requestId, stepName: 'tts:mergeAudio:error', error: e.message });
+      res.status(500).json({ error: e.message });
+    }
+  };
+  
+  // Ses listesi endpointi (dinamik)
+  const listVoices = async (req, res) => {
+    const ttsProvider = await getTtsProvider();
+    if (ttsProvider === 'google') {
+      // Return all available Google voices
+      const googleVoices = [
+        { gender: 'female', name: 'en-US-Wavenet-F' },
+        { gender: 'male', name: 'en-US-Wavenet-D' },
+        { gender: 'female', name: 'en-US-Studio-M' },
+        { gender: 'male', name: 'en-US-Studio-B' },
+        { gender: 'female', name: 'en-US-Studio-O' },
+        { gender: 'male', name: 'en-US-Studio-J' },
+      ];
+      return res.json({ provider: 'google', voices: googleVoices });
+    } else {
+      logger.error(`[${requestId}] Unsupported TTS provider: ${ttsProvider}`);
+      return res.status(500).json({ success: false, message: `Unsupported TTS provider: ${ttsProvider}` });
+    }
+  };
+  
+  module.exports = {
+      processTtsRequest,
+      translateToEnglish,
+      adaptToCEFR,
+      chunkTextAPI,
+      synthesizeChunkAPI,
+      mergeAudioAPI,
+      listVoices,
+  };
