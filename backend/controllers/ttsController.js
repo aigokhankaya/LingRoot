@@ -70,6 +70,10 @@ const processTtsRequest = async (req, res) => {
         });
         let inputData, inputType, level, speakingRate, file;
 
+        console.log("📄 Gelen dosya:", req.file);
+        console.log("✏️  Text input:", req.body.input);
+        console.log("📥  Input type:", req.body.input_type);
+
         if (req.is("multipart/form-data")) {
             logger.info(`[${requestId}] Processing multipart/form-data request.`);
             inputData = req.body.input;
@@ -360,6 +364,11 @@ const processTtsRequest = async (req, res) => {
         // --- Final Step: Ensure Temporary File Cleanup ---
         logger.info(`[${requestId}] Performing final cleanup.`);
         cleanupTempFile(tempFilePath);
+
+        // Add cleanup code for temporary files
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
     }
 };
 
