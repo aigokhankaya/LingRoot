@@ -1,7 +1,0 @@
-# Dependencies
-/node_modules
-node_modules
-
-package-lock/
-
-google-credentials.json
