@@ -1,9 +1,9 @@
 const fs = require('fs');
-const { google } = require('@google-cloud/text-to-speech');
+const textToSpeech = require('@google-cloud/text-to-speech');
 const logger = require('../config/logger');
 const { chunkText } = require('./textProcessor');
 
-const googleClient = new google.TextToSpeechClient({
+const googleClient = new textToSpeech.TextToSpeechClient({
     keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || './backend/google-credentials.json',
 });
 

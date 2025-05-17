@@ -35,5 +35,5 @@ logger.info("Supabase client created.");
   }
 })();
 
-module.exports = { supabaseUrl, supabaseKey, bucketName };
+module.exports = { supabase, supabaseUrl, supabaseKey, bucketName };
 
