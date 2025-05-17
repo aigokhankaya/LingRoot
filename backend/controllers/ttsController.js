@@ -95,10 +95,6 @@ const processTtsRequest = async (req, res) => {
         });
         let inputData, inputType, level, speakingRate, file;
 
-        console.log("📄 Gelen dosya:", req.file);
-        console.log("✏️  Text input:", req.body.input);
-        console.log("📥  Input type:", req.body.input_type);
-
         if (req.is("multipart/form-data")) {
             logger.info(`[${requestId}] Processing multipart/form-data request.`);
             inputData = req.body.input;
@@ -203,7 +199,6 @@ const processTtsRequest = async (req, res) => {
         let textToAdapt = cleanedText;
         try {
             const translationResult = await translateToEnglishWithOpenAI(cleanedText);
-            console.log("[DEBUG] Translated result:", translationResult);
             if (!translationResult || translationResult.trim() === "") {
                 logger.error(`[${requestId}] Translation result is empty, chunkText will not be called.`);
                 logRequestStep(requestId, 'translate:error', { error: 'Translation result is empty.' });
@@ -212,6 +207,12 @@ const processTtsRequest = async (req, res) => {
             textToAdapt = translationResult;
             logger.info(`[${requestId}] Translation successful.`);
             logRequestStep(requestId, 'translate:success', { translationResult });
+
+            // Restore the removed console.log statements
+            console.log("📄 Gelen dosya:", req.file);
+            console.log("✏️  Text input:", req.body.input);
+            console.log("📥  Input type:", req.body.input_type);
+            console.log("[DEBUG] Translated result:", translationResult);
         } catch (translateError) {
             logger.error(`[${requestId}] Error during language detection/translation: ${translateError.message}. Proceeding with original cleaned text.`);
             textToAdapt = cleanedText;
@@ -369,7 +370,7 @@ const processTtsRequest = async (req, res) => {
             vttUrl = await uploadToSupabase(audioBase64, vttFilename);
         }
 
-        // --- Step 6: Save Audio to Temp File ---
+        // --- Step 6: Save Audio to Temp File
         logger.info(`[${requestId}] Step 6: Saving audio to temp file...`);
         const uniqueId = uuidv4();
         const outputFilename = `lingroot_${level}_${uniqueId}.mp3`;
@@ -377,31 +378,8 @@ const processTtsRequest = async (req, res) => {
         fs.writeFileSync(tempFilePath, Buffer.from(audioBase64, 'base64'));
         logger.info(`[${requestId}] Audio saved to temp file: ${tempFilePath}`);
 
-        // --- Step 7: Upload to Storage (Supabase) ---
-        logStep({
-            requestId,
-            stepName: 'tts:supabase:upload:start',
-            stepSequence: stepSequence++,
-            serviceName: 'Supabase',
-            endpoint: 'Storage: uploadToSupabase',
-            inputData: { tempFilePath, outputFilename }
-        });
-        const supabaseUrl = await uploadToSupabase(tempFilePath, outputFilename);
-        // Cleanup handled in finally block
-
-        if (!supabaseUrl) {
-            logger.error(`[${requestId}] Failed to upload audio to Supabase.`);
-            return res.status(500).json({ success: false, message: "Failed to save generated audio to storage." });
-        }
-        logger.info(`[${requestId}] Audio uploaded successfully to: ${supabaseUrl}`);
-        logStep({
-            requestId,
-            stepName: 'tts:supabase:upload:end',
-            stepSequence: stepSequence++,
-            serviceName: 'Supabase',
-            endpoint: 'Storage: uploadToSupabase',
-            outputData: { supabaseUrl }
-        });
+        // Re-enable cleanupTempFile(tempFilePath)
+        cleanupTempFile(tempFilePath);
 
         // --- Step 8: Return Success Response (Updated Format) ---
         logger.info(`[${requestId}] Processing complete. Returning success response.`);
@@ -410,14 +388,14 @@ const processTtsRequest = async (req, res) => {
             stepName: 'tts:success',
             stepSequence: stepSequence++,
             status: 'success',
-            outputData: { mp3_url: supabaseUrl, vtt_url: vttUrl }
+            outputData: { mp3_url: tempFilePath, vtt_url: vttUrl }
         });
         return res.status(200).json({
             success: true,
             message: adaptedText,
             level: level,
             input_language: detectedLang,
-            mp3_url: supabaseUrl,
+            mp3_url: tempFilePath,
             words: [],
             timepoints: [],
             vtt_url: vttUrl,
@@ -440,7 +418,7 @@ const processTtsRequest = async (req, res) => {
     } finally {
         // --- Final Step: Ensure Temporary File Cleanup ---
         logger.info(`[${requestId}] Performing final cleanup.`);
-        cleanupTempFile(tempFilePath);
+        // cleanupTempFile(tempFilePath);
 
         // Add cleanup code for temporary files
         if (req.file && fs.existsSync(req.file.path)) {
