@@ -1,24 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
+// Seviyelere göre video linkleri
+const VIDEO_LINKS: { [key: string]: string } = {
+  A1: "https://ffqfcmmbeeieouoghrac.supabase.co/storage/v1/object/public/videos//mainpage_a1.mp4",
+  A2: "https://ffqfcmmbeeieouoghrac.supabase.co/storage/v1/object/public/videos//mainpage_a2.mp4",
+  B1: "https://ffqfcmmbeeieouoghrac.supabase.co/storage/v1/object/public/videos//mainpage_b1.mp4",
+  C2: "https://ffqfcmmbeeieouoghrac.supabase.co/storage/v1/object/public/videos//mainpage_c2.mp4",
+};
+
 export default function HomePage() {
+  // Seçili seviye state'i
+  const [selectedLevel, setSelectedLevel] = useState('A1');
+
   return (
     <div className="bg-[#f4f7f6] text-[#333] min-h-screen">
       {/* Header */}
-      <header className="bg-white px-8 py-4 shadow flex justify-between items-center">
-        <div className="text-2xl font-bold">
+      <header className="w-full bg-white flex items-center justify-between border-b border-[#eaf7ef]" style={{ minHeight: 64, padding: '0 40px' }}>
+        <div className="text-3xl font-extrabold select-none">
           <span className="text-green-600">Ling</span>
           <span className="text-[#333]">Root</span>
         </div>
-        <nav className="flex items-center">
-          <a href="#how-it-works" className="ml-6 text-[#555] font-medium hover:text-green-600">Nasıl Çalışır?</a>
-          <a href="#features" className="ml-6 text-[#555] font-medium hover:text-green-600">Özellikler</a>
-          <a href="#pricing" className="ml-6 text-[#555] font-medium hover:text-green-600">Fiyatlandırma</a>
-          <Link href="/login" className="ml-6 text-[#555] font-medium hover:text-green-600">Giriş Yap</Link>
-          <Link href="/register" className="ml-6 bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700 transition">Kayıt Ol</Link>
-        </nav>
+        <div className="flex items-center flex-1 justify-end">
+          <nav className="flex items-center gap-8 text-lg font-medium text-gray-700">
+            <a href="#how-it-works" className="hover:text-[#333] transition-colors">Nasıl Çalışır?</a>
+            <a href="#features" className="hover:text-[#333] transition-colors">Özellikler</a>
+            <a href="#pricing" className="hover:text-[#333] transition-colors">Fiyatlandırma</a>
+            <Link href="/login" className="hover:text-[#333] transition-colors">Giriş Yap</Link>
+          </nav>
+          <Link href="/register" className="ml-10 px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded transition-all text-lg" style={{ minWidth: 110, textAlign: 'center' }}>Kayıt Ol</Link>
+        </div>
       </header>
 
       {/* Hero Section */}
@@ -31,15 +44,22 @@ export default function HomePage() {
         <div className="flex-1.2 flex justify-center items-center">
           <div className="bg-white p-8 rounded-xl shadow-lg border w-full max-w-xl">
             <div className="w-full h-64 bg-black rounded flex justify-center items-center text-white text-xl mb-6">
-              Örnek Video Alanı (A1 Ses ve Altyazı Aktif)
+              <video
+                src={VIDEO_LINKS[selectedLevel] || VIDEO_LINKS['A1']}
+                controls
+                style={{ width: "100%", height: "100%", objectFit: "cover", background: "black" }}
+              >
+                Tarayıcınız video etiketini desteklemiyor.
+              </video>
             </div>
             <p className="text-center font-bold mb-2 text-base">İzlediğiniz videonun seslendirmesini ve altyazısını değiştirmek için seviyenizi seçin:</p>
             <div className="flex flex-wrap justify-around mb-4">
               {LEVELS.map(level => (
                 <button
                   key={level}
+                  onClick={() => setSelectedLevel(level)}
                   className={`px-4 py-2 border-2 rounded font-bold m-1 transition ${
-                    level === 'A1'
+                    selectedLevel === level
                       ? "bg-green-600 text-white border-green-600"
                       : "bg-white text-green-600 border-green-600 hover:bg-green-600 hover:text-white"
                   }`}
