@@ -350,7 +350,8 @@ const processTtsRequest = async (req, res) => {
             logRequestStep(requestId, 'tts:error', { error: `Failed to synthesize speech with ${ttsProvider}.` });
             return res.status(500).json({ success: false, message: `Failed to generate audio with ${ttsProvider === 'google' ? 'Google TTS' : 'Unsupported TTS provider'}.` });
         }
-        logger.info(`[${requestId}] Speech synthesized successfully with ${ttsProvider}.`);
+        logger.info(`[${requestId}] Audio processing completed successfully. Audio buffer length: ${audioBase64.length} characters`);
+        logger.debug(`[${requestId}] Audio base64 preview: ${audioBase64.slice(0, 80)}...`);
         logStep({
             requestId,
             stepName: 'tts:googleTTS:end',
