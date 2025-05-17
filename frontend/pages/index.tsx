@@ -29,9 +29,9 @@ export default function HomePage() {
             <a href="#features" className="hover:text-[#333] transition-colors">Özellikler</a>
             <a href="#pricing" className="hover:text-[#333] transition-colors">Fiyatlandırma</a>
             <Link href="/login" className="hover:text-[#333] transition-colors">Giriş Yap</Link>
+            <Link href="/register" className="hover:text-[#333] transition-colors">Kayıt Ol</Link>
           </nav>
-          <Link href="/register" className="ml-10 px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded transition-all text-lg" style={{ minWidth: 110, textAlign: 'center' }}>Kayıt Ol</Link>
-        </div>
+            </div>
       </header>
 
       {/* Hero Section */}
