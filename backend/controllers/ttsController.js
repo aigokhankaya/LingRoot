@@ -7,7 +7,7 @@ const logger = require("../utils/logger"); // Import Winston logger
 const { extractTextFromInput, generateTopicText, generateEnglishNarrationForTopic, translateToEnglishWithOpenAI } = require("../utils/inputExtractor");
 const { cleanText, chunkText, chunkTextByCharLimit } = require("../utils/textProcessor");
 const { adaptToCEFR: adaptToCEFRFunc } = require("../utils/cefrAdapter");
-const { synthesizeWithPolly, listPollyVoices } = require("../utils/amazonPolly");
+// const { synthesizeWithPolly, listPollyVoices } = require("../utils/amazonPolly");
 const { synthesizeWithGoogle, listGoogleVoices } = require("../utils/googleTTS");
 const { mergeAudioSegments } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
@@ -239,31 +239,32 @@ const processTtsRequest = async (req, res) => {
         let finalChunks = [];
         for (let i = 0; i < preTtsChunks.length; i++) {
             // Polly için güvenli sınır: 1000 karakter
-            let pollyChunks = chunkTextByCharLimit(preTtsChunks[i], 1000);
-            pollyChunks = pollyChunks.map((chunk, i) => {
-                if (chunk.length > 1000) {
-                    logger.warn(`[Polly chunk] [${i}] length exceeds safe limit: ${chunk.length}, truncating to 1000.`);
-                    return chunk.substring(0, 1000);
-                }
-                return chunk;
-            });
-            pollyChunks.forEach((chunk, i) => {
-                logger.info(`[Polly chunk] [${i}] length: ${chunk.length}`);
-            });
-            finalChunks = finalChunks.concat(pollyChunks);
+            // let pollyChunks = chunkTextByCharLimit(preTtsChunks[i], 1000);
+            // pollyChunks = pollyChunks.map((chunk, i) => {
+            //     if (chunk.length > 1000) {
+            //         logger.warn(`[Polly chunk] [${i}] length exceeds safe limit: ${chunk.length}, truncating to 1000.`);
+            //         return chunk.substring(0, 1000);
+            //     }
+            //     return chunk;
+            // });
+            // pollyChunks.forEach((chunk, i) => {
+            //     logger.info(`[Polly chunk] [${i}] length: ${chunk.length}`);
+            // });
+            // finalChunks = finalChunks.concat(pollyChunks);
+            // Polly'ye gönderme işlemi burada finalChunks ile devam edecek
         }
         // Polly'ye gönderme işlemi burada finalChunks ile devam edecek
         const selectedVoice = req.body.voice || 'Joanna';
         const adaptedText = finalChunks.join('\n\n');
         logRequestStep(requestId, 'tts:start', { chunkCount: finalChunks.length, voice: selectedVoice, speakingRate });
         // --- TTS provider seçimi ---
-        const ttsProvider = await getTtsProvider();
+        const ttsProvider = 'google'; // Sadece Google TTS aktif
         let audioBase64;
         if (ttsProvider === 'google') {
             audioBase64 = await synthesizeWithGoogle({ text: adaptedText, voiceName: selectedVoice, languageCode: 'en-US' });
-        } else {
-            audioBase64 = await synthesizeWithPolly({ text: adaptedText, voiceId: selectedVoice, languageCode: 'en-US' });
-        }
+        } // else {
+        //     audioBase64 = await synthesizeWithPolly({ text: adaptedText, voiceId: selectedVoice, languageCode: 'en-US' });
+        // }
         if (!audioBase64) {
             logger.error(`[${requestId}] Failed to synthesize speech with ${ttsProvider}.`);
             logRequestStep(requestId, 'tts:error', { error: `Failed to synthesize speech with ${ttsProvider}.` });

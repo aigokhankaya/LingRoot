@@ -1,16 +1,19 @@
-const textToSpeech = require('@google-cloud/text-to-speech');
-const logger = require('./logger');
+const fs = require('fs');
+const { google } = require('@google-cloud/text-to-speech');
+const logger = require('../config/logger');
+const { chunkText } = require('./textProcessor');
 
-// Google TTS client (GOOGLE_APPLICATION_CREDENTIALS env ile çalışır)
-const googleClient = new textToSpeech.TextToSpeechClient();
+const googleClient = new google.TextToSpeechClient({
+    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS || './backend/google-credentials.json',
+});
 
 /**
- * Google TTS ile ses sentezle
+ * Google TTS ile tek bir metni sese çevirir
  * @param {Object} params
  * @param {string} params.text
- * @param {string} params.voiceName - Google voice name (ör: 'en-US-Wavenet-D')
- * @param {string} params.languageCode - (ör: 'en-US')
- * @returns {Promise<string|null>} Base64-encoded MP3 audio
+ * @param {string} params.voiceName
+ * @param {string} params.languageCode
+ * @returns {Promise<string|null>} Base64 MP3
  */
 async function synthesizeWithGoogle({ text, voiceName, languageCode }) {
     try {
@@ -30,6 +33,36 @@ async function synthesizeWithGoogle({ text, voiceName, languageCode }) {
         logger.error('Google TTS error:', { message: error.message, stack: error.stack });
         return null;
     }
+}
+
+/**
+ * Uzun metni Google TTS ile parçalara bölerek sese çevirir
+ * @param {Object} params
+ * @param {string} params.text
+ * @param {string} params.voiceName
+ * @param {string} params.languageCode
+ * @param {number} [params.maxBytes] - Default 4500
+ * @returns {Promise<string|null>} Base64 birleşik MP3
+ */
+async function synthesizeLongTextWithGoogle({ text, voiceName, languageCode, maxBytes = 4500 }) {
+    const chunks = chunkText(text, maxBytes);
+    logger.debug(`🧩 [Google TTS] Chunk count: ${chunks.length}`);
+
+    const audioBuffers = [];
+
+    for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        logger.debug(`▶️ [Chunk ${i + 1}/${chunks.length}] Sending to Google TTS...`);
+        const base64Audio = await synthesizeWithGoogle({ text: chunk, voiceName, languageCode });
+        if (!base64Audio) {
+            logger.error(`❌ [Chunk ${i + 1}] Google TTS failed.`);
+            return null;
+        }
+        audioBuffers.push(Buffer.from(base64Audio, 'base64'));
+    }
+
+    const mergedAudio = Buffer.concat(audioBuffers);
+    return mergedAudio.toString('base64');
 }
 
 /**
@@ -53,4 +86,8 @@ async function listGoogleVoices(languageCode) {
     }
 }
 
-module.exports = { synthesizeWithGoogle, listGoogleVoices }; 
+module.exports = {
+    synthesizeWithGoogle,
+    synthesizeLongTextWithGoogle,
+    listGoogleVoices,
+}; 
