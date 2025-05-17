@@ -5,9 +5,8 @@ const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../utils/logger"); // Import Winston logger
 const { extractTextFromInput, generateTopicText, generateEnglishNarrationForTopic, translateToEnglishWithOpenAI } = require("../utils/inputExtractor");
-const { cleanText, chunkText, chunkTextByCharLimit } = require("../utils/textProcessor");
+const { cleanText, chunkText, chunkTextByCharLimit, preChunkTextByByteLimit } = require("../utils/textProcessor");
 const { adaptToCEFR: adaptToCEFRFunc } = require("../utils/cefrAdapter");
-const { synthesizeWithPolly, listPollyVoices } = require("../utils/amazonPolly");
 const { synthesizeWithGoogle, listGoogleVoices } = require("../utils/googleTTS");
 const { mergeAudioSegments } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
@@ -32,15 +31,41 @@ const cleanupTempFile = (filePath) => {
     }
 };
 
-// Yardımcı: tts_provider'ı settings tablosundan oku (default: amazon)
+// Yardımcı: tts_provider'ı settings tablosundan oku (default: google)
 async function getTtsProvider() {
   const { data, error } = await supabase
     .from('settings')
     .select('value')
     .eq('key', 'tts_provider')
     .single();
-  if (error || !data) return 'amazon';
+  if (error || !data) return 'google';
   return data.value;
+}
+
+function enforceTTSByteLimit(text, maxBytes = 4500) {
+  if (Buffer.byteLength(text, "utf-8") <= maxBytes) return [text];
+
+  const safeParts = [];
+  let current = "";
+  let currentBytes = 0;
+  const words = text.split(/\s+/);
+
+  for (const word of words) {
+    const wordBytes = Buffer.byteLength(word, "utf-8");
+    const spaceBytes = current ? 1 : 0;
+
+    if (currentBytes + wordBytes + spaceBytes > maxBytes) {
+      safeParts.push(current.trim());
+      current = word;
+      currentBytes = wordBytes;
+    } else {
+      current += (current ? " " : "") + word;
+      currentBytes += wordBytes + spaceBytes;
+    }
+  }
+
+  if (current) safeParts.push(current.trim());
+  return safeParts;
 }
 
 /**
@@ -210,8 +235,9 @@ const processTtsRequest = async (req, res) => {
             return res.status(400).json({ success: false, message: "No text to chunk after translation." });
         }
         console.log("[DEBUG] chunkText input (preTTS):", textToAdapt);
-        const preTtsChunks = chunkText(textToAdapt);
-        logRequestStep(requestId, 'chunkText:preTTS:start', { textToAdapt, chunkCount: preTtsChunks.length });
+        const preChunks = preChunkTextByByteLimit(textToAdapt, 4500);
+        const initialChunks = preChunks.flatMap(part => chunkText(part, 4500));
+        logRequestStep(requestId, 'chunkText:preTTS:start', { textToAdapt, chunkCount: initialChunks.length });
         logStep({
             requestId,
             stepName: 'tts:chunkText:preTTS:start',
@@ -219,21 +245,21 @@ const processTtsRequest = async (req, res) => {
             serviceName: 'LocalFunction',
             endpoint: 'chunkText',
             inputData: { textToAdapt },
-            outputData: { chunkCount: preTtsChunks.length }
+            outputData: { chunkCount: initialChunks.length }
         });
-        if (!preTtsChunks || preTtsChunks.length === 0) {
+        if (!initialChunks || initialChunks.length === 0) {
             logger.warn(`[${requestId}] Text resulted in zero chunks after translate.`);
             logRequestStep(requestId, 'chunkText:preTTS:error', { error: 'No chunks generated.' });
             return res.status(400).json({ success: false, message: "Processed text resulted in no content for audio generation." });
         }
-        logRequestStep(requestId, 'chunkText:preTTS:end', { chunkCount: preTtsChunks.length });
+        logRequestStep(requestId, 'chunkText:preTTS:end', { chunkCount: initialChunks.length });
         logStep({
             requestId,
             stepName: 'tts:chunkText:preTTS:end',
             stepSequence: stepSequence++,
             serviceName: 'LocalFunction',
             endpoint: 'chunkText',
-            outputData: { chunkCount: preTtsChunks.length }
+            outputData: { chunkCount: initialChunks.length }
         });
 
         // --- Step 4: (Opsiyonel) CEFR adaptasyonu burada yapılacaksa, her preTtsChunk için yapılabilir ---
@@ -241,9 +267,9 @@ const processTtsRequest = async (req, res) => {
 
         // --- Step 5: Her chunk için tekrar chunkText (TTS öncesi) ---
         let finalChunks = [];
-        for (let i = 0; i < preTtsChunks.length; i++) {
+        for (let i = 0; i < initialChunks.length; i++) {
             // Polly için güvenli sınır: 1000 karakter
-            let pollyChunks = chunkTextByCharLimit(preTtsChunks[i], 1000);
+            let pollyChunks = chunkTextByCharLimit(initialChunks[i], 1000);
             pollyChunks = pollyChunks.map((chunk, i) => {
                 if (chunk.length > 1000) {
                     logger.warn(`[Polly chunk] [${i}] length exceeds safe limit: ${chunk.length}, truncating to 1000.`);
@@ -257,29 +283,51 @@ const processTtsRequest = async (req, res) => {
             finalChunks = finalChunks.concat(pollyChunks);
         }
         // Polly'ye gönderme işlemi burada finalChunks ile devam edecek
-        const selectedVoice = req.body.voice || 'Joanna';
+        const selectedVoice = req.body.voice || 'en-US-Wavenet-D';
+        const languageCode = 'en-US';
         const adaptedText = finalChunks.join('\n\n');
         logRequestStep(requestId, 'tts:start', { chunkCount: finalChunks.length, voice: selectedVoice, speakingRate });
         // --- TTS provider seçimi ---
         const ttsProvider = await getTtsProvider();
         let audioBase64;
         if (ttsProvider === 'google') {
-            audioBase64 = await synthesizeWithGoogle({ text: adaptedText, voiceName: selectedVoice, languageCode: 'en-US' });
+            const audioBuffers = [];
+            for (const [i, chunk] of finalChunks.entries()) {
+                const safeSubChunks = enforceTTSByteLimit(chunk, 4500);
+
+                for (const [j, part] of safeSubChunks.entries()) {
+                    const bytes = Buffer.byteLength(part, "utf-8");
+                    logger.info(`🟢 TTS-safe chunk [${i + 1}.${j + 1}] - ${bytes} bytes`);
+                    const buffer = await synthesizeWithGoogle({
+                        text: part,
+                        voiceName: selectedVoice,
+                        languageCode: languageCode,
+                        speakingRate: speakingRate
+                    });
+                    if (buffer) {
+                        audioBuffers.push(buffer);
+                    } else {
+                        logger.error(`🔴 Failed to synthesize chunk [${i + 1}.${j + 1}]`);
+                    }
+                }
+            }
+            audioBase64 = Buffer.concat(audioBuffers).toString('base64');
         } else {
-            audioBase64 = await synthesizeWithPolly({ text: adaptedText, voiceId: selectedVoice, languageCode: 'en-US' });
+            logger.error(`[${requestId}] Unsupported TTS provider: ${ttsProvider}`);
+            return res.status(500).json({ success: false, message: `Unsupported TTS provider: ${ttsProvider}` });
         }
         if (!audioBase64) {
             logger.error(`[${requestId}] Failed to synthesize speech with ${ttsProvider}.`);
             logRequestStep(requestId, 'tts:error', { error: `Failed to synthesize speech with ${ttsProvider}.` });
-            return res.status(500).json({ success: false, message: `Failed to generate audio with ${ttsProvider === 'google' ? 'Google TTS' : 'Amazon Polly'}.` });
+            return res.status(500).json({ success: false, message: `Failed to generate audio with ${ttsProvider === 'google' ? 'Google TTS' : 'Unsupported TTS provider'}.` });
         }
         logger.info(`[${requestId}] Speech synthesized successfully with ${ttsProvider}.`);
         logStep({
             requestId,
-            stepName: 'tts:amazonPolly:end',
+            stepName: 'tts:googleTTS:end',
             stepSequence: stepSequence++,
-            serviceName: 'AmazonPolly',
-            endpoint: 'https://polly.us-east-1.amazonaws.com/v1/speech',
+            serviceName: 'GoogleTTS',
+            endpoint: 'https://texttospeech.googleapis.com/v1/text:synthesize',
             outputData: { audioLength: audioBase64.length }
         });
         logRequestStep(requestId, 'tts:end', { audioLength: audioBase64.length });
@@ -420,7 +468,12 @@ const synthesizeChunkAPI = async (req, res) => {
   const requestId = uuidv4();
   try {
     logStep({ requestId, stepName: 'tts:synthesizeChunk', inputData: { text, voice, rate } });
-    const result = await synthesizeWithPolly({ text: text, voiceId: voice || "Joanna", languageCode: "en-US" });
+    const result = await synthesizeWithGoogle({
+        text: text,
+        voiceName: voice || "Joanna",
+        languageCode: "en-US",
+        speakingRate: rate || 1.0
+    });
     logStep({ requestId, stepName: 'tts:synthesizeChunk:end', outputData: result });
     res.json(result);
   } catch (e) {
@@ -458,8 +511,8 @@ const listVoices = async (req, res) => {
     ];
     return res.json({ provider: 'google', voices: googleVoices });
   } else {
-    const voices = await listPollyVoices();
-    return res.json({ provider: 'amazon', voices });
+    logger.error(`[${requestId}] Unsupported TTS provider: ${ttsProvider}`);
+    return res.status(500).json({ success: false, message: `Unsupported TTS provider: ${ttsProvider}` });
   }
 };
 

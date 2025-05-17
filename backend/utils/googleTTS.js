@@ -10,18 +10,31 @@ const googleClient = new textToSpeech.TextToSpeechClient();
  * @param {string} params.text
  * @param {string} params.voiceName - Google voice name (ör: 'en-US-Wavenet-D')
  * @param {string} params.languageCode - (ör: 'en-US')
+ * @param {number} params.speakingRate - (ör: 1.0)
  * @returns {Promise<string|null>} Base64-encoded MP3 audio
  */
-async function synthesizeWithGoogle({ text, voiceName, languageCode }) {
+async function synthesizeWithGoogle({ text, voiceName, languageCode, speakingRate = 1.0 }) {
     try {
+        // 🛡️ Boş değer kontrolü
+        if (!voiceName || !languageCode) {
+            throw new Error("Voice name and language code must be provided.");
+        }
+
         const request = {
             input: { text },
-            voice: { languageCode, name: voiceName },
-            audioConfig: { audioEncoding: 'MP3' },
+            voice: {
+                languageCode,
+                name: voiceName
+            },
+            audioConfig: {
+                audioEncoding: 'MP3',
+                speakingRate: speakingRate
+            },
         };
+
         const [response] = await googleClient.synthesizeSpeech(request);
         if (response.audioContent) {
-            return Buffer.from(response.audioContent).toString('base64');
+            return response.audioContent;
         } else {
             logger.error('Google TTS response did not contain audioContent.');
             return null;
