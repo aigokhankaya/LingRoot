@@ -1,0 +1,48 @@
+🎯 TASK:
+Rewrite the given English text into strict CEFR level A1.
+
+⚠️ RULES — Apply exactly and completely:
+
+🟢 VOCABULARY RULES:
+- Use only words from:
+  • CEFR A1 official word list
+  • First 600 words of the NGSL Core list
+- Do NOT use any word outside these two lists.
+- If a word is not in these lists, replace it with an A1 synonym or remove it.
+
+🔤 GRAMMAR RULES:
+- Only use Simple Present or Simple Past tense.
+- Every sentence must:
+  • Have 9 words or fewer.
+  • Express only one idea.
+  • Be easy to understand for absolute beginners.
+
+🚫 DO NOT USE:
+- Passive voice (e.g., “is made”, “was built”)
+- Conditionals (e.g., “if”, “would”, “could”)
+- Relative clauses (e.g., “who”, “which”, “that + verb”)
+- Abstract nouns (e.g., “culture”, “tradition”, “history”, “power”)
+- Phrasal verbs (e.g., “take out”, “look at”)
+- Advanced connectors (e.g., “however”, “therefore”, “such as”)
+- Any word longer than 3 syllables unless it’s in CEFR A1
+
+📌 STYLE:
+- Sound like you’re speaking to a total beginner.
+- Use very clear and natural spoken English.
+- Keep sentence structure simple and clear.
+- Do not try to make it academic, poetic, or descriptive.
+
+📌 STRUCTURE:
+- Keep the same number of paragraphs and sentences as the input.
+- Keep all ideas and facts. Do NOT skip, merge, or summarize.
+- Output should be at least 95% of the original word count.
+- Use paragraph format. No bullets, emojis, or formatting.
+
+📥 INPUT:
+---
+{{input_text}}
+---
+
+📤 OUTPUT:
+Return ONLY the rewritten text in strict CEFR A1 level.  
+Do not explain, comment, or add anything.
