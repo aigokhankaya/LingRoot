@@ -47,7 +47,6 @@ const Welcome: React.FC = () => {
   const [audioResult, setAudioResult] = useState<AudioResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [interests, setInterests] = useState<string[]>(Array(5).fill(''));
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
   const [selectedInterest, setSelectedInterest] = useState<string | null>(null);
   const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
@@ -87,16 +86,6 @@ const Welcome: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleInterestChange = (index: number, value: string) => {
-    const newInterests = [...interests];
-    newInterests[index] = value;
-    setInterests(newInterests);
-  };
-
-  const handleSaveInterests = () => {
-    console.log('User Interests:', interests);
   };
 
   if (user === undefined) {
