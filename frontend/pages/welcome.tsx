@@ -47,6 +47,12 @@ const Welcome: React.FC = () => {
   const [audioResult, setAudioResult] = useState<AudioResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [interests, setInterests] = useState<string[]>(Array(5).fill(''));
+  const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
+  const [selectedInterest, setSelectedInterest] = useState<string | null>(null);
+  const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [userInterests, setUserInterests] = useState<string[]>([]);
 
   const handleSubmit = async (inputData: InputData) => {
     setIsLoading(true);
@@ -81,6 +87,16 @@ const Welcome: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleInterestChange = (index: number, value: string) => {
+    const newInterests = [...interests];
+    newInterests[index] = value;
+    setInterests(newInterests);
+  };
+
+  const handleSaveInterests = () => {
+    console.log('User Interests:', interests);
   };
 
   if (user === undefined) {
@@ -123,7 +139,7 @@ const Welcome: React.FC = () => {
           <div className="relative">
             <button
               className="flex items-center space-x-2 focus:outline-none"
-              onClick={() => setProfileMenuOpen((v) => !v)}
+              onClick={() => setProfileMenuOpen((v: boolean) => !v)}
             >
               <img src={avatar} alt={displayName} className="h-9 w-9 rounded-full border-2 border-blue-200 object-cover" />
               <span className="font-medium text-gray-700">{displayName}</span>
@@ -183,6 +199,58 @@ const Welcome: React.FC = () => {
       </main>
 
       <Footer />
+
+      {showSuggestionsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-xl">
+            <h2 className="text-xl font-bold mb-4">İlgi Alanı Seç</h2>
+
+            <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 text-blue-700 text-center">
+              <select
+                onChange={(e) => setSelectedInterest(e.target.value)}
+                className="w-full border px-3 py-2 rounded mb-4"
+                value={selectedInterest || ''}
+              >
+                <option value="" disabled>Bir ilgi alanı seçin...</option>
+                {userInterests.map((interest: string) => (
+                  <option key={interest} value={interest}>{interest}</option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={async () => {
+                if (!selectedInterest) return;
+                setIsSuggestionsLoading(true);
+                const res = await fetch("/api/generate-suggestions", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ interest: selectedInterest }),
+                });
+                const data = await res.json();
+                setSuggestions(data);
+                setIsSuggestionsLoading(false);
+              }}
+              className="btn-primary w-full mb-4"
+            >
+              Önerileri Getir
+            </button>
+
+            {isSuggestionsLoading && <p>Yükleniyor...</p>}
+
+            {suggestions.map((s, idx) => (
+              <div key={idx} className="border rounded p-3 mb-2 bg-gray-50">
+                <h3 className="font-semibold text-blue-700">{s.title}</h3>
+                <p className="text-sm text-gray-600">{s.summary}</p>
+              </div>
+            ))}
+
+            <button className="mt-4 text-sm text-gray-500 hover:underline" onClick={() => setShowSuggestionsModal(false)}>
+              Kapat
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
