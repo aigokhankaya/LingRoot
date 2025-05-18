@@ -72,8 +72,6 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [selectedChapterIdx, setSelectedChapterIdx] = useState<number | null>(null);
   const [bookLoading, setBookLoading] = useState<boolean>(false);
   const [ttsProvider, setTtsProvider] = useState<'amazon' | 'google'>('google');
-  const [selectedInterest, setSelectedInterest] = useState<string | null>(null);
-  const [userInterests, setUserInterests] = useState<string[]>([]);
 
   useEffect(() => {
     setSpeakingRate(level === 'A1' ? 0.8 : 1.0);
@@ -529,16 +527,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
 
             {inputType === 'suggestion' && (
               <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 text-blue-700 text-center">
-                <select
-                  onChange={(e) => setSelectedInterest(e.target.value)}
-                  className="w-full border px-3 py-2 rounded mb-4"
-                  value={selectedInterest || ''}
-                >
-                  <option value="" disabled>Bir ilgi alanı seçin...</option>
-                  {userInterests.map((interest: string) => (
-                    <option key={interest} value={interest}>{interest}</option>
-                  ))}
-                </select>
+                Yakında ilginç konu önerileri burada görünecek.
               </div>
             )}
             {inputType === 'hashtag' && (
