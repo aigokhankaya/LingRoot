@@ -47,6 +47,11 @@ const Welcome: React.FC = () => {
   const [audioResult, setAudioResult] = useState<AudioResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
+  const [userInterests, setUserInterests] = useState<string[]>([]);
+  const [selectedInterest, setSelectedInterest] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<{ title: string; summary: string; }[]>([]);
+  const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
 
   const handleSubmit = async (inputData: InputData) => {
     setIsLoading(true);
@@ -82,6 +87,15 @@ const Welcome: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const fetchInterests = async () => {
+      const res = await fetch("/api/user/interests");
+      const data = await res.json();
+      setUserInterests(data);
+    };
+    fetchInterests();
+  }, []);
 
   if (user === undefined) {
     return (
@@ -179,8 +193,65 @@ const Welcome: React.FC = () => {
               isLoggedIn={isAuthenticated}
             />
           </div>
+
+          <button
+            className="border px-4 py-2 rounded-lg text-blue-600 border-blue-300 hover:bg-blue-50"
+            onClick={() => setShowSuggestionsModal(true)}
+          >
+            + Öneriler
+          </button>
         </div>
       </main>
+
+      {showSuggestionsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-xl">
+            <h2 className="text-xl font-bold mb-4">İlgi Alanı Seç</h2>
+
+            <select
+              onChange={(e) => setSelectedInterest(e.target.value)}
+              className="w-full border px-3 py-2 rounded mb-4"
+              value={selectedInterest || ''}
+            >
+              <option value="" disabled>Bir ilgi alanı seçin...</option>
+              {userInterests.map((interest) => (
+                <option key={interest} value={interest}>{interest}</option>
+              ))}
+            </select>
+
+            <button
+              onClick={async () => {
+                if (!selectedInterest) return;
+                setIsSuggestionsLoading(true);
+                const res = await fetch("/api/generate-suggestions", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ interest: selectedInterest }),
+                });
+                const data = await res.json();
+                setSuggestions(data);
+                setIsSuggestionsLoading(false);
+              }}
+              className="btn-primary w-full mb-4"
+            >
+              Önerileri Getir
+            </button>
+
+            {isSuggestionsLoading && <p>Yükleniyor...</p>}
+
+            {suggestions.map((s, idx) => (
+              <div key={idx} className="border rounded p-3 mb-2 bg-gray-50">
+                <h3 className="font-semibold text-blue-700">{s.title}</h3>
+                <p className="text-sm text-gray-600">{s.summary}</p>
+              </div>
+            ))}
+
+            <button className="mt-4 text-sm text-gray-500 hover:underline" onClick={() => setShowSuggestionsModal(false)}>
+              Kapat
+            </button>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
