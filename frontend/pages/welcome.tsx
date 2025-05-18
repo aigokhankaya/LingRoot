@@ -223,10 +223,15 @@ const Welcome: React.FC = () => {
               onClick={async () => {
                 if (!selectedInterest) return;
                 setIsSuggestionsLoading(true);
-                const res = await fetch("/api/generate-suggestions", {
+                const res = await fetch("https://your-backend-url.com/suggestions", {
                   method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ interest: selectedInterest }),
+                  headers: {
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify({
+                    user_id: user.id,
+                    interest_keyword: selectedInterest
+                  })
                 });
                 const data = await res.json();
                 setSuggestions(data);
