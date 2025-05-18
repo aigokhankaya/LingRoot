@@ -527,7 +527,12 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
 
             {inputType === 'suggestion' && (
               <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 text-blue-700 text-center">
-                Yakında ilginç konu önerileri burada görünecek.
+                <select className="input-field focus:ring-blue-500 focus:border-blue-500">
+                  <option value="">Konu Seçin</option>
+                  <option value="konu1">Konu 1</option>
+                  <option value="konu2">Konu 2</option>
+                  <option value="konu3">Konu 3</option>
+                </select>
               </div>
             )}
             {inputType === 'hashtag' && (
