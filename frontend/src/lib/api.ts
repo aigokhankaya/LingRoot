@@ -251,3 +251,30 @@ export const getContentHistory = async (): Promise<ApiResponse> => {
     }
 };
 
+// Detaylı konu önerileri için API isteği gönderen fonksiyon
+export const getTopicDetailSuggestions = async (topic: string, level: string): Promise<any> => {
+  const apiUrl = `${API_BASE_URL}/api/topic-detail/suggestions`;
+  
+  try {
+    const token = getToken();
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: JSON.stringify({ topic, level })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Detaylı konu önerileri alınamadı');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Konu önerileri alınırken hata oluştu:', error);
+    throw error;
+  }
+};
+

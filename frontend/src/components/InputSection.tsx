@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useTranslation } from '@/lib/i18n';
-import { ProcessInputData, getToken, API_BASE_URL } from '../lib/api';
+import { ProcessInputData, getToken, API_BASE_URL, getTopicDetailSuggestions } from '../lib/api';
 import { searchBooks, fetchBookContent } from '../services/bookService';
 
 type InputType = ProcessInputData['type'] | 'suggestion' | 'hashtag';
@@ -51,7 +51,7 @@ function splitBookIntoChapters(bookText: string) {
 
 export default function InputSection({ onSubmit, isLoading }: InputSectionProps): React.ReactElement {
   const { t } = useTranslation();
-  const [inputType, setInputType] = useState<InputType>('text');
+  const [inputType, setInputType] = useState<InputType>('suggestion'); // Başlangıçta öneri seçili olsun
   const [text, setText] = useState<string>('');
   const [topic, setTopic] = useState<string>('');
   const [youtubeLink, setYoutubeLink] = useState<string>('');
@@ -73,6 +73,9 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [bookLoading, setBookLoading] = useState<boolean>(false);
   const [ttsProvider, setTtsProvider] = useState<'amazon' | 'google'>('google');
   const [interests, setInterests] = useState<string[]>([]);
+  const [isLoadingTopicSuggestions, setIsLoadingTopicSuggestions] = useState<boolean>(false);
+  const [topicDetailSuggestions, setTopicDetailSuggestions] = useState<string[]>([]);
+  const [selectedDetailTopic, setSelectedDetailTopic] = useState<string>('');
 
   useEffect(() => {
     setSpeakingRate(level === 'A1' ? 0.8 : 1.0);
@@ -228,6 +231,38 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
 
     fetchInterests();
   }, []);
+
+  // Konu önerisi butonu için click handler ekleyelim
+  const handleGetTopicSuggestions = async () => {
+    if (!topic) {
+      alert("Lütfen önce bir konu seçin");
+      return;
+    }
+    
+    setIsLoadingTopicSuggestions(true);
+    try {
+      const response = await getTopicDetailSuggestions(topic, level);
+      if (response.success && response.data.suggestions) {
+        setTopicDetailSuggestions(response.data.suggestions);
+        console.log(`${topic} konusu için ${response.data.suggestions.length} öneri alındı`);
+      } else {
+        console.error("Konu önerileri alınamadı:", response);
+        alert("Konu önerileri alınamadı: " + (response.message || "Bilinmeyen hata"));
+      }
+    } catch (error: any) {
+      console.error("Konu önerileri alınırken hata oluştu:", error);
+      const errorMessage = error.message || "Bilinmeyen bir hata oluştu";
+      alert(`Konu önerileri alınamadı: ${errorMessage}`);
+    } finally {
+      setIsLoadingTopicSuggestions(false);
+    }
+  };
+
+  // Detaylı konu seçildiğinde çalışacak handler
+  const handleDetailTopicSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedDetailTopic(e.target.value);
+    setText(e.target.value); // Seçilen detaylı konuyu metin alanına yaz
+  };
 
   // Form submit fonksiyonu
   const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
@@ -394,12 +429,16 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               <button
                 type="button"
                 onClick={() => setInputType('suggestion')}
-                className={`icon-button group ${inputType === 'suggestion' ? 'icon-button-selected' : 'icon-button-default'}`}
+                className={`icon-button group ${inputType === 'suggestion' ? 'icon-button-selected' : 'icon-button-default'} relative animated-pulse bg-blue-50`}
+                style={{ animation: inputType !== 'suggestion' ? 'pulse 2s infinite' : 'none' }}
               >
+                <div className={inputType !== 'suggestion' ? 'absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce' : 'hidden'}>
+                  !
+                </div>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                <span>Öneriler</span>
+                <span className="font-bold">Öneriler</span>
               </button>
 
               <button
@@ -434,19 +473,19 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
             )}
 
             {inputType === 'topic' && (
-              <div className="space-y-2">
-                <label htmlFor="topic-input" className="block text-sm font-semibold text-gray-700">
-                  {t('enter_topic')}
-                </label>
-                <input
-                  id="topic-input"
-                  type="text"
-                  value={topic}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setTopic(e.target.value)}
-                  className="input-field focus:ring-blue-500 focus:border-blue-500"
-                  placeholder={t('enter_topic_placeholder')}
-                  required
-                />
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Enter topic
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter a topic"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                  />
+                </div>
               </div>
             )}
 
@@ -613,13 +652,63 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
             )}
 
             {inputType === 'suggestion' && (
-              <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 text-blue-700 text-center">
-                <select className="input-field focus:ring-blue-500 focus:border-blue-500" name="interest">
-                  <option>Bir ilgi alanı seçin...</option>
-                  {interests.map((interest) => (
-                    <option key={interest} value={interest}>{interest}</option>
-                  ))}
-                </select>
+              <div className="space-y-4">
+                <div className="flex flex-row gap-2 items-center">
+                  <div className="w-3/4">
+                    <select
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={topic}
+                      onChange={(e) => setTopic(e.target.value)}
+                    >
+                      <option value="" disabled>Konu Seçin</option>
+                      {interests.map((interest, index) => (
+                        <option key={index} value={interest}>{interest}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-1/4">
+                    <button
+                      type="button"
+                      className="w-full p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:outline-none shadow-lg font-bold"
+                      onClick={handleGetTopicSuggestions}
+                      disabled={isLoadingTopicSuggestions || !topic}
+                      style={{ animation: 'pulse 1.5s infinite' }}
+                    >
+                      {isLoadingTopicSuggestions ? 'Yükleniyor...' : '✨ Konu Öner ✨'}
+                    </button>
+                  </div>
+                </div>
+                
+                {topicDetailSuggestions.length > 0 && (
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Detaylı Öneriler
+                    </label>
+                    <select
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={selectedDetailTopic}
+                      onChange={handleDetailTopicSelect}
+                    >
+                      <option value="" disabled>Öneri Seçin</option>
+                      {topicDetailSuggestions.map((suggestion, index) => (
+                        <option key={index} value={suggestion}>{suggestion}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('topic_instructions')}
+                  </label>
+                  <textarea
+                    rows={6}
+                    placeholder={t('topic_placeholder')}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                  />
+                </div>
               </div>
             )}
             {inputType === 'hashtag' && (
