@@ -78,17 +78,26 @@ export default function OutputSection({ audioResult, isLoggedIn, contentHistory:
   
   console.log("audioResult:", audioResult);
   
-  // Convert Google Drive URL to playable format
+  // Convert URL to playable format
   const convertToPlayableUrl = (url: string): string => {
     if (!url) return '';
     
     try {
-      const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]{25,})/);
-      if (match && match[1]) {
-        return `https://docs.google.com/uc?export=download&id=${match[1]}`;
+      // Google Drive URL kontrolü
+      const gdrive = url.match(/\/file\/d\/([a-zA-Z0-9_-]{25,})/);
+      if (gdrive && gdrive[1]) {
+        return `https://docs.google.com/uc?export=download&id=${gdrive[1]}`;
       }
+      
+      // Lokal dosya yollarını direkt kullan
+      // Windows'ta dosya yolları formatını düzelt
+      if (url.includes(':\\') || url.startsWith('/tmp/') || url.includes('\\Users\\')) {
+        return url;
+      }
+      
       return url;
     } catch {
+      console.error("URL dönüştürme hatası:", url);
       return url;
     }
   };

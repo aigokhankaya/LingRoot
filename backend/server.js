@@ -8,7 +8,7 @@ require("dotenv").config();
 const logger = require("./utils/logger"); // Winston logger
 const { errorHandler, notFound } = require("./middleware/errorHandler");
 const { configureSecurity } = require("./middleware/security");
-const requestIdMiddleware = require('./middleware/requestId');
+const requestIdMiddleware = require("./middleware/requestId");
 
 // Import database connection
 // const { sequelize } = require("./models"); // Removed Sequelize
@@ -20,7 +20,8 @@ const subscriptionRoutes = require("./routes/subscriptionRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const ttsRoutes = require("./routes/ttsRoutes");
 const topicSuggestRoutes = require("./routes/topicSuggestRoutes");
-const booksRouter = require('./routes/books');
+const booksRouter = require("./routes/books");
+const userRoutes = require("./routes/userRoutes"); // 👈 İlgi alanları burada bağlandı
 
 // Initialize Express app
 const app = express();
@@ -28,25 +29,38 @@ const app = express();
 // Configure security middleware
 configureSecurity(app);
 
-// CORS middleware
+// Request ID middleware
 app.use(requestIdMiddleware);
+
+// CORS middleware
 const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'https://lingroot.com',
-  'https://www.lingroot.com'
+  "http://localhost:3000",
+  "http://localhost:3001", 
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:3001",
+  "https://lingroot.com",
+  "https://www.lingroot.com",
+  // Tüm alt domainler
+  /^https:\/\/.*\.lingroot\.com$/
 ];
-app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      logger.warn(`CORS blocked for origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
+
+// CORS Yapılandırması - Geliştirme sırasında daha esnek
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Geliştirme için daha esnek CORS, ancak üretimde dikkatli olun
+      if (!origin || allowedOrigins.indexOf(origin) !== -1 || (process.env.NODE_ENV === 'development' && origin && origin.startsWith('http://localhost'))) {
+        callback(null, true);
+      } else {
+        logger.warn(`CORS blocked for origin: ${origin}`);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-Request-ID']
+  })
+);
 
 // Stripe webhook special middleware
 app.use("/subscription/webhook", express.raw({ type: "application/json" }));
@@ -72,16 +86,17 @@ if (!fs.existsSync(uploadDir)) {
 // Mount routes
 app.use("/api/auth", authRoutes);
 app.use("/api/content", contentRoutes);
-app.use(contentRoutes);
+app.use(contentRoutes); // legacy fallback
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/tts", ttsRoutes);
 app.use("/api/topic-suggest", topicSuggestRoutes);
-app.use('/api/books', booksRouter);
+app.use("/api/books", booksRouter);
+app.use("/api", userRoutes); // ✅ user-interests endpoint burada aktif
 
 // Health check endpoint (Render için)
-app.get('/healthz', (req, res) => {
-  res.status(200).send('OK');
+app.get("/healthz", (req, res) => {
+  res.status(200).send("OK");
 });
 
 // Root route
@@ -118,14 +133,12 @@ const startServer = () => {
 
 // Database connection and server start (Removed Sequelize logic)
 logger.info("Starting server...");
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 startServer();
 
 // Global exception handlers
 process.on("uncaughtException", (err) => {
   logger.error("Uncaught Exception:", err);
-  // Consider shutting down gracefully after an uncaught exception
-  // process.exit(1);
 });
 
 process.on("unhandledRejection", (reason, promise) => {
@@ -133,4 +146,3 @@ process.on("unhandledRejection", (reason, promise) => {
 });
 
 module.exports = app;
-

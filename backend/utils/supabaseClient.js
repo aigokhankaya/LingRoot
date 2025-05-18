@@ -17,7 +17,9 @@ if (!supabaseUrl || !supabaseKey) { // Check for service key as it's used in con
 
 // Supabase istemcisini oluştur ve dışa aktar (Using Service Key for backend operations)
 const supabase = createClient(supabaseUrl, supabaseKey);
-logger.info("Supabase client created.");
+logger.info("Supabase URL:", supabaseUrl ? "✓ Mevcut" : "✗ Eksik");
+logger.info("Supabase Service Key exists:", supabaseKey ? "✓ Mevcut" : "✗ Eksik");
+logger.info("Supabase client initialized successfully.");
 
 // Bağlantıyı test et ve durumu logla (Optional: can be removed in production)
 (async () => {
@@ -35,5 +37,6 @@ logger.info("Supabase client created.");
   }
 })();
 
-module.exports = { supabaseUrl, supabaseKey, bucketName };
+// Kritik Düzeltme: Supabase istemcisini modülden dışa aktar!
+module.exports = { supabase, supabaseUrl, supabaseKey, bucketName };
 

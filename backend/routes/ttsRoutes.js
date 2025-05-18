@@ -3,16 +3,16 @@
 const express = require("express");
 const multer = require("multer");
 const {
-  processTtsRequest,
+  handleTTSRequest,
   translateToEnglish,
   adaptToCEFR,
   chunkTextAPI,
   synthesizeChunkAPI,
   mergeAudioAPI,
-  listVoices
+  listVoices,
+  getAudioFile
 } = require("../controllers/ttsController");
 const logger = require("../utils/logger");
-const { synthesizeWithPolly, listPollyVoices } = require('../utils/amazonPolly');
 
 const router = express.Router();
 
@@ -47,7 +47,7 @@ router.post(
       logger.error(`File validation error: ${req.fileValidationError.message}`);
       return res.status(400).json({ success: false, message: req.fileValidationError.message });
     }
-    processTtsRequest(req, res, next);
+    handleTTSRequest(req, res, next);
   },
   (error, req, res, next) => {
     if (error instanceof multer.MulterError) {
@@ -61,6 +61,9 @@ router.post(
   }
 );
 
+// Add route to serve audio files
+router.get("/audio/:id", getAudioFile);
+
 // Other TTS Utility Endpoints
 router.post("/translateToEnglish", translateToEnglish);
 router.post("/adaptToCEFR", adaptToCEFR);
@@ -69,30 +72,9 @@ router.post("/synthesizeChunk", synthesizeChunkAPI);
 router.post("/mergeAudio", mergeAudioAPI);
 
 // Amazon Polly TTS endpoint
-router.post('/polly', async (req, res) => {
-    const { text, voiceId, languageCode } = req.body;
-    if (!text || !voiceId || !languageCode) {
-        return res.status(400).json({ error: 'Missing required parameters: text, voiceId, languageCode' });
-    }
-    try {
-        const audioBase64 = await synthesizeWithPolly({ text, voiceId, languageCode });
-        if (!audioBase64) {
-            return res.status(500).json({ error: 'Amazon Polly failed to synthesize speech.' });
-        }
-        res.json({ audioBase64 });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Amazon Polly voices list endpoint
-router.get('/polly-voices', async (req, res) => {
-    try {
-        const voices = await listPollyVoices();
-        res.json({ voices });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+router.post("/polly", (req, res) => {
+  // Implement your Amazon Polly TTS functionality here
+  res.status(500).json({ error: "Not implemented yet" });
 });
 
 // Dinamik ses listesi endpointi

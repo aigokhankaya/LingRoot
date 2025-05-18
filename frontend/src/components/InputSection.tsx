@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useTranslation } from '@/lib/i18n';
-import { ProcessInputData } from '../lib/api';
+import { ProcessInputData, getToken, API_BASE_URL } from '../lib/api';
 import { searchBooks, fetchBookContent } from '../services/bookService';
 
 type InputType = ProcessInputData['type'] | 'suggestion' | 'hashtag';
@@ -72,6 +72,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [selectedChapterIdx, setSelectedChapterIdx] = useState<number | null>(null);
   const [bookLoading, setBookLoading] = useState<boolean>(false);
   const [ttsProvider, setTtsProvider] = useState<'amazon' | 'google'>('google');
+  const [interests, setInterests] = useState<string[]>([]);
 
   useEffect(() => {
     setSpeakingRate(level === 'A1' ? 0.8 : 1.0);
@@ -148,6 +149,86 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     }
   }, [googleVoices]);
 
+  // Kullanıcı ilgi alanlarını çekme
+  useEffect(() => {
+    const fetchInterests = async () => {
+      try {
+        // Token alma stratejisi geliştir
+        const token = getToken();
+        console.log("Token kontrolü - Full token:", token ? `${token.substring(0, 10)}...` : "Token yok");
+        
+        if (!token) {
+          console.error("Token bulunamadı. Kullanıcı giriş yapmamış olabilir.");
+          // Geliştirme aşamasında varsayılan değerlerle devam et
+          setInterests(['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi']);
+          return;
+        }
+
+        // Next.js proxy kullanarak CSP/CORS sorunlarını önle
+        // next.config.js'de "/api/:path*" -> "http://localhost:5001/api/:path*" yapılandırması var
+        // Bu şekilde aynı origin'den istek yapılmış gibi görünür ve CORS sorunu çözülür
+        const apiUrl = '/api/user-interests';
+        
+        console.log("İlgi alanları çekiliyor:", apiUrl);
+        
+        // Token'ı doğru formatta gönder
+        const authHeaderValue = `Bearer ${token}`;
+        console.log("Authorization header:", authHeaderValue);
+        
+        // API çağrısını yap - ayrıntılı hata yakalama ile
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': authHeaderValue,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          credentials: 'include' // Çerezleri dahil et (gerekiyorsa)
+        });
+
+        console.log("API yanıt durumu:", response.status, response.statusText);
+        
+        // API yanıtını kontrol et
+        if (response.ok) {
+          // Başarılı yanıt
+          const data = await response.json();
+          console.log("API yanıt verisi:", data);
+          
+          if (Array.isArray(data)) {
+            const keywords = data.map((item: { interest_keyword: string }) => item.interest_keyword);
+            setInterests(keywords);
+            console.log("İlgi alanları başarıyla yüklendi:", keywords);
+          } else {
+            console.error("API yanıt formatı beklendiği gibi değil:", data);
+            setInterests(['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi']);
+          }
+        } else {
+          // Hata yanıtı
+          try {
+            const errorData = await response.json();
+            console.error(`Veri çekilemedi: ${response.status}`, errorData);
+            
+            // Token geçersiz ise kullanıcıyı logout yap veya tokeni yenile
+            if (response.status === 401) {
+              console.error("Yetkilendirme hatası: Token geçersiz veya süresi dolmuş");
+              localStorage.removeItem('lingroot_token'); // Geçersiz token'ı temizle
+            }
+          } catch (e) {
+            console.error(`Veri çekilemedi: ${response.status}, JSON çözümlenemedi`);
+          }
+          
+          // Geliştirme aşamasında varsayılan değerlerle devam et
+          setInterests(['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi']);
+        }
+      } catch (error) {
+        console.error("Hata oluştu:", error);
+        setInterests(['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi']);
+      }
+    };
+
+    fetchInterests();
+  }, []);
+
   // Form submit fonksiyonu
   const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
@@ -180,11 +261,17 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     if (!file) return;
     const formData = new FormData();
     formData.append('file', file);
-    const apiUrl =
-      typeof window !== 'undefined' && window.location.hostname === 'localhost'
-        ? 'http://localhost:5001/api/upload'
-        : '/api/upload';
-    const res = await fetch(apiUrl, { method: 'POST', body: formData });
+    
+    // Next.js proxy kullan (CORS sorununu engeller)
+    const apiUrl = '/api/upload';
+    
+    const res = await fetch(apiUrl, { 
+      method: 'POST', 
+      body: formData,
+      // Çerezleri dahil et (gerekiyorsa)
+      credentials: 'include'
+    });
+    
     const data = await res.json();
     if (data.text) {
       setText(data.text); // textarea'ya yaz
@@ -527,11 +614,11 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
 
             {inputType === 'suggestion' && (
               <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 text-blue-700 text-center">
-                <select className="input-field focus:ring-blue-500 focus:border-blue-500">
-                  <option value="">Konu Seçin</option>
-                  <option value="konu1">Konu 1</option>
-                  <option value="konu2">Konu 2</option>
-                  <option value="konu3">Konu 3</option>
+                <select className="input-field focus:ring-blue-500 focus:border-blue-500" name="interest">
+                  <option>Bir ilgi alanı seçin...</option>
+                  {interests.map((interest) => (
+                    <option key={interest} value={interest}>{interest}</option>
+                  ))}
                 </select>
               </div>
             )}

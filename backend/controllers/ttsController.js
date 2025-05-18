@@ -18,6 +18,9 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Store references to temp files so they can be accessed via API
+const tempAudioFiles = new Map();
+
 // Helper function for consistent temp file cleanup
 const cleanupTempFile = (filePath) => {
     if (filePath && fs.existsSync(filePath)) {
@@ -374,28 +377,48 @@ const processTtsRequest = async (req, res) => {
         logger.info(`[${requestId}] Step 6: Saving audio to temp file...`);
         const uniqueId = uuidv4();
         const outputFilename = `lingroot_${level}_${uniqueId}.mp3`;
-        tempFilePath = path.join(os.tmpdir(), outputFilename); // Assign path for cleanup
+        tempFilePath = path.join(os.tmpdir(), outputFilename);
         fs.writeFileSync(tempFilePath, Buffer.from(audioBase64, 'base64'));
         logger.info(`[${requestId}] Audio saved to temp file: ${tempFilePath}`);
 
-        // Re-enable cleanupTempFile(tempFilePath)
-        cleanupTempFile(tempFilePath);
+        // Store the audio file for access via API
+        tempAudioFiles.set(uniqueId, {
+            path: tempFilePath,
+            buffer: Buffer.from(audioBase64, 'base64'),
+            createdAt: new Date()
+        });
+
+        // Only clean up temp file after successful upload to Supabase
+        // Do NOT clean up here - we keep it for the API endpoint
+        // cleanupTempFile(tempFilePath);
 
         // --- Step 8: Return Success Response (Updated Format) ---
         logger.info(`[${requestId}] Processing complete. Returning success response.`);
+        
+        // Supabase'e yükle
+        let mp3Url = "";
+        if (audioBase64) {
+            const mp3Filename = `lingroot_${level}_${uniqueId}.mp3`;
+            mp3Url = await uploadToSupabase(audioBase64, mp3Filename);
+            logger.info(`[${requestId}] Audio uploaded to Supabase: ${mp3Url}`);
+        }
+
+        // Create API endpoint URL for accessing the audio
+        const apiAudioUrl = `/api/tts/audio/${uniqueId}`;
+        
         logStep({
             requestId,
             stepName: 'tts:success',
             stepSequence: stepSequence++,
             status: 'success',
-            outputData: { mp3_url: tempFilePath, vtt_url: vttUrl }
+            outputData: { mp3_url: apiAudioUrl, vtt_url: vttUrl }
         });
         return res.status(200).json({
             success: true,
             message: adaptedText,
             level: level,
             input_language: detectedLang,
-            mp3_url: tempFilePath,
+            mp3_url: apiAudioUrl, // Use API endpoint URL instead of temp file path
             words: [],
             timepoints: [],
             vtt_url: vttUrl,
@@ -413,11 +436,11 @@ const processTtsRequest = async (req, res) => {
             error: error.message,
             stack: error.stack
         });
-        // Cleanup handled in finally block
         return res.status(500).json({ success: false, message: "An internal server error occurred." });
     } finally {
         // --- Final Step: Ensure Temporary File Cleanup ---
         logger.info(`[${requestId}] Performing final cleanup.`);
+        // Do NOT clean up temp file that we need for API access
         // cleanupTempFile(tempFilePath);
 
         // Add cleanup code for temporary files
@@ -426,6 +449,38 @@ const processTtsRequest = async (req, res) => {
         }
     }
 };
+
+// Endpoint to serve audio files
+const getAudioFile = (req, res) => {
+    const audioId = req.params.id;
+    const audioData = tempAudioFiles.get(audioId);
+    
+    if (!audioData) {
+        return res.status(404).json({ success: false, message: "Audio file not found" });
+    }
+    
+    res.set('Content-Type', 'audio/mpeg');
+    res.set('Content-Disposition', `inline; filename="audio_${audioId}.mp3"`);
+    return res.send(audioData.buffer);
+};
+
+// Cleanup old audio files every hour
+setInterval(() => {
+    const now = new Date();
+    tempAudioFiles.forEach((data, id) => {
+        // Delete files older than 1 hour
+        if (now - data.createdAt > 60 * 60 * 1000) {
+            if (fs.existsSync(data.path)) {
+                try {
+                    fs.unlinkSync(data.path);
+                } catch (e) {
+                    logger.error(`Error removing old temporary file ${data.path}: ${e.message}`);
+                }
+            }
+            tempAudioFiles.delete(id);
+        }
+    });
+}, 60 * 60 * 1000); // Run every hour
 
 // --- TTS Step Endpoints ---
 const translateToEnglish = async (req, res) => {
@@ -523,17 +578,22 @@ const translateToEnglish = async (req, res) => {
       ];
       return res.json({ provider: 'google', voices: googleVoices });
     } else {
-      logger.error(`[${requestId}] Unsupported TTS provider: ${ttsProvider}`);
+      logger.error(`Unsupported TTS provider: ${ttsProvider}`);
       return res.status(500).json({ success: false, message: `Unsupported TTS provider: ${ttsProvider}` });
     }
   };
   
+  // handleTTSRequest adıyla alias oluştur (geriye dönük uyumluluk)
+  const handleTTSRequest = processTtsRequest;
+  
   module.exports = {
       processTtsRequest,
+      handleTTSRequest, // Alias olarak ekledik
       translateToEnglish,
       adaptToCEFR,
       chunkTextAPI,
       synthesizeChunkAPI,
       mergeAudioAPI,
       listVoices,
+      getAudioFile, // New endpoint to serve audio
   };
