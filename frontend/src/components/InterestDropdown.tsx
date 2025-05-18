@@ -54,9 +54,7 @@ export default function InterestDropdown({ userId }: Props) {
       >
         <option disabled value="">Bir ilgi alanı seçin...</option>
         {interests.map((i) => (
-          <option key={i} value={i}>
-            {i}
-          </option>
+          <option key={i} value={i}>{i}</option>
         ))}
       </select>
     </div>

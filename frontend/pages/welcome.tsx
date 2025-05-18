@@ -11,6 +11,7 @@ import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
 import OutputSection from '../src/components/OutputSection';
 import Footer from '../src/components/Footer';
+import InterestDropdown from '../src/components/InterestDropdown';
 
 interface InputData {
   type: ProcessInputData['type'];
@@ -47,6 +48,7 @@ const Welcome: React.FC = () => {
   const [audioResult, setAudioResult] = useState<AudioResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [interests, setInterests] = useState<string[]>(Array(5).fill(''));
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
   const [selectedInterest, setSelectedInterest] = useState<string | null>(null);
   const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
@@ -86,6 +88,16 @@ const Welcome: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleInterestChange = (index: number, value: string) => {
+    const newInterests = [...interests];
+    newInterests[index] = value;
+    setInterests(newInterests);
+  };
+
+  const handleSaveInterests = () => {
+    console.log('User Interests:', interests);
   };
 
   if (user === undefined) {
@@ -177,6 +189,9 @@ const Welcome: React.FC = () => {
           )}
 
           <div className="mt-12 space-y-12">
+            {/* Interest Dropdown */}
+            <InterestDropdown userId={user.id} />
+            
             {/* Ses Dönüşüm Input ve Output */}
             <InputSection onSubmit={handleSubmit} isLoading={isLoading} />
             <OutputSection 
