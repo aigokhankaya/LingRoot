@@ -3,6 +3,8 @@ import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useTranslation } from '@/lib/i18n';
 import { ProcessInputData, getToken, API_BASE_URL, getTopicDetailSuggestions } from '../lib/api';
 import { searchBooks, fetchBookContent } from '../services/bookService';
+import InterestManager from './InterestManager';
+import { FaCog } from 'react-icons/fa';
 
 type InputType = ProcessInputData['type'] | 'suggestion' | 'hashtag';
 type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
@@ -76,6 +78,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [isLoadingTopicSuggestions, setIsLoadingTopicSuggestions] = useState<boolean>(false);
   const [topicDetailSuggestions, setTopicDetailSuggestions] = useState<string[]>([]);
   const [selectedDetailTopic, setSelectedDetailTopic] = useState<string>('');
+  const [showInterestManager, setShowInterestManager] = useState<boolean>(false);
 
   useEffect(() => {
     setSpeakingRate(level === 'A1' ? 0.8 : 1.0);
@@ -158,7 +161,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       try {
         // Token alma stratejisi geliştir
         const token = getToken();
-        console.log("Token kontrolü - Full token:", token ? `${token.substring(0, 10)}...` : "Token yok");
+        console.log("Token kontrolü - İlk 10 karakter:", token ? `${token.substring(0, 10)}...` : "Token yok");
         
         if (!token) {
           console.error("Token bulunamadı. Kullanıcı giriş yapmamış olabilir.");
@@ -176,7 +179,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         
         // Token'ı doğru formatta gönder
         const authHeaderValue = `Bearer ${token}`;
-        console.log("Authorization header:", authHeaderValue);
+        console.log("Authorization header hazırlandı");
         
         // API çağrısını yap - ayrıntılı hata yakalama ile
         const response = await fetch(apiUrl, {
@@ -185,8 +188,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
             'Authorization': authHeaderValue,
             'Content-Type': 'application/json',
             'Accept': 'application/json'
-          },
-          credentials: 'include' // Çerezleri dahil et (gerekiyorsa)
+          }
         });
 
         console.log("API yanıt durumu:", response.status, response.statusText);
@@ -194,22 +196,48 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         // API yanıtını kontrol et
         if (response.ok) {
           // Başarılı yanıt
-          const data = await response.json();
-          console.log("API yanıt verisi:", data);
-          
-          if (Array.isArray(data)) {
-            const keywords = data.map((item: { interest_keyword: string }) => item.interest_keyword);
-            setInterests(keywords);
-            console.log("İlgi alanları başarıyla yüklendi:", keywords);
-          } else {
-            console.error("API yanıt formatı beklendiği gibi değil:", data);
+          try {
+            // Önce yanıtı text olarak al
+            const responseText = await response.text();
+            console.log("API yanıt (ham):", responseText);
+            
+            // Boş yanıt kontrolü
+            if (!responseText || responseText.trim() === '') {
+              console.error("API boş yanıt döndü");
+              setInterests(['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi']);
+              return;
+            }
+            
+            // Yanıtı JSON olarak ayrıştır
+            const data = JSON.parse(responseText);
+            console.log("API yanıt (JSON):", data);
+            
+            if (Array.isArray(data)) {
+              const keywords = data.map((item: { interest_keyword: string }) => item.interest_keyword);
+              console.log("Ayrıştırılan ilgi alanları:", keywords);
+              setInterests(keywords);
+              console.log("İlgi alanları başarıyla yüklendi:", keywords);
+            } else {
+              console.error("API yanıt formatı beklendiği gibi değil:", data);
+              setInterests(['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi']);
+            }
+          } catch (parseError) {
+            console.error("API yanıtı ayrıştırılırken hata oluştu:", parseError);
             setInterests(['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi']);
           }
         } else {
           // Hata yanıtı
+          console.error(`API hata yanıtı: ${response.status} ${response.statusText}`);
           try {
-            const errorData = await response.json();
-            console.error(`Veri çekilemedi: ${response.status}`, errorData);
+            const errorText = await response.text();
+            console.error(`API hata detayı: ${errorText}`);
+            
+            try {
+              const errorData = JSON.parse(errorText);
+              console.error(`API hata mesajı: ${errorData.error || errorData.message || 'Bilinmeyen hata'}`);
+            } catch (jsonError) {
+              console.error("API hata yanıtı JSON formatında değil:", errorText);
+            }
             
             // Token geçersiz ise kullanıcıyı logout yap veya tokeni yenile
             if (response.status === 401) {
@@ -217,20 +245,58 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               localStorage.removeItem('lingroot_token'); // Geçersiz token'ı temizle
             }
           } catch (e) {
-            console.error(`Veri çekilemedi: ${response.status}, JSON çözümlenemedi`);
+            console.error(`API hata yanıtı alınamadı: ${e}`);
           }
           
           // Geliştirme aşamasında varsayılan değerlerle devam et
           setInterests(['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi']);
         }
       } catch (error) {
-        console.error("Hata oluştu:", error);
+        console.error("İlgi alanları çekilirken beklenmeyen hata:", error);
         setInterests(['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi']);
       }
     };
 
     fetchInterests();
   }, []);
+
+  // İlgi alanlarını yeniden yüklemek için fonksiyon
+  const fetchInterests = async () => {
+    try {
+      // API'den ilgi alanlarını al
+      const apiUrl = '/api/user-interests';
+      const token = getToken();
+      
+      if (!token) {
+        console.error("Token bulunamadı. Kullanıcı giriş yapmamış olabilir.");
+        return;
+      }
+      
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`İlgi alanları alınamadı: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (Array.isArray(data)) {
+        const keywords = data.map((item: { interest_keyword: string }) => item.interest_keyword);
+        setInterests(keywords);
+      } else if (data.data && Array.isArray(data.data)) {
+        const keywords = data.data.map((item: { interest_keyword: string }) => item.interest_keyword);
+        setInterests(keywords);
+      }
+    } catch (error) {
+      console.error("İlgi alanları yüklenirken hata oluştu:", error);
+    }
+  };
 
   // Konu önerisi butonu için click handler ekleyelim
   const handleGetTopicSuggestions = async () => {
@@ -668,16 +734,26 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               <div className="space-y-4">
                 <div className="flex flex-row gap-2 items-center">
                   <div className="w-3/4">
-                    <select
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      value={topic}
-                      onChange={(e) => setTopic(e.target.value)}
-                    >
-                      <option value="" disabled>Konu Seçin</option>
-                      {interests.map((interest, index) => (
-                        <option key={index} value={interest}>{interest}</option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <select
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                      >
+                        <option value="" disabled>Konu Seçin</option>
+                        {interests.map((interest, index) => (
+                          <option key={index} value={interest}>{interest}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setShowInterestManager(true)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-blue-100 text-blue-700 hover:bg-blue-200 p-1.5 rounded-full flex items-center justify-center"
+                        title="İlgi Alanlarını Düzenle"
+                      >
+                        <FaCog size={16} />
+                      </button>
+                    </div>
                   </div>
                   <div className="w-1/4">
                     <button
@@ -691,6 +767,44 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                     </button>
                   </div>
                 </div>
+                
+                {/* İlgi Alanı Düzenleme Modal */}
+                {showInterestManager && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-auto">
+                      <div className="p-5 border-b border-gray-200 flex justify-between items-center">
+                        <h3 className="text-lg font-semibold text-gray-900">İlgi Alanlarını Düzenle</h3>
+                        <button
+                          onClick={() => setShowInterestManager(false)}
+                          className="text-gray-400 hover:text-gray-500"
+                        >
+                          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="p-5">
+                        <InterestManager 
+                          showTitle={false}
+                          isEditing={true}
+                          onUpdate={() => {
+                            // Düzenleme yapıldığında ilgi alanlarını yeniden yükle
+                            fetchInterests();
+                            setShowInterestManager(false);
+                          }}
+                        />
+                      </div>
+                      <div className="bg-gray-50 px-5 py-3 flex justify-end">
+                        <button
+                          onClick={() => setShowInterestManager(false)}
+                          className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded"
+                        >
+                          Kapat
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {topicDetailSuggestions.length > 0 && (
                   <div className="mt-3">

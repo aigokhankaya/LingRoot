@@ -21,22 +21,30 @@ logger.info("Supabase URL:", supabaseUrl ? "✓ Mevcut" : "✗ Eksik");
 logger.info("Supabase Service Key exists:", supabaseKey ? "✓ Mevcut" : "✗ Eksik");
 logger.info("Supabase client initialized successfully.");
 
+// Debug bilgileri
+logger.debug("Supabase URL: " + supabaseUrl);
+logger.debug("Supabase Key length: " + (supabaseKey ? supabaseKey.length : 0));
+
 // Bağlantıyı test et ve durumu logla (Optional: can be removed in production)
 (async () => {
   try {
     // Test with a simple query that doesn't expose sensitive data
     logger.debug("Testing Supabase connection...");
-    const { error } = await supabase.from("Users").select("id", { count: "exact", head: true }).limit(1);
+    const { data, error } = await supabase.from("user_interests").select("id", { count: "exact", head: true }).limit(1);
+    
     if (error) {
       logger.error("Supabase connection test failed:", error.message);
     } else {
-      logger.info("Supabase connection test successful. Able to query 'users' table.");
+      logger.info("Supabase connection test successful. Able to query 'user_interests' table.");
+      if (data) {
+        logger.debug(`Query returned ${data.length} results`);
+      }
     }
   } catch (err) {
     logger.error("Exception during Supabase connection test:", err);
   }
 })();
 
-// Kritik Düzeltme: Supabase istemcisini modülden dışa aktar!
+// Export the Supabase client and connection information
 module.exports = { supabase, supabaseUrl, supabaseKey, bucketName };
 

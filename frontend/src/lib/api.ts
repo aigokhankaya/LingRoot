@@ -278,3 +278,128 @@ export const getTopicDetailSuggestions = async (topic: string, level: string): P
   }
 };
 
+// Kullanıcı ilgi alanlarını getirmek için API isteği gönderen fonksiyon
+export const getUserInterests = async (): Promise<any> => {
+  const apiUrl = '/api/user-interests';
+  
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error('Kullanıcı girişi yapılmamış');
+    }
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      // Status kodu 200 değilse
+      const errorText = await response.text();
+      let errorMessage = `İlgi alanları alınamadı (${response.status})`;
+      
+      try {
+        // JSON olarak ayrıştırmayı dene
+        const errorData = JSON.parse(errorText);
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch (jsonError) {
+        // JSON ayrıştırma hatası, ham metni kullan
+        console.error("Error response is not valid JSON:", errorText);
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    try {
+      const responseText = await response.text();
+      if (!responseText || responseText.trim() === '') {
+        return { data: [] }; // Boş yanıt için güvenli değer
+      }
+      
+      return JSON.parse(responseText);
+    } catch (jsonError) {
+      console.error("Failed to parse response as JSON:", jsonError);
+      // İlgi alanları API yanıtı ayrıştırılamadı
+      throw new Error("Sunucu yanıtı işlenirken hata oluştu");
+    }
+  } catch (error: any) {
+    console.error('İlgi alanları alınırken hata oluştu:', error);
+    throw error;
+  }
+};
+
+// Kullanıcı ilgi alanlarını güncellemek için API isteği gönderen fonksiyon
+export const updateUserInterests = async (interests: string[]): Promise<any> => {
+  const apiUrl = '/api/user-interests';
+  
+  try {
+    console.log("İlgi alanları güncelleniyor:", { interests, apiUrl });
+    
+    const token = getToken();
+    if (!token) {
+      console.error("Token bulunamadı. Kullanıcı girişi yapılmamış.");
+      throw new Error('Kullanıcı girişi yapılmamış');
+    }
+    
+    // İstek gövdesi
+    const requestBody = { interests };
+    console.log("İstek gövdesi:", JSON.stringify(requestBody));
+    
+    // API isteği
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    console.log("API yanıt durumu:", response.status, response.statusText);
+    
+    if (!response.ok) {
+      // Status kodu 200 değilse
+      const errorText = await response.text();
+      console.error("API hata yanıtı:", errorText);
+      
+      let errorMessage = `İlgi alanları güncellenemedi (${response.status})`;
+      
+      try {
+        // JSON olarak ayrıştırmayı dene
+        const errorData = JSON.parse(errorText);
+        if (errorData.error || errorData.message) {
+          errorMessage = errorData.error || errorData.message;
+        }
+      } catch (jsonError) {
+        // JSON ayrıştırma hatası, ham metni kullan
+        console.error("Error response is not valid JSON:", errorText);
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    try {
+      const responseText = await response.text();
+      console.log("API başarı yanıtı:", responseText);
+      
+      if (!responseText || responseText.trim() === '') {
+        return { success: true }; // Boş yanıt için güvenli değer
+      }
+      
+      return JSON.parse(responseText);
+    } catch (jsonError) {
+      console.error("Failed to parse response as JSON:", jsonError);
+      // Sunucu yanıtı ayrıştırılamadı
+      throw new Error("Sunucu yanıtı işlenirken hata oluştu");
+    }
+  } catch (error: any) {
+    console.error('İlgi alanları güncellenirken hata oluştu:', error);
+    throw error;
+  }
+};
+

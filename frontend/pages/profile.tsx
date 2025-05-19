@@ -5,6 +5,7 @@ import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
 import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 import { getContentHistory } from '../src/lib/api';
+import InterestManager from '../src/components/InterestManager';
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -164,6 +165,9 @@ export default function Profile() {
                 </div>
               </div>
             </div>
+
+            {/* İlgi Alanları */}
+            <InterestManager />
 
             {/* Günlük Haklar */}
             <div className="bg-white rounded-xl shadow-sm p-6">
