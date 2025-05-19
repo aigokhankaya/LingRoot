@@ -260,8 +260,21 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
 
   // Detaylı konu seçildiğinde çalışacak handler
   const handleDetailTopicSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedDetailTopic(e.target.value);
-    setText(e.target.value); // Seçilen detaylı konuyu metin alanına yaz
+    const selectedValue = e.target.value;
+    setSelectedDetailTopic(selectedValue);
+    setText(selectedValue); // Seçilen detaylı konuyu topic_instructions alanına yaz
+    
+    // Konu sekmesine geçiş yap ve seçili konuyu topic alanına yaz
+    setInputType('topic');
+    setTopic(selectedValue); // Tüm metni konu alanına yaz
+    
+    // 50ms gecikmeyle formu otomatik olarak submit et
+    setTimeout(() => {
+      const formElement = document.querySelector('form') as HTMLFormElement;
+      if (formElement) {
+        formElement.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      }
+    }, 50);
   };
 
   // Form submit fonksiyonu
