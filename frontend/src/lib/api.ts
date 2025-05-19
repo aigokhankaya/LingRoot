@@ -253,7 +253,7 @@ export const getContentHistory = async (): Promise<ApiResponse> => {
 
 // Detaylı konu önerileri için API isteği gönderen fonksiyon
 export const getTopicDetailSuggestions = async (topic: string, level: string): Promise<any> => {
-  const apiUrl = `${API_BASE_URL}/api/topic-detail/suggestions`;
+  const apiUrl = '/api/topic-detail/suggestions';
   
   try {
     const token = getToken();

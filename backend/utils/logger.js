@@ -25,6 +25,27 @@ winston.addColors(logColors);
 // Determine log level based on environment (default to 'info')
 const level = process.env.LOG_LEVEL || (process.env.NODE_ENV === "production" ? "info" : "debug");
 
+// Yardımcı fonksiyon: Uzun ve karmaşık metinleri kısaltır
+const sanitizeLogContent = (content) => {
+  if (typeof content !== 'string') {
+    return content;
+  }
+  
+  // Base64 benzeri karmaşık içerik olabilecek kısımları tespit et
+  // Genellikle / ile başlayan ve çok uzun alfanumerik karakterlerden oluşan
+  const complexContentRegex = /\/[A-Za-z0-9+/=]{100,}/g;
+  
+  // Bu tür içerikleri kısalt
+  let sanitized = content.replace(complexContentRegex, '[BINARY_DATA]');
+  
+  // Çok uzun satırları kısalt (300 karakterden uzun)
+  if (sanitized.length > 300) {
+    sanitized = sanitized.substring(0, 297) + '...';
+  }
+  
+  return sanitized;
+};
+
 // Create log format
 const logFormat = winston.format.combine(
   winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
@@ -32,7 +53,28 @@ const logFormat = winston.format.combine(
   winston.format.splat(),
   winston.format.printf(({ timestamp, level, message, stack }) => {
     // If stack exists (error), log stack; otherwise, log message
-    const logMessage = stack ? stack : (typeof message === "object" ? JSON.stringify(message) : message);
+    let logMessage;
+    
+    if (stack) {
+      logMessage = sanitizeLogContent(stack);
+    } else if (typeof message === "object") {
+      try {
+        // Objeler için sadece önemli alanları al, dosya içeriklerini veya binary verileri dışla
+        const filteredObj = { ...message };
+        // mp3_url, file, audio gibi büyük binary içerik barındırabilecek alanları kaldır
+        ['mp3_url', 'file', 'audio', 'binary', 'content', 'base64'].forEach(key => {
+          if (filteredObj[key]) {
+            filteredObj[key] = '[CONTENT_REMOVED]';
+          }
+        });
+        logMessage = JSON.stringify(filteredObj, null, 2);
+      } catch (e) {
+        logMessage = '[COMPLEX_OBJECT]';
+      }
+    } else {
+      logMessage = sanitizeLogContent(message);
+    }
+    
     return `${timestamp} [${level.toUpperCase()}]: ${logMessage}`;
   })
 );

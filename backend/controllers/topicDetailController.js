@@ -22,7 +22,8 @@ exports.getTopicDetailSuggestions = async (req, res) => {
     // Placeholder'ları değiştir
     const prompt = promptTemplate
       .replace('{{topic}}', topic)
-      .replace('{{level}}', level || 'A1');
+      .replace('{{level}}', level || 'A1')
+      .replace('{{input_language}}', 'Türkçe'); // Varsayılan olarak Türkçe
     
     logRequestStep(requestId, 'topic-detail-suggest:start', { topic, level, prompt });
     
@@ -30,7 +31,7 @@ exports.getTopicDetailSuggestions = async (req, res) => {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: "Sen bir dil öğrenme uzmanısın. Konu önerileri hazırlıyorsun." },
+        { role: "system", content: "Sen bir içerik oluşturma uzmanısın. Kullanıcının verdiği konularla ilgili öneriler hazırlıyorsun." },
         { role: "user", content: prompt }
       ],
       temperature: 0.7,
