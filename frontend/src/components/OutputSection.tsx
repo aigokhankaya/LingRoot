@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../lib/auth';
-import { getContentHistory } from '../lib/api';
+import { getContentHistory, getApiUrl } from '../lib/api';
 
 interface Timepoint {
   timeSeconds: number;
@@ -83,6 +83,13 @@ export default function OutputSection({ audioResult, isLoggedIn, contentHistory:
     if (!url) return '';
     
     try {
+      // API yolu kontrolü
+      if (url.startsWith('/api/')) {
+        // /api/ ile başlayan yollar için getApiUrl() fonksiyonunu kullan
+        // /api/tts/audio/... -> API_URL/tts/audio/...
+        return `${getApiUrl()}${url.substring(4)}`;
+      }
+      
       // Google Drive URL kontrolü
       const gdrive = url.match(/\/file\/d\/([a-zA-Z0-9_-]{25,})/);
       if (gdrive && gdrive[1]) {

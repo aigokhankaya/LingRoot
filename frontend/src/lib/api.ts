@@ -2,6 +2,7 @@
 declare const process: {
   env: {
     NEXT_PUBLIC_API_URL?: string;
+    NEXT_PUBLIC_TRANSCRIPT_SERVICE_URL?: string;
     [key: string]: string | undefined;
   };
 };
@@ -11,6 +12,13 @@ import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, InternalAxiosRequ
 
 // API_BASE_URL, .env dosyasındaki NEXT_PUBLIC_API_URL ile belirlenir. Örnek: NEXT_PUBLIC_API_URL=https://api.lingroot.com
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+export const TRANSCRIPT_SERVICE_URL = process.env.NEXT_PUBLIC_TRANSCRIPT_SERVICE_URL || 'http://localhost:8001';
+
+// Get API base URL without duplicating "api" segment
+export const getApiUrl = (): string => {
+  const baseUrl = API_BASE_URL;
+  return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
+};
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -108,9 +116,9 @@ export const fetchYoutubeTranscript = async (youtubeUrl: string, languageCode: s
   try {
     console.log(`YouTube transkript çekme işlemi başlatılıyor: ${youtubeUrl} (${languageCode})`);
     
-    // Doğrudan transkript servisine istek gönder - port 8001
+    // Doğrudan transkript servisine istek gönder
     try {
-      const response = await fetch('http://localhost:8001/scrape-transcript', {
+      const response = await fetch(`${TRANSCRIPT_SERVICE_URL}/scrape-transcript`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -331,7 +339,7 @@ export const getContentHistory = async (): Promise<ApiResponse> => {
 
 // Detaylı konu önerileri için API isteği gönderen fonksiyon
 export const getTopicDetailSuggestions = async (topic: string, level: string): Promise<any> => {
-  const apiUrl = '/api/topic-detail/suggestions';
+  const apiUrl = `${getApiUrl()}/topic-detail/suggestions`;
   
   try {
     const headers = createHeaders('application/json');
@@ -357,7 +365,7 @@ export const getTopicDetailSuggestions = async (topic: string, level: string): P
 
 // Kullanıcı ilgi alanlarını getirmek için API isteği gönderen fonksiyon
 export const getUserInterests = async (): Promise<any> => {
-  const apiUrl = '/api/user-interests';
+  const apiUrl = `${getApiUrl()}/user-interests`;
   
   try {
     const headers = createHeaders('application/json');
@@ -407,7 +415,7 @@ export const getUserInterests = async (): Promise<any> => {
 
 // Kullanıcı ilgi alanlarını güncellemek için API isteği gönderen fonksiyon
 export const updateUserInterests = async (interests: string[]): Promise<any> => {
-  const apiUrl = '/api/user-interests';
+  const apiUrl = `${getApiUrl()}/user-interests`;
   
   try {
     console.log("İlgi alanları güncelleniyor:", { interests, apiUrl });

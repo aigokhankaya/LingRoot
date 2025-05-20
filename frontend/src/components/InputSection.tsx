@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useTranslation } from '@/lib/i18n';
-import { ProcessInputData, getToken, API_BASE_URL, getTopicDetailSuggestions, fetchYoutubeTranscript } from '../lib/api';
+import { ProcessInputData, getToken, API_BASE_URL, getApiUrl, getTopicDetailSuggestions, fetchYoutubeTranscript } from '../lib/api';
 import { searchBooks, fetchBookContent } from '../services/bookService';
 import InterestManager from './InterestManager';
 import { FaCog } from 'react-icons/fa';
@@ -174,7 +174,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         // Next.js proxy kullanarak CSP/CORS sorunlarını önle
         // next.config.js'de "/api/:path*" -> "http://localhost:5001/api/:path*" yapılandırması var
         // Bu şekilde aynı origin'den istek yapılmış gibi görünür ve CORS sorunu çözülür
-        const apiUrl = '/api/user-interests';
+        const apiUrl = `${getApiUrl()}/user-interests`;
         
         console.log("İlgi alanları çekiliyor:", apiUrl);
         
@@ -265,7 +265,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const fetchInterests = async () => {
     try {
       // API'den ilgi alanlarını al
-      const apiUrl = '/api/user-interests';
+      const apiUrl = `${getApiUrl()}/user-interests`;
       const token = getToken();
       
       if (!token) {
@@ -425,7 +425,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     formData.append('file', file);
     
     // Next.js proxy kullan (CORS sorununu engeller)
-    const apiUrl = '/api/upload';
+    const apiUrl = `${getApiUrl()}/upload`;
     
     const res = await fetch(apiUrl, { 
       method: 'POST', 
