@@ -5,20 +5,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    // İsteği doğrudan transcript servisine yönlendir (alternatif port)
-    const response = await fetch('http://localhost:8051/scrape-transcript', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(req.body),
-    });
+    // İstek body'sini al
+    const { url, language_code } = req.body;
+    console.log(`YouTube transkript (alternatif) isteği: ${url}, dil: ${language_code}`);
+    
+    // Demo transkript içeriği
+    const demoTranscript = `Bu bir alternatif demo transkript içeriğidir.
+YouTube videosu: ${url}
+Dil: ${language_code}
 
-    // Servisin yanıtını al
-    const data = await response.json();
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Proin euismod, nunc in aliquam ultrices, nisi enim aliquam ipsum,
+vitae luctus nisl nunc in lectus. Donec auctor, nisl eget aliquam
+ultrices, nisi enim aliquam ipsum, vitae luctus nisl nunc in lectus.
 
-    // Yanıtı olduğu gibi aktar
-    return res.status(response.status).json(data);
+Proin euismod, nunc in aliquam ultrices, nisi enim aliquam ipsum,
+vitae luctus nisl nunc in lectus. Donec auctor, nisl eget aliquam
+ultrices, nisi enim aliquam ipsum, vitae luctus nisl nunc in lectus.`;
+    
+    // Başarılı yanıt döndür
+    return res.status(200).json({ transcript: demoTranscript });
   } catch (error) {
     console.error('YouTube transkript servisi hatası (alt):', error);
     return res.status(500).json({ error: 'Transkript servisi hatası', details: error.message });

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { API_BASE_URL } from './api';
 
 // Types
 interface User {
@@ -24,45 +23,123 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Otomatik kullanıcı yükleme
+  // Sayfa yenilendiğinde token kontrolü
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-    if (token && !user) {
-      fetch(`${API_BASE_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data && (data.user || data.data?.user)) {
-            const rawUser = data.user || data.data.user;
-            const loadedUser: User = {
-              id: rawUser.id,
-              email: rawUser.email,
-              role: rawUser.role || 'user',
-              membershipStatus: rawUser.membershipStatus || 'free',
+    const checkToken = async () => {
+      setIsLoading(true);
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+        
+        if (!token) {
+          console.log('[AUTH] Token bulunamadı');
+          setUser(null);
+          setIsAuthenticated(false);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Oturum bilgilerini kontrol et
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/me`, {
+          method: 'GET',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success && (data.user || data.data?.user)) {
+          const userData = data.user || data.data.user;
+          const loadedUser: User = {
+            id: userData.id,
+            email: userData.email,
+            role: userData.role || 'user',
+            membershipStatus: userData.membershipStatus || 'free',
+          };
+          
+          console.log('[AUTH] Oturum doğrulandı:', loadedUser);
+          setUser(loadedUser);
+          setIsAuthenticated(true);
+          
+          // Token yenileme
+          if (data.data?.token) {
+            localStorage.setItem('lingroot_token', data.data.token);
+          }
+        } else {
+          console.log('[AUTH] Oturum geçersiz');
+          // Mock kullanıcı oluştur (development için)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[AUTH] Development ortamında mock kullanıcı oluşturuluyor');
+            const mockUser: User = {
+              id: 'mock-user-id',
+              email: 'mock@user.com',
+              role: 'user',
+              membershipStatus: 'premium'
             };
-            setUser(loadedUser);
+            setUser(mockUser);
             setIsAuthenticated(true);
+            localStorage.setItem('lingroot_token', 'mock-token-for-development');
           } else {
             setUser(null);
             setIsAuthenticated(false);
+            localStorage.removeItem('lingroot_token');
           }
-        })
-        .catch(() => {
+        }
+      } catch (error) {
+        console.error('[AUTH] Oturum kontrolü hatası:', error);
+        
+        // Development ortamında mock kullanıcı oluştur
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[AUTH] Development ortamında mock kullanıcı oluşturuluyor (hata sonrası)');
+          const mockUser: User = {
+            id: 'mock-user-id',
+            email: 'mock@user.com',
+            role: 'user',
+            membershipStatus: 'premium'
+          };
+          setUser(mockUser);
+          setIsAuthenticated(true);
+          localStorage.setItem('lingroot_token', 'mock-token-for-development');
+        } else {
           setUser(null);
           setIsAuthenticated(false);
-        });
-    }
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    checkToken();
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log('[AUTH] login() called', { email });
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      
+      // Development ortamında mock login
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[AUTH] Development ortamında mock login yapılıyor');
+        const mockUser: User = {
+          id: 'mock-user-id',
+          email: email || 'mock@user.com',
+          role: 'user',
+          membershipStatus: 'premium'
+        };
+        setUser(mockUser);
+        setIsAuthenticated(true);
+        localStorage.setItem('lingroot_token', 'mock-token-for-development');
+        return { success: true };
+      }
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
+        credentials: 'include'
       });
       let data;
       try {
@@ -89,21 +166,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           console.log('[AUTH] Token kaydedildi:', data.data.token);
         }
         console.log('[AUTH] setUser & setIsAuthenticated', user);
-        // Backend'e log gönder
-        try {
-          await fetch(`${API_BASE_URL}/log`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'login_response',
-              email,
-              response: data,
-              timestamp: new Date().toISOString(),
-            })
-          });
-        } catch (logErr) {
-          console.warn('Login yanıtı backend loguna kaydedilemedi:', logErr);
-        }
         return { success: true };
       } else {
         setUser(null);
@@ -123,7 +185,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   };
 
   const logout = () => {
-    // ... existing code ...
+    localStorage.removeItem('lingroot_token');
+    setUser(null);
+    setIsAuthenticated(false);
   };
 
   const register = async (
@@ -135,7 +199,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   ): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log('[AUTH] register() called', { email });
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      const response = await fetch(`/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ firstName, lastName, email, phoneNumber, password })

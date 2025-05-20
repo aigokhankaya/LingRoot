@@ -79,6 +79,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [topicDetailSuggestions, setTopicDetailSuggestions] = useState<string[]>([]);
   const [selectedDetailTopic, setSelectedDetailTopic] = useState<string>('');
   const [showInterestManager, setShowInterestManager] = useState<boolean>(false);
+  const [loadingTranscript, setLoadingTranscript] = useState<boolean>(false);
 
   useEffect(() => {
     setSpeakingRate(level === 'A1' ? 0.8 : 1.0);
@@ -357,6 +358,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         // Loading state'i güncelle
         if (isLoading) return;
         
+        setLoadingTranscript(true);
         console.log("YouTube transkript çekiliyor...");
         
         // Kullanıcıya bilgi ver
@@ -366,6 +368,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         
         if (!transcript) {
           alert("YouTube video transkripti alınamadı. Lütfen başka bir video deneyin veya başka bir içerik türü seçin.");
+          setLoadingTranscript(false);
           return;
         }
         
@@ -373,6 +376,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         
         // Transkripti topic_instructions alanına yerleştir
         setText(transcript);
+        setLoadingTranscript(false);
         
         // Input değeri olarak YouTube linkini kullan
         const inputData: ProcessInputData = {
@@ -388,6 +392,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       } catch (error) {
         console.error("YouTube transkript çekme hatası:", error);
         alert("YouTube transkript işlemi sırasında bir hata oluştu. Lütfen tekrar deneyin.");
+        setLoadingTranscript(false);
         return;
       }
     }
@@ -631,6 +636,50 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                     className="input-field pl-10 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="https://www.youtube.com/watch?v=..."
                     required
+                  />
+                </div>
+                
+                <div className="mt-2">
+                  <button 
+                    type="button" 
+                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:bg-blue-300"
+                    onClick={async () => {
+                      if (!youtubeLink) {
+                        alert("Lütfen bir YouTube linki girin!");
+                        return;
+                      }
+                      
+                      setLoadingTranscript(true);
+                      try {
+                        const transcript = await fetchYoutubeTranscript(youtubeLink);
+                        if (!transcript) {
+                          alert("YouTube video transkripti alınamadı. Lütfen başka bir video deneyin.");
+                          return;
+                        }
+                        setText(transcript);
+                      } catch (error) {
+                        console.error("YouTube transkript çekme hatası:", error);
+                        alert("YouTube transkript işlemi sırasında bir hata oluştu.");
+                      } finally {
+                        setLoadingTranscript(false);
+                      }
+                    }}
+                    disabled={loadingTranscript}
+                  >
+                    {loadingTranscript ? 'Transkript Yükleniyor...' : 'Transkript Çek'}
+                  </button>
+                </div>
+                
+                {/* Metninizi girin bölümü - YouTube transkripti için */}
+                <div className="mt-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    {t('your_text')}
+                  </label>
+                  <textarea
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px]"
+                    placeholder={t('enter_text_or_transcript')}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
                   />
                 </div>
               </div>

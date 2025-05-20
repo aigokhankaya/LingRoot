@@ -1,0 +1,84 @@
+2025-05-20 22:41:41,230 - INFO - Received request for URL: https://www.youtube.com/watch?v=sp8J4za_3GI with language: en
+2025-05-20 22:41:41,230 - INFO - Video ID: sp8J4za_3GI
+2025-05-20 22:41:41,230 - INFO - Playwright ile transcript çekme baþlatýlýyor: sp8J4za_3GI
+2025-05-20 22:41:41,230 - ERROR - Task exception was never retrieved
+future: <Task finished name='Task-6' coro=<Connection.run() done, defined at C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_connection.py:268> exception=NotImplementedError()>
+Traceback (most recent call last):
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_connection.py", line 275, in run
+    await self._transport.connect()
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_transport.py", line 135, in connect
+    raise exc
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_transport.py", line 123, in connect
+    self._proc = await asyncio.create_subprocess_exec(
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\asyncio\subprocess.py", line 218, in create_subprocess_exec
+    transport, protocol = await loop.subprocess_exec(
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 1681, in subprocess_exec
+    transport = await self._make_subprocess_transport(
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 498, in _make_subprocess_transport
+    raise NotImplementedError
+NotImplementedError
+2025-05-20 22:41:41,246 - ERROR - Playwright ile transcript çekme hatasý: 
+2025-05-20 22:41:41,248 - INFO - Successfully retrieved transcript for URL: https://www.youtube.com/watch?v=sp8J4za_3GI
+2025-05-20 22:44:10,952 - INFO - Received request for URL: https://www.youtube.com/watch?v=sp8J4za_3GI with language: en
+2025-05-20 22:44:10,952 - INFO - Video ID: sp8J4za_3GI
+2025-05-20 22:44:10,952 - INFO - Playwright ile transcript çekme baþlatýlýyor: sp8J4za_3GI
+2025-05-20 22:44:10,952 - ERROR - Task exception was never retrieved
+future: <Task finished name='Task-5' coro=<Connection.run() done, defined at C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_connection.py:268> exception=NotImplementedError()>
+Traceback (most recent call last):
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_connection.py", line 275, in run
+    await self._transport.connect()
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_transport.py", line 135, in connect
+    raise exc
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_transport.py", line 123, in connect
+    self._proc = await asyncio.create_subprocess_exec(
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\asyncio\subprocess.py", line 218, in create_subprocess_exec
+    transport, protocol = await loop.subprocess_exec(
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 1681, in subprocess_exec
+    transport = await self._make_subprocess_transport(
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 498, in _make_subprocess_transport
+    raise NotImplementedError
+NotImplementedError
+2025-05-20 22:44:10,952 - ERROR - Playwright ile transcript çekme hatasý: 
+2025-05-20 22:44:10,952 - INFO - Successfully retrieved transcript for URL: https://www.youtube.com/watch?v=sp8J4za_3GI
+2025-05-20 22:49:08,571 - INFO - Received request for URL: https://www.youtube.com/watch?v=sp8J4za_3GI with language: en
+2025-05-20 22:49:08,571 - INFO - Video ID: sp8J4za_3GI
+2025-05-20 22:49:08,571 - INFO - Playwright ile transcript çekme baþlatýlýyor: sp8J4za_3GI
+2025-05-20 22:49:08,571 - ERROR - Task exception was never retrieved
+future: <Task finished name='Task-9' coro=<Connection.run() done, defined at C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_connection.py:268> exception=NotImplementedError()>
+Traceback (most recent call last):
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_connection.py", line 275, in run
+    await self._transport.connect()
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_transport.py", line 135, in connect
+    raise exc
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_transport.py", line 123, in connect
+    self._proc = await asyncio.create_subprocess_exec(
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\asyncio\subprocess.py", line 218, in create_subprocess_exec
+    transport, protocol = await loop.subprocess_exec(
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 1681, in subprocess_exec
+    transport = await self._make_subprocess_transport(
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 498, in _make_subprocess_transport
+    raise NotImplementedError
+NotImplementedError
+2025-05-20 22:49:08,571 - ERROR - Playwright ile transcript çekme hatasý: 
+2025-05-20 22:49:08,571 - INFO - Successfully retrieved transcript for URL: https://www.youtube.com/watch?v=sp8J4za_3GI
+2025-05-20 22:54:07,504 - INFO - Received request for URL: https://www.youtube.com/watch?v=sp8J4za_3GI with language: en
+2025-05-20 22:54:07,504 - INFO - Video ID: sp8J4za_3GI
+2025-05-20 22:54:07,504 - INFO - Playwright ile transcript çekme baþlatýlýyor: sp8J4za_3GI
+2025-05-20 22:54:07,504 - ERROR - Task exception was never retrieved
+future: <Task finished name='Task-14' coro=<Connection.run() done, defined at C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_connection.py:268> exception=NotImplementedError()>
+Traceback (most recent call last):
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_connection.py", line 275, in run
+    await self._transport.connect()
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_transport.py", line 135, in connect
+    raise exc
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\site-packages\playwright\_impl\_transport.py", line 123, in connect
+    self._proc = await asyncio.create_subprocess_exec(
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\asyncio\subprocess.py", line 218, in create_subprocess_exec
+    transport, protocol = await loop.subprocess_exec(
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 1681, in subprocess_exec
+    transport = await self._make_subprocess_transport(
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 498, in _make_subprocess_transport
+    raise NotImplementedError
+NotImplementedError
+2025-05-20 22:54:07,504 - ERROR - Playwright ile transcript çekme hatasý: 
+2025-05-20 22:54:07,504 - INFO - Successfully retrieved transcript for URL: https://www.youtube.com/watch?v=sp8J4za_3GI
