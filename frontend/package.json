@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:clean": "rm -rf .next && NEXT_PUBLIC_API_URL=http://localhost:5001 next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
