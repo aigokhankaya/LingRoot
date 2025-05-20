@@ -103,6 +103,71 @@ export interface ApiResponse<T = any> {
     level?: string;
 }
 
+// YouTube transcript servisini çağırmak için fonksiyon
+export const fetchYoutubeTranscript = async (youtubeUrl: string, languageCode: string = 'en'): Promise<string | null> => {
+  try {
+    console.log(`YouTube transkript çekme işlemi başlatılıyor: ${youtubeUrl} (${languageCode})`);
+    
+    // Doğrudan API proxy üzerinden istek yap (CORS sorunu olmadan)
+    // Denenecek servis URL'leri
+    const serviceUrls = [
+      '/api/youtube-transcript',      // Ana port (8001)
+      '/api/youtube-transcript-alt',  // Alternatif port (8051)
+    ];
+    
+    // Denenecek diller dizisi
+    const languages = ['auto']; // Sadece 'auto' kullan
+    let lastError = null;
+    
+    // Her servis URL'ini deneyelim
+    for (const serviceUrl of serviceUrls) {
+      console.log(`Servis URL deneniyor: ${serviceUrl}`);
+      
+      // Her serviste auto dili ile deneyelim
+      try {
+        const response = await fetch(serviceUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: youtubeUrl,
+            language_code: 'auto', // Her zaman auto kullan
+          }),
+        });
+        
+        if (!response.ok) {
+          console.log(`Transcript servis hatası: ${response.status}`);
+          // Bir sonraki servisi dene
+          continue;
+        }
+        
+        const data = await response.json();
+        
+        if (!data.transcript || typeof data.transcript !== 'string' || !data.transcript.trim()) {
+          console.log(`Boş transcript alındı`);
+          // Bir sonraki servisi dene
+          continue;
+        }
+        
+        console.log(`Transcript başarıyla alındı`);
+        return data.transcript.trim();
+      } catch (err) {
+        console.error(`Servis denenirken hata oluştu:`, err);
+        lastError = err;
+        // Hata alındı, diğer servisi dene
+      }
+    }
+    
+    // Hiçbir servisten transcript alınamadıysa
+    console.error('Hiçbir serviste transcript alınamadı:', lastError);
+    return null;
+  } catch (error) {
+    console.error('YouTube transkript çekme hatası:', error);
+    return null;
+  }
+};
+
 export const getToken = (): string | null => {
     if (typeof window !== "undefined") {
         return localStorage.getItem("lingroot_token");

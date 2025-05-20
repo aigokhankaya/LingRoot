@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import logging
+import os
 from backend.youtubetranscriptservice.transcript_scraper import get_transcript_from_yttranscript_com
+from fastapi.middleware.cors import CORSMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -10,10 +12,24 @@ logging.basicConfig(
     filename='backend/logs/transcript_service.log'
 )
 
-app = FastAPI()
+app = FastAPI(
+    title="YouTube Transcript Service",
+    description="YouTube videolarından transkript çekme servisi",
+    version="1.0.0"
+)
+
+# CORS ayarlarını ekle
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Tüm kaynaklara izin ver (geliştirme için)
+    allow_credentials=True,
+    allow_methods=["*"],  # Tüm HTTP metodlarına izin ver
+    allow_headers=["*"],  # Tüm HTTP başlıklarına izin ver
+)
 
 class TranscriptRequest(BaseModel):
     url: str
+    language_code: str = Field(default="en", description="Transkript dil kodu (örn: en, tr, es)")
 
 @app.post("/scrape-transcript")
 async def scrape_transcript(req: TranscriptRequest):
@@ -21,13 +37,32 @@ async def scrape_transcript(req: TranscriptRequest):
     Endpoint to scrape transcript from a YouTube video URL
     """
     try:
-        logging.info(f"Received request for URL: {req.url}")
-        transcript = await get_transcript_from_yttranscript_com(req.url)
+        logging.info(f"Received request for URL: {req.url} with language: {req.language_code}")
+        transcript = await get_transcript_from_yttranscript_com(req.url, req.language_code)
+        logging.info(f"Successfully retrieved transcript for URL: {req.url}")
         return {"transcript": transcript}
     except Exception as e:
-        logging.error(f"Error processing request: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = str(e)
+        logging.error(f"Error processing request: {error_msg}")
+        raise HTTPException(status_code=500, detail=error_msg)
+
+@app.get("/health")
+async def health_check():
+    """
+    Servisin çalışıp çalışmadığını kontrol etmek için sağlık endpoint'i
+    """
+    return {"status": "ok", "service": "youtube-transcript-service"}
+
+@app.options("/scrape-transcript")
+async def options_transcript():
+    """
+    CORS sorunlarını çözmek için OPTIONS endpoint'i
+    """
+    return {}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    # Varsayılan olarak port 8001 kullan, ancak PORT ortam değişkeni varsa onu kullan
+    port = int(os.getenv("PORT", 8001))
+    print(f"YouTube Transcript Service port {port} üzerinde başlatılıyor...")
+    uvicorn.run(app, host="0.0.0.0", port=port) 

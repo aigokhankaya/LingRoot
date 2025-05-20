@@ -27,6 +27,14 @@ const nextConfig = {
         source: '/admin/:path*',
         destination: 'http://localhost:5001/admin/:path*',
       },
+      {
+        source: '/api/youtube-transcript',
+        destination: 'http://localhost:8001/scrape-transcript',
+      },
+      {
+        source: '/api/youtube-transcript-alt',
+        destination: 'http://localhost:8051/scrape-transcript',
+      },
     ];
   },
 };

@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useTranslation } from '@/lib/i18n';
-import { ProcessInputData, getToken, API_BASE_URL, getTopicDetailSuggestions } from '../lib/api';
+import { ProcessInputData, getToken, API_BASE_URL, getTopicDetailSuggestions, fetchYoutubeTranscript } from '../lib/api';
 import { searchBooks, fetchBookContent } from '../services/bookService';
 import InterestManager from './InterestManager';
 import { FaCog } from 'react-icons/fa';
@@ -344,12 +344,55 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   };
 
   // Form submit fonksiyonu
-  const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     if (!voice) {
       alert("Lütfen bir ses seçin!");
       return;
     }
+    
+    // YouTube linki varsa önce transcript çek
+    if (inputType === 'youtube' && youtubeLink) {
+      try {
+        // Loading state'i güncelle
+        if (isLoading) return;
+        
+        console.log("YouTube transkript çekiliyor...");
+        
+        // Kullanıcıya bilgi ver
+        alert("YouTube videosunun transkripti alınıyor. Bu işlem videoya göre biraz zaman alabilir ve farklı dillerde deneme yapacaktır.");
+        
+        const transcript = await fetchYoutubeTranscript(youtubeLink);
+        
+        if (!transcript) {
+          alert("YouTube video transkripti alınamadı. Lütfen başka bir video deneyin veya başka bir içerik türü seçin.");
+          return;
+        }
+        
+        console.log("YouTube transkript başarıyla alındı.");
+        
+        // Transkripti topic_instructions alanına yerleştir
+        setText(transcript);
+        
+        // Input değeri olarak YouTube linkini kullan
+        const inputData: ProcessInputData = {
+          type: 'youtube',
+          input: youtubeLink,
+          text: transcript,
+          level,
+          SesHızı: speakingRate,
+          voice
+        };
+        onSubmit(inputData);
+        return;
+      } catch (error) {
+        console.error("YouTube transkript çekme hatası:", error);
+        alert("YouTube transkript işlemi sırasında bir hata oluştu. Lütfen tekrar deneyin.");
+        return;
+      }
+    }
+    
+    // Diğer içerik türleri için normal davranış
     const inputData: ProcessInputData = {
       type: inputType as ProcessInputData['type'],
       text: inputType === 'text' ? text : inputType === 'topic' ? topic : undefined,
