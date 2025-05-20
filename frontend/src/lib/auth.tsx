@@ -25,6 +25,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Get API base URL without duplicating "api" segment
+  const getApiUrl = () => {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
+  };
+
   // Sayfa yenilendiğinde token kontrolü
   useEffect(() => {
     const checkToken = async () => {
@@ -41,7 +47,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         }
         
         // Oturum bilgilerini kontrol et
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/me`, {
+        const response = await fetch(`${getApiUrl()}/auth/me`, {
           method: 'GET',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -135,7 +141,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         return { success: true };
       }
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/login`, {
+      const response = await fetch(`${getApiUrl()}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -199,7 +205,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   ): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log('[AUTH] register() called', { email });
-      const response = await fetch(`/api/auth/register`, {
+      const response = await fetch(`${getApiUrl()}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ firstName, lastName, email, phoneNumber, password })
