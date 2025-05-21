@@ -1,453 +1,410 @@
 // The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
-
-import React from "react";
-
+import React from 'react';
 const App: React.FC = () => {
+  React.useEffect(() => {
+    const loginButton = document.getElementById('loginButton');
+    const loginModal = document.getElementById('loginModal');
+    const closeModal = document.getElementById('closeModal');
+    const loginForm = document.getElementById('loginForm');
+
+    const openModal = () => {
+      if (loginModal) {
+        loginModal.classList.remove('hidden');
+      }
+    };
+
+    const closeModalHandler = () => {
+      if (loginModal) {
+        loginModal.classList.add('hidden');
+      }
+    };
+
+    const handleSubmit = (e: Event) => {
+      e.preventDefault();
+      const emailInput = document.getElementById('email') as HTMLInputElement;
+      const passwordInput = document.getElementById('password') as HTMLInputElement;
+      
+      // Here you can handle the login logic
+      console.log('Login attempt:', {
+        email: emailInput.value,
+        password: passwordInput.value
+      });
+    };
+
+    loginButton?.addEventListener('click', openModal);
+    closeModal?.addEventListener('click', closeModalHandler);
+    loginForm?.addEventListener('submit', handleSubmit);
+
+    // Click outside to close
+    loginModal?.addEventListener('click', (e) => {
+      if (e.target === loginModal) {
+        closeModalHandler();
+      }
+    });
+
+    return () => {
+      loginButton?.removeEventListener('click', openModal);
+      closeModal?.removeEventListener('click', closeModalHandler);
+      loginForm?.removeEventListener('submit', handleSubmit);
+      loginModal?.removeEventListener('click', closeModalHandler);
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white font-sans">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center">
-            <h1 className="text-2xl font-bold text-blue-600">LingRoot</h1>
-          </div>
-          <nav className="hidden md:flex space-x-8">
-            <a
-              href="#nasil-calisir"
-              className="text-gray-700 hover:text-blue-600 cursor-pointer"
-            >
-              Nasıl Çalışır
-            </a>
-            <a
-              href="#avantajlar"
-              className="text-gray-700 hover:text-blue-600 cursor-pointer"
-            >
-              Avantajlar
-            </a>
-            <a
-              href="#kimin-icin"
-              className="text-gray-700 hover:text-blue-600 cursor-pointer"
-            >
-              Kimin İçin
-            </a>
-          </nav>
-          <div className="flex items-center space-x-4">
-            <button className="px-4 py-2 text-blue-600 border border-blue-600 rounded-button hover:bg-blue-50 cursor-pointer whitespace-nowrap">
-              Giriş Yap
-            </button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-button hover:bg-blue-700 cursor-pointer whitespace-nowrap">
-              Kayıt Ol
-            </button>
-          </div>
-        </div>
-      </header>
+<div className="min-h-screen bg-gradient-to-b from-blue-50 to-white font-sans">
+{/* Header */}
+<header className="bg-white shadow-sm">
+<div className="container mx-auto px-6 py-4 flex justify-between items-center">
+<div className="flex items-center">
+<h1 className="text-2xl font-bold text-blue-600">LingRoot</h1>
+</div>
+<nav className="hidden md:flex space-x-8">
+<a href="#nasil-calisir" className="text-gray-700 hover:text-blue-600 cursor-pointer">Nasıl Çalışır</a>
+<a href="#avantajlar" className="text-gray-700 hover:text-blue-600 cursor-pointer">Avantajlar</a>
+<a href="#kimin-icin" className="text-gray-700 hover:text-blue-600 cursor-pointer">Kimin İçin</a>
+</nav>
+<div className="flex items-center space-x-4">
+<button id="loginButton" className="px-4 py-2 text-blue-600 border border-blue-600 rounded-button hover:bg-blue-50 cursor-pointer whitespace-nowrap">Giriş Yap</button>
+<button className="px-4 py-2 bg-blue-600 text-white rounded-button hover:bg-blue-700 cursor-pointer whitespace-nowrap">Kayıt Ol</button>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-transparent z-10"></div>
-          <img
-            src="https://readdy.ai/api/search-image?query=A%20modern%20language%20learning%20environment%20with%20a%20person%20comfortably%20listening%20to%20content%20on%20headphones%2C%20surrounded%20by%20floating%20text%20bubbles%20and%20digital%20devices.%20The%20scene%20has%20a%20clean%2C%20minimalist%20aesthetic%20with%20a%20soft%20blue%20gradient%20background%20that%20transitions%20to%20white%20on%20the%20left%20side%2C%20creating%20space%20for%20text%20overlay&width=1440&height=700&seq=hero1&orientation=landscape"
-            alt="Dil öğrenme deneyimi"
-            className="w-full h-full object-cover object-top"
-          />
-        </div>
-        <div className="container mx-auto px-6 py-20 md:py-32 relative z-20">
-          <div className="max-w-2xl">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-800 leading-tight mb-6">
-              Zaten takip ettiğin içerikleri seviyene göre dönüştürüyoruz. Sen
-              sadece dinlemeye devam et.
-            </h2>
-            <p className="text-xl md:text-2xl text-gray-600 mb-8">
-              Günlük içeriklerini İngilizce öğrenme deneyimine dönüştür. Senin
-              seviyene, senin içeriğin, senin hızında.
-            </p>
-            <button className="px-8 py-4 bg-blue-600 text-white text-lg rounded-button shadow-lg hover:bg-blue-700 transition duration-300 cursor-pointer whitespace-nowrap">
-              Hemen Başla
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* LingRoot Nedir */}
-      <section className="py-16 bg-white">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">
-              LingRoot Nedir?
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              LingRoot, günlük yaşamında tükettiğin içerikleri (YouTube
-              videoları, Spotify podcast'leri, haberler, bloglar) seçtiğin
-              İngilizce seviyesine dönüştürerek sana özel bir dil öğrenme
-              deneyimi sunar.
-            </p>
-          </div>
-
-          <div className="flex justify-center">
-            <img
-              src="https://readdy.ai/api/search-image?query=A%20visual%20representation%20of%20content%20transformation%20process%20showing%20original%20media%20like%20YouTube%20videos%2C%20Spotify%20podcasts%2C%20and%20news%20articles%20being%20converted%20into%20personalized%20language%20learning%20materials%20with%20level%20indicators%20from%20A1%20to%20C2.%20The%20image%20has%20a%20clean%2C%20professional%20design%20with%20blue%20accent%20colors%20on%20white%20background&width=800&height=500&seq=concept1&orientation=landscape"
-              alt="LingRoot konsept görseli"
-              className="rounded-lg shadow-xl max-w-full h-auto"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Sorun ve Çözüm */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-6">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-16">
-            Sorun ve Çözüm
-          </h2>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white rounded-lg shadow-lg p-8 transition-transform duration-300 hover:transform hover:scale-105">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <i className="fas fa-search text-blue-600 text-2xl"></i>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 text-center mb-4">
-                Seviyene uygun içerik bulamıyor musun?
-              </h3>
-              <p className="text-gray-600 text-center">
-                İçerikleri senin seviyene tam olarak uyarlarız.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-lg p-8 transition-transform duration-300 hover:transform hover:scale-105">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <i className="fas fa-puzzle-piece text-blue-600 text-2xl"></i>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 text-center mb-4">
-                Gerçek hayattan içerikler karmaşık mı geliyor?
-              </h3>
-              <p className="text-gray-600 text-center">
-                İçerikleri basitleştirip anlaşılır hale getiriyoruz.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-lg p-8 transition-transform duration-300 hover:transform hover:scale-105">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <i className="fas fa-clock text-blue-600 text-2xl"></i>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 text-center mb-4">
-                Dinleme alışkanlığı oluşturmakta zorlanıyor musun?
-              </h3>
-              <p className="text-gray-600 text-center">
-                Günlük rutinlerine kolayca entegre edilebilen kişisel dinleme
-                modelleri sunuyoruz.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Nasıl Çalışır */}
-      <section id="nasil-calisir" className="py-16 bg-white">
-        <div className="container mx-auto px-6">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-16">
-            Nasıl Çalışır?
-          </h2>
-
-          <div className="flex flex-col md:flex-row items-center justify-between max-w-4xl mx-auto">
-            <div className="flex flex-col items-center mb-12 md:mb-0">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-6">
-                1
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 text-center mb-4">
-                İçeriğini Yükle
-              </h3>
-              <p className="text-gray-600 text-center max-w-xs">
-                YouTube, Spotify bağlantısı veya metin yükle.
-              </p>
-              <img
-                src="https://readdy.ai/api/search-image?query=A%20person%20uploading%20content%20to%20a%20language%20learning%20platform%2C%20showing%20YouTube%20and%20Spotify%20logos%2C%20with%20a%20clean%20minimal%20interface.%20The%20image%20has%20a%20simple%20blue%20and%20white%20color%20scheme%20with%20professional%20lighting%20and%20composition&width=200&height=200&seq=step1&orientation=squarish"
-                alt="İçerik yükleme"
-                className="w-40 h-40 object-cover mt-6 rounded-lg"
-              />
-            </div>
-
-            <div className="hidden md:block w-px h-40 bg-gray-300"></div>
-
-            <div className="flex flex-col items-center mb-12 md:mb-0">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-6">
-                2
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 text-center mb-4">
-                Seviyeni Seç
-              </h3>
-              <p className="text-gray-600 text-center max-w-xs">
-                İngilizce seviyeni belirle (A1'den C2'ye).
-              </p>
-              <img
-                src="https://readdy.ai/api/search-image?query=A%20user%20selecting%20language%20proficiency%20level%20from%20A1%20to%20C2%20on%20a%20digital%20interface%20with%20a%20slider%20or%20buttons.%20The%20image%20shows%20a%20clean%2C%20modern%20UI%20design%20with%20blue%20accent%20colors%20on%20white%20background%20and%20professional%20lighting&width=200&height=200&seq=step2&orientation=squarish"
-                alt="Seviye seçimi"
-                className="w-40 h-40 object-cover mt-6 rounded-lg"
-              />
-            </div>
-
-            <div className="hidden md:block w-px h-40 bg-gray-300"></div>
-
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-6">
-                3
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 text-center mb-4">
-                Dinlemeye Başla
-              </h3>
-              <p className="text-gray-600 text-center max-w-xs">
-                Seviyene uygun seslendirme ve altyazılarla dinlemeye devam et.
-              </p>
-              <img
-                src="https://readdy.ai/api/search-image?query=A%20person%20wearing%20headphones%20listening%20to%20content%20with%20subtitles%20visible%20on%20a%20device%20screen.%20The%20image%20shows%20a%20relaxed%20learning%20environment%20with%20clean%2C%20minimal%20aesthetics%20and%20blue%20accent%20colors%20on%20white%20background&width=200&height=200&seq=step3&orientation=squarish"
-                alt="Dinleme deneyimi"
-                className="w-40 h-40 object-cover mt-6 rounded-lg"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Avantajlar */}
-      <section id="avantajlar" className="py-16 bg-gray-50">
-        <div className="container mx-auto px-6">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-16">
-            LingRoot Avantajları
-          </h2>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="bg-white rounded-lg shadow-lg p-8 h-full">
-              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <i className="fas fa-user-cog text-blue-600 text-xl"></i>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4">
-                Kişisel Öğrenme
-              </h3>
-              <p className="text-gray-600 text-center">
-                Seviyene ve ilgi alanlarına göre özel olarak hazırlanmış
-                içerikler.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-lg p-8 h-full">
-              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <i className="fas fa-podcast text-blue-600 text-xl"></i>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4">
-                Gerçek İçerikler
-              </h3>
-              <p className="text-gray-600 text-center">
-                Podcast, blog ve videolar gibi gerçek yaşam içeriklerini
-                dönüştürürüz.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-lg p-8 h-full">
-              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <i className="fas fa-sync-alt text-blue-600 text-xl"></i>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4">
-                Sürdürülebilir Alışkanlık
-              </h3>
-              <p className="text-gray-600 text-center">
-                Günlük rutinlerine uygun ve sürekli olarak motive eden
-                içeriklerle öğrenme alışkanlığını kalıcı hale getiririz.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-lg p-8 h-full">
-              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <i className="fas fa-chart-line text-blue-600 text-xl"></i>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4">
-                Özgüven ve Motivasyon
-              </h3>
-              <p className="text-gray-600 text-center">
-                Seviyene uygun içerikler sayesinde dil öğrenme konusundaki
-                özgüvenini ve motivasyonunu artırırız.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Kimin İçin */}
-      <section id="kimin-icin" className="py-16 bg-white">
-        <div className="container mx-auto px-6">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-16">
-            Kimin İçin?
-          </h2>
-
-          <div className="grid md:grid-cols-3 gap-10 max-w-4xl mx-auto">
-            <div className="flex flex-col items-center">
-              <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                <i className="fas fa-headphones text-blue-600 text-3xl"></i>
-              </div>
-              <p className="text-gray-700 text-center">
-                Günlük içerikleri tüketirken İngilizce öğrenmek isteyenler.
-              </p>
-            </div>
-
-            <div className="flex flex-col items-center">
-              <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                <i className="fas fa-running text-blue-600 text-3xl"></i>
-              </div>
-              <p className="text-gray-700 text-center">
-                Zamanı olmayan ama sürekli içerik tüketenler.
-              </p>
-            </div>
-
-            <div className="flex flex-col items-center">
-              <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                <i className="fas fa-lightbulb text-blue-600 text-3xl"></i>
-              </div>
-              <p className="text-gray-700 text-center">
-                Klasik dil öğrenme yöntemlerinden sıkılmış olanlar.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Slogan ve CTA */}
-      <section className="py-20 bg-blue-600 text-white">
-        <div className="container mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-8">
-            LingRoot, kişisel İngilizce asistanınız!
-          </h2>
-          <p className="text-xl mb-4">
-            Her seviyeden senin seviyene LingRoot çevirir.
-          </p>
-          <p className="text-xl italic mb-12">Your routine turns to English.</p>
-
-          <button className="px-8 py-4 bg-white text-blue-600 text-lg font-semibold rounded-button shadow-lg hover:bg-blue-50 transition duration-300 cursor-pointer whitespace-nowrap">
-            Şimdi Ücretsiz Deneyin
-          </button>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-800 text-white py-12">
-        <div className="container mx-auto px-6">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-xl font-bold mb-4">LingRoot</h3>
-              <p className="text-gray-400">
-                Kişiselleştirilmiş dil öğrenme deneyimi.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Hızlı Bağlantılar</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a
-                    href="#"
-                    className="text-gray-400 hover:text-white cursor-pointer"
-                  >
-                    Ana Sayfa
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#nasil-calisir"
-                    className="text-gray-400 hover:text-white cursor-pointer"
-                  >
-                    Nasıl Çalışır
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#avantajlar"
-                    className="text-gray-400 hover:text-white cursor-pointer"
-                  >
-                    Avantajlar
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#kimin-icin"
-                    className="text-gray-400 hover:text-white cursor-pointer"
-                  >
-                    Kimin İçin
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold mb-4">İletişim</h4>
-              <ul className="space-y-2">
-                <li className="flex items-center">
-                  <i className="fas fa-envelope mr-2 text-gray-400"></i>
-                  <a
-                    href="mailto:info@lingroot.com"
-                    className="text-gray-400 hover:text-white cursor-pointer"
-                  >
-                    info@lingroot.com
-                  </a>
-                </li>
-                <li className="flex items-center">
-                  <i className="fas fa-phone mr-2 text-gray-400"></i>
-                  <span className="text-gray-400">+90 212 123 4567</span>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Bizi Takip Edin</h4>
-              <div className="flex space-x-4">
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white cursor-pointer"
-                >
-                  <i className="fab fa-facebook-f text-xl"></i>
-                </a>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white cursor-pointer"
-                >
-                  <i className="fab fa-twitter text-xl"></i>
-                </a>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white cursor-pointer"
-                >
-                  <i className="fab fa-instagram text-xl"></i>
-                </a>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white cursor-pointer"
-                >
-                  <i className="fab fa-linkedin-in text-xl"></i>
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-700 mt-10 pt-6 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400 text-sm mb-4 md:mb-0">
-              &copy; 2025 LingRoot. Tüm hakları saklıdır.
-            </p>
-            <div className="flex space-x-6">
-              <a
-                href="#"
-                className="text-gray-400 hover:text-white text-sm cursor-pointer"
-              >
-                Gizlilik Politikası
-              </a>
-              <a
-                href="#"
-                className="text-gray-400 hover:text-white text-sm cursor-pointer"
-              >
-                Kullanım Koşulları
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
+{/* Login Modal */}
+<div id="loginModal" className="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+  <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+    <div className="flex justify-between items-center mb-6">
+      <h3 className="text-2xl font-bold text-gray-800">Giriş Yap</h3>
+      <button id="closeModal" className="text-gray-600 hover:text-gray-800">
+        <i className="fas fa-times text-xl"></i>
+      </button>
     </div>
-  );
-};
-
-export default App;
+    
+    <form id="loginForm" className="space-y-4">
+      <div>
+        <label htmlFor="email" className="block text-gray-700 mb-2">E-posta / Kullanıcı Adı</label>
+        <input
+          type="text"
+          id="email"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+          required
+        />
+      </div>
+      
+      <div>
+        <label htmlFor="password" className="block text-gray-700 mb-2">Şifre</label>
+        <input
+          type="password"
+          id="password"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+          required
+        />
+      </div>
+      
+      <div className="flex justify-end">
+        <a href="#" className="text-blue-600 hover:text-blue-700 text-sm">Şifremi Unuttum</a>
+      </div>
+      
+      <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-button hover:bg-blue-700 transition duration-300">
+        Giriş Yap
+      </button>
+    </form>
+    
+    <div className="mt-6">
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-300"></div>
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="px-2 bg-white text-gray-500">veya</span>
+        </div>
+      </div>
+      
+      <div className="mt-6 space-y-3">
+        <button className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-button hover:bg-gray-50">
+          <i className="fab fa-google text-red-500 mr-3"></i>
+          Google ile devam et
+        </button>
+        <button className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-button hover:bg-gray-50">
+          <i className="fab fa-facebook text-blue-600 mr-3"></i>
+          Facebook ile devam et
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+</header>
+{/* Hero Section */}
+<section className="relative overflow-hidden">
+<div className="absolute inset-0 z-0">
+<div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-transparent z-10"></div>
+<img
+src="https://readdy.ai/api/search-image?query=A%20modern%20language%20learning%20environment%20with%20a%20person%20comfortably%20listening%20to%20content%20on%20headphones%2C%20surrounded%20by%20floating%20text%20bubbles%20and%20digital%20devices.%20The%20scene%20has%20a%20clean%2C%20minimalist%20aesthetic%20with%20a%20soft%20blue%20gradient%20background%20that%20transitions%20to%20white%20on%20the%20left%20side%2C%20creating%20space%20for%20text%20overlay&width=1440&height=700&seq=hero1&orientation=landscape"
+alt="Dil öğrenme deneyimi"
+className="w-full h-full object-cover object-top"
+/>
+</div>
+<div className="container mx-auto px-6 py-20 md:py-32 relative z-20">
+<div className="max-w-2xl">
+<h2 className="text-4xl md:text-5xl font-bold text-gray-800 leading-tight mb-6">
+Zaten takip ettiğin içerikleri seviyene göre dönüştürüyoruz. Sen sadece dinlemeye devam et.
+</h2>
+<p className="text-xl md:text-2xl text-gray-600 mb-8">
+Günlük içeriklerini İngilizce öğrenme deneyimine dönüştür. Senin seviyene, senin içeriğin, senin hızında.
+</p>
+<button className="px-8 py-4 bg-blue-600 text-white text-lg rounded-button shadow-lg hover:bg-blue-700 transition duration-300 cursor-pointer whitespace-nowrap">
+Hemen Başla
+</button>
+</div>
+</div>
+</section>
+{/* LingRoot Nedir */}
+<section className="py-16 bg-white">
+<div className="container mx-auto px-6">
+<div className="text-center mb-16">
+<h2 className="text-3xl font-bold text-gray-800 mb-4">LingRoot Nedir?</h2>
+<p className="text-xl text-gray-600 max-w-3xl mx-auto">
+LingRoot, günlük yaşamında tükettiğin içerikleri (YouTube videoları, Spotify podcast'leri, haberler, bloglar) seçtiğin İngilizce seviyesine dönüştürerek sana özel bir dil öğrenme deneyimi sunar.
+</p>
+</div>
+<div className="flex justify-center">
+<img
+src="https://readdy.ai/api/search-image?query=A%20visual%20representation%20of%20content%20transformation%20process%20showing%20original%20media%20like%20YouTube%20videos%2C%20Spotify%20podcasts%2C%20and%20news%20articles%20being%20converted%20into%20personalized%20language%20learning%20materials%20with%20level%20indicators%20from%20A1%20to%20C2.%20The%20image%20has%20a%20clean%2C%20professional%20design%20with%20blue%20accent%20colors%20on%20white%20background&width=800&height=500&seq=concept1&orientation=landscape"
+alt="LingRoot konsept görseli"
+className="rounded-lg shadow-xl max-w-full h-auto"
+/>
+</div>
+</div>
+</section>
+{/* Sorun ve Çözüm */}
+<section className="py-16 bg-gray-50">
+<div className="container mx-auto px-6">
+<h2 className="text-3xl font-bold text-center text-gray-800 mb-16">Sorun ve Çözüm</h2>
+<div className="grid md:grid-cols-3 gap-8">
+<div className="bg-white rounded-lg shadow-lg p-8 transition-transform duration-300 hover:transform hover:scale-105">
+<div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+<i className="fas fa-search text-blue-600 text-2xl"></i>
+</div>
+<h3 className="text-xl font-semibold text-gray-800 text-center mb-4">Seviyene uygun içerik bulamıyor musun?</h3>
+<p className="text-gray-600 text-center">
+İçerikleri senin seviyene tam olarak uyarlarız.
+</p>
+</div>
+<div className="bg-white rounded-lg shadow-lg p-8 transition-transform duration-300 hover:transform hover:scale-105">
+<div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+<i className="fas fa-puzzle-piece text-blue-600 text-2xl"></i>
+</div>
+<h3 className="text-xl font-semibold text-gray-800 text-center mb-4">Gerçek hayattan içerikler karmaşık mı geliyor?</h3>
+<p className="text-gray-600 text-center">
+İçerikleri basitleştirip anlaşılır hale getiriyoruz.
+</p>
+</div>
+<div className="bg-white rounded-lg shadow-lg p-8 transition-transform duration-300 hover:transform hover:scale-105">
+<div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+<i className="fas fa-clock text-blue-600 text-2xl"></i>
+</div>
+<h3 className="text-xl font-semibold text-gray-800 text-center mb-4">Dinleme alışkanlığı oluşturmakta zorlanıyor musun?</h3>
+<p className="text-gray-600 text-center">
+Günlük rutinlerine kolayca entegre edilebilen kişisel dinleme modelleri sunuyoruz.
+</p>
+</div>
+</div>
+</div>
+</section>
+{/* Nasıl Çalışır */}
+<section id="nasil-calisir" className="py-16 bg-white">
+<div className="container mx-auto px-6">
+<h2 className="text-3xl font-bold text-center text-gray-800 mb-16">Nasıl Çalışır?</h2>
+<div className="flex flex-col md:flex-row items-center justify-between max-w-4xl mx-auto">
+<div className="flex flex-col items-center mb-12 md:mb-0">
+<div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-6">1</div>
+<h3 className="text-xl font-semibold text-gray-800 text-center mb-4">İçeriğini Yükle</h3>
+<p className="text-gray-600 text-center max-w-xs">
+YouTube, Spotify bağlantısı veya metin yükle.
+</p>
+<img
+src="https://readdy.ai/api/search-image?query=A%20person%20uploading%20content%20to%20a%20language%20learning%20platform%2C%20showing%20YouTube%20and%20Spotify%20logos%2C%20with%20a%20clean%20minimal%20interface.%20The%20image%20has%20a%20simple%20blue%20and%20white%20color%20scheme%20with%20professional%20lighting%20and%20composition&width=200&height=200&seq=step1&orientation=squarish"
+alt="İçerik yükleme"
+className="w-40 h-40 object-cover mt-6 rounded-lg"
+/>
+</div>
+<div className="hidden md:block w-px h-40 bg-gray-300"></div>
+<div className="flex flex-col items-center mb-12 md:mb-0">
+<div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-6">2</div>
+<h3 className="text-xl font-semibold text-gray-800 text-center mb-4">Seviyeni Seç</h3>
+<p className="text-gray-600 text-center max-w-xs">
+İngilizce seviyeni belirle (A1'den C2'ye).
+</p>
+<img
+src="https://readdy.ai/api/search-image?query=A%20user%20selecting%20language%20proficiency%20level%20from%20A1%20to%20C2%20on%20a%20digital%20interface%20with%20a%20slider%20or%20buttons.%20The%20image%20shows%20a%20clean%2C%20modern%20UI%20design%20with%20blue%20accent%20colors%20on%20white%20background%20and%20professional%20lighting&width=200&height=200&seq=step2&orientation=squarish"
+alt="Seviye seçimi"
+className="w-40 h-40 object-cover mt-6 rounded-lg"
+/>
+</div>
+<div className="hidden md:block w-px h-40 bg-gray-300"></div>
+<div className="flex flex-col items-center">
+<div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-6">3</div>
+<h3 className="text-xl font-semibold text-gray-800 text-center mb-4">Dinlemeye Başla</h3>
+<p className="text-gray-600 text-center max-w-xs">
+Seviyene uygun seslendirme ve altyazılarla dinlemeye devam et.
+</p>
+<img
+src="https://readdy.ai/api/search-image?query=A%20person%20wearing%20headphones%20listening%20to%20content%20with%20subtitles%20visible%20on%20a%20device%20screen.%20The%20image%20shows%20a%20relaxed%20learning%20environment%20with%20clean%2C%20minimal%20aesthetics%20and%20blue%20accent%20colors%20on%20white%20background&width=200&height=200&seq=step3&orientation=squarish"
+alt="Dinleme deneyimi"
+className="w-40 h-40 object-cover mt-6 rounded-lg"
+/>
+</div>
+</div>
+</div>
+</section>
+{/* Avantajlar */}
+<section id="avantajlar" className="py-16 bg-gray-50">
+<div className="container mx-auto px-6">
+<h2 className="text-3xl font-bold text-center text-gray-800 mb-16">LingRoot Avantajları</h2>
+<div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+<div className="bg-white rounded-lg shadow-lg p-8 h-full">
+<div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+<i className="fas fa-user-cog text-blue-600 text-xl"></i>
+</div>
+<h3 className="text-lg font-semibold text-gray-800 text-center mb-4">Kişisel Öğrenme</h3>
+<p className="text-gray-600 text-center">
+Seviyene ve ilgi alanlarına göre özel olarak hazırlanmış içerikler.
+</p>
+</div>
+<div className="bg-white rounded-lg shadow-lg p-8 h-full">
+<div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+<i className="fas fa-podcast text-blue-600 text-xl"></i>
+</div>
+<h3 className="text-lg font-semibold text-gray-800 text-center mb-4">Gerçek İçerikler</h3>
+<p className="text-gray-600 text-center">
+Podcast, blog ve videolar gibi gerçek yaşam içeriklerini dönüştürürüz.
+</p>
+</div>
+<div className="bg-white rounded-lg shadow-lg p-8 h-full">
+<div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+<i className="fas fa-sync-alt text-blue-600 text-xl"></i>
+</div>
+<h3 className="text-lg font-semibold text-gray-800 text-center mb-4">Sürdürülebilir Alışkanlık</h3>
+<p className="text-gray-600 text-center">
+Günlük rutinlerine uygun ve sürekli olarak motive eden içeriklerle öğrenme alışkanlığını kalıcı hale getiririz.
+</p>
+</div>
+<div className="bg-white rounded-lg shadow-lg p-8 h-full">
+<div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+<i className="fas fa-chart-line text-blue-600 text-xl"></i>
+</div>
+<h3 className="text-lg font-semibold text-gray-800 text-center mb-4">Özgüven ve Motivasyon</h3>
+<p className="text-gray-600 text-center">
+Seviyene uygun içerikler sayesinde dil öğrenme konusundaki özgüvenini ve motivasyonunu artırırız.
+</p>
+</div>
+</div>
+</div>
+</section>
+{/* Kimin İçin */}
+<section id="kimin-icin" className="py-16 bg-white">
+<div className="container mx-auto px-6">
+<h2 className="text-3xl font-bold text-center text-gray-800 mb-16">Kimin İçin?</h2>
+<div className="grid md:grid-cols-3 gap-10 max-w-4xl mx-auto">
+<div className="flex flex-col items-center">
+<div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+<i className="fas fa-headphones text-blue-600 text-3xl"></i>
+</div>
+<p className="text-gray-700 text-center">
+Günlük içerikleri tüketirken İngilizce öğrenmek isteyenler.
+</p>
+</div>
+<div className="flex flex-col items-center">
+<div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+<i className="fas fa-running text-blue-600 text-3xl"></i>
+</div>
+<p className="text-gray-700 text-center">
+Zamanı olmayan ama sürekli içerik tüketenler.
+</p>
+</div>
+<div className="flex flex-col items-center">
+<div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+<i className="fas fa-lightbulb text-blue-600 text-3xl"></i>
+</div>
+<p className="text-gray-700 text-center">
+Klasik dil öğrenme yöntemlerinden sıkılmış olanlar.
+</p>
+</div>
+</div>
+</div>
+</section>
+{/* Slogan ve CTA */}
+<section className="py-20 bg-blue-600 text-white">
+<div className="container mx-auto px-6 text-center">
+<h2 className="text-3xl md:text-4xl font-bold mb-8">LingRoot, kişisel İngilizce asistanınız!</h2>
+<p className="text-xl mb-4">Her seviyeden senin seviyene LingRoot çevirir.</p>
+<p className="text-xl italic mb-12">Your routine turns to English.</p>
+<button className="px-8 py-4 bg-white text-blue-600 text-lg font-semibold rounded-button shadow-lg hover:bg-blue-50 transition duration-300 cursor-pointer whitespace-nowrap">
+Şimdi Ücretsiz Deneyin
+</button>
+</div>
+</section>
+{/* Footer */}
+<footer className="bg-gray-800 text-white py-12">
+<div className="container mx-auto px-6">
+<div className="grid md:grid-cols-4 gap-8">
+<div>
+<h3 className="text-xl font-bold mb-4">LingRoot</h3>
+<p className="text-gray-400">
+Kişiselleştirilmiş dil öğrenme deneyimi.
+</p>
+</div>
+<div>
+<h4 className="text-lg font-semibold mb-4">Hızlı Bağlantılar</h4>
+<ul className="space-y-2">
+<li><a href="#" className="text-gray-400 hover:text-white cursor-pointer">Ana Sayfa</a></li>
+<li><a href="#nasil-calisir" className="text-gray-400 hover:text-white cursor-pointer">Nasıl Çalışır</a></li>
+<li><a href="#avantajlar" className="text-gray-400 hover:text-white cursor-pointer">Avantajlar</a></li>
+<li><a href="#kimin-icin" className="text-gray-400 hover:text-white cursor-pointer">Kimin İçin</a></li>
+</ul>
+</div>
+<div>
+<h4 className="text-lg font-semibold mb-4">İletişim</h4>
+<ul className="space-y-2">
+<li className="flex items-center">
+<i className="fas fa-envelope mr-2 text-gray-400"></i>
+<a href="mailto:info@lingroot.com" className="text-gray-400 hover:text-white cursor-pointer">info@lingroot.com</a>
+</li>
+<li className="flex items-center">
+<i className="fas fa-phone mr-2 text-gray-400"></i>
+<span className="text-gray-400">+90 212 123 4567</span>
+</li>
+</ul>
+</div>
+<div>
+<h4 className="text-lg font-semibold mb-4">Bizi Takip Edin</h4>
+<div className="flex space-x-4">
+<a href="#" className="text-gray-400 hover:text-white cursor-pointer">
+<i className="fab fa-facebook-f text-xl"></i>
+</a>
+<a href="#" className="text-gray-400 hover:text-white cursor-pointer">
+<i className="fab fa-twitter text-xl"></i>
+</a>
+<a href="#" className="text-gray-400 hover:text-white cursor-pointer">
+<i className="fab fa-instagram text-xl"></i>
+</a>
+<a href="#" className="text-gray-400 hover:text-white cursor-pointer">
+<i className="fab fa-linkedin-in text-xl"></i>
+</a>
+</div>
+</div>
+</div>
+<div className="border-t border-gray-700 mt-10 pt-6 flex flex-col md:flex-row justify-between items-center">
+<p className="text-gray-400 text-sm mb-4 md:mb-0">
+&copy; 2025 LingRoot. Tüm hakları saklıdır.
+</p>
+<div className="flex space-x-6">
+<a href="#" className="text-gray-400 hover:text-white text-sm cursor-pointer">Gizlilik Politikası</a>
+<a href="#" className="text-gray-400 hover:text-white text-sm cursor-pointer">Kullanım Koşulları</a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+);
+}
+export default App
