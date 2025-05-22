@@ -3,84 +3,110 @@ declare const process: {
   env: {
     NEXT_PUBLIC_API_URL?: string;
     NEXT_PUBLIC_TRANSCRIPT_SERVICE_URL?: string;
+    NODE_ENV?: string;
     [key: string]: string | undefined;
   };
 };
 
-import { useAuth } from "./auth";
 import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-// API_BASE_URL, .env dosyasındaki NEXT_PUBLIC_API_URL ile belirlenir. Örnek: NEXT_PUBLIC_API_URL=https://api.lingroot.com
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
-export const TRANSCRIPT_SERVICE_URL = process.env.NEXT_PUBLIC_TRANSCRIPT_SERVICE_URL || 'http://localhost:8001';
-
-// Get API base URL without duplicating "api" segment
-export const getApiUrl = (): string => {
-  const baseUrl = API_BASE_URL;
-  return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
-};
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
-
-// İstek interceptor'ı
-type CustomAxiosRequestConfig = InternalAxiosRequestConfig & { metadata?: { startTime: number } };
-
-api.interceptors.request.use((request: CustomAxiosRequestConfig) => {
-  const startTime = Date.now();
-  (request as any).metadata = { startTime };
+// Get the base URL for API requests
+export const getApiBaseUrl = (): string => {
+  // In development, we can use a direct backend URL or Next.js rewrites
+  const isDev = process.env.NODE_ENV === 'development';
   
-  // RequestId varsa header'a ekle
-  const requestId = localStorage.getItem('requestId');
-  if (requestId) {
-    if (request.headers) {
-      (request.headers as any)['X-Request-ID'] = requestId;
-    } else {
-      request.headers = { 'X-Request-ID': requestId } as any;
-    }
+  // Direct backend connection (requires CORS)
+  if (isDev && process.env.NEXT_PUBLIC_USE_DIRECT_API === 'true') {
+    return 'http://localhost:5001';
   }
   
-  console.log('API İsteği:', {
-    url: request.url,
-    method: request.method,
-    data: request.data,
-    headers: request.headers
-  });
+  // Using Next.js rewrites (no CORS needed)
+  if (isDev) {
+    return ''; // Empty for relative URLs that will be handled by Next.js rewrites
+  }
   
-  return request;
+  // In production, use the configured API URL
+  return process.env.NEXT_PUBLIC_API_URL || '';
+};
+
+// API_BASE_URL for backward compatibility
+export const API_BASE_URL = getApiBaseUrl();
+
+export const TRANSCRIPT_SERVICE_URL = process.env.NEXT_PUBLIC_TRANSCRIPT_SERVICE_URL || 'http://localhost:8001';
+
+// Get complete API URL for a specific endpoint
+export const getApiUrl = (endpoint: string): string => {
+  const baseUrl = getApiBaseUrl();
+  
+  // If the endpoint already starts with /api, don't add it again
+  const apiPath = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
+  
+  // For relative URLs in development (using Next.js rewrites)
+  if (baseUrl === '') {
+    return apiPath;
+  }
+  
+  // For direct backend or production URLs
+  return `${baseUrl}${apiPath}`;
+};
+
+// Create a configured axios instance
+export const api = axios.create({
+  baseURL: getApiBaseUrl(),
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-// Yanıt interceptor'ı
-api.interceptors.response.use(
-  (response: AxiosResponse) => {
-    const duration = Date.now() - ((response.config as any).metadata?.startTime || 0);
+// Add request interceptor for authentication
+api.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    // Get token from localStorage if available
+    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
     
-    console.log('API Yanıtı:', {
-      url: response.config.url,
-      status: response.status,
-      duration: `${duration}ms`,
-      data: response.data
-    });
+    // If token exists, add to headers
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     
-    return response;
+    return config;
   },
   (error: AxiosError) => {
-    const duration = Date.now() - ((error.config as any)?.metadata?.startTime || 0);
-    
-    console.error('API Hatası:', {
-      url: error.config?.url,
-      status: error.response?.status,
-      duration: `${duration}ms`,
-      message: error.message,
-      data: error.response?.data
-    });
-    
     return Promise.reject(error);
   }
 );
 
-export default api;
+// Helper function for API requests
+export const apiRequest = async <T>(
+  method: string,
+  endpoint: string,
+  data?: any,
+  config?: AxiosRequestConfig
+): Promise<T> => {
+  try {
+    const url = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
+    const response: AxiosResponse<T> = await api.request({
+      method,
+      url,
+      data,
+      ...config,
+    });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      throw error.response.data;
+    } else if (error.request) {
+      // The request was made but no response was received
+      throw new Error('No response received from server');
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      throw new Error(error.message || 'Unknown error occurred');
+    }
+  }
+};
 
 export interface ProcessInputData {
     type: "text" | "youtube" | "spotify" | "file" | "weblink" | "topic" | "book";
@@ -214,7 +240,7 @@ async function handleApiResponse<T>(response: Response): Promise<ApiResponse<T>>
 
 export const processTts = async (data: ProcessInputData): Promise<TtsResponseData> => {
     const { type, input, file, level, SesHızı, voice } = data;
-    const url = `${API_BASE_URL}/tts/process`;
+    const url = `${getApiUrl("/tts/process")}`;
     let headers: Record<string, string>;
     let body: string | FormData;
 
@@ -339,7 +365,7 @@ export const getContentHistory = async (): Promise<ApiResponse> => {
 
 // Detaylı konu önerileri için API isteği gönderen fonksiyon
 export const getTopicDetailSuggestions = async (topic: string, level: string): Promise<any> => {
-  const apiUrl = `${getApiUrl()}/topic-detail/suggestions`;
+  const apiUrl = `${getApiUrl("/topic-detail/suggestions")}`;
   
   try {
     const headers = createHeaders('application/json');
@@ -365,7 +391,7 @@ export const getTopicDetailSuggestions = async (topic: string, level: string): P
 
 // Kullanıcı ilgi alanlarını getirmek için API isteği gönderen fonksiyon
 export const getUserInterests = async (): Promise<any> => {
-  const apiUrl = `${getApiUrl()}/user-interests`;
+  const apiUrl = `${getApiUrl("/user-interests")}`;
   
   try {
     const headers = createHeaders('application/json');
@@ -415,7 +441,7 @@ export const getUserInterests = async (): Promise<any> => {
 
 // Kullanıcı ilgi alanlarını güncellemek için API isteği gönderen fonksiyon
 export const updateUserInterests = async (interests: string[]): Promise<any> => {
-  const apiUrl = `${getApiUrl()}/user-interests`;
+  const apiUrl = `${getApiUrl("/user-interests")}`;
   
   try {
     console.log("İlgi alanları güncelleniyor:", { interests, apiUrl });

@@ -116,7 +116,6 @@ const Welcome: React.FC = () => {
       {/* Header ve Profil Butonu */}
       <header className="w-full bg-white shadow-sm py-4 px-6 flex justify-between items-center">
         <Link href="/" className="flex items-center space-x-2">
-          <img src="/logo.svg" alt="LingRoot" width={32} height={32} />
           <span className="text-xl font-bold text-blue-700">LingRoot</span>
         </Link>
         {isAuthenticated && (

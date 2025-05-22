@@ -459,8 +459,40 @@ const getAudioFile = (req, res) => {
         return res.status(404).json({ success: false, message: "Audio file not found" });
     }
     
-    res.set('Content-Type', 'audio/mpeg');
-    res.set('Content-Disposition', `inline; filename="audio_${audioId}.mp3"`);
+    // Set proper CORS and cache headers
+    res.set({
+        'Content-Type': 'audio/mpeg',
+        'Content-Disposition': `inline; filename="audio_${audioId}.mp3"`,
+        'Content-Length': audioData.buffer.length,
+        'Cache-Control': 'public, max-age=31536000', // Cache for 1 year
+        'Accept-Ranges': 'bytes',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Range',
+        'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges'
+    });
+    
+    // Handle range requests for better audio streaming
+    const range = req.headers.range;
+    if (range) {
+        const parts = range.replace(/bytes=/, "").split("-");
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : audioData.buffer.length - 1;
+        const chunksize = (end - start) + 1;
+        
+        const headers = {
+            'Content-Range': `bytes ${start}-${end}/${audioData.buffer.length}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': chunksize,
+            'Content-Type': 'audio/mpeg',
+            'Access-Control-Allow-Origin': '*'
+        };
+        
+        res.writeHead(206, headers);
+        const bufferSlice = audioData.buffer.slice(start, end + 1);
+        return res.end(bufferSlice);
+    }
+    
     return res.send(audioData.buffer);
 };
 

@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+// Kullanıcı kayıt (register) API endpointi
+// Bu dosya /api/auth/register URL'ine yapılan POST isteklerini işler
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
@@ -20,36 +21,39 @@ function generateToken(user) {
   );
 }
 
-// POST method handler
-export async function POST(request) {
+// API route handler
+export default async function handler(req, res) {
+  // Sadece POST isteklerini kabul et
+  if (req.method !== 'POST') {
+    return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+  }
+  
   try {
-    // Gelen isteğin body'sini al
-    const body = await request.json();
-    const { name, email, password, phoneNumber } = body;
+    const { name, email, password, phoneNumber } = req.body;
     
     // Gerekli alanları kontrol et
     if (!name || !email || !password) {
-      return NextResponse.json({ 
+      return res.status(400).json({ 
         success: false, 
         message: 'İsim, e-posta ve şifre gereklidir' 
-      }, { status: 400 });
+      });
     }
     
     // Basit e-posta doğrulama
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return NextResponse.json({ 
+      return res.status(400).json({ 
         success: false, 
         message: 'Geçerli bir e-posta adresi giriniz' 
-      }, { status: 400 });
+      });
     }
     
     // Şifre uzunluk kontrolü
     if (password.length < 6) {
-      return NextResponse.json({ 
+      return res.status(400).json({ 
         success: false, 
         message: 'Şifre en az 6 karakter olmalıdır' 
-      }, { status: 400 });
+      });
     }
     
     console.log('Registration attempt:', { name, email, password: '***', phoneNumber });
@@ -69,7 +73,7 @@ export async function POST(request) {
       const token = generateToken(mockUser);
       
       // Başarılı yanıt
-      return NextResponse.json({
+      return res.status(201).json({
         success: true,
         message: 'Kayıt başarılı (Development Mode)',
         data: {
@@ -82,7 +86,7 @@ export async function POST(request) {
           },
           token
         }
-      }, { status: 201 });
+      });
     }
     
     // Supabase client oluşturma
@@ -95,10 +99,10 @@ export async function POST(request) {
         hasKey: !!supabaseKey 
       });
       
-      return NextResponse.json({ 
+      return res.status(500).json({ 
         success: false, 
         message: 'Sunucu yapılandırma hatası, lütfen daha sonra tekrar deneyin' 
-      }, { status: 500 });
+      });
     }
     
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -112,17 +116,17 @@ export async function POST(request) {
       
     if (queryError) {
       console.error('Supabase query error:', queryError);
-      return NextResponse.json({ 
+      return res.status(500).json({ 
         success: false, 
         message: 'Veritabanı sorgulama hatası' 
-      }, { status: 500 });
+      });
     }
     
     if (existingUser) {
-      return NextResponse.json({ 
+      return res.status(400).json({ 
         success: false, 
         message: 'Bu e-posta adresi zaten kayıtlı' 
-      }, { status: 400 });
+      });
     }
     
     // Şifreyi hash'le
@@ -157,17 +161,17 @@ export async function POST(request) {
     
     if (insertError) {
       console.error('User creation error:', insertError);
-      return NextResponse.json({ 
+      return res.status(500).json({ 
         success: false, 
         message: 'Kullanıcı oluşturulurken bir hata oluştu' 
-      }, { status: 500 });
+      });
     }
     
     // Token oluştur
     const token = generateToken(createdUser);
     
     // Başarılı yanıt
-    return NextResponse.json({
+    return res.status(201).json({
       success: true,
       message: 'Kayıt başarılı',
       data: {
@@ -180,13 +184,13 @@ export async function POST(request) {
         },
         token
       }
-    }, { status: 201 });
+    });
     
   } catch (error) {
     console.error('Registration error:', error);
-    return NextResponse.json({ 
+    return res.status(500).json({ 
       success: false, 
       message: 'Sunucu hatası, lütfen daha sonra tekrar deneyin' 
-    }, { status: 500 });
+    });
   }
 } 

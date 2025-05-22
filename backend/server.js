@@ -41,6 +41,10 @@ const allowedOrigins = [
   "http://127.0.0.1:3001",
   "https://lingroot.com",
   "https://www.lingroot.com",
+  "https://lingloops-backend.onrender.com",
+  "https://api.lingroot.com",
+  "https://lingroot.netlify.app",
+  "https://lingroot.netlify.com",
   // Tüm alt domainler
   /^https:\/\/.*\.lingroot\.com$/
 ];
@@ -50,7 +54,13 @@ app.use(
   cors({
     origin: function (origin, callback) {
       // Geliştirme için daha esnek CORS, ancak üretimde dikkatli olun
-      if (!origin || allowedOrigins.indexOf(origin) !== -1 || (process.env.NODE_ENV === 'development' && origin && origin.startsWith('http://localhost'))) {
+      // Development ortamında tüm origins kabul edilir
+      if (process.env.NODE_ENV === 'development') {
+        return callback(null, true);
+      }
+      
+      // Production ortamında sadece belirli origins kabul edilir
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
         logger.warn(`CORS blocked for origin: ${origin}`);
@@ -59,7 +69,8 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-Request-ID']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-Request-ID', 'Range', 'Origin'],
+    exposedHeaders: ['Content-Disposition', 'Content-Length', 'Content-Type', 'Content-Range', 'Accept-Ranges']
   })
 );
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { getApiUrl } from './api';
 
 // Types
 interface User {
@@ -25,12 +26,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Get API base URL without duplicating "api" segment
-  const getApiUrl = () => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
-  };
-
   // Sayfa yenilendiğinde token kontrolü
   useEffect(() => {
     const checkToken = async () => {
@@ -47,7 +42,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         }
         
         // Oturum bilgilerini kontrol et
-        const response = await fetch(`${getApiUrl()}/auth/me`, {
+        const response = await fetch(getApiUrl('/auth/me'), {
           method: 'GET',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -78,8 +73,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         } else {
           console.log('[AUTH] Oturum geçersiz');
           // Mock kullanıcı oluştur (development için)
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[AUTH] Development ortamında mock kullanıcı oluşturuluyor');
+          if (process.env.NODE_ENV === 'development' && process.env.USE_MOCK_USER === 'true') {
+            console.log('[AUTH] Development ortamında mock kullanıcı oluşturuluyor (hata sonrası)');
             const mockUser: User = {
               id: 'mock-user-id',
               email: 'mock@user.com',
@@ -99,7 +94,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         console.error('[AUTH] Oturum kontrolü hatası:', error);
         
         // Development ortamında mock kullanıcı oluştur
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === 'development' && process.env.USE_MOCK_USER === 'true') {
           console.log('[AUTH] Development ortamında mock kullanıcı oluşturuluyor (hata sonrası)');
           const mockUser: User = {
             id: 'mock-user-id',
@@ -126,35 +121,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     try {
       console.log('[AUTH] login() called', { email });
       
-      // Development ortamında mock login
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[AUTH] Development ortamında mock login yapılıyor');
-        const mockUser: User = {
-          id: 'mock-user-id',
-          email: email || 'mock@user.com',
-          role: 'user',
-          membershipStatus: 'premium'
-        };
-        setUser(mockUser);
-        setIsAuthenticated(true);
-        localStorage.setItem('lingroot_token', 'mock-token-for-development');
-        return { success: true };
-      }
+      // API isteği yap
+      // NOT: Development modunda bile gerçek API çağrısı yapacağız
+      // ancak API çağrısı başarısız olursa mock login yapacağız
       
-      const response = await fetch(`${getApiUrl()}/auth/login`, {
+      const response = await fetch(getApiUrl('/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
         credentials: 'include'
       });
+      
+      console.log('[AUTH] login API response status:', response.status);
+      
       let data;
       try {
         data = await response.json();
       } catch (jsonErr) {
         console.log('[AUTH] login() JSON parse error', jsonErr);
+        
+        // Development modunda ve JSON parse hatası varsa mock login yap
+        if (process.env.NODE_ENV === 'development' && process.env.USE_MOCK_USER === 'true') {
+          console.log('[AUTH] Development ortamında mock login yapılıyor (JSON parse hatası sonrası)');
+          const mockUser: User = {
+            id: 'mock-user-id',
+            email: email || 'mock@user.com',
+            role: 'user',
+            membershipStatus: 'premium'
+          };
+          setUser(mockUser);
+          setIsAuthenticated(true);
+          localStorage.setItem('lingroot_token', 'mock-token-for-development');
+          return { success: true };
+        }
+        
         return { success: false, message: 'Sunucudan geçersiz yanıt alındı.' };
       }
-      console.log('[AUTH] login() response', data);
+      
+      console.log('[AUTH] login() response data:', data);
+      
       if (response.ok && data.success) {
         // User nesnesini normalize et
         const rawUser = data.data.user;
@@ -174,15 +179,46 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         console.log('[AUTH] setUser & setIsAuthenticated', user);
         return { success: true };
       } else {
+        // API hatası durumunda development modunda mock login yap
+        if (process.env.NODE_ENV === 'development' && process.env.USE_MOCK_USER === 'true') {
+          console.log('[AUTH] Development ortamında mock login yapılıyor (API hatası sonrası)');
+          const mockUser: User = {
+            id: 'mock-user-id',
+            email: email || 'mock@user.com',
+            role: 'user',
+            membershipStatus: 'premium'
+          };
+          setUser(mockUser);
+          setIsAuthenticated(true);
+          localStorage.setItem('lingroot_token', 'mock-token-for-development');
+          return { success: true };
+        }
+        
         setUser(null);
         setIsAuthenticated(false);
         console.log('[AUTH] login() failed', data.message);
         return { success: false, message: data.message || 'Giriş başarısız.' };
       }
     } catch (error: any) {
+      console.log('[AUTH] login() error', error);
+      
+      // Fetch hatası durumunda development modunda mock login yap
+      if (process.env.NODE_ENV === 'development' && process.env.USE_MOCK_USER === 'true') {
+        console.log('[AUTH] Development ortamında mock login yapılıyor (fetch hatası sonrası)');
+        const mockUser: User = {
+          id: 'mock-user-id',
+          email: email || 'mock@user.com',
+          role: 'user',
+          membershipStatus: 'premium'
+        };
+        setUser(mockUser);
+        setIsAuthenticated(true);
+        localStorage.setItem('lingroot_token', 'mock-token-for-development');
+        return { success: true };
+      }
+      
       setUser(null);
       setIsAuthenticated(false);
-      console.log('[AUTH] login() error', error);
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
         return { success: false, message: 'Sunucuya bağlanılamadı, lütfen internet bağlantınızı kontrol edin veya daha sonra tekrar deneyin.' };
       }
@@ -205,7 +241,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   ): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log('[AUTH] register() called', { email });
-      const response = await fetch(`${getApiUrl()}/auth/register`, {
+      const response = await fetch(getApiUrl('/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ firstName, lastName, email, phoneNumber, password })

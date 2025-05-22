@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
+// Kullanıcı giriş (login) API endpointi
+// Bu dosya /api/auth/login URL'ine yapılan POST isteklerini işler
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
 
 // JWT token oluşturma fonksiyonu
@@ -20,39 +21,42 @@ function generateToken(user) {
   );
 }
 
-// Login API endpoint
-export async function POST(request) {
+// API route handler
+export default async function handler(req, res) {
+  // Sadece POST isteklerini kabul et
+  if (req.method !== 'POST') {
+    return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+  }
+  
   try {
-    // İstek body'sini al
-    const body = await request.json();
-    const { email, password } = body;
+    const { email, password } = req.body;
     
-    console.log("Login isteği:", { email, password: '***' });
-    
-    // Giriş bilgilerini kontrol et
+    // Gerekli alanları kontrol et
     if (!email || !password) {
-      return NextResponse.json(
-        { success: false, message: 'E-posta ve şifre gereklidir' },
-        { status: 400 }
-      );
+      return res.status(400).json({ 
+        success: false, 
+        message: 'E-posta ve şifre gereklidir' 
+      });
     }
     
-    // DEVELOPMENT MOD: Eğer development modundaysak ve özellikle istenmiyorsa, gerçek veritabanı kullanmayabiliriz
-    if (process.env.NODE_ENV === 'development' && process.env.USE_MOCK_DB === 'true') {
+    console.log('Login attempt:', { email, password: '***' });
+    
+    // DEVELOPMENT MOD: Herhangi bir e-posta/şifre ile giriş yapmaya izin ver
+    if (process.env.NODE_ENV === 'development') {
       // Örnek bir kullanıcı oluştur
       const mockUser = {
-        id: 'dev-user-' + Date.now(),
-        name: 'Development User',
+        id: 'dev-user-123',
         email: email,
+        name: 'Development User',
         role: 'user',
-        membership_status: 'free',
+        membership_status: 'premium',
       };
       
       // Token oluştur
       const token = generateToken(mockUser);
       
       // Başarılı yanıt
-      return NextResponse.json({
+      return res.status(200).json({
         success: true,
         message: 'Giriş başarılı (Development Mode)',
         data: {
@@ -68,91 +72,84 @@ export async function POST(request) {
       });
     }
     
+    // Gerçek ortamda buradan devam edilecek
     // Supabase client oluşturma
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || '';
     
     if (!supabaseUrl || !supabaseKey) {
-      console.error('Supabase credentials missing:', { 
-        hasUrl: !!supabaseUrl, 
-        hasKey: !!supabaseKey 
-      });
-      
-      return NextResponse.json({ 
+      return res.status(500).json({ 
         success: false, 
         message: 'Sunucu yapılandırma hatası, lütfen daha sonra tekrar deneyin' 
-      }, { status: 500 });
+      });
     }
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Kullanıcıyı e-posta ile ara
-    const { data: user, error: queryError } = await supabase
+    // Kullanıcıyı bul
+    const { data: user, error } = await supabase
       .from('users')
       .select('*')
       .eq('email', email.toLowerCase())
-      .maybeSingle();
+      .single();
     
-    if (queryError) {
-      console.error('Supabase query error:', queryError);
-      return NextResponse.json({ 
+    // Supabase hatası
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(500).json({ 
         success: false, 
-        message: 'Veritabanı sorgulama hatası' 
-      }, { status: 500 });
+        message: 'Veritabanı hatası, lütfen daha sonra tekrar deneyin' 
+      });
     }
     
+    // Kullanıcı bulunamadı
     if (!user) {
-      return NextResponse.json({ 
+      return res.status(401).json({ 
         success: false, 
         message: 'Geçersiz e-posta veya şifre' 
-      }, { status: 401 });
+      });
     }
     
-    // Şifre kontrolü
+    // Şifre doğrulaması
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     
     if (!isPasswordValid) {
-      return NextResponse.json({ 
+      return res.status(401).json({ 
         success: false, 
         message: 'Geçersiz e-posta veya şifre' 
-      }, { status: 401 });
-    }
-    
-    // Son giriş tarihini güncelle
-    const now = new Date().toISOString();
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({ last_login: now })
-      .eq('id', user.id);
-    
-    if (updateError) {
-      console.warn('Failed to update last_login:', updateError);
-      // Kritik bir hata değil, devam et
+      });
     }
     
     // Token oluştur
     const token = generateToken(user);
     
+    // Son login tarihini güncelle
+    await supabase
+      .from('users')
+      .update({ last_login: new Date().toISOString() })
+      .eq('id', user.id);
+    
     // Başarılı yanıt
-    return NextResponse.json({
+    return res.status(200).json({
       success: true,
-      message: "Giriş başarılı",
+      message: 'Giriş başarılı',
       data: {
         user: {
           id: user.id,
-          name: user.name,
+          name: user.name || user.display_name,
           email: user.email,
           role: user.role || 'user',
           membershipStatus: user.membership_status || 'free'
         },
-        token: token
+        token
       }
     });
+    
   } catch (error) {
-    console.error('Login API hatası:', error);
-    return NextResponse.json(
-      { success: false, message: 'Giriş yapılamadı' },
-      { status: 500 }
-    );
+    console.error('Login error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Sunucu hatası, lütfen daha sonra tekrar deneyin' 
+    });
   }
 } 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../lib/auth';
-import { getContentHistory, getApiUrl } from '../lib/api';
+import { getContentHistory, getApiUrl, API_BASE_URL } from '../lib/api';
 
 interface Timepoint {
   timeSeconds: number;
@@ -56,7 +56,8 @@ function SyncedTextPlayer({ audioUrl, words, timepoints }: SyncedTextPlayerProps
 
   return (
     <div className="mb-4">
-      <audio ref={audioRef} src={audioUrl} controls className="w-full" />
+      <audio ref={audioRef} src={audioUrl} controls className="w-full" crossOrigin="anonymous" />
+      <p className="text-xs text-gray-500 mt-1">Audio URL: {audioUrl}</p>
       <div className="mt-4 text-lg flex flex-wrap gap-1">
         {words.map((word, i) => (
           <span
@@ -82,12 +83,43 @@ export default function OutputSection({ audioResult, isLoggedIn, contentHistory:
   const convertToPlayableUrl = (url: string): string => {
     if (!url) return '';
     
+    console.log("Converting URL:", url);
+    
     try {
       // API yolu kontrolü
       if (url.startsWith('/api/')) {
-        // /api/ ile başlayan yollar için getApiUrl() fonksiyonunu kullan
-        // /api/tts/audio/... -> API_URL/tts/audio/...
-        return `${getApiUrl()}${url.substring(4)}`;
+        // Development ortamında getApiUrl() fonksiyonunu kullan
+        if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+          // Make sure we don't end up with double slashes in the URL
+          const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+          const apiPath = url; // Don't modify the path - keep it as /api/...
+          const finalUrl = `${baseUrl}${apiPath}`;
+          console.log("Local development URL:", finalUrl);
+          return finalUrl;
+        }
+        
+        // Production ortamında (lingroot.com) için
+        if (typeof window !== 'undefined' && window.location.hostname.includes('lingroot.com')) {
+          // lingloops-backend.onrender.com adresini kullan
+          const baseUrl = 'https://lingloops-backend.onrender.com';
+          const finalUrl = `${baseUrl}${url}`;
+          console.log("Production URL:", finalUrl);
+          return finalUrl;
+        }
+        
+        // Diğer ortamlarda göreceli yolu kullan (Next.js API Route)
+        console.log("Using relative path:", url);
+        return url;
+      }
+      
+      // Tam URL kontrolü (https://)
+      if (url.startsWith('https://')) {
+        return url;
+      }
+      
+      // Onrender linki direkt içeriyorsa
+      if (url.includes('lingloops-backend.onrender.com')) {
+        return url;
       }
       
       // Google Drive URL kontrolü
@@ -103,8 +135,8 @@ export default function OutputSection({ audioResult, isLoggedIn, contentHistory:
       }
       
       return url;
-    } catch {
-      console.error("URL dönüştürme hatası:", url);
+    } catch (error) {
+      console.error("URL dönüştürme hatası:", url, error);
       return url;
     }
   };
@@ -153,7 +185,22 @@ export default function OutputSection({ audioResult, isLoggedIn, contentHistory:
            <SyncedTextPlayer audioUrl={convertToPlayableUrl(mp3_url)} words={audioResult.words} timepoints={audioResult.timepoints} />
         </div>
       ) : (
-         mp3_url && <audio src={convertToPlayableUrl(mp3_url)} controls className="w-full mb-4" />
+         mp3_url && 
+         <div className="mb-4">
+           <audio 
+             src={convertToPlayableUrl(mp3_url)} 
+             controls 
+             className="w-full" 
+             controlsList="nodownload" 
+             crossOrigin="anonymous"
+             onError={(e) => console.error("Audio yükleme hatası:", e)}
+             onLoadStart={() => console.log("Audio yükleniyor...")}
+             onCanPlay={() => console.log("Audio çalınmaya hazır")}
+             autoPlay={false}
+           />
+           <p className="text-xs text-gray-500 mt-1">Orijinal URL: {mp3_url}</p>
+           <p className="text-xs text-gray-500">Dönüştürülen URL: {convertToPlayableUrl(mp3_url)}</p>
+         </div>
       )}
       {/* Altyazı kutusunda highlightlı İngilizce metin */}
       <div className={`w-full rounded-lg p-4 border bg-blue-50 border-blue-200 mb-4`}>
