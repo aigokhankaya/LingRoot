@@ -19,10 +19,11 @@ const nextConfig = {
   },
   async rewrites() {
     return [
-      {
-        source: '/api/:path*',
-        destination: 'http://localhost:5001/api/:path*',
-      },
+      // Temporarily commented out to use frontend API routes for development
+      // {
+      //   source: '/api/:path*',
+      //   destination: 'http://localhost:5001/api/:path*',
+      // },
       {
         source: '/admin/:path*',
         destination: 'http://localhost:5001/admin/:path*',

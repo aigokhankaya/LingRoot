@@ -168,6 +168,34 @@ exports.login = async (req, res) => {
       return res.status(400).json({ success: false, message: "Lütfen e-posta ve şifre girin" });
     }
 
+    // DEVELOPMENT MODE: Allow any email/password combination
+    if (process.env.NODE_ENV === 'development') {
+      logger.info('[LOGIN] Development mode - allowing mock login for:', email);
+      
+      const mockUser = {
+        id: 'dev-user-123',
+        email: email,
+        name: 'Development User',
+        role: 'user',
+        membership_status: 'premium',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      const token = generateToken(mockUser.id, mockUser.email, mockUser.role);
+      const refreshToken = generateRefreshToken(mockUser.id);
+      
+      return res.status(200).json({
+        success: true,
+        message: "Giriş başarılı (Development Mode)",
+        data: {
+          user: mockUser,
+          token,
+          refreshToken
+        }
+      });
+    }
+
     const { data: user, error } = await supabase
       .from('users')
       .select("*")
