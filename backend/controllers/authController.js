@@ -35,7 +35,7 @@ exports.register = async (req, res) => {
       stepName: 'auth:register:start',
       stepSequence: stepSequence++,
       serviceName: 'Express',
-      endpoint: '/api/auth/register',
+      endpoint: '/auth/register',
       inputData: req.body
     });
     logger.info("Register request received", { body: req.body });
