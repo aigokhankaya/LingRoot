@@ -30,22 +30,35 @@ export const TRANSCRIPT_SERVICE_URL = process.env.NEXT_PUBLIC_TRANSCRIPT_SERVICE
 
 // Get complete API URL for a specific endpoint
 export const getApiUrl = (endpoint: string): string => {
-  // Ensure the endpoint starts with /api for frontend requests
-  const apiPath = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
-
-  // In the frontend, always return a relative /api path
-  if (typeof window !== 'undefined') {
-    return apiPath;
-  }
-
-  // In the backend/server environment (like API routes), use the base URL
   const baseUrl = getApiBaseUrl();
-  if (baseUrl) {
-    return `${baseUrl}${apiPath}`;
+
+  // Determine the path to append based on the environment
+  let apiPathToAppend = endpoint; // Start with the provided endpoint
+
+  // If running locally and using the local backend URL,
+  // remove the leading /api from the endpoint if it exists,
+  // because the local backend's root might handle paths without /api.
+  if (baseUrl === 'http://localhost:5001' && endpoint.startsWith('/api')) {
+      apiPathToAppend = endpoint.substring(4); // Remove '/api'
+  } else {
+      // Otherwise (production or other local setups), ensure it starts with /api
+      if (!apiPathToAppend.startsWith('/api')) {
+          apiPathToAppend = `/api${apiPathToAppend}`;
+      }
   }
 
-  // Fallback for server-side if no base URL is configured
-  return apiPath;
+
+  // If we have a base URL (like in production or local dev), combine them
+  if (baseUrl) {
+    // Avoid double slashes if baseUrl already ends with a slash
+    const finalUrl = baseUrl.endsWith('/') && apiPathToAppend.startsWith('/')
+                     ? `${baseUrl.slice(0, -1)}${apiPathToAppend}`
+                     : `${baseUrl}${apiPathToAppend}`;
+    return finalUrl;
+  }
+
+  // Fallback: If no base URL, return the path to append.
+  return apiPathToAppend;
 };
 
 // Create a configured axios instance
