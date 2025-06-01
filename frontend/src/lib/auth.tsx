@@ -42,7 +42,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         }
         
         // Oturum bilgilerini kontrol et
-        const response = await fetch(getApiUrl('/api/auth/me'), {
+        const response = await fetch(getApiUrl('/auth/me'), {//BURASI
           method: 'GET',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -126,7 +126,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       // NOT: Development modunda bile gerçek API çağrısı yapacağız
       // ancak API çağrısı başarısız olursa mock login yapacağız
       
-      const response = await fetch(getApiUrl('/api/auth/login'), {
+      const response = await fetch(getApiUrl('/auth/login'), {//BURASI
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
