@@ -103,12 +103,14 @@ const App: React.FC = () => {
     const nameInput = document.getElementById('register-name') as HTMLInputElement;
     const emailInput = document.getElementById('register-email') as HTMLInputElement;
     const passwordInput = document.getElementById('register-password') as HTMLInputElement;
+    const phoneInput = document.getElementById('register-phone') as HTMLInputElement;
     
-    if (!nameInput || !emailInput || !passwordInput) return;
+    if (!nameInput || !emailInput || !passwordInput || !phoneInput) return;
 
     const name = nameInput.value;
     const email = emailInput.value;
     const password = passwordInput.value;
+    const phoneNumber = phoneInput.value;
 
     // Split the name into firstName and lastName for the backend
     const nameParts = name.trim().split(' ');
@@ -123,10 +125,10 @@ const App: React.FC = () => {
         submitButton.innerText = 'Kaydediliyor...';
       }
 
-      console.log('Registering user with:', { firstName, lastName, email, password: '***' });
+      console.log('Registering user with:', { firstName, lastName, email, phoneNumber: '***', password: '***' });
 
       // Use the auth context's register function
-      const result = await register(firstName, lastName, email, '', password);
+      const result = await register(firstName, lastName, email, phoneNumber, password);
 
       if (result.success) {
         console.log('Registration successful, redirecting to /welcome');
@@ -407,6 +409,18 @@ const App: React.FC = () => {
                       id="register-password"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
                       minLength={6}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="register-phone" className="block text-gray-700 mb-2">
+                      Telefon Numarası
+                    </label>
+                    <input
+                      type="tel"
+                      id="register-phone"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
                       required
                     />
                   </div>
