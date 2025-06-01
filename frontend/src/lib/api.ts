@@ -41,7 +41,7 @@ export const getApiUrl = (endpoint: string): string => {
   // For relative URLs (fallback)
   return apiPath;
 };
-
+//deneme
 // Create a configured axios instance
 export const api = axios.create({
   baseURL: getApiBaseUrl(),
