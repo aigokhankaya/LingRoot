@@ -120,7 +120,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log('[AUTH] login() called', { email });
-      console.log("[API URL]", getApiUrl('/api/auth/login'));
+      console.log("[API URL]", getApiUrl('/auth/login'));
       
       // API isteği yap
       // NOT: Development modunda bile gerçek API çağrısı yapacağız
