@@ -120,16 +120,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log('[AUTH] login() called', { email });
-      console.log("[AUTH] Attempting login with URL:", getApiUrl('/auth/login'));
+      console.log("[API URL]", getApiUrl('/api/auth/login'));
       
       // API isteği yap
       // NOT: Development modunda bile gerçek API çağrısı yapacağız
       // ancak API çağrısı başarısız olursa mock login yapacağız
       
-      const baseUrl = getApiUrl(''); // getApiUrl artık sadece base URL döndürüyor
-      const loginUrl = `${baseUrl}/api/auth/login`; // Endpoint'i manuel ekliyoruz
-
-      const response = await fetch(loginUrl, {
+      const response = await fetch(getApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
