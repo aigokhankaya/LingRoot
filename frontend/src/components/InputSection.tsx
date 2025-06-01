@@ -174,7 +174,8 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         // Next.js proxy kullanarak CSP/CORS sorunlarını önle
         // next.config.js'de "/api/:path*" -> "http://localhost:5001/api/:path*" yapılandırması var
         // Bu şekilde aynı origin'den istek yapılmış gibi görünür ve CORS sorunu çözülür
-        const apiUrl = `${getApiUrl('/user-interests')}`;
+        const baseUrl = getApiUrl(''); // getApiUrl artık sadece base URL döndürüyor
+        const apiUrl = `${baseUrl}/api/user-interests`; // Endpoint'i manuel ekliyoruz
         
         console.log("İlgi alanları çekiliyor:", apiUrl);
         
@@ -265,7 +266,8 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const fetchInterests = async () => {
     try {
       // API'den ilgi alanlarını al
-      const apiUrl = `${getApiUrl('/user-interests')}`;
+      const baseUrl = getApiUrl(''); // getApiUrl artık sadece base URL döndürüyor
+      const apiUrl = `${baseUrl}/api/user-interests`; // Endpoint'i manuel ekliyoruz
       const token = getToken();
       
       if (!token) {
@@ -425,7 +427,8 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     formData.append('file', file);
     
     // Next.js proxy kullan (CORS sorununu engeller)
-    const apiUrl = `${getApiUrl('/upload')}`;
+    const baseUrl = getApiUrl(''); // getApiUrl artık sadece base URL döndürüyor
+    const apiUrl = `${baseUrl}/api/upload`; // Endpoint'i manuel ekliyoruz
     
     const res = await fetch(apiUrl, { 
       method: 'POST', 
