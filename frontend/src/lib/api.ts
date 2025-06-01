@@ -32,14 +32,15 @@ export const TRANSCRIPT_SERVICE_URL = process.env.NEXT_PUBLIC_TRANSCRIPT_SERVICE
 export const getApiUrl = (endpoint: string): string => {
   const baseUrl = getApiBaseUrl();
 
-  // Frontend'de çalışıyorsak ve baseUrl varsa, baseUrl'i döndür
-  // Değilse (backend veya test ortamı), endpoint'i direkt kullan
-  if (typeof window !== 'undefined' && baseUrl) {
-    return baseUrl; // Sadece temel URL'i döndür
-  }
-  
-  // Eğer baseUrl yoksa veya backend/test ortamıysa, endpoint'i kullan (genellikle /api/ ile başlar)
-  return endpoint; // Endpoint'in kendisini döndür
+  // If the endpoint already starts with /api, don't add it again
+  const apiPath = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
+
+  // For direct backend URLs or relative URLs
+  // If baseUrl exists, use it. Otherwise, use the apiPath (for relative calls handled by Next.js rewrites)
+  if (baseUrl) return `${baseUrl}${apiPath}`;
+
+  // Fallback for relative paths (should be handled by Next.js)
+  return apiPath;
 };
 
 // Create a configured axios instance
