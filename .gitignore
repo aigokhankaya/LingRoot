@@ -51,3 +51,6 @@ backend/logs/requests/
 # Env files
 .env
 .env.*
+
+# Exceptions
+!public/animations/language-learn.json
