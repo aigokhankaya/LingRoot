@@ -30,6 +30,10 @@ const nextConfig = {
       },
       // Route all other API requests to the backend Express server
       {
+        source: '/api/:path*',
+        destination: 'http://localhost:5001/:path*',
+      },
+      {
         source: '/admin/:path*',
         destination: 'http://localhost:5001/admin/:path*',
       },

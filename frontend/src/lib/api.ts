@@ -30,16 +30,21 @@ export const TRANSCRIPT_SERVICE_URL = process.env.NEXT_PUBLIC_TRANSCRIPT_SERVICE
 
 // Get complete API URL for a specific endpoint
 export const getApiUrl = (endpoint: string): string => {
-  const baseUrl = getApiBaseUrl();
-
-  // If the endpoint already starts with /api, don't add it again
+  // Ensure the endpoint starts with /api for frontend requests
   const apiPath = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
 
-  // For direct backend URLs or relative URLs
-  // If baseUrl exists, use it. Otherwise, use the apiPath (for relative calls handled by Next.js rewrites)
-  if (baseUrl) return `${baseUrl}${apiPath}`;
+  // In the frontend, always return a relative /api path
+  if (typeof window !== 'undefined') {
+    return apiPath;
+  }
 
-  // Fallback for relative paths (should be handled by Next.js)
+  // In the backend/server environment (like API routes), use the base URL
+  const baseUrl = getApiBaseUrl();
+  if (baseUrl) {
+    return `${baseUrl}${apiPath}`;
+  }
+
+  // Fallback for server-side if no base URL is configured
   return apiPath;
 };
 
