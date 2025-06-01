@@ -126,7 +126,7 @@ const App: React.FC = () => {
       console.log('Registering user with:', { firstName, lastName, email, password: '***' });
 
       // Use the auth context's register function
-      const result = await register(firstName, lastName, email, '5551234567', password);
+      const result = await register(firstName, lastName, email, '', password);
 
       if (result.success) {
         console.log('Registration successful, redirecting to /welcome');
