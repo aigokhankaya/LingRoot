@@ -8,6 +8,7 @@ import { getApiUrl } from "../src/lib/api";
 import dynamic from 'next/dynamic';
 // import Lottie from "lottie-react"; // Kaldırılacak
 import learnAnimation from "../public/animations/language-learn.json";
+import InputMask from 'react-input-mask';
 
 // Lottie bileşenini sadece client tarafında yüklenecek şekilde dinamik olarak import et
 const Lottie = dynamic(() => import('lottie-react'), { 
@@ -417,7 +418,9 @@ const App: React.FC = () => {
                     <label htmlFor="register-phone" className="block text-gray-700 mb-2">
                       Telefon Numarası
                     </label>
-                    <input
+                    <InputMask
+                      mask="(999) 999-99-99"
+                      maskChar="_"
                       type="tel"
                       id="register-phone"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
@@ -722,6 +725,15 @@ const App: React.FC = () => {
           </button>
         </div>
       </section>
+
+      {/* Boşluk Ekliyoruz */}
+      <div className="mt-12"></div>
+
+      {/* Output Section */}
+      <div className="pt-12 max-w-4xl mx-auto">
+        {/* OutputSection component renders audio player etc. */}
+      </div>
+
       {/* Footer */}
       <footer className="bg-gray-800 text-white py-12">
         <div className="container mx-auto px-6">

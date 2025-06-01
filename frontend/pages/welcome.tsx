@@ -170,7 +170,7 @@ const Welcome: React.FC = () => {
             </div>
           )}
 
-          <div className="mt-12 space-y-12">
+          <div className="mt-12 space-y-12 pb-8">
             {/* Ses Dönüşüm Input ve Output */}
             <InputSection onSubmit={handleSubmit} isLoading={isLoading} />
             <OutputSection 
