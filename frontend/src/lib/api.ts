@@ -33,7 +33,8 @@ export const getApiUrl = (endpoint: string): string => {
   const baseUrl = getApiBaseUrl();
   
   // If the endpoint already starts with /api, don't add it again
-  const apiPath = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
+  //const apiPath = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
+  const apiPath = endpoint;
   
   // For direct backend URLs
   if (baseUrl) return `${baseUrl}${apiPath}`;
