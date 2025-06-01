@@ -19,15 +19,7 @@ const nextConfig = {
   },
   async rewrites() {
     return [
-      // Temporarily commented out to use frontend API routes for development
-      // {
-      //   source: '/api/:path*',
-      //   destination: 'http://localhost:5001/api/:path*',
-      // },
-      {
-        source: '/admin/:path*',
-        destination: 'http://localhost:5001/admin/:path*',
-      },
+      // Specific API routes first (before catch-all)
       {
         source: '/api/youtube-transcript',
         destination: 'http://localhost:8001/scrape-transcript',
@@ -35,6 +27,15 @@ const nextConfig = {
       {
         source: '/api/youtube-transcript-alt',
         destination: 'http://localhost:8051/scrape-transcript',
+      },
+      // Route all other API requests to the backend Express server
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:5001/api/:path*',
+      },
+      {
+        source: '/admin/:path*',
+        destination: 'http://localhost:5001/admin/:path*',
       },
     ];
   },

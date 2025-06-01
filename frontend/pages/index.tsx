@@ -5,6 +5,15 @@ import React, { useState } from "react";
 import { useRouter } from 'next/router';
 import { useAuth } from '../src/lib/auth';
 import { getApiUrl } from "../src/lib/api";
+import dynamic from 'next/dynamic';
+// import Lottie from "lottie-react"; // Kaldırılacak
+import learnAnimation from "../public/animations/language-learn.json";
+
+// Lottie bileşenini sadece client tarafında yüklenecek şekilde dinamik olarak import et
+const Lottie = dynamic(() => import('lottie-react'), { 
+  ssr: false,
+  loading: () => <div className="w-full max-w-3xl mx-auto h-[300px] bg-gray-100 animate-pulse rounded-lg"></div>
+});
 
 const App: React.FC = () => {
   const router = useRouter();
@@ -13,6 +22,12 @@ const App: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Client-side rendering için useEffect
+  React.useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Kullanıcı zaten giriş yapmışsa welcome sayfasına yönlendir
   React.useEffect(() => {
@@ -20,6 +35,11 @@ const App: React.FC = () => {
       router.push('/welcome');
     }
   }, [isAuthenticated, router]);
+
+  // Debug için state değişikliklerini izleyelim
+  React.useEffect(() => {
+    console.log('Form state changed:', { email, password });
+  }, [email, password]);
 
   const handleStartButton = () => {
     // Check if user is logged in
@@ -52,19 +72,18 @@ const App: React.FC = () => {
     setError(null);
   };
 
-  const handleSubmit = async (e: Event) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    console.log('Anasayfa Modal handleSubmit - Email:', email, 'Password:', password);
+    console.log('Form submitted with:', { email, password }); // Bu log zaten vardı, bunu da kontrol edin.
     setLoading(true);
     setError(null);
 
     try {
-      console.log('Login form submitted with:', { email, password: '***' });
-      
       const result = await login(email, password);
       console.log('Login result:', result);
       
       if (result.success) {
-        // Giriş başarılı - welcome sayfasına yönlendir
         console.log('Login successful, redirecting to /welcome');
         router.push('/welcome');
       } else {
@@ -134,10 +153,10 @@ const App: React.FC = () => {
     const startButton = document.getElementById('startButton');
     const closeModal = document.getElementById('closeModal');
     const closeRegisterModal = document.getElementById('closeRegisterModal');
-    const loginForm = document.getElementById('loginForm');
-    const registerForm = document.getElementById('registerForm');
     const loginModal = document.getElementById('loginModal');
     const registerModal = document.getElementById('registerModal');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
 
     // Debug için - elemanlara erişebildiğimizden emin olalım
     console.log('Elements found:', {
@@ -156,11 +175,6 @@ const App: React.FC = () => {
     loginButton?.addEventListener('click', openModal);
     closeModal?.addEventListener('click', closeModalHandler);
     
-    // Form event listener'ları için referansları saklayalım
-    const loginFormHandler = (e: Event) => handleSubmit(e);
-    
-    loginForm?.addEventListener('submit', loginFormHandler);
-
     // Register buton ve form işlemleri
     registerButton?.addEventListener('click', () => {
       registerModal?.classList.remove('hidden');
@@ -189,7 +203,6 @@ const App: React.FC = () => {
     return () => {
       loginButton?.removeEventListener('click', openModal);
       closeModal?.removeEventListener('click', closeModalHandler);
-      loginForm?.removeEventListener('submit', loginFormHandler);
       closeRegisterModal?.removeEventListener('click', closeModalHandler);
       registerForm?.removeEventListener('submit', registerFormHandler);
       startButton?.removeEventListener('click', handleStartButton);
@@ -237,13 +250,13 @@ const App: React.FC = () => {
           <div className="flex items-center space-x-4">
             <button
               id="loginButton"
-              className="px-4 py-2 text-blue-600 border border-blue-600 rounded-button hover:bg-blue-50 cursor-pointer whitespace-nowrap"
+              className="px-4 py-2 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 cursor-pointer whitespace-nowrap"
             >
               Giriş Yap
             </button>
             <button
               id="registerButton"
-              className="px-4 py-2 bg-blue-600 text-white rounded-button hover:bg-blue-700 cursor-pointer whitespace-nowrap"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer whitespace-nowrap"
             >
               Kayıt Ol
             </button>
@@ -266,7 +279,7 @@ const App: React.FC = () => {
                   </button>
                 </div>
 
-                <form id="loginForm" className="space-y-4">
+                <form id="loginForm" className="space-y-4" onSubmit={handleSubmit}>
                   {/* Hata mesajı */}
                   {error && (
                     <div className="p-3 bg-red-50 border border-red-200 rounded-md">
@@ -281,11 +294,15 @@ const App: React.FC = () => {
                     <input
                       type="email"
                       id="email"
+                      name="email"
                       className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                       placeholder="E-posta"
                       required
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        console.log('Email input changed:', e.target.value);
+                        setEmail(e.target.value);
+                      }}
                     />
                   </div>
 
@@ -299,11 +316,15 @@ const App: React.FC = () => {
                     <input
                       type="password"
                       id="password"
+                      name="password"
                       className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                       placeholder="Şifre"
                       required
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        console.log('Password input changed:', e.target.value);
+                        setPassword(e.target.value);
+                      }}
                     />
                   </div>
 
@@ -405,7 +426,7 @@ const App: React.FC = () => {
                   <button
                     type="submit"
                     id="register-submit"
-                    className="w-full bg-blue-600 text-white py-2 rounded-button hover:bg-blue-700 transition duration-300"
+                    className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition duration-300"
                   >
                     Ücretsiz Hesap Oluştur
                   </button>
@@ -421,14 +442,8 @@ const App: React.FC = () => {
       </header>
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-transparent z-10"></div>
-          <img
-            src="https://readdy.ai/api/search-image?query=A%20modern%20language%20learning%20environment%20with%20a%20person%20comfortably%20listening%20to%20content%20on%20headphones%2C%20surrounded%20by%20floating%20text%20bubbles%20and%20digital%20devices.%20The%20scene%20has%20a%20clean%2C%20minimalist%20aesthetic%20with%20a%20soft%20blue%20gradient%20background%20that%20transitions%20to%20white%20on%20the%20left%20side%2C%20creating%20space%20for%20text%20overlay&width=1440&height=700&seq=hero1&orientation=landscape"
-            alt="Dil öğrenme deneyimi"
-            className="w-full h-full object-cover object-top"
-          />
-        </div>
+        
+        
         <div className="container mx-auto px-6 py-20 md:py-32 relative z-20">
           <div className="max-w-2xl">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-800 leading-tight mb-6">
@@ -441,11 +456,39 @@ const App: React.FC = () => {
             </p>
             <button
               id="startButton"
-              className="px-8 py-4 bg-blue-600 text-white text-lg rounded-button shadow-lg hover:bg-blue-700 transition duration-300 cursor-pointer whitespace-nowrap"
+              className="px-8 py-4 bg-blue-600 text-white text-lg rounded-lg shadow-lg hover:bg-blue-700 transition duration-300 cursor-pointer whitespace-nowrap"
             >
               Hemen Başla
             </button>
           </div>
+          <div className="mt-10">
+            {isClient && (
+              <Lottie
+                animationData={learnAnimation}
+                loop
+                autoplay
+                className="w-full max-w-3xl mx-auto"
+              />
+            )}
+          </div>
+    {/*
+    <div className="relative w-full h-[500px] overflow-hidden rounded-lg shadow-lg">
+  <video
+    src="/videos/lingroot-promo.mp4"
+    autoPlay
+    muted
+    loop
+    playsInline
+    className="w-full h-full object-cover"
+  ></video>
+
+  <div className="absolute top-8 left-8 md:top-16 md:left-16 text-white text-xl md:text-3xl font-bold bg-black/50 p-4 rounded-lg shadow-md max-w-[80%]">
+    Sevdiğin içeriklerle İngilizce öğren.
+  </div>
+</div>
+*/}
+
+
         </div>
       </section>
       {/* LingRoot Nedir */}
@@ -462,13 +505,14 @@ const App: React.FC = () => {
               deneyimi sunar.
             </p>
           </div>
-          <div className="flex justify-center">
+          {/*<div className="flex justify-center">
             <img
               src="https://readdy.ai/api/search-image?query=A%20visual%20representation%20of%20content%20transformation%20process%20showing%20original%20media%20like%20YouTube%20videos%2C%20Spotify%20podcasts%2C%20and%20news%20articles%20being%20converted%20into%20personalized%20language%20learning%20materials%20with%20level%20indicators%20from%20A1%20to%20C2.%20The%20image%20has%20a%20clean%2C%20professional%20design%20with%20blue%20accent%20colors%20on%20white%20background&width=800&height=500&seq=concept1&orientation=landscape"
               alt="LingRoot konsept görseli"
-              className="rounded-lg shadow-xl max-w-full h-auto"
+              className="rounded-lg shadow-xl max-w-full h-auto mb-32"
             />
-          </div>
+          </div>*/}
+
         </div>
       </section>
       {/* Sorun ve Çözüm */}
@@ -515,62 +559,32 @@ const App: React.FC = () => {
           </div>
         </div>
       </section>
+
       {/* Nasıl Çalışır */}
       <section id="nasil-calisir" className="py-16 bg-white">
-        <div className="container mx-auto px-6">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-16">
-            Nasıl Çalışır?
-          </h2>
-          <div className="flex flex-col md:flex-row items-center justify-between max-w-4xl mx-auto">
-            <div className="flex flex-col items-center mb-12 md:mb-0">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-6">
-                1
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 text-center mb-4">
-                İçeriğini Yükle
-              </h3>
-              <p className="text-gray-600 text-center max-w-xs">
-                YouTube, Spotify bağlantısı veya metin yükle.
-              </p>
-              <img
-                src="https://readdy.ai/api/search-image?query=A%20person%20uploading%20content%20to%20a%20language%20learning%20platform%2C%20showing%20YouTube%20and%20Spotify%20logos%2C%20with%20a%20clean%20minimal%20interface.%20The%20image%20has%20a%20simple%20blue%20and%20white%20color%20scheme%20with%20professional%20lighting%20and%20composition&width=200&height=200&seq=step1&orientation=squarish"
-                alt="İçerik yükleme"
-                className="w-40 h-40 object-cover mt-6 rounded-lg"
-              />
+        <div className="container mx-auto px-6 text-center">
+          <h2 className="text-3xl font-bold text-gray-800 mb-4">LingRoot Nasıl Çalışır</h2>
+          <p className="text-gray-600 text-lg mb-12">
+            Dil öğrenme deneyiminizi dönüştürecek üç basit adım
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl mx-auto">
+            <div className="bg-white p-6 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300">{/* Hover efekti denemesi */}
+              <div className="flex items-center justify-center w-12 h-12 bg-blue-600 text-white font-bold text-lg rounded-full mx-auto mb-4">1</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">İçerik bağlantınızı paylaşın</h3>
+              <p className="text-gray-700 mb-4">Başlamak için YouTube, Spotify veya desteklenen diğer platformlardan bir URL yapıştırmanız yeterli.</p>
+              <img src="https://readdy.ai/api/search-image?query=minimalist%20illustration%20of%20a%20smartphone%20or%20computer%20screen%20showing%20a%20video%20link%20being%20shared%2C%20clean%20design%20with%20blue%20accent%20colors%2C%20professional%20digital%20illustration%20on%20white%20background%2C%20simple%20and%20modern&width=250&height=200&seq=5&orientation=landscape" alt="Adım 1" className="mx-auto max-h-28" />
             </div>
-            <div className="hidden md:block w-px h-40 bg-gray-300"></div>
-            <div className="flex flex-col items-center mb-12 md:mb-0">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-6">
-                2
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 text-center mb-4">
-                Seviyeni Seç
-              </h3>
-              <p className="text-gray-600 text-center max-w-xs">
-                İngilizce seviyeni belirle (A1'den C2'ye).
-              </p>
-              <img
-                src="https://readdy.ai/api/search-image?query=A%20user%20selecting%20language%20proficiency%20level%20from%20A1%20to%20C2%20on%20a%20digital%20interface%20with%20a%20slider%20or%20buttons.%20The%20image%20shows%20a%20clean%2C%20modern%20UI%20design%20with%20blue%20accent%20colors%20on%20white%20background%20and%20professional%20lighting&width=200&height=200&seq=step2&orientation=squarish"
-                alt="Seviye seçimi"
-                className="w-40 h-40 object-cover mt-6 rounded-lg"
-              />
+            <div className="bg-blue-50 p-8 rounded-lg shadow hover:shadow-md transition">
+              <div className="flex items-center justify-center w-12 h-12 bg-blue-600 text-white font-bold text-lg rounded-full mx-auto mb-4">2</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Yeterlilik seviyenizi seçin</h3>
+              <p className="text-gray-700 mb-4">Tam size uygun içerik için İngilizce seviyenizi (A1–C2) seçin.</p>
+              <img src="https://readdy.ai/api/search-image?query=minimalist%20illustration%20of%20language%20proficiency%20levels%20from%20A1%20to%20C2%20shown%20as%20a%20slider%20or%20selection%20interface%2C%20clean%20design%20with%20blue%20accent%20colors%2C%20professional%20digital%20illustration%20on%20white%20background%2C%20simple%20and%20modern&width=250&height=200&seq=6&orientation=landscape" alt="Adım 2" className="mx-auto max-h-28" />
             </div>
-            <div className="hidden md:block w-px h-40 bg-gray-300"></div>
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-6">
-                3
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 text-center mb-4">
-                Dinlemeye Başla
-              </h3>
-              <p className="text-gray-600 text-center max-w-xs">
-                Seviyene uygun seslendirme ve altyazılarla dinlemeye devam et.
-              </p>
-              <img
-                src="https://readdy.ai/api/search-image?query=A%20person%20wearing%20headphones%20listening%20to%20content%20with%20subtitles%20visible%20on%20a%20device%20screen.%20The%20image%20shows%20a%20relaxed%20learning%20environment%20with%20clean%2C%20minimal%20aesthetics%20and%20blue%20accent%20colors%20on%20white%20background&width=200&height=200&seq=step3&orientation=squarish"
-                alt="Dinleme deneyimi"
-                className="w-40 h-40 object-cover mt-6 rounded-lg"
-              />
+            <div className="bg-blue-50 p-8 rounded-lg shadow hover:shadow-md transition">
+              <div className="flex items-center justify-center w-12 h-12 bg-blue-600 text-white font-bold text-lg rounded-full mx-auto mb-4">3</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Kişiselleştirilmiş öğrenmenin keyfini çıkarın</h3>
+              <p className="text-gray-700 mb-4">Öğrenme seviyenize göre optimize edilmiş özel ses ve altyazılara anında erişin.</p>
+              <img src="https://readdy.ai/api/search-image?query=minimalist%20illustration%20of%20a%20person%20enjoying%20learning%20with%20headphones%20and%20a%20device%20showing%20subtitles%2C%20clean%20design%20with%20blue%20accent%20colors%2C%20professional%20digital%20illustration%20on%20white%20background%2C%20simple%20and%20modern&width=250&height=200&seq=7&orientation=landscape" alt="Adım 3" className="mx-auto max-h-28" />
             </div>
           </div>
         </div>
@@ -578,15 +592,15 @@ const App: React.FC = () => {
       {/* Avantajlar */}
       <section id="avantajlar" className="py-16 bg-gray-50">
         <div className="container mx-auto px-6">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-16">
+          <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">
             LingRoot Avantajları
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="bg-white rounded-lg shadow-lg p-8 h-full">
-              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <i className="fas fa-user-cog text-blue-600 text-xl"></i>
+            <div className="bg-white rounded-lg shadow-lg p-8 h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-2 hover:border-blue-500">
+              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto transition-colors duration-300 group-hover:bg-blue-500">
+                <i className="fas fa-user-cog text-blue-600 text-xl transition-colors duration-300 group-hover:text-white"></i>
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4 transition-colors duration-300 group-hover:text-blue-600">
                 Kişisel Öğrenme
               </h3>
               <p className="text-gray-600 text-center">
@@ -594,11 +608,11 @@ const App: React.FC = () => {
                 içerikler.
               </p>
             </div>
-            <div className="bg-white rounded-lg shadow-lg p-8 h-full">
-              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <i className="fas fa-podcast text-blue-600 text-xl"></i>
+            <div className="bg-white rounded-lg shadow-lg p-8 h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-2 hover:border-blue-500">
+              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto transition-colors duration-300 group-hover:bg-blue-500">
+                <i className="fas fa-podcast text-blue-600 text-xl transition-colors duration-300 group-hover:text-white"></i>
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4 transition-colors duration-300 group-hover:text-blue-600">
                 Gerçek İçerikler
               </h3>
               <p className="text-gray-600 text-center">
@@ -606,11 +620,11 @@ const App: React.FC = () => {
                 dönüştürürüz.
               </p>
             </div>
-            <div className="bg-white rounded-lg shadow-lg p-8 h-full">
-              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <i className="fas fa-sync-alt text-blue-600 text-xl"></i>
+            <div className="bg-white rounded-lg shadow-lg p-8 h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-2 hover:border-blue-500">
+              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto transition-colors duration-300 group-hover:bg-blue-500">
+                <i className="fas fa-sync-alt text-blue-600 text-xl transition-colors duration-300 group-hover:text-white"></i>
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4 transition-colors duration-300 group-hover:text-blue-600">
                 Sürdürülebilir Alışkanlık
               </h3>
               <p className="text-gray-600 text-center">
@@ -618,11 +632,11 @@ const App: React.FC = () => {
                 içeriklerle öğrenme alışkanlığını kalıcı hale getiririz.
               </p>
             </div>
-            <div className="bg-white rounded-lg shadow-lg p-8 h-full">
-              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <i className="fas fa-chart-line text-blue-600 text-xl"></i>
+            <div className="bg-white rounded-lg shadow-lg p-8 h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-2 hover:border-blue-500">
+              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto transition-colors duration-300 group-hover:bg-blue-500">
+                <i className="fas fa-chart-line text-blue-600 text-xl transition-colors duration-300 group-hover:text-white"></i>
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4 transition-colors duration-300 group-hover:text-blue-600">
                 Özgüven ve Motivasyon
               </h3>
               <p className="text-gray-600 text-center">
@@ -635,38 +649,50 @@ const App: React.FC = () => {
       </section>
       {/* Kimin İçin */}
       <section id="kimin-icin" className="py-16 bg-white">
-        <div className="container mx-auto px-6">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-16">
-            Kimin İçin?
-          </h2>
-          <div className="grid md:grid-cols-3 gap-10 max-w-4xl mx-auto">
-            <div className="flex flex-col items-center">
-              <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                <i className="fas fa-headphones text-blue-600 text-3xl"></i>
-              </div>
-              <p className="text-gray-700 text-center">
-                Günlük içerikleri tüketirken İngilizce öğrenmek isteyenler.
-              </p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                <i className="fas fa-running text-blue-600 text-3xl"></i>
-              </div>
-              <p className="text-gray-700 text-center">
-                Zamanı olmayan ama sürekli içerik tüketenler.
-              </p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                <i className="fas fa-lightbulb text-blue-600 text-3xl"></i>
-              </div>
-              <p className="text-gray-700 text-center">
-                Klasik dil öğrenme yöntemlerinden sıkılmış olanlar.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+  <div className="container mx-auto px-6">
+    <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">
+      Kimin İçin?
+    </h2>
+    <div className="grid md:grid-cols-3 gap-10 max-w-4xl mx-auto">
+      {/* 1. Kart */}
+      <div className="flex flex-col items-center">
+        <img
+          src="/who1.png"
+          alt="Günlük içeriklerle öğrenenler"
+          className="w-32 h-32 object-contain mb-6"
+        />
+        <p className="text-gray-700 text-center">
+          Günlük içerikleri tüketirken İngilizce öğrenmek isteyenler.
+        </p>
+      </div>
+
+      {/* 2. Kart */}
+      <div className="flex flex-col items-center">
+        <img
+          src="/who2.png"
+          alt="Zamanı olmayan içerik tüketicileri"
+          className="w-32 h-32 object-contain mb-6"
+        />
+        <p className="text-gray-700 text-center">
+          Zamanı olmayan ama sürekli içerik tüketenler.
+        </p>
+      </div>
+
+      {/* 3. Kart */}
+      <div className="flex flex-col items-center">
+        <img
+          src="/who3.png"
+          alt="Klasik yöntemlerden sıkılanlar"
+          className="w-32 h-32 object-contain mb-6"
+        />
+        <p className="text-gray-700 text-center">
+          Klasik dil öğrenme yöntemlerinden sıkılmış olanlar.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
       {/* Slogan ve CTA */}
       <section className="py-20 bg-blue-600 text-white">
         <div className="container mx-auto px-6 text-center">
@@ -677,7 +703,7 @@ const App: React.FC = () => {
             Her seviyeden senin seviyene LingRoot çevirir.
           </p>
           <p className="text-xl italic mb-12">Your routine turns to English.</p>
-          <button className="px-8 py-4 bg-white text-blue-600 text-lg font-semibold rounded-button shadow-lg hover:bg-blue-50 transition duration-300 cursor-pointer whitespace-nowrap">
+          <button className="px-8 py-4 bg-white text-blue-600 text-lg font-semibold rounded-lg shadow-lg hover:bg-blue-50 transition duration-300 cursor-pointer whitespace-nowrap">
             Şimdi Ücretsiz Deneyin
           </button>
         </div>

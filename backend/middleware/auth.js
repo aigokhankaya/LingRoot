@@ -16,12 +16,14 @@ const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-developmen
 exports.authenticate = async (req, res, next) => {
   const path = req.originalUrl;
   logger.debug(`Authentication middleware triggered for path: ${path}`);
+  
   try {
     // Get token from header
     const authHeader = req.headers.authorization;
+    logger.debug(`Auth header: ${authHeader ? 'present' : 'missing'}`);
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      logger.warn(`Authentication failed: No token provided or invalid format for path ${path}`);
+      logger.warn(`Authentication failed: No token provided or invalid format for path ${path}. Header: ${authHeader}`);
       return res.status(401).json({
         success: false,
         message: "Authentication failed. No token provided or invalid format.",
@@ -29,13 +31,25 @@ exports.authenticate = async (req, res, next) => {
     }
 
     const token = authHeader.split(" ")[1];
-    logger.debug(`Token extracted for path: ${path}`);
+    logger.debug(`Token extracted for path: ${path}, token length: ${token ? token.length : 0}`);
+    logger.debug(`JWT_SECRET in use: ${JWT_SECRET ? 'defined' : 'undefined'}`);
 
     // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
     logger.debug(`Token verified for user ID: ${decoded.id}, path: ${path}`);
 
-    // Check if user exists in Supabase
+    // DEVELOPMENT MODE: Skip Supabase user lookup for mock users
+    if (process.env.NODE_ENV === 'development' && decoded.id === 'dev-user-123') {
+      logger.info(`Development mode: Using mock user for path: ${path}`);
+      req.user = {
+        id: decoded.id,
+        email: decoded.email,
+        role: decoded.role || 'user'
+      };
+      return next();
+    }
+
+    // Check if user exists in Supabase (for production/real users)
     const { data: user, error } = await supabase
       .from("users")
       .select("id, email, role")
@@ -59,6 +73,7 @@ exports.authenticate = async (req, res, next) => {
     logger.error(`Authentication error for path ${path}:`, error);
 
     if (error.name === "JsonWebTokenError") {
+      logger.error(`JWT verification failed: ${error.message}`);
       return res.status(401).json({
         success: false,
         message: "Invalid token. Please log in again.",

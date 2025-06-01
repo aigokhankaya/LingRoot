@@ -67,6 +67,7 @@ module.exports = {
       },
       fontFamily: {
         sans: ['Geist', 'sans-serif'],
+        sans: ['Inter', 'sans-serif'],
       },
       animation: {
         'gradient': 'gradient 8s linear infinite',

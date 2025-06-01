@@ -27,6 +27,8 @@ const userRoutes = require("./routes/userRoutes"); // 👈 İlgi alanları burad
 // Initialize Express app
 const app = express();
 
+app.use(express.json());
+
 // Configure security middleware
 configureSecurity(app);
 
@@ -78,7 +80,7 @@ app.use(
 app.use("/subscription/webhook", express.raw({ type: "application/json" }));
 
 // Other middlewares
-app.use(express.json());
+
 app.use(express.urlencoded({ extended: true }));
 
 // Static files
@@ -96,6 +98,7 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 // Mount routes
+
 app.use("/api/auth", authRoutes);
 app.use("/api/content", contentRoutes);
 app.use(contentRoutes); // legacy fallback
@@ -106,6 +109,7 @@ app.use("/api/topic-suggest", topicSuggestRoutes);
 app.use("/api/topic-detail", topicDetailRoutes);
 app.use("/api/books", booksRouter);
 app.use("/api", userRoutes); // ✅ user-interests endpoint burada aktif
+app.use('/auth', authRoutes);
 
 // Health check endpoint (Render için)
 app.get("/healthz", (req, res) => {

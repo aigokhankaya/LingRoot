@@ -163,6 +163,7 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     logger.info('[LOGIN] req.body:', req.body);
+    console.log("[LOGIN] Gelen istek verisi:", req.body); // Bunu ekle
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ success: false, message: "Lütfen e-posta ve şifre girin" });

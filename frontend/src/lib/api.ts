@@ -12,17 +12,11 @@ import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, InternalAxiosRequ
 
 // Get the base URL for API requests
 export const getApiBaseUrl = (): string => {
-  // In development, we can use a direct backend URL or Next.js rewrites
+  // In development, always use direct backend URL
   const isDev = process.env.NODE_ENV === 'development';
   
-  // Direct backend connection (requires CORS)
-  if (isDev && process.env.NEXT_PUBLIC_USE_DIRECT_API === 'true') {
-    return 'http://localhost:5001';
-  }
-  
-  // Using Next.js rewrites (no CORS needed)
   if (isDev) {
-    return ''; // Empty for relative URLs that will be handled by Next.js rewrites
+    return 'http://localhost:5001';
   }
   
   // In production, use the configured API URL
@@ -41,13 +35,11 @@ export const getApiUrl = (endpoint: string): string => {
   // If the endpoint already starts with /api, don't add it again
   const apiPath = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
   
-  // For relative URLs in development (using Next.js rewrites)
-  if (baseUrl === '') {
-    return apiPath;
-  }
+  // For direct backend URLs
+  if (baseUrl) return `${baseUrl}${apiPath}`;
   
-  // For direct backend or production URLs
-  return `${baseUrl}${apiPath}`;
+  // For relative URLs (fallback)
+  return apiPath;
 };
 
 // Create a configured axios instance
