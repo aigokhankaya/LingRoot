@@ -9,7 +9,6 @@ import dynamic from 'next/dynamic';
 // import Lottie from "lottie-react"; // Kaldırılacak
 import learnAnimation from "../public/animations/language-learn.json";
 import InputMask from 'react-input-mask';
-
 // Lottie bileşenini sadece client tarafında yüklenecek şekilde dinamik olarak import et
 const Lottie = dynamic(() => import('lottie-react'), { 
   ssr: false,
