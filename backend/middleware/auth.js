@@ -12,9 +12,20 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // JWT secret key
 const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-development";
 
+// Performance measurement helper
+const measureTime = async (operation, description) => {
+  const start = process.hrtime();
+  const result = await operation();
+  const [seconds, nanoseconds] = process.hrtime(start);
+  const duration = seconds * 1000 + nanoseconds / 1000000; // Convert to milliseconds
+  logger.debug(`Performance [${description}]: ${duration.toFixed(2)}ms`);
+  return result;
+};
+
 // Authenticate middleware
 exports.authenticate = async (req, res, next) => {
   const path = req.originalUrl;
+  const startTime = process.hrtime();
   logger.debug(`Authentication middleware triggered for path: ${path}`);
   
   try {
@@ -34,8 +45,11 @@ exports.authenticate = async (req, res, next) => {
     logger.debug(`Token extracted for path: ${path}, token length: ${token ? token.length : 0}`);
     logger.debug(`JWT_SECRET in use: ${JWT_SECRET ? 'defined' : 'undefined'}`);
 
-    // Verify token
-    const decoded = jwt.verify(token, JWT_SECRET);
+    // Verify token with performance measurement
+    const decoded = await measureTime(
+      () => jwt.verify(token, JWT_SECRET),
+      'JWT Verification'
+    );
     logger.debug(`Token verified for user ID: ${decoded.id}, path: ${path}`);
 
     // DEVELOPMENT MODE: Skip Supabase user lookup for mock users
@@ -49,12 +63,15 @@ exports.authenticate = async (req, res, next) => {
       return next();
     }
 
-    // Check if user exists in Supabase (for production/real users)
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("id, email, role")
-      .eq("id", decoded.id)
-      .single();
+    // Check if user exists in Supabase with performance measurement
+    const { data: user, error } = await measureTime(
+      () => supabase
+        .from("users")
+        .select("id, email, role")
+        .eq("id", decoded.id)
+        .single(),
+      'Supabase User Lookup'
+    );
 
     if (error || !user) {
       logger.warn(`Authentication failed: User ID ${decoded.id} not found in Supabase or DB error for path ${path}:`, error);
@@ -66,7 +83,11 @@ exports.authenticate = async (req, res, next) => {
 
     // Add user info to request
     req.user = user;
-    logger.info(`User authenticated successfully: ${user.email} (ID: ${user.id}), path: ${path}`);
+    
+    // Log total authentication time
+    const [totalSeconds, totalNanoseconds] = process.hrtime(startTime);
+    const totalDuration = totalSeconds * 1000 + totalNanoseconds / 1000000;
+    logger.info(`Total authentication time for user ${user.email}: ${totalDuration.toFixed(2)}ms`);
 
     next();
   } catch (error) {
