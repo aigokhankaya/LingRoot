@@ -41,6 +41,7 @@ backend/logs/requests/
 !tsconfig.json
 !*.config.json
 !*.test.json
+!package-lock.json
 
 # Explicitly ignore the key file
 /google-tts-key.json
