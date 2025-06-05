@@ -1,6 +1,6 @@
 // The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
 'use client';
-//.
+
 import React, { useState } from "react";
 import { useRouter } from 'next/router';
 import { useAuth } from '../src/lib/auth';
