@@ -1,856 +1,703 @@
 // The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
 'use client';
 
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import { useRouter } from 'next/router';
-import { useAuth } from '../src/lib/auth';
-import { getApiUrl } from "../src/lib/api";
-import dynamic from 'next/dynamic';
-// import Lottie from "lottie-react"; // Kaldırılacak
-import learnAnimation from "../public/animations/language-learn.json";
-import InputMask from 'react-input-mask';
+import { useAuth } from '../src/lib/auth'; // Eski dosyadan auth context'ini import ediyoruz
 
-// Lottie bileşenini sadece client tarafında yüklenecek şekilde dinamik olarak import et
-const Lottie = dynamic(() => import('lottie-react'), { 
-  ssr: false,
-  loading: () => <div className="w-full max-w-3xl mx-auto h-[300px] bg-gray-100 animate-pulse rounded-lg"></div>
-});
+// shadcn/ui ve diğer kütüphane importları
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Slider } from "@/components/ui/slider";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Pagination, Autoplay } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/pagination';
+import InputMask from 'react-input-mask'; // Telefon numarası için eklendi
 
 const App: React.FC = () => {
-  const router = useRouter();
-  const { login, isAuthenticated, register } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [isClient, setIsClient] = useState(false);
+    // --- YENİ TASARIMDAN GELEN STATE'LER ---
+    const [level, setLevel] = useState(1);
+    const [isLoginOpen, setIsLoginOpen] = useState(false);
+    const [isRegisterOpen, setIsRegisterOpen] = useState(false); // Kayıt modalı için yeni state
+    const [language, setLanguage] = useState<'tr' | 'en'>('tr');
 
-  // Client-side rendering için useEffect
-  React.useEffect(() => {
-    setIsClient(true);
-  }, []);
+    // --- ESKİ MANTIKTAN ENTEGRE EDİLEN HOOK'LAR VE STATE'LER ---
+    const router = useRouter();
+    const { login, isAuthenticated, register } = useAuth();
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-  // Kullanıcı zaten giriş yapmışsa welcome sayfasına yönlendir
-  React.useEffect(() => {
-    if (isAuthenticated) {
-      router.push('/welcome');
-    }
-  }, [isAuthenticated, router]);
-
-  // Debug için state değişikliklerini izleyelim
-  React.useEffect(() => {
-    console.log('Form state changed:', { email, password });
-  }, [email, password]);
-
-  const handleStartButton = () => {
-    // Check if user is logged in
-    const token = localStorage.getItem('lingroot_token');
-    
-    if (token) {
-      // If logged in, redirect to content selection page
-      router.push('/welcome');
-    } else {
-      // If not logged in, open register modal
-      const registerModal = document.getElementById('registerModal');
-      if (registerModal) {
-        registerModal.classList.remove('hidden');
-      }
-    }
-  };
-
-  const openModal = () => {
-    const loginModal = document.getElementById('loginModal');
-    if (loginModal) {
-      loginModal.classList.remove('hidden');
-    }
-  };
-
-  const closeModalHandler = () => {
-    const loginModal = document.getElementById('loginModal');
-    const registerModal = document.getElementById('registerModal');
-    loginModal?.classList.add('hidden');
-    registerModal?.classList.add('hidden');
-    setError(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    console.log('Anasayfa Modal handleSubmit - Email:', email, 'Password:', password);
-    console.log('Form submitted with:', { email, password }); // Bu log zaten vardı, bunu da kontrol edin.
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await login(email, password);
-      console.log('Login result:', result);
-      
-      if (result.success) {
-        console.log('Login successful, redirecting to /welcome');
-        router.push('/welcome');
-      } else {
-        console.warn('Login failed:', result.message);
-        setError(result.message || 'Giriş başarısız');
-      }
-    } catch (error: any) {
-      console.error('Login error:', error);
-      setError(error.message || 'Giriş işlemi sırasında bir hata oluştu');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRegister = async (e: Event) => {
-    e.preventDefault();
-    const nameInput = document.getElementById('register-name') as HTMLInputElement;
-    const emailInput = document.getElementById('register-email') as HTMLInputElement;
-    const passwordInput = document.getElementById('register-password') as HTMLInputElement;
-    const phoneInput = document.getElementById('register-phone') as HTMLInputElement;
-    
-    if (!nameInput || !emailInput || !passwordInput || !phoneInput) return;
-
-    const name = nameInput.value;
-    const email = emailInput.value;
-    const password = passwordInput.value;
-    const phoneNumber = phoneInput.value;
-
-    // Split the name into firstName and lastName for the backend
-    const nameParts = name.trim().split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
-
-    try {
-      // Show a loading indicator or disable the button here
-      const submitButton = document.getElementById('register-submit') as HTMLButtonElement;
-      if (submitButton) {
-        submitButton.disabled = true;
-        submitButton.innerText = 'Kaydediliyor...';
-      }
-
-      console.log('Registering user with:', { firstName, lastName, email, phoneNumber: '***', password: '***' });
-
-      // Use the auth context's register function
-      const result = await register(firstName, lastName, email, phoneNumber, password);
-
-      if (result.success) {
-        console.log('Registration successful, redirecting to /welcome');
-        router.push('/welcome');
-      } else {
-        alert(result.message || 'Kayıt başarısız');
-      }
-    } catch (error) {
-      console.error('Registration error:', error);
-      alert('Kayıt işlemi sırasında bir hata oluştu');
-    } finally {
-      // Reset the button state
-      const submitButton = document.getElementById('register-submit') as HTMLButtonElement;
-      if (submitButton) {
-        submitButton.disabled = false;
-        submitButton.innerText = 'Ücretsiz Hesap Oluştur';
-      }
-    }
-  };
-
-  React.useEffect(() => {
-    const loginButton = document.getElementById('loginButton');
-    const registerButton = document.getElementById('registerButton');
-    const startButton = document.getElementById('startButton');
-    const closeModal = document.getElementById('closeModal');
-    const closeRegisterModal = document.getElementById('closeRegisterModal');
-    const loginModal = document.getElementById('loginModal');
-    const registerModal = document.getElementById('registerModal');
-    const loginForm = document.getElementById('loginForm');
-    const registerForm = document.getElementById('registerForm');
-
-    // Debug için - elemanlara erişebildiğimizden emin olalım
-    console.log('Elements found:', {
-      loginButton: !!loginButton,
-      registerButton: !!registerButton,
-      startButton: !!startButton,
-      closeModal: !!closeModal,
-      closeRegisterModal: !!closeRegisterModal,
-      loginForm: !!loginForm,
-      registerForm: !!registerForm,
-      loginModal: !!loginModal,
-      registerModal: !!registerModal
+    // --- FORM STATE'LERİ (KONTROLLÜ BİLEŞENLER İÇİN) ---
+    const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+    const [registerForm, setRegisterForm] = useState({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phoneNumber: '',
+        password: ''
     });
 
-    // Login buton işlemleri
-    loginButton?.addEventListener('click', openModal);
-    closeModal?.addEventListener('click', closeModalHandler);
-    
-    // Register buton ve form işlemleri
-    registerButton?.addEventListener('click', () => {
-      registerModal?.classList.remove('hidden');
-    });
-    closeRegisterModal?.addEventListener('click', closeModalHandler);
-    
-    const registerFormHandler = (e: Event) => handleRegister(e);
-    registerForm?.addEventListener('submit', registerFormHandler);
+    const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
-    // Hemen başla butonu
-    startButton?.addEventListener('click', handleStartButton);
-
-    // Click outside to close modals
-    loginModal?.addEventListener('click', (e) => {
-      if (e.target === loginModal) {
-        closeModalHandler();
-      }
-    });
-    
-    registerModal?.addEventListener('click', (e) => {
-      if (e.target === registerModal) {
-        closeModalHandler();
-      }
-    });
-
-    return () => {
-      loginButton?.removeEventListener('click', openModal);
-      closeModal?.removeEventListener('click', closeModalHandler);
-      closeRegisterModal?.removeEventListener('click', closeModalHandler);
-      registerForm?.removeEventListener('submit', registerFormHandler);
-      startButton?.removeEventListener('click', handleStartButton);
-      loginModal?.removeEventListener('click', (e) => {
-        if (e.target === loginModal) {
-          closeModalHandler();
+    // Kullanıcı zaten giriş yapmışsa welcome sayfasına yönlendir (Eski mantıktan)
+    React.useEffect(() => {
+        if (isAuthenticated) {
+            router.push('/welcome');
         }
-      });
-      registerModal?.removeEventListener('click', (e) => {
-        if (e.target === registerModal) {
-          closeModalHandler();
-        }
-      });
+    }, [isAuthenticated, router]);
+    
+    // Form input değişikliklerini yöneten fonksiyonlar
+    const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setLoginForm({ ...loginForm, [e.target.name]: e.target.value });
     };
-  }, []);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white font-sans">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center">
-            <h1 className="text-2xl font-bold text-blue-600">LingRoot</h1>
-          </div>
-          <nav className="hidden md:flex space-x-8">
-            <a
-              href="#nasil-calisir"
-              className="text-gray-700 hover:text-blue-600 cursor-pointer"
-            >
-              Nasıl Çalışır
-            </a>
-            <a
-              href="#avantajlar"
-              className="text-gray-700 hover:text-blue-600 cursor-pointer"
-            >
-              Avantajlar
-            </a>
-            <a
-              href="#kimin-icin"
-              className="text-gray-700 hover:text-blue-600 cursor-pointer"
-            >
-              Kimin İçin
-            </a>
-          </nav>
-          <div className="flex items-center space-x-4">
-            <button
-              id="loginButton"
-              className="px-4 py-2 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50 cursor-pointer whitespace-nowrap"
-            >
-              Giriş Yap
-            </button>
-            <button
-              id="registerButton"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer whitespace-nowrap"
-            >
-              Kayıt Ol
-            </button>
+    const handleRegisterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        // İsim ve Soyisimi ayırmak için özel mantık
+        if (e.target.name === 'fullName') {
+            const nameParts = e.target.value.trim().split(' ');
+            const firstName = nameParts[0] || '';
+            const lastName = nameParts.slice(1).join(' ') || '';
+            setRegisterForm({ ...registerForm, firstName, lastName });
+        } else {
+            setRegisterForm({ ...registerForm, [e.target.name]: e.target.value });
+        }
+    };
+    
+    // --- GİRİŞ VE KAYIT FONKSİYONLARI (ESKİ MANTIK İLE YENİ STATE'LER BİRLEŞTİRİLDİ) ---
+    const handleLoginSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        try {
+            const result = await login(loginForm.email, loginForm.password);
+            if (result.success) {
+                setIsLoginOpen(false); // Başarılı olunca modalı kapat
+                router.push('/welcome');
+            } else {
+                setError(result.message || 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
+            }
+        } catch (err: any) {
+            setError(err.message || 'Giriş sırasında bir hata oluştu.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-            {/* Login Modal */}
-            <div
-              id="loginModal"
-              className="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center"
-            >
-              <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold text-gray-800">
-                    Giriş Yap
-                  </h3>
-                  <button
-                    id="closeModal"
-                    className="text-gray-600 hover:text-gray-800"
-                  >
-                    <i className="fas fa-times text-xl"></i>
-                  </button>
-                </div>
+    const handleRegisterSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        try {
+            const { firstName, lastName, email, phoneNumber, password } = registerForm;
+            const result = await register(firstName, lastName, email, phoneNumber, password);
+            if (result.success) {
+                setIsRegisterOpen(false); // Başarılı olunca modalı kapat
+                router.push('/welcome');
+            } else {
+                setError(result.message || 'Kayıt başarısız. Lütfen bilgilerinizi kontrol edin.');
+            }
+        } catch (err: any) {
+            setError(err.message || 'Kayıt sırasında bir hata oluştu.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-                <form id="loginForm" className="space-y-4" onSubmit={handleSubmit}>
-                  {/* Hata mesajı */}
-                  {error && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                      <p className="text-sm text-red-700">{error}</p>
+    // Yeni tasarımın çeviri objesi
+    const translations = {
+        tr: {
+            nav: {
+                howItWorks: "Nasıl Çalışır?",
+                features: "Özellikler",
+                testimonials: "Kullanıcı Yorumları",
+                blog: "Blog",
+                login: "Giriş Yap",
+                signup: "Ücretsiz Kaydol"
+            },
+            login: {
+                title: "Giriş Yap",
+                description: "LingRoot hesabınıza giriş yapın",
+                emailLabel: "E-posta veya Kullanıcı Adı",
+                emailPlaceholder: "ornek@email.com",
+                passwordLabel: "Şifre",
+                forgotPassword: "Şifremi Unuttum",
+                loginButton: "Giriş Yap",
+                loadingButton: "Giriş Yapılıyor...",
+                or: "veya",
+                googleLogin: "Google ile Giriş Yap",
+                facebookLogin: "Facebook ile Giriş Yap",
+                appleLogin: "Apple ile Giriş Yap",
+                noAccount: "Hesabınız yok mu?",
+                signupLink: "Ücretsiz Kaydol"
+            },
+            register: { // KAYIT MODALI İÇİN YENİ ÇEVİRİLER
+                title: "Ücretsiz Hesap Oluştur",
+                description: "LingRoot dünyasına katılın ve hemen öğrenmeye başlayın.",
+                fullNameLabel: "Ad Soyad",
+                fullNamePlaceholder: "Adınız Soyadınız",
+                emailLabel: "E-posta",
+                emailPlaceholder: "ornek@email.com",
+                phoneLabel: "Telefon Numarası",
+                passwordLabel: "Şifre",
+                registerButton: "Hesap Oluştur",
+                loadingButton: "Hesap Oluşturuluyor...",
+                hasAccount: "Zaten bir hesabınız var mı?",
+                loginLink: "Giriş Yap"
+            },
+            hero: {
+                badge: "Hayatın Değişmesin, İngilizcen Gelişsin",
+                title: "Sevdiğin İçerikler, ",
+                titleHighlight: "Anlayacağın İngilizceyle",
+                description: "LingRoot, YouTube videoları, podcast'ler, blog yazıları gibi zaten takip ettiğin içerikleri seçtiğin İngilizce seviyesine (A1–C2) göre otomatik olarak sadeleştirir, seslendirir ve altyazı ekler. İngilizce öğrenmek için hayatını değiştirmene gerek yok — sadece dinlemeye devam et.",
+                tryButton: "Hemen Ücretsiz Dene",
+                watchButton: "Nasıl Çalıştığını İzle"
+            },
+            // ... Diğer tüm çeviriler yeni tasarımdaki gibi buraya eklenecek ...
+            // (Kısalık için diğer kısımları kestim, yeni kodunuzdaki tam çeviri objesini buraya yapıştırın)
+            howItWorks: {
+                title: "LingRoot Nasıl Çalışır?",
+                description: "Sevdiğin içerikleri kendi İngilizce seviyende dinlemek için sadece üç adım yeterli.",
+                steps: [
+                    { icon: "fas fa-link", title: "İçeriğini Seç", description: "YouTube videosu, Spotify podcast'i, bir haber yazısı… Sadece linki yapıştır veya metni yükle." },
+                    { icon: "fas fa-sliders-h", title: "Seviyeni Belirle", description: "A1'den C2'ye. İçerik, senin anlayabileceğin İngilizceye otomatik olarak çevrilir." },
+                    { icon: "fas fa-headphones", title: "Dinle ve Öğren", description: "İçerik yapay zeka tarafından seslendirilir, altyazı eklenir ve seviyene özel hale gelir. Artık sevdiğin şeyleri dinleyerek İngilizce öğrenebilirsin." }
+                ]
+            },
+            demo: { title: "Aynı İçerik, Senin Seviyen", description: "Seviyeni seç ve içeriğin nasıl değiştiğini gör. Dilediğin seviyede dinleyerek İngilizceni geliştir.", selectLevel: "Seviyeni Seç", originalContent: "Orijinal İçerik (C2)", yourLevel: "Senin Seviyen", tryYourContent: "Kendi İçeriğini Dene" },
+            routine: { title: "Günlük Rutinin = İngilizce Dersin", description: "Ekstra zaman ayırmana gerek yok. Zaten yaptığın aktiviteler sırasında İngilizce öğren.", activities: [{ icon: "fas fa-walking", title: "Yürüyüş Yaparken", description: "Favori podcast'lerini dinlerken İngilizce öğren" }, { icon: "fas fa-dumbbell", title: "Spor Yaparken", description: "Motivasyon videolarını seviyene uygun dinle" }, { icon: "fas fa-car", title: "Araç Kullanırken", description: "Trafikteyken sevdiğin içerikleri dinle" }, { icon: "fas fa-home", title: "Ev İşleri Yaparken", description: "Temizlik ve yemek yaparken öğrenmeye devam et" }], adaptButton: "Seviyene Uyarla" },
+            features: { title: "Neden LingRoot?", description: "LingRoot, İngilizce öğrenme deneyimini tamamen farklı bir seviyeye taşır.", featuresList: [{ icon: "fas fa-globe", title: "Gerçek İçerikler", description: "Ders kitapları değil, gerçek hayattan videolar ve yazılar ile öğren" }, { icon: "fas fa-user-cog", title: "Kişiselleştirilmiş Deneyim", description: "Seviyene ve ilgi alanına göre özel olarak hazırlanmış içerikler" }, { icon: "fas fa-headphones-alt", title: "Sadece Dinleyerek Öğren", description: "Kaliteli seslendirme, altyazı ve tekrar özellikleriyle pasif öğrenme" }, { icon: "fas fa-clock", title: "Ekstra Zaman Gerekmez", description: "Günlük rutinin içinde, ek bir çaba harcamadan İngilizce öğren" }] },
+            testimonials: { title: "Kullanıcılarımız Ne Diyor?", description: "LingRoot ile İngilizce öğrenme deneyimlerini paylaşan kullanıcılarımızın yorumları.", users: [{ name: "Mert Y.", level: "B1 seviyesinde kullanıcı", quote: "LingRoot sayesinde artık yabancı videolardan korkmuyorum. Aynı içeriği hem A2 hem B1 seviyede dinlemek inanılmaz motive edici." }, { name: "Zeynep K.", level: "A2 seviyesinde kullanıcı", quote: "Sadece dinleyerek öğrendiğimi fark ettim. Her gün izlediğim içerikler artık İngilizce gelişimime katkı sağlıyor." }, { name: "Ahmet S.", level: "B2 seviyesinde kullanıcı", quote: "Sabah koşumda dinlediğim podcast'ler artık İngilizce öğretmenim. Hiç ekstra zaman harcamadan her gün ilerliyorum." }, { name: "Ayşe D.", level: "A1 seviyesinde kullanıcı", quote: "İngilizce öğrenmek için daha önce birçok uygulama denedim ama hiçbiri LingRoot kadar etkili olmadı. Sevdiğim içeriklerle öğrenmek çok daha keyifli." }, { name: "Emre T.", level: "C1 seviyesinde kullanıcı", quote: "İleri seviyede olmama rağmen, LingRoot ile yeni kelimeler öğrenmeye devam ediyorum. Özellikle akademik içerikleri kendi seviyemde dinlemek çok faydalı." }] },
+            tryNow: { title: "Başlamak İçin Sadece Link Paylaş", placeholder: "YouTube, Spotify veya herhangi bir içerik linki yapıştır...", tryButton: "Hemen Dene", description: "Seviyeni seç ve içeriği hemen dinlemeye başla. Kayıt olmak için sadece 1 dakika!" },
+            cta: { title: "İngilizce Öğrenmek İçin Hayatını Değiştirme. Dinlemeye Devam Et.", description: "Günlük rutininde dinlediğin içerikler şimdi senin İngilizce öğretmenin. Ekstra zaman harcamadan, sevdiğin şeyleri dinleyerek öğren.", button: "Şimdi Başla — Ücretsiz ve Hemen", benefits: ["1 dakikada kaydol", "Kredi kartı gerekmez", "Hemen başla"] },
+            footer: { slogan: "\"Your routines turn into English.\"", quickLinks: { title: "Hızlı Bağlantılar", links: ["Hakkımızda", "Nasıl Çalışır?", "Fiyatlandırma", "Blog", "İletişim"] }, legal: { title: "Yasal", links: ["Gizlilik Politikası", "Kullanım Şartları", "Çerez Politikası", "KVKK"] }, contact: { title: "Bize Ulaşın", email: "info@lingroot.com", phone: "+90 212 123 45 67", address: "İstanbul, Türkiye" }, copyright: "Tüm hakları saklıdır." }
+        },
+        en: { // İngilizce çevirileri de buraya tam olarak ekleyin
+             nav: { howItWorks: "How It Works", features: "Features", testimonials: "Testimonials", blog: "Blog", login: "Login", signup: "Sign Up Free" },
+             login: { title: "Login", description: "Sign in to your LingRoot account", emailLabel: "Email or Username", emailPlaceholder: "example@email.com", passwordLabel: "Password", forgotPassword: "Forgot Password", loginButton: "Login", loadingButton: "Logging in...", or: "or", googleLogin: "Login with Google", facebookLogin: "Login with Facebook", appleLogin: "Login with Apple", noAccount: "Don't have an account?", signupLink: "Sign Up Free" },
+             register: { title: "Create a Free Account", description: "Join the LingRoot world and start learning right away.", fullNameLabel: "Full Name", fullNamePlaceholder: "Your Full Name", emailLabel: "Email", emailPlaceholder: "example@email.com", phoneLabel: "Phone Number", passwordLabel: "Password", registerButton: "Create Account", loadingButton: "Creating Account...", hasAccount: "Already have an account?", loginLink: "Login" },
+             hero: { badge: "Don't Change Your Life, Improve Your English", title: "Content You Love, ", titleHighlight: "In English You Understand", description: "LingRoot automatically simplifies, narrates, and adds subtitles to the content you already follow—YouTube videos, podcasts, blog posts—according to your chosen English level (A1–C2). You don't need to change your life to learn English—just keep listening.", tryButton: "Try It Free Now", watchButton: "Watch How It Works" },
+             // ... diğer ingilizce çeviriler
+        }
+    };
+    const t = translations[language];
+
+    return (
+        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+            {/* Navigation */}
+            <nav className="bg-white shadow-sm py-3 sticky top-0 z-50">
+                <div className="container mx-auto px-4 flex justify-between items-center">
+                    <div className="flex items-center space-x-2">
+                        <i className="fas fa-language text-blue-600 text-2xl"></i>
+                        <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">LingRoot</span>
                     </div>
-                  )}
-                  
-                  <div>
-                    <label htmlFor="email" className="block text-gray-700 mb-2">
-                      E-posta
-                    </label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                      placeholder="E-posta"
-                      required
-                      value={email}
-                      onChange={(e) => {
-                        console.log('Email input changed:', e.target.value);
-                        setEmail(e.target.value);
-                      }}
-                    />
-                  </div>
+                    <div className="hidden md:flex items-center space-x-6">
+                        <a href="#nasil-calisir" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer">{t.nav.howItWorks}</a>
+                        <a href="#ozellikler" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer">{t.nav.features}</a>
+                        <a href="#yorumlar" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer">{t.nav.testimonials}</a>
+                        <a href="#blog" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer">{t.nav.blog}</a>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                        <Button variant="ghost" className="!rounded-button whitespace-nowrap" onClick={() => setLanguage(language === 'tr' ? 'en' : 'tr')}>
+                            {language === 'tr' ? 'EN' : 'TR'}
+                        </Button>
+                        
+                        {/* GİRİŞ YAP MODALI */}
+                        <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" className="!rounded-button whitespace-nowrap">{t.nav.login}</Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                    <DialogTitle className="text-2xl font-bold text-center mb-2">{t.login.title}</DialogTitle>
+                                    <DialogDescription className="text-center">{t.login.description}</DialogDescription>
+                                </DialogHeader>
+                                <form onSubmit={handleLoginSubmit} className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="email">{t.login.emailLabel}</Label>
+                                        <Input id="email" name="email" type="email" placeholder={t.login.emailPlaceholder} value={loginForm.email} onChange={handleLoginChange} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="password">{t.login.passwordLabel}</Label>
+                                        <Input id="password" name="password" type="password" value={loginForm.password} onChange={handleLoginChange} required />
+                                    </div>
+                                    {error && <p className="text-sm text-red-500 text-center">{error}</p>} {/* Hata Mesajı */}
+                                    <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white !rounded-button" disabled={loading}>
+                                        {loading ? t.login.loadingButton : t.login.loginButton}
+                                    </Button>
+                                     {/* ... sosyal medya login butonları ... */}
+                                </form>
+                            </DialogContent>
+                        </Dialog>
 
-                  <div>
-                    <label
-                      htmlFor="password"
-                      className="block text-gray-700 mb-2"
-                    >
-                      Şifre
-                    </label>
-                    <input
-                      type="password"
-                      id="password"
-                      name="password"
-                      className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                      placeholder="Şifre"
-                      required
-                      value={password}
-                      onChange={(e) => {
-                        console.log('Password input changed:', e.target.value);
-                        setPassword(e.target.value);
-                      }}
-                    />
-                  </div>
-
-                  <div className="flex justify-end">
-                    <a
-                      href="/forgot-password"
-                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                    >
-                      Şifremi Unuttum
-                    </a>
-                  </div>
-
-                  <button
-                    type="submit"
-                    id="login-submit"
-                    className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                    disabled={loading}
-                  >
-                    {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
-                  </button>
-                </form>
-
-                <div className="mt-4 text-sm text-center">
-                  <a href="/register" className="font-medium text-blue-600 hover:text-blue-500">
-                    Hesabınız yok mu? Kayıt olun
-                  </a>
+                        {/* KAYIT OL MODALI */}
+                        <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button whitespace-nowrap">{t.nav.signup}</Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                    <DialogTitle className="text-2xl font-bold text-center mb-2">{t.register.title}</DialogTitle>
+                                    <DialogDescription className="text-center">{t.register.description}</DialogDescription>
+                                </DialogHeader>
+                                <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="fullName">{t.register.fullNameLabel}</Label>
+                                        <Input id="fullName" name="fullName" placeholder={t.register.fullNamePlaceholder} onChange={handleRegisterChange} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="register-email">{t.register.emailLabel}</Label>
+                                        <Input id="register-email" name="email" type="email" placeholder={t.register.emailPlaceholder} value={registerForm.email} onChange={handleRegisterChange} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="phoneNumber">{t.register.phoneLabel}</Label>
+                                        <InputMask mask="+90 (999) 999 99 99" value={registerForm.phoneNumber} onChange={handleRegisterChange}>
+                                            {(inputProps: any) => <Input {...inputProps} id="phoneNumber" name="phoneNumber" />}
+                                        </InputMask>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="register-password">{t.register.passwordLabel}</Label>
+                                        <Input id="register-password" name="password" type="password" value={registerForm.password} onChange={handleRegisterChange} required />
+                                    </div>
+                                    {error && <p className="text-sm text-red-500 text-center">{error}</p>} {/* Hata Mesajı */}
+                                    <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white !rounded-button" disabled={loading}>
+                                        {loading ? t.register.loadingButton : t.register.registerButton}
+                                    </Button>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Register Modal */}
-            <div
-              id="registerModal"
-              className="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center"
-            >
-              <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold text-gray-800">
-                    Hesap Oluştur
-                  </h3>
-                  <button
-                    id="closeRegisterModal"
-                    className="text-gray-600 hover:text-gray-800"
-                  >
-                    <i className="fas fa-times text-xl"></i>
-                  </button>
-                </div>
-
-                <form id="registerForm" className="space-y-4">
-                  <div>
-                    <label htmlFor="register-name" className="block text-gray-700 mb-2">
-                      Ad Soyad
-                    </label>
-                    <input
-                      type="text"
-                      id="register-name"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="register-email" className="block text-gray-700 mb-2">
-                      E-posta
-                    </label>
-                    <input
-                      type="email"
-                      id="register-email"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="register-password" className="block text-gray-700 mb-2">
-                      Şifre
-                    </label>
-                    <input
-                      type="password"
-                      id="register-password"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                      minLength={6}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="register-phone" className="block text-gray-700 mb-2">
-                      Telefon Numarası
-                    </label>
-                    <InputMask
-                      mask="(999) 999-99-99"
-                      maskChar="_"
-                      type="tel"
-                      id="register-phone"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                      required
-                    />
-                  </div>
-
-                  <div className="flex items-start">
-                    <input
-                      type="checkbox"
-                      id="accept-terms"
-                      className="mt-1"
-                      required
-                    />
-                    <label htmlFor="accept-terms" className="ml-2 text-gray-700 text-sm">
-                      Kullanım şartlarını ve gizlilik politikasını kabul ediyorum
-                    </label>
-                  </div>
-
-                  <button
-                    type="submit"
-                    id="register-submit"
-                    className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition duration-300"
-                  >
-                    Ücretsiz Hesap Oluştur
-                  </button>
-                </form>
-
-                <div className="mt-4 text-center text-gray-600 text-sm">
-                  Zaten bir hesabınız var mı? <button onClick={openModal} className="text-blue-600 hover:underline">Giriş yapın</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        
-        
-        <div className="container mx-auto px-6 py-20 md:py-32 relative z-20">
-          <div className="max-w-2xl">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-800 leading-tight mb-6">
-              Zaten takip ettiğin içerikleri seviyene göre dönüştürüyoruz. Sen
-              sadece dinlemeye devam et.
-            </h2>
-            <p className="text-xl md:text-2xl text-gray-600 mb-8">
-              Günlük içeriklerini İngilizce öğrenme deneyimine dönüştür. Senin
-              seviyene, senin içeriğin, senin hızında.
-            </p>
-            <button
-              id="startButton"
-              className="px-8 py-4 bg-blue-600 text-white text-lg rounded-lg shadow-lg hover:bg-blue-700 transition duration-300 cursor-pointer whitespace-nowrap"
-            >
-              Hemen Başla
-            </button>
-          </div>
-          <div className="mt-10">
-            {isClient && (
-              <Lottie
-                animationData={learnAnimation}
-                loop
-                autoplay
-                className="w-full max-w-3xl mx-auto"
-              />
-            )}
-          </div>
-    {/*
-    <div className="relative w-full h-[500px] overflow-hidden rounded-lg shadow-lg">
-  <video
-    src="/videos/lingroot-promo.mp4"
-    autoPlay
-    muted
-    loop
-    playsInline
-    className="w-full h-full object-cover"
-  ></video>
-
-  <div className="absolute top-8 left-8 md:top-16 md:left-16 text-white text-xl md:text-3xl font-bold bg-black/50 p-4 rounded-lg shadow-md max-w-[80%]">
-    Sevdiğin içeriklerle İngilizce öğren.
+            </nav>
+            
+           {/* Hero Section */}
+<section className="relative overflow-hidden"> 
+  <div className="absolute inset-0 z-0"> 
+    <img 
+      src="https://readdy.ai/api/search-image?query=A%20modern%2C%20clean%2C%20minimalist%20scene%20showing%20a%20person%20relaxing%20with%20headphones%2C%20listening%20to%20content%20on%20their%20device.%20The%20background%20is%20a%20soft%20gradient%20from%20light%20blue%20to%20white%2C%20creating%20a%20calm%20and%20peaceful%20atmosphere.%20The%20scene%20suggests%20learning%20without%20effort%2C%20with%20subtle%20educational%20elements%20in%20the%20background.&width=1440&height=700&seq=hero1&orientation=landscape" 
+      alt="Hero Background" 
+      className="w-full h-full object-cover object-center" 
+    /> 
   </div>
+<div className="container mx-auto px-4 py-12 md:py-20 relative z-10">
+<div className="max-w-3xl">
+<Badge className="mb-3 md:mb-4 bg-blue-100 text-blue-800 hover:bg-blue-200 border-none text-sm">{t.hero.badge}</Badge>
+<h1 className="text-3xl md:text-6xl font-bold mb-4 md:mb-6 text-gray-900">
+{t.hero.title}<span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{t.hero.titleHighlight}</span>
+</h1>
+<p className="text-base md:text-xl text-gray-700 mb-6 md:mb-8">
+{t.hero.description}
+</p>
+<div className="flex flex-col sm:flex-row gap-3 md:gap-4">
+<a href="https://readdy.ai/home/11d28807-c376-4c34-ad7f-2622a9d675a0/9ca9e5ea-13a7-4fff-a0f6-eff90c6a2ed3" data-readdy="true">
+<Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-base py-4 px-6 !rounded-button whitespace-nowrap">
+<i className="fas fa-rocket mr-2"></i> {t.hero.tryButton}
+</Button>
+</a>
+<Dialog>
+<DialogTrigger asChild>
+<Button variant="outline" className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 text-base py-4 px-6 !rounded-button whitespace-nowrap">
+<i className="fas fa-play-circle mr-2"></i> {t.hero.watchButton}
+</Button>
+</DialogTrigger>
+<DialogContent className="sm:max-w-4xl">
+<DialogHeader>
+<DialogTitle className="text-2xl font-bold">{t.howItWorks.title}</DialogTitle>
+<DialogDescription>
+{t.howItWorks.description}
+</DialogDescription>
+</DialogHeader>
+<div className="relative aspect-video w-full overflow-hidden rounded-lg">
+<iframe
+src="https://www.youtube.com/embed/demo-video-id"
+className="absolute inset-0 h-full w-full"
+allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+allowFullScreen>
+</iframe>
 </div>
-*/}
-
-
-        </div>
-      </section>
-      {/* LingRoot Nedir */}
-      <section className="py-16 bg-white">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">
-              LingRoot Nedir?
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              LingRoot, günlük yaşamında tükettiğin içerikleri (YouTube
-              videoları, Spotify podcast'leri, haberler, bloglar) seçtiğin
-              İngilizce seviyesine dönüştürerek sana özel bir dil öğrenme
-              deneyimi sunar.
-            </p>
-          </div>
-          {/*<div className="flex justify-center">
-            <img
-              src="https://readdy.ai/api/search-image?query=A%20visual%20representation%20of%20content%20transformation%20process%20showing%20original%20media%20like%20YouTube%20videos%2C%20Spotify%20podcasts%2C%20and%20news%20articles%20being%20converted%20into%20personalized%20language%20learning%20materials%20with%20level%20indicators%20from%20A1%20to%20C2.%20The%20image%20has%20a%20clean%2C%20professional%20design%20with%20blue%20accent%20colors%20on%20white%20background&width=800&height=500&seq=concept1&orientation=landscape"
-              alt="LingRoot konsept görseli"
-              className="rounded-lg shadow-xl max-w-full h-auto mb-32"
-            />
-          </div>*/}
-
-        </div>
-      </section>
-      {/* Sorun ve Çözüm */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-6">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-16">
-            Sorun ve Çözüm
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white rounded-lg shadow-lg p-8 transition-transform duration-300 hover:transform hover:scale-105">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <i className="fas fa-search text-blue-600 text-2xl"></i>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 text-center mb-4">
-                Seviyene uygun içerik bulamıyor musun?
-              </h3>
-              <p className="text-gray-600 text-center">
-                İçerikleri senin seviyene tam olarak uyarlarız.
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow-lg p-8 transition-transform duration-300 hover:transform hover:scale-105">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <i className="fas fa-puzzle-piece text-blue-600 text-2xl"></i>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 text-center mb-4">
-                Gerçek hayattan içerikler karmaşık mı geliyor?
-              </h3>
-              <p className="text-gray-600 text-center">
-                İçerikleri basitleştirip anlaşılır hale getiriyoruz.
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow-lg p-8 transition-transform duration-300 hover:transform hover:scale-105">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <i className="fas fa-clock text-blue-600 text-2xl"></i>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-800 text-center mb-4">
-                Dinleme alışkanlığı oluşturmakta zorlanıyor musun?
-              </h3>
-              <p className="text-gray-600 text-center">
-                Günlük rutinlerine kolayca entegre edilebilen kişisel dinleme
-                modelleri sunuyoruz.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Nasıl Çalışır */}
-      <section id="nasil-calisir" className="py-16 bg-white">
-        <div className="container mx-auto px-6 text-center">
-          <h2 className="text-3xl font-bold text-gray-800 mb-4">LingRoot Nasıl Çalışır</h2>
-          <p className="text-gray-600 text-lg mb-12">
-            Dil öğrenme deneyiminizi dönüştürecek üç basit adım
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl mx-auto">
-            <div className="bg-white p-6 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300">{/* Hover efekti denemesi */}
-              <div className="flex items-center justify-center w-12 h-12 bg-blue-600 text-white font-bold text-lg rounded-full mx-auto mb-4">1</div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">İçerik bağlantınızı paylaşın</h3>
-              <p className="text-gray-700 mb-4">Başlamak için YouTube, Spotify veya desteklenen diğer platformlardan bir URL yapıştırmanız yeterli.</p>
-              <img src="https://readdy.ai/api/search-image?query=minimalist%20illustration%20of%20a%20smartphone%20or%20computer%20screen%20showing%20a%20video%20link%20being%20shared%2C%20clean%20design%20with%20blue%20accent%20colors%2C%20professional%20digital%20illustration%20on%20white%20background%2C%20simple%20and%20modern&width=250&height=200&seq=5&orientation=landscape" alt="Adım 1" className="mx-auto max-h-28" />
-            </div>
-            <div className="bg-blue-50 p-8 rounded-lg shadow hover:shadow-md transition">
-              <div className="flex items-center justify-center w-12 h-12 bg-blue-600 text-white font-bold text-lg rounded-full mx-auto mb-4">2</div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Yeterlilik seviyenizi seçin</h3>
-              <p className="text-gray-700 mb-4">Tam size uygun içerik için İngilizce seviyenizi (A1–C2) seçin.</p>
-              <img src="https://readdy.ai/api/search-image?query=minimalist%20illustration%20of%20language%20proficiency%20levels%20from%20A1%20to%20C2%20shown%20as%20a%20slider%20or%20selection%20interface%2C%20clean%20design%20with%20blue%20accent%20colors%2C%20professional%20digital%20illustration%20on%20white%20background%2C%20simple%20and%20modern&width=250&height=200&seq=6&orientation=landscape" alt="Adım 2" className="mx-auto max-h-28" />
-            </div>
-            <div className="bg-blue-50 p-8 rounded-lg shadow hover:shadow-md transition">
-              <div className="flex items-center justify-center w-12 h-12 bg-blue-600 text-white font-bold text-lg rounded-full mx-auto mb-4">3</div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Kişiselleştirilmiş öğrenmenin keyfini çıkarın</h3>
-              <p className="text-gray-700 mb-4">Öğrenme seviyenize göre optimize edilmiş özel ses ve altyazılara anında erişin.</p>
-              <img src="https://readdy.ai/api/search-image?query=minimalist%20illustration%20of%20a%20person%20enjoying%20learning%20with%20headphones%20and%20a%20device%20showing%20subtitles%2C%20clean%20design%20with%20blue%20accent%20colors%2C%20professional%20digital%20illustration%20on%20white%20background%2C%20simple%20and%20modern&width=250&height=200&seq=7&orientation=landscape" alt="Adım 3" className="mx-auto max-h-28" />
-            </div>
-          </div>
-        </div>
-      </section>
-      {/* Avantajlar */}
-      <section id="avantajlar" className="py-16 bg-gray-50">
-        <div className="container mx-auto px-6">
-          <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">
-            LingRoot Avantajları
-          </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="bg-white rounded-lg shadow-lg p-8 h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-2 hover:border-blue-500">
-              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto transition-colors duration-300 group-hover:bg-blue-500">
-                <i className="fas fa-user-cog text-blue-600 text-xl transition-colors duration-300 group-hover:text-white"></i>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4 transition-colors duration-300 group-hover:text-blue-600">
-                Kişisel Öğrenme
-              </h3>
-              <p className="text-gray-600 text-center">
-                Seviyene ve ilgi alanlarına göre özel olarak hazırlanmış
-                içerikler.
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow-lg p-8 h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-2 hover:border-blue-500">
-              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto transition-colors duration-300 group-hover:bg-blue-500">
-                <i className="fas fa-podcast text-blue-600 text-xl transition-colors duration-300 group-hover:text-white"></i>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4 transition-colors duration-300 group-hover:text-blue-600">
-                Gerçek İçerikler
-              </h3>
-              <p className="text-gray-600 text-center">
-                Podcast, blog ve videolar gibi gerçek yaşam içeriklerini
-                dönüştürürüz.
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow-lg p-8 h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-2 hover:border-blue-500">
-              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto transition-colors duration-300 group-hover:bg-blue-500">
-                <i className="fas fa-sync-alt text-blue-600 text-xl transition-colors duration-300 group-hover:text-white"></i>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4 transition-colors duration-300 group-hover:text-blue-600">
-                Sürdürülebilir Alışkanlık
-              </h3>
-              <p className="text-gray-600 text-center">
-                Günlük rutinlerine uygun ve sürekli olarak motive eden
-                içeriklerle öğrenme alışkanlığını kalıcı hale getiririz.
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow-lg p-8 h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-2 hover:border-blue-500">
-              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6 mx-auto transition-colors duration-300 group-hover:bg-blue-500">
-                <i className="fas fa-chart-line text-blue-600 text-xl transition-colors duration-300 group-hover:text-white"></i>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 text-center mb-4 transition-colors duration-300 group-hover:text-blue-600">
-                Özgüven ve Motivasyon
-              </h3>
-              <p className="text-gray-600 text-center">
-                Seviyene uygun içerikler sayesinde dil öğrenme konusundaki
-                özgüvenini ve motivasyonunu artırırız.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-      {/* Kimin İçin */}
-      <section id="kimin-icin" className="py-16 bg-white">
-  <div className="container mx-auto px-6">
-    <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">
-      Kimin İçin?
-    </h2>
-    <div className="grid md:grid-cols-3 gap-10 max-w-4xl mx-auto">
-      {/* 1. Kart */}
-      <div className="flex flex-col items-center">
-        <img
-          src="/who1.png"
-          alt="Günlük içeriklerle öğrenenler"
-          className="w-32 h-32 object-contain mb-6"
-        />
-        <p className="text-gray-700 text-center">
-          Günlük içerikleri tüketirken İngilizce öğrenmek isteyenler.
-        </p>
-      </div>
-
-      {/* 2. Kart */}
-      <div className="flex flex-col items-center">
-        <img
-          src="/who2.png"
-          alt="Zamanı olmayan içerik tüketicileri"
-          className="w-32 h-32 object-contain mb-6"
-        />
-        <p className="text-gray-700 text-center">
-          Zamanı olmayan ama sürekli içerik tüketenler.
-        </p>
-      </div>
-
-      {/* 3. Kart */}
-      <div className="flex flex-col items-center">
-        <img
-          src="/who3.png"
-          alt="Klasik yöntemlerden sıkılanlar"
-          className="w-32 h-32 object-contain mb-6"
-        />
-        <p className="text-gray-700 text-center">
-          Klasik dil öğrenme yöntemlerinden sıkılmış olanlar.
-        </p>
-      </div>
-    </div>
-  </div>
+</DialogContent>
+</Dialog>
+</div>
+</div>
+</div>
+</section>
+{/* Demo Section - Added before How It Works */}
+<section className="py-20 bg-white">
+<div className="container mx-auto px-4">
+<div className="text-center mb-16">
+<h2 className="text-4xl font-bold mb-4 text-gray-900">{t.demo.title}</h2>
+<p className="text-xl text-gray-600 max-w-3xl mx-auto">
+{t.demo.description}
+</p>
+</div>
+<div className="bg-white rounded-xl shadow-xl overflow-hidden mb-16">
+<div className="grid md:grid-cols-2 gap-0">
+<div className="p-8 md:p-12 flex flex-col justify-center">
+<h3 className="text-2xl font-bold mb-6">{t.demo.selectLevel}</h3>
+<div className="mb-8">
+<Slider
+defaultValue={[level]}
+max={5}
+step={1}
+onValueChange={(value) => setLevel(value[0])}
+className="mb-4"
+/>
+<div className="flex justify-between">
+{levels.map((lvl, index) => (
+<div
+key={index}
+className={`text-sm font-medium ${index === level ? 'text-blue-600' : 'text-gray-500'}`}
+>
+{lvl}
+</div>
+))}
+</div>
+</div>
+<div className="space-y-4">
+<div className="p-4 bg-blue-50 rounded-lg">
+<h4 className="font-bold mb-2">{t.demo.originalContent}</h4>
+<p className="text-gray-700">The implications of artificial intelligence on modern society are profound and multifaceted, encompassing economic, ethical, and philosophical dimensions.</p>
+</div>
+<div className="p-4 bg-blue-100 rounded-lg border-2 border-blue-500">
+<h4 className="font-bold mb-2">{t.demo.yourLevel} ({levels[level]})</h4>
+{level === 0 && <p className="text-gray-700">AI changes how we live. It helps us but also makes us think about what is right and wrong.</p>}
+{level === 1 && <p className="text-gray-700">AI is changing our lives in many ways. It helps us but also makes us think about what is right and wrong in society.</p>}
+{level === 2 && <p className="text-gray-700">Artificial intelligence is changing our society in many important ways. It affects our jobs and makes us think about ethics.</p>}
+{level === 3 && <p className="text-gray-700">Artificial intelligence has significant effects on our modern society. It impacts our economy and raises important ethical questions.</p>}
+{level === 4 && <p className="text-gray-700">The effects of artificial intelligence on modern society are significant and varied, including economic impacts and ethical considerations.</p>}
+{level === 5 && <p className="text-gray-700">The implications of artificial intelligence on modern society are profound and multifaceted, encompassing economic, ethical, and philosophical dimensions.</p>}
+</div>
+</div>
+<Button className="mt-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button whitespace-nowrap">
+{t.demo.tryYourContent}
+</Button>
+</div>
+<div className="relative overflow-hidden">
+<div className="relative aspect-video w-full h-full">
+<iframe
+src="https://www.youtube.com/embed/demo-video-id"
+className="absolute inset-0 h-full w-full"
+allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+allowFullScreen>
+</iframe>
+</div>
+</div>
+</div>
+</div>
+<Tabs defaultValue="A1" className="w-full mb-12">
+<TabsList className="grid grid-cols-6 w-full">
+<TabsTrigger value="A1" className="text-lg font-medium">A1</TabsTrigger>
+<TabsTrigger value="A2" className="text-lg font-medium">A2</TabsTrigger>
+<TabsTrigger value="B1" className="text-lg font-medium">B1</TabsTrigger>
+<TabsTrigger value="B2" className="text-lg font-medium">B2</TabsTrigger>
+<TabsTrigger value="C1" className="text-lg font-medium">C1</TabsTrigger>
+<TabsTrigger value="C2" className="text-lg font-medium">C2</TabsTrigger>
+</TabsList>
+<TabsContent value="A1" className="mt-4">
+<div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
+<iframe
+src="https://www.youtube.com/embed/video-a1"
+className="absolute inset-0 h-full w-full"
+allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+allowFullScreen>
+</iframe>
+</div>
+</TabsContent>
+<TabsContent value="A2" className="mt-4">
+<div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
+<iframe
+src="https://www.youtube.com/embed/video-a2"
+className="absolute inset-0 h-full w-full"
+allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+allowFullScreen>
+</iframe>
+</div>
+</TabsContent>
+<TabsContent value="B1" className="mt-4">
+<div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
+<iframe
+src="https://www.youtube.com/embed/video-b1"
+className="absolute inset-0 h-full w-full"
+allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+allowFullScreen>
+</iframe>
+</div>
+</TabsContent>
+<TabsContent value="B2" className="mt-4">
+<div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
+<iframe
+src="https://www.youtube.com/embed/video-b2"
+className="absolute inset-0 h-full w-full"
+allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+allowFullScreen>
+</iframe>
+</div>
+</TabsContent>
+<TabsContent value="C1" className="mt-4">
+<div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
+<iframe
+src="https://www.youtube.com/embed/video-c1"
+className="absolute inset-0 h-full w-full"
+allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+allowFullScreen>
+</iframe>
+</div>
+</TabsContent>
+<TabsContent value="C2" className="mt-4">
+<div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
+<iframe
+src="https://www.youtube.com/embed/video-c2"
+className="absolute inset-0 h-full w-full"
+allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+allowFullScreen>
+</iframe>
+</div>
+</TabsContent>
+</Tabs>
+</div>
+</section>
+{/* How It Works Section */}
+<section id="nasil-calisir" className="py-20 bg-gradient-to-b from-gray-50 to-white">
+<div className="container mx-auto px-4">
+<div className="text-center mb-16">
+<h2 className="text-4xl font-bold mb-4 text-gray-900">{t.howItWorks.title}</h2>
+<p className="text-xl text-gray-600 max-w-3xl mx-auto">{t.howItWorks.description}</p>
+</div>
+<div className="mb-16">
+<div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg mb-6">
+<iframe
+src="https://www.youtube.com/embed/demo-video-id"
+className="absolute inset-0 h-full w-full"
+allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+allowFullScreen>
+</iframe>
+</div>
+</div>
+<div className="grid md:grid-cols-3 gap-8">
+{t.howItWorks.steps.map((step, index) => (
+<Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300">
+<CardHeader className="pb-0">
+<div className="w-full h-48 overflow-hidden rounded-t-lg">
+<img
+src={`https://readdy.ai/api/search-image?query=A person ${index === 0 ? 'selecting content on their device, with multiple media platforms visible on screen. The scene shows YouTube videos, Spotify podcasts, and news articles. Clean, modern interface with a soft blue background and minimalist design.' : index === 1 ? 'close-up of a language level selector interface showing levels from A1 to C2. The design is clean and modern with a soft blue background. The interface shows a slider or dropdown menu being adjusted by a finger, representing language level selection.' : 'relaxing with headphones, enjoying content on their device. The screen shows subtitles in English with a clean interface. The background is a soft blue gradient, and the scene conveys effortless learning through listening.'}&width=400&height=300&seq=step${index+1}&orientation=landscape`}
+alt={step.title}
+className="w-full h-full object-cover object-top"
+/>
+</div>
+</CardHeader>
+<CardContent className="pt-6">
+<div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+<i className={`${step.icon} text-blue-600 text-xl`}></i>
+</div>
+<CardTitle className="text-2xl mb-2">{index + 1}. {step.title}</CardTitle>
+<CardDescription className="text-gray-600 text-base">{step.description}</CardDescription>
+</CardContent>
+</Card>
+))}
+</div>
+</div>
+</section>
+{/* Daily Routine Section */}
+<section className="py-20 bg-white">
+<div className="container mx-auto px-4">
+<div className="text-center mb-16">
+<h2 className="text-4xl font-bold mb-4 text-gray-900">{t.routine.title}</h2>
+<p className="text-xl text-gray-600 max-w-3xl mx-auto">
+{t.routine.description}
+</p>
+</div>
+<div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+{t.routine.activities.map((activity, index) => (
+<Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300">
+<CardHeader className="pb-0">
+<div className="w-full h-40 overflow-hidden rounded-t-lg">
+<img
+src={`https://readdy.ai/api/search-image?query=A person ${index === 0 ? 'walking in a park with headphones, listening to content on their smartphone. The scene has a bright, airy feel with trees and a path. The person looks relaxed and engaged with what they are listening to, suggesting learning while exercising.' : index === 1 ? 'exercising at home or gym with headphones, watching content on a tablet device nearby. The scene shows someone doing light workout while engaging with content. The environment is bright and motivational with a clean, modern aesthetic.' : index === 2 ? 'driving a car while listening to audio content. The dashboard shows a connected smartphone playing content. The scene is from inside the vehicle with a clean, modern interior and a bright day visible through windows.' : 'doing household chores like cleaning or cooking while listening to content on wireless headphones. The home environment is bright, modern and clean. The person looks engaged with what they are listening to while completing their tasks.'}&width=300&height=200&seq=routine${index+1}&orientation=landscape`}
+alt={activity.title}
+className="w-full h-full object-cover object-top"
+/>
+</div>
+</CardHeader>
+<CardContent className="pt-6">
+<div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+<i className={`${activity.icon} text-blue-600 text-xl`}></i>
+</div>
+<CardTitle className="text-xl mb-2">{activity.title}</CardTitle>
+<CardDescription className="text-gray-600">{activity.description}</CardDescription>
+</CardContent>
+<CardFooter>
+<Button variant="outline" className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 !rounded-button whitespace-nowrap">
+<i className="fas fa-level-up-alt mr-2"></i> {t.routine.adaptButton}
+</Button>
+</CardFooter>
+</Card>
+))}
+</div>
+</div>
+</section>
+{/* Features Section */}
+<section id="ozellikler" className="py-20 bg-gradient-to-b from-gray-50 to-white">
+<div className="container mx-auto px-4">
+<div className="text-center mb-16">
+<h2 className="text-4xl font-bold mb-4 text-gray-900">{t.features.title}</h2>
+<p className="text-xl text-gray-600 max-w-3xl mx-auto">
+{t.features.description}
+</p>
+</div>
+<div className="grid md:grid-cols-2 gap-8">
+{t.features.featuresList.map((feature, index) => (
+<Card key={index} className="border-none shadow-lg overflow-hidden">
+<div className="grid md:grid-cols-2 gap-0 h-full">
+<div className="order-2 md:order-1 p-6 flex flex-col justify-center">
+<div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+<i className={`${feature.icon} text-blue-600 text-xl`}></i>
+</div>
+<CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
+<CardDescription className="text-gray-600">{feature.description}</CardDescription>
+</div>
+<div className="order-1 md:order-2 h-48 md:h-full overflow-hidden">
+<img
+src={`https://readdy.ai/api/search-image?query=${index === 0 ? 'A collection of real-world media content displayed on various devices. The scene shows YouTube videos, podcasts, news articles, and social media content. The display is modern and clean with a soft blue background, emphasizing authentic learning materials.' : index === 1 ? 'A personalized user interface showing content recommendations based on interests and language level. The screen displays customization options and preference settings. The design is clean and modern with a soft blue background, conveying personalization.' : index === 2 ? 'A person relaxing with high-quality headphones, listening to content with visible subtitles on their device. The scene shows someone comfortably learning through listening. The environment is peaceful with a soft blue background.' : 'A split-screen showing a person engaged in daily activities while learning. The scene depicts someone multitasking - perhaps commuting, exercising, or doing chores while listening to content. The design is clean with a soft blue background.'}&width=500&height=300&seq=feature${index+1}&orientation=landscape`}
+alt={feature.title}
+className="w-full h-full object-cover object-top"
+/>
+</div>
+</div>
+</Card>
+))}
+</div>
+</div>
+</section>
+{/* Testimonials Section */}
+<section id="yorumlar" className="py-20 bg-white">
+<div className="container mx-auto px-4">
+<div className="text-center mb-16">
+<h2 className="text-4xl font-bold mb-4 text-gray-900">{t.testimonials.title}</h2>
+<p className="text-xl text-gray-600 max-w-3xl mx-auto">
+{t.testimonials.description}
+</p>
+</div>
+<Swiper
+modules={[Pagination, Autoplay]}
+pagination={{ clickable: true }}
+autoplay={{ delay: 5000 }}
+spaceBetween={30}
+slidesPerView={1}
+breakpoints={{
+640: { slidesPerView: 2 },
+1024: { slidesPerView: 3 }
+}}
+className="pb-12"
+>
+{t.testimonials.users.map((testimonial, index) => (
+<SwiperSlide key={index}>
+<Card className="h-full border-none shadow-lg">
+<CardContent className="p-8">
+<div className="flex items-center mb-6">
+<Avatar className="h-12 w-12 mr-4">
+<AvatarImage
+src={`https://readdy.ai/api/search-image?query=Professional headshot of a ${index % 2 === 0 ? 'Turkish man' : 'Turkish woman'} ${index === 0 ? 'in his late 20s with short dark hair' : index === 1 ? 'in her mid 20s with long dark hair' : index === 2 ? 'middle-aged with glasses and a professional appearance' : index === 3 ? 'with a headscarf and a friendly smile' : 'in his 30s with a beard and professional appearance'} and a ${index === 3 ? 'warm' : 'friendly'} smile. The photo has a clean, neutral background and professional lighting, suitable for a testimonial or profile picture.&width=100&height=100&seq=user${index+1}&orientation=squarish`}
+alt={testimonial.name}
+/>
+<AvatarFallback>{testimonial.name.charAt(0)}</AvatarFallback>
+</Avatar>
+<div>
+<h4 className="font-bold">{testimonial.name}</h4>
+<p className="text-sm text-gray-500">{testimonial.level}</p>
+</div>
+</div>
+<p className="text-gray-700 italic">"{testimonial.quote}"</p>
+<div className="mt-4 flex">
+<i className="fas fa-star text-yellow-400"></i>
+<i className="fas fa-star text-yellow-400"></i>
+<i className="fas fa-star text-yellow-400"></i>
+<i className="fas fa-star text-yellow-400"></i>
+<i className="fas fa-star text-yellow-400"></i>
+</div>
+</CardContent>
+</Card>
+</SwiperSlide>
+))}
+</Swiper>
+</div>
+</section>
+{/* Try It Now Section */}
+<section className="py-20 bg-gradient-to-b from-blue-50 to-white">
+<div className="container mx-auto px-4">
+<div className="max-w-4xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
+<div className="p-8 md:p-12">
+<h2 className="text-3xl font-bold mb-6 text-center">{t.tryNow.title}</h2>
+<div className="mb-8">
+<div className="relative">
+<Input
+type="text"
+placeholder={t.tryNow.placeholder}
+className="pl-12 pr-32 py-6 text-lg border-2 border-gray-200 focus:border-blue-500"
+/>
+<i className="fas fa-link absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+<div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+<Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button whitespace-nowrap">
+{t.tryNow.tryButton}
+</Button>
+</div>
+</div>
+</div>
+<div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-8">
+{levels.map((lvl, index) => (
+<Button
+key={index}
+variant={index === level ? "default" : "outline"}
+className={`!rounded-button whitespace-nowrap ${index === level ? 'bg-blue-600' : 'border-blue-200 text-blue-600'}`}
+onClick={() => setLevel(index)}
+>
+{lvl}
+</Button>
+))}
+</div>
+<p className="text-center text-gray-500">
+{t.tryNow.description}
+</p>
+</div>
+</div>
+</div>
+</section>
+{/* Extra CTA Section */}
+<section className="py-20 bg-white">
+<div className="container mx-auto px-4">
+<div className="text-center max-w-3xl mx-auto">
+<h2 className="text-4xl font-bold mb-6 text-gray-900">
+{t.cta.title}
+</h2>
+<p className="text-xl text-gray-600 mb-8">
+{t.cta.description}
+</p>
+<Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-lg py-6 px-8 !rounded-button whitespace-nowrap">
+<i className="fas fa-rocket mr-2"></i> {t.cta.button}
+</Button>
+<div className="mt-8 flex justify-center items-center space-x-8">
+{t.cta.benefits.map((benefit, index) => (
+<div key={index} className="flex items-center">
+<i className="fas fa-check-circle text-green-500 mr-2"></i>
+<span className="text-gray-600">{benefit}</span>
+</div>
+))}
+</div>
+</div>
+</div>
 </section>
 
-      {/* Slogan ve CTA */}
-      <section className="py-20 bg-blue-600 text-white">
-        <div className="container mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-8">
-            LingRoot, kişisel İngilizce asistanınız!
-          </h2>
-          <p className="text-xl mb-4">
-            Her seviyeden senin seviyene LingRoot çevirir.
-          </p>
-          <p className="text-xl italic mb-12">Your routine turns to English.</p>
-          <button className="px-8 py-4 bg-white text-blue-600 text-lg font-semibold rounded-lg shadow-lg hover:bg-blue-50 transition duration-300 cursor-pointer whitespace-nowrap">
-            Şimdi Ücretsiz Deneyin
-          </button>
+            <footer className="bg-gray-900 text-white py-12">
+                 {/* ... (Footer içeriğiniz buraya gelecek) ... */}
+            </footer>
         </div>
-      </section>
-
-      {/* Boşluk Ekliyoruz */}
-      <div className="mt-12"></div>
-
-      {/* Output Section */}
-      <div className="pt-12 max-w-4xl mx-auto">
-        {/* OutputSection component renders audio player etc. */}
-      </div>
-
-      {/* Footer */}
-      <footer className="bg-gray-800 text-white py-12">
-        <div className="container mx-auto px-6">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-xl font-bold mb-4">LingRoot</h3>
-              <p className="text-gray-400">
-                Kişiselleştirilmiş dil öğrenme deneyimi.
-              </p>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Hızlı Bağlantılar</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a
-                    href="#"
-                    className="text-gray-400 hover:text-white cursor-pointer"
-                  >
-                    Ana Sayfa
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#nasil-calisir"
-                    className="text-gray-400 hover:text-white cursor-pointer"
-                  >
-                    Nasıl Çalışır
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#avantajlar"
-                    className="text-gray-400 hover:text-white cursor-pointer"
-                  >
-                    Avantajlar
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#kimin-icin"
-                    className="text-gray-400 hover:text-white cursor-pointer"
-                  >
-                    Kimin İçin
-                  </a>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">İletişim</h4>
-              <ul className="space-y-2">
-                <li className="flex items-center">
-                  <i className="fas fa-envelope mr-2 text-gray-400"></i>
-                  <a
-                    href="mailto:info@lingroot.com"
-                    className="text-gray-400 hover:text-white cursor-pointer"
-                  >
-                    info@lingroot.com
-                  </a>
-                </li>
-                <li className="flex items-center">
-                  <i className="fas fa-phone mr-2 text-gray-400"></i>
-                  <span className="text-gray-400">+90 212 123 4567</span>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Bizi Takip Edin</h4>
-              <div className="flex space-x-4">
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white cursor-pointer"
-                >
-                  <i className="fab fa-facebook-f text-xl"></i>
-                </a>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white cursor-pointer"
-                >
-                  <i className="fab fa-twitter text-xl"></i>
-                </a>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white cursor-pointer"
-                >
-                  <i className="fab fa-instagram text-xl"></i>
-                </a>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-white cursor-pointer"
-                >
-                  <i className="fab fa-linkedin-in text-xl"></i>
-                </a>
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-gray-700 mt-10 pt-6 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400 text-sm mb-4 md:mb-0">
-              &copy; 2025 LingRoot. Tüm hakları saklıdır.
-            </p>
-            <div className="flex space-x-6">
-              <a
-                href="#"
-                className="text-gray-400 hover:text-white text-sm cursor-pointer"
-              >
-                Gizlilik Politikası
-              </a>
-              <a
-                href="#"
-                className="text-gray-400 hover:text-white text-sm cursor-pointer"
-              >
-                Kullanım Koşulları
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
+    );
 };
+
 export default App;
