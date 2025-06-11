@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
+
 import { useAuth } from '../src/lib/auth'; // Eski dosyadan auth context'ini import ediyoruz
 
 // shadcn/ui ve diğer kütüphane importları
@@ -22,6 +23,19 @@ import 'swiper/css';
 import 'swiper/css/pagination';
 import InputMask from 'react-input-mask'; // Telefon numarası için eklendi
 import '@fortawesome/fontawesome-free/css/all.min.css';
+
+
+import { useAuth } from '../src/lib/auth';
+import { getApiUrl } from "../src/lib/api";
+import dynamic from 'next/dynamic';
+// import Lottie from "lottie-react"; // Kaldırılacak
+import learnAnimation from "../public/animations/language-learn.json";
+import InputMask from 'react-input-mask';
+// Lottie bileşenini sadece client tarafında yüklenecek şekilde dinamik olarak import et
+const Lottie = dynamic(() => import('lottie-react'), { 
+  ssr: false,
+  loading: () => <div className="w-full max-w-3xl mx-auto h-[300px] bg-gray-100 animate-pulse rounded-lg"></div>
+});
 
 
 const App: React.FC = () => {
