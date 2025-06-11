@@ -21,6 +21,8 @@ import { Pagination, Autoplay } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import InputMask from 'react-input-mask'; // Telefon numarası için eklendi
+import '@fortawesome/fontawesome-free/css/all.min.css';
+
 
 const App: React.FC = () => {
     // --- YENİ TASARIMDAN GELEN STATE'LER ---
@@ -30,30 +32,30 @@ const App: React.FC = () => {
     const [language, setLanguage] = useState<'tr' | 'en'>('tr');
 
     // --- ESKİ MANTIKTAN ENTEGRE EDİLEN HOOK'LAR VE STATE'LER ---
-    const router = useRouter();
-    const { login, isAuthenticated, register } = useAuth();
+  const router = useRouter();
+  const { login, isAuthenticated, register } = useAuth();
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
     // --- FORM STATE'LERİ (KONTROLLÜ BİLEŞENLER İÇİN) ---
     const [loginForm, setLoginForm] = useState({ email: '', password: '' });
     const [registerForm, setRegisterForm] = useState({
         firstName: '',
         lastName: '',
-        email: '',
+    email: '',
         phoneNumber: '',
-        password: ''
-    });
+    password: ''
+  });
 
-    const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
+  const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
     // Kullanıcı zaten giriş yapmışsa welcome sayfasına yönlendir (Eski mantıktan)
-    React.useEffect(() => {
-        if (isAuthenticated) {
-            router.push('/welcome');
-        }
-    }, [isAuthenticated, router]);
-    
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/welcome');
+    }
+  }, [isAuthenticated, router]);
+
     // Form input değişikliklerini yöneten fonksiyonlar
     const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setLoginForm({ ...loginForm, [e.target.name]: e.target.value });
@@ -73,53 +75,53 @@ const App: React.FC = () => {
     
     // --- GİRİŞ VE KAYIT FONKSİYONLARI (ESKİ MANTIK İLE YENİ STATE'LER BİRLEŞTİRİLDİ) ---
     const handleLoginSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setError(null);
-        try {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
             const result = await login(loginForm.email, loginForm.password);
-            if (result.success) {
+      if (result.success) {
                 setIsLoginOpen(false); // Başarılı olunca modalı kapat
-                router.push('/welcome');
-            } else {
+        router.push('/welcome');
+      } else {
                 setError(result.message || 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
-            }
+      }
         } catch (err: any) {
             setError(err.message || 'Giriş sırasında bir hata oluştu.');
-        } finally {
-            setLoading(false);
-        }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
     const handleRegisterSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    e.preventDefault();
         setLoading(true);
         setError(null);
         try {
             const { firstName, lastName, email, phoneNumber, password } = registerForm;
-            const result = await register(firstName, lastName, email, phoneNumber, password);
-            if (result.success) {
+      const result = await register(firstName, lastName, email, phoneNumber, password);
+      if (result.success) {
                 setIsRegisterOpen(false); // Başarılı olunca modalı kapat
-                router.push('/welcome');
-            } else {
+        router.push('/welcome');
+      } else {
                 setError(result.message || 'Kayıt başarısız. Lütfen bilgilerinizi kontrol edin.');
-            }
+      }
         } catch (err: any) {
             setError(err.message || 'Kayıt sırasında bir hata oluştu.');
-        } finally {
+    } finally {
             setLoading(false);
         }
     };
 
     // Yeni tasarımın çeviri objesi
     const translations = {
-        tr: {
-            nav: {
+    tr: {
+      nav: {
                 howItWorks: "Nasıl Çalışır?",
                 features: "Özellikler",
                 testimonials: "Kullanıcı Yorumları",
                 blog: "Blog",
-                login: "Giriş Yap",
+        login: "Giriş Yap",
                 signup: "Ücretsiz Kaydol"
             },
             login: {
@@ -151,8 +153,8 @@ const App: React.FC = () => {
                 loadingButton: "Hesap Oluşturuluyor...",
                 hasAccount: "Zaten bir hesabınız var mı?",
                 loginLink: "Giriş Yap"
-            },
-            hero: {
+      },
+      hero: {
                 badge: "Hayatın Değişmesin, İngilizcen Gelişsin",
                 title: "Sevdiğin İçerikler, ",
                 titleHighlight: "Anlayacağın İngilizceyle",
@@ -162,10 +164,10 @@ const App: React.FC = () => {
             },
             // ... Diğer tüm çeviriler yeni tasarımdaki gibi buraya eklenecek ...
             // (Kısalık için diğer kısımları kestim, yeni kodunuzdaki tam çeviri objesini buraya yapıştırın)
-            howItWorks: {
+      howItWorks: {
                 title: "LingRoot Nasıl Çalışır?",
                 description: "Sevdiğin içerikleri kendi İngilizce seviyende dinlemek için sadece üç adım yeterli.",
-                steps: [
+        steps: [
                     { icon: "fas fa-link", title: "İçeriğini Seç", description: "YouTube videosu, Spotify podcast'i, bir haber yazısı… Sadece linki yapıştır veya metni yükle." },
                     { icon: "fas fa-sliders-h", title: "Seviyeni Belirle", description: "A1'den C2'ye. İçerik, senin anlayabileceğin İngilizceye otomatik olarak çevrilir." },
                     { icon: "fas fa-headphones", title: "Dinle ve Öğren", description: "İçerik yapay zeka tarafından seslendirilir, altyazı eklenir ve seviyene özel hale gelir. Artık sevdiğin şeyleri dinleyerek İngilizce öğrenebilirsin." }
@@ -189,22 +191,22 @@ const App: React.FC = () => {
     };
     const t = translations[language];
 
-    return (
+  return (
         <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
             {/* Navigation */}
             <nav className="bg-white shadow-sm py-3 sticky top-0 z-50">
                 <div className="container mx-auto px-4 flex justify-between items-center">
                     <div className="flex items-center space-x-2">
                         <i className="fas fa-language text-blue-600 text-2xl"></i>
-                        <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">LingRoot</span>
+                        <span className="text-xl font-bold text-blue-600">LingRoot</span>
                     </div>
                     <div className="hidden md:flex items-center space-x-6">
                         <a href="#nasil-calisir" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer">{t.nav.howItWorks}</a>
                         <a href="#ozellikler" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer">{t.nav.features}</a>
                         <a href="#yorumlar" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer">{t.nav.testimonials}</a>
                         <a href="#blog" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer">{t.nav.blog}</a>
-                    </div>
-                    <div className="flex items-center space-x-4">
+          </div>
+          <div className="flex items-center space-x-4">
                         <Button variant="ghost" className="!rounded-button whitespace-nowrap" onClick={() => setLanguage(language === 'tr' ? 'en' : 'tr')}>
                             {language === 'tr' ? 'EN' : 'TR'}
                         </Button>
@@ -231,7 +233,7 @@ const App: React.FC = () => {
                                     {error && <p className="text-sm text-red-500 text-center">{error}</p>} {/* Hata Mesajı */}
                                     <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white !rounded-button" disabled={loading}>
                                         {loading ? t.login.loadingButton : t.login.loginButton}
-                                    </Button>
+            </Button>
                                      {/* ... sosyal medya login butonları ... */}
                                 </form>
                             </DialogContent>
@@ -269,30 +271,38 @@ const App: React.FC = () => {
                                     {error && <p className="text-sm text-red-500 text-center">{error}</p>} {/* Hata Mesajı */}
                                     <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white !rounded-button" disabled={loading}>
                                         {loading ? t.register.loadingButton : t.register.registerButton}
-                                    </Button>
+            </Button>
                                 </form>
                             </DialogContent>
                         </Dialog>
-                    </div>
-                </div>
+          </div>
+        </div>
             </nav>
             
-           {/* Hero Section */}
-<section className="relative overflow-hidden"> 
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
   <div className="absolute inset-0 z-0"> 
     <img 
       src="https://readdy.ai/api/search-image?query=A%20modern%2C%20clean%2C%20minimalist%20scene%20showing%20a%20person%20relaxing%20with%20headphones%2C%20listening%20to%20content%20on%20their%20device.%20The%20background%20is%20a%20soft%20gradient%20from%20light%20blue%20to%20white%2C%20creating%20a%20calm%20and%20peaceful%20atmosphere.%20The%20scene%20suggests%20learning%20without%20effort%2C%20with%20subtle%20educational%20elements%20in%20the%20background.&width=1440&height=700&seq=hero1&orientation=landscape" 
       alt="Hero Background" 
-      className="w-full h-full object-cover object-center" 
+      className="object-contain"
+      style={{ 
+        width: '1440px',
+        height: '700px',
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)'
+      }}
     /> 
   </div>
 <div className="container mx-auto px-4 py-12 md:py-20 relative z-10">
 <div className="max-w-3xl">
 <Badge className="mb-3 md:mb-4 bg-blue-100 text-blue-800 hover:bg-blue-200 border-none text-sm">{t.hero.badge}</Badge>
-<h1 className="text-3xl md:text-6xl font-bold mb-4 md:mb-6 text-gray-900">
-{t.hero.title}<span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{t.hero.titleHighlight}</span>
+<h1 className="text-3xl md:text-6xl font-bold mb-4 md:mb-6 text-black">
+{t.hero.title}<span className="text-blue-600">{t.hero.titleHighlight}</span>
 </h1>
-<p className="text-base md:text-xl text-gray-700 mb-6 md:mb-8">
+<p className="text-lg md:text-xl text-black mb-8 md:mb-10">
 {t.hero.description}
 </p>
 <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
@@ -305,7 +315,7 @@ const App: React.FC = () => {
 <DialogTrigger asChild>
 <Button variant="outline" className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 text-base py-4 px-6 !rounded-button whitespace-nowrap">
 <i className="fas fa-play-circle mr-2"></i> {t.hero.watchButton}
-</Button>
+            </Button>
 </DialogTrigger>
 <DialogContent className="sm:max-w-4xl">
 <DialogHeader>
@@ -321,50 +331,50 @@ className="absolute inset-0 h-full w-full"
 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
 allowFullScreen>
 </iframe>
-</div>
+          </div>
 </DialogContent>
 </Dialog>
-</div>
-</div>
-</div>
-</section>
+          </div>
+  </div>
+        </div>
+      </section>
 {/* Demo Section - Added before How It Works */}
 <section className="py-20 bg-white">
 <div className="container mx-auto px-4">
-<div className="text-center mb-16">
+          <div className="text-center mb-16">
 <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.demo.title}</h2>
-<p className="text-xl text-gray-600 max-w-3xl mx-auto">
-{t.demo.description}
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto whitespace-nowrap" >
+  Ekstra zaman ayırmana gerek yok. Zaten yaptığın aktiviteler sırasında İngilizce öğren.
 </p>
-</div>
-<div className="bg-white rounded-xl shadow-xl overflow-hidden mb-16">
+          </div>
+<div className="bg-white rounded-xl shadow-xl overflow-hidden mb-2">
 <div className="grid md:grid-cols-2 gap-0">
 <div className="p-8 md:p-12 flex flex-col justify-center">
 <h3 className="text-2xl font-bold mb-6">{t.demo.selectLevel}</h3>
 <div className="mb-8">
-<Slider
-defaultValue={[level]}
-max={5}
-step={1}
-onValueChange={(value) => setLevel(value[0])}
-className="mb-4"
-/>
-<div className="flex justify-between">
-{levels.map((lvl, index) => (
-<div
-key={index}
-className={`text-sm font-medium ${index === level ? 'text-blue-600' : 'text-gray-500'}`}
->
-{lvl}
-</div>
-))}
-</div>
-</div>
+  <div className="flex justify-between mb-4">
+    {levels.map((lvl, index) => (
+      <div
+        key={index}
+        className={`text-sm font-medium cursor-pointer ${index === level ? 'text-blue-600' : 'text-gray-500'}`}
+        onClick={() => setLevel(index)}
+      >
+        {lvl}
+      </div>
+    ))}
+  </div>
+  <Slider
+    defaultValue={[level]}
+    max={5}
+    step={1}
+    onValueChange={(value) => setLevel(value[0])}
+  />
+        </div>
 <div className="space-y-4">
 <div className="p-4 bg-blue-50 rounded-lg">
 <h4 className="font-bold mb-2">{t.demo.originalContent}</h4>
 <p className="text-gray-700">The implications of artificial intelligence on modern society are profound and multifaceted, encompassing economic, ethical, and philosophical dimensions.</p>
-</div>
+              </div>
 <div className="p-4 bg-blue-100 rounded-lg border-2 border-blue-500">
 <h4 className="font-bold mb-2">{t.demo.yourLevel} ({levels[level]})</h4>
 {level === 0 && <p className="text-gray-700">AI changes how we live. It helps us but also makes us think about what is right and wrong.</p>}
@@ -373,12 +383,12 @@ className={`text-sm font-medium ${index === level ? 'text-blue-600' : 'text-gray
 {level === 3 && <p className="text-gray-700">Artificial intelligence has significant effects on our modern society. It impacts our economy and raises important ethical questions.</p>}
 {level === 4 && <p className="text-gray-700">The effects of artificial intelligence on modern society are significant and varied, including economic impacts and ethical considerations.</p>}
 {level === 5 && <p className="text-gray-700">The implications of artificial intelligence on modern society are profound and multifaceted, encompassing economic, ethical, and philosophical dimensions.</p>}
-</div>
-</div>
+            </div>
+              </div>
 <Button className="mt-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button whitespace-nowrap">
 {t.demo.tryYourContent}
 </Button>
-</div>
+            </div>
 <div className="relative overflow-hidden">
 <div className="relative aspect-video w-full h-full">
 <iframe
@@ -387,82 +397,82 @@ className="absolute inset-0 h-full w-full"
 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
 allowFullScreen>
 </iframe>
-</div>
-</div>
-</div>
-</div>
+              </div>
+            </div>
+          </div>
+        </div>
 <Tabs defaultValue="A1" className="w-full mb-12">
-<TabsList className="grid grid-cols-6 w-full">
-<TabsTrigger value="A1" className="text-lg font-medium">A1</TabsTrigger>
-<TabsTrigger value="A2" className="text-lg font-medium">A2</TabsTrigger>
-<TabsTrigger value="B1" className="text-lg font-medium">B1</TabsTrigger>
-<TabsTrigger value="B2" className="text-lg font-medium">B2</TabsTrigger>
-<TabsTrigger value="C1" className="text-lg font-medium">C1</TabsTrigger>
-<TabsTrigger value="C2" className="text-lg font-medium">C2</TabsTrigger>
-</TabsList>
-<TabsContent value="A1" className="mt-4">
-<div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
-<iframe
-src="https://www.youtube.com/embed/video-a1"
-className="absolute inset-0 h-full w-full"
-allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-allowFullScreen>
-</iframe>
-</div>
-</TabsContent>
-<TabsContent value="A2" className="mt-4">
-<div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
-<iframe
-src="https://www.youtube.com/embed/video-a2"
-className="absolute inset-0 h-full w-full"
-allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-allowFullScreen>
-</iframe>
-</div>
-</TabsContent>
-<TabsContent value="B1" className="mt-4">
-<div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
-<iframe
-src="https://www.youtube.com/embed/video-b1"
-className="absolute inset-0 h-full w-full"
-allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-allowFullScreen>
-</iframe>
-</div>
-</TabsContent>
-<TabsContent value="B2" className="mt-4">
-<div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
-<iframe
-src="https://www.youtube.com/embed/video-b2"
-className="absolute inset-0 h-full w-full"
-allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-allowFullScreen>
-</iframe>
-</div>
-</TabsContent>
-<TabsContent value="C1" className="mt-4">
-<div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
-<iframe
-src="https://www.youtube.com/embed/video-c1"
-className="absolute inset-0 h-full w-full"
-allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-allowFullScreen>
-</iframe>
-</div>
-</TabsContent>
-<TabsContent value="C2" className="mt-4">
-<div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
-<iframe
-src="https://www.youtube.com/embed/video-c2"
-className="absolute inset-0 h-full w-full"
-allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-allowFullScreen>
-</iframe>
-</div>
-</TabsContent>
+  <TabsList className="flex w-full">
+    <TabsTrigger value="A1" className="text-lg font-medium flex-1 data-[state=active]:border-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:font-bold transition-all rounded-md">A1</TabsTrigger>
+    <TabsTrigger value="A2" className="text-lg font-medium flex-1 data-[state=active]:border-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:font-bold transition-all rounded-md">A2</TabsTrigger>
+    <TabsTrigger value="B1" className="text-lg font-medium flex-1 data-[state=active]:border-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:font-bold transition-all rounded-md">B1</TabsTrigger>
+    <TabsTrigger value="B2" className="text-lg font-medium flex-1 data-[state=active]:border-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:font-bold transition-all rounded-md">B2</TabsTrigger>
+    <TabsTrigger value="C1" className="text-lg font-medium flex-1 data-[state=active]:border-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:font-bold transition-all rounded-md">C1</TabsTrigger>
+    <TabsTrigger value="C2" className="text-lg font-medium flex-1 data-[state=active]:border-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 data-[state=active]:font-bold transition-all rounded-md">C2</TabsTrigger>
+  </TabsList>
+  <TabsContent value="A1" className="mt-4">
+    <div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
+      <iframe
+        src="https://www.youtube.com/embed/video-a1"
+        className="absolute inset-0 h-full w-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen>
+      </iframe>
+    </div>
+  </TabsContent>
+  <TabsContent value="A2" className="mt-4">
+    <div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
+      <iframe
+        src="https://www.youtube.com/embed/video-a2"
+        className="absolute inset-0 h-full w-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen>
+      </iframe>
+    </div>
+  </TabsContent>
+  <TabsContent value="B1" className="mt-4">
+    <div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
+      <iframe
+        src="https://www.youtube.com/embed/video-b1"
+        className="absolute inset-0 h-full w-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen>
+      </iframe>
+    </div>
+  </TabsContent>
+  <TabsContent value="B2" className="mt-4">
+    <div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
+      <iframe
+        src="https://www.youtube.com/embed/video-b2"
+        className="absolute inset-0 h-full w-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen>
+      </iframe>
+    </div>
+  </TabsContent>
+  <TabsContent value="C1" className="mt-4">
+    <div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
+      <iframe
+        src="https://www.youtube.com/embed/video-c1"
+        className="absolute inset-0 h-full w-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen>
+      </iframe>
+    </div>
+  </TabsContent>
+  <TabsContent value="C2" className="mt-4">
+    <div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
+      <iframe
+        src="https://www.youtube.com/embed/video-c2"
+        className="absolute inset-0 h-full w-full"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen>
+      </iframe>
+    </div>
+  </TabsContent>
 </Tabs>
 </div>
-</section>
+      </section>
 {/* How It Works Section */}
 <section id="nasil-calisir" className="py-20 bg-gradient-to-b from-gray-50 to-white">
 <div className="container mx-auto px-4">
@@ -481,8 +491,8 @@ allowFullScreen>
 </div>
 </div>
 <div className="grid md:grid-cols-3 gap-8">
-{t.howItWorks.steps.map((step, index) => (
-<Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300">
+            {t.howItWorks.steps.map((step, index) => (
+<Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
 <CardHeader className="pb-0">
 <div className="w-full h-48 overflow-hidden rounded-t-lg">
 <img
@@ -490,32 +500,32 @@ src={`https://readdy.ai/api/search-image?query=A person ${index === 0 ? 'selecti
 alt={step.title}
 className="w-full h-full object-cover object-top"
 />
-</div>
-</CardHeader>
-<CardContent className="pt-6">
+                  </div>
+                </CardHeader>
+<CardContent className="pt-6 flex-grow">
 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
 <i className={`${step.icon} text-blue-600 text-xl`}></i>
 </div>
 <CardTitle className="text-2xl mb-2">{index + 1}. {step.title}</CardTitle>
 <CardDescription className="text-gray-600 text-base">{step.description}</CardDescription>
-</CardContent>
-</Card>
-))}
-</div>
-</div>
-</section>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
 {/* Daily Routine Section */}
 <section className="py-20 bg-white">
 <div className="container mx-auto px-4">
 <div className="text-center mb-16">
 <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.routine.title}</h2>
-<p className="text-xl text-gray-600 max-w-3xl mx-auto">
+<p className="text-xl text-gray-600 max-w-3xl mx-auto whitespace-nowrap mb-12">
 {t.routine.description}
 </p>
 </div>
 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
 {t.routine.activities.map((activity, index) => (
-<Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300">
+<Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
 <CardHeader className="pb-0">
 <div className="w-full h-40 overflow-hidden rounded-t-lg">
 <img
@@ -523,31 +533,31 @@ src={`https://readdy.ai/api/search-image?query=A person ${index === 0 ? 'walking
 alt={activity.title}
 className="w-full h-full object-cover object-top"
 />
-</div>
-</CardHeader>
-<CardContent className="pt-6">
+                  </div>
+                </CardHeader>
+<CardContent className="pt-6 flex-grow">
 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
 <i className={`${activity.icon} text-blue-600 text-xl`}></i>
 </div>
 <CardTitle className="text-xl mb-2">{activity.title}</CardTitle>
 <CardDescription className="text-gray-600">{activity.description}</CardDescription>
-</CardContent>
+                </CardContent>
 <CardFooter>
 <Button variant="outline" className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 !rounded-button whitespace-nowrap">
 <i className="fas fa-level-up-alt mr-2"></i> {t.routine.adaptButton}
 </Button>
 </CardFooter>
-</Card>
-))}
-</div>
-</div>
-</section>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
 {/* Features Section */}
 <section id="ozellikler" className="py-20 bg-gradient-to-b from-gray-50 to-white">
 <div className="container mx-auto px-4">
 <div className="text-center mb-16">
 <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.features.title}</h2>
-<p className="text-xl text-gray-600 max-w-3xl mx-auto">
+<p className="text-xl text-gray-600 max-w-3xl mx-auto mb-4">
 {t.features.description}
 </p>
 </div>
@@ -569,18 +579,18 @@ alt={feature.title}
 className="w-full h-full object-cover object-top"
 />
 </div>
-</div>
+              </div>
 </Card>
-))}
-</div>
-</div>
-</section>
+            ))}
+          </div>
+        </div>
+      </section>
 {/* Testimonials Section */}
 <section id="yorumlar" className="py-20 bg-white">
 <div className="container mx-auto px-4">
 <div className="text-center mb-16">
 <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.testimonials.title}</h2>
-<p className="text-xl text-gray-600 max-w-3xl mx-auto">
+<p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12">
 {t.testimonials.description}
 </p>
 </div>
@@ -626,8 +636,8 @@ alt={testimonial.name}
 </SwiperSlide>
 ))}
 </Swiper>
-</div>
-</section>
+        </div>
+      </section>
 {/* Try It Now Section */}
 <section className="py-20 bg-gradient-to-b from-blue-50 to-white">
 <div className="container mx-auto px-4">
@@ -635,38 +645,46 @@ alt={testimonial.name}
 <div className="p-8 md:p-12">
 <h2 className="text-3xl font-bold mb-6 text-center">{t.tryNow.title}</h2>
 <div className="mb-8">
+
 <div className="relative">
-<Input
-type="text"
-placeholder={t.tryNow.placeholder}
-className="pl-12 pr-32 py-6 text-lg border-2 border-gray-200 focus:border-blue-500"
-/>
-<i className="fas fa-link absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-<div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-<Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button whitespace-nowrap">
-{t.tryNow.tryButton}
-</Button>
+    <Input
+        type="text"
+        placeholder={t.tryNow.placeholder}
+
+        className="w-full h-12 pl-12 pr-36 text-base border-2 border-gray-200 focus:border-blue-500 rounded-lg"
+    />
+    <i className="fas fa-link absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+    <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+        <Button
+
+            className="h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-md whitespace-nowrap px-5"
+        >
+            {t.tryNow.tryButton}
+        </Button>
+    </div>
 </div>
-</div>
-</div>
-<div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-8">
+
+
+            </div>
+<div className="flex items-center gap-2 mb-8">
 {levels.map((lvl, index) => (
-<Button
-key={index}
-variant={index === level ? "default" : "outline"}
-className={`!rounded-button whitespace-nowrap ${index === level ? 'bg-blue-600' : 'border-blue-200 text-blue-600'}`}
-onClick={() => setLevel(index)}
->
-{lvl}
-</Button>
+    <Button
+        key={index}
+        variant={index === level ? "default" : "outline"}
+        // EN ÖNEMLİ KISIM: Butonun büyümesini ve metni ortalamasını sağlayan sınıflar
+        className={`flex-grow justify-center !rounded-button whitespace-nowrap ${index === level ? 'bg-blue-600' : 'border-blue-200 text-blue-600'}`}
+        onClick={() => setLevel(index)}
+    >
+        {lvl}
+    </Button>
 ))}
-</div>
+              </div>
 <p className="text-center text-gray-500">
 {t.tryNow.description}
 </p>
 </div>
-</div>
-</div>
+            </div>
+          </div>
 </section>
 {/* Extra CTA Section */}
 <section className="py-20 bg-white">
@@ -681,23 +699,97 @@ onClick={() => setLevel(index)}
 <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-lg py-6 px-8 !rounded-button whitespace-nowrap">
 <i className="fas fa-rocket mr-2"></i> {t.cta.button}
 </Button>
-<div className="mt-8 flex justify-center items-center space-x-8">
+<div className="mt-8 flex justify-center items-center space-x-6">
 {t.cta.benefits.map((benefit, index) => (
 <div key={index} className="flex items-center">
-<i className="fas fa-check-circle text-green-500 mr-2"></i>
+<i 
+                className="fas fa-check-circle mr-2" 
+                style={{ color: '#22c55e' }} // <-- BU SATIRI EKLEYİN
+            ></i>
 <span className="text-gray-600">{benefit}</span>
 </div>
-))}
-</div>
-</div>
-</div>
-</section>
-
-            <footer className="bg-gray-900 text-white py-12">
-                 {/* ... (Footer içeriğiniz buraya gelecek) ... */}
-            </footer>
+              ))}
+            </div>
+          </div>
         </div>
-    );
+</section>
+{/* Footer */}
+            <footer className="bg-gray-900 text-white py-12">
+            <div className="container mx-auto px-4">
+<div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
+<div>
+<div className="flex items-center space-x-2 mb-6">
+<i className="fas fa-language text-blue-400 text-3xl"></i>
+<span className="text-2xl font-bold">LingRoot</span>
+</div>
+<p className="text-gray-400 mb-4">
+{t.footer.slogan}
+</p>
+<div className="flex space-x-4">
+<a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
+<i className="fab fa-facebook-f text-xl"></i>
+</a>
+<a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
+<i className="fab fa-twitter text-xl"></i>
+</a>
+<a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
+<i className="fab fa-instagram text-xl"></i>
+</a>
+<a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
+<i className="fab fa-youtube text-xl"></i>
+</a>
+</div>
+</div>
+<div>
+<h3 className="text-lg font-bold mb-4">{t.footer.quickLinks.title}</h3>
+<ul className="space-y-2">
+{t.footer.quickLinks.links.map((link, index) => (
+<li key={index}><a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{link}</a></li>
+))}
+</ul>
+</div>
+<div>
+<h3 className="text-lg font-bold mb-4">{t.footer.legal.title}</h3>
+<ul className="space-y-2">
+{t.footer.legal.links.map((link, index) => (
+<li key={index}><a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{link}</a></li>
+))}
+</ul>
+</div>
+<div>
+<h3 className="text-lg font-bold mb-4">{t.footer.contact.title}</h3>
+<ul className="space-y-2">
+<li className="flex items-center">
+<i className="fas fa-envelope mr-2 text-gray-400"></i>
+<a href={`mailto:${t.footer.contact.email}`} className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{t.footer.contact.email}</a>
+</li>
+<li className="flex items-center">
+<i className="fas fa-phone-alt mr-2 text-gray-400"></i>
+<a href={`tel:${t.footer.contact.phone}`} className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{t.footer.contact.phone}</a>
+</li>
+<li className="flex items-start mt-4">
+<i className="fas fa-map-marker-alt mr-2 mt-1 text-gray-400"></i>
+<span className="text-gray-400">{t.footer.contact.address}</span>
+</li>
+</ul>
+</div>
+</div>
+<div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
+<p className="text-gray-400 text-sm mb-4 md:mb-0">
+&copy; {new Date().getFullYear()} LingRoot. {t.footer.copyright}
+</p>
+<div className="flex space-x-4">
+<i className="fab fa-cc-visa text-2xl text-gray-400"></i>
+<i className="fab fa-cc-mastercard text-2xl text-gray-400"></i>
+<i className="fab fa-cc-paypal text-2xl text-gray-400"></i>
+<i className="fab fa-apple-pay text-2xl text-gray-400"></i>
+</div>
+</div>
+</div>
+
+      </footer>
+    </div>
+  );
 };
 
 export default App;
