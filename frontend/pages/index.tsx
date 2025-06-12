@@ -671,7 +671,7 @@ const App: React.FC = () => {
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-16">
                         <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.routine.title}</h2>
-                        <p className="text-xl text-gray-600 max-w-3xl mx-auto whitespace-nowrap mb-12">
+                        <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12 routine-description">
                             {t.routine.description}
                         </p>
                     </div>
