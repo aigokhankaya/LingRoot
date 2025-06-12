@@ -29,7 +29,7 @@ const App: React.FC = () => {
     setIsClient(true);
   }, []);
 
-  // Kullanıcı zaten giriş yapmışsa welcome sayfasına yönlendir
+  // Kullanıcı zaten giriş yapmışsa welcome sayfasına yönlendir.
   React.useEffect(() => {
     if (isAuthenticated) {
       router.push('/welcome');
