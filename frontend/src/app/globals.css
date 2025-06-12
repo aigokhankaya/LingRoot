@@ -517,6 +517,99 @@ button:disabled,
     line-height: 1.4 !important;
     padding: 0 1rem !important;
   }
+  
+  /* Kart resimleri mobil ayarları - Büyük kartlar */
+  
+  /* How It Works kartları mobil ayarları */
+  .how-it-works-image {
+    width: 100% !important;
+    height: 300px !important;
+    min-height: 300px !important;
+    overflow: hidden !important;
+    position: relative !important;
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+  }
+  
+  .how-it-works-image img {
+    object-fit: cover !important;
+    object-position: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+  }
+  
+  /* Daily Routine kartları mobil ayarları */
+  .routine-image {
+    width: 100% !important;
+    height: 250px !important;
+    min-height: 250px !important;
+    overflow: hidden !important;
+    position: relative !important;
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+  }
+  
+  .routine-image img {
+    object-fit: cover !important;
+    object-position: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+  }
+  
+  /* Features section kartları mobil ayarları */
+  .feature-image {
+    width: 100% !important;
+    height: 280px !important;
+    min-height: 280px !important;
+    overflow: hidden !important;
+    position: relative !important;
+    border-radius: 0.5rem !important;
+  }
+  
+  .feature-image img {
+    object-fit: cover !important;
+    object-position: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+  }
+  
+  /* Tüm kartlar için genel mobil ayarları */
+  .how-it-works-card,
+  .routine-card {
+    overflow: hidden !important;
+    border-radius: 0.75rem !important;
+    min-height: 450px !important;
+  }
+  
+  /* How It Works kartları özel boyut */
+  .how-it-works-card {
+    min-height: 500px !important;
+  }
+  
+  /* Routine kartları özel boyut */
+  .routine-card {
+    min-height: 420px !important;
+  }
+  
+  /* CardHeader padding ayarları */
+  .how-it-works-card .pb-0,
+  .routine-card .pb-0 {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Card content padding düzeltmesi */
+  .how-it-works-card .pt-6,
+  .routine-card .pt-6 {
+    padding: 1.5rem !important;
+  }
 }
 
 @media (max-width: 480px) {
@@ -536,5 +629,27 @@ button:disabled,
   
   .demo-description {
     font-size: 0.8rem !important;
+  }
+  
+  /* Küçük ekranlar için kart resimleri */
+  .how-it-works-image {
+    height: 250px !important;
+    min-height: 250px !important;
+  }
+  
+  .routine-image {
+    height: 200px !important;
+    min-height: 200px !important;
+  }
+  
+  .feature-image {
+    height: 230px !important;
+    min-height: 230px !important;
+  }
+  
+  /* Küçük ekranlarda card padding'i azalt */
+  .how-it-works-card .pt-6,
+  .routine-card .pt-6 {
+    padding: 1rem !important;
   }
 } 
