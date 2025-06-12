@@ -121,8 +121,9 @@ const processTtsRequest = async (req, res) => {
         }
 
         // Validate essential parameters
+        logger.info(`[${requestId}] Parameter validation: inputType=${inputType}, inputData=${inputData}, level=${level}, file=${file?.originalname}`);
         if (!inputType || (inputType !== "file" && !inputData) || (inputType === "file" && !file)) {
-            logger.error(`[${requestId}] Missing required input parameters.`);
+            logger.error(`[${requestId}] Missing required input parameters. inputType=${inputType}, inputData=${inputData}, file=${file?.originalname}`);
             return res.status(400).json({ success: false, message: "Missing required input parameters (type, input/file, level)" });
         }
 

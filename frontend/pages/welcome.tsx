@@ -11,6 +11,12 @@ import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
 import OutputSection from '../src/components/OutputSection';
 import Footer from '../src/components/Footer';
+import { Button } from "../src/components/ui/button";
+import { Input } from "../src/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../src/components/ui/tabs";
+import { Slider } from "../src/components/ui/slider";
+import { Card, CardContent } from "../src/components/ui/card";
+import { Badge } from "../src/components/ui/badge";
 
 interface InputData {
   type: ProcessInputData['type'];
@@ -21,6 +27,12 @@ interface InputData {
   SesHızı?: number;
   voice?: string;
   chapter?: string;
+}
+
+interface ContentTypeOption {
+  id: string;
+  name: string;
+  icon: string;
 }
 
 interface AudioResult {
@@ -47,6 +59,40 @@ const Welcome: React.FC = () => {
   const [audioResult, setAudioResult] = useState<AudioResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  
+  // Yeni tasarım için state'ler
+  const [contentType, setContentType] = useState<string>('text');
+  const [englishLevel, setEnglishLevel] = useState<string>('a1');
+  const [speakingRate, setSpeakingRate] = useState<number>(0.8);
+  const [voiceType, setVoiceType] = useState<string>('en-US-Wavenet-F');
+  const [accentType, setAccentType] = useState<string>('american');
+  const [emotionType, setEmotionType] = useState<string>('neutral');
+  const [outputFormat, setOutputFormat] = useState<string>('mp3');
+  const [textInput, setTextInput] = useState<string>('');
+  
+  // İçerik türü seçenekleri
+  const contentTypeOptions: ContentTypeOption[] = [
+    { id: 'text', name: 'Metin', icon: 'fas fa-file-alt' },
+    { id: 'topic', name: 'Konu', icon: 'fas fa-lightbulb' },
+    { id: 'youtube', name: 'YouTube', icon: 'fab fa-youtube' },
+    { id: 'weblink', name: 'Web Bağlantısı', icon: 'fas fa-link' },
+    { id: 'document', name: 'Doküman', icon: 'fas fa-file-word' },
+    { id: 'spotify', name: 'Spotify', icon: 'fab fa-spotify' },
+    { id: 'book', name: 'Kitap', icon: 'fas fa-book' },
+    { id: 'custom', name: 'Öneriler', icon: 'fas fa-plus' },
+    { id: 'hashtag', name: 'Etiket', icon: 'fas fa-hashtag' },
+  ];
+  
+  const levelOptions = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  const rateOptions = [
+    { value: 0.7, label: '0.7x' },
+    { value: 0.8, label: '0.8x' },
+    { value: 1.0, label: '1x' },
+    { value: 1.2, label: '1.2x' },
+  ];
+  const accentOptions = ['Amerikan', 'İngiliz', 'Avustralya', 'Kanada', 'İrlanda', 'Hindistan'];
+  const emotionOptions = ['Nötr', 'Neşeli', 'Ciddi', 'Profesyonel', 'Heyecanlı', 'Sakin'];
+  const formatOptions = ['MP3', 'WAV', 'AAC', 'FLAC', 'OGG'];
 
   const handleSubmit = async (inputData: InputData) => {
     setIsLoading(true);
@@ -54,14 +100,14 @@ const Welcome: React.FC = () => {
     try {
       const processInput: ProcessInputData = {
         type: inputData.type,
-        text: inputData.text,
-        input: inputData.input,
+        input: inputData.text || inputData.input, // text veya input'u input olarak gönder
         file: inputData.file,
         level: inputData.level,
         SesHızı: inputData.SesHızı,
         voice: inputData.voice,
         chapter: (inputData as any).chapter,
       };
+      console.log('handleSubmit - processInput:', processInput);
       const result = await processTts(processInput);
       if (result && result.mp3_url) {
         setAudioResult({
@@ -81,6 +127,25 @@ const Welcome: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Yeni tasarım için ses oluşturma fonksiyonu
+  const handleGenerate = async () => {
+    if (!textInput.trim()) {
+      setError('Lütfen bir metin girin.');
+      return;
+    }
+
+    const inputData: InputData = {
+      type: contentType as ProcessInputData['type'],
+      text: textInput,
+      level: englishLevel,
+      SesHızı: speakingRate,
+      voice: voiceType,
+    };
+
+    console.log('handleGenerate - inputData:', inputData);
+    await handleSubmit(inputData);
   };
 
   if (user === undefined) {
@@ -111,56 +176,118 @@ const Welcome: React.FC = () => {
     lastLogin: '2025-05-13 10:42',
   };
 
+  const heroImageUrl = 'https://readdy.ai/api/search-image?query=Modern%20language%20learning%20concept%20with%20digital%20technology%2C%20AI%20assistant%20helping%20with%20English%20lessons%2C%20abstract%20blue%20gradient%20background%20with%20subtle%20tech%20elements%2C%20professional%20educational%20atmosphere&width=1200&height=600&seq=hero1&orientation=landscape';
+
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-white">
-      {/* Header ve Profil Butonu */}
-      <header className="w-full bg-white shadow-sm py-4 px-6 flex justify-between items-center">
-        <Link href="/" className="flex items-center space-x-2">
-          <span className="text-xl font-bold text-blue-700">LingRoot</span>
-        </Link>
-        {isAuthenticated && (
-          <div className="relative">
-            <button
-              className="flex items-center space-x-2 focus:outline-none"
-              onClick={() => setProfileMenuOpen((v) => !v)}
-            >
-              <img src={avatar} alt={displayName} className="h-9 w-9 rounded-full border-2 border-blue-200 object-cover" />
-              <span className="font-medium text-gray-700">{displayName}</span>
-            </button>
-            {profileMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50 border">
-                <Link href="/profile" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profilim</Link>
-                <Link href="/settings" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Ayarlar</Link>
-                <Link href="/dashboard" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Panel</Link>
-                <button
-                  onClick={logout}
-                  className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 border-t mt-2"
-                >Çıkış Yap</button>
-              </div>
-            )}
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      {/* Top Navigation */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-4">
+              <Link href="/">
+                <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
+                  <i className="fas fa-home mr-2"></i>
+                  Ana Sayfa
+                </Button>
+              </Link>
+              <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
+                <i className="fas fa-user mr-2"></i>
+                Kullanıcı Paneli
+              </Button>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
+                <i className="fas fa-bell"></i>
+              </Button>
+              {isAuthenticated && (
+                <div className="relative">
+                  <div
+                    className="flex items-center space-x-3 cursor-pointer"
+                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  >
+                    <img
+                      src={avatar}
+                      alt={displayName}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                    <div className="text-sm">
+                      <div className="font-medium">{displayName}</div>
+                      <div className="text-gray-500 text-xs">{user?.email}</div>
+                    </div>
+                    <i className={`fas fa-chevron-${profileMenuOpen ? 'up' : 'down'} ml-2 text-gray-500 transition-transform duration-200`}></i>
+                  </div>
+                  <div
+                    className={`absolute right-0 w-48 mt-2 bg-white rounded-lg shadow-lg py-2 ${profileMenuOpen ? 'block' : 'hidden'} z-10`}
+                  >
+                    <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                      <i className="fas fa-user-circle mr-2"></i>
+                      Profil Bilgilerim
+                    </Link>
+                    <Link href="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                      <i className="fas fa-cog mr-2"></i>
+                      Hesap Ayarları
+                    </Link>
+                    <Link href="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                      <i className="fas fa-history mr-2"></i>
+                      Okuma Geçmişim
+                    </Link>
+                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                      <i className="fas fa-heart mr-2"></i>
+                      Favorilerim
+                    </a>
+                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                      <i className="fas fa-globe mr-2"></i>
+                      Dil Ayarları
+                    </a>
+                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                      <i className="fas fa-question-circle mr-2"></i>
+                      Yardım ve Destek
+                    </a>
+                    <div className="border-t border-gray-100 mt-2 pt-2">
+                      <button
+                        onClick={logout}
+                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 cursor-pointer"
+                      >
+                        <i className="fas fa-sign-out-alt mr-2"></i>
+                        Çıkış Yap
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-        {!isAuthenticated && (
-          <div className="flex gap-2">
-            <Link href="/login" className="btn-primary">Giriş Yap</Link>
-            <Link href="/register" className="btn-secondary">Kayıt Ol</Link>
-          </div>
-        )}
-      </header>
+        </div>
+      </div>
 
-      <main className="flex-grow py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-800 mb-6">
-              {t('main_title')}
-            </h1>
-            <p className="mt-4 text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              {t('main_description')}
-            </p>
+      {/* Hero Section */}
+      <div className="relative w-full h-[400px] overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${heroImageUrl})` }}
+        ></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 to-transparent flex items-center">
+          <div className="container mx-auto px-6">
+            <div className="max-w-2xl">
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+                AI ile Güçlendirilmiş İngilizce Öğrenimi
+              </h1>
+              <p className="text-xl text-blue-100 mb-8">
+                Her seviyeye uygun kişiselleştirilmiş İngilizce içerik oluşturun ve ses dönüşümleriyle öğrenme deneyiminizi geliştirin.
+              </p>
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg !rounded-button whitespace-nowrap cursor-pointer">
+                Hemen Başlayın
+              </Button>
+            </div>
           </div>
+        </div>
+      </div>
 
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-5xl mx-auto">
           {error && (
-            <div className="max-w-2xl mx-auto mb-8">
+            <div className="mb-8">
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-3">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -170,16 +297,222 @@ const Welcome: React.FC = () => {
             </div>
           )}
 
-          <div className="mt-12 space-y-12 pb-8">
-            {/* Ses Dönüşüm Input ve Output */}
-            <InputSection onSubmit={handleSubmit} isLoading={isLoading} />
-            <OutputSection 
-              audioResult={audioResult} 
-              isLoggedIn={isAuthenticated}
-            />
+          <Card className="mb-8 border-none shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center mb-6">
+                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold mr-4">
+                  1
+                </div>
+                <h2 className="text-2xl font-bold text-blue-600">İçerik Türü ve Giriş</h2>
+              </div>
+              <div className="mb-8">
+                <h3 className="text-lg font-medium text-gray-700 mb-3">İçerik Türü</h3>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                  {contentTypeOptions.map((option) => (
+                    <div
+                      key={option.id}
+                      onClick={() => setContentType(option.id)}
+                      className={`flex flex-col items-center justify-center p-4 rounded-lg border cursor-pointer transition-all ${
+                        contentType === option.id ? 'bg-blue-50 border-blue-300' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      <i className={`${option.icon} text-xl ${contentType === option.id ? 'text-blue-600' : 'text-gray-500'}`}></i>
+                      <span className={`mt-2 text-sm ${contentType === option.id ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>
+                        {option.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg font-medium text-gray-700">İçerik Girişi</h3>
+                  <div className="flex space-x-2">
+                    <Button variant="outline" size="sm" className="!rounded-button whitespace-nowrap cursor-pointer">
+                      <i className="fas fa-cog mr-2"></i> Ayarlar
+                    </Button>
+                    <Button className="bg-green-600 hover:bg-green-700 !rounded-button whitespace-nowrap cursor-pointer">
+                      <i className="fas fa-magic mr-2"></i> Konu Öner
+                    </Button>
+                  </div>
+                </div>
+                <div className="relative">
+                  <textarea
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    placeholder="İngilizce'ye çevirmek veya ses oluşturmak istediğiniz metni buraya girin..."
+                    className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                  />
+                  <button className="absolute bottom-3 right-3 text-gray-500 hover:text-blue-600 cursor-pointer">
+                    <i className="fas fa-edit text-xl"></i>
+                  </button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="mb-8 border-none shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center mb-6">
+                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold mr-4">
+                  2
+                </div>
+                <h2 className="text-2xl font-bold text-blue-600">Ses Ayarları</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-700 mb-3">İngilizce Seviyesi</h3>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
+                    {levelOptions.map((level) => (
+                      <Button
+                        key={level}
+                        onClick={() => setEnglishLevel(level.toLowerCase())}
+                        variant={englishLevel === level.toLowerCase() ? "default" : "outline"}
+                        className={`!rounded-button whitespace-nowrap cursor-pointer ${
+                          englishLevel === level.toLowerCase() ? 'bg-blue-600' : ''
+                        }`}
+                      >
+                        {level}
+                      </Button>
+                    ))}
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-700 mb-3">Konuşma Hızı</h3>
+                  <div className="grid grid-cols-4 gap-2 mb-6">
+                    {rateOptions.map((rate) => (
+                      <Button
+                        key={rate.value}
+                        onClick={() => setSpeakingRate(rate.value)}
+                        variant={speakingRate === rate.value ? "default" : "outline"}
+                        className={`!rounded-button whitespace-nowrap cursor-pointer ${
+                          speakingRate === rate.value ? 'bg-blue-600' : ''
+                        }`}
+                      >
+                        {rate.label}
+                      </Button>
+                    ))}
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-700 mb-3">Ses Seçimi</h3>
+                  <select 
+                    value={voiceType} 
+                    onChange={(e) => setVoiceType(e.target.value)}
+                    className="w-full mb-6 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                  >
+                    <option value="en-US-Wavenet-F">Amerikan İngilizcesi (Kadın)</option>
+                    <option value="en-US-Wavenet-M">Amerikan İngilizcesi (Erkek)</option>
+                    <option value="en-GB-Wavenet-F" disabled>İngiliz İngilizcesi (Kadın) - Premium</option>
+                    <option value="en-GB-Wavenet-M" disabled>İngiliz İngilizcesi (Erkek) - Premium</option>
+                  </select>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-gray-700 mb-3">Aksan Türü</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
+                    {accentOptions.map((accent) => (
+                      <Button
+                        key={accent}
+                        onClick={() => setAccentType(accent.toLowerCase())}
+                        variant={accentType === accent.toLowerCase() ? "default" : "outline"}
+                        className={`!rounded-button whitespace-nowrap cursor-pointer ${
+                          accentType === accent.toLowerCase() ? 'bg-blue-600' : ''
+                        }`}
+                      >
+                        {accent}
+                      </Button>
+                    ))}
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-700 mb-3">Duygu Tonu</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
+                    {emotionOptions.map((emotion) => (
+                      <Button
+                        key={emotion}
+                        onClick={() => setEmotionType(emotion.toLowerCase())}
+                        variant={emotionType === emotion.toLowerCase() ? "default" : "outline"}
+                        className={`!rounded-button whitespace-nowrap cursor-pointer ${
+                          emotionType === emotion.toLowerCase() ? 'bg-blue-600' : ''
+                        }`}
+                      >
+                        {emotion}
+                      </Button>
+                    ))}
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-700 mb-3">Çıktı Formatı</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
+                    {formatOptions.map((format) => (
+                      <Button
+                        key={format}
+                        onClick={() => setOutputFormat(format.toLowerCase())}
+                        variant={outputFormat === format.toLowerCase() ? "default" : "outline"}
+                        className={`!rounded-button whitespace-nowrap cursor-pointer ${
+                          outputFormat === format.toLowerCase() ? 'bg-blue-600' : ''
+                        }`}
+                      >
+                        {format}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-4">
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-blue-800">Mevcut Üyelik Planınız</h3>
+                    <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
+                      {badge?.label || 'Ücretsiz Plan'}
+                    </Badge>
+                  </div>
+                  <div className="text-sm text-blue-600">
+                    <p className="mb-2"><i className="fas fa-info-circle mr-2"></i>Günlük {remaining}/{dailyLimit} ses dönüşümü hakkınız kaldı.</p>
+                    <div className="flex items-center mt-3">
+                      <Button variant="outline" className="mr-3 !rounded-button whitespace-nowrap cursor-pointer">
+                        <i className="fas fa-crown text-yellow-500 mr-2"></i>Premium'a Yükselt
+                      </Button>
+                      <a href="#" className="text-blue-600 hover:text-blue-700 text-sm">Tüm planları karşılaştır</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-center mt-8">
+            <Button
+              onClick={handleGenerate}
+              disabled={isLoading}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg flex items-center space-x-2 !rounded-button whitespace-nowrap cursor-pointer"
+            >
+              {isLoading ? (
+                <>
+                  <i className="fas fa-circle-notch fa-spin"></i>
+                  <span>Ses Oluşturuluyor...</span>
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-volume-up"></i>
+                  <span>Ses Oluştur</span>
+                </>
+              )}
+            </Button>
           </div>
+
+          {/* Output Section */}
+          {audioResult && (
+            <Card className="mt-8 border-none shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex items-center mb-6">
+                  <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-bold mr-4">
+                    <i className="fas fa-check"></i>
+                  </div>
+                  <h2 className="text-2xl font-bold text-green-600">Ses Oluşturuldu</h2>
+                </div>
+                <OutputSection 
+                  audioResult={audioResult} 
+                  isLoggedIn={isAuthenticated}
+                />
+              </CardContent>
+            </Card>
+          )}
         </div>
-      </main>
+      </div>
 
       <Footer />
     </div>
