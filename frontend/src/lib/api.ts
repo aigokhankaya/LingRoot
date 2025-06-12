@@ -233,7 +233,7 @@ async function handleApiResponse<T>(response: Response): Promise<ApiResponse<T>>
 
 export const processTts = async (data: ProcessInputData): Promise<TtsResponseData> => {
     const { type, input, file, level, SesHızı, voice } = data;
-    const url = `${getApiUrl("/tts/process")}`;
+    const url = `${getApiUrl("/api/tts/process")}`;
     let headers: Record<string, string>;
     let body: string | FormData;
 
