@@ -332,7 +332,7 @@ const App: React.FC = () => {
         <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
             {/* Navigation */}
             <nav className="bg-white shadow-sm py-3 sticky top-0 z-50">
-                <div className="container mx-auto px-4 flex justify-between items-center">
+                <div className="container mx-auto px-8 flex justify-between items-center">
                     <div className="flex items-center space-x-2">
                         <i className="fas fa-language text-blue-600 text-xl md:text-2xl"></i>
                         <span className="text-lg md:text-xl font-bold text-blue-600">LingRoot</span>

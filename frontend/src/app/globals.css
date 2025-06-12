@@ -71,6 +71,11 @@
     -moz-osx-font-smoothing: grayscale;
   }
   
+  /* Ana sayfa wrapper için maksimum genişlik */
+  .min-h-screen {
+    max-width: none;
+  }
+  
   /* Responsive images */
   img {
     max-width: 100%;
@@ -205,7 +210,7 @@
 
 /* Masaüstü için sabit container ayarları */
 .container {
-  max-width: 100%;
+  max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
   padding-left: 2rem !important;
@@ -248,10 +253,51 @@
     width: auto !important;
   }
   
-  /* Container masaüstü sabit padding */
+  /* Container masaüstü sabit genişlik ve padding */
   .container {
+    max-width: 1200px !important;
     padding-left: 2rem !important;
     padding-right: 2rem !important;
+  }
+  
+  /* Hero section için özel container */
+  .hero-section .container {
+    max-width: 1200px !important;
+  }
+  
+  /* Demo section için özel container */
+  section .container {
+    max-width: 1200px !important;
+  }
+  
+  /* Navigation için özel container */
+  nav .container {
+    max-width: 1200px !important;
+  }
+  
+  /* Tüm container'lar için genel kural */
+  .container-xl,
+  .max-w-7xl,
+  .max-w-6xl,
+  .max-w-5xl,
+  .max-w-4xl {
+    max-width: 1200px !important;
+  }
+  
+  /* Tüm sayfa için sabit genişlik */
+  body > div,
+  main,
+  section,
+  nav {
+    width: 100%;
+  }
+  
+  /* Container'ların hepsini zorla sabit genişlikte tut */
+  div[class*="container"],
+  div[class*="mx-auto"] {
+    max-width: 1200px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
   }
 }
 
