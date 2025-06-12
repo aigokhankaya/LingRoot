@@ -30,7 +30,6 @@ import { getApiUrl } from "../src/lib/api";
 import dynamic from 'next/dynamic';
 // import Lottie from "lottie-react"; // Kaldırılacak
 import learnAnimation from "../public/animations/language-learn.json";
-import InputMask from 'react-input-mask';
 // Lottie bileşenini sadece client tarafında yüklenecek şekilde dinamik olarak import et
 const Lottie = dynamic(() => import('lottie-react'), { 
   ssr: false,
@@ -63,7 +62,9 @@ const App: React.FC = () => {
 
   const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
-    // Kullanıcı zaten giriş yapmışsa welcome sayfasına yönlendir (Eski mantıktan)
+
+  // Kullanıcı zaten giriş yapmışsa welcome sayfasına yönlendir.
+
   React.useEffect(() => {
     if (isAuthenticated) {
       router.push('/welcome');
