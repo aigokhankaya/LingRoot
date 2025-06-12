@@ -33,8 +33,7 @@ export const getApiUrl = (endpoint: string): string => {
   const baseUrl = getApiBaseUrl();
   
   // If the endpoint already starts with /api, don't add it again
-  //const apiPath = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
-  const apiPath = endpoint;
+  const apiPath = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
   
   // For direct backend URLs
   if (baseUrl) return `${baseUrl}${apiPath}`;
@@ -233,7 +232,7 @@ async function handleApiResponse<T>(response: Response): Promise<ApiResponse<T>>
 
 export const processTts = async (data: ProcessInputData): Promise<TtsResponseData> => {
     const { type, input, file, level, SesHızı, voice } = data;
-    const url = `${getApiUrl("/api/tts/process")}`;
+    const url = `${getApiUrl("/tts/process")}`;
     let headers: Record<string, string>;
     let body: string | FormData;
 
