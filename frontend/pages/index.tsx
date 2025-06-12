@@ -644,13 +644,13 @@ const App: React.FC = () => {
                     </div>
                     <div className="grid md:grid-cols-3 gap-8">
                         {t.howItWorks.steps.map((step, index) => (
-                            <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
-                                <CardHeader className="pb-0">
-                                    <div className="w-full h-48 overflow-hidden rounded-t-lg">
+                            <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col how-it-works-card">
+                                <CardHeader className="pb-0 p-0">
+                                    <div className="how-it-works-image">
                                         <img
                                             src={`https://readdy.ai/api/search-image?query=A person ${index === 0 ? 'selecting content on their device, with multiple media platforms visible on screen. The scene shows YouTube videos, Spotify podcasts, and news articles. Clean, modern interface with a soft blue background and minimalist design.' : index === 1 ? 'close-up of a language level selector interface showing levels from A1 to C2. The design is clean and modern with a soft blue background. The interface shows a slider or dropdown menu being adjusted by a finger, representing language level selection.' : 'relaxing with headphones, enjoying content on their device. The screen shows subtitles in English with a clean interface. The background is a soft blue gradient, and the scene conveys effortless learning through listening.'}&width=400&height=300&seq=step${index+1}&orientation=landscape`}
                                             alt={step.title}
-                                            className="w-full h-full object-cover object-top"
+                                            className=""
                                         />
                                     </div>
                                 </CardHeader>
@@ -677,13 +677,13 @@ const App: React.FC = () => {
                     </div>
                     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {t.routine.activities.map((activity, index) => (
-                            <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
-                                <CardHeader className="pb-0">
-                                    <div className="w-full h-40 overflow-hidden rounded-t-lg">
+                            <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col routine-card">
+                                <CardHeader className="pb-0 p-0">
+                                    <div className="routine-image">
                                         <img
                                             src={`https://readdy.ai/api/search-image?query=A person ${index === 0 ? 'walking in a park with headphones, listening to content on their smartphone. The scene has a bright, airy feel with trees and a path. The person looks relaxed and engaged with what they are listening to, suggesting learning while exercising.' : index === 1 ? 'exercising at home or gym with headphones, watching content on a tablet device nearby. The scene shows someone doing light workout while engaging with content. The environment is bright and motivational with a clean, modern aesthetic.' : index === 2 ? 'driving a car while listening to audio content. The dashboard shows a connected smartphone playing content. The scene is from inside the vehicle with a clean, modern interior and a bright day visible through windows.' : 'doing household chores like cleaning or cooking while listening to content on wireless headphones. The home environment is bright, modern and clean. The person looks engaged with what they are listening to while completing their tasks.'}&width=300&height=200&seq=routine${index+1}&orientation=landscape`}
                                             alt={activity.title}
-                                            className="w-full h-full object-cover object-top"
+                                            className=""
                                         />
                                     </div>
                                 </CardHeader>
@@ -724,11 +724,11 @@ const App: React.FC = () => {
                                         <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
                                         <CardDescription className="text-gray-600">{feature.description}</CardDescription>
                                     </div>
-                                    <div className="order-1 md:order-2 h-48 md:h-full overflow-hidden">
+                                    <div className="order-1 md:order-2 h-48 md:h-full overflow-hidden feature-image">
                                         <img
                                             src={`https://readdy.ai/api/search-image?query=${index === 0 ? 'A collection of real-world media content displayed on various devices. The scene shows YouTube videos, podcasts, news articles, and social media content. The display is modern and clean with a soft blue background, emphasizing authentic learning materials.' : index === 1 ? 'A personalized user interface showing content recommendations based on interests and language level. The screen displays customization options and preference settings. The design is clean and modern with a soft blue background, conveying personalization.' : index === 2 ? 'A person relaxing with high-quality headphones, listening to content with visible subtitles on their device. The scene shows someone comfortably learning through listening. The environment is peaceful with a soft blue background.' : 'A split-screen showing a person engaged in daily activities while learning. The scene depicts someone multitasking - perhaps commuting, exercising, or doing chores while listening to content. The design is clean with a soft blue background.'}&width=500&height=300&seq=feature${index+1}&orientation=landscape`}
                                             alt={feature.title}
-                                            className="w-full h-full object-cover object-top"
+                                            className="w-full h-full object-cover object-center"
                                         />
                                     </div>
                                 </div>
