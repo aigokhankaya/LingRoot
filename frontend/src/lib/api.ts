@@ -33,7 +33,7 @@ export const getApiUrl = (endpoint: string): string => {
   const baseUrl = getApiBaseUrl();
   
   // If the endpoint already starts with /api, don't add it again
-  const apiPath = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
+  const apiPath = endpoint.startsWith('/api') ? endpoint : `/api/${endpoint}`;
   
   // For direct backend URLs
   if (baseUrl) return `${baseUrl}${apiPath}`;
@@ -77,7 +77,7 @@ export const apiRequest = async <T>(
   config?: AxiosRequestConfig
 ): Promise<T> => {
   try {
-    const url = endpoint.startsWith('/api') ? endpoint : `/api${endpoint}`;
+    const url = endpoint.startsWith('/api') ? endpoint : `/api/${endpoint}`;
     const response: AxiosResponse<T> = await api.request({
       method,
       url,
@@ -232,7 +232,7 @@ async function handleApiResponse<T>(response: Response): Promise<ApiResponse<T>>
 
 export const processTts = async (data: ProcessInputData): Promise<TtsResponseData> => {
     const { type, input, file, level, SesHızı, voice } = data;
-    const url = `${getApiUrl("/tts/process")}`;
+    const url = `${getApiUrl("tts/process")}`;
     let headers: Record<string, string>;
     let body: string | FormData;
 
@@ -357,7 +357,7 @@ export const getContentHistory = async (): Promise<ApiResponse> => {
 
 // Detaylı konu önerileri için API isteği gönderen fonksiyon
 export const getTopicDetailSuggestions = async (topic: string, level: string): Promise<any> => {
-  const apiUrl = `${getApiUrl("/topic-detail/suggestions")}`;
+  const apiUrl = `${getApiUrl("topic-detail/suggestions")}`;
   
   try {
     const headers = createHeaders('application/json');
@@ -383,7 +383,7 @@ export const getTopicDetailSuggestions = async (topic: string, level: string): P
 
 // Kullanıcı ilgi alanlarını getirmek için API isteği gönderen fonksiyon
 export const getUserInterests = async (): Promise<any> => {
-  const apiUrl = `${getApiUrl("/user-interests")}`;
+  const apiUrl = `${getApiUrl("user-interests")}`;
   
   try {
     const headers = createHeaders('application/json');
@@ -433,7 +433,7 @@ export const getUserInterests = async (): Promise<any> => {
 
 // Kullanıcı ilgi alanlarını güncellemek için API isteği gönderen fonksiyon
 export const updateUserInterests = async (interests: string[]): Promise<any> => {
-  const apiUrl = `${getApiUrl("/user-interests")}`;
+  const apiUrl = `${getApiUrl("user-interests")}`;
   
   try {
     console.log("İlgi alanları güncelleniyor:", { interests, apiUrl });

@@ -107,7 +107,6 @@ const Welcome: React.FC = () => {
         voice: inputData.voice,
         chapter: (inputData as any).chapter,
       };
-      console.log('handleSubmit - processInput:', processInput);
       const result = await processTts(processInput);
       if (result && result.mp3_url) {
         setAudioResult({
@@ -144,7 +143,6 @@ const Welcome: React.FC = () => {
       voice: voiceType,
     };
 
-    console.log('handleGenerate - inputData:', inputData);
     await handleSubmit(inputData);
   };
 
