@@ -52,33 +52,125 @@
 @layer base {
   * {
     @apply border-border;
+    box-sizing: border-box;
   }
+  
+  html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+  
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   
+  /* Responsive images */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+  
+  /* Responsive tables - sadece mobilde */
+  table {
+    width: 100%;
+  }
+  
+  @media (max-width: 768px) {
+    table {
+      overflow-x: auto;
+      display: block;
+      white-space: nowrap;
+    }
+  }
+  
+  @media (min-width: 769px) {
+    table {
+      display: table;
+      white-space: normal;
+    }
+  }
+  
+  /* Masaüstü için sabit font boyutları */
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
   }
   
   h1 {
-    @apply text-4xl md:text-5xl lg:text-6xl leading-tight;
+    font-size: 3.75rem !important; /* 60px */
+    line-height: 1.1 !important;
   }
   
   h2 {
-    @apply text-3xl md:text-4xl leading-tight;
+    font-size: 2.25rem !important; /* 36px */
+    line-height: 1.2 !important;
   }
   
   h3 {
-    @apply text-2xl leading-snug;
+    font-size: 1.5rem !important; /* 24px */
+    line-height: 1.3 !important;
   }
   
   p {
-    @apply leading-relaxed;
+    font-size: 1rem !important; /* 16px */
+    line-height: 1.6 !important;
+  }
+  
+  /* Sadece mobil cihazlarda responsive ayarlar */
+  @media (max-width: 768px) {
+    /* Metin taşması önleme - sadece mobilde */
+    p, div, span, h1, h2, h3, h4, h5, h6 {
+      word-wrap: break-word;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      hyphens: auto;
+      -webkit-hyphens: auto;
+      -ms-hyphens: auto;
+    }
+    
+    html {
+      font-size: 14px;
+    }
+    
+    h1 {
+      @apply text-2xl sm:text-3xl leading-tight;
+    }
+    
+    h2 {
+      @apply text-xl sm:text-2xl leading-tight;
+    }
+    
+    h3 {
+      @apply text-lg sm:text-xl leading-snug;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    html {
+      font-size: 13px;
+    }
+    
+    h1 {
+      @apply text-lg leading-tight;
+    }
+    
+    h2 {
+      @apply text-base leading-tight;
+    }
+    
+    h3 {
+      @apply text-sm leading-snug;
+    }
   }
 }
 
+/* Masaüstü için sabit buton boyutları */
 .btn-primary {
   @apply inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-blue-200 transform hover:-translate-y-0.5;
 }
@@ -109,6 +201,73 @@
 
 .container-xl {
   @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* Masaüstü için sabit container ayarları */
+.container {
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 2rem !important;
+  padding-right: 2rem !important;
+}
+
+/* Masaüstü için sabit boyutlar - responsive olmayacak */
+@media (min-width: 769px) {
+  .hero-title {
+    font-size: 3.75rem !important; /* 60px */
+    line-height: 1.1 !important;
+  }
+  
+  .hero-description {
+    font-size: 1.25rem !important; /* 20px */
+    line-height: 1.6 !important;
+  }
+  
+  .demo-title {
+    font-size: 2.25rem !important; /* 36px */
+    line-height: 1.2 !important;
+  }
+  
+  .demo-description {
+    font-size: 1.125rem !important; /* 18px */
+    line-height: 1.5 !important;
+  }
+  
+  .hero-section {
+    min-height: 700px !important;
+  }
+  
+  .hero-buttons {
+    flex-direction: row !important;
+    gap: 1rem !important;
+  }
+  
+  .hero-buttons button,
+  .hero-buttons a button {
+    width: auto !important;
+  }
+  
+  /* Container masaüstü sabit padding */
+  .container {
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+  }
+}
+
+/* Sadece mobilde container padding değişsin */
+@media (max-width: 768px) {
+  .container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
 }
 
 .fadeIn {
@@ -183,4 +342,124 @@ button:disabled,
 
 .testimonial-card {
   @apply bg-white rounded-xl shadow-md p-6 border border-gray-200 hover:shadow-lg transition-all duration-300;
+}
+
+/* Sadece mobil cihazlarda özel ayarlar */
+@media (max-width: 768px) {
+  .btn-primary,
+  .btn-danger,
+  .input-field,
+  .icon-button {
+    min-height: 44px; /* Mobil dokunma için minimum yükseklik */
+  }
+  
+  .card {
+    margin: 0.5rem 0;
+    padding: 0.75rem;
+    border-radius: 12px;
+  }
+  
+  /* Hero section mobil ayarları */
+  .hero-title {
+    font-size: 1.75rem !important;
+    line-height: 1.2 !important;
+  }
+  
+  .hero-description {
+    font-size: 1rem !important;
+    line-height: 1.5 !important;
+  }
+  
+  .hero-badge {
+    font-size: 0.75rem !important;
+  }
+  
+  /* Navigation mobil ayarları */
+  .nav-buttons {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  
+  .nav-buttons button {
+    width: 100% !important;
+    font-size: 0.875rem !important;
+    padding: 0.75rem !important;
+  }
+  
+  /* Demo section mobil ayarları */
+  .demo-title {
+    font-size: 1.5rem !important;
+    line-height: 1.3 !important;
+  }
+  
+  .demo-description {
+    font-size: 0.875rem !important;
+    line-height: 1.4 !important;
+    padding: 0 1rem !important;
+  }
+  
+  /* Tabs mobil ayarları */
+  .tabs-trigger {
+    font-size: 0.75rem !important;
+    padding: 0.5rem 0.25rem !important;
+  }
+  
+  /* Hero section background mobil ayarları */
+  .hero-section {
+    min-height: 400px !important;
+  }
+  
+  .hero-section img {
+    object-position: center !important;
+  }
+  
+  /* Buton mobil ayarları */
+  .hero-buttons {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+  
+  .hero-buttons button,
+  .hero-buttons a button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  
+  /* Prevent horizontal scroll */
+  body {
+    overflow-x: hidden !important;
+  }
+  
+  /* Mobile navigation */
+  .mobile-menu {
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+  }
+  
+  /* Uzun kelimeler için özel ayar - sadece mobilde */
+  .break-all {
+    word-break: break-all;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-title {
+    font-size: 1.5rem !important;
+    line-height: 1.1 !important;
+  }
+  
+  .hero-description {
+    font-size: 0.875rem !important;
+    line-height: 1.4 !important;
+  }
+  
+  .demo-title {
+    font-size: 1.25rem !important;
+  }
+  
+  .demo-description {
+    font-size: 0.8rem !important;
+  }
 } 

@@ -9,19 +9,120 @@
   --font-title: 'Nunito', 'Lato', sans-serif;
   --font-body: 'Roboto', 'Lato', sans-serif;
 }
+
+/* Mobil uyumluluk için temel ayarlar */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
 body {
   font-family: var(--font-body);
   color: var(--color-dark);
   background: var(--color-gray);
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* Metin taşması önleme - sadece mobilde */
+@media (max-width: 768px) {
+  p, div, span, h1, h2, h3, h4, h5, h6 {
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -ms-hyphens: auto;
+  }
+}
+
+/* Uzun kelimeler için özel ayar - sadece mobilde */
+@media (max-width: 768px) {
+  .break-all {
+    word-break: break-all;
+  }
+}
+
+/* Container genişlik kontrolü */
+.container {
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (min-width: 769px) {
+  .container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}
+
+/* Responsive images */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Responsive tables */
+table {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  table {
+    overflow-x: auto;
+    display: block;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 769px) {
+  table {
+    display: table;
+    white-space: normal;
+  }
+}
+
 h1, h2, h3 {
   font-family: var(--font-title);
   font-weight: 700;
 }
+
 h4, h5, h6 {
   font-family: var(--font-title);
   font-weight: 500;
 }
+
+/* Mobil başlık ayarları */
+@media (max-width: 768px) {
+  h1, h2, h3, h4, h5, h6 {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+}
+
 .button-primary {
   background: var(--color-blue);
   color: #fff;
@@ -29,10 +130,16 @@ h4, h5, h6 {
   font-family: var(--font-title);
   font-weight: 700;
   transition: background 0.2s;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
 }
+
 .button-primary:hover {
   background: #8bb6d6;
 }
+
 .button-secondary {
   border: 2px solid var(--color-green);
   color: var(--color-green);
@@ -41,11 +148,16 @@ h4, h5, h6 {
   font-family: var(--font-title);
   font-weight: 700;
   transition: border 0.2s, color 0.2s;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  font-size: 1rem;
 }
+
 .button-secondary:hover {
   border-color: #7fcbb2;
   color: #7fcbb2;
 }
+
 .card {
   background: #fff;
   border-radius: 16px;
@@ -53,6 +165,7 @@ h4, h5, h6 {
   position: relative;
   overflow: hidden;
 }
+
 .card-watermark {
   position: absolute;
   right: 12px;
@@ -61,4 +174,65 @@ h4, h5, h6 {
   width: 80px;
   height: 80px;
   pointer-events: none;
+}
+
+/* Mobil responsive ayarları */
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+  
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  
+  .card {
+    margin: 0.5rem 0;
+    padding: 0.75rem;
+    border-radius: 12px;
+  }
+  
+  .button-primary,
+  .button-secondary {
+    min-height: 44px; /* Mobil dokunma için minimum yükseklik */
+  }
+  
+  h1 {
+    font-size: 1.75rem;
+    line-height: 1.2;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+    line-height: 1.3;
+  }
+  
+  h3 {
+    font-size: 1.25rem;
+    line-height: 1.4;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+  
+  .container {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  
+  h1 {
+    font-size: 1.5rem;
+  }
+  
+  h2 {
+    font-size: 1.25rem;
+  }
+  
+  h3 {
+    font-size: 1.125rem;
+  }
 } 
