@@ -129,79 +129,201 @@ const App: React.FC = () => {
 
     // Yeni tasarımın çeviri objesi
     const translations = {
-    tr: {
-      nav: {
-                howItWorks: "Nasıl Çalışır?",
-                features: "Özellikler",
-                testimonials: "Kullanıcı Yorumları",
-                blog: "Blog",
-        login: "Giriş Yap",
-                signup: "Ücretsiz Kaydol"
-            },
-            login: {
-                title: "Giriş Yap",
-                description: "LingRoot hesabınıza giriş yapın",
-                emailLabel: "E-posta veya Kullanıcı Adı",
-                emailPlaceholder: "ornek@email.com",
-                passwordLabel: "Şifre",
-                forgotPassword: "Şifremi Unuttum",
-                loginButton: "Giriş Yap",
-                loadingButton: "Giriş Yapılıyor...",
-                or: "veya",
-                googleLogin: "Google ile Giriş Yap",
-                facebookLogin: "Facebook ile Giriş Yap",
-                appleLogin: "Apple ile Giriş Yap",
-                noAccount: "Hesabınız yok mu?",
-                signupLink: "Ücretsiz Kaydol"
-            },
-            register: { // KAYIT MODALI İÇİN YENİ ÇEVİRİLER
-                title: "Ücretsiz Hesap Oluştur",
-                description: "LingRoot dünyasına katılın ve hemen öğrenmeye başlayın.",
-                fullNameLabel: "Ad Soyad",
-                fullNamePlaceholder: "Adınız Soyadınız",
-                emailLabel: "E-posta",
-                emailPlaceholder: "ornek@email.com",
-                phoneLabel: "Telefon Numarası",
-                passwordLabel: "Şifre",
-                registerButton: "Hesap Oluştur",
-                loadingButton: "Hesap Oluşturuluyor...",
-                hasAccount: "Zaten bir hesabınız var mı?",
-                loginLink: "Giriş Yap"
-      },
-      hero: {
-                badge: "Hayatın Değişmesin, İngilizcen Gelişsin",
-                title: "Sevdiğin İçerikler, ",
-                titleHighlight: "Anlayacağın İngilizceyle",
-                description: "LingRoot, YouTube videoları, podcast'ler, blog yazıları gibi zaten takip ettiğin içerikleri seçtiğin İngilizce seviyesine (A1–C2) göre otomatik olarak sadeleştirir, seslendirir ve altyazı ekler. İngilizce öğrenmek için hayatını değiştirmene gerek yok — sadece dinlemeye devam et.",
-                tryButton: "Hemen Ücretsiz Dene",
-                watchButton: "Nasıl Çalıştığını İzle"
-            },
-            // ... Diğer tüm çeviriler yeni tasarımdaki gibi buraya eklenecek ...
-            // (Kısalık için diğer kısımları kestim, yeni kodunuzdaki tam çeviri objesini buraya yapıştırın)
-      howItWorks: {
-                title: "LingRoot Nasıl Çalışır?",
-                description: "Sevdiğin içerikleri kendi İngilizce seviyende dinlemek için sadece üç adım yeterli.",
-        steps: [
-                    { icon: "fas fa-link", title: "İçeriğini Seç", description: "YouTube videosu, Spotify podcast'i, bir haber yazısı… Sadece linki yapıştır veya metni yükle." },
-                    { icon: "fas fa-sliders-h", title: "Seviyeni Belirle", description: "A1'den C2'ye. İçerik, senin anlayabileceğin İngilizceye otomatik olarak çevrilir." },
-                    { icon: "fas fa-headphones", title: "Dinle ve Öğren", description: "İçerik yapay zeka tarafından seslendirilir, altyazı eklenir ve seviyene özel hale gelir. Artık sevdiğin şeyleri dinleyerek İngilizce öğrenebilirsin." }
-                ]
-            },
-            demo: { title: "Aynı İçerik, Senin Seviyen", description: "Seviyeni seç ve içeriğin nasıl değiştiğini gör. Dilediğin seviyede dinleyerek İngilizceni geliştir.", selectLevel: "Seviyeni Seç", originalContent: "Orijinal İçerik (C2)", yourLevel: "Senin Seviyen", tryYourContent: "Kendi İçeriğini Dene" },
-            routine: { title: "Günlük Rutinin = İngilizce Dersin", description: "Ekstra zaman ayırmana gerek yok. Zaten yaptığın aktiviteler sırasında İngilizce öğren.", activities: [{ icon: "fas fa-walking", title: "Yürüyüş Yaparken", description: "Favori podcast'lerini dinlerken İngilizce öğren" }, { icon: "fas fa-dumbbell", title: "Spor Yaparken", description: "Motivasyon videolarını seviyene uygun dinle" }, { icon: "fas fa-car", title: "Araç Kullanırken", description: "Trafikteyken sevdiğin içerikleri dinle" }, { icon: "fas fa-home", title: "Ev İşleri Yaparken", description: "Temizlik ve yemek yaparken öğrenmeye devam et" }], adaptButton: "Seviyene Uyarla" },
-            features: { title: "Neden LingRoot?", description: "LingRoot, İngilizce öğrenme deneyimini tamamen farklı bir seviyeye taşır.", featuresList: [{ icon: "fas fa-globe", title: "Gerçek İçerikler", description: "Ders kitapları değil, gerçek hayattan videolar ve yazılar ile öğren" }, { icon: "fas fa-user-cog", title: "Kişiselleştirilmiş Deneyim", description: "Seviyene ve ilgi alanına göre özel olarak hazırlanmış içerikler" }, { icon: "fas fa-headphones-alt", title: "Sadece Dinleyerek Öğren", description: "Kaliteli seslendirme, altyazı ve tekrar özellikleriyle pasif öğrenme" }, { icon: "fas fa-clock", title: "Ekstra Zaman Gerekmez", description: "Günlük rutinin içinde, ek bir çaba harcamadan İngilizce öğren" }] },
-            testimonials: { title: "Kullanıcılarımız Ne Diyor?", description: "LingRoot ile İngilizce öğrenme deneyimlerini paylaşan kullanıcılarımızın yorumları.", users: [{ name: "Mert Y.", level: "B1 seviyesinde kullanıcı", quote: "LingRoot sayesinde artık yabancı videolardan korkmuyorum. Aynı içeriği hem A2 hem B1 seviyede dinlemek inanılmaz motive edici." }, { name: "Zeynep K.", level: "A2 seviyesinde kullanıcı", quote: "Sadece dinleyerek öğrendiğimi fark ettim. Her gün izlediğim içerikler artık İngilizce gelişimime katkı sağlıyor." }, { name: "Ahmet S.", level: "B2 seviyesinde kullanıcı", quote: "Sabah koşumda dinlediğim podcast'ler artık İngilizce öğretmenim. Hiç ekstra zaman harcamadan her gün ilerliyorum." }, { name: "Ayşe D.", level: "A1 seviyesinde kullanıcı", quote: "İngilizce öğrenmek için daha önce birçok uygulama denedim ama hiçbiri LingRoot kadar etkili olmadı. Sevdiğim içeriklerle öğrenmek çok daha keyifli." }, { name: "Emre T.", level: "C1 seviyesinde kullanıcı", quote: "İleri seviyede olmama rağmen, LingRoot ile yeni kelimeler öğrenmeye devam ediyorum. Özellikle akademik içerikleri kendi seviyemde dinlemek çok faydalı." }] },
-            tryNow: { title: "Başlamak İçin Sadece Link Paylaş", placeholder: "YouTube, Spotify veya herhangi bir içerik linki yapıştır...", tryButton: "Hemen Dene", description: "Seviyeni seç ve içeriği hemen dinlemeye başla. Kayıt olmak için sadece 1 dakika!" },
-            cta: { title: "İngilizce Öğrenmek İçin Hayatını Değiştirme. Dinlemeye Devam Et.", description: "Günlük rutininde dinlediğin içerikler şimdi senin İngilizce öğretmenin. Ekstra zaman harcamadan, sevdiğin şeyleri dinleyerek öğren.", button: "Şimdi Başla — Ücretsiz ve Hemen", benefits: ["1 dakikada kaydol", "Kredi kartı gerekmez", "Hemen başla"] },
-            footer: { slogan: "\"Your routines turn into English.\"", quickLinks: { title: "Hızlı Bağlantılar", links: ["Hakkımızda", "Nasıl Çalışır?", "Fiyatlandırma", "Blog", "İletişim"] }, legal: { title: "Yasal", links: ["Gizlilik Politikası", "Kullanım Şartları", "Çerez Politikası", "KVKK"] }, contact: { title: "Bize Ulaşın", email: "info@lingroot.com", phone: "+90 212 123 45 67", address: "İstanbul, Türkiye" }, copyright: "Tüm hakları saklıdır." }
+      tr: {
+        nav: {
+          howItWorks: "Nasıl Çalışır?",
+          features: "Özellikler",
+          testimonials: "Kullanıcı Yorumları",
+          blog: "Blog",
+          login: "Giriş Yap",
+          signup: "Ücretsiz Kaydol"
         },
-        en: { // İngilizce çevirileri de buraya tam olarak ekleyin
-             nav: { howItWorks: "How It Works", features: "Features", testimonials: "Testimonials", blog: "Blog", login: "Login", signup: "Sign Up Free" },
-             login: { title: "Login", description: "Sign in to your LingRoot account", emailLabel: "Email or Username", emailPlaceholder: "example@email.com", passwordLabel: "Password", forgotPassword: "Forgot Password", loginButton: "Login", loadingButton: "Logging in...", or: "or", googleLogin: "Login with Google", facebookLogin: "Login with Facebook", appleLogin: "Login with Apple", noAccount: "Don't have an account?", signupLink: "Sign Up Free" },
-             register: { title: "Create a Free Account", description: "Join the LingRoot world and start learning right away.", fullNameLabel: "Full Name", fullNamePlaceholder: "Your Full Name", emailLabel: "Email", emailPlaceholder: "example@email.com", phoneLabel: "Phone Number", passwordLabel: "Password", registerButton: "Create Account", loadingButton: "Creating Account...", hasAccount: "Already have an account?", loginLink: "Login" },
-             hero: { badge: "Don't Change Your Life, Improve Your English", title: "Content You Love, ", titleHighlight: "In English You Understand", description: "LingRoot automatically simplifies, narrates, and adds subtitles to the content you already follow—YouTube videos, podcasts, blog posts—according to your chosen English level (A1–C2). You don't need to change your life to learn English—just keep listening.", tryButton: "Try It Free Now", watchButton: "Watch How It Works" },
-             // ... diğer ingilizce çeviriler
+        login: {
+          title: "Giriş Yap",
+          description: "LingRoot hesabınıza giriş yapın",
+          emailLabel: "E-posta veya Kullanıcı Adı",
+          emailPlaceholder: "ornek@email.com",
+          passwordLabel: "Şifre",
+          forgotPassword: "Şifremi Unuttum",
+          loginButton: "Giriş Yap",
+          loadingButton: "Giriş Yapılıyor...",
+          or: "veya",
+          googleLogin: "Google ile Giriş Yap",
+          facebookLogin: "Facebook ile Giriş Yap",
+          appleLogin: "Apple ile Giriş Yap",
+          noAccount: "Hesabınız yok mu?",
+          signupLink: "Ücretsiz Kaydol"
+        },
+        register: {
+          title: "Ücretsiz Hesap Oluştur",
+          description: "LingRoot dünyasına katılın ve hemen öğrenmeye başlayın.",
+          fullNameLabel: "Ad Soyad",
+          fullNamePlaceholder: "Adınız Soyadınız",
+          emailLabel: "E-posta",
+          emailPlaceholder: "ornek@email.com",
+          phoneLabel: "Telefon Numarası",
+          passwordLabel: "Şifre",
+          registerButton: "Hesap Oluştur",
+          loadingButton: "Hesap Oluşturuluyor...",
+          hasAccount: "Zaten bir hesabınız var mı?",
+          loginLink: "Giriş Yap"
+        },
+        hero: {
+          badge: "Hayatın Değişmesin, İngilizcen Gelişsin",
+          title: "Sevdiğin İçerikler, ",
+          titleHighlight: "Anlayacağın İngilizceyle",
+          description: "LingRoot, YouTube videoları, podcast'ler, blog yazıları gibi zaten takip ettiğin içerikleri seçtiğin İngilizce seviyesine (A1–C2) göre otomatik olarak sadeleştirir, seslendirir ve altyazı ekler. İngilizce öğrenmek için hayatını değiştirmene gerek yok — sadece dinlemeye devam et.",
+          tryButton: "Hemen Ücretsiz Dene",
+          watchButton: "Nasıl Çalıştığını İzle"
+        },
+        howItWorks: {
+          title: "LingRoot Nasıl Çalışır?",
+          description: "Sevdiğin içerikleri kendi İngilizce seviyende dinlemek için sadece üç adım yeterli.",
+          steps: [
+            { icon: "fas fa-link", title: "İçeriğini Seç", description: "YouTube videosu, Spotify podcast'i, bir haber yazısı… Sadece linki yapıştır veya metni yükle." },
+            { icon: "fas fa-sliders-h", title: "Seviyeni Belirle", description: "A1'den C2'ye. İçerik, senin anlayabileceğin İngilizceye otomatik olarak çevrilir." },
+            { icon: "fas fa-headphones", title: "Dinle ve Öğren", description: "İçerik yapay zeka tarafından seslendirilir, altyazı eklenir ve seviyene özel hale gelir. Artık sevdiğin şeyleri dinleyerek İngilizce öğrenebilirsin." }
+          ]
+        },
+        demo: { title: "Aynı İçerik, Senin Seviyen", description: "Seviyeni seç ve içeriğin nasıl değiştiğini gör. Dilediğin seviyede dinleyerek İngilizceni geliştir.", selectLevel: "Seviyeni Seç", originalContent: "Orijinal İçerik (C2)", yourLevel: "Senin Seviyen", tryYourContent: "Kendi İçeriğini Dene" },
+        routine: { title: "Günlük Rutinin = İngilizce Dersin", description: "Ekstra zaman ayırmana gerek yok. Zaten yaptığın aktiviteler sırasında İngilizce öğren.", activities: [{ icon: "fas fa-walking", title: "Yürüyüş Yaparken", description: "Favori podcast'lerini dinlerken İngilizce öğren" }, { icon: "fas fa-dumbbell", title: "Spor Yaparken", description: "Motivasyon videolarını seviyene uygun dinle" }, { icon: "fas fa-car", title: "Araç Kullanırken", description: "Trafikteyken sevdiğin içerikleri dinle" }, { icon: "fas fa-home", title: "Ev İşleri Yaparken", description: "Temizlik ve yemek yaparken öğrenmeye devam et" }], adaptButton: "Seviyene Uyarla" },
+        features: { title: "Neden LingRoot?", description: "LingRoot, İngilizce öğrenme deneyimini tamamen farklı bir seviyeye taşır.", featuresList: [{ icon: "fas fa-globe", title: "Gerçek İçerikler", description: "Ders kitapları değil, gerçek hayattan videolar ve yazılar ile öğren" }, { icon: "fas fa-user-cog", title: "Kişiselleştirilmiş Deneyim", description: "Seviyene ve ilgi alanına göre özel olarak hazırlanmış içerikler" }, { icon: "fas fa-headphones-alt", title: "Sadece Dinleyerek Öğren", description: "Kaliteli seslendirme, altyazı ve tekrar özellikleriyle pasif öğrenme" }, { icon: "fas fa-clock", title: "Ekstra Zaman Gerekmez", description: "Günlük rutinin içinde, ek bir çaba harcamadan İngilizce öğren" }] },
+        testimonials: { title: "Kullanıcılarımız Ne Diyor?", description: "LingRoot ile İngilizce öğrenme deneyimlerini paylaşan kullanıcılarımızın yorumları.", users: [{ name: "Mert Y.", level: "B1 seviyesinde kullanıcı", quote: "LingRoot sayesinde artık yabancı videolardan korkmuyorum. Aynı içeriği hem A2 hem B1 seviyede dinlemek inanılmaz motive edici." }, { name: "Zeynep K.", level: "A2 seviyesinde kullanıcı", quote: "Sadece dinleyerek öğrendiğimi fark ettim. Her gün izlediğim içerikler artık İngilizce gelişimime katkı sağlıyor." }, { name: "Ahmet S.", level: "B2 seviyesinde kullanıcı", quote: "Sabah koşumda dinlediğim podcast'ler artık İngilizce öğretmenim. Hiç ekstra zaman harcamadan her gün ilerliyorum." }, { name: "Ayşe D.", level: "A1 seviyesinde kullanıcı", quote: "İngilizce öğrenmek için daha önce birçok uygulama denedim ama hiçbiri LingRoot kadar etkili olmadı. Sevdiğim içeriklerle öğrenmek çok daha keyifli." }, { name: "Emre T.", level: "C1 seviyesinde kullanıcı", quote: "İleri seviyede olmama rağmen, LingRoot ile yeni kelimeler öğrenmeye devam ediyorum. Özellikle akademik içerikleri kendi seviyemde dinlemek çok faydalı." }] },
+        tryNow: { title: "Başlamak İçin Sadece Link Paylaş", placeholder: "YouTube, Spotify veya herhangi bir içerik linki yapıştır...", tryButton: "Hemen Dene", description: "Seviyeni seç ve içeriği hemen dinlemeye başla. Kayıt olmak için sadece 1 dakika!" },
+        cta: { title: "İngilizce Öğrenmek İçin Hayatını Değiştirme. Dinlemeye Devam Et.", description: "Günlük rutininde dinlediğin içerikler şimdi senin İngilizce öğretmenin. Ekstra zaman harcamadan, sevdiğin şeyleri dinleyerek öğren.", button: "Şimdi Başla — Ücretsiz ve Hemen", benefits: ["1 dakikada kaydol", "Kredi kartı gerekmez", "Hemen başla"] },
+        footer: { slogan: "\"Your routines turn into English.\"", quickLinks: { title: "Hızlı Bağlantılar", links: ["Hakkımızda", "Nasıl Çalışır?", "Fiyatlandırma", "Blog", "İletişim"] }, legal: { title: "Yasal", links: ["Gizlilik Politikası", "Kullanım Şartları", "Çerez Politikası", "KVKK"] }, contact: { title: "Bize Ulaşın", email: "info@lingroot.com", phone: "+90 212 123 45 67", address: "İstanbul, Türkiye" }, copyright: "Tüm hakları saklıdır." }
+      },
+      en: {
+        nav: {
+          howItWorks: "How It Works",
+          features: "Features",
+          testimonials: "Testimonials",
+          blog: "Blog",
+          login: "Login",
+          signup: "Sign Up Free"
+        },
+        login: {
+          title: "Login",
+          description: "Sign in to your LingRoot account",
+          emailLabel: "Email or Username",
+          emailPlaceholder: "example@email.com",
+          passwordLabel: "Password",
+          forgotPassword: "Forgot Password",
+          loginButton: "Login",
+          loadingButton: "Logging in...",
+          or: "or",
+          googleLogin: "Login with Google",
+          facebookLogin: "Login with Facebook",
+          appleLogin: "Login with Apple",
+          noAccount: "Don't have an account?",
+          signupLink: "Sign Up Free"
+        },
+        register: {
+          title: "Create a Free Account",
+          description: "Join the LingRoot world and start learning right away.",
+          fullNameLabel: "Full Name",
+          fullNamePlaceholder: "Your Full Name",
+          emailLabel: "Email",
+          emailPlaceholder: "example@email.com",
+          phoneLabel: "Phone Number",
+          passwordLabel: "Password",
+          registerButton: "Create Account",
+          loadingButton: "Creating Account...",
+          hasAccount: "Already have an account?",
+          loginLink: "Login"
+        },
+        hero: {
+          badge: "Don't Change Your Life, Improve Your English",
+          title: "Content You Love, ",
+          titleHighlight: "In English You Understand",
+          description: "LingRoot automatically simplifies, narrates, and adds subtitles to the content you already follow—YouTube videos, podcasts, blog posts—according to your chosen English level (A1–C2). You don't need to change your life to learn English—just keep listening.",
+          tryButton: "Try It Free Now",
+          watchButton: "Watch How It Works"
+        },
+        howItWorks: {
+          title: "How LingRoot Works",
+          description: "Just three simple steps to listen to the content you love at your own English level.",
+          steps: [
+            { icon: "fas fa-link", title: "Choose Your Content", description: "A YouTube video, Spotify podcast, a news article... Just paste the link or upload the text." },
+            { icon: "fas fa-sliders-h", title: "Set Your Level", description: "From A1 to C2. The content is automatically converted to English you can understand." },
+            { icon: "fas fa-headphones", title: "Listen and Learn", description: "The content is narrated by AI, subtitled, and customized to your level. Now you can learn English by listening to things you love." }
+          ]
+        },
+        demo: {
+          title: "Same Content, Your Level",
+          description: "Choose your level and see how the content changes. Improve your English by listening at the level you prefer.",
+          selectLevel: "Select Your Level",
+          originalContent: "Original Content (C2)",
+          yourLevel: "Your Level",
+          tryYourContent: "Try Your Own Content"
+        },
+        routine: {
+          title: "Your Daily Routine = Your English Lesson",
+          description: "No extra time needed. Learn English during activities you already do.",
+          activities: [
+            { icon: "fas fa-walking", title: "While Walking", description: "Learn English while listening to your favorite podcasts" },
+            { icon: "fas fa-dumbbell", title: "While Exercising", description: "Listen to motivational videos at your level" },
+            { icon: "fas fa-car", title: "While Driving", description: "Listen to content you love in traffic" },
+            { icon: "fas fa-home", title: "During Housework", description: "Continue learning while cleaning and cooking" }
+          ],
+          adaptButton: "Adapt to Your Level"
+        },
+        features: {
+          title: "Why LingRoot?",
+          description: "LingRoot takes the English learning experience to a completely different level.",
+          featuresList: [
+            { icon: "fas fa-globe", title: "Real Content", description: "Learn with real-life videos and articles, not textbooks" },
+            { icon: "fas fa-user-cog", title: "Personalized Experience", description: "Content specially prepared according to your level and interests" },
+            { icon: "fas fa-headphones-alt", title: "Learn Just by Listening", description: "Passive learning with quality narration, subtitles, and repetition features" },
+            { icon: "fas fa-clock", title: "No Extra Time Required", description: "Learn English within your daily routine, without extra effort" }
+          ]
+        },
+        testimonials: {
+          title: "What Our Users Say",
+          description: "Reviews from our users sharing their English learning experiences with LingRoot.",
+          users: [
+            { name: "Mert Y.", level: "B1 level user", quote: "Thanks to LingRoot, I'm no longer afraid of foreign videos. Listening to the same content at both A2 and B1 levels is incredibly motivating." },
+            { name: "Zeynep K.", level: "A2 level user", quote: "I realized I'm learning just by listening. The content I watch every day now contributes to my English development." },
+            { name: "Ahmet S.", level: "B2 level user", quote: "The podcasts I listen to during my morning run are now my English teacher. I progress every day without spending any extra time." },
+            { name: "Ayşe D.", level: "A1 level user", quote: "I've tried many apps to learn English before, but none were as effective as LingRoot. Learning with content I love is much more enjoyable." },
+            { name: "Emre T.", level: "C1 level user", quote: "Despite being at an advanced level, I continue to learn new words with LingRoot. Listening to academic content at my own level is especially useful." }
+          ]
+        },
+        tryNow: {
+          title: "Just Share a Link to Get Started",
+          placeholder: "Paste a YouTube, Spotify, or any content link...",
+          tryButton: "Try It Now",
+          description: "Choose your level and start listening to content right away. Only 1 minute to sign up!"
+        },
+        cta: {
+          title: "Don't Change Your Life to Learn English. Keep Listening.",
+          description: "The content you listen to in your daily routine is now your English teacher. Learn by listening to things you love, without spending extra time.",
+          button: "Start Now — Free and Immediate",
+          benefits: [
+            "Sign up in 1 minute",
+            "No credit card required",
+            "Start immediately"
+          ]
+        },
+        footer: {
+          slogan: "\"Your routines turn into English.\"",
+          quickLinks: {
+            title: "Quick Links",
+            links: ["About Us", "How It Works", "Pricing", "Blog", "Contact"]
+          },
+          legal: {
+            title: "Legal",
+            links: ["Privacy Policy", "Terms of Use", "Cookie Policy", "GDPR"]
+          },
+          contact: {
+            title: "Contact Us",
+            email: "info@lingroot.com",
+            phone: "+90 212 123 45 67",
+            address: "Istanbul, Turkey"
+          },
+          copyright: "All rights reserved."
         }
+      }
     };
     const t = translations[language];
 
@@ -807,3 +929,5 @@ alt={testimonial.name}
 };
 
 export default App;
+
+
