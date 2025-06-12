@@ -32,14 +32,20 @@ export const TRANSCRIPT_SERVICE_URL = process.env.NEXT_PUBLIC_TRANSCRIPT_SERVICE
 export const getApiUrl = (endpoint: string): string => {
   const baseUrl = getApiBaseUrl();
   
-  // If the endpoint already starts with /api, don't add it again
-  const apiPath = endpoint.startsWith('/api') ? endpoint : `/api/${endpoint}`;
+  // Normalize endpoint - remove leading slash if present
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
   
-  // For direct backend URLs
-  if (baseUrl) return `${baseUrl}${apiPath}`;
+  if (baseUrl) {
+    // If baseUrl already ends with /api, don't add it again
+    if (baseUrl.endsWith('/api')) {
+      return `${baseUrl}/${normalizedEndpoint}`;
+    } else {
+      return `${baseUrl}/api/${normalizedEndpoint}`;
+    }
+  }
   
   // For relative URLs (fallback)
-  return apiPath;
+  return `/api/${normalizedEndpoint}`;
 };
 
 // Create a configured axios instance
