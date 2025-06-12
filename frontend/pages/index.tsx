@@ -25,7 +25,6 @@ import InputMask from 'react-input-mask'; // Telefon numarası için eklendi
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
 
-import { useAuth } from '../src/lib/auth';
 import { getApiUrl } from "../src/lib/api";
 import dynamic from 'next/dynamic';
 // import Lottie from "lottie-react"; // Kaldırılacak
