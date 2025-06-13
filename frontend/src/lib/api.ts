@@ -32,12 +32,27 @@ export const TRANSCRIPT_SERVICE_URL = process.env.NEXT_PUBLIC_TRANSCRIPT_SERVICE
 export const getApiUrl = (endpoint: string): string => {
   const baseUrl = getApiBaseUrl();
   
+  // Debug logging for production
+  if (typeof window !== 'undefined') {
+    console.log('[API URL DEBUG] baseUrl:', baseUrl);
+    console.log('[API URL DEBUG] endpoint:', endpoint);
+    console.log('[API URL DEBUG] NODE_ENV:', process.env.NODE_ENV);
+    console.log('[API URL DEBUG] NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
+  }
+  
   // Clean up endpoint - remove leading slash if present
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
   
   // Build the API path
   let apiPath: string;
-  if (cleanEndpoint.startsWith('api/')) {
+  
+  // Check if baseUrl already contains '/api' path
+  const baseUrlContainsApi = baseUrl.includes('/api');
+  
+  if (baseUrlContainsApi) {
+    // If baseUrl already contains '/api', don't add it again
+    apiPath = `/${cleanEndpoint}`;
+  } else if (cleanEndpoint.startsWith('api/')) {
     // If endpoint already starts with 'api/', use it as is
     apiPath = `/${cleanEndpoint}`;
   } else {
@@ -49,7 +64,14 @@ export const getApiUrl = (endpoint: string): string => {
   if (baseUrl) {
     // Make sure we don't have double slashes
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    return `${cleanBaseUrl}${apiPath}`;
+    const finalUrl = `${cleanBaseUrl}${apiPath}`;
+    
+    // Debug logging
+    if (typeof window !== 'undefined') {
+      console.log('[API URL DEBUG] finalUrl:', finalUrl);
+    }
+    
+    return finalUrl;
   }
   
   // For relative URLs (fallback)
