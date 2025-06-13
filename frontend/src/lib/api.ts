@@ -35,11 +35,22 @@ export const getApiUrl = (endpoint: string): string => {
   // Clean up endpoint - remove leading slash if present
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
   
-  // If the endpoint already starts with api, don't add it again
-  const apiPath = cleanEndpoint.startsWith('api') ? `/${cleanEndpoint}` : `/api/${cleanEndpoint}`;
+  // Build the API path
+  let apiPath: string;
+  if (cleanEndpoint.startsWith('api/')) {
+    // If endpoint already starts with 'api/', use it as is
+    apiPath = `/${cleanEndpoint}`;
+  } else {
+    // Otherwise, add '/api/' prefix
+    apiPath = `/api/${cleanEndpoint}`;
+  }
   
   // For direct backend URLs
-  if (baseUrl) return `${baseUrl}${apiPath}`;
+  if (baseUrl) {
+    // Make sure we don't have double slashes
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    return `${cleanBaseUrl}${apiPath}`;
+  }
   
   // For relative URLs (fallback)
   return apiPath;
@@ -80,7 +91,12 @@ export const apiRequest = async <T>(
   config?: AxiosRequestConfig
 ): Promise<T> => {
   try {
-    const url = endpoint.startsWith('/api') ? endpoint : `/api/${endpoint}`;
+    // Clean up endpoint
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+    
+    // Build URL - if endpoint already starts with 'api/', use as is, otherwise add '/api/' prefix
+    const url = cleanEndpoint.startsWith('api/') ? `/${cleanEndpoint}` : `/api/${cleanEndpoint}`;
+    
     const response: AxiosResponse<T> = await api.request({
       method,
       url,
