@@ -45,7 +45,7 @@ interface AudioResult {
 interface ContentHistoryItem {
   id: string;
   input: string;
-  type: string;
+  input_type: string;
   level: string;
   mp3_url: string;
   created_at: string;
@@ -69,6 +69,10 @@ const Welcome: React.FC = () => {
   const [emotionType, setEmotionType] = useState<string>('neutral');
   const [outputFormat, setOutputFormat] = useState<string>('mp3');
   const [textInput, setTextInput] = useState<string>('');
+  const [uploadingFile, setUploadingFile] = useState<boolean>(false);
+  const [contentHistory, setContentHistory] = useState<ContentHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
+  const [showAllHistory, setShowAllHistory] = useState<boolean>(false);
   
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
@@ -94,6 +98,90 @@ const Welcome: React.FC = () => {
   const emotionOptions = ['Nötr', 'Neşeli', 'Ciddi', 'Profesyonel', 'Heyecanlı', 'Sakin'];
   const formatOptions = ['MP3', 'WAV', 'AAC', 'FLAC', 'OGG'];
 
+  // URL conversion fonksiyonu
+  const convertToPlayableUrl = (url: string): string => {
+    if (!url) return '';
+    
+    console.log("🔄 Converting URL:", url);
+    
+    try {
+      // TTS audio URL'leri için /api prefix'i ekle
+      if (url.startsWith('/tts/')) {
+        url = `/api${url}`;
+        console.log("✅ Added /api prefix to TTS URL:", url);
+      }
+      
+      // API yolu kontrolü
+      if (url.startsWith('/api/')) {
+        // Development ortamında
+        if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+          const finalUrl = `http://localhost:5001${url}`;
+          console.log("🏠 Local development URL:", finalUrl);
+          return finalUrl;
+        }
+        
+        // Production ortamında
+        if (typeof window !== 'undefined' && window.location.hostname.includes('lingroot.com')) {
+          const finalUrl = `https://lingloops-backend.onrender.com${url}`;
+          console.log("🌐 Production URL:", finalUrl);
+          return finalUrl;
+        }
+        
+        console.log("📍 Using relative path:", url);
+        return url;
+      }
+      
+      // Tam URL kontrolü
+      if (url.startsWith('https://')) {
+        console.log("🔗 Full HTTPS URL:", url);
+        return url;
+      }
+      
+      console.log("❓ Unknown URL format:", url);
+      return url;
+    } catch (error) {
+      console.error("❌ URL dönüştürme hatası:", url, error);
+      return url;
+    }
+  };
+
+  // Content history'yi yüklemek için useEffect ekleyelim
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchContentHistory();
+    }
+  }, [isAuthenticated]);
+
+  // Content history'yi çeken fonksiyon
+  const fetchContentHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      console.log('fetchContentHistory başlatılıyor...');
+      const response = await getContentHistory();
+      console.log('getContentHistory response:', response);
+      
+      if (response.success && response.data) {
+        console.log('Content history data:', response.data);
+        // Backend'den gelen data yapısını kontrol et
+        if (Array.isArray(response.data)) {
+          setContentHistory(response.data);
+          console.log('Content history array olarak set edildi:', response.data.length, 'item');
+        } else {
+          console.log('Content history data array değil, boş array set ediliyor');
+          setContentHistory([]);
+        }
+      } else {
+        console.log('Response success false veya data yok');
+        setContentHistory([]);
+      }
+    } catch (error) {
+      console.error('Content history yüklenirken hata oluştu:', error);
+      setContentHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   const handleSubmit = async (inputData: InputData) => {
     setIsLoading(true);
     setError(null);
@@ -116,7 +204,16 @@ const Welcome: React.FC = () => {
           level: inputData.level
         });
         const input = inputData.type === 'text' ? inputData.text : inputData.input;
-        await submitContent(input || '', inputData.type, inputData.level, result.mp3_url);
+        try {
+          await submitContent(input || '', inputData.type, inputData.level, result.mp3_url);
+          console.log('İçerik başarıyla kaydedildi');
+          // Content history'yi yeniden yükle
+          fetchContentHistory();
+        } catch (submitError: any) {
+          console.error('İçerik kaydetme hatası (ses oluşturma başarılı):', submitError);
+          // İçerik kaydetme hatası olsa da ses oluşturma başarılı, kullanıcıya bilgi ver
+          setError(`Ses başarıyla oluşturuldu ancak kaydetme sırasında hata oluştu: ${submitError.message}`);
+        }
       } else {
         setError(result.message || t('audio_generation_failed'));
       }
@@ -125,6 +222,101 @@ const Welcome: React.FC = () => {
       setError(error.message || t('unexpected_error'));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Doküman yükleme fonksiyonu
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Dosya boyutu kontrolü (10MB limit)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Dosya boyutu 10MB\'dan büyük olamaz.');
+      return;
+    }
+    
+    // Dosya türü kontrolü
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'text/markdown',
+      'application/rtf',
+      'text/html',
+      'application/vnd.oasis.opendocument.text',
+      'application/epub+zip'
+    ];
+    
+    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|txt|md|rtf|html|odt|epub)$/i)) {
+      alert('Desteklenmeyen dosya türü. Lütfen PDF, DOC, DOCX, TXT, MD, RTF, HTML, ODT veya EPUB dosyası seçin.');
+      return;
+    }
+    
+    console.log('Dosya yükleniyor:', file.name, 'Boyut:', file.size, 'Tür:', file.type);
+    
+    try {
+      setUploadingFile(true);
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // API URL'ini oluştur - Welcome sayfası için direkt backend URL kullan
+      const apiUrl = process.env.NODE_ENV === 'development' 
+        ? 'http://localhost:5001/api/content/upload'
+        : 'https://lingloops-backend.onrender.com/api/content/upload';
+      
+      console.log('Upload API URL:', apiUrl);
+      
+      const res = await fetch(apiUrl, { 
+        method: 'POST', 
+        body: formData,
+        credentials: 'include'
+      });
+      
+      console.log('Upload response status:', res.status);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Upload error response:', errorText);
+        
+        let errorMessage = `Upload failed: ${res.status} ${res.statusText}`;
+        if (res.status === 404) {
+          errorMessage = 'Upload API endpoint bulunamadı. Backend çalışıyor mu?';
+        } else if (res.status === 500) {
+          errorMessage = 'Sunucu hatası. Backend loglarını kontrol edin.';
+        } else if (res.status === 413) {
+          errorMessage = 'Dosya çok büyük. Daha küçük bir dosya deneyin.';
+        } else if (res.status === 415) {
+          errorMessage = 'Desteklenmeyen dosya türü.';
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      const data = await res.json();
+      console.log('Upload response data:', data);
+      
+      if (data.text) {
+        setTextInput(data.text);
+        setContentType('text');
+        alert(`Dosya başarıyla yüklendi! ${data.text.length} karakter metin çıkarıldı.`);
+      } else if (data.error) {
+        throw new Error(data.error);
+      } else {
+        throw new Error('Dosyadan metin çıkarılamadı.');
+      }
+    } catch (error: any) {
+      console.error('File upload error:', error);
+      alert(`Dosya yükleme hatası: ${error.message || 'Bilinmeyen hata'}`);
+      
+      // Input'u temizle
+      if (e.target) {
+        e.target.value = '';
+      }
+    } finally {
+      setUploadingFile(false);
     }
   };
 
@@ -334,17 +526,82 @@ const Welcome: React.FC = () => {
                     </Button>
                   </div>
                 </div>
-                <div className="relative">
-                  <textarea
-                    value={textInput}
-                    onChange={(e) => setTextInput(e.target.value)}
-                    placeholder="İngilizce'ye çevirmek veya ses oluşturmak istediğiniz metni buraya girin..."
-                    className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
-                  />
-                  <button className="absolute bottom-3 right-3 text-gray-500 hover:text-blue-600 cursor-pointer">
-                    <i className="fas fa-edit text-xl"></i>
-                  </button>
-                </div>
+                {contentType === 'document' ? (
+                  <div className="space-y-4">
+                    <div className={`flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors ${
+                      uploadingFile 
+                        ? 'border-blue-500 bg-blue-50' 
+                        : 'border-gray-300 hover:border-blue-500'
+                    }`}>
+                      <div className="space-y-1 text-center">
+                        {uploadingFile ? (
+                          <>
+                            <svg className="mx-auto h-12 w-12 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <div className="text-sm text-blue-600 font-medium">
+                              Dosya yükleniyor...
+                            </div>
+                            <p className="text-xs text-blue-500">Lütfen bekleyin</p>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                              <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4-4m4-4h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                            <div className="flex text-sm text-gray-600">
+                              <label htmlFor="file-upload" className={`relative rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 ${
+                                uploadingFile 
+                                  ? 'cursor-not-allowed text-gray-400' 
+                                  : 'cursor-pointer bg-white text-blue-600 hover:text-blue-500'
+                              }`}>
+                                <span>Dosya Yükle</span>
+                                <input
+                                  id="file-upload"
+                                  name="file-upload"
+                                  type="file"
+                                  className="sr-only"
+                                  onChange={handleFileUpload}
+                                  accept=".pdf,.doc,.docx,.txt,.md,.rtf,.html,.odt,.epub"
+                                  disabled={uploadingFile}
+                                />
+                              </label>
+                              <p className="pl-1">veya sürükleyip bırakın</p>
+                            </div>
+                            <p className="text-xs text-gray-500">PDF, DOC, DOCX, TXT, MD, RTF, HTML, ODT, EPUB</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {textInput && (
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Çıkarılan Metin:
+                        </label>
+                        <textarea
+                          value={textInput}
+                          onChange={(e) => setTextInput(e.target.value)}
+                          className="w-full min-h-[150px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                          placeholder="Dosyadan çıkarılan metin burada görünecek..."
+                        />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <textarea
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      placeholder="İngilizce'ye çevirmek veya ses oluşturmak istediğiniz metni buraya girin..."
+                      className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                    />
+                    <button className="absolute bottom-3 right-3 text-gray-500 hover:text-blue-600 cursor-pointer">
+                      <i className="fas fa-edit text-xl"></i>
+                    </button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -506,6 +763,132 @@ const Welcome: React.FC = () => {
                   audioResult={audioResult} 
                   isLoggedIn={isAuthenticated}
                 />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Content History Section */}
+          {isAuthenticated && (
+            <Card className="mt-12 border-none shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold mr-4">
+                      <i className="fas fa-history"></i>
+                    </div>
+                    <h2 className="text-2xl font-bold text-purple-600">Ses Geçmişim</h2>
+                  </div>
+                  <Button 
+                    onClick={fetchContentHistory}
+                    variant="outline" 
+                    className="!rounded-button whitespace-nowrap cursor-pointer"
+                    disabled={loadingHistory}
+                  >
+                    {loadingHistory ? (
+                      <>
+                        <i className="fas fa-circle-notch fa-spin mr-2"></i>
+                        Yükleniyor
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-refresh mr-2"></i>
+                        Yenile
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {loadingHistory ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+                  </div>
+                ) : contentHistory.length > 0 ? (
+                  <div className="space-y-4">
+                    {(showAllHistory ? contentHistory : contentHistory.slice(0, 5)).map((item) => (
+                      <div key={item.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge variant="outline" className="text-xs">
+                                {(item.input_type || 'unknown').toUpperCase()}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                {item.level || 'N/A'}
+                              </Badge>
+                              <span className="text-xs text-gray-500">
+                                {new Date(item.created_at).toLocaleDateString('tr-TR', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                            <div className="mb-3">
+                              <h4 className="font-medium text-gray-800 mb-1">Orijinal Metin:</h4>
+                              <p className="text-sm text-gray-600 line-clamp-2">
+                                {item.input}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <audio 
+                              controls 
+                              className="w-64"
+                              src={convertToPlayableUrl(item.mp3_url)}
+                              preload="none"
+                              onError={(e) => {
+                                console.error("❌ Audio yükleme hatası:", e);
+                                console.error("❌ Audio src:", convertToPlayableUrl(item.mp3_url));
+                                console.error("❌ Audio error details:", e.currentTarget.error);
+                              }}
+                              onLoadStart={() => console.log("🔄 Audio yükleniyor:", convertToPlayableUrl(item.mp3_url))}
+                              onCanPlay={() => console.log("✅ Audio çalınmaya hazır:", convertToPlayableUrl(item.mp3_url))}
+                              onLoadedData={() => console.log("📊 Audio data yüklendi:", convertToPlayableUrl(item.mp3_url))}
+                              onPlay={() => console.log("▶️ Audio çalmaya başladı:", convertToPlayableUrl(item.mp3_url))}
+                              onPause={() => console.log("⏸️ Audio duraklatıldı:", convertToPlayableUrl(item.mp3_url))}
+                            >
+                              Tarayıcınız ses dosyasını desteklemiyor.
+                            </audio>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="!rounded-button whitespace-nowrap cursor-pointer"
+                              onClick={() => {
+                                // Ses dosyasını yeni sekmede aç
+                                window.open(convertToPlayableUrl(item.mp3_url), '_blank');
+                              }}
+                            >
+                              <i className="fas fa-external-link-alt"></i>
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {contentHistory.length > 5 && (
+                      <div className="text-center pt-4">
+                        <Button 
+                          variant="outline" 
+                          className="!rounded-button whitespace-nowrap cursor-pointer"
+                          onClick={() => setShowAllHistory(!showAllHistory)}
+                        >
+                          <i className={`fas ${showAllHistory ? 'fa-chevron-up' : 'fa-chevron-down'} mr-2`}></i>
+                          {showAllHistory ? 'Daha Az Göster' : 'Daha Fazla Göster'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-gray-400 mb-4">
+                      <i className="fas fa-microphone-slash text-4xl"></i>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-500 mb-2">Henüz ses kaydınız yok</h3>
+                    <p className="text-gray-400">İlk ses kaydınızı oluşturmak için yukarıdaki formu kullanın.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

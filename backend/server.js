@@ -23,6 +23,7 @@ const topicSuggestRoutes = require("./routes/topicSuggestRoutes");
 const topicDetailRoutes = require("./routes/topicDetailRoutes");
 const booksRouter = require("./routes/books");
 const userRoutes = require("./routes/userRoutes"); // 👈 İlgi alanları burada bağlandı
+const parameterRoutes = require("./routes/parameterRoutes");
 
 // Initialize Express app
 const app = express();
@@ -109,6 +110,7 @@ app.use("/api/topic-suggest", topicSuggestRoutes);
 app.use("/api/topic-detail", topicDetailRoutes);
 app.use("/api/books", booksRouter);
 app.use("/api", userRoutes); // ✅ user-interests endpoint burada aktif
+app.use("/api/parameters", parameterRoutes);
 app.use('/auth', authRoutes);
 
 // Health check endpoint (Render için)

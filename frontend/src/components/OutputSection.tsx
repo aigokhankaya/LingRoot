@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../lib/auth';
-import { getContentHistory, getApiUrl, API_BASE_URL } from '../lib/api';
+import { API_BASE_URL } from '../lib/api';
 
 interface Timepoint {
   timeSeconds: number;
@@ -16,17 +16,9 @@ interface AudioResult {
   original_turkish?: string;
 }
 
-interface ContentHistoryItem {
-  id: string;
-  input: string;
-  level: string;
-  created_at: string;
-}
-
 interface OutputSectionProps {
   audioResult?: AudioResult | null;
   isLoggedIn: boolean;
-  contentHistory?: ContentHistoryItem[];
 }
 
 interface SyncedTextPlayerProps {
@@ -72,9 +64,8 @@ function SyncedTextPlayer({ audioUrl, words, timepoints }: SyncedTextPlayerProps
   );
 }
 
-export default function OutputSection({ audioResult, isLoggedIn, contentHistory: propContentHistory }: OutputSectionProps) {
+export default function OutputSection({ audioResult, isLoggedIn }: OutputSectionProps) {
   const { user } = useAuth();
-  const [contentHistory, setContentHistory] = useState<ContentHistoryItem[]>(propContentHistory || []);
   const { message, mp3_url, vtt_url, level } = audioResult || {};
   
   console.log("audioResult:", audioResult);
@@ -86,6 +77,12 @@ export default function OutputSection({ audioResult, isLoggedIn, contentHistory:
     console.log("Converting URL:", url);
     
     try {
+      // TTS audio URL'leri için /api prefix'i ekle
+      if (url.startsWith('/tts/')) {
+        url = `/api${url}`;
+        console.log("Added /api prefix to TTS URL:", url);
+      }
+      
       // API yolu kontrolü
       if (url.startsWith('/api/')) {
         // Development ortamında getApiUrl() fonksiyonunu kullan
@@ -141,25 +138,7 @@ export default function OutputSection({ audioResult, isLoggedIn, contentHistory:
     }
   };
   
-  // Use prop contentHistory if provided, otherwise fetch from API
-  useEffect(() => {
-    if (propContentHistory) {
-      setContentHistory(propContentHistory);
-    } else if (isLoggedIn && !propContentHistory) {
-      const fetchHistory = async () => {
-        try {
-          const response = await getContentHistory();
-          if (response.success) {
-            setContentHistory(response.data);
-          }
-        } catch (error) {
-          console.error('Error fetching content history:', error);
-        }
-      };
-      
-      fetchHistory();
-    }
-  }, [isLoggedIn, propContentHistory]);
+
 
   // If no audio result, show empty state
   if (!audioResult || !mp3_url) {
@@ -221,32 +200,7 @@ export default function OutputSection({ audioResult, isLoggedIn, contentHistory:
           {audioResult.message}
         </div>
       </div>
-      {/* History Section (only for logged in users) */}
-      {isLoggedIn && contentHistory && contentHistory.length > 0 && (
-        <div className="mt-8 border-t border-gray-200 pt-6">
-          <h3 className="text-lg font-medium text-gray-800 mb-4">Recent History</h3>
-          <div className="space-y-3">
-            {contentHistory.slice(0, 5).map((item) => (
-              <div key={item.id} className="p-3 bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow cursor-pointer">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-sm text-gray-800 font-medium truncate">{item.input}</p>
-                    <p className="text-xs text-gray-500 mt-1">Level: {item.level}</p>
-                  </div>
-                  <span className="text-xs text-gray-400">
-                    {new Date(item.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-          {contentHistory.length > 5 && (
-            <button className="mt-4 text-sm text-blue-600 hover:text-blue-800 font-medium">
-              View all history
-            </button>
-          )}
-        </div>
-      )}
+
     </div>
   );
 } 

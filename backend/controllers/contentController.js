@@ -121,6 +121,95 @@ exports.processHashtag = async (req, res) => {
  */
 exports.getContentHistory = async (req, res) => {
   const userId = req.user.id;
+  
+  // User ID'yi validate et
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  
+  if (userId === 'dev-user-123' || !uuidRegex.test(userId)) {
+    logger.warn(`Invalid or mock user ID in getContentHistory: ${userId}. Returning mock data.`);
+    // Mock data döndür
+    const mockHistory = [
+      {
+        id: 'mock-1',
+        input: 'Bu bir örnek Türkçe metindir. Test modunda kullanılıyor.',
+        input_type: 'text',
+        level: 'A2',
+        mp3_url: '/api/mock-audio.mp3',
+        created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+        user_id: userId
+      }
+    ];
+    return res.json({ success: true, data: mockHistory });
+  }
+  
+  // Check if mock content history mode is enabled from parameters table
+  try {
+    const { data: paramData, error: paramError } = await supabase
+      .from('parameters')
+      .select('value')
+      .eq('key', 'mock_content_save_enabled')
+      .single();
+
+    const mockContentSaveEnabled = paramData?.value === 'true' || paramData?.value === true;
+
+    if (mockContentSaveEnabled) {
+      logger.info(`Mock content save mode enabled: Returning mock content history for user ${userId}`);
+      
+      const mockHistory = [
+        {
+          id: 'mock-1',
+          input: 'Bu bir örnek Türkçe metindir. Test modunda kullanılıyor.',
+          input_type: 'text',
+          level: 'A2',
+          mp3_url: '/api/mock-audio.mp3',
+          created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
+          user_id: userId
+        },
+        {
+          id: 'mock-2',
+          input: 'Yapay zeka teknolojileri hakkında bilgi almak istiyorum.',
+          input_type: 'topic',
+          level: 'B1',
+          mp3_url: '/api/mock-audio.mp3',
+          created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+          user_id: userId
+        },
+        {
+          id: 'mock-3',
+          input: 'İngilizce öğrenmenin en etkili yolları nelerdir?',
+          input_type: 'text',
+          level: 'B2',
+          mp3_url: '/api/mock-audio.mp3',
+          created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
+          user_id: userId
+        },
+        {
+          id: 'mock-4',
+          input: 'Seyahat planları ve tatil önerileri',
+          input_type: 'topic',
+          level: 'A1',
+          mp3_url: '/api/mock-audio.mp3',
+          created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days ago
+          user_id: userId
+        },
+        {
+          id: 'mock-5',
+          input: 'Teknoloji ve gelecek hakkında düşüncelerim',
+          input_type: 'text',
+          level: 'C1',
+          mp3_url: '/api/mock-audio.mp3',
+          created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(), // 3 days ago
+          user_id: userId
+        }
+      ];
+      
+      return res.json({ success: true, data: mockHistory });
+    }
+  } catch (paramError) {
+    logger.warn(`Could not check mock_content_save_enabled parameter: ${paramError.message}`);
+    // Continue with normal processing if parameter check fails
+  }
+
   const { data, error } = await supabase
     .from('contenthistory')
     .select('*')
@@ -310,8 +399,60 @@ exports.submitContent = async (req, res) => {
         logger.info(`Converted Google Drive URL to direct download link: ${convertedMp3Url}`);
     }
 
+    // Check if mock content save mode is enabled from parameters table
+    try {
+      const { data: paramData, error: paramError } = await supabase
+        .from('parameters')
+        .select('value')
+        .eq('key', 'mock_content_save_enabled')
+        .single();
+
+      const mockContentSaveEnabled = paramData?.value === 'true' || paramData?.value === true;
+
+      if (mockContentSaveEnabled) {
+        logger.info(`Mock content save mode enabled: Skipping database save`);
+        return res.status(200).json({
+          success: true,
+          message: "İçerik başarıyla kaydedildi (Test Modu).",
+          mp3_url: convertedMp3Url,
+          data: {
+            id: 'mock-content-id-' + Date.now(),
+            input,
+            input_type,
+            level,
+            mp3_url: convertedMp3Url,
+            user_id: user_id,
+            created_at: new Date().toISOString()
+          },
+        });
+      }
+    } catch (paramError) {
+      logger.warn(`Could not check mock_content_save_enabled parameter: ${paramError.message}`);
+      // Continue with normal processing if parameter check fails
+    }
+
+    // User ID'yi UUID formatına çevir ve validate et
+    let validUserId = user_id;
+    
+    // UUID format kontrolü (36 karakter, 8-4-4-4-12 format)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    
+    if (!user_id || user_id === 'anon') {
+      // Anonymous user için null kullan
+      validUserId = null;
+    } else if (user_id === 'dev-user-123') {
+      // Development mock user için null kullan (production'da da güvenli)
+      logger.warn(`Mock user ID detected in production: ${user_id}. Using null instead.`);
+      validUserId = null;
+    } else if (!uuidRegex.test(user_id)) {
+      // Geçersiz UUID formatı için null kullan
+      logger.warn(`Invalid UUID format for user_id: ${user_id}. Using null instead.`);
+      validUserId = null;
+    }
+    
     // Supabase veritabanına kaydet
-    logger.info(`Saving content history to database for user ID: ${user_id || 'anon'}`);
+    logger.info(`Saving content history to database for user ID: ${validUserId}`);
+    const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('contenthistory')
       .insert([
@@ -320,7 +461,9 @@ exports.submitContent = async (req, res) => {
           input_type,
           level,
           mp3_url: convertedMp3Url,
-          user_id: user_id || "anon", // Artık user_id JWT'den geliyor
+          user_id: validUserId,
+          created_at: now,
+          updated_at: now,
         },
       ])
       .select();
@@ -371,6 +514,25 @@ exports.createContent = async (req, res) => {
 
     const { input, input_type, level, mp3_url } = req.body;
 
+    // User ID'yi UUID formatına çevir ve validate et
+    let validUserId = userId;
+    
+    // UUID format kontrolü (36 karakter, 8-4-4-4-12 format)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    
+    if (!userId || userId === 'anon') {
+      validUserId = null;
+    } else if (userId === 'dev-user-123') {
+      // Development mock user için null kullan (production'da da güvenli)
+      logger.warn(`Mock user ID detected in production: ${userId}. Using null instead.`);
+      validUserId = null;
+    } else if (!uuidRegex.test(userId)) {
+      // Geçersiz UUID formatı için null kullan
+      logger.warn(`Invalid UUID format for user_id: ${userId}. Using null instead.`);
+      validUserId = null;
+    }
+
+    const now = new Date().toISOString();
     const { data, error } = await supabase
       .from("contenthistory")
       .insert([
@@ -379,7 +541,9 @@ exports.createContent = async (req, res) => {
           input_type,
           level,
           mp3_url,
-          user_id: userId,
+          user_id: validUserId,
+          created_at: now,
+          updated_at: now,
         },
       ])
       .select();

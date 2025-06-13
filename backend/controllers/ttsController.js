@@ -85,6 +85,67 @@ const processTtsRequest = async (req, res) => {
     let tempFilePath = null;
     let detectedLang = 'en';
 
+    // Check if mock TTS mode is enabled from parameters table
+    try {
+        const { data: paramData, error: paramError } = await supabase
+            .from('parameters')
+            .select('value')
+            .eq('key', 'mock_tts_enabled')
+            .single();
+
+        const mockTtsEnabled = paramData?.value === 'true' || paramData?.value === true;
+
+        if (mockTtsEnabled) {
+            logger.info(`[${requestId}] Mock TTS mode enabled - returning mock TTS response`);
+            
+            // Mock English text based on input type
+            let mockEnglishText = "This is a sample English text for testing purposes. It demonstrates how the text-to-speech system works with different English proficiency levels. The content is automatically adapted to match your selected learning level.";
+            
+            // Adapt mock text based on level
+            const level = req.body.level || "A1";
+            if (level === "A1") {
+                mockEnglishText = "This is easy English text. It is good for beginners. You can learn English with this text. It has simple words and short sentences.";
+            } else if (level === "A2") {
+                mockEnglishText = "This is simple English text for learning. It helps you practice reading and listening. The sentences are not too difficult. You can understand most words easily.";
+            } else if (level === "B1") {
+                mockEnglishText = "This is intermediate English content designed for learners. It contains more complex vocabulary and sentence structures. You should be able to understand the main ideas and most details.";
+            } else if (level === "B2") {
+                mockEnglishText = "This is upper-intermediate English material that challenges your comprehension skills. It includes sophisticated vocabulary and varied sentence patterns that will help improve your language proficiency.";
+            } else if (level === "C1") {
+                mockEnglishText = "This is advanced English content featuring complex linguistic structures and nuanced expressions. It requires a high level of comprehension and familiarity with idiomatic language usage.";
+            } else if (level === "C2") {
+                mockEnglishText = "This is proficiency-level English text that demonstrates mastery of the language through sophisticated discourse, subtle implications, and advanced rhetorical devices that native speakers would naturally employ.";
+            }
+
+            // For mock mode, just return the external mock audio URL directly
+            // This bypasses our buffer system entirely
+            const mockMp3Url = "https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3";
+            const mockVttUrl = "/api/mock-subtitles.vtt";
+
+            // Create realistic timepoints based on text length
+            const words = mockEnglishText.split(' ');
+            const timepoints = words.map((_, index) => ({
+                timeSeconds: index * 0.6 // Approximately 0.6 seconds per word
+            }));
+
+            logger.info(`[${requestId}] Mock TTS response created with external audio URL`);
+
+            return res.status(200).json({
+                success: true,
+                message: mockEnglishText,
+                mp3_url: mockMp3Url,
+                vtt_url: mockVttUrl,
+                level: level,
+                timepoints: timepoints,
+                words: words,
+                original_turkish: req.body.input || "Bu test modunda örnek bir Türkçe metindir."
+            });
+        }
+    } catch (paramError) {
+        logger.warn(`[${requestId}] Could not check mock_tts_enabled parameter: ${paramError.message}`);
+        // Continue with normal processing if parameter check fails
+    }
+
     try {
         // --- Input Parsing ---
         logRequestStep(requestId, 'input:parse', { body: req.body });
@@ -320,9 +381,12 @@ const processTtsRequest = async (req, res) => {
         const languageCode = 'en-US';
         const adaptedText = finalChunks.join('\n\n');
         logRequestStep(requestId, 'tts:start', { chunkCount: finalChunks.length, voice: selectedVoice, speakingRate });
-        // --- TTS provider seçimi ---
+        // --- TTS Processing ---
+        logger.info(`[${requestId}] Step 5: Starting TTS processing...`);
         const ttsProvider = await getTtsProvider();
-        let audioBase64;
+        logger.info(`[${requestId}] 🔧 TTS Provider: ${ttsProvider}`);
+        
+        let audioBase64 = null;
         if (ttsProvider === 'google') {
             const audioBuffers = [];
             for (const [i, chunk] of finalChunks.entries()) {
@@ -365,60 +429,62 @@ const processTtsRequest = async (req, res) => {
         });
         logRequestStep(requestId, 'tts:end', { audioLength: audioBase64.length });
 
-        // --- Step 5.5: Generate VTT from timepoints ---
-        let vttUrl = "";
-        if (audioBase64) {
-            // Supabase'e yükle
-            const vttFilename = `lingroot_${level}_${uuidv4()}.vtt`;
-            vttUrl = await uploadToSupabase(audioBase64, vttFilename);
-        }
-
-        // --- Step 6: Save Audio to Temp File
-        logger.info(`[${requestId}] Step 6: Saving audio to temp file...`);
+        // --- Step 6: Save Audio to Temp File and Upload to Supabase
+        logger.info(`[${requestId}] Step 6: Saving audio to temp file and uploading to Supabase...`);
         const uniqueId = uuidv4();
         const outputFilename = `lingroot_${level}_${uniqueId}.mp3`;
         tempFilePath = path.join(os.tmpdir(), outputFilename);
         fs.writeFileSync(tempFilePath, Buffer.from(audioBase64, 'base64'));
         logger.info(`[${requestId}] Audio saved to temp file: ${tempFilePath}`);
 
-        // Store the audio file for access via API
+        // Upload to Supabase Storage
+        let mp3Url = "";
+        try {
+            const mp3Filename = `lingroot_${level}_${uniqueId}.mp3`;
+            mp3Url = await uploadToSupabase(tempFilePath, mp3Filename);
+            logger.info(`[${requestId}] Audio uploaded to Supabase: ${mp3Url}`);
+        } catch (uploadError) {
+            logger.error(`[${requestId}] Failed to upload audio to Supabase: ${uploadError.message}`);
+            // Continue without Supabase upload - will use temp file
+        }
+
+        // Store the audio file for access via API (for immediate access)
+        logger.info(`[${requestId}] 🔄 Adding audio to tempAudioFiles with ID: ${uniqueId}`);
+        logger.info(`[${requestId}] 🔄 audioBase64 length: ${audioBase64 ? audioBase64.length : 'null'}`);
+        logger.info(`[${requestId}] 🔄 tempAudioFiles size before: ${tempAudioFiles.size}`);
+        
         tempAudioFiles.set(uniqueId, {
             path: tempFilePath,
             buffer: Buffer.from(audioBase64, 'base64'),
-            createdAt: new Date()
+            createdAt: new Date(),
+            supabaseUrl: mp3Url // Store Supabase URL for reference
         });
+        
+        logger.info(`[${requestId}] 🔄 tempAudioFiles size after: ${tempAudioFiles.size}`);
+        logger.info(`[${requestId}] 🔄 tempAudioFiles keys: ${Array.from(tempAudioFiles.keys()).join(', ')}`);
 
-        // Only clean up temp file after successful upload to Supabase
-        // Do NOT clean up here - we keep it for the API endpoint
-        // cleanupTempFile(tempFilePath);
-
-        // --- Step 8: Return Success Response (Updated Format) ---
+        // --- Step 7: Return Success Response (Updated Format) ---
         logger.info(`[${requestId}] Processing complete. Returning success response.`);
         
-        // Supabase'e yükle
-        let mp3Url = "";
-        if (audioBase64) {
-            const mp3Filename = `lingroot_${level}_${uniqueId}.mp3`;
-            mp3Url = await uploadToSupabase(audioBase64, mp3Filename);
-            logger.info(`[${requestId}] Audio uploaded to Supabase: ${mp3Url}`);
-        }
+        // Generate VTT URL (placeholder for now)
+        const vttUrl = `/api/mock-subtitles.vtt`;
 
-        // Create API endpoint URL for accessing the audio
-        const apiAudioUrl = `/api/tts/audio/${uniqueId}`;
+        // Use Supabase URL if available, otherwise use API endpoint URL
+        const finalMp3Url = mp3Url || `/api/tts/audio/${uniqueId}`;
         
         logStep({
             requestId,
             stepName: 'tts:success',
             stepSequence: stepSequence++,
             status: 'success',
-            outputData: { mp3_url: apiAudioUrl, vtt_url: vttUrl }
+            outputData: { mp3_url: finalMp3Url, vtt_url: vttUrl, supabase_url: mp3Url }
         });
         return res.status(200).json({
             success: true,
             message: adaptedText,
             level: level,
             input_language: detectedLang,
-            mp3_url: apiAudioUrl, // Use API endpoint URL instead of temp file path
+            mp3_url: finalMp3Url, // Use Supabase URL if available, otherwise API endpoint
             words: [],
             timepoints: [],
             vtt_url: vttUrl,
@@ -451,16 +517,63 @@ const processTtsRequest = async (req, res) => {
 };
 
 // Endpoint to serve audio files
-const getAudioFile = (req, res) => {
+const getAudioFile = async (req, res) => {
     const audioId = req.params.id;
+    logger.info(`🎵 getAudioFile called with audioId: ${audioId}`);
+    logger.info(`📦 tempAudioFiles size: ${tempAudioFiles.size}`);
+    logger.info(`🔑 tempAudioFiles keys: ${Array.from(tempAudioFiles.keys()).join(', ')}`);
+    
     const audioData = tempAudioFiles.get(audioId);
     
     if (!audioData) {
-        return res.status(404).json({ success: false, message: "Audio file not found" });
+        logger.warn(`❌ Audio file not found in temp storage: ${audioId}. Checking Supabase Storage...`);
+        
+        // Check if file exists in Supabase Storage
+        try {
+            const { data: contentData, error: contentError } = await supabase
+                .from('contenthistory')
+                .select('mp3_url')
+                .eq('id', audioId)
+                .single();
+
+            if (contentError || !contentData?.mp3_url) {
+                logger.warn(`❌ Audio file not found in database: ${audioId}. Serving mock audio.`);
+                const mockAudioUrl = "https://file-examples.com/storage/fe68c1b7b1b2e0c2b5b7e8b/2017/11/file_example_MP3_700KB.mp3";
+                logger.info(`🔄 Redirecting to mock audio: ${mockAudioUrl}`);
+                return res.redirect(mockAudioUrl);
+            }
+
+            // If mp3_url is a Supabase Storage URL, redirect to it
+            if (contentData.mp3_url.includes('supabase')) {
+                logger.info(`🔄 Redirecting to Supabase Storage URL: ${contentData.mp3_url}`);
+                return res.redirect(contentData.mp3_url);
+            } else {
+                // If it's an external URL (like mock), redirect to it
+                logger.info(`🔄 Redirecting to external URL: ${contentData.mp3_url}`);
+                return res.redirect(contentData.mp3_url);
+            }
+        } catch (error) {
+            logger.error(`❌ Error checking Supabase Storage: ${error.message}`);
+            const mockAudioUrl = "https://file-examples.com/storage/fe68c1b7b1b2e0c2b5b7e8b/2017/11/file_example_MP3_700KB.mp3";
+            logger.info(`🔄 Redirecting to mock audio: ${mockAudioUrl}`);
+            return res.redirect(mockAudioUrl);
+        }
     }
     
+    logger.info(`✅ Audio file found in temp storage: ${audioId}, buffer size: ${audioData.buffer.length}`);
+    
+    // Debug: Log first few bytes to check if it's a valid MP3
+    const firstBytes = audioData.buffer.slice(0, 16);
+    logger.info(`🔍 First 16 bytes of audio buffer: ${Array.from(firstBytes).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}`);
+    logger.info(`🔍 First 4 bytes as string: ${firstBytes.slice(0, 4).toString()}`);
+    
+    // Check if it starts with MP3 header (0xFF 0xFB or ID3)
+    const isMP3Header = (firstBytes[0] === 0xFF && (firstBytes[1] & 0xE0) === 0xE0) || 
+                       firstBytes.slice(0, 3).toString() === 'ID3';
+    logger.info(`🔍 Is valid MP3 header: ${isMP3Header}`);
+    
     // Set proper CORS and cache headers
-    res.set({
+    const headers = {
         'Content-Type': 'audio/mpeg',
         'Content-Disposition': `inline; filename="audio_${audioId}.mp3"`,
         'Content-Length': audioData.buffer.length,
@@ -470,17 +583,21 @@ const getAudioFile = (req, res) => {
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Range',
         'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges'
-    });
+    };
+    
+    logger.info(`📋 Setting headers:`, headers);
+    res.set(headers);
     
     // Handle range requests for better audio streaming
     const range = req.headers.range;
     if (range) {
+        logger.info(`📏 Range request detected: ${range}`);
         const parts = range.replace(/bytes=/, "").split("-");
         const start = parseInt(parts[0], 10);
         const end = parts[1] ? parseInt(parts[1], 10) : audioData.buffer.length - 1;
         const chunksize = (end - start) + 1;
         
-        const headers = {
+        const rangeHeaders = {
             'Content-Range': `bytes ${start}-${end}/${audioData.buffer.length}`,
             'Accept-Ranges': 'bytes',
             'Content-Length': chunksize,
@@ -488,11 +605,14 @@ const getAudioFile = (req, res) => {
             'Access-Control-Allow-Origin': '*'
         };
         
-        res.writeHead(206, headers);
+        logger.info(`📏 Range headers:`, rangeHeaders);
+        res.writeHead(206, rangeHeaders);
         const bufferSlice = audioData.buffer.slice(start, end + 1);
+        logger.info(`📏 Sending range response: ${start}-${end}/${audioData.buffer.length}, chunk size: ${chunksize}`);
         return res.end(bufferSlice);
     }
     
+    logger.info(`📤 Sending full audio buffer: ${audioData.buffer.length} bytes`);
     return res.send(audioData.buffer);
 };
 

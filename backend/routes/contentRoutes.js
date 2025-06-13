@@ -35,7 +35,7 @@ router.delete('/history/:id', authenticate, contentController.deleteContent);
 router.post('/', authenticate, contentController.createContent);
 // router.get('/history', authenticate, contentController.getUserContentHistory); // ÇAKIŞMA ÖNLENDİ
 
-router.post('/api/upload', upload.single('file'), async (req, res) => {
+router.post('/upload', upload.single('file'), async (req, res) => {
   const file = req.file;
   const ext = path.extname(file.originalname).toLowerCase();
   let text = '';

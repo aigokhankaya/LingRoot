@@ -62,7 +62,38 @@ router.post(
 );
 
 // Add route to serve audio files
-router.get("/audio/:id", getAudioFile);
+router.get("/audio/:id", (req, res, next) => {
+  logger.info(`TTS audio route called: /audio/${req.params.id}`);
+  logger.info(`Request headers:`, req.headers);
+  getAudioFile(req, res, next);
+});
+
+// Mock audio file for development and fallback
+router.get("/mock-audio.mp3", (req, res) => {
+  // Serve a simple audio file or redirect to a public audio URL
+  // Using a text-to-speech sample that sounds more realistic
+  const mockAudioUrl = "https://file-examples.com/storage/fe68c1b7b1b2e0c2b5b7e8b/2017/11/file_example_MP3_700KB.mp3";
+  res.redirect(mockAudioUrl);
+});
+
+// Mock VTT file for development
+router.get("/mock-subtitles.vtt", (req, res) => {
+  if (process.env.NODE_ENV !== 'development') {
+    return res.status(404).json({ error: "Not found" });
+  }
+  
+  res.setHeader('Content-Type', 'text/vtt');
+  res.send(`WEBVTT
+
+00:00.000 --> 00:02.000
+This is a sample subtitle
+
+00:02.000 --> 00:04.000
+for development purposes
+
+00:04.000 --> 00:06.000
+showing synchronized text`);
+});
 
 // Other TTS Utility Endpoints
 router.post("/translateToEnglish", translateToEnglish);

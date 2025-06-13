@@ -32,20 +32,17 @@ export const TRANSCRIPT_SERVICE_URL = process.env.NEXT_PUBLIC_TRANSCRIPT_SERVICE
 export const getApiUrl = (endpoint: string): string => {
   const baseUrl = getApiBaseUrl();
   
-  // Normalize endpoint - remove leading slash if present
-  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+  // Clean up endpoint - remove leading slash if present
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
   
-  if (baseUrl) {
-    // If baseUrl already ends with /api, don't add it again
-    if (baseUrl.endsWith('/api')) {
-      return `${baseUrl}/${normalizedEndpoint}`;
-    } else {
-      return `${baseUrl}/api/${normalizedEndpoint}`;
-    }
-  }
+  // If the endpoint already starts with api, don't add it again
+  const apiPath = cleanEndpoint.startsWith('api') ? `/${cleanEndpoint}` : `/api/${cleanEndpoint}`;
+  
+  // For direct backend URLs
+  if (baseUrl) return `${baseUrl}${apiPath}`;
   
   // For relative URLs (fallback)
-  return `/api/${normalizedEndpoint}`;
+  return apiPath;
 };
 
 // Create a configured axios instance
@@ -291,7 +288,7 @@ export const submitContent = async (
     level: string,
     mp3Url: string
 ): Promise<ApiResponse> => {
-    const url = `${API_BASE_URL}/content/submit`;
+    const url = getApiUrl('/content/submit');
     const headers = createHeaders("application/json");
 
     const body = JSON.stringify({
@@ -303,12 +300,24 @@ export const submitContent = async (
 
     try {
         console.log(`Calling Submit Content API: ${url}`);
+        console.log('Headers:', headers);
+        console.log('Body:', body);
+        
         const response = await fetch(url, {
             method: "POST",
             headers: headers,
             body: body,
             credentials: 'include'
         });
+        
+        console.log('Submit Content Response Status:', response.status, response.statusText);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Submit Content Error Response:', errorText);
+            throw new Error(`Submit Content failed: ${response.status} ${response.statusText} - ${errorText}`);
+        }
+        
         return await handleApiResponse(response);
     } catch (error) {
         console.error("Submit Content API call error:", error);
@@ -319,34 +328,11 @@ export const submitContent = async (
 // Function to get content history for the authenticated user
 export const getContentHistory = async (): Promise<ApiResponse> => {
   try {
-    // Development ortamında mock veri döndür
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Development ortamında mock içerik geçmişi döndürülüyor');
-      return {
-        success: true,
-        data: {
-          history: [
-            {
-              id: 'mock-1',
-              title: 'Mock İçerik 1',
-              type: 'text',
-              createdAt: new Date().toISOString(),
-              content: 'Bu bir örnek içeriktir.'
-            },
-            {
-              id: 'mock-2',
-              title: 'Mock İçerik 2',
-              type: 'youtube',
-              createdAt: new Date(Date.now() - 86400000).toISOString(),
-              content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-            }
-          ]
-        }
-      };
-    }
-
-    const url = `${API_BASE_URL}/content/history`;
+    const url = getApiUrl('/content/history');
     const headers = createHeaders();
+    
+    console.log('Content history API çağrısı yapılıyor:', url);
+    console.log('Headers:', headers);
     
     const response = await fetch(url, {
       method: "GET",
@@ -354,7 +340,18 @@ export const getContentHistory = async (): Promise<ApiResponse> => {
       credentials: 'include'
     });
     
-    return await handleApiResponse(response);
+    console.log('Content history response status:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Content history error response:', errorText);
+      throw new Error(`Content history failed: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+    
+    const result = await handleApiResponse(response);
+    console.log('Content history result:', result);
+    
+    return result;
   } catch (error) {
     console.error("İçerik geçmişi alınırken hata oluştu:", error);
     throw error;

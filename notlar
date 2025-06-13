@@ -1,0 +1,9 @@
+   # Mock TTS'i etkinleştir
+   curl -X POST http://localhost:5001/api/parameters/toggle-mock-tts \
+     -H "Content-Type: application/json" \
+     -d '{"enabled": true}'
+   
+   # Mock content save'i etkinleştir  
+   curl -X POST http://localhost:5001/api/parameters/toggle-mock-content-save \
+     -H "Content-Type: application/json" \
+     -d '{"enabled": true}'

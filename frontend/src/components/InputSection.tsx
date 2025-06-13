@@ -80,6 +80,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [selectedDetailTopic, setSelectedDetailTopic] = useState<string>('');
   const [showInterestManager, setShowInterestManager] = useState<boolean>(false);
   const [loadingTranscript, setLoadingTranscript] = useState<boolean>(false);
+  const [uploadingFile, setUploadingFile] = useState<boolean>(false);
 
   useEffect(() => {
     setSpeakingRate(level === 'A1' ? 0.8 : 1.0);
@@ -421,37 +422,110 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const formData = new FormData();
-    formData.append('file', file);
     
-    // Next.js proxy kullan (CORS sorununu engeller)
-    const apiUrl = `${getApiUrl('/upload')}`;
+    // Dosya boyutu kontrolü (10MB limit)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Dosya boyutu 10MB\'dan büyük olamaz.');
+      return;
+    }
     
-    const res = await fetch(apiUrl, { 
-      method: 'POST', 
-      body: formData,
-      // Çerezleri dahil et (gerekiyorsa)
-      credentials: 'include'
-    });
+    // Dosya türü kontrolü
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'text/markdown',
+      'application/rtf',
+      'text/html',
+      'application/vnd.oasis.opendocument.text',
+      'application/epub+zip'
+    ];
     
-    const data = await res.json();
-    if (data.text) {
-      setText(data.text); // textarea'ya yaz
-      setInputType('text'); // metin moduna geç
-      // Otomatik submit
-      setTimeout(() => {
-        const inputData: ProcessInputData = {
-          type: 'text',
-          text: data.text,
-          input: data.text,
-          file: undefined,
-          level,
-          SesHızı: speakingRate,
-          voice,
-          chapter: undefined,
-        };
-        onSubmit(inputData);
-      }, 100);
+    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|txt|md|rtf|html|odt|epub)$/i)) {
+      alert('Desteklenmeyen dosya türü. Lütfen PDF, DOC, DOCX, TXT, MD, RTF, HTML, ODT veya EPUB dosyası seçin.');
+      return;
+    }
+    
+    console.log('Dosya yükleniyor:', file.name, 'Boyut:', file.size, 'Tür:', file.type);
+    
+    try {
+      // Loading state'i ayarla
+      setUploadingFile(true);
+      setFile(file);
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      // API URL'ini oluştur
+      const apiUrl = getApiUrl('/content/upload');
+      console.log('Upload API URL:', apiUrl);
+      
+      const res = await fetch(apiUrl, { 
+        method: 'POST', 
+        body: formData,
+        credentials: 'include'
+      });
+      
+      console.log('Upload response status:', res.status);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Upload error response:', errorText);
+        
+        // Daha detaylı hata mesajları
+        let errorMessage = `Upload failed: ${res.status} ${res.statusText}`;
+        if (res.status === 404) {
+          errorMessage = 'Upload API endpoint bulunamadı. Backend çalışıyor mu?';
+        } else if (res.status === 500) {
+          errorMessage = 'Sunucu hatası. Backend loglarını kontrol edin.';
+        } else if (res.status === 413) {
+          errorMessage = 'Dosya çok büyük. Daha küçük bir dosya deneyin.';
+        } else if (res.status === 415) {
+          errorMessage = 'Desteklenmeyen dosya türü.';
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      const data = await res.json();
+      console.log('Upload response data:', data);
+      
+      if (data.text) {
+        setText(data.text); // textarea'ya yaz
+        setInputType('text'); // metin moduna geç
+        alert(`Dosya başarıyla yüklendi! ${data.text.length} karakter metin çıkarıldı.`);
+        
+        // Otomatik submit
+        setTimeout(() => {
+          const inputData: ProcessInputData = {
+            type: 'text',
+            text: data.text,
+            input: data.text,
+            file: undefined,
+            level,
+            SesHızı: speakingRate,
+            voice,
+            chapter: undefined,
+          };
+          onSubmit(inputData);
+        }, 100);
+      } else if (data.error) {
+        throw new Error(data.error);
+      } else {
+        throw new Error('Dosyadan metin çıkarılamadı.');
+      }
+    } catch (error: any) {
+      console.error('File upload error:', error);
+      alert(`Dosya yükleme hatası: ${error.message || 'Bilinmeyen hata'}`);
+      setFile(null); // Hata durumunda file state'ini temizle
+      
+      // Input'u temizle
+      if (e.target) {
+        e.target.value = '';
+      }
+    } finally {
+      setUploadingFile(false);
     }
   };
 
@@ -739,33 +813,64 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                 <label htmlFor="file-input" className="block text-sm font-semibold text-gray-700">
                   {t('select_document')}
                 </label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-500 transition-colors">
+                <div className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors ${
+                  uploadingFile 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-300 hover:border-blue-500'
+                }`}>
                   <div className="space-y-1 text-center">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4-4m4-4h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <div className="flex text-sm text-gray-600">
-                      <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
-                        <span>{t('upload_file')}</span>
-                        <input
-                          id="file-upload"
-                          name="file-upload"
-                          type="file"
-                          className="sr-only"
-                          onChange={handleFileUpload}
-                          accept=".pdf,.doc,.docx,.txt,.md,.rtf,.html,.odt,.epub"
-                        />
-                      </label>
-                      <p className="pl-1">{t('or_drag_and_drop')}</p>
-                    </div>
-                    <p className="text-xs text-gray-500">{t('supported_file_types')}</p>
+                    {uploadingFile ? (
+                      <>
+                        <svg className="mx-auto h-12 w-12 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <div className="text-sm text-blue-600 font-medium">
+                          Dosya yükleniyor...
+                        </div>
+                        <p className="text-xs text-blue-500">Lütfen bekleyin</p>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                          <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4-4m4-4h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <div className="flex text-sm text-gray-600">
+                          <label htmlFor="file-upload" className={`relative rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 ${
+                            uploadingFile 
+                              ? 'cursor-not-allowed text-gray-400' 
+                              : 'cursor-pointer bg-white text-blue-600 hover:text-blue-500'
+                          }`}>
+                            <span>{t('upload_file')}</span>
+                            <input
+                              id="file-upload"
+                              name="file-upload"
+                              type="file"
+                              className="sr-only"
+                              onChange={handleFileUpload}
+                              accept=".pdf,.doc,.docx,.txt,.md,.rtf,.html,.odt,.epub"
+                              disabled={uploadingFile}
+                            />
+                          </label>
+                          <p className="pl-1">{t('or_drag_and_drop')}</p>
+                        </div>
+                        <p className="text-xs text-gray-500">{t('supported_file_types')}</p>
+                      </>
+                    )}
                   </div>
                 </div>
-                {file && (
-                  <p className="text-sm text-gray-500">
-                    {t('selected_file')}: {file.name}
-                  </p>
+                {file && !uploadingFile && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-700 font-medium">
+                      ✅ {t('selected_file')}: {file.name}
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      Boyut: {(file.size / 1024).toFixed(1)} KB
+                    </p>
+                  </div>
                 )}
+                
+
               </div>
             )}
 

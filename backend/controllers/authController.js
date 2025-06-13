@@ -169,32 +169,45 @@ exports.login = async (req, res) => {
       return res.status(400).json({ success: false, message: "Lütfen e-posta ve şifre girin" });
     }
 
-    // DEVELOPMENT MODE: Allow any email/password combination
-    if (process.env.NODE_ENV === 'development') {
-      logger.info('[LOGIN] Development mode - allowing mock login for:', email);
-      
-      const mockUser = {
-        id: 'dev-user-123',
-        email: email,
-        name: 'Development User',
-        role: 'user',
-        membership_status: 'premium',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      
-      const token = generateToken(mockUser.id, mockUser.email, mockUser.role);
-      const refreshToken = generateRefreshToken(mockUser.id);
-      
-      return res.status(200).json({
-        success: true,
-        message: "Giriş başarılı (Development Mode)",
-        data: {
-          user: mockUser,
-          token,
-          refreshToken
-        }
-      });
+    // Check if mock auth mode is enabled from parameters table
+    try {
+      const { data: paramData, error: paramError } = await supabase
+        .from('parameters')
+        .select('value')
+        .eq('key', 'mock_auth_enabled')
+        .single();
+
+      const mockAuthEnabled = paramData?.value === 'true' || paramData?.value === true;
+
+      if (mockAuthEnabled) {
+        logger.info('[LOGIN] Mock auth mode enabled - allowing mock login for:', email);
+        
+        const mockUser = {
+          id: 'dev-user-123',
+          email: email,
+          name: 'Development User',
+          role: 'user',
+          membership_status: 'premium',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        const token = generateToken(mockUser.id, mockUser.email, mockUser.role);
+        const refreshToken = generateRefreshToken(mockUser.id);
+        
+        return res.status(200).json({
+          success: true,
+          message: "Giriş başarılı (Test Modu)",
+          data: {
+            user: mockUser,
+            token,
+            refreshToken
+          }
+        });
+      }
+    } catch (paramError) {
+      logger.warn(`Could not check mock_auth_enabled parameter: ${paramError.message}`);
+      // Continue with normal authentication if parameter check fails
     }
 
     const { data: user, error } = await supabase
