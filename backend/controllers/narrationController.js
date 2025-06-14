@@ -1,0 +1,91 @@
+const fs = require('fs');
+const path = require('path');
+const OpenAI = require("openai");
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const { logRequestStep } = require('../utils/requestLogger');
+const { v4: uuidv4 } = require('uuid');
+const logger = require('../utils/logger');
+
+exports.rewriteToNarration = async (req, res) => {
+  const { input_text, level } = req.body;
+  const requestId = req.headers['x-request-id'] || uuidv4();
+  
+  if (!input_text) {
+    logRequestStep(requestId, 'narration-rewrite:error', { error: 'No input text provided.' });
+    return res.status(400).json({ success: false, message: "Lütfen bir metin girin." });
+  }
+  
+  try {
+    // Prompt dosyasını oku
+    const promptPath = path.join(__dirname, '../prompts/rewrite_to_narrations.txt');
+    let promptTemplate = fs.readFileSync(promptPath, 'utf8');
+    
+    // Placeholder'ları değiştir
+    const prompt = promptTemplate
+      .replace('{{input_text}}', input_text)
+      .replace('{{level}}', level || 'A1');
+    
+    logger.info(`Narration rewrite request - Level: ${level || 'A1'}, Text length: ${input_text.length}`);
+    logRequestStep(requestId, 'narration-rewrite:start', { 
+      textLength: input_text.length, 
+      level, 
+      inputPreview: input_text.substring(0, 100) + '...'
+    });
+    
+    // OpenAI API'ye istek gönder
+    logger.debug(`Sending OpenAI request for narration rewrite`);
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "Sen bir eğitim içeriği uzmanısın. Verilen metinleri eğitici anlatım formatına dönüştürüyorsun." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.7,
+    });
+    
+    logger.debug(`Received OpenAI response: ${JSON.stringify({
+      model: completion.model,
+      usage: completion.usage,
+      finish_reason: completion.choices[0]?.finish_reason,
+    })}`);
+    
+    const narrationText = completion.choices[0]?.message?.content?.trim() || "";
+    
+    // Yanıt uzunluğunu logla
+    logger.info(`OpenAI narration response length: ${narrationText.length} characters`);
+    logger.debug(`Narration text preview: ${narrationText.substring(0, 200)}...`);
+    
+    if (!narrationText || narrationText.length < 10) {
+      logger.error(`OpenAI returned invalid or too short narration: "${narrationText}"`);
+      throw new Error("OpenAI API yanıtı boş veya çok kısa");
+    }
+    
+    logRequestStep(requestId, 'narration-rewrite:end', { 
+      originalLength: input_text.length,
+      narrationLength: narrationText.length,
+      level: level || 'A1'
+    });
+    
+    res.json({ 
+      success: true, 
+      data: { 
+        original_text: input_text,
+        narration_text: narrationText,
+        level: level || 'A1'
+      }
+    });
+  } catch (err) {
+    logger.error(`Narration rewrite error: ${err.message}`, { 
+      textLength: input_text?.length,
+      level,
+      stack: err.stack
+    });
+    
+    logRequestStep(requestId, 'narration-rewrite:error', { error: err.message });
+    res.status(500).json({ 
+      success: false, 
+      message: "Metin anlatım formatına dönüştürülürken bir hata oluştu.", 
+      error: err.message 
+    });
+  }
+}; 

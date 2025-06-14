@@ -8,6 +8,7 @@ import { getApiUrl } from '@/lib/api';
 export default function AdminLoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
@@ -28,7 +29,8 @@ export default function AdminLoginPage() {
                 },
                 body: JSON.stringify({ 
                     email: email, 
-                    password: password 
+                    password: password,
+                    rememberMe: rememberMe
                 }),
                 credentials: 'include'
             });
@@ -50,6 +52,7 @@ export default function AdminLoginPage() {
             // Store JWT token
             if (data.data.token) {
                 localStorage.setItem('lingroot_token', data.data.token);
+                localStorage.setItem('lingroot_remember_me', rememberMe.toString());
             }
 
             console.log('Admin login successful, redirecting...');
@@ -93,6 +96,38 @@ export default function AdminLoginPage() {
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                             placeholder="••••••••"
                         />
+                    </div>
+                    <div className="mb-6 flex items-center space-x-2">
+                        <div className="relative">
+                            <input
+                                type="checkbox"
+                                id="rememberMe"
+                                checked={rememberMe}
+                                onChange={(e) => setRememberMe(e.target.checked)}
+                                className="sr-only"
+                            />
+                            <div 
+                                className={`w-5 h-5 border-2 rounded cursor-pointer flex items-center justify-center ${
+                                    rememberMe 
+                                        ? 'bg-indigo-600 border-indigo-600' 
+                                        : 'bg-white border-gray-300 hover:border-indigo-400 dark:bg-gray-700 dark:border-gray-600'
+                                }`}
+                                onClick={() => setRememberMe(!rememberMe)}
+                            >
+                                {rememberMe && (
+                                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                )}
+                            </div>
+                        </div>
+                        <label 
+                            htmlFor="rememberMe" 
+                            className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none"
+                            onClick={() => setRememberMe(!rememberMe)}
+                        >
+                            Beni hatırla
+                        </label>
                     </div>
                     {error && (
                         <p className="mb-4 text-sm text-red-600 dark:text-red-400 text-center">{error}</p>

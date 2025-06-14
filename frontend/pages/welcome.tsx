@@ -5,8 +5,9 @@ import Image from 'next/image';
 import { useAuth } from '../src/lib/auth';
 import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
-import { processTts, submitContent, getContentHistory, ProcessInputData } from '../src/lib/api';
+import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData } from '../src/lib/api';
 import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
 import OutputSection from '../src/components/OutputSection';
@@ -52,9 +53,10 @@ interface ContentHistoryItem {
 }
 
 const Welcome: React.FC = () => {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const { badge, dailyLimit, remaining } = useMembership();
   const { t } = useTranslation();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [audioResult, setAudioResult] = useState<AudioResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,11 +75,18 @@ const Welcome: React.FC = () => {
   const [contentHistory, setContentHistory] = useState<ContentHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
   const [showAllHistory, setShowAllHistory] = useState<boolean>(false);
+  const [userInterests, setUserInterests] = useState<string[]>([]);
+  const [loadingInterests, setLoadingInterests] = useState<boolean>(false);
+  const [selectedInterest, setSelectedInterest] = useState<string>('');
+  const [topicDetailSuggestions, setTopicDetailSuggestions] = useState<string[]>([]);
+  const [isLoadingTopicSuggestions, setIsLoadingTopicSuggestions] = useState<boolean>(false);
+  const [selectedDetailTopic, setSelectedDetailTopic] = useState<string>('');
   
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
     { id: 'text', name: 'Metin', icon: 'fas fa-file-alt' },
-    { id: 'topic', name: 'Konu', icon: 'fas fa-lightbulb' },
+    { id: 'topic', name: 'Hobi', icon: 'fas fa-lightbulb' },
+    { id: 'subject', name: 'Konu', icon: 'fas fa-graduation-cap' },
     { id: 'youtube', name: 'YouTube', icon: 'fab fa-youtube' },
     { id: 'weblink', name: 'Web Bağlantısı', icon: 'fas fa-link' },
     { id: 'document', name: 'Doküman', icon: 'fas fa-file-word' },
@@ -145,10 +154,11 @@ const Welcome: React.FC = () => {
     }
   };
 
-  // Content history'yi yüklemek için useEffect ekleyelim
+  // Content history ve user interests'i yüklemek için useEffect ekleyelim
   useEffect(() => {
     if (isAuthenticated) {
       fetchContentHistory();
+      fetchUserInterests();
     }
   }, [isAuthenticated]);
 
@@ -182,11 +192,73 @@ const Welcome: React.FC = () => {
     }
   };
 
+  // Kullanıcı ilgi alanlarını çeken fonksiyon
+  const fetchUserInterests = async () => {
+    setLoadingInterests(true);
+    try {
+      console.log('fetchUserInterests başlatılıyor...');
+      const response = await getUserInterests();
+      console.log('getUserInterests response:', response);
+      
+      if (response && Array.isArray(response)) {
+        // Backend'den gelen format: [{ interest_keyword: "İngilizce" }, ...]
+        const interests = response.map((item: any) => item.interest_keyword || item);
+        setUserInterests(interests);
+        console.log('User interests set edildi:', interests);
+      } else {
+        console.log('User interests data array değil, boş array set ediliyor');
+        setUserInterests([]);
+      }
+    } catch (error) {
+      console.error('User interests yüklenirken hata oluştu:', error);
+      setUserInterests([]);
+    } finally {
+      setLoadingInterests(false);
+    }
+  };
+
+  // Konu önerisi fonksiyonu - mevcut InputSection yapısına uyarlanmış
+  const handleTopicSuggestion = async () => {
+    if (contentType !== 'topic') return;
+    
+    if (!selectedInterest) {
+      setError('Lütfen önce bir hobi/ilgi alanı seçin.');
+      return;
+    }
+    
+    setIsLoadingTopicSuggestions(true);
+    setError(null);
+    
+    try {
+      const response = await getTopicDetailSuggestions(selectedInterest, englishLevel);
+      if (response.success && response.data.suggestions) {
+        setTopicDetailSuggestions(response.data.suggestions);
+        console.log(`${selectedInterest} konusu için ${response.data.suggestions.length} öneri alındı`);
+      } else {
+        console.error("Konu önerileri alınamadı:", response);
+        setError("Konu önerileri alınamadı: " + (response.message || "Bilinmeyen hata"));
+      }
+    } catch (error: any) {
+      console.error("Konu önerileri alınırken hata oluştu:", error);
+      const errorMessage = error.message || "Bilinmeyen bir hata oluştu";
+      setError(`Konu önerileri alınamadı: ${errorMessage}`);
+    } finally {
+      setIsLoadingTopicSuggestions(false);
+    }
+  };
+
+  // Detaylı konu seçildiğinde çalışacak handler
+  const handleDetailTopicSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedValue = e.target.value;
+    setSelectedDetailTopic(selectedValue);
+    setTextInput(selectedValue); // Seçilen detaylı konuyu textarea'ya yaz
+  };
+
   const handleSubmit = async (inputData: InputData) => {
     setIsLoading(true);
     setError(null);
     try {
-      const processInput: ProcessInputData = {
+      let processInput: ProcessInputData = {
         type: inputData.type,
         input: inputData.text || inputData.input, // text veya input'u input olarak gönder
         file: inputData.file,
@@ -195,6 +267,35 @@ const Welcome: React.FC = () => {
         voice: inputData.voice,
         chapter: (inputData as any).chapter,
       };
+
+      // "subject" (Konu) ve "topic" (Hobi) type'ları için özel işlem
+      if (inputData.type === 'subject' || inputData.type === 'topic') {
+        const typeLabel = inputData.type === 'subject' ? 'Subject (Konu)' : 'Topic (Hobi)';
+        console.log(`${typeLabel} type detected, rewriting to narration...`);
+        
+        // Metni anlatım formatına dönüştür
+        const narrationResult = await rewriteToNarration(
+          inputData.text || inputData.input || '', 
+          inputData.level
+        );
+        
+        if (narrationResult.success && narrationResult.data.narration_text) {
+          // Dönüştürülmüş metni kullan ve type'ı text olarak değiştir
+          processInput = {
+            ...processInput,
+            type: 'text',
+            input: narrationResult.data.narration_text
+          };
+          
+          console.log(`${typeLabel} text rewritten to narration format:`, {
+            originalLength: (inputData.text || inputData.input || '').length,
+            narrationLength: narrationResult.data.narration_text.length
+          });
+        } else {
+          throw new Error('Metin anlatım formatına dönüştürülemedi.');
+        }
+      }
+
       const result = await processTts(processInput);
       if (result && result.mp3_url) {
         setAudioResult({
@@ -203,9 +304,9 @@ const Welcome: React.FC = () => {
           vtt_url: result.vtt_url,
           level: inputData.level
         });
-        const input = inputData.type === 'text' ? inputData.text : inputData.input;
+        const input = processInput.type === 'text' ? processInput.input : inputData.input;
         try {
-          await submitContent(input || '', inputData.type, inputData.level, result.mp3_url);
+          await submitContent(input || '', processInput.type, inputData.level, result.mp3_url);
           console.log('İçerik başarıyla kaydedildi');
           // Content history'yi yeniden yükle
           fetchContentHistory();
@@ -346,10 +447,31 @@ const Welcome: React.FC = () => {
     );
   }
 
-  if (!user) {
+  // Auth loading durumunda loading göster
+  if (authLoading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Yükleniyor...</p>
+        </div>
+      </main>
+    );
+  }
+
+  // Auth tamamlandıktan sonra user kontrolü
+  if (!isAuthenticated || !user) {
     return (
       <main className="min-h-screen flex items-center justify-center text-xl text-gray-500">
-        Kullanıcı bulunamadı. Lütfen tekrar giriş yapın.
+        <div className="text-center">
+          <p className="mb-4">Oturum açmanız gerekiyor.</p>
+          <button 
+            onClick={() => router.push('/login')}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md"
+          >
+            Giriş Yap
+          </button>
+        </div>
       </main>
     );
   }
@@ -436,7 +558,10 @@ const Welcome: React.FC = () => {
                     </a>
                     <div className="border-t border-gray-100 mt-2 pt-2">
                       <button
-                        onClick={logout}
+                        onClick={() => {
+                          logout();
+                          router.push('/');
+                        }}
                         className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 cursor-pointer"
                       >
                         <i className="fas fa-sign-out-alt mr-2"></i>
@@ -521,9 +646,6 @@ const Welcome: React.FC = () => {
                     <Button variant="outline" size="sm" className="!rounded-button whitespace-nowrap cursor-pointer">
                       <i className="fas fa-cog mr-2"></i> Ayarlar
                     </Button>
-                    <Button className="bg-green-600 hover:bg-green-700 !rounded-button whitespace-nowrap cursor-pointer">
-                      <i className="fas fa-magic mr-2"></i> Konu Öner
-                    </Button>
                   </div>
                 </div>
                 {contentType === 'document' ? (
@@ -590,16 +712,124 @@ const Welcome: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="relative">
-                    <textarea
-                      value={textInput}
-                      onChange={(e) => setTextInput(e.target.value)}
-                      placeholder="İngilizce'ye çevirmek veya ses oluşturmak istediğiniz metni buraya girin..."
-                      className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
-                    />
-                    <button className="absolute bottom-3 right-3 text-gray-500 hover:text-blue-600 cursor-pointer">
-                      <i className="fas fa-edit text-xl"></i>
-                    </button>
+                  <div className="space-y-4">
+                    {/* Hobi seçildiğinde ilgi alanları combobox'ı göster */}
+                    {contentType === 'topic' && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Hobiler/İlgi Alanlarınız:
+                          </label>
+                          {loadingInterests ? (
+                            <div className="flex items-center justify-center p-4 border border-gray-300 rounded-lg">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                              <span className="ml-2 text-gray-600">İlgi alanları yükleniyor...</span>
+                            </div>
+                          ) : userInterests.length > 0 ? (
+                            <div className="flex gap-3">
+                              <div className="flex-1">
+                                <select 
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                                  value={selectedInterest}
+                                  onChange={(e) => setSelectedInterest(e.target.value)}
+                                >
+                                  <option value="">Hobi/İlgi alanı seçin...</option>
+                                  {userInterests.map((interest, index) => (
+                                    <option key={index} value={interest}>
+                                      {interest}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <Button 
+                                type="button"
+                                className={`px-6 py-3 !rounded-button whitespace-nowrap ${
+                                  selectedInterest && !isLoadingTopicSuggestions
+                                    ? 'bg-green-600 hover:bg-green-700 cursor-pointer' 
+                                    : 'bg-gray-400 cursor-not-allowed'
+                                }`}
+                                disabled={!selectedInterest || isLoadingTopicSuggestions}
+                                onClick={handleTopicSuggestion}
+                              >
+                                {isLoadingTopicSuggestions ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    Yükleniyor...
+                                  </>
+                                ) : (
+                                  <>
+                                    <i className="fas fa-magic mr-2"></i>
+                                    Hobi Öner
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="p-4 border border-yellow-300 bg-yellow-50 rounded-lg">
+                              <p className="text-yellow-800 text-sm">
+                                Hobi/İlgi alanlarınız bulunamadı. Profil ayarlarınızdan ilgi alanlarınızı ekleyebilirsiniz.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Detaylı öneriler combobox'ı */}
+                        {topicDetailSuggestions.length > 0 && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Detaylı Öneriler:
+                            </label>
+                            <select
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                              value={selectedDetailTopic}
+                              onChange={handleDetailTopicSelect}
+                            >
+                              <option value="">Öneri seçin...</option>
+                              {topicDetailSuggestions.map((suggestion, index) => (
+                                <option key={index} value={suggestion}>
+                                  {suggestion.length > 100 ? `${suggestion.substring(0, 100)}...` : suggestion}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Yeni Konu sekmesi - sadece metin kutusu */}
+                    {contentType === 'subject' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Konu:
+                        </label>
+                        <div className="relative">
+                          <textarea
+                            value={textInput}
+                            onChange={(e) => setTextInput(e.target.value)}
+                            placeholder="Öğrenmek istediğiniz konuyu yazın..."
+                            className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                          />
+                          <button className="absolute bottom-3 right-3 text-gray-500 hover:text-blue-600 cursor-pointer">
+                            <i className="fas fa-edit text-xl"></i>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Diğer içerik türleri için genel textarea */}
+                    {contentType !== 'topic' && contentType !== 'subject' && (
+                      <div className="relative">
+                        <textarea
+                          value={textInput}
+                          onChange={(e) => setTextInput(e.target.value)}
+                          placeholder="İngilizce'ye çevirmek veya ses oluşturmak istediğiniz metni buraya girin..."
+                          className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                        />
+                        <button className="absolute bottom-3 right-3 text-gray-500 hover:text-blue-600 cursor-pointer">
+                          <i className="fas fa-edit text-xl"></i>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

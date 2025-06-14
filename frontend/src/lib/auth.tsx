@@ -14,7 +14,9 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  isLoading: boolean;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
+  loginWithGoogle: (credential: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   register: (firstName: string, lastName: string, email: string, phoneNumber: string, password: string) => Promise<{ success: boolean; message?: string }>;
 }
@@ -117,7 +119,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     checkToken();
   }, []);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
+  // Token süresini düzenli olarak kontrol et
+  useEffect(() => {
+    const interval = setInterval(() => {
+      checkTokenExpiry();
+    }, 60000); // Her dakika kontrol et
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const login = async (email: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log('[AUTH] login() called', { email });
       console.log("[API URL]", getApiUrl('/auth/login'));
@@ -175,7 +186,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         // Eğer backend token döndürüyorsa localStorage'a kaydet
         if (data.data.token) {
           localStorage.setItem('lingroot_token', data.data.token);
-          console.log('[AUTH] Token kaydedildi:', data.data.token);
+          // Beni hatırla seçeneği için flag kaydet
+          localStorage.setItem('lingroot_remember_me', rememberMe.toString());
+          console.log('[AUTH] Token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
         }
         console.log('[AUTH] setUser & setIsAuthenticated', user);
         return { success: true };
@@ -229,8 +242,99 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
 
   const logout = () => {
     localStorage.removeItem('lingroot_token');
+    localStorage.removeItem('lingroot_remember_me');
     setUser(null);
     setIsAuthenticated(false);
+  };
+
+  // Token süresini kontrol et ve gerekirse logout yap
+  const checkTokenExpiry = () => {
+    const token = localStorage.getItem('lingroot_token');
+    const rememberMe = localStorage.getItem('lingroot_remember_me') === 'true';
+    
+    if (!token) return;
+    
+    try {
+      // JWT token'ı decode et (basit bir şekilde)
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Date.now() / 1000;
+      
+      // Token süresi dolmuşsa logout yap
+      if (payload.exp < currentTime) {
+        console.log('[AUTH] Token süresi doldu, logout yapılıyor');
+        logout();
+        return;
+      }
+      
+      // Beni hatırla seçili değilse ve 1 saatten fazla geçmişse logout yap
+      if (!rememberMe) {
+        const tokenAge = currentTime - payload.iat;
+        const oneHour = 60 * 60; // 1 saat saniye cinsinden
+        
+        if (tokenAge > oneHour) {
+          console.log('[AUTH] Idle timeout, logout yapılıyor');
+          logout();
+        }
+      }
+    } catch (error) {
+      console.error('[AUTH] Token decode hatası:', error);
+      logout();
+    }
+  };
+
+  const loginWithGoogle = async (credential: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
+    try {
+      console.log('[AUTH] loginWithGoogle() called');
+      
+      const response = await fetch(getApiUrl('auth/google'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential, rememberMe }),
+        credentials: 'include'
+      });
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        console.log('[AUTH] loginWithGoogle() JSON parse error', jsonErr);
+        return { success: false, message: 'Sunucudan geçersiz yanıt alındı.' };
+      }
+      
+      console.log('[AUTH] loginWithGoogle() response data:', data);
+      
+      if (response.ok && data.success) {
+        const rawUser = data.data.user;
+        const user: User = {
+          id: rawUser.id,
+          email: rawUser.email,
+          role: rawUser.role || 'user',
+          membershipStatus: rawUser.membershipStatus || 'free',
+        };
+        setUser(user);
+        setIsAuthenticated(true);
+        
+        if (data.data.token) {
+          localStorage.setItem('lingroot_token', data.data.token);
+          localStorage.setItem('lingroot_remember_me', rememberMe.toString());
+          console.log('[AUTH] Google token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
+        }
+        
+        return { success: true };
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+        return { success: false, message: data.message || 'Google ile giriş başarısız.' };
+      }
+    } catch (error: any) {
+      console.log('[AUTH] loginWithGoogle() error', error);
+      setUser(null);
+      setIsAuthenticated(false);
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        return { success: false, message: 'Sunucuya bağlanılamadı, lütfen internet bağlantınızı kontrol edin.' };
+      }
+      return { success: false, message: error.message || 'Google ile giriş sırasında bir hata oluştu.' };
+    }
   };
 
   const register = async (
@@ -270,7 +374,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     }
   };
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, register }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, loginWithGoogle, logout, register }}>
       {children}
     </AuthContext.Provider>
   );

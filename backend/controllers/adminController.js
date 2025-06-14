@@ -77,48 +77,60 @@ exports.getDashboardStats = async (req, res) => {
 // Get all users
 exports.getAllUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "" } = req.query;
-    const offset = (page - 1) * limit;
-    logger.info(`Fetching users - Page: ${page}, Limit: ${limit}, Search: '${search}'`);
+    const { page = 1, limit = 50, search = "" } = req.query;
+    logger.info(`[ADMIN USERS] Fetching users - Page: ${page}, Limit: ${limit}, Search: '${search}'`);
 
+    // First try to get users from the users table (our custom table)
     let query = supabase
-      .from("users")
-      .select("id, firstname, lastname, email, role, created_at, phonenumber", { count: "exact" });
+      .from('users')
+      .select('id, firstname, lastname, email, role, created_at, phonenumber, isverified, updated_at');
 
     // Add search if provided
     if (search) {
       query = query.or(`firstname.ilike.%${search}%,lastname.ilike.%${search}%,email.ilike.%${search}%`);
     }
 
-    // Add pagination
+    // Add pagination and ordering
+    const offset = (parseInt(page) - 1) * parseInt(limit);
     query = query
-      .range(offset, offset + limit - 1)
-      .order("created_at", { ascending: false });
+      .range(offset, offset + parseInt(limit) - 1)
+      .order('created_at', { ascending: false });
 
-    const { data, count, error } = await query;
+    const { data: users, error: usersError, count } = await query;
 
-    if (error) {
-      logger.error("Error fetching users from Supabase:", error);
+    if (usersError) {
+      logger.error("[ADMIN USERS] Error fetching users from users table:", usersError);
       return res.status(500).json({
         success: false,
-        message: "Error fetching users",
-        error: error.message,
+        message: "Error fetching users from database",
+        error: usersError.message,
       });
     }
 
-    logger.info(`Successfully fetched ${data.length} users (Total: ${count})`);
+    logger.info(`[ADMIN USERS] Found ${users?.length || 0} users in users table`);
+
+    // Transform users data to match frontend format
+    const transformedUsers = (users || []).map(user => ({
+      id: user.id,
+      name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'N/A',
+      email: user.email,
+      status: user.isverified ? 'aktif' : 'pasif',
+      package: 'Ücretsiz', // Default package, can be enhanced later
+      registrationDate: new Date(user.created_at).toLocaleDateString('tr-TR'),
+      lastLogin: user.updated_at ? new Date(user.updated_at).toLocaleDateString('tr-TR') : 'Hiç',
+      role: user.role || 'user',
+      phone: user.phonenumber
+    }));
+
+    logger.info(`[ADMIN USERS] Successfully transformed ${transformedUsers.length} users`);
+    
     return res.status(200).json({
       success: true,
-      data,
-      pagination: {
-        total: count,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(count / limit),
-      },
+      users: transformedUsers,
+      total: transformedUsers.length
     });
   } catch (error) {
-    logger.error("Server error while fetching users:", error);
+    logger.error("[ADMIN USERS] Server error while fetching users:", error);
     return res.status(500).json({
       success: false,
       message: "Server error while fetching users",
