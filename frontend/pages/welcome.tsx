@@ -652,10 +652,19 @@ const Welcome: React.FC = () => {
                     onChange={(e) => setVoiceType(e.target.value)}
                     className="w-full mb-6 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
                   >
-                    <option value="en-US-Wavenet-F">Amerikan İngilizcesi (Kadın)</option>
-                    <option value="en-US-Wavenet-M">Amerikan İngilizcesi (Erkek)</option>
-                    <option value="en-GB-Wavenet-F" disabled>İngiliz İngilizcesi (Kadın) - Premium</option>
-                    <option value="en-GB-Wavenet-M" disabled>İngiliz İngilizcesi (Erkek) - Premium</option>
+                    <option value="">Ses seçin</option>
+                    <option value="en-US-Neural2-D">Neural Erkek (Premium)</option>
+                    <option value="en-US-Neural2-I">Neural Erkek 2 (Premium)</option>
+                    <option value="en-US-Neural2-J">Neural Erkek 3 (Premium)</option>
+                    <option value="en-US-Wavenet-A">Wavenet Erkek (Klasik)</option>
+                    <option value="en-US-Standard-D">Standard Erkek (Temel)</option>
+                    <option value="en-US-Standard-I">Standard Erkek 2 (Temel)</option>
+                    <option value="en-US-Standard-J">Standard Erkek 3 (Temel)</option>
+                    <option value="en-US-News-N">Haber Erkek Sesi</option>
+                    <option value="en-US-Neural2-A">Neural Erkek (Alternatif)</option>
+                    <option value="en-US-Neural2-C">Neural Kadın</option>
+                    <option value="en-US-Neural2-E">Neural Kadın 2</option>
+                    <option value="en-US-Neural2-F">Neural Kadın 3</option>
                   </select>
                 </div>
                 <div>

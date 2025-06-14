@@ -377,7 +377,19 @@ const processTtsRequest = async (req, res) => {
             finalChunks = finalChunks.concat(pollyChunks);
         }
         // Polly'ye gönderme işlemi burada finalChunks ile devam edecek
-        const selectedVoice = req.body.voice || 'en-US-Wavenet-D';
+        // Use a safe default voice that we know exists
+        let selectedVoice = req.body.voice || 'en-US-Neural2-D';
+        
+        // Fallback for unsupported voices
+        const supportedVoices = [
+            'en-US-Neural2-D', 'en-US-Neural2-I', 'en-US-Neural2-J', 
+            'en-US-Wavenet-A', 'en-US-Standard-D', 'en-US-Standard-I'
+        ];
+        
+        if (!supportedVoices.includes(selectedVoice)) {
+            logger.warn(`[${requestId}] Unsupported voice '${selectedVoice}', using fallback 'en-US-Neural2-D'`);
+            selectedVoice = 'en-US-Neural2-D';
+        }
         const languageCode = 'en-US';
         const adaptedText = finalChunks.join('\n\n');
         logRequestStep(requestId, 'tts:start', { chunkCount: finalChunks.length, voice: selectedVoice, speakingRate });

@@ -150,10 +150,11 @@ export const config = {
          * - / (root path, assuming it's public)
          * - /login (public login page)
          * - /register (public register page)
+         * - /admin (admin routes - temporarily disabled for JWT auth)
          */
-        '/((?!api|_next/static|_next/image|favicon.ico|^/$|^/login$|^/register$).*)',
-        // Apply specifically to admin routes
-        '/admin/:path*', 
+        '/((?!api|_next/static|_next/image|favicon.ico|^/$|^/login$|^/register$|^/admin).*)',
+        // Admin routes temporarily disabled - using JWT auth instead
+        // '/admin/:path*', 
     ],
 };
 

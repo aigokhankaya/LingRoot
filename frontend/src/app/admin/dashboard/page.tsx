@@ -2,7 +2,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 
 // TODO: Define interfaces for stats if needed
@@ -14,31 +13,58 @@ export default function AdminDashboard() {
     const router = useRouter();
 
     useEffect(() => {
-        const fetchSession = async () => {
-            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-            if (sessionError) {
-                console.error('Error fetching session:', sessionError);
-                setError('Could not fetch user session.');
-            } else if (session) {
-                setUserEmail(session.user?.email || 'N/A');
-            } else {
-                // Should be handled by middleware, but as a fallback:
+        const checkAuth = async () => {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+            
+            if (!token) {
                 router.push('/admin/login');
+                return;
             }
-            setLoading(false);
+
+            try {
+                // Verify token and get user info
+                const response = await fetch('/api/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success && data.user) {
+                    if (data.user.role === 'admin') {
+                        setUserEmail(data.user.email || 'N/A');
+                    } else {
+                        setError('Access denied: Admin privileges required.');
+                        localStorage.removeItem('lingroot_token');
+                        router.push('/admin/login');
+                    }
+                } else {
+                    localStorage.removeItem('lingroot_token');
+                    router.push('/admin/login');
+                }
+            } catch (error) {
+                console.error('Auth check error:', error);
+                localStorage.removeItem('lingroot_token');
+                router.push('/admin/login');
+            } finally {
+                setLoading(false);
+            }
         };
-        fetchSession();
+        
+        checkAuth();
     }, [router]);
 
     const handleLogout = async () => {
         setLoading(true);
-        const { error: signOutError } = await supabase.auth.signOut();
-        if (signOutError) {
-            console.error('Error signing out:', signOutError);
+        try {
+            // Remove JWT token
+            localStorage.removeItem('lingroot_token');
+            router.push('/admin/login');
+        } catch (error) {
+            console.error('Error signing out:', error);
             setError('Failed to sign out.');
             setLoading(false);
-        } else {
-            router.push('/admin/login');
         }
     };
 

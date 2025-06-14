@@ -1,15 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../src/lib/auth';
 import UserTable from '../src/components/admin/UserTable';
 import { useRouter } from 'next/router';
 import TtsProviderSelector from '../src/components/admin/TtsProviderSelector';
 
 export default function AdminPage() {
-  const { user, login, logout } = useAuth();
+  const { user, login, logout, isAuthenticated } = useAuth();
   const router = useRouter();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Redirect admin users to new admin dashboard
+  useEffect(() => {
+    if (isAuthenticated && user && user.role === 'admin') {
+      router.push('/admin/dashboard');
+    }
+  }, [isAuthenticated, user, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
