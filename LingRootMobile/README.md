@@ -1,0 +1,193 @@
+# LingRoot Mobile - AI Destekli Dil Öğrenme Mobil Uygulaması
+
+LingRoot'un React Native ile geliştirilmiş mobil uygulaması. Expo Framework kullanılarak Android ve iOS platformları için geliştirilmiştir.
+
+## Özelikler
+
+- 🎯 **AI Destekli CEFR Adaptasyonu**: Metinleri A1-C2 seviyelerine göre otomatik uyarlar
+- 🔊 **Text-to-Speech**: Metinleri doğal sese dönüştürür
+- 📱 **Çapraz Platform**: Android ve iOS desteği
+- 🔐 **Güvenli Authentication**: Supabase tabanlı kullanıcı yönetimi
+- 📚 **Ses Kütüphanesi**: Oluşturulan sesleri organize eder
+- 🎨 **Modern UI/UX**: React Native ile native görünüm
+
+## Teknoloji Yığını
+
+- **Framework**: Expo (React Native)
+- **Dil**: TypeScript
+- **Navigation**: React Navigation
+- **State Management**: React Context
+- **Authentication**: Supabase Auth
+- **HTTP Client**: Axios
+- **Icons**: React Native Vector Icons
+
+## Kurulum
+
+### Gereksinimler
+
+- Node.js (v18+)
+- npm veya yarn
+- Expo CLI
+- Android Studio (Android geliştirme için)
+- Xcode (iOS geliştirme için - macOS gerekli)
+
+### Adım Adım Kurulum
+
+1. **Bağımlılıkları kurun:**
+   ```bash
+   npm install
+   ```
+
+2. **Environment variables ayarlayın:**
+   `.env.example` dosyasını `.env` olarak kopyalayın ve gerekli değerleri girin:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. **Geliştirme sunucusunu başlatın:**
+   ```bash
+   npm start
+   ```
+
+4. **Uygulamayı çalıştırın:**
+   - **Android**: `npm run android` veya Expo Go uygulaması ile QR kod tarayın
+   - **iOS**: `npm run ios` veya Expo Go uygulaması ile QR kod tarayın
+   - **Web**: `npm run web`
+
+## Environment Variables
+
+```env
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+EXPO_PUBLIC_API_URL=http://localhost:5001
+```
+
+## Proje Yapısı
+
+```
+src/
+├── components/          # Yeniden kullanılabilir bileşenler
+├── contexts/           # React Context providers
+├── navigation/         # Navigasyon yapılandırması
+├── screens/           # Uygulama ekranları
+├── services/          # API ve Supabase servisleri
+├── types/             # TypeScript tip tanımları
+└── utils/             # Yardımcı fonksiyonlar
+```
+
+## API Entegrasyonu
+
+Mobil uygulama, mevcut LingRoot backend API'sini kullanır:
+
+- **Base URL**: `http://localhost:5001` (geliştirme)
+- **TTS Endpoint**: `POST /api/tts/process`
+- **Authentication**: Supabase Auth
+
+## Özellikler
+
+### 🏠 Ana Sayfa
+- Kullanıcı karşılama ekranı
+- İstatistikler (oluşturulan ses, dinleme süresi)
+- Hızlı erişim butonları
+
+### 🎤 Ses Oluşturma
+- Metin girişi
+- Dosya yükleme (PDF, Word) - yakında
+- CEFR seviye seçimi (A1-C2)
+- Konuşma hızı ayarı
+- Gerçek zamanlı TTS işleme
+
+### 📚 Ses Kütüphanesi
+- Oluşturulan seslerin listesi
+- Seviye bazlı filtreleme
+- Arama özelliği
+- Ses oynatma kontrolü
+
+### 👤 Profil
+- Kullanıcı bilgileri
+- Hesap ayarları
+- Üyelik bilgisi
+- Çıkış işlemi
+
+## Geliştirme
+
+### Yeni Özellik Ekleme
+
+1. Gerekli tip tanımlarını `src/types/index.ts`'ye ekleyin
+2. Yeni ekran oluşturun `src/screens/`
+3. Navigasyon güncellemeyi `src/navigation/AppNavigator.tsx`
+4. Gerekli servisleri `src/services/` altında ekleyin
+
+### Build Alma
+
+```bash
+# Android APK
+npx expo build:android
+
+# iOS IPA  
+npx expo build:ios
+
+# EAS Build (önerilen)
+npx eas build --platform android
+npx eas build --platform ios
+```
+
+## Deployment
+
+### Expo Application Services (EAS)
+
+1. EAS CLI kurulumu:
+   ```bash
+   npm install -g @expo/eas-cli
+   ```
+
+2. EAS hesabınıza giriş yapın:
+   ```bash
+   eas login
+   ```
+
+3. Build konfigürasyonu:
+   ```bash
+   eas build:configure
+   ```
+
+4. Build başlatın:
+   ```bash
+   eas build --platform all
+   ```
+
+## Troubleshooting
+
+### Metro bundler sorunları
+```bash
+npm start -- --clear
+```
+
+### Cache temizleme
+```bash
+npx expo start -c
+```
+
+### Android build sorunları
+```bash
+cd android && ./gradlew clean
+cd .. && npx expo run:android
+```
+
+## Katkıda Bulunma
+
+1. Fork yapın
+2. Feature branch oluşturun (`git checkout -b feature/amazing-feature`)
+3. Commit yapın (`git commit -m 'Add amazing feature'`)
+4. Push yapın (`git push origin feature/amazing-feature`)
+5. Pull Request açın
+
+## Lisans
+
+Bu proje MIT lisansı altında lisanslanmıştır.
+
+## İletişim
+
+- **Proje**: LingRoot
+- **Website**: [Web Uygulaması](../frontend)
+- **Backend**: [API Servisi](../backend) 
