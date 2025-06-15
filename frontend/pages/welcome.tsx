@@ -67,8 +67,8 @@ const Welcome: React.FC = () => {
   const [englishLevel, setEnglishLevel] = useState<string>('a1');
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
   const [voiceType, setVoiceType] = useState<string>('en-US-Wavenet-F');
-  const [accentType, setAccentType] = useState<string>('american');
-  const [emotionType, setEmotionType] = useState<string>('neutral');
+  const [accentType, setAccentType] = useState<string>('all');
+  const [emotionType, setEmotionType] = useState<string>('all');
   const [outputFormat, setOutputFormat] = useState<string>('mp3');
   const [textInput, setTextInput] = useState<string>('');
   const [uploadingFile, setUploadingFile] = useState<boolean>(false);
@@ -81,6 +81,8 @@ const Welcome: React.FC = () => {
   const [topicDetailSuggestions, setTopicDetailSuggestions] = useState<string[]>([]);
   const [isLoadingTopicSuggestions, setIsLoadingTopicSuggestions] = useState<boolean>(false);
   const [selectedDetailTopic, setSelectedDetailTopic] = useState<string>('');
+  const [availableVoices, setAvailableVoices] = useState<any[]>([]);
+  const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
   
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
@@ -103,8 +105,26 @@ const Welcome: React.FC = () => {
     { value: 1.0, label: '1x' },
     { value: 1.2, label: '1.2x' },
   ];
-  const accentOptions = ['Amerikan', 'İngiliz', 'Avustralya', 'Kanada', 'İrlanda', 'Hindistan'];
-  const emotionOptions = ['Nötr', 'Neşeli', 'Ciddi', 'Profesyonel', 'Heyecanlı', 'Sakin'];
+  const accentOptions = [
+    { value: 'all', label: 'Tümü' },
+    { value: 'american', label: 'Amerikan' },
+    { value: 'british', label: 'İngiliz' },
+    { value: 'australian', label: 'Avustralya' },
+    { value: 'canadian', label: 'Kanada' },
+    { value: 'indian', label: 'Hindistan' },
+    { value: 'international', label: 'Uluslararası' }
+  ];
+  
+  const emotionOptions = [
+    { value: 'all', label: 'Tümü' },
+    { value: 'neutral', label: 'Nötr' },
+    { value: 'cheerful', label: 'Neşeli' },
+    { value: 'serious', label: 'Ciddi' },
+    { value: 'professional', label: 'Profesyonel' },
+    { value: 'excited', label: 'Heyecanlı' },
+    { value: 'calm', label: 'Sakin' },
+    { value: 'friendly', label: 'Samimi' }
+  ];
   const formatOptions = ['MP3', 'WAV', 'AAC', 'FLAC', 'OGG'];
 
   // URL conversion fonksiyonu
@@ -154,13 +174,110 @@ const Welcome: React.FC = () => {
     }
   };
 
+  // Kullanılabilir sesleri çeken fonksiyon
+  const fetchAvailableVoices = async () => {
+    setLoadingVoices(true);
+    try {
+      console.log('fetchAvailableVoices başlatılıyor...');
+      
+      // API endpoint'ini belirle
+      const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        ? 'http://localhost:5001/api/tts/voices'
+        : '/api/tts/voices';
+      
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      
+      console.log('Voices API response:', data);
+      
+      if (data.voices && Array.isArray(data.voices)) {
+        setAvailableVoices(data.voices);
+        console.log('Available voices set edildi:', data.voices.length, 'voice');
+        
+        // İlk sesi varsayılan olarak seç (eğer henüz seçilmemişse)
+        if (!voiceType && data.voices.length > 0) {
+          setVoiceType(data.voices[0].name);
+          console.log('Varsayılan ses seçildi:', data.voices[0].name);
+        }
+      } else {
+        console.log('API response voices array değil, boş array set ediliyor');
+        setAvailableVoices([]);
+      }
+    } catch (error) {
+      console.error('Sesler yüklenirken hata oluştu:', error);
+      setAvailableVoices([]);
+    } finally {
+      setLoadingVoices(false);
+    }
+  };
+
+  // Filtrelenmiş sesleri çeken fonksiyon
+  const fetchFilteredVoices = async (accent: string, emotion: string, gender?: string) => {
+    setLoadingVoices(true);
+    try {
+      console.log('🎯 Filtrelenmiş sesler çekiliyor...', { accent, emotion, gender });
+      
+      // API endpoint'ini belirle
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        ? 'http://localhost:5001/api/tts/voices/filter'
+        : '/api/tts/voices/filter';
+      
+      // Query parametrelerini oluştur
+      const params = new URLSearchParams();
+      if (accent) params.append('accent', accent);
+      if (emotion) params.append('emotion', emotion);
+      if (gender) params.append('gender', gender);
+      
+      const apiUrl = `${baseUrl}?${params.toString()}`;
+      console.log('🔗 Filter API URL:', apiUrl);
+      
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      
+      console.log('🎯 Filtered Voices API response:', data);
+      
+      if (data.voices && Array.isArray(data.voices)) {
+        setAvailableVoices(data.voices);
+        console.log(`✅ Filtrelenmiş sesler set edildi: ${data.filteredCount}/${data.totalCount} voice`);
+        
+        // Mevcut seçili ses filtrelenmiş listede yoksa, ilk sesi seç
+        const currentVoiceExists = data.voices.some((voice: any) => voice.name === voiceType);
+        if (!currentVoiceExists && data.voices.length > 0) {
+          setVoiceType(data.voices[0].name);
+          console.log('🔄 Yeni varsayılan ses seçildi:', data.voices[0].name);
+        }
+      } else {
+        console.log('❌ API response voices array değil, boş array set ediliyor');
+        setAvailableVoices([]);
+      }
+    } catch (error) {
+      console.error('❌ Filtrelenmiş sesler yüklenirken hata oluştu:', error);
+      setAvailableVoices([]);
+    } finally {
+      setLoadingVoices(false);
+    }
+  };
+
   // Content history ve user interests'i yüklemek için useEffect ekleyelim
   useEffect(() => {
     if (isAuthenticated) {
       fetchContentHistory();
       fetchUserInterests();
     }
+    // Ses listesini her zaman yükle (authentication gerekmez)
+    fetchAvailableVoices();
   }, [isAuthenticated]);
+
+  // Aksan türü ve duygu tonu değiştiğinde sesleri filtrele
+  useEffect(() => {
+    if (accentType !== 'all' || emotionType !== 'all') {
+      console.log('🎯 Filtre değişti, sesler yeniden çekiliyor...', { accentType, emotionType });
+      fetchFilteredVoices(accentType, emotionType);
+    } else {
+      console.log('🔄 Tüm filtreler kaldırıldı, tüm sesler çekiliyor...');
+      fetchAvailableVoices();
+    }
+  }, [accentType, emotionType]);
 
   // Content history'yi çeken fonksiyon
   const fetchContentHistory = async () => {
@@ -876,25 +993,45 @@ const Welcome: React.FC = () => {
                       </Button>
                     ))}
                   </div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">Ses Seçimi</h3>
+                  <h3 className="text-lg font-medium text-gray-700 mb-3">
+                    Ses Seçimi
+                    {loadingVoices && (
+                      <span className="ml-2 text-sm text-gray-500">
+                        <i className="fas fa-circle-notch fa-spin mr-1"></i>
+                        Yükleniyor...
+                      </span>
+                    )}
+                  </h3>
                   <select 
                     value={voiceType} 
                     onChange={(e) => setVoiceType(e.target.value)}
-                    className="w-full mb-6 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                    disabled={loadingVoices}
+                    className="w-full mb-6 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50"
                   >
                     <option value="">Ses seçin</option>
-                    <option value="en-US-Neural2-D">Neural Erkek (Premium)</option>
-                    <option value="en-US-Neural2-I">Neural Erkek 2 (Premium)</option>
-                    <option value="en-US-Neural2-J">Neural Erkek 3 (Premium)</option>
-                    <option value="en-US-Wavenet-A">Wavenet Erkek (Klasik)</option>
-                    <option value="en-US-Standard-D">Standard Erkek (Temel)</option>
-                    <option value="en-US-Standard-I">Standard Erkek 2 (Temel)</option>
-                    <option value="en-US-Standard-J">Standard Erkek 3 (Temel)</option>
-                    <option value="en-US-News-N">Haber Erkek Sesi</option>
-                    <option value="en-US-Neural2-A">Neural Erkek (Alternatif)</option>
-                    <option value="en-US-Neural2-C">Neural Kadın</option>
-                    <option value="en-US-Neural2-E">Neural Kadın 2</option>
-                    <option value="en-US-Neural2-F">Neural Kadın 3</option>
+                    {availableVoices.length > 0 ? (
+                      availableVoices.map((voice) => (
+                        <option key={voice.name} value={voice.name}>
+                          {voice.description || voice.name} - {voice.category} ({voice.package})
+                        </option>
+                      ))
+                    ) : !loadingVoices ? (
+                      // Fallback olarak hardcoded seçenekler (API başarısız olursa)
+                      <>
+                        <option value="en-US-Neural2-D">Neural Erkek (Premium)</option>
+                        <option value="en-US-Neural2-I">Neural Erkek 2 (Premium)</option>
+                        <option value="en-US-Neural2-J">Neural Erkek 3 (Premium)</option>
+                        <option value="en-US-Wavenet-A">Wavenet Erkek (Klasik)</option>
+                        <option value="en-US-Standard-D">Standard Erkek (Temel)</option>
+                        <option value="en-US-Standard-I">Standard Erkek 2 (Temel)</option>
+                        <option value="en-US-Standard-J">Standard Erkek 3 (Temel)</option>
+                        <option value="en-US-News-N">Haber Erkek Sesi</option>
+                        <option value="en-US-Neural2-A">Neural Erkek (Alternatif)</option>
+                        <option value="en-US-Neural2-C">Neural Kadın</option>
+                        <option value="en-US-Neural2-E">Neural Kadın 2</option>
+                        <option value="en-US-Neural2-F">Neural Kadın 3</option>
+                      </>
+                    ) : null}
                   </select>
                 </div>
                 <div>
@@ -902,14 +1039,14 @@ const Welcome: React.FC = () => {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
                     {accentOptions.map((accent) => (
                       <Button
-                        key={accent}
-                        onClick={() => setAccentType(accent.toLowerCase())}
-                        variant={accentType === accent.toLowerCase() ? "default" : "outline"}
+                        key={accent.value}
+                        onClick={() => setAccentType(accent.value)}
+                        variant={accentType === accent.value ? "default" : "outline"}
                         className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                          accentType === accent.toLowerCase() ? 'bg-blue-600' : ''
+                          accentType === accent.value ? 'bg-blue-600' : ''
                         }`}
                       >
-                        {accent}
+                        {accent.label}
                       </Button>
                     ))}
                   </div>
@@ -917,14 +1054,14 @@ const Welcome: React.FC = () => {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
                     {emotionOptions.map((emotion) => (
                       <Button
-                        key={emotion}
-                        onClick={() => setEmotionType(emotion.toLowerCase())}
-                        variant={emotionType === emotion.toLowerCase() ? "default" : "outline"}
+                        key={emotion.value}
+                        onClick={() => setEmotionType(emotion.value)}
+                        variant={emotionType === emotion.value ? "default" : "outline"}
                         className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                          emotionType === emotion.toLowerCase() ? 'bg-blue-600' : ''
+                          emotionType === emotion.value ? 'bg-blue-600' : ''
                         }`}
                       >
-                        {emotion}
+                        {emotion.label}
                       </Button>
                     ))}
                   </div>

@@ -10,7 +10,8 @@ const {
   synthesizeChunkAPI,
   mergeAudioAPI,
   listVoices,
-  getAudioFile
+  getAudioFile,
+  getFilteredVoices
 } = require("../controllers/ttsController");
 const logger = require("../utils/logger");
 
@@ -107,6 +108,9 @@ router.post("/polly", (req, res) => {
   // Implement your Amazon Polly TTS functionality here
   res.status(500).json({ error: "Not implemented yet" });
 });
+
+// Filtrelenmiş ses listesi endpointi (önce tanımlanmalı)
+router.get('/voices/filter', getFilteredVoices);
 
 // Dinamik ses listesi endpointi
 router.get('/voices', listVoices);

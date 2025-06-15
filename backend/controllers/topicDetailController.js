@@ -17,7 +17,10 @@ exports.getTopicDetailSuggestions = async (req, res) => {
   
   try {
     // Prompt dosyasını oku
+    const promptFile = 'topic_detail_suggestions.txt';
     const promptPath = path.join(__dirname, '../prompts/topic_detail_suggestions.txt');
+    console.log(`🎯 [TOPIC DETAIL CONTROLLER] Using prompt file: ${promptFile} for topic: "${topic}" level: ${level || 'A1'}`);
+    logger.info(`🎯 Topic Detail Controller - Selected prompt file: ${promptFile} for topic: "${topic}" level: ${level || 'A1'}`);
     let promptTemplate = fs.readFileSync(promptPath, 'utf8');
     
     // Placeholder'ları değiştir

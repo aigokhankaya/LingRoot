@@ -17,7 +17,10 @@ exports.rewriteToNarration = async (req, res) => {
   
   try {
     // Prompt dosyasını oku
+    const promptFile = 'rewrite_to_narrations.txt';
     const promptPath = path.join(__dirname, '../prompts/rewrite_to_narrations.txt');
+    console.log(`🎯 [NARRATION CONTROLLER] Using prompt file: ${promptFile} for level: ${level || 'A1'}`);
+    logger.info(`🎯 Narration Controller - Selected prompt file: ${promptFile} for level: ${level || 'A1'}`);
     let promptTemplate = fs.readFileSync(promptPath, 'utf8');
     
     // Placeholder'ları değiştir
