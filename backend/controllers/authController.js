@@ -514,6 +514,4 @@ exports.verifyEmail = async (req, res) => {
   return res.status(501).json({ success: false, message: "E-posta doğrulama fonksiyonu henüz hazır değil" });
 };
 
-exports.googleLogin = async (req, res) => {
-  return res.status(501).json({ success: false, message: "Google login fonksiyonu henüz hazır değil" });
-};
+// Duplicate function removed - using the main googleLogin function above
