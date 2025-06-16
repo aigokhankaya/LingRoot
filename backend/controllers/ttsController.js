@@ -371,16 +371,24 @@ const processTtsRequest = async (req, res) => {
             'en-CA-Wavenet-A', 'en-CA-Wavenet-B', 'en-CA-Wavenet-C', 'en-CA-Wavenet-D',
             // WaveNet voices (Premium) - Indian
             'en-IN-Wavenet-A', 'en-IN-Wavenet-B', 'en-IN-Wavenet-C', 'en-IN-Wavenet-D',
-            // Neural2 voices (Premium)
+            // Neural2 voices (Premium) - US
             'en-US-Neural2-A', 'en-US-Neural2-C', 'en-US-Neural2-D', 'en-US-Neural2-E', 'en-US-Neural2-F',
             'en-US-Neural2-G', 'en-US-Neural2-H', 'en-US-Neural2-I', 'en-US-Neural2-J',
+            // Neural2 voices (Premium) - British
+            'en-GB-Neural2-B', 'en-GB-Neural2-C',
+            // Neural2 voices (Premium) - Australian  
+            'en-AU-Neural2-A', 'en-AU-Neural2-C', 'en-AU-Neural2-D',
             // Chirp HD voices (Gold)
             'en-US-Chirp-HD-D', 'en-US-Chirp-HD-F', 'en-US-Chirp-HD-O',
             // Chirp 3 HD voices (Gold)  
             'en-US-Chirp3-HD-Achernar', 'en-US-Chirp3-HD-Achird', 'en-US-Chirp3-HD-Aoede', 
             'en-US-Chirp3-HD-Despina', 'en-US-Chirp3-HD-Charon',
             // Studio voices (Platin)
-            'en-US-Studio-O', 'en-US-Studio-Q',
+            'en-US-Studio-M', 'en-US-Studio-O', 'en-US-Studio-Q',
+            'en-GB-Studio-B', 'en-GB-Studio-C',
+            // Journey voices (Chirp 3D - Gold)
+            'en-US-Journey-D', 'en-US-Journey-O',
+            'en-GB-Journey-F', 'en-GB-Journey-M',
             // News voices (Premium)
             'en-US-News-K', 'en-US-News-L', 'en-US-News-N',
             // Polyglot voices (Premium)
@@ -396,7 +404,22 @@ const processTtsRequest = async (req, res) => {
             console.log(`🎙️ [TTS CONTROLLER] USING SELECTED VOICE: ${selectedVoice}`);
             logger.info(`[${requestId}] 🎙️ Using selected voice: ${selectedVoice}`);
         }
-        const languageCode = 'en-US';
+        
+        // Dynamically determine language code based on voice name
+        let languageCode = "en-US"; // Default to US English
+        if (selectedVoice) {
+            if (selectedVoice.includes("en-GB")) {
+                languageCode = "en-GB";
+            } else if (selectedVoice.includes("en-AU")) {
+                languageCode = "en-AU";
+            } else if (selectedVoice.includes("en-CA")) {
+                languageCode = "en-CA";
+            } else if (selectedVoice.includes("en-IN")) {
+                languageCode = "en-IN";
+            } else if (selectedVoice.includes("en-US")) {
+                languageCode = "en-US";
+            }
+        }
         const adaptedText = finalChunks.join('\n\n');
         logRequestStep(requestId, 'tts:start', { chunkCount: finalChunks.length, voice: selectedVoice, speakingRate });
         // --- TTS Processing ---
@@ -704,10 +727,28 @@ const translateToEnglish = async (req, res) => {
     const requestId = uuidv4();
     try {
       logStep({ requestId, stepName: 'tts:synthesizeChunk', inputData: { text, voice, rate } });
+      
+      // Dynamically determine language code based on voice name
+      let languageCode = "en-US"; // Default to US English
+      
+      if (voice) {
+        if (voice.includes("en-GB")) {
+          languageCode = "en-GB";
+        } else if (voice.includes("en-AU")) {
+          languageCode = "en-AU";
+        } else if (voice.includes("en-CA")) {
+          languageCode = "en-CA";
+        } else if (voice.includes("en-IN")) {
+          languageCode = "en-IN";
+        } else if (voice.includes("en-US")) {
+          languageCode = "en-US";
+        }
+      }
+      
       const result = await synthesizeWithGoogle({
           text: text,
-          voiceName: voice || "Joanna",
-          languageCode: "en-US",
+          voiceName: voice || "en-US-Standard-B",
+          languageCode: languageCode,
           speakingRate: rate || 1.0
       });
       logStep({ requestId, stepName: 'tts:synthesizeChunk:end', outputData: result });
@@ -738,17 +779,29 @@ const translateToEnglish = async (req, res) => {
     if (ttsProvider === 'google') {
       // Google TTS voices with pricing categories, accent types, and emotion tones
       const googleVoices = [
-        // Standard voices (Basic) - CORRECTED GENDERS
-        { gender: 'male', name: 'en-US-Standard-A', category: 'Standard', package: 'Basic', description: 'Standard Erkek', accent: 'american', emotion: 'neutral' },
-        { gender: 'male', name: 'en-US-Standard-B', category: 'Standard', package: 'Basic', description: 'Standard Erkek 2', accent: 'american', emotion: 'neutral' },
-        { gender: 'female', name: 'en-US-Standard-C', category: 'Standard', package: 'Basic', description: 'Standard Kadın', accent: 'american', emotion: 'neutral' },
-        { gender: 'male', name: 'en-US-Standard-D', category: 'Standard', package: 'Basic', description: 'Standard Erkek 3', accent: 'american', emotion: 'neutral' },
-        { gender: 'female', name: 'en-US-Standard-E', category: 'Standard', package: 'Basic', description: 'Standard Kadın 2', accent: 'american', emotion: 'neutral' },
-        { gender: 'female', name: 'en-US-Standard-F', category: 'Standard', package: 'Basic', description: 'Standard Kadın 3', accent: 'american', emotion: 'neutral' },
-        { gender: 'female', name: 'en-US-Standard-G', category: 'Standard', package: 'Basic', description: 'Standard Kadın 4', accent: 'american', emotion: 'neutral' },
-        { gender: 'female', name: 'en-US-Standard-H', category: 'Standard', package: 'Basic', description: 'Standard Kadın 5', accent: 'american', emotion: 'neutral' },
-        { gender: 'male', name: 'en-US-Standard-I', category: 'Standard', package: 'Basic', description: 'Standard Erkek 4', accent: 'american', emotion: 'neutral' },
-        { gender: 'male', name: 'en-US-Standard-J', category: 'Standard', package: 'Basic', description: 'Standard Erkek 5', accent: 'american', emotion: 'neutral' },
+        // Standard voices (Basic) - US
+        { gender: 'male', name: 'en-US-Standard-A', category: 'Standard', package: 'Basic', description: 'Standard Erkek A', accent: 'american', emotion: 'neutral' },
+        { gender: 'male', name: 'en-US-Standard-B', category: 'Standard', package: 'Basic', description: 'Standard Erkek B', accent: 'american', emotion: 'neutral' },
+        { gender: 'female', name: 'en-US-Standard-C', category: 'Standard', package: 'Basic', description: 'Standard Kadın C', accent: 'american', emotion: 'neutral' },
+        { gender: 'male', name: 'en-US-Standard-D', category: 'Standard', package: 'Basic', description: 'Standard Erkek D', accent: 'american', emotion: 'neutral' },
+        { gender: 'female', name: 'en-US-Standard-E', category: 'Standard', package: 'Basic', description: 'Standard Kadın E', accent: 'american', emotion: 'neutral' },
+        { gender: 'female', name: 'en-US-Standard-F', category: 'Standard', package: 'Basic', description: 'Standard Kadın F', accent: 'american', emotion: 'neutral' },
+        { gender: 'female', name: 'en-US-Standard-G', category: 'Standard', package: 'Basic', description: 'Standard Kadın G', accent: 'american', emotion: 'neutral' },
+        { gender: 'female', name: 'en-US-Standard-H', category: 'Standard', package: 'Basic', description: 'Standard Kadın H', accent: 'american', emotion: 'neutral' },
+        { gender: 'male', name: 'en-US-Standard-I', category: 'Standard', package: 'Basic', description: 'Standard Erkek I', accent: 'american', emotion: 'neutral' },
+        { gender: 'male', name: 'en-US-Standard-J', category: 'Standard', package: 'Basic', description: 'Standard Erkek J', accent: 'american', emotion: 'neutral' },
+        
+        // Standard voices (Basic) - British
+        { gender: 'female', name: 'en-GB-Standard-A', category: 'Standard', package: 'Basic', description: 'İngiliz Standard Kadın A', accent: 'british', emotion: 'neutral' },
+        { gender: 'male', name: 'en-GB-Standard-B', category: 'Standard', package: 'Basic', description: 'İngiliz Standard Erkek B', accent: 'british', emotion: 'neutral' },
+        { gender: 'female', name: 'en-GB-Standard-C', category: 'Standard', package: 'Basic', description: 'İngiliz Standard Kadın C', accent: 'british', emotion: 'neutral' },
+        { gender: 'male', name: 'en-GB-Standard-D', category: 'Standard', package: 'Basic', description: 'İngiliz Standard Erkek D', accent: 'british', emotion: 'neutral' },
+        
+        // Standard voices (Basic) - Australian
+        { gender: 'female', name: 'en-AU-Standard-A', category: 'Standard', package: 'Basic', description: 'Avustralya Standard Kadın A', accent: 'australian', emotion: 'neutral' },
+        { gender: 'male', name: 'en-AU-Standard-B', category: 'Standard', package: 'Basic', description: 'Avustralya Standard Erkek B', accent: 'australian', emotion: 'neutral' },
+        { gender: 'female', name: 'en-AU-Standard-C', category: 'Standard', package: 'Basic', description: 'Avustralya Standard Kadın C', accent: 'australian', emotion: 'neutral' },
+        { gender: 'male', name: 'en-AU-Standard-D', category: 'Standard', package: 'Basic', description: 'Avustralya Standard Erkek D', accent: 'australian', emotion: 'neutral' },
         
         // WaveNet voices (Premium) - CORRECTED GENDERS with varied accents and emotions
         { gender: 'male', name: 'en-US-Wavenet-A', category: 'WaveNet', package: 'Premium', description: 'WaveNet Erkek', accent: 'american', emotion: 'professional' },
@@ -762,7 +815,7 @@ const translateToEnglish = async (req, res) => {
         { gender: 'male', name: 'en-US-Wavenet-I', category: 'WaveNet', package: 'Premium', description: 'WaveNet Erkek 4', accent: 'american', emotion: 'calm' },
         { gender: 'male', name: 'en-US-Wavenet-J', category: 'WaveNet', package: 'Premium', description: 'WaveNet Erkek 5', accent: 'american', emotion: 'professional' },
         
-        // Neural2 voices (Premium) with varied characteristics
+        // Neural2 voices (Premium) - US
         { gender: 'male', name: 'en-US-Neural2-A', category: 'Neural2', package: 'Premium', description: 'Neural2 Erkek', accent: 'american', emotion: 'neutral' },
         { gender: 'female', name: 'en-US-Neural2-C', category: 'Neural2', package: 'Premium', description: 'Neural2 Kadın', accent: 'american', emotion: 'friendly' },
         { gender: 'male', name: 'en-US-Neural2-D', category: 'Neural2', package: 'Premium', description: 'Neural2 Erkek 2', accent: 'american', emotion: 'professional' },
@@ -772,6 +825,15 @@ const translateToEnglish = async (req, res) => {
         { gender: 'female', name: 'en-US-Neural2-H', category: 'Neural2', package: 'Premium', description: 'Neural2 Kadın 5', accent: 'american', emotion: 'serious' },
         { gender: 'male', name: 'en-US-Neural2-I', category: 'Neural2', package: 'Premium', description: 'Neural2 Erkek 3', accent: 'american', emotion: 'calm' },
         { gender: 'male', name: 'en-US-Neural2-J', category: 'Neural2', package: 'Premium', description: 'Neural2 Erkek 4', accent: 'american', emotion: 'friendly' },
+        
+        // Neural2 voices (Premium) - British
+        { gender: 'male', name: 'en-GB-Neural2-B', category: 'Neural2', package: 'Premium', description: 'İngiliz Neural2 Erkek', accent: 'british', emotion: 'professional' },
+        { gender: 'female', name: 'en-GB-Neural2-C', category: 'Neural2', package: 'Premium', description: 'İngiliz Neural2 Kadın', accent: 'british', emotion: 'friendly' },
+        
+        // Neural2 voices (Premium) - Australian  
+        { gender: 'female', name: 'en-AU-Neural2-A', category: 'Neural2', package: 'Premium', description: 'Avustralya Neural2 Kadın', accent: 'australian', emotion: 'friendly' },
+        { gender: 'female', name: 'en-AU-Neural2-C', category: 'Neural2', package: 'Premium', description: 'Avustralya Neural2 Kadın 2', accent: 'australian', emotion: 'cheerful' },
+        { gender: 'male', name: 'en-AU-Neural2-D', category: 'Neural2', package: 'Premium', description: 'Avustralya Neural2 Erkek', accent: 'australian', emotion: 'calm' },
         
         // Chirp HD voices (Gold) - Old generation with premium characteristics
         { gender: 'male', name: 'en-US-Chirp-HD-D', category: 'Chirp HD', package: 'Gold', description: 'Chirp HD Erkek', accent: 'american', emotion: 'professional' },
@@ -785,9 +847,18 @@ const translateToEnglish = async (req, res) => {
         { gender: 'female', name: 'en-US-Chirp3-HD-Despina', category: 'Chirp 3 HD', package: 'Gold', description: 'Chirp 3 HD Kadın (Despina)', accent: 'american', emotion: 'calm' },
         { gender: 'male', name: 'en-US-Chirp3-HD-Charon', category: 'Chirp 3 HD', package: 'Gold', description: 'Chirp 3 HD Erkek (Charon)', accent: 'american', emotion: 'friendly' },
         
-        // Studio voices (Platin) - CORRECTED BASED ON REAL GOOGLE TTS with premium characteristics
-        { gender: 'female', name: 'en-US-Studio-O', category: 'Studio', package: 'Platin', description: 'Studio Kadın', accent: 'american', emotion: 'professional' },
-        { gender: 'male', name: 'en-US-Studio-Q', category: 'Studio', package: 'Platin', description: 'Studio Erkek', accent: 'american', emotion: 'professional' },
+        // Studio voices (Platin) - Premium studio quality
+        { gender: 'male', name: 'en-US-Studio-M', category: 'Studio', package: 'Platin', description: 'Studio Erkek M', accent: 'american', emotion: 'professional' },
+        { gender: 'female', name: 'en-US-Studio-O', category: 'Studio', package: 'Platin', description: 'Studio Kadın O', accent: 'american', emotion: 'professional' },
+        { gender: 'male', name: 'en-US-Studio-Q', category: 'Studio', package: 'Platin', description: 'Studio Erkek Q', accent: 'american', emotion: 'professional' },
+        { gender: 'male', name: 'en-GB-Studio-B', category: 'Studio', package: 'Platin', description: 'İngiliz Studio Erkek', accent: 'british', emotion: 'professional' },
+        { gender: 'female', name: 'en-GB-Studio-C', category: 'Studio', package: 'Platin', description: 'İngiliz Studio Kadın', accent: 'british', emotion: 'professional' },
+        
+        // Journey voices (Chirp 3D - Gold) - Advanced 3D audio technology
+        { gender: 'female', name: 'en-US-Journey-D', category: 'Chirp 3D', package: 'Gold', description: 'Journey Kadın D', accent: 'american', emotion: 'natural' },
+        { gender: 'male', name: 'en-US-Journey-O', category: 'Chirp 3D', package: 'Gold', description: 'Journey Erkek O', accent: 'american', emotion: 'natural' },
+        { gender: 'female', name: 'en-GB-Journey-F', category: 'Chirp 3D', package: 'Gold', description: 'İngiliz Journey Kadın', accent: 'british', emotion: 'natural' },
+        { gender: 'male', name: 'en-GB-Journey-M', category: 'Chirp 3D', package: 'Gold', description: 'İngiliz Journey Erkek', accent: 'british', emotion: 'natural' },
         
         // News voices (Premium) with news-specific characteristics
         { gender: 'female', name: 'en-US-News-K', category: 'News', package: 'Premium', description: 'Haber Kadın Sesi', accent: 'american', emotion: 'professional' },
@@ -887,6 +958,41 @@ const translateToEnglish = async (req, res) => {
   // handleTTSRequest adıyla alias oluştur (geriye dönük uyumluluk)
   const handleTTSRequest = processTtsRequest;
   
+  // Test endpoint to check available voices
+  const testVoices = async (req, res) => {
+    try {
+      const { languageCode = 'en-GB' } = req.query;
+      logger.info(`Testing available voices for language: ${languageCode}`);
+      
+      const availableVoices = await listGoogleVoices(languageCode);
+      
+      // Filter for Neural2 voices specifically
+      const neural2Voices = availableVoices.filter(voice => 
+        voice.name.includes('Neural2') && voice.name.includes(languageCode)
+      );
+      
+      logger.info(`Found ${neural2Voices.length} Neural2 voices for ${languageCode}:`);
+      neural2Voices.forEach(voice => {
+        logger.info(`- ${voice.name} (${voice.gender})`);
+      });
+      
+      return res.json({
+        success: true,
+        languageCode,
+        totalVoices: availableVoices.length,
+        neural2Voices: neural2Voices,
+        allVoices: availableVoices
+      });
+      
+    } catch (error) {
+      logger.error(`Error testing voices: ${error.message}`);
+      return res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  };
+  
   module.exports = {
       processTtsRequest,
       handleTTSRequest, // Alias olarak ekledik
@@ -898,4 +1004,5 @@ const translateToEnglish = async (req, res) => {
       listVoices,
       getAudioFile, // New endpoint to serve audio
       getFilteredVoices,
+      testVoices, // New test endpoint
   };

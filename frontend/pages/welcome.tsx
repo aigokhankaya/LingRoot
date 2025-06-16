@@ -66,7 +66,7 @@ const Welcome: React.FC = () => {
   const [contentType, setContentType] = useState<string>('text');
   const [englishLevel, setEnglishLevel] = useState<string>('a1');
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
-  const [voiceType, setVoiceType] = useState<string>('en-US-Wavenet-F');
+  const [voiceType, setVoiceType] = useState<string>('en-US-Standard-C');
   const [accentType, setAccentType] = useState<string>('all');
   const [emotionType, setEmotionType] = useState<string>('all');
   const [outputFormat, setOutputFormat] = useState<string>('mp3');
@@ -83,6 +83,9 @@ const Welcome: React.FC = () => {
   const [selectedDetailTopic, setSelectedDetailTopic] = useState<string>('');
   const [availableVoices, setAvailableVoices] = useState<any[]>([]);
   const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
+  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('standard');
+  const [selectedGender, setSelectedGender] = useState<string>('all');
+  const [selectedAccent, setSelectedAccent] = useState<string>('all');
   
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
@@ -126,6 +129,85 @@ const Welcome: React.FC = () => {
     { value: 'friendly', label: 'Samimi' }
   ];
   const formatOptions = ['MP3', 'WAV', 'AAC', 'FLAC', 'OGG'];
+
+  // Ses kategorileri ve detaylı ses verileri
+  const voiceCategories = [
+    { value: 'standard', label: 'Standart Sesler', icon: 'fas fa-volume-up', badge: 'Ücretsiz' },
+    { value: 'wavenet', label: 'WaveNet Sesleri', icon: 'fas fa-star', badge: 'Premium' },
+    { value: 'neural2', label: 'Neural2 Sesleri', icon: 'fas fa-brain', badge: 'Premium' },
+    { value: 'studio', label: 'Studio Sesleri', icon: 'fas fa-crown', badge: 'Platinium' },
+    { value: 'chirp3d', label: 'Chirp 3D', icon: 'fas fa-gem', badge: 'Gold' }
+  ];
+
+  const detailedVoices = {
+    wavenet: [
+      { id: 'en-US-Wavenet-A', name: 'ABD İngilizcesi - Erkek A', accent: 'american', gender: 'male', category: 'wavenet' },
+      { id: 'en-US-Wavenet-F', name: 'ABD İngilizcesi - Kadın F', accent: 'american', gender: 'female', category: 'wavenet' },
+      { id: 'en-GB-Wavenet-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'wavenet' },
+      { id: 'en-GB-Wavenet-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'wavenet' },
+      { id: 'en-AU-Wavenet-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'wavenet' },
+      { id: 'en-AU-Wavenet-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'wavenet' }
+    ],
+    neural2: [
+      { id: 'en-US-Neural2-J', name: 'ABD İngilizcesi - Erkek J', accent: 'american', gender: 'male', category: 'neural2' },
+      { id: 'en-US-Neural2-H', name: 'ABD İngilizcesi - Kadın H', accent: 'american', gender: 'female', category: 'neural2' },
+      { id: 'en-GB-Neural2-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'neural2' },
+      { id: 'en-GB-Neural2-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'neural2' },
+      { id: 'en-AU-Neural2-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'neural2' },
+      { id: 'en-AU-Neural2-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'neural2' },
+      { id: 'en-AU-Neural2-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'neural2' }
+    ],
+    studio: [
+      { id: 'en-US-Studio-M', name: 'ABD İngilizcesi - Erkek M', accent: 'american', gender: 'male', category: 'studio' },
+      { id: 'en-US-Studio-Q', name: 'ABD İngilizcesi - Kadın Q', accent: 'american', gender: 'female', category: 'studio' },
+      { id: 'en-GB-Studio-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'studio' },
+      { id: 'en-GB-Studio-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'studio' }
+    ],
+    chirp3d: [
+      { id: 'en-US-Journey-D', name: 'ABD İngilizcesi - Kadın D', accent: 'american', gender: 'female', category: 'chirp3d' },
+      { id: 'en-US-Journey-O', name: 'ABD İngilizcesi - Erkek O', accent: 'american', gender: 'male', category: 'chirp3d' },
+      { id: 'en-GB-Journey-F', name: 'İngiliz İngilizcesi - Kadın F', accent: 'british', gender: 'female', category: 'chirp3d' },
+      { id: 'en-GB-Journey-M', name: 'İngiliz İngilizcesi - Erkek M', accent: 'british', gender: 'male', category: 'chirp3d' }
+    ],
+    standard: [
+      { id: 'en-US-Standard-B', name: 'ABD İngilizcesi - Erkek B', accent: 'american', gender: 'male', category: 'standard' },
+      { id: 'en-US-Standard-C', name: 'ABD İngilizcesi - Kadın C', accent: 'american', gender: 'female', category: 'standard' },
+      { id: 'en-US-Standard-D', name: 'ABD İngilizcesi - Erkek D', accent: 'american', gender: 'male', category: 'standard' },
+      { id: 'en-US-Standard-E', name: 'ABD İngilizcesi - Kadın E', accent: 'american', gender: 'female', category: 'standard' },
+      { id: 'en-GB-Standard-A', name: 'İngiliz İngilizcesi - Kadın A', accent: 'british', gender: 'female', category: 'standard' },
+      { id: 'en-GB-Standard-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'standard' },
+      { id: 'en-GB-Standard-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'standard' },
+      { id: 'en-GB-Standard-D', name: 'İngiliz İngilizcesi - Erkek D', accent: 'british', gender: 'male', category: 'standard' },
+      { id: 'en-AU-Standard-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'standard' },
+      { id: 'en-AU-Standard-B', name: 'Avustralya İngilizcesi - Erkek B', accent: 'australian', gender: 'male', category: 'standard' },
+      { id: 'en-AU-Standard-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'standard' },
+      { id: 'en-AU-Standard-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'standard' }
+    ]
+  };
+
+  const genderOptions = [
+    { value: 'all', label: 'Tümü' },
+    { value: 'male', label: 'Erkek' },
+    { value: 'female', label: 'Kadın' }
+  ];
+
+  const accentVoiceOptions = [
+    { value: 'all', label: 'Tümü' },
+    { value: 'american', label: 'Amerikan' },
+    { value: 'british', label: 'İngiliz' },
+    { value: 'australian', label: 'Avustralya' }
+  ];
+
+  // Filtrelenmiş sesler için yardımcı fonksiyon
+  const getFilteredVoices = () => {
+    const categoryVoices = detailedVoices[selectedVoiceCategory as keyof typeof detailedVoices] || [];
+    
+    return categoryVoices.filter(voice => {
+      const genderMatch = selectedGender === 'all' || voice.gender === selectedGender;
+      const accentMatch = selectedAccent === 'all' || voice.accent === selectedAccent;
+      return genderMatch && accentMatch;
+    });
+  };
 
   // URL conversion fonksiyonu
   const convertToPlayableUrl = (url: string): string => {
@@ -962,6 +1044,7 @@ const Welcome: React.FC = () => {
                 <h2 className="text-2xl font-bold text-blue-600">Ses Ayarları</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Sol Kolon - İngilizce Seviyesi ve Konuşma Hızı */}
                 <div>
                   <h3 className="text-lg font-medium text-gray-700 mb-3">İngilizce Seviyesi</h3>
                   <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
@@ -993,95 +1076,163 @@ const Welcome: React.FC = () => {
                       </Button>
                     ))}
                   </div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">
-                    Ses Seçimi
-                    {loadingVoices && (
-                      <span className="ml-2 text-sm text-gray-500">
-                        <i className="fas fa-circle-notch fa-spin mr-1"></i>
-                        Yükleniyor...
-                      </span>
-                    )}
-                  </h3>
-                  <select 
-                    value={voiceType} 
-                    onChange={(e) => setVoiceType(e.target.value)}
-                    disabled={loadingVoices}
-                    className="w-full mb-6 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50"
-                  >
-                    <option value="">Ses seçin</option>
-                    {availableVoices.length > 0 ? (
-                      availableVoices.map((voice) => (
-                        <option key={voice.name} value={voice.name}>
-                          {voice.description || voice.name} - {voice.category} ({voice.package})
-                        </option>
-                      ))
-                    ) : !loadingVoices ? (
-                      // Fallback olarak hardcoded seçenekler (API başarısız olursa)
-                      <>
-                        <option value="en-US-Neural2-D">Neural Erkek (Premium)</option>
-                        <option value="en-US-Neural2-I">Neural Erkek 2 (Premium)</option>
-                        <option value="en-US-Neural2-J">Neural Erkek 3 (Premium)</option>
-                        <option value="en-US-Wavenet-A">Wavenet Erkek (Klasik)</option>
-                        <option value="en-US-Standard-D">Standard Erkek (Temel)</option>
-                        <option value="en-US-Standard-I">Standard Erkek 2 (Temel)</option>
-                        <option value="en-US-Standard-J">Standard Erkek 3 (Temel)</option>
-                        <option value="en-US-News-N">Haber Erkek Sesi</option>
-                        <option value="en-US-Neural2-A">Neural Erkek (Alternatif)</option>
-                        <option value="en-US-Neural2-C">Neural Kadın</option>
-                        <option value="en-US-Neural2-E">Neural Kadın 2</option>
-                        <option value="en-US-Neural2-F">Neural Kadın 3</option>
-                      </>
-                    ) : null}
-                  </select>
                 </div>
+
+                {/* Sağ Kolon - Ses Kategorisi, Cinsiyet ve Aksan */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">Aksan Türü</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
-                    {accentOptions.map((accent) => (
+                  <h3 className="text-lg font-medium text-gray-700 mb-3">Ses Kategorisi</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                    {voiceCategories.map((category) => (
                       <Button
-                        key={accent.value}
-                        onClick={() => setAccentType(accent.value)}
-                        variant={accentType === accent.value ? "default" : "outline"}
-                        className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                          accentType === accent.value ? 'bg-blue-600' : ''
+                        key={category.value}
+                        onClick={() => {
+                          setSelectedVoiceCategory(category.value);
+                          // Kategori değiştiğinde ilk sesi seç
+                          const categoryVoices = detailedVoices[category.value as keyof typeof detailedVoices];
+                          if (categoryVoices && categoryVoices.length > 0) {
+                            setVoiceType(categoryVoices[0].id);
+                          }
+                        }}
+                        variant={selectedVoiceCategory === category.value ? "default" : "outline"}
+                        className={`!rounded-button whitespace-nowrap cursor-pointer h-16 flex flex-col items-center justify-center ${
+                          selectedVoiceCategory === category.value ? 'bg-blue-600' : ''
                         }`}
                       >
-                        {accent.label}
+                        <div className="flex items-center space-x-2">
+                          <i className={category.icon}></i>
+                          <span className="font-medium">{category.label}</span>
+                        </div>
+                        <Badge 
+                          variant="outline" 
+                          className={`mt-1 text-xs ${
+                            category.badge === 'Ücretsiz' ? 'bg-green-100 text-green-700 border-green-200' :
+                            category.badge === 'Premium' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                            category.badge === 'Gold' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                            category.badge === 'Platinium' ? 'bg-gray-100 text-gray-700 border-gray-200' : ''
+                          }`}
+                        >
+                          {category.badge}
+                        </Badge>
                       </Button>
                     ))}
                   </div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">Duygu Tonu</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
-                    {emotionOptions.map((emotion) => (
-                      <Button
-                        key={emotion.value}
-                        onClick={() => setEmotionType(emotion.value)}
-                        variant={emotionType === emotion.value ? "default" : "outline"}
-                        className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                          emotionType === emotion.value ? 'bg-blue-600' : ''
-                        }`}
-                      >
-                        {emotion.label}
-                      </Button>
-                    ))}
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">Çıktı Formatı</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
-                    {formatOptions.map((format) => (
-                      <Button
-                        key={format}
-                        onClick={() => setOutputFormat(format.toLowerCase())}
-                        variant={outputFormat === format.toLowerCase() ? "default" : "outline"}
-                        className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                          outputFormat === format.toLowerCase() ? 'bg-blue-600' : ''
-                        }`}
-                      >
-                        {format}
-                      </Button>
-                    ))}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <h4 className="text-md font-medium text-gray-600 mb-2">Cinsiyet</h4>
+                      <div className="grid grid-cols-3 gap-2">
+                        {genderOptions.map((gender) => (
+                          <Button
+                            key={gender.value}
+                            onClick={() => setSelectedGender(gender.value)}
+                            variant={selectedGender === gender.value ? "default" : "outline"}
+                            size="sm"
+                            className={`!rounded-button whitespace-nowrap cursor-pointer ${
+                              selectedGender === gender.value ? 'bg-blue-600' : ''
+                            }`}
+                          >
+                            {gender.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 className="text-md font-medium text-gray-600 mb-2">Aksan</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {accentVoiceOptions.map((accent) => (
+                          <Button
+                            key={accent.value}
+                            onClick={() => setSelectedAccent(accent.value)}
+                            variant={selectedAccent === accent.value ? "default" : "outline"}
+                            size="sm"
+                            className={`!rounded-button whitespace-nowrap cursor-pointer ${
+                              selectedAccent === accent.value ? 'bg-blue-600' : ''
+                            }`}
+                          >
+                            {accent.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* Mevcut Sesler - Full Width */}
+              <div className="mt-6">
+                <h4 className="text-md font-medium text-gray-600 mb-3">Mevcut Sesler</h4>
+                <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 mb-6">
+                  {getFilteredVoices().length > 0 ? (
+                    <div className="space-y-2">
+                      {getFilteredVoices().map((voice) => (
+                        <label key={voice.id} className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+                          <input
+                            type="radio"
+                            name="voice"
+                            value={voice.id}
+                            checked={voiceType === voice.id}
+                            onChange={(e) => setVoiceType(e.target.value)}
+                            className="mr-3 text-blue-600"
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{voice.name} <span className="text-gray-400 font-mono">[{voice.id}]</span></div>
+                            <div className="text-xs text-gray-500">
+                              {voice.accent === 'american' ? 'Amerikan' : 
+                               voice.accent === 'british' ? 'İngiliz' : 
+                               voice.accent === 'australian' ? 'Avustralya' : voice.accent} • 
+                              {voice.gender === 'male' ? 'Erkek' : 'Kadın'}
+                            </div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-500 py-4">
+                      <i className="fas fa-info-circle mb-2"></i>
+                      <p>Seçilen filtrelere uygun ses bulunamadı.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* DUYGU TONU - Geçici olarak gizlendi */}
+              {/*
+              <h3 className="text-lg font-medium text-gray-700 mb-3">Duygu Tonu</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
+                {emotionOptions.map((emotion) => (
+                  <Button
+                    key={emotion.value}
+                    onClick={() => setEmotionType(emotion.value)}
+                    variant={emotionType === emotion.value ? "default" : "outline"}
+                    className={`!rounded-button whitespace-nowrap cursor-pointer ${
+                      emotionType === emotion.value ? 'bg-blue-600' : ''
+                    }`}
+                  >
+                    {emotion.label}
+                  </Button>
+                ))}
+              </div>
+              */}
+              
+              {/* ÇIKTI FORMATı - Geçici olarak gizlendi */}
+              {/*
+              <h3 className="text-lg font-medium text-gray-700 mb-3">Çıktı Formatı</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
+                {formatOptions.map((format) => (
+                  <Button
+                    key={format}
+                    onClick={() => setOutputFormat(format.toLowerCase())}
+                    variant={outputFormat === format.toLowerCase() ? "default" : "outline"}
+                    className={`!rounded-button whitespace-nowrap cursor-pointer ${
+                      outputFormat === format.toLowerCase() ? 'bg-blue-600' : ''
+                    }`}
+                  >
+                    {format}
+                  </Button>
+                ))}
+              </div>
+              */}
               
               <div className="mt-4">
                 <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
