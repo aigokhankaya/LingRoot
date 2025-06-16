@@ -142,7 +142,7 @@ export const apiRequest = async <T>(
 };
 
 export interface ProcessInputData {
-    type: "text" | "youtube" | "spotify" | "file" | "weblink" | "topic" | "book";
+    type: "text" | "youtube" | "spotify" | "file" | "weblink" | "topic" | "book" | "subject";
     input?: string;
     text?: string;
     file?: File;
@@ -532,6 +532,50 @@ export const updateUserInterests = async (interests: string[]): Promise<any> => 
     }
   } catch (error: any) {
     console.error('İlgi alanları güncellenirken hata oluştu:', error);
+    throw error;
+  }
+};
+
+// Metni anlatım formatına dönüştürmek için API isteği gönderen fonksiyon
+export const rewriteToNarration = async (inputText: string, level: string): Promise<any> => {
+  try {
+    console.log('[API] rewriteToNarration called with:', { textLength: inputText.length, level });
+    
+    const token = getToken();
+    if (!token) {
+      throw new Error('Authentication token not found');
+    }
+
+    const url = getApiUrl('narration/rewrite');
+    console.log('[API] rewriteToNarration URL:', url);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        input_text: inputText, 
+        level: level 
+      }),
+      credentials: 'include'
+    });
+
+    console.log('[API] rewriteToNarration response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[API] rewriteToNarration error response:', errorText);
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('[API] rewriteToNarration response data:', data);
+    
+    return data;
+  } catch (error) {
+    console.error('[API] rewriteToNarration error:', error);
     throw error;
   }
 };

@@ -8,7 +8,7 @@ import { getContentHistory } from '../src/lib/api';
 import InterestManager from '../src/components/InterestManager';
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const { badge, dailyLimit, remaining } = useMembership();
   const [activities, setActivities] = useState<any[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
@@ -58,18 +58,28 @@ export default function Profile() {
     fetchHistory();
   }, []);
 
-  if (user === undefined) {
+  // Auth loading durumunda loading göster
+  if (authLoading) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Yükleniyor...</p>
+        </div>
       </main>
     );
   }
 
-  if (!user) {
+  // Auth tamamlandıktan sonra user kontrolü
+  if (!isAuthenticated || !user) {
     return (
       <main className="min-h-screen flex items-center justify-center text-xl text-gray-500">
-        Kullanıcı bulunamadı. Lütfen tekrar giriş yapın.
+        <div className="text-center">
+          <p className="mb-4">Oturum açmanız gerekiyor.</p>
+          <Link href="/login" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md">
+            Giriş Yap
+          </Link>
+        </div>
       </main>
     );
   }

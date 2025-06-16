@@ -43,6 +43,8 @@ async function adaptToCEFR(text, level, requestLogger) {
     // Promptu seviyeye göre dosyadan oku
     const promptFile = `cefr_${level.toUpperCase()}.txt`;
     const promptPath = path.join(__dirname, `../prompts/${promptFile}`);
+    console.log(`🎯 [CEFR ADAPTER] Using prompt file: ${promptFile} for level: ${level.toUpperCase()}`);
+    logger.info(`🎯 CEFR Adapter - Selected prompt file: ${promptFile} for level: ${level.toUpperCase()}`);
     let promptTemplate = fs.readFileSync(promptPath, "utf-8");
     // CHUNK: metni küçük parçalara böl
     const { chunkText } = require('./textProcessor');

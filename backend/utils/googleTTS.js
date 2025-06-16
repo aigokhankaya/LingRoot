@@ -41,6 +41,53 @@ async function synthesizeWithGoogle({ text, voiceName, languageCode, speakingRat
         }
     } catch (error) {
         logger.error('Google TTS error:', { message: error.message, stack: error.stack });
+        
+        // Fallback mechanism for unsupported voices
+        if (error.message.includes('not found') || error.message.includes('invalid') || error.message.includes('does not support')) {
+            logger.warn(`Voice ${voiceName} not supported, trying fallback voices...`);
+            
+            // Define fallback voices based on language code and gender
+            const fallbackVoices = {
+                'en-GB': ['en-GB-Wavenet-A', 'en-GB-Wavenet-B', 'en-GB-Standard-A', 'en-GB-Standard-B'],
+                'en-US': ['en-US-Neural2-J', 'en-US-Wavenet-D', 'en-US-Standard-B', 'en-US-Standard-C'],
+                'en-AU': ['en-AU-Wavenet-A', 'en-AU-Wavenet-B', 'en-AU-Standard-A', 'en-AU-Standard-B'],
+                'en-CA': ['en-CA-Wavenet-A', 'en-CA-Wavenet-B'],
+                'en-IN': ['en-IN-Wavenet-A', 'en-IN-Wavenet-B']
+            };
+            
+            const fallbacks = fallbackVoices[languageCode] || fallbackVoices['en-US'];
+            
+            for (const fallbackVoice of fallbacks) {
+                if (fallbackVoice === voiceName) continue; // Skip the same voice
+                
+                try {
+                    logger.info(`Trying fallback voice: ${fallbackVoice}`);
+                    const fallbackRequest = {
+                        input: { text },
+                        voice: {
+                            languageCode,
+                            name: fallbackVoice
+                        },
+                        audioConfig: {
+                            audioEncoding: 'MP3',
+                            speakingRate: speakingRate
+                        },
+                    };
+                    
+                    const [fallbackResponse] = await googleClient.synthesizeSpeech(fallbackRequest);
+                    if (fallbackResponse.audioContent) {
+                        logger.info(`✅ Fallback successful with voice: ${fallbackVoice}`);
+                        return fallbackResponse.audioContent;
+                    }
+                } catch (fallbackError) {
+                    logger.warn(`Fallback voice ${fallbackVoice} also failed: ${fallbackError.message}`);
+                    continue;
+                }
+            }
+            
+            logger.error('All fallback voices failed');
+        }
+        
         return null;
     }
 }

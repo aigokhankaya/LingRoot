@@ -35,6 +35,8 @@ async function translateToEnglishWithOpenAI(text, requestLogger) {
     if (!openai) throw new Error("OpenAI client is not initialized.");
     const promptFile = 'translate_to_english.txt';
     const promptPath = path.join(__dirname, '../prompts/translate_to_english.txt');
+    console.log(`🎯 [INPUT EXTRACTOR] Using prompt file: ${promptFile} for text translation`);
+    logger.info(`🎯 Input Extractor - Selected prompt file: ${promptFile} for text translation`);
     const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
     const { chunkText } = require('./textProcessor');
     const chunks = chunkText(text);
@@ -106,6 +108,8 @@ async function generateNarrationForTopic(topic, requestLogger) {
     logger.info(`Generating narration for topic: ${topic}`);
     const promptFile = 'rewrite_to_narration.txt';
     const promptPath = path.join(__dirname, '../prompts/rewrite_to_narration.txt');
+    console.log(`🎯 [INPUT EXTRACTOR] Using prompt file: ${promptFile} for topic: "${topic}"`);
+    logger.info(`🎯 Input Extractor - Selected prompt file: ${promptFile} for topic: "${topic}"`);
     let promptTemplate = fs.readFileSync(promptPath, 'utf-8');
     const { chunkText } = require('./textProcessor');
     const chunks = chunkText(topic);
@@ -229,7 +233,10 @@ async function cleanTranscriptWithPrompt(rawTranscript) {
         return null;
     }
     logger.info(`Cleaning transcript with prompt...`);
+    const promptFile = 'rewrite_transcript_clean.txt';
     const promptPath = path.join(__dirname, "../prompts/rewrite_transcript_clean.txt");
+    console.log(`🎯 [INPUT EXTRACTOR] Using prompt file: ${promptFile} for transcript cleaning`);
+    logger.info(`🎯 Input Extractor - Selected prompt file: ${promptFile} for transcript cleaning`);
     let promptTemplate = fs.readFileSync(promptPath, "utf-8");
     const prompt = promptTemplate.replace(/\{\{transkript\}\}/g, rawTranscript);
     try {
@@ -258,7 +265,10 @@ async function cleanTranscriptWithPrompt(rawTranscript) {
 // İngilizceye çeviri fonksiyonu (örnek)
 async function translateToEnglishWithPrompt(text) {
     if (!openai) throw new Error("OpenAI client is not initialized.");
+    const promptFile = 'translate_to_english.txt';
     const promptPath = path.join(__dirname, "../prompts/translate_to_english.txt");
+    console.log(`🎯 [INPUT EXTRACTOR] Using prompt file: ${promptFile} for text translation to English`);
+    logger.info(`🎯 Input Extractor - Selected prompt file: ${promptFile} for text translation to English`);
     let promptTemplate = fs.readFileSync(promptPath, "utf-8");
     const prompt = promptTemplate.replace(/\{\{metin\}\}/g, text);
     const completion = await openai.chat.completions.create({
@@ -277,6 +287,8 @@ async function rewriteTranscriptClean(text, requestLogger) {
     if (!openai) throw new Error("OpenAI client is not initialized.");
     const promptFile = 'rewrite_transcript_clean.txt';
     const promptPath = path.join(__dirname, '../prompts/rewrite_transcript_clean.txt');
+    console.log(`🎯 [INPUT EXTRACTOR] Using prompt file: ${promptFile} for transcript cleaning`);
+    logger.info(`🎯 Input Extractor - Selected prompt file: ${promptFile} for transcript cleaning`);
     const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
     const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, text);
     if (requestLogger) {

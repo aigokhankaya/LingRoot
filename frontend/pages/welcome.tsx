@@ -5,8 +5,9 @@ import Image from 'next/image';
 import { useAuth } from '../src/lib/auth';
 import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
-import { processTts, submitContent, getContentHistory, ProcessInputData } from '../src/lib/api';
+import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData } from '../src/lib/api';
 import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
 import OutputSection from '../src/components/OutputSection';
@@ -52,9 +53,10 @@ interface ContentHistoryItem {
 }
 
 const Welcome: React.FC = () => {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const { badge, dailyLimit, remaining } = useMembership();
   const { t } = useTranslation();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [audioResult, setAudioResult] = useState<AudioResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,20 +66,32 @@ const Welcome: React.FC = () => {
   const [contentType, setContentType] = useState<string>('text');
   const [englishLevel, setEnglishLevel] = useState<string>('a1');
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
-  const [voiceType, setVoiceType] = useState<string>('en-US-Wavenet-F');
-  const [accentType, setAccentType] = useState<string>('american');
-  const [emotionType, setEmotionType] = useState<string>('neutral');
+  const [voiceType, setVoiceType] = useState<string>('en-US-Standard-C');
+  const [accentType, setAccentType] = useState<string>('all');
+  const [emotionType, setEmotionType] = useState<string>('all');
   const [outputFormat, setOutputFormat] = useState<string>('mp3');
   const [textInput, setTextInput] = useState<string>('');
   const [uploadingFile, setUploadingFile] = useState<boolean>(false);
   const [contentHistory, setContentHistory] = useState<ContentHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
   const [showAllHistory, setShowAllHistory] = useState<boolean>(false);
+  const [userInterests, setUserInterests] = useState<string[]>([]);
+  const [loadingInterests, setLoadingInterests] = useState<boolean>(false);
+  const [selectedInterest, setSelectedInterest] = useState<string>('');
+  const [topicDetailSuggestions, setTopicDetailSuggestions] = useState<string[]>([]);
+  const [isLoadingTopicSuggestions, setIsLoadingTopicSuggestions] = useState<boolean>(false);
+  const [selectedDetailTopic, setSelectedDetailTopic] = useState<string>('');
+  const [availableVoices, setAvailableVoices] = useState<any[]>([]);
+  const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
+  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('standard');
+  const [selectedGender, setSelectedGender] = useState<string>('all');
+  const [selectedAccent, setSelectedAccent] = useState<string>('all');
   
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
     { id: 'text', name: 'Metin', icon: 'fas fa-file-alt' },
-    { id: 'topic', name: 'Konu', icon: 'fas fa-lightbulb' },
+    { id: 'topic', name: 'Hobi', icon: 'fas fa-lightbulb' },
+    { id: 'subject', name: 'Konu', icon: 'fas fa-graduation-cap' },
     { id: 'youtube', name: 'YouTube', icon: 'fab fa-youtube' },
     { id: 'weblink', name: 'Web Bağlantısı', icon: 'fas fa-link' },
     { id: 'document', name: 'Doküman', icon: 'fas fa-file-word' },
@@ -94,9 +108,106 @@ const Welcome: React.FC = () => {
     { value: 1.0, label: '1x' },
     { value: 1.2, label: '1.2x' },
   ];
-  const accentOptions = ['Amerikan', 'İngiliz', 'Avustralya', 'Kanada', 'İrlanda', 'Hindistan'];
-  const emotionOptions = ['Nötr', 'Neşeli', 'Ciddi', 'Profesyonel', 'Heyecanlı', 'Sakin'];
+  const accentOptions = [
+    { value: 'all', label: 'Tümü' },
+    { value: 'american', label: 'Amerikan' },
+    { value: 'british', label: 'İngiliz' },
+    { value: 'australian', label: 'Avustralya' },
+    { value: 'canadian', label: 'Kanada' },
+    { value: 'indian', label: 'Hindistan' },
+    { value: 'international', label: 'Uluslararası' }
+  ];
+  
+  const emotionOptions = [
+    { value: 'all', label: 'Tümü' },
+    { value: 'neutral', label: 'Nötr' },
+    { value: 'cheerful', label: 'Neşeli' },
+    { value: 'serious', label: 'Ciddi' },
+    { value: 'professional', label: 'Profesyonel' },
+    { value: 'excited', label: 'Heyecanlı' },
+    { value: 'calm', label: 'Sakin' },
+    { value: 'friendly', label: 'Samimi' }
+  ];
   const formatOptions = ['MP3', 'WAV', 'AAC', 'FLAC', 'OGG'];
+
+  // Ses kategorileri ve detaylı ses verileri
+  const voiceCategories = [
+    { value: 'standard', label: 'Standart Sesler', icon: 'fas fa-volume-up', badge: 'Ücretsiz' },
+    { value: 'wavenet', label: 'WaveNet Sesleri', icon: 'fas fa-star', badge: 'Premium' },
+    { value: 'neural2', label: 'Neural2 Sesleri', icon: 'fas fa-brain', badge: 'Premium' },
+    { value: 'studio', label: 'Studio Sesleri', icon: 'fas fa-crown', badge: 'Platinium' },
+    { value: 'chirp3d', label: 'Chirp 3D', icon: 'fas fa-gem', badge: 'Gold' }
+  ];
+
+  const detailedVoices = {
+    wavenet: [
+      { id: 'en-US-Wavenet-A', name: 'ABD İngilizcesi - Erkek A', accent: 'american', gender: 'male', category: 'wavenet' },
+      { id: 'en-US-Wavenet-F', name: 'ABD İngilizcesi - Kadın F', accent: 'american', gender: 'female', category: 'wavenet' },
+      { id: 'en-GB-Wavenet-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'wavenet' },
+      { id: 'en-GB-Wavenet-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'wavenet' },
+      { id: 'en-AU-Wavenet-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'wavenet' },
+      { id: 'en-AU-Wavenet-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'wavenet' }
+    ],
+    neural2: [
+      { id: 'en-US-Neural2-J', name: 'ABD İngilizcesi - Erkek J', accent: 'american', gender: 'male', category: 'neural2' },
+      { id: 'en-US-Neural2-H', name: 'ABD İngilizcesi - Kadın H', accent: 'american', gender: 'female', category: 'neural2' },
+      { id: 'en-GB-Neural2-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'neural2' },
+      { id: 'en-GB-Neural2-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'neural2' },
+      { id: 'en-AU-Neural2-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'neural2' },
+      { id: 'en-AU-Neural2-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'neural2' },
+      { id: 'en-AU-Neural2-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'neural2' }
+    ],
+    studio: [
+      { id: 'en-US-Studio-M', name: 'ABD İngilizcesi - Erkek M', accent: 'american', gender: 'male', category: 'studio' },
+      { id: 'en-US-Studio-Q', name: 'ABD İngilizcesi - Kadın Q', accent: 'american', gender: 'female', category: 'studio' },
+      { id: 'en-GB-Studio-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'studio' },
+      { id: 'en-GB-Studio-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'studio' }
+    ],
+    chirp3d: [
+      { id: 'en-US-Journey-D', name: 'ABD İngilizcesi - Kadın D', accent: 'american', gender: 'female', category: 'chirp3d' },
+      { id: 'en-US-Journey-O', name: 'ABD İngilizcesi - Erkek O', accent: 'american', gender: 'male', category: 'chirp3d' },
+      { id: 'en-GB-Journey-F', name: 'İngiliz İngilizcesi - Kadın F', accent: 'british', gender: 'female', category: 'chirp3d' },
+      { id: 'en-GB-Journey-M', name: 'İngiliz İngilizcesi - Erkek M', accent: 'british', gender: 'male', category: 'chirp3d' }
+    ],
+    standard: [
+      { id: 'en-US-Standard-B', name: 'ABD İngilizcesi - Erkek B', accent: 'american', gender: 'male', category: 'standard' },
+      { id: 'en-US-Standard-C', name: 'ABD İngilizcesi - Kadın C', accent: 'american', gender: 'female', category: 'standard' },
+      { id: 'en-US-Standard-D', name: 'ABD İngilizcesi - Erkek D', accent: 'american', gender: 'male', category: 'standard' },
+      { id: 'en-US-Standard-E', name: 'ABD İngilizcesi - Kadın E', accent: 'american', gender: 'female', category: 'standard' },
+      { id: 'en-GB-Standard-A', name: 'İngiliz İngilizcesi - Kadın A', accent: 'british', gender: 'female', category: 'standard' },
+      { id: 'en-GB-Standard-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'standard' },
+      { id: 'en-GB-Standard-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'standard' },
+      { id: 'en-GB-Standard-D', name: 'İngiliz İngilizcesi - Erkek D', accent: 'british', gender: 'male', category: 'standard' },
+      { id: 'en-AU-Standard-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'standard' },
+      { id: 'en-AU-Standard-B', name: 'Avustralya İngilizcesi - Erkek B', accent: 'australian', gender: 'male', category: 'standard' },
+      { id: 'en-AU-Standard-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'standard' },
+      { id: 'en-AU-Standard-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'standard' }
+    ]
+  };
+
+  const genderOptions = [
+    { value: 'all', label: 'Tümü' },
+    { value: 'male', label: 'Erkek' },
+    { value: 'female', label: 'Kadın' }
+  ];
+
+  const accentVoiceOptions = [
+    { value: 'all', label: 'Tümü' },
+    { value: 'american', label: 'Amerikan' },
+    { value: 'british', label: 'İngiliz' },
+    { value: 'australian', label: 'Avustralya' }
+  ];
+
+  // Filtrelenmiş sesler için yardımcı fonksiyon
+  const getFilteredVoices = () => {
+    const categoryVoices = detailedVoices[selectedVoiceCategory as keyof typeof detailedVoices] || [];
+    
+    return categoryVoices.filter(voice => {
+      const genderMatch = selectedGender === 'all' || voice.gender === selectedGender;
+      const accentMatch = selectedAccent === 'all' || voice.accent === selectedAccent;
+      return genderMatch && accentMatch;
+    });
+  };
 
   // URL conversion fonksiyonu
   const convertToPlayableUrl = (url: string): string => {
@@ -145,12 +256,110 @@ const Welcome: React.FC = () => {
     }
   };
 
-  // Content history'yi yüklemek için useEffect ekleyelim
+  // Kullanılabilir sesleri çeken fonksiyon
+  const fetchAvailableVoices = async () => {
+    setLoadingVoices(true);
+    try {
+      console.log('fetchAvailableVoices başlatılıyor...');
+      
+      // API endpoint'ini belirle
+      const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        ? 'http://localhost:5001/api/tts/voices'
+        : '/api/tts/voices';
+      
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      
+      console.log('Voices API response:', data);
+      
+      if (data.voices && Array.isArray(data.voices)) {
+        setAvailableVoices(data.voices);
+        console.log('Available voices set edildi:', data.voices.length, 'voice');
+        
+        // İlk sesi varsayılan olarak seç (eğer henüz seçilmemişse)
+        if (!voiceType && data.voices.length > 0) {
+          setVoiceType(data.voices[0].name);
+          console.log('Varsayılan ses seçildi:', data.voices[0].name);
+        }
+      } else {
+        console.log('API response voices array değil, boş array set ediliyor');
+        setAvailableVoices([]);
+      }
+    } catch (error) {
+      console.error('Sesler yüklenirken hata oluştu:', error);
+      setAvailableVoices([]);
+    } finally {
+      setLoadingVoices(false);
+    }
+  };
+
+  // Filtrelenmiş sesleri çeken fonksiyon
+  const fetchFilteredVoices = async (accent: string, emotion: string, gender?: string) => {
+    setLoadingVoices(true);
+    try {
+      console.log('🎯 Filtrelenmiş sesler çekiliyor...', { accent, emotion, gender });
+      
+      // API endpoint'ini belirle
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        ? 'http://localhost:5001/api/tts/voices/filter'
+        : '/api/tts/voices/filter';
+      
+      // Query parametrelerini oluştur
+      const params = new URLSearchParams();
+      if (accent) params.append('accent', accent);
+      if (emotion) params.append('emotion', emotion);
+      if (gender) params.append('gender', gender);
+      
+      const apiUrl = `${baseUrl}?${params.toString()}`;
+      console.log('🔗 Filter API URL:', apiUrl);
+      
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      
+      console.log('🎯 Filtered Voices API response:', data);
+      
+      if (data.voices && Array.isArray(data.voices)) {
+        setAvailableVoices(data.voices);
+        console.log(`✅ Filtrelenmiş sesler set edildi: ${data.filteredCount}/${data.totalCount} voice`);
+        
+        // Mevcut seçili ses filtrelenmiş listede yoksa, ilk sesi seç
+        const currentVoiceExists = data.voices.some((voice: any) => voice.name === voiceType);
+        if (!currentVoiceExists && data.voices.length > 0) {
+          setVoiceType(data.voices[0].name);
+          console.log('🔄 Yeni varsayılan ses seçildi:', data.voices[0].name);
+        }
+      } else {
+        console.log('❌ API response voices array değil, boş array set ediliyor');
+        setAvailableVoices([]);
+      }
+    } catch (error) {
+      console.error('❌ Filtrelenmiş sesler yüklenirken hata oluştu:', error);
+      setAvailableVoices([]);
+    } finally {
+      setLoadingVoices(false);
+    }
+  };
+
+  // Content history ve user interests'i yüklemek için useEffect ekleyelim
   useEffect(() => {
     if (isAuthenticated) {
       fetchContentHistory();
+      fetchUserInterests();
     }
+    // Ses listesini her zaman yükle (authentication gerekmez)
+    fetchAvailableVoices();
   }, [isAuthenticated]);
+
+  // Aksan türü ve duygu tonu değiştiğinde sesleri filtrele
+  useEffect(() => {
+    if (accentType !== 'all' || emotionType !== 'all') {
+      console.log('🎯 Filtre değişti, sesler yeniden çekiliyor...', { accentType, emotionType });
+      fetchFilteredVoices(accentType, emotionType);
+    } else {
+      console.log('🔄 Tüm filtreler kaldırıldı, tüm sesler çekiliyor...');
+      fetchAvailableVoices();
+    }
+  }, [accentType, emotionType]);
 
   // Content history'yi çeken fonksiyon
   const fetchContentHistory = async () => {
@@ -182,11 +391,73 @@ const Welcome: React.FC = () => {
     }
   };
 
+  // Kullanıcı ilgi alanlarını çeken fonksiyon
+  const fetchUserInterests = async () => {
+    setLoadingInterests(true);
+    try {
+      console.log('fetchUserInterests başlatılıyor...');
+      const response = await getUserInterests();
+      console.log('getUserInterests response:', response);
+      
+      if (response && Array.isArray(response)) {
+        // Backend'den gelen format: [{ interest_keyword: "İngilizce" }, ...]
+        const interests = response.map((item: any) => item.interest_keyword || item);
+        setUserInterests(interests);
+        console.log('User interests set edildi:', interests);
+      } else {
+        console.log('User interests data array değil, boş array set ediliyor');
+        setUserInterests([]);
+      }
+    } catch (error) {
+      console.error('User interests yüklenirken hata oluştu:', error);
+      setUserInterests([]);
+    } finally {
+      setLoadingInterests(false);
+    }
+  };
+
+  // Konu önerisi fonksiyonu - mevcut InputSection yapısına uyarlanmış
+  const handleTopicSuggestion = async () => {
+    if (contentType !== 'topic') return;
+    
+    if (!selectedInterest) {
+      setError('Lütfen önce bir hobi/ilgi alanı seçin.');
+      return;
+    }
+    
+    setIsLoadingTopicSuggestions(true);
+    setError(null);
+    
+    try {
+      const response = await getTopicDetailSuggestions(selectedInterest, englishLevel);
+      if (response.success && response.data.suggestions) {
+        setTopicDetailSuggestions(response.data.suggestions);
+        console.log(`${selectedInterest} konusu için ${response.data.suggestions.length} öneri alındı`);
+      } else {
+        console.error("Konu önerileri alınamadı:", response);
+        setError("Konu önerileri alınamadı: " + (response.message || "Bilinmeyen hata"));
+      }
+    } catch (error: any) {
+      console.error("Konu önerileri alınırken hata oluştu:", error);
+      const errorMessage = error.message || "Bilinmeyen bir hata oluştu";
+      setError(`Konu önerileri alınamadı: ${errorMessage}`);
+    } finally {
+      setIsLoadingTopicSuggestions(false);
+    }
+  };
+
+  // Detaylı konu seçildiğinde çalışacak handler
+  const handleDetailTopicSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedValue = e.target.value;
+    setSelectedDetailTopic(selectedValue);
+    setTextInput(selectedValue); // Seçilen detaylı konuyu textarea'ya yaz
+  };
+
   const handleSubmit = async (inputData: InputData) => {
     setIsLoading(true);
     setError(null);
     try {
-      const processInput: ProcessInputData = {
+      let processInput: ProcessInputData = {
         type: inputData.type,
         input: inputData.text || inputData.input, // text veya input'u input olarak gönder
         file: inputData.file,
@@ -195,6 +466,35 @@ const Welcome: React.FC = () => {
         voice: inputData.voice,
         chapter: (inputData as any).chapter,
       };
+
+      // "subject" (Konu) ve "topic" (Hobi) type'ları için özel işlem
+      if (inputData.type === 'subject' || inputData.type === 'topic') {
+        const typeLabel = inputData.type === 'subject' ? 'Subject (Konu)' : 'Topic (Hobi)';
+        console.log(`${typeLabel} type detected, rewriting to narration...`);
+        
+        // Metni anlatım formatına dönüştür
+        const narrationResult = await rewriteToNarration(
+          inputData.text || inputData.input || '', 
+          inputData.level
+        );
+        
+        if (narrationResult.success && narrationResult.data.narration_text) {
+          // Dönüştürülmüş metni kullan ve type'ı text olarak değiştir
+          processInput = {
+            ...processInput,
+            type: 'text',
+            input: narrationResult.data.narration_text
+          };
+          
+          console.log(`${typeLabel} text rewritten to narration format:`, {
+            originalLength: (inputData.text || inputData.input || '').length,
+            narrationLength: narrationResult.data.narration_text.length
+          });
+        } else {
+          throw new Error('Metin anlatım formatına dönüştürülemedi.');
+        }
+      }
+
       const result = await processTts(processInput);
       if (result && result.mp3_url) {
         setAudioResult({
@@ -203,9 +503,9 @@ const Welcome: React.FC = () => {
           vtt_url: result.vtt_url,
           level: inputData.level
         });
-        const input = inputData.type === 'text' ? inputData.text : inputData.input;
+        const input = processInput.type === 'text' ? processInput.input : inputData.input;
         try {
-          await submitContent(input || '', inputData.type, inputData.level, result.mp3_url);
+          await submitContent(input || '', processInput.type, inputData.level, result.mp3_url);
           console.log('İçerik başarıyla kaydedildi');
           // Content history'yi yeniden yükle
           fetchContentHistory();
@@ -346,10 +646,31 @@ const Welcome: React.FC = () => {
     );
   }
 
-  if (!user) {
+  // Auth loading durumunda loading göster
+  if (authLoading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Yükleniyor...</p>
+        </div>
+      </main>
+    );
+  }
+
+  // Auth tamamlandıktan sonra user kontrolü
+  if (!isAuthenticated || !user) {
     return (
       <main className="min-h-screen flex items-center justify-center text-xl text-gray-500">
-        Kullanıcı bulunamadı. Lütfen tekrar giriş yapın.
+        <div className="text-center">
+          <p className="mb-4">Oturum açmanız gerekiyor.</p>
+          <button 
+            onClick={() => router.push('/login')}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md"
+          >
+            Giriş Yap
+          </button>
+        </div>
       </main>
     );
   }
@@ -436,7 +757,10 @@ const Welcome: React.FC = () => {
                     </a>
                     <div className="border-t border-gray-100 mt-2 pt-2">
                       <button
-                        onClick={logout}
+                        onClick={() => {
+                          logout();
+                          router.push('/');
+                        }}
                         className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 cursor-pointer"
                       >
                         <i className="fas fa-sign-out-alt mr-2"></i>
@@ -521,9 +845,6 @@ const Welcome: React.FC = () => {
                     <Button variant="outline" size="sm" className="!rounded-button whitespace-nowrap cursor-pointer">
                       <i className="fas fa-cog mr-2"></i> Ayarlar
                     </Button>
-                    <Button className="bg-green-600 hover:bg-green-700 !rounded-button whitespace-nowrap cursor-pointer">
-                      <i className="fas fa-magic mr-2"></i> Konu Öner
-                    </Button>
                   </div>
                 </div>
                 {contentType === 'document' ? (
@@ -590,16 +911,124 @@ const Welcome: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="relative">
-                    <textarea
-                      value={textInput}
-                      onChange={(e) => setTextInput(e.target.value)}
-                      placeholder="İngilizce'ye çevirmek veya ses oluşturmak istediğiniz metni buraya girin..."
-                      className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
-                    />
-                    <button className="absolute bottom-3 right-3 text-gray-500 hover:text-blue-600 cursor-pointer">
-                      <i className="fas fa-edit text-xl"></i>
-                    </button>
+                  <div className="space-y-4">
+                    {/* Hobi seçildiğinde ilgi alanları combobox'ı göster */}
+                    {contentType === 'topic' && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Hobiler/İlgi Alanlarınız:
+                          </label>
+                          {loadingInterests ? (
+                            <div className="flex items-center justify-center p-4 border border-gray-300 rounded-lg">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                              <span className="ml-2 text-gray-600">İlgi alanları yükleniyor...</span>
+                            </div>
+                          ) : userInterests.length > 0 ? (
+                            <div className="flex gap-3">
+                              <div className="flex-1">
+                                <select 
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                                  value={selectedInterest}
+                                  onChange={(e) => setSelectedInterest(e.target.value)}
+                                >
+                                  <option value="">Hobi/İlgi alanı seçin...</option>
+                                  {userInterests.map((interest, index) => (
+                                    <option key={index} value={interest}>
+                                      {interest}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <Button 
+                                type="button"
+                                className={`px-6 py-3 !rounded-button whitespace-nowrap ${
+                                  selectedInterest && !isLoadingTopicSuggestions
+                                    ? 'bg-green-600 hover:bg-green-700 cursor-pointer' 
+                                    : 'bg-gray-400 cursor-not-allowed'
+                                }`}
+                                disabled={!selectedInterest || isLoadingTopicSuggestions}
+                                onClick={handleTopicSuggestion}
+                              >
+                                {isLoadingTopicSuggestions ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    Yükleniyor...
+                                  </>
+                                ) : (
+                                  <>
+                                    <i className="fas fa-magic mr-2"></i>
+                                    Hobi Öner
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="p-4 border border-yellow-300 bg-yellow-50 rounded-lg">
+                              <p className="text-yellow-800 text-sm">
+                                Hobi/İlgi alanlarınız bulunamadı. Profil ayarlarınızdan ilgi alanlarınızı ekleyebilirsiniz.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Detaylı öneriler combobox'ı */}
+                        {topicDetailSuggestions.length > 0 && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Detaylı Öneriler:
+                            </label>
+                            <select
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                              value={selectedDetailTopic}
+                              onChange={handleDetailTopicSelect}
+                            >
+                              <option value="">Öneri seçin...</option>
+                              {topicDetailSuggestions.map((suggestion, index) => (
+                                <option key={index} value={suggestion}>
+                                  {suggestion.length > 100 ? `${suggestion.substring(0, 100)}...` : suggestion}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Yeni Konu sekmesi - sadece metin kutusu */}
+                    {contentType === 'subject' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Konu:
+                        </label>
+                        <div className="relative">
+                          <textarea
+                            value={textInput}
+                            onChange={(e) => setTextInput(e.target.value)}
+                            placeholder="Öğrenmek istediğiniz konuyu yazın..."
+                            className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                          />
+                          <button className="absolute bottom-3 right-3 text-gray-500 hover:text-blue-600 cursor-pointer">
+                            <i className="fas fa-edit text-xl"></i>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Diğer içerik türleri için genel textarea */}
+                    {contentType !== 'topic' && contentType !== 'subject' && (
+                      <div className="relative">
+                        <textarea
+                          value={textInput}
+                          onChange={(e) => setTextInput(e.target.value)}
+                          placeholder="İngilizce'ye çevirmek veya ses oluşturmak istediğiniz metni buraya girin..."
+                          className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                        />
+                        <button className="absolute bottom-3 right-3 text-gray-500 hover:text-blue-600 cursor-pointer">
+                          <i className="fas fa-edit text-xl"></i>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -615,6 +1044,7 @@ const Welcome: React.FC = () => {
                 <h2 className="text-2xl font-bold text-blue-600">Ses Ayarları</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Sol Kolon - İngilizce Seviyesi ve Konuşma Hızı */}
                 <div>
                   <h3 className="text-lg font-medium text-gray-700 mb-3">İngilizce Seviyesi</h3>
                   <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
@@ -646,66 +1076,163 @@ const Welcome: React.FC = () => {
                       </Button>
                     ))}
                   </div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">Ses Seçimi</h3>
-                  <select 
-                    value={voiceType} 
-                    onChange={(e) => setVoiceType(e.target.value)}
-                    className="w-full mb-6 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
-                  >
-                    <option value="en-US-Wavenet-F">Amerikan İngilizcesi (Kadın)</option>
-                    <option value="en-US-Wavenet-M">Amerikan İngilizcesi (Erkek)</option>
-                    <option value="en-GB-Wavenet-F" disabled>İngiliz İngilizcesi (Kadın) - Premium</option>
-                    <option value="en-GB-Wavenet-M" disabled>İngiliz İngilizcesi (Erkek) - Premium</option>
-                  </select>
                 </div>
+
+                {/* Sağ Kolon - Ses Kategorisi, Cinsiyet ve Aksan */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">Aksan Türü</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
-                    {accentOptions.map((accent) => (
+                  <h3 className="text-lg font-medium text-gray-700 mb-3">Ses Kategorisi</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                    {voiceCategories.map((category) => (
                       <Button
-                        key={accent}
-                        onClick={() => setAccentType(accent.toLowerCase())}
-                        variant={accentType === accent.toLowerCase() ? "default" : "outline"}
-                        className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                          accentType === accent.toLowerCase() ? 'bg-blue-600' : ''
+                        key={category.value}
+                        onClick={() => {
+                          setSelectedVoiceCategory(category.value);
+                          // Kategori değiştiğinde ilk sesi seç
+                          const categoryVoices = detailedVoices[category.value as keyof typeof detailedVoices];
+                          if (categoryVoices && categoryVoices.length > 0) {
+                            setVoiceType(categoryVoices[0].id);
+                          }
+                        }}
+                        variant={selectedVoiceCategory === category.value ? "default" : "outline"}
+                        className={`!rounded-button whitespace-nowrap cursor-pointer h-16 flex flex-col items-center justify-center ${
+                          selectedVoiceCategory === category.value ? 'bg-blue-600' : ''
                         }`}
                       >
-                        {accent}
+                        <div className="flex items-center space-x-2">
+                          <i className={category.icon}></i>
+                          <span className="font-medium">{category.label}</span>
+                        </div>
+                        <Badge 
+                          variant="outline" 
+                          className={`mt-1 text-xs ${
+                            category.badge === 'Ücretsiz' ? 'bg-green-100 text-green-700 border-green-200' :
+                            category.badge === 'Premium' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                            category.badge === 'Gold' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                            category.badge === 'Platinium' ? 'bg-gray-100 text-gray-700 border-gray-200' : ''
+                          }`}
+                        >
+                          {category.badge}
+                        </Badge>
                       </Button>
                     ))}
                   </div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">Duygu Tonu</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
-                    {emotionOptions.map((emotion) => (
-                      <Button
-                        key={emotion}
-                        onClick={() => setEmotionType(emotion.toLowerCase())}
-                        variant={emotionType === emotion.toLowerCase() ? "default" : "outline"}
-                        className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                          emotionType === emotion.toLowerCase() ? 'bg-blue-600' : ''
-                        }`}
-                      >
-                        {emotion}
-                      </Button>
-                    ))}
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">Çıktı Formatı</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
-                    {formatOptions.map((format) => (
-                      <Button
-                        key={format}
-                        onClick={() => setOutputFormat(format.toLowerCase())}
-                        variant={outputFormat === format.toLowerCase() ? "default" : "outline"}
-                        className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                          outputFormat === format.toLowerCase() ? 'bg-blue-600' : ''
-                        }`}
-                      >
-                        {format}
-                      </Button>
-                    ))}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <h4 className="text-md font-medium text-gray-600 mb-2">Cinsiyet</h4>
+                      <div className="grid grid-cols-3 gap-2">
+                        {genderOptions.map((gender) => (
+                          <Button
+                            key={gender.value}
+                            onClick={() => setSelectedGender(gender.value)}
+                            variant={selectedGender === gender.value ? "default" : "outline"}
+                            size="sm"
+                            className={`!rounded-button whitespace-nowrap cursor-pointer ${
+                              selectedGender === gender.value ? 'bg-blue-600' : ''
+                            }`}
+                          >
+                            {gender.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 className="text-md font-medium text-gray-600 mb-2">Aksan</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {accentVoiceOptions.map((accent) => (
+                          <Button
+                            key={accent.value}
+                            onClick={() => setSelectedAccent(accent.value)}
+                            variant={selectedAccent === accent.value ? "default" : "outline"}
+                            size="sm"
+                            className={`!rounded-button whitespace-nowrap cursor-pointer ${
+                              selectedAccent === accent.value ? 'bg-blue-600' : ''
+                            }`}
+                          >
+                            {accent.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* Mevcut Sesler - Full Width */}
+              <div className="mt-6">
+                <h4 className="text-md font-medium text-gray-600 mb-3">Mevcut Sesler</h4>
+                <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 mb-6">
+                  {getFilteredVoices().length > 0 ? (
+                    <div className="space-y-2">
+                      {getFilteredVoices().map((voice) => (
+                        <label key={voice.id} className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+                          <input
+                            type="radio"
+                            name="voice"
+                            value={voice.id}
+                            checked={voiceType === voice.id}
+                            onChange={(e) => setVoiceType(e.target.value)}
+                            className="mr-3 text-blue-600"
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{voice.name} <span className="text-gray-400 font-mono">[{voice.id}]</span></div>
+                            <div className="text-xs text-gray-500">
+                              {voice.accent === 'american' ? 'Amerikan' : 
+                               voice.accent === 'british' ? 'İngiliz' : 
+                               voice.accent === 'australian' ? 'Avustralya' : voice.accent} • 
+                              {voice.gender === 'male' ? 'Erkek' : 'Kadın'}
+                            </div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-500 py-4">
+                      <i className="fas fa-info-circle mb-2"></i>
+                      <p>Seçilen filtrelere uygun ses bulunamadı.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* DUYGU TONU - Geçici olarak gizlendi */}
+              {/*
+              <h3 className="text-lg font-medium text-gray-700 mb-3">Duygu Tonu</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
+                {emotionOptions.map((emotion) => (
+                  <Button
+                    key={emotion.value}
+                    onClick={() => setEmotionType(emotion.value)}
+                    variant={emotionType === emotion.value ? "default" : "outline"}
+                    className={`!rounded-button whitespace-nowrap cursor-pointer ${
+                      emotionType === emotion.value ? 'bg-blue-600' : ''
+                    }`}
+                  >
+                    {emotion.label}
+                  </Button>
+                ))}
+              </div>
+              */}
+              
+              {/* ÇIKTI FORMATı - Geçici olarak gizlendi */}
+              {/*
+              <h3 className="text-lg font-medium text-gray-700 mb-3">Çıktı Formatı</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
+                {formatOptions.map((format) => (
+                  <Button
+                    key={format}
+                    onClick={() => setOutputFormat(format.toLowerCase())}
+                    variant={outputFormat === format.toLowerCase() ? "default" : "outline"}
+                    className={`!rounded-button whitespace-nowrap cursor-pointer ${
+                      outputFormat === format.toLowerCase() ? 'bg-blue-600' : ''
+                    }`}
+                  >
+                    {format}
+                  </Button>
+                ))}
+              </div>
+              */}
               
               <div className="mt-4">
                 <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">

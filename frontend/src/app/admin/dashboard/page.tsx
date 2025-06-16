@@ -1,107 +1,1495 @@
+// The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import React, { useState, useEffect } from 'react';
+import { useTheme } from "next-themes";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
+import { Progress } from "@/components/ui/progress";
+import { Calendar } from "@/components/ui/calendar";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import * as echarts from 'echarts';
 import { useRouter } from 'next/navigation';
 
-// TODO: Define interfaces for stats if needed
+const App: React.FC = () => {
+  const { theme, setTheme } = useTheme();
+  const [activeTab, setActiveTab] = useState("kullanici-yonetimi");
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [showUserDetails, setShowUserDetails] = useState(false);
+  const [showPackageForm, setShowPackageForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("tümü");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [loading, setLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const router = useRouter();
 
-export default function AdminDashboard() {
-    const [userEmail, setUserEmail] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const router = useRouter();
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+      
+      if (!token) {
+        router.push('/admin/login');
+        return;
+      }
 
-    useEffect(() => {
-        const fetchSession = async () => {
-            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-            if (sessionError) {
-                console.error('Error fetching session:', sessionError);
-                setError('Could not fetch user session.');
-            } else if (session) {
-                setUserEmail(session.user?.email || 'N/A');
-            } else {
-                // Should be handled by middleware, but as a fallback:
-                router.push('/admin/login');
-            }
-            setLoading(false);
-        };
-        fetchSession();
-    }, [router]);
+      try {
+        // Verify token and get user info
+        const response = await fetch('/api/auth/me', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
 
-    const handleLogout = async () => {
-        setLoading(true);
-        const { error: signOutError } = await supabase.auth.signOut();
-        if (signOutError) {
-            console.error('Error signing out:', signOutError);
-            setError('Failed to sign out.');
-            setLoading(false);
-        } else {
+        const data = await response.json();
+
+        if (response.ok && data.success && data.user) {
+          if (data.user.role === 'admin') {
+            setUserEmail(data.user.email || 'N/A');
+            // Fetch users after successful auth
+            fetchUsers();
+          } else {
+            setError('Access denied: Admin privileges required.');
+            localStorage.removeItem('lingroot_token');
             router.push('/admin/login');
+          }
+        } else {
+          localStorage.removeItem('lingroot_token');
+          router.push('/admin/login');
         }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        localStorage.removeItem('lingroot_token');
+        router.push('/admin/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkAuth();
+  }, [router]);
+
+  const fetchUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const token = localStorage.getItem('lingroot_token');
+      console.log('[FETCH USERS] Starting fetch with token:', token ? 'present' : 'missing');
+      
+      const response = await fetch('/api/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('[FETCH USERS] Response status:', response.status);
+
+      const data = await response.json();
+      console.log('[FETCH USERS] Response data:', data);
+      
+      if (response.ok && data.success) {
+        // Backend'den gelen data formatını kullan (zaten transform edilmiş)
+        setUsers(data.users || []);
+        console.log('[FETCH USERS] Users set successfully:', data.users?.length || 0);
+      } else {
+        console.error('[FETCH USERS] Failed to fetch users:', data);
+        console.error('[FETCH USERS] Response status:', response.status);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setLoading(true);
+    try {
+      // Remove JWT token
+      localStorage.removeItem('lingroot_token');
+      router.push('/admin/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      setError('Failed to sign out.');
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (loading || activeTab !== "analitik" || typeof window === 'undefined') return;
+
+    // DOM elementlerinin var olup olmadığını kontrol et
+    const packageElement = document.getElementById('package-distribution-chart');
+    const usageElement = document.getElementById('usage-duration-chart');
+    const levelElement = document.getElementById('level-preference-chart');
+
+    if (!packageElement || !usageElement || !levelElement) {
+      return;
+    }
+
+    // Kullanıcı dağılımı pasta grafiği
+    const packageDistributionChart = echarts.init(packageElement);
+    const packageDistributionOption = {
+      animation: false,
+      tooltip: {
+        trigger: 'item',
+        formatter: '{a} <br/>{b}: {c} ({d}%)'
+      },
+      legend: {
+        orient: 'vertical',
+        left: 10,
+        data: ['Ücretsiz', 'Premium', 'Pro', 'Kurumsal']
+      },
+      series: [
+        {
+          name: 'Paket Dağılımı',
+          type: 'pie',
+          radius: ['50%', '70%'],
+          avoidLabelOverlap: false,
+          label: {
+            show: false,
+            position: 'center'
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: '18',
+              fontWeight: 'bold'
+            }
+          },
+          labelLine: {
+            show: false
+          },
+          data: [
+            { value: 1548, name: 'Ücretsiz' },
+            { value: 735, name: 'Premium' },
+            { value: 580, name: 'Pro' },
+            { value: 300, name: 'Kurumsal' }
+          ]
+        }
+      ]
+    };
+    packageDistributionChart.setOption(packageDistributionOption);
+
+    // Ortalama kullanım süresi çubuk grafiği
+    const usageDurationChart = echarts.init(usageElement);
+    const usageDurationOption = {
+      animation: false,
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'shadow'
+        }
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+      },
+      xAxis: [
+        {
+          type: 'category',
+          data: ['Ücretsiz', 'Premium', 'Pro', 'Kurumsal'],
+          axisTick: {
+            alignWithLabel: true
+          }
+        }
+      ],
+      yAxis: [
+        {
+          type: 'value',
+          name: 'Ay',
+          nameLocation: 'end'
+        }
+      ],
+      series: [
+        {
+          name: 'Ortalama Kullanım Süresi (Ay)',
+          type: 'bar',
+          barWidth: '60%',
+          data: [1.2, 4.5, 8.3, 12.7]
+        }
+      ]
+    };
+    usageDurationChart.setOption(usageDurationOption);
+
+    // Seviye tercih dağılımı ısı haritası
+    const levelPreferenceChart = echarts.init(levelElement);
+    const levelPreferenceOption = {
+      animation: false,
+      tooltip: {
+        position: 'top'
+      },
+      grid: {
+        height: '50%',
+        top: '10%'
+      },
+      xAxis: {
+        type: 'category',
+        data: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'],
+        splitArea: {
+          show: true
+        }
+      },
+      yAxis: {
+        type: 'category',
+        data: ['Ücretsiz', 'Premium', 'Pro', 'Kurumsal'],
+        splitArea: {
+          show: true
+        }
+      },
+      visualMap: {
+        min: 0,
+        max: 100,
+        calculable: true,
+        orient: 'horizontal',
+        left: 'center',
+        bottom: '15%'
+      },
+      series: [{
+        name: 'Seviye Tercihi (%)',
+        type: 'heatmap',
+        data: [
+          [0, 0, 85], [1, 0, 75], [2, 0, 10], [3, 0, 5], [4, 0, 0], [5, 0, 0],
+          [0, 1, 30], [1, 1, 40], [2, 1, 60], [3, 1, 40], [4, 1, 15], [5, 1, 5],
+          [0, 2, 15], [1, 2, 25], [2, 2, 35], [3, 2, 45], [4, 2, 50], [5, 2, 40],
+          [0, 3, 10], [1, 3, 15], [2, 3, 25], [3, 3, 35], [4, 3, 45], [5, 3, 60]
+        ],
+        label: {
+          show: true
+        },
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowColor: 'rgba(0, 0, 0, 0.5)'
+          }
+        }
+      }]
+    };
+    levelPreferenceChart.setOption(levelPreferenceOption);
+
+    // Resize grafikleri
+    const handleResize = () => {
+      packageDistributionChart.resize();
+      usageDurationChart.resize();
+      levelPreferenceChart.resize();
     };
 
-    if (loading) {
-        return <div className="p-4 text-center">Loading dashboard...</div>;
-    }
+    window.addEventListener('resize', handleResize);
 
-    if (error) {
-        return <div className="p-4 text-center text-red-500">Error: {error}</div>;
-    }
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      packageDistributionChart.dispose();
+      usageDurationChart.dispose();
+      levelPreferenceChart.dispose();
+    };
+  }, [loading, activeTab]);
 
-    return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-4 md:p-8">
-            <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                {/* Header Section - Improved Responsiveness */}
-                <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                    <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200 text-center sm:text-left">Admin Dashboard</h1>
-                    <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                        <span className="text-sm text-gray-600 dark:text-gray-400 text-center sm:text-left">Logged in as: {userEmail}</span>
-                        <button
-                            onClick={handleLogout}
-                            className="w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white text-sm py-1 px-3 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-offset-gray-800"
-                        >
-                            Logout
-                        </button>
-                    </div>
-                </div>
+  // Users will be fetched from API
 
-                {/* Stats Cards Section - Responsive Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    {/* Placeholder Stats Cards */}
-                    <div className="bg-blue-100 dark:bg-blue-900 p-4 rounded-lg shadow">
-                        <h2 className="text-lg font-semibold text-blue-800 dark:text-blue-200">Total Users</h2>
-                        <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">--</p>
-                    </div>
-                    <div className="bg-green-100 dark:bg-green-900 p-4 rounded-lg shadow">
-                        <h2 className="text-lg font-semibold text-green-800 dark:text-green-200">Active Users</h2>
-                        <p className="text-3xl font-bold text-green-900 dark:text-green-100">--</p>
-                    </div>
-                    <div className="bg-yellow-100 dark:bg-yellow-900 p-4 rounded-lg shadow">
-                        <h2 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200">Content Items</h2>
-                        <p className="text-3xl font-bold text-yellow-900 dark:text-yellow-100">--</p>
-                    </div>
-                    <div className="bg-purple-100 dark:bg-purple-900 p-4 rounded-lg shadow">
-                        <h2 className="text-lg font-semibold text-purple-800 dark:text-purple-200">Pending Actions</h2>
-                        <p className="text-3xl font-bold text-purple-900 dark:text-purple-100">--</p>
-                    </div>
-                </div>
+  const packages = [
+    { id: '1', name: 'Ücretsiz', price: '0 TL', userCount: 1548, description: 'Sınırlı seviye, sınırlı içerik / ay', features: ['A1-A2 seviyelerine erişim', 'Ayda 5 içerik', 'Temel özellikler'] },
+    { id: '2', name: 'Premium', price: '149 TL / ay', userCount: 735, description: 'Tüm seviyelere erişim, aylık içerik kotası artırılmış', features: ['Tüm seviyelere erişim', 'Ayda 30 içerik', 'Çevrimdışı erişim', 'Notlar oluşturma'] },
+    { id: '3', name: 'Pro', price: '299 TL / ay', userCount: 580, description: 'Sınırsız erişim, özel içerik', features: ['Tüm seviyelere erişim', 'Sınırsız içerik', 'Özel içerikler', 'Kişisel öğrenme asistanı', 'İlerleme raporları'] },
+    { id: '4', name: 'Kurumsal', price: 'Özel fiyatlandırma', userCount: 300, description: 'Kurumsal çözümler, özel raporlama', features: ['Tüm Pro özellikleri', 'Çoklu kullanıcı yönetimi', 'Kurumsal raporlama', 'Özel içerik üretimi', 'Öncelikli destek'] },
+  ];
 
-                {/* Management Sections Links - Improved Layout */}
-                <div>
-                    <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-300">Management Sections</h2>
-                    {/* Using a grid for better alignment on larger screens */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2">
-                        <a href="/admin/users" className="block text-indigo-600 hover:underline dark:text-indigo-400 py-1">User Management</a>
-                        <a href="/admin/content" className="block text-indigo-600 hover:underline dark:text-indigo-400 py-1">Content Management</a>
-                        <a href="/admin/payments" className="block text-indigo-600 hover:underline dark:text-indigo-400 py-1">Payment Tracking</a>
-                        <a href="/admin/statistics" className="block text-indigo-600 hover:underline dark:text-indigo-400 py-1">Usage Statistics</a>
-                        <a href="/admin/roles" className="block text-indigo-600 hover:underline dark:text-indigo-400 py-1">Admin Roles & Security</a>
-                    </div>
-                </div>
+  const coupons = [
+    { id: '1', code: 'YAZ2025', discount: '%25', validUntil: '31.08.2025', usageCount: 145, maxUsage: 500, status: 'aktif' },
+    { id: '2', code: 'HOŞGELDIN', discount: '%50 ilk ay', validUntil: '31.12.2025', usageCount: 278, maxUsage: 1000, status: 'aktif' },
+    { id: '3', code: 'BLACKFRIDAY', discount: '%40', validUntil: '30.11.2025', usageCount: 0, maxUsage: 2000, status: 'pasif' },
+  ];
+
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'tümü' || user.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleUserClick = (userId: string) => {
+    setSelectedUser(userId);
+    setShowUserDetails(true);
+  };
+
+  if (loading) {
+    return <div className="p-4 text-center">Loading dashboard...</div>;
+  }
+
+  if (error) {
+    return <div className="p-4 text-center text-red-500">Error: {error}</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="px-6 py-3 flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <i className="fas fa-language text-indigo-600 text-3xl"></i>
+            <h1 className="text-3xl font-bold text-gray-800">Dil Öğrenme Platformu</h1>
+          </div>
+          <div className="flex items-center space-x-4 mr-4">
+            <div className="relative">
+              <i className="fas fa-bell text-gray-500 cursor-pointer"></i>
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">3</span>
             </div>
+            <div className="flex items-center space-x-2">
+              <Avatar className="h-8 w-8 cursor-pointer">
+                <AvatarImage src="https://readdy.ai/api/search-image?query=professional%20portrait%20of%20a%20Turkish%20admin%20person%20with%20short%20dark%20hair%20wearing%20business%20casual%20attire%2C%20neutral%20expression%2C%20studio%20lighting%2C%20high%20quality%2C%20photorealistic&width=100&height=100&seq=avatar1&orientation=squarish" />
+                <AvatarFallback>AD</AvatarFallback>
+              </Avatar>
+              <span className="text-sm font-medium text-gray-700">Enes Yüzak</span>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                size="sm"
+                className="text-red-600 border-red-600 hover:bg-red-50"
+              >
+                Çıkış
+              </Button>
+            </div>
+          </div>
         </div>
-    );
-}
+      </header>
+
+      <div className="flex h-[calc(100vh-64px)]">
+        {/* Sidebar */}
+        <aside className="w-64 bg-white border-r border-gray-200 h-full flex-shrink-0">
+          <nav className="p-4">
+            <div className="space-y-2">
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("kullanici-yonetimi")}>
+                <i className="fas fa-users mr-3 text-lg"></i>
+                <span>Kullanıcı Yönetimi</span>
+              </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("paket-yonetimi")}>
+                <i className="fas fa-box mr-3 text-lg"></i>
+                <span>Paket Yönetimi</span>
+              </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("icerik-yonetimi")}>
+                <i className="fas fa-file-alt mr-3 text-lg"></i>
+                <span>İçerik Yönetimi</span>
+              </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("analitik")}>
+                <i className="fas fa-chart-line mr-3 text-lg"></i>
+                <span>Analitik</span>
+              </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("kampanya-yonetimi")}>
+                <i className="fas fa-percentage mr-3 text-lg"></i>
+                <span>Kampanya Yönetimi</span>
+              </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("destek")}>
+                <i className="fas fa-headset mr-3 text-lg"></i>
+                <span>Destek</span>
+              </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("ayarlar")}>
+                <i className="fas fa-cog mr-3 text-lg"></i>
+                <span>Ayarlar</span>
+              </Button>
+            </div>
+          </nav>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-auto">
+          {activeTab === "kullanici-yonetimi" && (
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Kullanıcı Yönetimi</h2>
+                <Button className="bg-indigo-600 hover:bg-indigo-700 !rounded-button whitespace-nowrap">
+                  <i className="fas fa-plus mr-2"></i>
+                  Yeni Kullanıcı Ekle
+                </Button>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-sm mb-6">
+                <div className="p-4 border-b border-gray-200">
+                  <div className="flex flex-wrap gap-4 items-center">
+                    <div className="relative flex-grow max-w-md">
+                      <Input
+                        type="text"
+                        placeholder="Kullanıcı ara..."
+                        className="pl-10 pr-4 py-2"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                      <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className="px-3 py-2 pr-10 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[140px] appearance-none"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                        backgroundPosition: 'right 0.75rem center',
+                        backgroundSize: '1.25em 1.25em',
+                        backgroundRepeat: 'no-repeat'
+                      }}
+                    >
+                      <option value="tümü">Tüm Durumlar</option>
+                      <option value="aktif">Aktif</option>
+                      <option value="pasif">Pasif</option>
+                      <option value="dondurulmuş">Dondurulmuş</option>
+                    </select>
+                    <Button variant="outline" className="!rounded-button whitespace-nowrap">
+                      <i className="fas fa-filter mr-2"></i>
+                      Gelişmiş Filtre
+                    </Button>
+                    <Button variant="outline" className="!rounded-button whitespace-nowrap">
+                      <i className="fas fa-download mr-2"></i>
+                      Dışa Aktar
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[50px]">
+                          <Checkbox id="select-all" />
+                        </TableHead>
+                        <TableHead>Kullanıcı</TableHead>
+                        <TableHead>Durum</TableHead>
+                        <TableHead>Paket</TableHead>
+                        <TableHead>Kayıt Tarihi</TableHead>
+                        <TableHead>Son Giriş</TableHead>
+                        <TableHead className="text-right">İşlemler</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {usersLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8">
+                            <div className="flex items-center justify-center space-x-2">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                              <span>Kullanıcılar yükleniyor...</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredUsers.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                            Kullanıcı bulunamadı
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredUsers.map((user) => (
+                        <TableRow key={user.id} className="cursor-pointer hover:bg-gray-50" onClick={() => handleUserClick(user.id)}>
+                          <TableCell>
+                            <Checkbox id={`select-${user.id}`} onClick={(e) => e.stopPropagation()} />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={`https://readdy.ai/api/search-image?query=professional%20portrait%20of%20a%20Turkish%20person%20with%20neutral%20expression%2C%20studio%20lighting%2C%20high%20quality%2C%20photorealistic&width=100&height=100&seq=${user.id}&orientation=squarish`} />
+                                <AvatarFallback>{user.name.split(' ').map((n: string) => n[0]).join('')}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-medium">{user.name}</div>
+                                <div className="text-sm text-gray-500">{user.email}</div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={
+                              user.status === 'aktif' ? 'bg-green-100 text-green-800 hover:bg-green-100' :
+                              user.status === 'pasif' ? 'bg-gray-100 text-gray-800 hover:bg-gray-100' :
+                              'bg-amber-100 text-amber-800 hover:bg-amber-100'
+                            }>
+                              {user.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={
+                              user.package === 'Ücretsiz' ? 'bg-blue-100 text-blue-800 hover:bg-blue-100' :
+                              user.package === 'Premium' ? 'bg-purple-100 text-purple-800 hover:bg-purple-100' :
+                              user.package === 'Pro' ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-100' :
+                              'bg-teal-100 text-teal-800 hover:bg-teal-100'
+                            }>
+                              {user.package}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{user.registrationDate}</TableCell>
+                          <TableCell>{user.lastLogin}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button" onClick={(e) => { e.stopPropagation(); }}>
+                              <i className="fas fa-ellipsis-v text-gray-500"></i>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="p-4 border-t border-gray-200 flex items-center justify-between">
+                  <div className="text-sm text-gray-500">
+                    Toplam 8 kullanıcıdan 1-8 arası gösteriliyor
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button variant="outline" size="sm" disabled className="!rounded-button whitespace-nowrap">
+                      <i className="fas fa-chevron-left mr-1"></i>
+                      Önceki
+                    </Button>
+                    <Button variant="outline" size="sm" disabled className="!rounded-button whitespace-nowrap">
+                      Sonraki
+                      <i className="fas fa-chevron-right ml-1"></i>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "analitik" && (
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Analitik Dashboard</h2>
+                <div className="flex items-center space-x-2">
+                  <select defaultValue="son30gun" className="px-3 py-2 pr-10 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[120px] appearance-none"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                      backgroundPosition: 'right 0.75rem center',
+                      backgroundSize: '1.25em 1.25em',
+                      backgroundRepeat: 'no-repeat'
+                    }}
+                  >
+                    <option value="bugun">Bugün</option>
+                    <option value="buhafta">Bu Hafta</option>
+                    <option value="son30gun">Son 30 Gün</option>
+                    <option value="bu3ay">Bu 3 Ay</option>
+                    <option value="buyil">Bu Yıl</option>
+                    <option value="tumzamanlar">Tüm Zamanlar</option>
+                  </select>
+                  <Button variant="outline" className="!rounded-button whitespace-nowrap">
+                    <i className="fas fa-download mr-2"></i>
+                    Rapor İndir
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">Toplam Kullanıcı</p>
+                        <h3 className="text-3xl font-bold mt-1">3,163</h3>
+                      </div>
+                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <i className="fas fa-users text-blue-600"></i>
+                      </div>
+                    </div>
+                    <div className="flex items-center mt-4 text-sm">
+                      <span className="text-green-600 flex items-center">
+                        <i className="fas fa-arrow-up mr-1"></i>
+                        12.5%
+                      </span>
+                      <span className="text-gray-500 ml-2">geçen aya göre</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">Aylık Gelir</p>
+                        <h3 className="text-3xl font-bold mt-1">₺246,580</h3>
+                      </div>
+                      <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                        <i className="fas fa-chart-line text-green-600"></i>
+                      </div>
+                    </div>
+                    <div className="flex items-center mt-4 text-sm">
+                      <span className="text-green-600 flex items-center">
+                        <i className="fas fa-arrow-up mr-1"></i>
+                        8.2%
+                      </span>
+                      <span className="text-gray-500 ml-2">geçen aya göre</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">Ortalama Kullanım</p>
+                        <h3 className="text-3xl font-bold mt-1">24.5 dk</h3>
+                      </div>
+                      <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                        <i className="fas fa-clock text-purple-600"></i>
+                      </div>
+                    </div>
+                    <div className="flex items-center mt-4 text-sm">
+                      <span className="text-green-600 flex items-center">
+                        <i className="fas fa-arrow-up mr-1"></i>
+                        3.1%
+                      </span>
+                      <span className="text-gray-500 ml-2">geçen aya göre</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">İçerik Tamamlama</p>
+                        <h3 className="text-3xl font-bold mt-1">76.8%</h3>
+                      </div>
+                      <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                        <i className="fas fa-check-circle text-amber-600"></i>
+                      </div>
+                    </div>
+                    <div className="flex items-center mt-4 text-sm">
+                      <span className="text-red-600 flex items-center">
+                        <i className="fas fa-arrow-down mr-1"></i>
+                        1.8%
+                      </span>
+                      <span className="text-gray-500 ml-2">geçen aya göre</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Paket Dağılımı</CardTitle>
+                    <CardDescription>Kullanıcıların paket tercihlerinin dağılımı</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div id="package-distribution-chart" className="h-80"></div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Ortalama Kullanım Süresi</CardTitle>
+                    <CardDescription>Paket bazlı ortalama kullanım süresi (ay)</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div id="usage-duration-chart" className="h-80"></div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle>Seviye Tercih Dağılımı</CardTitle>
+                  <CardDescription>Paket bazlı seviye tercihleri ısı haritası</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div id="level-preference-chart" className="h-80"></div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {activeTab === "paket-yonetimi" && (
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Paket Yönetimi</h2>
+                <Button className="bg-indigo-600 hover:bg-indigo-700 !rounded-button whitespace-nowrap" onClick={() => setShowPackageForm(true)}>
+                  <i className="fas fa-plus mr-2"></i>
+                  Yeni Paket Oluştur
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                {packages.map((pkg) => (
+                  <Card key={pkg.id} className="overflow-hidden">
+                    <CardHeader className={
+                      pkg.name === 'Ücretsiz' ? 'bg-blue-50 border-b border-blue-100' :
+                      pkg.name === 'Premium' ? 'bg-purple-50 border-b border-purple-100' :
+                      pkg.name === 'Pro' ? 'bg-indigo-50 border-b border-indigo-100' :
+                      'bg-teal-50 border-b border-teal-100'
+                    }>
+                      <CardTitle className={
+                        pkg.name === 'Ücretsiz' ? 'text-blue-700' :
+                        pkg.name === 'Premium' ? 'text-purple-700' :
+                        pkg.name === 'Pro' ? 'text-indigo-700' :
+                        'text-teal-700'
+                      }>{pkg.name}</CardTitle>
+                      <CardDescription>{pkg.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <div className="text-2xl font-bold mb-4">{pkg.price}</div>
+                      <div className="space-y-2">
+                        {pkg.features.map((feature, index) => (
+                          <div key={index} className="flex items-start">
+                            <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                            <span>{feature}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-6 pt-4 border-t border-gray-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-gray-500">Aktif Kullanıcılar</span>
+                          <span className="font-medium">{pkg.userCount}</span>
+                        </div>
+                        <Progress value={(pkg.userCount / 3000) * 100} className="h-2" />
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-between border-t border-gray-100 pt-4">
+                      <Button variant="outline" className="!rounded-button whitespace-nowrap">
+                        <i className="fas fa-edit mr-2"></i>
+                        Düzenle
+                      </Button>
+                      <Button variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50 !rounded-button whitespace-nowrap">
+                        <i className="fas fa-trash-alt mr-2"></i>
+                        Sil
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="bg-white rounded-lg shadow-sm mb-6">
+                <div className="p-4 border-b border-gray-200">
+                  <h3 className="text-lg font-medium">Kampanya Yönetimi</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Kupon Kodu</TableHead>
+                        <TableHead>İndirim</TableHead>
+                        <TableHead>Geçerlilik</TableHead>
+                        <TableHead>Kullanım</TableHead>
+                        <TableHead>Durum</TableHead>
+                        <TableHead className="text-right">İşlemler</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {coupons.map((coupon) => (
+                        <TableRow key={coupon.id}>
+                          <TableCell className="font-medium">{coupon.code}</TableCell>
+                          <TableCell>{coupon.discount}</TableCell>
+                          <TableCell>{coupon.validUntil}</TableCell>
+                          <TableCell>{coupon.usageCount} / {coupon.maxUsage}</TableCell>
+                          <TableCell>
+                            <Badge className={coupon.status === 'aktif' ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-gray-100 text-gray-800 hover:bg-gray-100'}>
+                              {coupon.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button">
+                              <i className="fas fa-ellipsis-v text-gray-500"></i>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="p-4 border-t border-gray-200">
+                  <Button className="!rounded-button whitespace-nowrap">
+                    <i className="fas fa-plus mr-2"></i>
+                    Yeni Kupon Oluştur
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "icerik-yonetimi" && (
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">İçerik Yönetimi</h2>
+                <div className="flex space-x-2">
+                  <Button variant="outline" className="!rounded-button whitespace-nowrap">
+                    <i className="fas fa-filter mr-2"></i>
+                    Filtrele
+                  </Button>
+                  <Button className="bg-indigo-600 hover:bg-indigo-700 !rounded-button whitespace-nowrap">
+                    <i className="fas fa-plus mr-2"></i>
+                    Yeni İçerik
+                  </Button>
+                </div>
+              </div>
+
+              <Tabs defaultValue="tum-icerikler">
+                <TabsList className="mb-6">
+                  <TabsTrigger value="tum-icerikler">Tüm İçerikler</TabsTrigger>
+                  <TabsTrigger value="podcast">Podcast</TabsTrigger>
+                  <TabsTrigger value="video">Video</TabsTrigger>
+                  <TabsTrigger value="makale">Makale</TabsTrigger>
+                  <TabsTrigger value="quiz">Quiz</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="tum-icerikler">
+                  <div className="bg-white rounded-lg shadow-sm">
+                    <div className="p-4 border-b border-gray-200">
+                      <div className="relative max-w-md">
+                        <Input
+                          type="text"
+                          placeholder="İçerik ara..."
+                          className="pl-10 pr-4 py-2"
+                        />
+                        <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[50px]">
+                              <Checkbox id="select-all-content" />
+                            </TableHead>
+                            <TableHead>İçerik Adı</TableHead>
+                            <TableHead>Tür</TableHead>
+                            <TableHead>Seviye</TableHead>
+                            <TableHead>Paket Erişimi</TableHead>
+                            <TableHead>Görüntülenme</TableHead>
+                            <TableHead>Durum</TableHead>
+                            <TableHead className="text-right">İşlemler</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          <TableRow>
+                            <TableCell>
+                              <Checkbox id="select-content-1" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">Günlük Konuşma Kalıpları</div>
+                              <div className="text-sm text-gray-500">Oluşturulma: 15.05.2025</div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Podcast</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">A1</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Ücretsiz</Badge>
+                            </TableCell>
+                            <TableCell>1,245</TableCell>
+                            <TableCell>
+                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Yayında</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button">
+                                <i className="fas fa-ellipsis-v text-gray-500"></i>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell>
+                              <Checkbox id="select-content-2" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">İş Görüşmesi Teknikleri</div>
+                              <div className="text-sm text-gray-500">Oluşturulma: 02.06.2025</div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">Video</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">B2</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-100">Premium</Badge>
+                            </TableCell>
+                            <TableCell>876</TableCell>
+                            <TableCell>
+                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Yayında</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button">
+                                <i className="fas fa-ellipsis-v text-gray-500"></i>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell>
+                              <Checkbox id="select-content-3" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">Akademik Yazı Teknikleri</div>
+                              <div className="text-sm text-gray-500">Oluşturulma: 28.05.2025</div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-teal-100 text-teal-800 hover:bg-teal-100">Makale</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-red-100 text-red-800 hover:bg-red-100">C1</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">Pro</Badge>
+                            </TableCell>
+                            <TableCell>542</TableCell>
+                            <TableCell>
+                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Yayında</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button">
+                                <i className="fas fa-ellipsis-v text-gray-500"></i>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell>
+                              <Checkbox id="select-content-4" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">Deyimler ve Atasözleri</div>
+                              <div className="text-sm text-gray-500">Oluşturulma: 10.05.2025</div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">Quiz</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">B1</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-100">Premium</Badge>
+                            </TableCell>
+                            <TableCell>1,128</TableCell>
+                            <TableCell>
+                              <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Taslak</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button">
+                                <i className="fas fa-ellipsis-v text-gray-500"></i>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    <div className="p-4 border-t border-gray-200 flex items-center justify-between">
+                      <div className="text-sm text-gray-500">
+                        Toplam 120 içerikten 1-4 arası gösteriliyor
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button variant="outline" size="sm" disabled className="!rounded-button whitespace-nowrap">
+                          <i className="fas fa-chevron-left mr-1"></i>
+                          Önceki
+                        </Button>
+                        <Button variant="outline" size="sm" className="!rounded-button whitespace-nowrap">
+                          Sonraki
+                          <i className="fas fa-chevron-right ml-1"></i>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="podcast">
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <h3 className="text-lg font-medium mb-4">Podcast İçerikleri</h3>
+                    <p className="text-gray-500">Bu bölümde podcast içeriklerini yönetebilirsiniz.</p>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="video">
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <h3 className="text-lg font-medium mb-4">Video İçerikleri</h3>
+                    <p className="text-gray-500">Bu bölümde video içeriklerini yönetebilirsiniz.</p>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="makale">
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <h3 className="text-lg font-medium mb-4">Makale İçerikleri</h3>
+                    <p className="text-gray-500">Bu bölümde makale içeriklerini yönetebilirsiniz.</p>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="quiz">
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <h3 className="text-lg font-medium mb-4">Quiz İçerikleri</h3>
+                    <p className="text-gray-500">Bu bölümde quiz içeriklerini yönetebilirsiniz.</p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
+
+          {activeTab === "kampanya-yonetimi" && (
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Kampanya Yönetimi</h2>
+                <Button className="bg-indigo-600 hover:bg-indigo-700 !rounded-button whitespace-nowrap">
+                  <i className="fas fa-plus mr-2"></i>
+                  Yeni Kampanya
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Aktif Kampanyalar</CardTitle>
+                      <CardDescription>Şu anda aktif olan tüm kampanyalar</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Kampanya Adı</TableHead>
+                            <TableHead>İndirim</TableHead>
+                            <TableHead>Başlangıç</TableHead>
+                            <TableHead>Bitiş</TableHead>
+                            <TableHead>Durum</TableHead>
+                            <TableHead className="text-right">İşlemler</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          <TableRow>
+                            <TableCell className="font-medium">Yaz Kampanyası</TableCell>
+                            <TableCell>%25</TableCell>
+                            <TableCell>01.06.2025</TableCell>
+                            <TableCell>31.08.2025</TableCell>
+                            <TableCell>
+                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Aktif</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button">
+                                <i className="fas fa-ellipsis-v text-gray-500"></i>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="font-medium">Hoş Geldin İndirimi</TableCell>
+                            <TableCell>%50 ilk ay</TableCell>
+                            <TableCell>01.01.2025</TableCell>
+                            <TableCell>31.12.2025</TableCell>
+                            <TableCell>
+                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Aktif</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button">
+                                <i className="fas fa-ellipsis-v text-gray-500"></i>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell className="font-medium">Black Friday</TableCell>
+                            <TableCell>%40</TableCell>
+                            <TableCell>25.11.2025</TableCell>
+                            <TableCell>30.11.2025</TableCell>
+                            <TableCell>
+                              <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">Planlandı</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button">
+                                <i className="fas fa-ellipsis-v text-gray-500"></i>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div>
+                  <Card className="mb-6">
+                    <CardHeader>
+                      <CardTitle>Hızlı Kupon Oluştur</CardTitle>
+                      <CardDescription>Tek seferlik kupon kodu oluştur</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="coupon-code">Kupon Kodu</Label>
+                          <Input id="coupon-code" placeholder="Örn: YAZ2025" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="discount-type">İndirim Türü</Label>
+                          <select id="discount-type" className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none" defaultValue="percentage"
+                            style={{
+                              backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                              backgroundPosition: 'right 0.75rem center',
+                              backgroundSize: '1.25em 1.25em',
+                              backgroundRepeat: 'no-repeat'
+                            }}
+                          >
+                            <option value="percentage">Yüzde İndirim (%)</option>
+                            <option value="fixed">Sabit İndirim (TL)</option>
+                            <option value="free-month">Ücretsiz Ay</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="discount-amount">İndirim Miktarı</Label>
+                          <Input id="discount-amount" type="number" placeholder="25" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="expiry-date">Son Kullanma Tarihi</Label>
+                          <div className="border rounded-md p-3">
+                            <Calendar
+                              mode="single"
+                              selected={selectedDate}
+                              onSelect={setSelectedDate}
+                              className="rounded-md border"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="max-usage">Maksimum Kullanım</Label>
+                          <Input id="max-usage" type="number" placeholder="1000" />
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Switch id="active-status" />
+                          <Label htmlFor="active-status">Aktif</Label>
+                        </div>
+                        <Button className="w-full !rounded-button whitespace-nowrap">Kupon Oluştur</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "destek" && (
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Destek Yönetimi</h2>
+                <Button variant="outline" className="!rounded-button whitespace-nowrap">
+                  <i className="fas fa-filter mr-2"></i>
+                  Filtrele
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1">
+                  <Card className="h-[calc(100vh-180px)]">
+                    <CardHeader>
+                      <CardTitle>Destek Talepleri</CardTitle>
+                      <div className="relative">
+                        <Input
+                          type="text"
+                          placeholder="Talep ara..."
+                          className="pl-10 pr-4 py-2"
+                        />
+                        <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <ScrollArea className="h-[calc(100vh-280px)]">
+                        <div className="divide-y divide-gray-100">
+                          <div className="p-4 hover:bg-gray-50 cursor-pointer">
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="font-medium">Ödeme Sorunu</div>
+                              <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Acil</Badge>
+                            </div>
+                            <div className="text-sm text-gray-500 mb-1">Zeynep Çelik</div>
+                            <div className="text-sm line-clamp-2">Kredi kartımdan ödeme alındı fakat hesabım Premium'a yükseltilmedi...</div>
+                            <div className="text-xs text-gray-400 mt-2">06.06.2025 - 10:23</div>
+                          </div>
+                          <div className="p-4 hover:bg-gray-50 cursor-pointer bg-indigo-50">
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="font-medium">İçerik Erişimi</div>
+                              <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Orta</Badge>
+                            </div>
+                            <div className="text-sm text-gray-500 mb-1">Ahmet Yılmaz</div>
+                            <div className="text-sm line-clamp-2">Premium paketime rağmen bazı içeriklere erişemiyorum. Özellikle B2 seviyesindeki...</div>
+                            <div className="text-xs text-gray-400 mt-2">05.06.2025 - 16:45</div>
+                          </div>
+                          <div className="p-4 hover:bg-gray-50 cursor-pointer">
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="font-medium">Ses Sorunu</div>
+                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Düşük</Badge>
+                            </div>
+                            <div className="text-sm text-gray-500 mb-1">Mehmet Kaya</div>
+                            <div className="text-sm line-clamp-2">Podcast'lerde ses kalitesi çok düşük. Kulaklık kullanmama rağmen sesleri net...</div>
+                            <div className="text-xs text-gray-400 mt-2">04.06.2025 - 09:12</div>
+                          </div>
+                        </div>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="lg:col-span-2">
+                  <Card className="h-[calc(100vh-180px)]">
+                    <CardHeader className="border-b border-gray-100">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <CardTitle>İçerik Erişimi</CardTitle>
+                          <CardDescription>Talep #2458 - Ahmet Yılmaz</CardDescription>
+                        </div>
+                        <div className="flex space-x-2">
+                          <select defaultValue="progress" className="px-3 py-2 pr-10 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none"
+                            style={{
+                              backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                              backgroundPosition: 'right 0.75rem center',
+                              backgroundSize: '1.25em 1.25em',
+                              backgroundRepeat: 'no-repeat'
+                            }}
+                          >
+                            <option value="new">Yeni</option>
+                            <option value="progress">İşlemde</option>
+                            <option value="waiting">Beklemede</option>
+                            <option value="resolved">Çözüldü</option>
+                            <option value="closed">Kapatıldı</option>
+                          </select>
+                          <select defaultValue="medium" className="px-3 py-2 pr-10 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none"
+                            style={{
+                              backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                              backgroundPosition: 'right 0.75rem center',
+                              backgroundSize: '1.25em 1.25em',
+                              backgroundRepeat: 'no-repeat'
+                            }}
+                          >
+                            <option value="low">Düşük</option>
+                            <option value="medium">Orta</option>
+                            <option value="high">Yüksek</option>
+                            <option value="urgent">Acil</option>
+                          </select>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <ScrollArea className="h-[calc(100vh-340px)]">
+                        <div className="p-6 space-y-6">
+                          <div className="flex items-start space-x-4">
+                            <Avatar className="h-10 w-10 mt-1">
+                              <AvatarImage src="https://readdy.ai/api/search-image?query=professional%20portrait%20of%20a%20Turkish%20person%20with%20neutral%20expression%2C%20studio%20lighting%2C%20high%20quality%2C%20photorealistic&width=100&height=100&seq=user1&orientation=squarish" />
+                              <AvatarFallback>AY</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <div className="bg-gray-50 rounded-lg p-4">
+                                <div className="flex justify-between items-center mb-2">
+                                  <span className="font-medium">Ahmet Yılmaz</span>
+                                  <span className="text-xs text-gray-500">05.06.2025 - 16:45</span>
+                                </div>
+                                <p className="text-gray-700">Premium paketime rağmen bazı içeriklere erişemiyorum. Özellikle B2 seviyesindeki podcast'lere tıkladığımda "Bu içeriğe erişmek için Pro üye olun" mesajı alıyorum.</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start space-x-4">
+                            <Avatar className="h-10 w-10 mt-1">
+                              <AvatarImage src="https://readdy.ai/api/search-image?query=professional%20portrait%20of%20a%20Turkish%20admin%20person%20with%20short%20dark%20hair%20wearing%20business%20casual%20attire%2C%20neutral%20expression%2C%20studio%20lighting%2C%20high%20quality%2C%20photorealistic&width=100&height=100&seq=admin1&orientation=squarish" />
+                              <AvatarFallback>AD</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <div className="bg-indigo-50 rounded-lg p-4">
+                                <div className="flex justify-between items-center mb-2">
+                                  <span className="font-medium">Destek Ekibi</span>
+                                  <span className="text-xs text-gray-500">05.06.2025 - 17:30</span>
+                                </div>
+                                <p className="text-gray-700">Merhaba Ahmet Bey, sorununuz için özür dileriz. Hesabınızı kontrol ettim ve Premium paketinizin aktif olduğunu gördüm. Sistem üzerinde bir kontrol gerçekleştiriyoruz.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </ScrollArea>
+                    </CardContent>
+                    <CardFooter className="border-t border-gray-100 p-4">
+                      <div className="w-full space-y-4">
+                        <Textarea placeholder="Yanıtınızı buraya yazın..." className="min-h-[100px]" />
+                        <div className="flex justify-between">
+                          <div className="flex space-x-2">
+                            <Button variant="outline" size="sm" className="!rounded-button whitespace-nowrap">
+                              <i className="fas fa-paperclip mr-2"></i>
+                              Dosya Ekle
+                            </Button>
+                          </div>
+                          <Button className="!rounded-button whitespace-nowrap">
+                            <i className="fas fa-paper-plane mr-2"></i>
+                            Yanıtla
+                          </Button>
+                        </div>
+                      </div>
+                    </CardFooter>
+                  </Card>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "ayarlar" && (
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Sistem Ayarları</h2>
+                <Button className="bg-indigo-600 hover:bg-indigo-700 !rounded-button whitespace-nowrap">
+                  <i className="fas fa-save mr-2"></i>
+                  Değişiklikleri Kaydet
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Genel Ayarlar</CardTitle>
+                      <CardDescription>Temel sistem ayarlarını yapılandırın</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="site-name">Site Adı</Label>
+                        <Input id="site-name" defaultValue="Dil Öğrenme Platformu" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="site-url">Site URL</Label>
+                        <Input id="site-url" defaultValue="https://dilogrenme.com" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="admin-email">Yönetici E-posta</Label>
+                        <Input id="admin-email" defaultValue="admin@dilogrenme.com" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="timezone">Saat Dilimi</Label>
+                        <select id="timezone" className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none" defaultValue="europe-istanbul"
+                          style={{
+                            backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                            backgroundPosition: 'right 0.75rem center',
+                            backgroundSize: '1.25em 1.25em',
+                            backgroundRepeat: 'no-repeat'
+                          }}
+                        >
+                          <option value="europe-istanbul">Europe/Istanbul (GMT+3)</option>
+                          <option value="europe-london">Europe/London (GMT+0)</option>
+                          <option value="america-newyork">America/New_York (GMT-5)</option>
+                          <option value="asia-tokyo">Asia/Tokyo (GMT+9)</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch id="maintenance-mode" />
+                        <Label htmlFor="maintenance-mode">Bakım Modu</Label>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="lg:col-span-1">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Bildirim Ayarları</CardTitle>
+                      <CardDescription>E-posta ve sistem bildirimlerini yapılandırın</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>E-posta Bildirimleri</Label>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox id="email-new-user" defaultChecked />
+                            <Label htmlFor="email-new-user">Yeni kullanıcı kaydı</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox id="email-subscription" defaultChecked />
+                            <Label htmlFor="email-subscription">Abonelik değişiklikleri</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox id="email-payment" defaultChecked />
+                            <Label htmlFor="email-payment">Ödeme bildirimleri</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox id="email-support" defaultChecked />
+                            <Label htmlFor="email-support">Destek talepleri</Label>
+                          </div>
+                        </div>
+                      </div>
+                      <Separator />
+                      <div className="space-y-2">
+                        <Label>Sistem Bildirimleri</Label>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox id="system-content" defaultChecked />
+                            <Label htmlFor="system-content">Yeni içerik ekleme</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox id="system-user-report" defaultChecked />
+                            <Label htmlFor="system-user-report">Kullanıcı raporları</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox id="system-error" defaultChecked />
+                            <Label htmlFor="system-error">Sistem hataları</Label>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="lg:col-span-1">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Ödeme Ayarları</CardTitle>
+                      <CardDescription>Ödeme geçitleri ve para birimi ayarları</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="currency">Para Birimi</Label>
+                        <select id="currency" className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none" defaultValue="try"
+                          style={{
+                            backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                            backgroundPosition: 'right 0.75rem center',
+                            backgroundSize: '1.25em 1.25em',
+                            backgroundRepeat: 'no-repeat'
+                          }}
+                        >
+                          <option value="try">Türk Lirası (₺)</option>
+                          <option value="usd">ABD Doları ($)</option>
+                          <option value="eur">Euro (€)</option>
+                          <option value="gbp">İngiliz Sterlini (£)</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Ödeme Geçitleri</Label>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox id="payment-creditcard" defaultChecked />
+                            <Label htmlFor="payment-creditcard">Kredi Kartı</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox id="payment-paypal" defaultChecked />
+                            <Label htmlFor="payment-paypal">PayPal</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox id="payment-banktransfer" />
+                            <Label htmlFor="payment-banktransfer">Banka Havalesi</Label>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="invoice-prefix">Fatura Öneki</Label>
+                        <Input id="invoice-prefix" defaultValue="INV-" />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch id="test-mode" />
+                        <Label htmlFor="test-mode">Test Modu</Label>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default App;
 

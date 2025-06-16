@@ -27,4 +27,4 @@ The output **must be written in the same language** as the input.
 ---
 
 📤 OUTPUT:
-Return only the final narration in paragraph format — no comments, no formatting, no extra explanation.
+Return only the final narration in paragraph format — no comments, no formatting, no extra explanation. 

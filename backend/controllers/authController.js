@@ -19,8 +19,10 @@ logger.info('Supabase URL:', supabaseUrl);
 logger.info('Supabase Service Key exists:', !!supabaseKey);
 logger.info('JWT_SECRET exists:', !!JWT_SECRET);
 
-const generateToken = (id, email, role) =>
-  jwt.sign({ id, email, role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+const generateToken = (id, email, role, rememberMe = false) => {
+  const expiresIn = rememberMe ? '30d' : '1h'; // Beni hatırla: 30 gün, Normal: 1 saat
+  return jwt.sign({ id, email, role }, JWT_SECRET, { expiresIn });
+};
 
 const generateRefreshToken = (id) =>
   jwt.sign({ id }, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN });
@@ -118,7 +120,7 @@ exports.register = async (req, res) => {
       return res.status(500).json({ success: false, message: "Kullanıcı kaydı sırasında bir hata oluştu" });
     }
 
-    const token = generateToken(newUser[0].id, newUser[0].email, newUser[0].role);
+    const token = generateToken(newUser[0].id, newUser[0].email, newUser[0].role, false);
     const refreshToken = generateRefreshToken(newUser[0].id);
 
     logStep({
@@ -164,7 +166,7 @@ exports.login = async (req, res) => {
   try {
     logger.info('[LOGIN] req.body:', req.body);
     console.log("[LOGIN] Gelen istek verisi:", req.body); // Bunu ekle
-    const { email, password } = req.body;
+    const { email, password, rememberMe } = req.body;
     if (!email || !password) {
       return res.status(400).json({ success: false, message: "Lütfen e-posta ve şifre girin" });
     }
@@ -192,7 +194,7 @@ exports.login = async (req, res) => {
           updated_at: new Date().toISOString()
         };
         
-        const token = generateToken(mockUser.id, mockUser.email, mockUser.role);
+        const token = generateToken(mockUser.id, mockUser.email, mockUser.role, rememberMe);
         const refreshToken = generateRefreshToken(mockUser.id);
         
         return res.status(200).json({
@@ -222,7 +224,7 @@ exports.login = async (req, res) => {
       return res.status(401).json({ success: false, message: "Geçersiz e-posta veya şifre" });
     }
 
-    const token = generateToken(user.id, user.email, user.role);
+    const token = generateToken(user.id, user.email, user.role, rememberMe);
     const refreshToken = generateRefreshToken(user.id);
 
     // Remove sensitive data before sending response
@@ -272,6 +274,125 @@ exports.getCurrentUser = async (req, res) => {
   } catch (error) {
     logger.error("Get current user error", error);
     return res.status(500).json({ success: false, message: "Sunucu hatası" });
+  }
+};
+
+exports.googleLogin = async (req, res) => {
+  try {
+    const { credential, rememberMe } = req.body;
+    
+    if (!credential) {
+      return res.status(400).json({ success: false, message: "Google credential gerekli" });
+    }
+
+    // Google credential'ı decode et
+    let googleUser;
+    try {
+      const base64Url = credential.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      googleUser = JSON.parse(jsonPayload);
+    } catch (decodeError) {
+      logger.error('[GOOGLE_LOGIN] Credential decode hatası:', decodeError);
+      return res.status(400).json({ success: false, message: "Geçersiz Google credential" });
+    }
+
+    const { email, name, given_name, family_name, picture } = googleUser;
+    
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Google hesabından email alınamadı" });
+    }
+
+    // Kullanıcının zaten var olup olmadığını kontrol et
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('users')
+      .select("*")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (fetchError) {
+      logger.error('[GOOGLE_LOGIN] Kullanıcı sorgulama hatası:', fetchError);
+      return res.status(500).json({ success: false, message: "Veritabanı hatası" });
+    }
+
+    let user;
+    
+    if (existingUser) {
+      // Mevcut kullanıcı - Google bilgilerini güncelle
+      const updateData = {
+        google_id: googleUser.sub,
+        avatar: picture,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: updatedUser, error: updateError } = await supabase
+        .from('users')
+        .update(updateData)
+        .eq("id", existingUser.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        logger.error('[GOOGLE_LOGIN] Kullanıcı güncelleme hatası:', updateError);
+        return res.status(500).json({ success: false, message: "Kullanıcı güncellenemedi" });
+      }
+
+      user = updatedUser;
+    } else {
+      // Yeni kullanıcı oluştur
+      const newUserData = {
+        firstname: given_name || name?.split(' ')[0] || 'Google',
+        lastname: family_name || name?.split(' ').slice(1).join(' ') || 'User',
+        email: email,
+        google_id: googleUser.sub,
+        avatar: picture,
+        role: "user",
+        isverified: true, // Google hesapları doğrulanmış sayılır
+        dailycontentused: 0,
+        lastcontentdate: null,
+        stripecustomerid: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: createdUser, error: createError } = await supabase
+        .from('users')
+        .insert([newUserData])
+        .select()
+        .single();
+
+      if (createError) {
+        logger.error('[GOOGLE_LOGIN] Kullanıcı oluşturma hatası:', createError);
+        return res.status(500).json({ success: false, message: "Kullanıcı oluşturulamadı" });
+      }
+
+      user = createdUser;
+    }
+
+    // JWT token oluştur
+    const token = generateToken(user.id, user.email, user.role, rememberMe);
+    const refreshToken = generateRefreshToken(user.id);
+
+    // Hassas verileri kaldır
+    delete user.password;
+    delete user.verificationToken;
+    delete user.resetPasswordToken;
+
+    return res.status(200).json({
+      success: true,
+      message: "Google ile giriş başarılı",
+      data: {
+        user,
+        token,
+        refreshToken
+      }
+    });
+
+  } catch (error) {
+    logger.error("Google login error", error);
+    return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
   }
 };
 

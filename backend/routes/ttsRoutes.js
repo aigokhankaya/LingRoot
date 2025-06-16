@@ -10,7 +10,9 @@ const {
   synthesizeChunkAPI,
   mergeAudioAPI,
   listVoices,
-  getAudioFile
+  getAudioFile,
+  getFilteredVoices,
+  testVoices
 } = require("../controllers/ttsController");
 const logger = require("../utils/logger");
 
@@ -108,7 +110,16 @@ router.post("/polly", (req, res) => {
   res.status(500).json({ error: "Not implemented yet" });
 });
 
+// Filtrelenmiş ses listesi endpointi (önce tanımlanmalı)
+router.get('/voices/filter', getFilteredVoices);
+
 // Dinamik ses listesi endpointi
 router.get('/voices', listVoices);
+
+// Endpoint to get filtered voices
+router.get("/voices/filtered", getFilteredVoices);
+
+// Test endpoint to check available voices from Google TTS API
+router.get("/test-voices", testVoices);
 
 module.exports = router;

@@ -3,11 +3,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase, getUserRole } from '@/lib/supabaseClient'; // Import Supabase client and role checker
+import { getApiUrl } from '@/lib/api';
 
 export default function AdminLoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
@@ -19,46 +20,47 @@ export default function AdminLoginPage() {
 
         try {
             console.log('Attempting admin login for:', email);
-            const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-                email: email,
-                password: password,
+            
+            // Use JWT backend API instead of Supabase
+            const response = await fetch(getApiUrl('auth/login'), {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify({ 
+                    email: email, 
+                    password: password,
+                    rememberMe: rememberMe
+                }),
+                credentials: 'include'
             });
 
-            if (loginError) {
-                console.error('Supabase login error:', loginError.message);
-                throw new Error(loginError.message || 'Invalid login credentials.');
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Invalid login credentials.');
             }
 
-            if (!loginData.user) {
-                throw new Error('Login failed: No user data received.');
-            }
-
-            console.log('Supabase login successful, checking role for user:', loginData.user.id);
-
-            // Check user role
-            // IMPORTANT: getUserRole needs to securely fetch the role
-            const userRole = await getUserRole(loginData.user.id);
-            console.log('User role:', userRole);
-
-            // Allow 'super_admin' or 'support_admin' (adjust role names if different)
-            if (userRole !== 'super_admin' && userRole !== 'support_admin') {
-                // Log out the user if they are not an admin
-                await supabase.auth.signOut();
+            console.log('Backend login successful, checking role...');
+            
+            // Check if user is admin
+            const user = data.data.user;
+            if (user.role !== 'admin') {
                 throw new Error('Access denied: User is not an administrator.');
             }
 
+            // Store JWT token
+            if (data.data.token) {
+                localStorage.setItem('lingroot_token', data.data.token);
+                localStorage.setItem('lingroot_remember_me', rememberMe.toString());
+            }
+
             console.log('Admin login successful, redirecting...');
-            // Supabase client handles session persistence automatically.
-            // Redirect to the admin dashboard
             router.push('/admin/dashboard');
 
         } catch (err: any) {
             console.error('Admin login process error:', err);
             setError(err.message || 'An unexpected error occurred during login.');
-            // Ensure user is logged out in case of role check failure after successful Supabase login
-            await supabase.auth.signOut().catch(signOutError => {
-                console.error('Error signing out after failed admin check:', signOutError);
-            });
         } finally {
             setLoading(false);
         }
@@ -94,6 +96,38 @@ export default function AdminLoginPage() {
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                             placeholder="••••••••"
                         />
+                    </div>
+                    <div className="mb-6 flex items-center space-x-2">
+                        <div className="relative">
+                            <input
+                                type="checkbox"
+                                id="rememberMe"
+                                checked={rememberMe}
+                                onChange={(e) => setRememberMe(e.target.checked)}
+                                className="sr-only"
+                            />
+                            <div 
+                                className={`w-5 h-5 border-2 rounded cursor-pointer flex items-center justify-center ${
+                                    rememberMe 
+                                        ? 'bg-indigo-600 border-indigo-600' 
+                                        : 'bg-white border-gray-300 hover:border-indigo-400 dark:bg-gray-700 dark:border-gray-600'
+                                }`}
+                                onClick={() => setRememberMe(!rememberMe)}
+                            >
+                                {rememberMe && (
+                                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                )}
+                            </div>
+                        </div>
+                        <label 
+                            htmlFor="rememberMe" 
+                            className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none"
+                            onClick={() => setRememberMe(!rememberMe)}
+                        >
+                            Beni hatırla
+                        </label>
                     </div>
                     {error && (
                         <p className="mb-4 text-sm text-red-600 dark:text-red-400 text-center">{error}</p>

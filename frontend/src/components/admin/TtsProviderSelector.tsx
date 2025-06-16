@@ -12,8 +12,8 @@ const TtsProviderSelector: React.FC = () => {
   useEffect(() => {
     const fetchProvider = async () => {
       setLoading(true);
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token || null;
+      // Use localStorage JWT token instead of Supabase token
+      const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
       try {
         const res = await axios.get('/api/admin/settings/tts-provider', {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
@@ -33,8 +33,8 @@ const TtsProviderSelector: React.FC = () => {
     setSaving(true);
     setError('');
     setSuccess(false);
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token || null;
+    // Use localStorage JWT token instead of Supabase token
+    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
     try {
       await axios.post('/api/admin/settings/tts-provider', { tts_provider: newProvider }, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
