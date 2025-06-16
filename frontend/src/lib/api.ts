@@ -150,6 +150,7 @@ export interface ProcessInputData {
     SesHızı?: number;
     voice?: string;
     chapter?: string;
+    chapter_id?: string;
 }
 
 export interface TtsResponseData {
@@ -272,14 +273,14 @@ async function handleApiResponse<T>(response: Response): Promise<ApiResponse<T>>
 }
 
 export const processTts = async (data: ProcessInputData): Promise<TtsResponseData> => {
-    const { type, input, file, level, SesHızı, voice } = data;
+    const { type, input, file, level, SesHızı, voice, chapter_id } = data;
     const url = `${getApiUrl("tts/process")}`;
     let headers: Record<string, string>;
     let body: string | FormData;
 
     if (type === "text") {
         headers = createHeaders("application/json");
-        body = JSON.stringify({ input, type, level, SesHızı, voice });
+        body = JSON.stringify({ input, type, level, SesHızı, voice, chapter_id });
     } else {
         headers = createHeaders();
         const formData = new FormData();
@@ -287,6 +288,7 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
         formData.append("type", type);
         if (SesHızı !== undefined) formData.append("SesHızı", SesHızı.toString());
         if (voice) formData.append("voice", voice);
+        if (chapter_id) formData.append("chapter_id", chapter_id);
 
         if (input && type !== "file") {
             formData.append("input", input);

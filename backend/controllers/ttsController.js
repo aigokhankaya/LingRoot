@@ -8,7 +8,7 @@ const { extractTextFromInput, generateTopicText, generateEnglishNarrationForTopi
 const { cleanText, chunkText, chunkTextByCharLimit, preChunkTextByByteLimit } = require("../utils/textProcessor");
 const { adaptToCEFR: adaptToCEFRFunc } = require("../utils/cefrAdapter");
 const { synthesizeWithGoogle, listGoogleVoices } = require("../utils/googleTTS");
-const { mergeAudioSegments } = require("../utils/audioMerger");
+const { mergeAudioSegments, mergeAudioSegmentsToBuffer } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
 const tmp = require("tmp");
 const { logStep } = require('../utils/stepLogger');
@@ -20,6 +20,79 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Store references to temp files so they can be accessed via API
 const tempAudioFiles = new Map();
+const tempVttFiles = new Map();
+
+// Helper function to create VTT file from text
+const createVTTFile = (text, duration = 30) => {
+    const words = text.split(/\s+/).filter(word => word.length > 0);
+    const wordsPerLine = 5; // Kaç kelime per subtitle satırı
+    
+    let vttContent = 'WEBVTT\n\n';
+    
+    for (let i = 0; i < words.length; i += wordsPerLine) {
+        const lineWords = words.slice(i, i + wordsPerLine);
+        const startTime = (i / words.length) * duration;
+        const endTime = ((i + wordsPerLine) / words.length) * duration;
+        
+        // Format time as MM:SS.mmm
+        const formatTime = (seconds) => {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            const millisecs = Math.floor((seconds % 1) * 1000);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${millisecs.toString().padStart(3, '0')}`;
+        };
+        
+        vttContent += `${formatTime(startTime)} --> ${formatTime(endTime)}\n`;
+        vttContent += `${lineWords.join(' ')}\n\n`;
+    }
+    
+    return vttContent;
+};
+
+// Helper function to create word-level VTT file
+const createWordLevelVTT = (text, duration = 30) => {
+    const words = text.split(/\s+/).filter(word => word.length > 0);
+    
+    let vttContent = 'WEBVTT\n\n';
+    
+    words.forEach((word, index) => {
+        const startTime = (index / words.length) * duration;
+        const endTime = ((index + 1) / words.length) * duration;
+        
+        // Format time as MM:SS.mmm
+        const formatTime = (seconds) => {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            const millisecs = Math.floor((seconds % 1) * 1000);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${millisecs.toString().padStart(3, '0')}`;
+        };
+        
+        vttContent += `${formatTime(startTime)} --> ${formatTime(endTime)}\n`;
+        vttContent += `${word}\n\n`;
+    });
+    
+    return vttContent;
+};
+
+// Helper function to create VTT from real word timings
+const createWordLevelVTTFromTimings = (wordTimings, totalDuration) => {
+    let vttContent = 'WEBVTT\n\n';
+    
+    // Format time as MM:SS.mmm
+    const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        const millisecs = Math.floor((seconds % 1) * 1000);
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${millisecs.toString().padStart(3, '0')}`;
+    };
+    
+    wordTimings.forEach((timing, index) => {
+        vttContent += `${formatTime(timing.startTime)} --> ${formatTime(timing.endTime)}\n`;
+        vttContent += `${timing.word}\n\n`;
+    });
+    
+    return vttContent;
+};
 
 // Helper function for consistent temp file cleanup
 const cleanupTempFile = (filePath) => {
@@ -96,14 +169,48 @@ const processTtsRequest = async (req, res) => {
         const mockTtsEnabled = paramData?.value === 'true' || paramData?.value === true;
 
         if (mockTtsEnabled) {
-            logger.info(`[${requestId}] Mock TTS mode enabled - returning mock TTS response`);
+            logger.info(`[${requestId}] Mock TTS mode enabled - returning mock TTS response with realistic timing`);
             
             // Mock English text based on input type
-            let mockEnglishText = "This is a sample English text for testing purposes...";
+            let mockEnglishText = "This is a sample English text for testing purposes with multiple words to demonstrate the word-level highlighting feature.";
             
-            // For mock mode, just return the external mock audio URL directly
+            // For mock mode, use realistic speaking rate calculation
+            const mockSpeakingRate = speakingRate || 1.0;
+            const mockWords = mockEnglishText.split(/\s+/).filter(word => word.length > 0);
+            const mockDuration = (mockWords.length / (150 * mockSpeakingRate)) * 60; // 150 WPM base
+            
+            // Create realistic word timings
+            const mockWordTimings = mockWords.map((word, index) => ({
+                word: word,
+                startTime: (index / mockWords.length) * mockDuration,
+                endTime: ((index + 1) / mockWords.length) * mockDuration,
+                markName: `mock_word_${index}`
+            }));
+            
+            // For mock mode, return external mock audio URL
             const mockMp3Url = "https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3";
-            const mockVttUrl = "/api/mock-subtitles.vtt";
+            
+            // Create mock VTT file with real timings
+            const mockVttContent = createWordLevelVTTFromTimings(mockWordTimings, mockDuration);
+            const mockVttId = `mock_vtt_${Date.now()}`;
+            tempVttFiles.set(mockVttId, {
+                content: mockVttContent,
+                createdAt: new Date(),
+                text: mockEnglishText,
+                duration: mockDuration,
+                wordTimings: mockWordTimings,
+                speakingRate: mockSpeakingRate,
+                isRealTiming: false,
+                isMock: true
+            });
+            const mockVttUrl = `/api/tts/vtt/${mockVttId}`;
+            
+            // Create mock timepoints
+            const mockTimepoints = mockWordTimings.map(w => ({
+                timeSeconds: w.startTime,
+                endTimeSeconds: w.endTime,
+                word: w.word
+            }));
             
             return res.status(200).json({
                 success: true,
@@ -111,9 +218,16 @@ const processTtsRequest = async (req, res) => {
                 mp3_url: mockMp3Url,
                 vtt_url: mockVttUrl,
                 level: level,
-                timepoints: timepoints,
-                words: words,
-                original_turkish: req.body.input || "Bu test modunda örnek bir Türkçe metindir."
+                timepoints: mockTimepoints,
+                words: mockWords,
+                original_turkish: req.body.input || "Bu test modunda örnek bir Türkçe metindir.",
+                // Mock ek bilgileri
+                real_duration: mockDuration,
+                speaking_rate: mockSpeakingRate,
+                word_timings_count: mockWordTimings.length,
+                audio_segments: 1,
+                is_real_timing: false,
+                is_mock: true
             });
         }
     } catch (paramError) {
@@ -435,18 +549,24 @@ const processTtsRequest = async (req, res) => {
                 for (const [j, part] of safeSubChunks.entries()) {
                     const bytes = Buffer.byteLength(part, "utf-8");
                     logger.info(`🟢 TTS-safe chunk [${i + 1}.${j + 1}] - ${bytes} bytes`);
-                    const buffer = await synthesizeWithGoogle({
+                    const result = await synthesizeWithGoogle({
                         text: part,
                         voiceName: selectedVoice,
                         languageCode: languageCode,
                         speakingRate: speakingRate
                     });
-                    if (buffer) {
-                        audioBuffers.push(buffer);
+                    if (result && result.audioContent) {
+                        audioBuffers.push(result.audioContent);
                     }
                 }
             }
-            audioBase64 = Buffer.concat(audioBuffers).toString('base64');
+            
+            if (audioBuffers.length > 0) {
+                const mergedBuffer = await mergeAudioSegmentsToBuffer(audioBuffers);
+                if (mergedBuffer) {
+                    audioBase64 = mergedBuffer.toString('base64');
+                }
+            }
         } else {
             logger.error(`[${requestId}] Unsupported TTS provider: ${ttsProvider}`);
             return res.status(500).json({ success: false, message: `Unsupported TTS provider: ${ttsProvider}` });
@@ -467,66 +587,220 @@ const processTtsRequest = async (req, res) => {
         });
         logRequestStep(requestId, 'tts:end', { audioLength: audioBase64.length });
 
-        // --- Step 6: Save Audio to Temp File and Upload to Supabase
-        logger.info(`[${requestId}] Step 6: Saving audio to temp file and uploading to Supabase...`);
-        const uniqueId = uuidv4();
-        const outputFilename = `lingroot_${level}_${uniqueId}.mp3`;
-        tempFilePath = path.join(os.tmpdir(), outputFilename);
-        fs.writeFileSync(tempFilePath, Buffer.from(audioBase64, 'base64'));
-        logger.info(`[${requestId}] Audio saved to temp file: ${tempFilePath}`);
+        // --- Step 6: Synthesize Audio with Google TTS ---
+        logger.info(`[${requestId}] Starting Google TTS synthesis...`);
+        logStep({
+            requestId,
+            stepName: 'tts:synthesis:start',
+            stepSequence: stepSequence++,
+            serviceName: 'Google TTS',
+            inputData: { 
+                text: adaptedText.substring(0, 100) + "...", 
+                voice: selectedVoice, 
+                rate: speakingRate,
+                chunks: finalChunks.length
+            }
+        });
 
-        // Upload to Supabase Storage
-        let mp3Url = "";
-        try {
-            const mp3Filename = `lingroot_${level}_${uniqueId}.mp3`;
-            mp3Url = await uploadToSupabase(tempFilePath, mp3Filename);
-            logger.info(`[${requestId}] Audio uploaded to Supabase: ${mp3Url}`);
-        } catch (uploadError) {
-            logger.error(`[${requestId}] Failed to upload audio to Supabase: ${uploadError.message}`);
-            // Continue without Supabase upload - will use temp file
+        // Her chunk için sentez yap - timing bilgileriyle
+        const audioSegments = [];
+        const allWordTimings = [];
+        let cumulativeTimeOffset = 0;
+
+        for (let i = 0; i < finalChunks.length; i++) {
+            const chunk = finalChunks[i];
+            logger.info(`[${requestId}] Synthesizing chunk ${i + 1}/${finalChunks.length} (${chunk.length} chars)...`);
+            
+            try {
+                const ttsResult = await synthesizeWithGoogle({
+                    text: chunk,
+                    voiceName: selectedVoice,
+                    languageCode: languageCode,
+                    speakingRate: speakingRate
+                });
+
+                if (!ttsResult.success || !ttsResult.audioContent) {
+                    throw new Error('TTS synthesis failed');
+                }
+
+                // Audio segment'ini sakla
+                audioSegments.push({
+                    audioContent: ttsResult.audioContent,
+                    chunkIndex: i,
+                    duration: ttsResult.totalDuration,
+                    wordCount: ttsResult.wordTimings.length
+                });
+
+                // Word timing'leri birleştir - offset ile
+                ttsResult.wordTimings.forEach(wordTiming => {
+                    allWordTimings.push({
+                        word: wordTiming.word,
+                        startTime: wordTiming.startTime + cumulativeTimeOffset,
+                        endTime: wordTiming.endTime + cumulativeTimeOffset,
+                        chunkIndex: i,
+                        originalMarkName: wordTiming.markName
+                    });
+                });
+
+                // Bir sonraki chunk için offset'i güncelle
+                cumulativeTimeOffset += ttsResult.totalDuration;
+
+                logger.info(`[${requestId}] Chunk ${i + 1} completed - Duration: ${ttsResult.totalDuration.toFixed(1)}s, Words: ${ttsResult.wordTimings.length}, Fallback: ${ttsResult.isFallback ? 'Yes' : 'No'}`);
+
+            } catch (chunkError) {
+                logger.error(`[${requestId}] Chunk ${i + 1} synthesis failed:`, chunkError.message);
+                throw new Error(`TTS synthesis failed for chunk ${i + 1}: ${chunkError.message}`);
+            }
         }
 
-        // Store the audio file for access via API (for immediate access)
-        logger.info(`[${requestId}] 🔄 Adding audio to tempAudioFiles with ID: ${uniqueId}`);
-        logger.info(`[${requestId}] 🔄 audioBase64 length: ${audioBase64 ? audioBase64.length : 'null'}`);
-        logger.info(`[${requestId}] 🔄 tempAudioFiles size before: ${tempAudioFiles.size}`);
+        // Toplam süre ve kelime sayısı
+        const totalRealDuration = cumulativeTimeOffset;
+        const totalWords = allWordTimings.length;
         
-        tempAudioFiles.set(uniqueId, {
-            path: tempFilePath,
-            buffer: Buffer.from(audioBase64, 'base64'),
+        logger.info(`[${requestId}] All chunks synthesized - Total duration: ${totalRealDuration.toFixed(1)}s, Total words: ${totalWords}, Segments: ${audioSegments.length}`);
+
+        // --- Step 7: Merge Audio Segments ---
+        logger.info(`[${requestId}] Merging ${audioSegments.length} audio segments...`);
+        
+        const audioBuffers = audioSegments.map(segment => segment.audioContent);
+        const mergedAudioBuffer = await mergeAudioSegmentsToBuffer(audioBuffers);
+        
+        if (!mergedAudioBuffer) {
+            throw new Error('Audio merging failed');
+        }
+
+        const mergedAudioBase64 = mergedAudioBuffer.toString('base64');
+        const uniqueId = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        logger.info(`[${requestId}] Audio merged successfully - Final size: ${mergedAudioBuffer.length} bytes, ID: ${uniqueId}`);
+
+        // --- Step 8: Create VTT with Real Timings ---
+        logger.info(`[${requestId}] Creating VTT with real word timings...`);
+        
+        // Gerçek timing'lerle VTT oluştur
+        const vttContent = createWordLevelVTTFromTimings(allWordTimings, totalRealDuration);
+        const vttUniqueId = `vtt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // VTT dosyasını temp olarak sakla
+        tempVttFiles.set(vttUniqueId, {
+            content: vttContent,
             createdAt: new Date(),
-            supabaseUrl: mp3Url // Store Supabase URL for reference
+            text: adaptedText,
+            duration: totalRealDuration,
+            words: totalWords,
+            wordTimings: allWordTimings,
+            speakingRate: speakingRate,
+            isRealTiming: true
+        });
+        
+        const vttUrl = `/api/tts/vtt/${vttUniqueId}`;
+        
+        logger.info(`[${requestId}] VTT created with real timings - ID: ${vttUniqueId}, Duration: ${totalRealDuration.toFixed(1)}s, Words: ${totalWords}`);
+
+        // --- Step 9: Upload to Supabase (optional) ---
+        let mp3Url = null;
+        if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+            try {
+                logger.info(`[${requestId}] Uploading to Supabase...`);
+                mp3Url = await uploadToSupabase(mergedAudioBuffer, `tts_${uniqueId}.mp3`);
+                logger.info(`[${requestId}] Supabase upload successful: ${mp3Url}`);
+            } catch (uploadError) {
+                logger.warn(`[${requestId}] Supabase upload failed, will serve locally: ${uploadError.message}`);
+            }
+        }
+
+        // Store in memory for API serving
+        tempAudioFiles.set(uniqueId, {
+            path: null,
+            buffer: mergedAudioBuffer,
+            createdAt: new Date(),
+            supabaseUrl: mp3Url,
+            duration: totalRealDuration,
+            wordCount: totalWords
         });
         
         logger.info(`[${requestId}] 🔄 tempAudioFiles size after: ${tempAudioFiles.size}`);
-        logger.info(`[${requestId}] 🔄 tempAudioFiles keys: ${Array.from(tempAudioFiles.keys()).join(', ')}`);
 
-        // --- Step 7: Return Success Response (Updated Format) ---
-        logger.info(`[${requestId}] Processing complete. Returning success response.`);
-        
-        // Generate VTT URL (placeholder for now)
-        const vttUrl = `/api/mock-subtitles.vtt`;
+        // --- Step 10: Return Success Response ---
+        logger.info(`[${requestId}] Processing complete with real timings.`);
 
         // Use Supabase URL if available, otherwise use API endpoint URL
         const finalMp3Url = mp3Url || `/api/tts/audio/${uniqueId}`;
+        
+        // Kelime listesi ve timepoints gerçek timing'lerden (startTime ve endTime ile)
+        const words = allWordTimings.map(w => w.word);
+        const timepoints = allWordTimings.map(w => ({
+            timeSeconds: w.startTime,
+            endTimeSeconds: w.endTime,
+            word: w.word
+        }));
         
         logStep({
             requestId,
             stepName: 'tts:success',
             stepSequence: stepSequence++,
             status: 'success',
-            outputData: { mp3_url: finalMp3Url, vtt_url: vttUrl, supabase_url: mp3Url }
+            outputData: { 
+                mp3_url: finalMp3Url, 
+                vtt_url: vttUrl, 
+                supabase_url: mp3Url,
+                words_count: totalWords,
+                real_duration: totalRealDuration,
+                speaking_rate: speakingRate,
+                chunks_processed: audioSegments.length
+            }
         });
+        
+        // Kitap bölümü için ses oluşturulmuşsa chapter_audio tablosuna kaydet
+        if (req.body.chapter_id) {
+            try {
+                const { Pool } = require('pg');
+                const pool = new Pool({
+                    connectionString: process.env.DATABASE_URL,
+                    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+                });
+                
+                const insertQuery = `
+                    INSERT INTO chapter_audio (chapter_id, voice_model, speaking_rate, level, mp3_url, vtt_url, created_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                    ON CONFLICT (chapter_id, voice_model, speaking_rate, level) 
+                    DO UPDATE SET mp3_url = EXCLUDED.mp3_url, vtt_url = EXCLUDED.vtt_url, created_at = NOW()
+                    RETURNING id
+                `;
+                
+                const result = await pool.query(insertQuery, [
+                    req.body.chapter_id,
+                    voice || 'en-US-Standard-C',
+                    speakingRate || 1.0,
+                    level || 'a1',
+                    finalMp3Url,
+                    vttUrl
+                ]);
+                
+                logger.info(`[${requestId}] Chapter audio saved to database: ${result.rows[0].id}`);
+                await pool.end(); // Pool bağlantısını kapat
+            } catch (dbError) {
+                logger.error(`[${requestId}] Error saving chapter audio to database: ${dbError.message}`);
+                // Don't fail the request if database save fails
+            }
+        }
+
         return res.status(200).json({
             success: true,
             message: adaptedText,
             level: level,
             input_language: detectedLang,
-            mp3_url: finalMp3Url, // Use Supabase URL if available, otherwise API endpoint
-            words: [],
-            timepoints: [],
+            mp3_url: finalMp3Url,
+            words: words,
+            timepoints: timepoints,
             vtt_url: vttUrl,
             original_turkish: originalTurkishText || undefined,
+            // Ek bilgiler
+            real_duration: totalRealDuration,
+            speaking_rate: speakingRate,
+            word_timings_count: allWordTimings.length,
+            audio_segments: audioSegments.length,
+            is_real_timing: true
         });
 
     } catch (error) {
@@ -654,9 +928,42 @@ const getAudioFile = async (req, res) => {
     return res.send(audioData.buffer);
 };
 
-// Cleanup old audio files every hour
+/**
+ * Serves VTT subtitle files stored in memory
+ * @param {import("express").Request} req Express request object
+ * @param {import("express").Response} res Express response object
+ */
+const getVttFile = async (req, res) => {
+    const vttId = req.params.vttId;
+    logger.info(`📝 VTT file requested: ${vttId}`);
+    
+    try {
+        const vttData = tempVttFiles.get(vttId);
+        
+        if (!vttData) {
+            logger.warn(`📝 VTT file not found: ${vttId}`);
+            logger.info(`📝 Available VTT files: ${Array.from(tempVttFiles.keys()).join(', ')}`);
+            return res.status(404).json({ success: false, message: 'VTT file not found' });
+        }
+        
+        logger.info(`📝 Serving VTT file: ${vttId}`);
+        res.setHeader('Content-Type', 'text/vtt');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // 24 hours cache
+        
+        return res.send(vttData.content);
+    } catch (error) {
+        logger.error(`📝 Error serving VTT file ${vttId}:`, error);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
+// Cleanup old audio and VTT files every hour
 setInterval(() => {
     const now = new Date();
+    
+    // Cleanup audio files
     tempAudioFiles.forEach((data, id) => {
         // Delete files older than 1 hour
         if (now - data.createdAt > 60 * 60 * 1000) {
@@ -670,6 +977,17 @@ setInterval(() => {
             tempAudioFiles.delete(id);
         }
     });
+    
+    // Cleanup VTT files
+    tempVttFiles.forEach((data, id) => {
+        // Delete VTT files older than 1 hour
+        if (now - data.createdAt > 60 * 60 * 1000) {
+            tempVttFiles.delete(id);
+            logger.info(`Cleaned up VTT file: ${id}`);
+        }
+    });
+    
+    logger.info(`Cleanup completed - Audio files: ${tempAudioFiles.size}, VTT files: ${tempVttFiles.size}`);
 }, 60 * 60 * 1000); // Run every hour
 
 // --- TTS Step Endpoints ---
@@ -1003,6 +1321,7 @@ const translateToEnglish = async (req, res) => {
       mergeAudioAPI,
       listVoices,
       getAudioFile, // New endpoint to serve audio
+      getVttFile, // New endpoint to serve VTT files
       getFilteredVoices,
       testVoices, // New test endpoint
   };

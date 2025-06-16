@@ -52,6 +52,46 @@ interface ContentHistoryItem {
   created_at: string;
 }
 
+interface Book {
+  id: string;
+  title: string;
+  author: string;
+  description?: string;
+  cover_image?: string;
+  language: string;
+  genre?: string;
+  publication_year?: number;
+  total_chapters: number;
+}
+
+interface Chapter {
+  id: string;
+  book_id: string;
+  chapter_number: number;
+  title: string;
+  content: string;
+  word_count: number;
+}
+
+interface BookSearchResult {
+  books: Book[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+interface ExistingAudio {
+  id: string;
+  chapter_id: string;
+  voice_model: string;
+  speaking_rate: number;
+  level: string;
+  mp3_url: string;
+  vtt_url?: string;
+  created_at: string;
+}
+
 const Welcome: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const { badge, dailyLimit, remaining } = useMembership();
@@ -86,6 +126,18 @@ const Welcome: React.FC = () => {
   const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('standard');
   const [selectedGender, setSelectedGender] = useState<string>('all');
   const [selectedAccent, setSelectedAccent] = useState<string>('all');
+  
+  // Kitap arama ve seçim state'leri
+  const [bookSearchQuery, setBookSearchQuery] = useState<string>('');
+  const [bookSearchResults, setBookSearchResults] = useState<BookSearchResult | null>(null);
+  const [isSearchingBooks, setIsSearchingBooks] = useState<boolean>(false);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [bookChapters, setBookChapters] = useState<Chapter[]>([]);
+  const [isLoadingChapters, setIsLoadingChapters] = useState<boolean>(false);
+  const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [existingAudio, setExistingAudio] = useState<ExistingAudio | null>(null);
+  const [isCheckingExistingAudio, setIsCheckingExistingAudio] = useState<boolean>(false);
   
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
@@ -132,56 +184,56 @@ const Welcome: React.FC = () => {
 
   // Ses kategorileri ve detaylı ses verileri
   const voiceCategories = [
-    { value: 'standard', label: 'Standart Sesler', icon: 'fas fa-volume-up', badge: 'Ücretsiz' },
-    { value: 'wavenet', label: 'WaveNet Sesleri', icon: 'fas fa-star', badge: 'Premium' },
-    { value: 'neural2', label: 'Neural2 Sesleri', icon: 'fas fa-brain', badge: 'Premium' },
-    { value: 'studio', label: 'Studio Sesleri', icon: 'fas fa-crown', badge: 'Platinium' },
-    { value: 'chirp3d', label: 'Chirp 3D', icon: 'fas fa-gem', badge: 'Gold' }
+    { value: 'standard', label: 'Standart Sesler', icon: 'fas fa-volume-up', badge: 'Ücretsiz', ssmlSupport: false },
+    { value: 'wavenet', label: 'WaveNet Sesleri', icon: 'fas fa-star', badge: 'Premium', ssmlSupport: true },
+    { value: 'neural2', label: 'Neural2 Sesleri', icon: 'fas fa-brain', badge: 'Premium', ssmlSupport: true },
+    { value: 'studio', label: 'Studio Sesleri', icon: 'fas fa-crown', badge: 'Platinium', ssmlSupport: true },
+    { value: 'chirp3d', label: 'Chirp 3D', icon: 'fas fa-gem', badge: 'Gold', ssmlSupport: true }
   ];
 
   const detailedVoices = {
     wavenet: [
-      { id: 'en-US-Wavenet-A', name: 'ABD İngilizcesi - Erkek A', accent: 'american', gender: 'male', category: 'wavenet' },
-      { id: 'en-US-Wavenet-F', name: 'ABD İngilizcesi - Kadın F', accent: 'american', gender: 'female', category: 'wavenet' },
-      { id: 'en-GB-Wavenet-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'wavenet' },
-      { id: 'en-GB-Wavenet-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'wavenet' },
-      { id: 'en-AU-Wavenet-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'wavenet' },
-      { id: 'en-AU-Wavenet-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'wavenet' }
+      { id: 'en-US-Wavenet-A', name: 'ABD İngilizcesi - Erkek A', accent: 'american', gender: 'male', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-US-Wavenet-F', name: 'ABD İngilizcesi - Kadın F', accent: 'american', gender: 'female', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-GB-Wavenet-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-GB-Wavenet-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-AU-Wavenet-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-AU-Wavenet-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'wavenet', ssmlSupport: true }
     ],
     neural2: [
-      { id: 'en-US-Neural2-J', name: 'ABD İngilizcesi - Erkek J', accent: 'american', gender: 'male', category: 'neural2' },
-      { id: 'en-US-Neural2-H', name: 'ABD İngilizcesi - Kadın H', accent: 'american', gender: 'female', category: 'neural2' },
-      { id: 'en-GB-Neural2-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'neural2' },
-      { id: 'en-GB-Neural2-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'neural2' },
-      { id: 'en-AU-Neural2-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'neural2' },
-      { id: 'en-AU-Neural2-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'neural2' },
-      { id: 'en-AU-Neural2-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'neural2' }
+      { id: 'en-US-Neural2-J', name: 'ABD İngilizcesi - Erkek J', accent: 'american', gender: 'male', category: 'neural2', ssmlSupport: true },
+      { id: 'en-US-Neural2-H', name: 'ABD İngilizcesi - Kadın H', accent: 'american', gender: 'female', category: 'neural2', ssmlSupport: true },
+      { id: 'en-GB-Neural2-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'neural2', ssmlSupport: true },
+      { id: 'en-GB-Neural2-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'neural2', ssmlSupport: true },
+      { id: 'en-AU-Neural2-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'neural2', ssmlSupport: true },
+      { id: 'en-AU-Neural2-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'neural2', ssmlSupport: true },
+      { id: 'en-AU-Neural2-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'neural2', ssmlSupport: true }
     ],
     studio: [
-      { id: 'en-US-Studio-M', name: 'ABD İngilizcesi - Erkek M', accent: 'american', gender: 'male', category: 'studio' },
-      { id: 'en-US-Studio-Q', name: 'ABD İngilizcesi - Kadın Q', accent: 'american', gender: 'female', category: 'studio' },
-      { id: 'en-GB-Studio-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'studio' },
-      { id: 'en-GB-Studio-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'studio' }
+      { id: 'en-US-Studio-M', name: 'ABD İngilizcesi - Erkek M', accent: 'american', gender: 'male', category: 'studio', ssmlSupport: true },
+      { id: 'en-US-Studio-Q', name: 'ABD İngilizcesi - Kadın Q', accent: 'american', gender: 'female', category: 'studio', ssmlSupport: true },
+      { id: 'en-GB-Studio-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'studio', ssmlSupport: true },
+      { id: 'en-GB-Studio-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'studio', ssmlSupport: true }
     ],
     chirp3d: [
-      { id: 'en-US-Journey-D', name: 'ABD İngilizcesi - Kadın D', accent: 'american', gender: 'female', category: 'chirp3d' },
-      { id: 'en-US-Journey-O', name: 'ABD İngilizcesi - Erkek O', accent: 'american', gender: 'male', category: 'chirp3d' },
-      { id: 'en-GB-Journey-F', name: 'İngiliz İngilizcesi - Kadın F', accent: 'british', gender: 'female', category: 'chirp3d' },
-      { id: 'en-GB-Journey-M', name: 'İngiliz İngilizcesi - Erkek M', accent: 'british', gender: 'male', category: 'chirp3d' }
+      { id: 'en-US-Journey-D', name: 'ABD İngilizcesi - Kadın D', accent: 'american', gender: 'female', category: 'chirp3d', ssmlSupport: true },
+      { id: 'en-US-Journey-O', name: 'ABD İngilizcesi - Erkek O', accent: 'american', gender: 'male', category: 'chirp3d', ssmlSupport: true },
+      { id: 'en-GB-Journey-F', name: 'İngiliz İngilizcesi - Kadın F', accent: 'british', gender: 'female', category: 'chirp3d', ssmlSupport: true },
+      { id: 'en-GB-Journey-M', name: 'İngiliz İngilizcesi - Erkek M', accent: 'british', gender: 'male', category: 'chirp3d', ssmlSupport: true }
     ],
     standard: [
-      { id: 'en-US-Standard-B', name: 'ABD İngilizcesi - Erkek B', accent: 'american', gender: 'male', category: 'standard' },
-      { id: 'en-US-Standard-C', name: 'ABD İngilizcesi - Kadın C', accent: 'american', gender: 'female', category: 'standard' },
-      { id: 'en-US-Standard-D', name: 'ABD İngilizcesi - Erkek D', accent: 'american', gender: 'male', category: 'standard' },
-      { id: 'en-US-Standard-E', name: 'ABD İngilizcesi - Kadın E', accent: 'american', gender: 'female', category: 'standard' },
-      { id: 'en-GB-Standard-A', name: 'İngiliz İngilizcesi - Kadın A', accent: 'british', gender: 'female', category: 'standard' },
-      { id: 'en-GB-Standard-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'standard' },
-      { id: 'en-GB-Standard-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'standard' },
-      { id: 'en-GB-Standard-D', name: 'İngiliz İngilizcesi - Erkek D', accent: 'british', gender: 'male', category: 'standard' },
-      { id: 'en-AU-Standard-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'standard' },
-      { id: 'en-AU-Standard-B', name: 'Avustralya İngilizcesi - Erkek B', accent: 'australian', gender: 'male', category: 'standard' },
-      { id: 'en-AU-Standard-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'standard' },
-      { id: 'en-AU-Standard-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'standard' }
+      { id: 'en-US-Standard-B', name: 'ABD İngilizcesi - Erkek B', accent: 'american', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-US-Standard-C', name: 'ABD İngilizcesi - Kadın C', accent: 'american', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-US-Standard-D', name: 'ABD İngilizcesi - Erkek D', accent: 'american', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-US-Standard-E', name: 'ABD İngilizcesi - Kadın E', accent: 'american', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-GB-Standard-A', name: 'İngiliz İngilizcesi - Kadın A', accent: 'british', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-GB-Standard-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-GB-Standard-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-GB-Standard-D', name: 'İngiliz İngilizcesi - Erkek D', accent: 'british', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-AU-Standard-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-AU-Standard-B', name: 'Avustralya İngilizcesi - Erkek B', accent: 'australian', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-AU-Standard-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-AU-Standard-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'standard', ssmlSupport: false }
     ]
   };
 
@@ -453,6 +505,93 @@ const Welcome: React.FC = () => {
     setTextInput(selectedValue); // Seçilen detaylı konuyu textarea'ya yaz
   };
 
+  // Kitap arama fonksiyonu
+  const searchBooks = async (query: string, page: number = 1) => {
+    if (!query.trim()) return;
+    
+    setIsSearchingBooks(true);
+    try {
+      const response = await fetch(`/api/books/search?q=${encodeURIComponent(query)}&page=${page}&per_page=10`);
+      if (response.ok) {
+        const data: BookSearchResult = await response.json();
+        setBookSearchResults(data);
+        setCurrentPage(page);
+      } else {
+        console.error('Kitap arama hatası:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Kitap arama hatası:', error);
+    } finally {
+      setIsSearchingBooks(false);
+    }
+  };
+
+  // Kitap bölümlerini yükleme fonksiyonu
+  const loadBookChapters = async (bookId: string) => {
+    setIsLoadingChapters(true);
+    try {
+      const response = await fetch(`/api/books/${bookId}/chapters`);
+      if (response.ok) {
+        const chapters: Chapter[] = await response.json();
+        setBookChapters(chapters);
+      } else {
+        console.error('Bölüm yükleme hatası:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Bölüm yükleme hatası:', error);
+    } finally {
+      setIsLoadingChapters(false);
+    }
+  };
+
+  // Mevcut ses kontrolü fonksiyonu
+  const checkExistingAudio = async (chapterId: string, voiceModel: string, speakingRate: number, level: string) => {
+    setIsCheckingExistingAudio(true);
+    try {
+      const response = await fetch(`/api/books/chapters/${chapterId}/audio?voice=${voiceModel}&rate=${speakingRate}&level=${level}`);
+      if (response.ok) {
+        const audio: ExistingAudio = await response.json();
+        setExistingAudio(audio);
+        return audio;
+      } else {
+        setExistingAudio(null);
+        return null;
+      }
+    } catch (error) {
+      console.error('Mevcut ses kontrolü hatası:', error);
+      setExistingAudio(null);
+      return null;
+    } finally {
+      setIsCheckingExistingAudio(false);
+    }
+  };
+
+  // Kitap seçimi fonksiyonu
+  const handleBookSelect = (book: Book) => {
+    setSelectedBook(book);
+    setSelectedChapter(null);
+    setBookChapters([]);
+    setExistingAudio(null);
+    loadBookChapters(book.id);
+  };
+
+  // Bölüm seçimi fonksiyonu
+  const handleChapterSelect = async (chapter: Chapter) => {
+    setSelectedChapter(chapter);
+    setTextInput(chapter.content);
+    
+    // Mevcut ses kontrolü yap
+    await checkExistingAudio(chapter.id, voiceType, speakingRate, englishLevel);
+  };
+
+  // Kitap arama submit fonksiyonu
+  const handleBookSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (bookSearchQuery.trim()) {
+      searchBooks(bookSearchQuery, 1);
+    }
+  };
+
   const handleSubmit = async (inputData: InputData) => {
     setIsLoading(true);
     setError(null);
@@ -465,6 +604,7 @@ const Welcome: React.FC = () => {
         SesHızı: inputData.SesHızı,
         voice: inputData.voice,
         chapter: (inputData as any).chapter,
+        chapter_id: selectedChapter?.id, // Kitap bölümü ID'sini ekle
       };
 
       // "subject" (Konu) ve "topic" (Hobi) type'ları için özel işlem
@@ -1015,8 +1155,233 @@ const Welcome: React.FC = () => {
                       </div>
                     )}
                     
+                    {/* Kitap sekmesi */}
+                    {contentType === 'book' && (
+                      <div className="space-y-6">
+                        {/* Kitap Arama */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Kitap Ara:
+                          </label>
+                          <form onSubmit={handleBookSearch} className="flex gap-3">
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                value={bookSearchQuery}
+                                onChange={(e) => setBookSearchQuery(e.target.value)}
+                                placeholder="Kitap adı veya yazar adı girin..."
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                              />
+                            </div>
+                            <Button 
+                              type="submit"
+                              className={`px-6 py-3 !rounded-button whitespace-nowrap ${
+                                bookSearchQuery.trim() && !isSearchingBooks
+                                  ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' 
+                                  : 'bg-gray-400 cursor-not-allowed'
+                              }`}
+                              disabled={!bookSearchQuery.trim() || isSearchingBooks}
+                            >
+                              {isSearchingBooks ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                  Aranıyor...
+                                </>
+                              ) : (
+                                <>
+                                  <i className="fas fa-search mr-2"></i>
+                                  Ara
+                                </>
+                              )}
+                            </Button>
+                          </form>
+                        </div>
+
+                        {/* Kitap Arama Sonuçları */}
+                        {bookSearchResults && (
+                          <div>
+                            <div className="flex justify-between items-center mb-3">
+                              <h4 className="text-md font-medium text-gray-700">
+                                Arama Sonuçları ({bookSearchResults.total} kitap)
+                              </h4>
+                              {bookSearchResults.total_pages > 1 && (
+                                <div className="flex items-center space-x-2">
+                                  <Button
+                                    onClick={() => searchBooks(bookSearchQuery, currentPage - 1)}
+                                    disabled={currentPage <= 1}
+                                    variant="outline"
+                                    size="sm"
+                                    className="!rounded-button"
+                                  >
+                                    <i className="fas fa-chevron-left"></i>
+                                  </Button>
+                                  <span className="text-sm text-gray-600">
+                                    {currentPage} / {bookSearchResults.total_pages}
+                                  </span>
+                                  <Button
+                                    onClick={() => searchBooks(bookSearchQuery, currentPage + 1)}
+                                    disabled={currentPage >= bookSearchResults.total_pages}
+                                    variant="outline"
+                                    size="sm"
+                                    className="!rounded-button"
+                                  >
+                                    <i className="fas fa-chevron-right"></i>
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                            <div className="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
+                              {bookSearchResults.books.map((book) => (
+                                <div
+                                  key={book.id}
+                                  onClick={() => handleBookSelect(book)}
+                                  className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors ${
+                                    selectedBook?.id === book.id ? 'bg-blue-50 border-blue-200' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-start space-x-3">
+                                    {book.cover_image ? (
+                                      <img
+                                        src={book.cover_image}
+                                        alt={book.title}
+                                        className="w-12 h-16 object-cover rounded"
+                                      />
+                                    ) : (
+                                      <div className="w-12 h-16 bg-gray-200 rounded flex items-center justify-center">
+                                        <i className="fas fa-book text-gray-400"></i>
+                                      </div>
+                                    )}
+                                    <div className="flex-1">
+                                      <h5 className="font-medium text-gray-900">{book.title}</h5>
+                                      <p className="text-sm text-gray-600">{book.author}</p>
+                                      {book.description && (
+                                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                          {book.description}
+                                        </p>
+                                      )}
+                                      <div className="flex items-center space-x-2 mt-2">
+                                        <Badge variant="secondary" className="text-xs">
+                                          {book.total_chapters} bölüm
+                                        </Badge>
+                                        {book.genre && (
+                                          <Badge variant="outline" className="text-xs">
+                                            {book.genre}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Seçilen Kitabın Bölümleri */}
+                        {selectedBook && (
+                          <div>
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="text-md font-medium text-gray-700">
+                                "{selectedBook.title}" Bölümleri
+                              </h4>
+                              {isLoadingChapters && (
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                              )}
+                            </div>
+                            {isLoadingChapters ? (
+                              <div className="flex items-center justify-center p-8 border border-gray-200 rounded-lg">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                <span className="ml-3 text-gray-600">Bölümler yükleniyor...</span>
+                              </div>
+                            ) : bookChapters.length > 0 ? (
+                              <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+                                {bookChapters.map((chapter) => (
+                                  <div
+                                    key={chapter.id}
+                                    onClick={() => handleChapterSelect(chapter)}
+                                    className={`p-3 border-b border-gray-100 cursor-pointer hover:bg-green-50 transition-colors ${
+                                      selectedChapter?.id === chapter.id ? 'bg-green-50 border-green-200' : ''
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <h6 className="font-medium text-gray-900">
+                                          Bölüm {chapter.chapter_number}: {chapter.title}
+                                        </h6>
+                                        <p className="text-sm text-gray-600">
+                                          {chapter.word_count} kelime
+                                        </p>
+                                      </div>
+                                      {selectedChapter?.id === chapter.id && (
+                                        <i className="fas fa-check-circle text-green-600"></i>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="p-4 border border-gray-200 rounded-lg text-center text-gray-500">
+                                Bu kitap için bölüm bulunamadı.
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Mevcut Ses Uyarısı */}
+                        {existingAudio && selectedChapter && (
+                          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-start space-x-3">
+                              <i className="fas fa-info-circle text-green-600 mt-1"></i>
+                              <div>
+                                <h5 className="font-medium text-green-800">Mevcut Ses Bulundu!</h5>
+                                <p className="text-sm text-green-700 mt-1">
+                                  Bu bölüm için aynı ayarlarla ({existingAudio.voice_model}, {existingAudio.speaking_rate}x hız, {existingAudio.level.toUpperCase()} seviye) 
+                                  daha önce oluşturulmuş ses dosyası mevcut. Yeni ses oluşturmak yerine mevcut sesi kullanabilirsiniz.
+                                </p>
+                                <Button
+                                  onClick={() => {
+                                    setAudioResult({
+                                      message: selectedChapter.content,
+                                      mp3_url: existingAudio.mp3_url,
+                                      vtt_url: existingAudio.vtt_url || '',
+                                      level: existingAudio.level
+                                    });
+                                  }}
+                                  className="mt-2 bg-green-600 hover:bg-green-700 !rounded-button"
+                                  size="sm"
+                                >
+                                  <i className="fas fa-play mr-2"></i>
+                                  Mevcut Sesi Kullan
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Seçilen Bölüm İçeriği */}
+                        {selectedChapter && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Seçilen Bölüm İçeriği:
+                            </label>
+                            <div className="relative">
+                              <textarea
+                                value={textInput}
+                                onChange={(e) => setTextInput(e.target.value)}
+                                className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                                placeholder="Bölüm içeriği burada görünecek..."
+                              />
+                              <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded text-xs text-gray-500">
+                                {selectedChapter.word_count} kelime
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Diğer içerik türleri için genel textarea */}
-                    {contentType !== 'topic' && contentType !== 'subject' && (
+                    {contentType !== 'topic' && contentType !== 'subject' && contentType !== 'book' && (
                       <div className="relative">
                         <textarea
                           value={textInput}
@@ -1102,17 +1467,24 @@ const Welcome: React.FC = () => {
                           <i className={category.icon}></i>
                           <span className="font-medium">{category.label}</span>
                         </div>
-                        <Badge 
-                          variant="outline" 
-                          className={`mt-1 text-xs ${
-                            category.badge === 'Ücretsiz' ? 'bg-green-100 text-green-700 border-green-200' :
-                            category.badge === 'Premium' ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                            category.badge === 'Gold' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                            category.badge === 'Platinium' ? 'bg-gray-100 text-gray-700 border-gray-200' : ''
-                          }`}
-                        >
-                          {category.badge}
-                        </Badge>
+                        <div className="flex flex-col items-center gap-1 mt-1">
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${
+                              category.badge === 'Ücretsiz' ? 'bg-green-100 text-green-700 border-green-200' :
+                              category.badge === 'Premium' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                              category.badge === 'Gold' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                              category.badge === 'Platinium' ? 'bg-gray-100 text-gray-700 border-gray-200' : ''
+                            }`}
+                          >
+                            {category.badge}
+                          </Badge>
+                          {category.ssmlSupport && (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                              SSML destekler
+                            </span>
+                          )}
+                        </div>
                       </Button>
                     ))}
                   </div>
@@ -1176,7 +1548,14 @@ const Welcome: React.FC = () => {
                             className="mr-3 text-blue-600"
                           />
                           <div className="flex-1">
-                            <div className="font-medium text-sm">{voice.name} <span className="text-gray-400 font-mono">[{voice.id}]</span></div>
+                            <div className="font-medium text-sm">
+                              {voice.name} <span className="text-gray-400 font-mono">[{voice.id}]</span>
+                              {voice.ssmlSupport && (
+                                <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                  SSML destekler
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-gray-500">
                               {voice.accent === 'american' ? 'Amerikan' : 
                                voice.accent === 'british' ? 'İngiliz' : 
