@@ -287,15 +287,48 @@ exports.googleLogin = async (req, res) => {
 
     // Google credential'ı decode et
     let googleUser;
+    
+    // Credential'ın tipini belirle (JWT vs Access Token)
+    // JWT'ler 3 bölümden oluşur: header.payload.signature
+    const parts = credential.split('.');
+    const isJWT = parts.length === 3;
+    
+    console.log('[GOOGLE_LOGIN] Credential analizi:');
+    console.log('- Uzunluk:', credential.length);
+    console.log('- Bölüm sayısı:', parts.length);
+    console.log('- İlk 50 karakter:', credential.substring(0, 50));
+    console.log('- JWT olarak algılandı:', isJWT);
+    
     try {
-      const base64Url = credential.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
-      googleUser = JSON.parse(jsonPayload);
+      if (isJWT) {
+        // JWT token decode et (One Tap durumu)
+        console.log('[GOOGLE_LOGIN] JWT credential decode ediliyor...');
+        const base64Url = credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        googleUser = JSON.parse(jsonPayload);
+        console.log('[GOOGLE_LOGIN] JWT decode başarılı:', { email: googleUser.email, name: googleUser.name });
+      } else {
+        // Access token ile Google API'den kullanıcı bilgilerini al (OAuth popup durumu)
+        console.log('[GOOGLE_LOGIN] Access token ile kullanıcı bilgileri alınıyor...');
+        const axios = require('axios');
+        
+        const response = await axios.get(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${credential}`);
+        googleUser = response.data;
+        
+        // JWT formatına uygun hale getir
+        googleUser.sub = googleUser.id;
+        googleUser.given_name = googleUser.given_name || googleUser.name?.split(' ')[0];
+        googleUser.family_name = googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ');
+        
+        console.log('[GOOGLE_LOGIN] Access token ile kullanıcı bilgileri başarılı:', { email: googleUser.email, name: googleUser.name });
+      }
     } catch (decodeError) {
       logger.error('[GOOGLE_LOGIN] Credential decode hatası:', decodeError);
+      console.log('[GOOGLE_LOGIN] Credential tipi:', isJWT ? 'JWT' : 'Access Token');
+      console.log('[GOOGLE_LOGIN] Credential uzunluğu:', credential.length);
       return res.status(400).json({ success: false, message: "Geçersiz Google credential" });
     }
 
@@ -322,8 +355,6 @@ exports.googleLogin = async (req, res) => {
     if (existingUser) {
       // Mevcut kullanıcı - Google bilgilerini güncelle
       const updateData = {
-        google_id: googleUser.sub,
-        avatar: picture,
         updated_at: new Date().toISOString()
       };
 
@@ -346,8 +377,8 @@ exports.googleLogin = async (req, res) => {
         firstname: given_name || name?.split(' ')[0] || 'Google',
         lastname: family_name || name?.split(' ').slice(1).join(' ') || 'User',
         email: email,
-        google_id: googleUser.sub,
-        avatar: picture,
+        phonenumber: null, // Google kullanıcıları için telefon numarası yok
+        password: 'google-oauth', // Google kullanıcıları için placeholder şifre
         role: "user",
         isverified: true, // Google hesapları doğrulanmış sayılır
         dailycontentused: 0,
