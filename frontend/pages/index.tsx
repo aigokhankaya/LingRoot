@@ -21,7 +21,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination, Autoplay } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
-import InputMask from 'react-input-mask'; // Telefon numarası için eklendi
+// InputMask removed - using regular Input instead
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
 
@@ -133,24 +133,39 @@ const App: React.FC = () => {
     const handleGoogleLogin = async () => {
         setLoading(true);
         setError(null);
+        
         try {
+            console.log('🔄 Google giriş başlatılıyor...');
+            
+            // Google Client ID kontrolü
+            const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+            if (!clientId || clientId === 'your-google-client-id-here.apps.googleusercontent.com') {
+                throw new Error('Google Client ID yapılandırılmamış. Lütfen .env.local dosyasında NEXT_PUBLIC_GOOGLE_CLIENT_ID değerini ayarlayın.');
+            }
+            
             // Google Auth'u başlat
+            console.log('🔄 Google Auth başlatılıyor...');
             await initializeGoogleAuth();
             
             // Google Sign-In'i tetikle
+            console.log('🔄 Google Sign-In tetikleniyor...');
             const { credential } = await signInWithGoogle();
+            console.log('✅ Google credential alındı');
             
             // Backend'e gönder
+            console.log('🔄 Backend\'e gönderiliyor...');
             const result = await loginWithGoogle(credential, loginForm.rememberMe);
             
             if (result.success) {
+                console.log('✅ Google giriş başarılı');
                 setIsLoginOpen(false);
                 router.push('/welcome');
             } else {
+                console.error('❌ Backend giriş hatası:', result.message);
                 setError(result.message || 'Google ile giriş başarısız.');
             }
         } catch (err: any) {
-            console.error('Google login error:', err);
+            console.error('❌ Google login error:', err);
             setError(err.message || 'Google ile giriş sırasında bir hata oluştu.');
         } finally {
             setLoading(false);
@@ -472,9 +487,13 @@ const App: React.FC = () => {
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="phoneNumber">{t.register.phoneLabel}</Label>
-                                        <InputMask mask="+90 (999) 999 99 99" value={registerForm.phoneNumber} onChange={handleRegisterChange}>
-                                            {(inputProps: any) => <Input {...inputProps} id="phoneNumber" name="phoneNumber" />}
-                                        </InputMask>
+                                        <Input 
+                                            id="phoneNumber" 
+                                            name="phoneNumber" 
+                                            placeholder="+90 (555) 123 45 67"
+                                            value={registerForm.phoneNumber} 
+                                            onChange={handleRegisterChange}
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="register-password">{t.register.passwordLabel}</Label>
@@ -603,9 +622,13 @@ const App: React.FC = () => {
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="mobile-phoneNumber">{t.register.phoneLabel}</Label>
-                                                <InputMask mask="+90 (999) 999 99 99" value={registerForm.phoneNumber} onChange={handleRegisterChange}>
-                                                    {(inputProps: any) => <Input {...inputProps} id="mobile-phoneNumber" name="phoneNumber" />}
-                                                </InputMask>
+                                                <Input 
+                                                    id="mobile-phoneNumber" 
+                                                    name="phoneNumber" 
+                                                    placeholder="+90 (555) 123 45 67"
+                                                    value={registerForm.phoneNumber} 
+                                                    onChange={handleRegisterChange}
+                                                />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="mobile-register-password">{t.register.passwordLabel}</Label>

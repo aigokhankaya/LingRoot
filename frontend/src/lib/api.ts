@@ -19,8 +19,8 @@ export const getApiBaseUrl = (): string => {
     return 'http://localhost:5001';
   }
   
-  // In production, use the configured API URL
-  return process.env.NEXT_PUBLIC_API_URL || '';
+  // In production, use the configured API URL or fallback to Render URL
+  return process.env.NEXT_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com';
 };
 
 // API_BASE_URL for backward compatibility
