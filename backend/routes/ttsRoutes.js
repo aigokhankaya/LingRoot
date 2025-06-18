@@ -11,6 +11,7 @@ const {
   mergeAudioAPI,
   listVoices,
   getAudioFile,
+  getVttFile,
   getFilteredVoices,
   testVoices
 } = require("../controllers/ttsController");
@@ -68,6 +69,12 @@ router.get("/audio/:id", (req, res, next) => {
   logger.info(`TTS audio route called: /audio/${req.params.id}`);
   logger.info(`Request headers:`, req.headers);
   getAudioFile(req, res, next);
+});
+
+// Add route to serve VTT subtitle files
+router.get("/vtt/:vttId", (req, res, next) => {
+  logger.info(`TTS VTT route called: /vtt/${req.params.vttId}`);
+  getVttFile(req, res, next);
 });
 
 // Mock audio file for development and fallback

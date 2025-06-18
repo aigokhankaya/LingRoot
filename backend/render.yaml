@@ -50,3 +50,5 @@ services:
         sync: false
       - key: LOG_LEVEL
         value: info
+      - key: DATABASE_URL
+        sync: false

@@ -50,6 +50,49 @@ interface ContentHistoryItem {
   level: string;
   mp3_url: string;
   created_at: string;
+  translated_text?: string;
+  adapted_text?: string;
+}
+
+interface Book {
+  id: string;
+  title: string;
+  author: string;
+  description?: string;
+  cover_image?: string;
+  language: string;
+  genre?: string;
+  publication_year?: number;
+  total_chapters: number;
+  text_url?: string;
+}
+
+interface Chapter {
+  id: string;
+  book_id: string;
+  chapter_index: number;
+  chapter_title: string;
+  chapter_text: string;
+  created_at: string;
+}
+
+interface BookSearchResult {
+  books: Book[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+interface ExistingAudio {
+  id: string;
+  chapter_id: string;
+  voice_model: string;
+  speaking_rate: number;
+  level: string;
+  mp3_url: string;
+  vtt_url?: string;
+  created_at: string;
 }
 
 const Welcome: React.FC = () => {
@@ -86,6 +129,23 @@ const Welcome: React.FC = () => {
   const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('standard');
   const [selectedGender, setSelectedGender] = useState<string>('all');
   const [selectedAccent, setSelectedAccent] = useState<string>('all');
+  
+  // Kitap arama ve seçim state'leri
+  const [bookSearchQuery, setBookSearchQuery] = useState<string>('');
+  const [bookTitleSearch, setBookTitleSearch] = useState<string>('');
+  const [bookAuthorSearch, setBookAuthorSearch] = useState<string>('');
+  const [bookSearchResults, setBookSearchResults] = useState<BookSearchResult | null>(null);
+  const [isSearchingBooks, setIsSearchingBooks] = useState<boolean>(false);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [bookChapters, setBookChapters] = useState<Chapter[]>([]);
+  const [isLoadingChapters, setIsLoadingChapters] = useState<boolean>(false);
+  const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [existingAudio, setExistingAudio] = useState<ExistingAudio | null>(null);
+  const [isCheckingExistingAudio, setIsCheckingExistingAudio] = useState<boolean>(false);
+  
+  // Content history expanded view state
+  const [expandedHistoryItem, setExpandedHistoryItem] = useState<string | null>(null);
   
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
@@ -132,56 +192,56 @@ const Welcome: React.FC = () => {
 
   // Ses kategorileri ve detaylı ses verileri
   const voiceCategories = [
-    { value: 'standard', label: 'Standart Sesler', icon: 'fas fa-volume-up', badge: 'Ücretsiz' },
-    { value: 'wavenet', label: 'WaveNet Sesleri', icon: 'fas fa-star', badge: 'Premium' },
-    { value: 'neural2', label: 'Neural2 Sesleri', icon: 'fas fa-brain', badge: 'Premium' },
-    { value: 'studio', label: 'Studio Sesleri', icon: 'fas fa-crown', badge: 'Platinium' },
-    { value: 'chirp3d', label: 'Chirp 3D', icon: 'fas fa-gem', badge: 'Gold' }
+    { value: 'standard', label: 'Standart Sesler', icon: 'fas fa-volume-up', badge: 'Ücretsiz', ssmlSupport: false },
+    { value: 'wavenet', label: 'WaveNet Sesleri', icon: 'fas fa-star', badge: 'Premium', ssmlSupport: true },
+    { value: 'neural2', label: 'Neural2 Sesleri', icon: 'fas fa-brain', badge: 'Premium', ssmlSupport: true },
+    { value: 'studio', label: 'Studio Sesleri', icon: 'fas fa-crown', badge: 'Platinium', ssmlSupport: true },
+    { value: 'chirp3d', label: 'Chirp 3D', icon: 'fas fa-gem', badge: 'Gold', ssmlSupport: true }
   ];
 
   const detailedVoices = {
     wavenet: [
-      { id: 'en-US-Wavenet-A', name: 'ABD İngilizcesi - Erkek A', accent: 'american', gender: 'male', category: 'wavenet' },
-      { id: 'en-US-Wavenet-F', name: 'ABD İngilizcesi - Kadın F', accent: 'american', gender: 'female', category: 'wavenet' },
-      { id: 'en-GB-Wavenet-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'wavenet' },
-      { id: 'en-GB-Wavenet-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'wavenet' },
-      { id: 'en-AU-Wavenet-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'wavenet' },
-      { id: 'en-AU-Wavenet-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'wavenet' }
+      { id: 'en-US-Wavenet-A', name: 'ABD İngilizcesi - Erkek A', accent: 'american', gender: 'male', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-US-Wavenet-F', name: 'ABD İngilizcesi - Kadın F', accent: 'american', gender: 'female', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-GB-Wavenet-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-GB-Wavenet-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-AU-Wavenet-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-AU-Wavenet-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'wavenet', ssmlSupport: true }
     ],
     neural2: [
-      { id: 'en-US-Neural2-J', name: 'ABD İngilizcesi - Erkek J', accent: 'american', gender: 'male', category: 'neural2' },
-      { id: 'en-US-Neural2-H', name: 'ABD İngilizcesi - Kadın H', accent: 'american', gender: 'female', category: 'neural2' },
-      { id: 'en-GB-Neural2-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'neural2' },
-      { id: 'en-GB-Neural2-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'neural2' },
-      { id: 'en-AU-Neural2-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'neural2' },
-      { id: 'en-AU-Neural2-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'neural2' },
-      { id: 'en-AU-Neural2-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'neural2' }
+      { id: 'en-US-Neural2-J', name: 'ABD İngilizcesi - Erkek J', accent: 'american', gender: 'male', category: 'neural2', ssmlSupport: true },
+      { id: 'en-US-Neural2-H', name: 'ABD İngilizcesi - Kadın H', accent: 'american', gender: 'female', category: 'neural2', ssmlSupport: true },
+      { id: 'en-GB-Neural2-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'neural2', ssmlSupport: true },
+      { id: 'en-GB-Neural2-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'neural2', ssmlSupport: true },
+      { id: 'en-AU-Neural2-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'neural2', ssmlSupport: true },
+      { id: 'en-AU-Neural2-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'neural2', ssmlSupport: true },
+      { id: 'en-AU-Neural2-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'neural2', ssmlSupport: true }
     ],
     studio: [
-      { id: 'en-US-Studio-M', name: 'ABD İngilizcesi - Erkek M', accent: 'american', gender: 'male', category: 'studio' },
-      { id: 'en-US-Studio-Q', name: 'ABD İngilizcesi - Kadın Q', accent: 'american', gender: 'female', category: 'studio' },
-      { id: 'en-GB-Studio-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'studio' },
-      { id: 'en-GB-Studio-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'studio' }
+      { id: 'en-US-Studio-M', name: 'ABD İngilizcesi - Erkek M', accent: 'american', gender: 'male', category: 'studio', ssmlSupport: true },
+      { id: 'en-US-Studio-Q', name: 'ABD İngilizcesi - Kadın Q', accent: 'american', gender: 'female', category: 'studio', ssmlSupport: true },
+      { id: 'en-GB-Studio-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'studio', ssmlSupport: true },
+      { id: 'en-GB-Studio-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'studio', ssmlSupport: true }
     ],
     chirp3d: [
-      { id: 'en-US-Journey-D', name: 'ABD İngilizcesi - Kadın D', accent: 'american', gender: 'female', category: 'chirp3d' },
-      { id: 'en-US-Journey-O', name: 'ABD İngilizcesi - Erkek O', accent: 'american', gender: 'male', category: 'chirp3d' },
-      { id: 'en-GB-Journey-F', name: 'İngiliz İngilizcesi - Kadın F', accent: 'british', gender: 'female', category: 'chirp3d' },
-      { id: 'en-GB-Journey-M', name: 'İngiliz İngilizcesi - Erkek M', accent: 'british', gender: 'male', category: 'chirp3d' }
+      { id: 'en-US-Journey-D', name: 'ABD İngilizcesi - Kadın D', accent: 'american', gender: 'female', category: 'chirp3d', ssmlSupport: true },
+      { id: 'en-US-Journey-O', name: 'ABD İngilizcesi - Erkek O', accent: 'american', gender: 'male', category: 'chirp3d', ssmlSupport: true },
+      { id: 'en-GB-Journey-F', name: 'İngiliz İngilizcesi - Kadın F', accent: 'british', gender: 'female', category: 'chirp3d', ssmlSupport: true },
+      { id: 'en-GB-Journey-M', name: 'İngiliz İngilizcesi - Erkek M', accent: 'british', gender: 'male', category: 'chirp3d', ssmlSupport: true }
     ],
     standard: [
-      { id: 'en-US-Standard-B', name: 'ABD İngilizcesi - Erkek B', accent: 'american', gender: 'male', category: 'standard' },
-      { id: 'en-US-Standard-C', name: 'ABD İngilizcesi - Kadın C', accent: 'american', gender: 'female', category: 'standard' },
-      { id: 'en-US-Standard-D', name: 'ABD İngilizcesi - Erkek D', accent: 'american', gender: 'male', category: 'standard' },
-      { id: 'en-US-Standard-E', name: 'ABD İngilizcesi - Kadın E', accent: 'american', gender: 'female', category: 'standard' },
-      { id: 'en-GB-Standard-A', name: 'İngiliz İngilizcesi - Kadın A', accent: 'british', gender: 'female', category: 'standard' },
-      { id: 'en-GB-Standard-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'standard' },
-      { id: 'en-GB-Standard-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'standard' },
-      { id: 'en-GB-Standard-D', name: 'İngiliz İngilizcesi - Erkek D', accent: 'british', gender: 'male', category: 'standard' },
-      { id: 'en-AU-Standard-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'standard' },
-      { id: 'en-AU-Standard-B', name: 'Avustralya İngilizcesi - Erkek B', accent: 'australian', gender: 'male', category: 'standard' },
-      { id: 'en-AU-Standard-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'standard' },
-      { id: 'en-AU-Standard-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'standard' }
+      { id: 'en-US-Standard-B', name: 'ABD İngilizcesi - Erkek B', accent: 'american', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-US-Standard-C', name: 'ABD İngilizcesi - Kadın C', accent: 'american', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-US-Standard-D', name: 'ABD İngilizcesi - Erkek D', accent: 'american', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-US-Standard-E', name: 'ABD İngilizcesi - Kadın E', accent: 'american', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-GB-Standard-A', name: 'İngiliz İngilizcesi - Kadın A', accent: 'british', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-GB-Standard-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-GB-Standard-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-GB-Standard-D', name: 'İngiliz İngilizcesi - Erkek D', accent: 'british', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-AU-Standard-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-AU-Standard-B', name: 'Avustralya İngilizcesi - Erkek B', accent: 'australian', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-AU-Standard-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-AU-Standard-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'standard', ssmlSupport: false }
     ]
   };
 
@@ -453,6 +513,111 @@ const Welcome: React.FC = () => {
     setTextInput(selectedValue); // Seçilen detaylı konuyu textarea'ya yaz
   };
 
+  // Kitap arama fonksiyonu
+  const searchBooks = async (query?: string, title?: string, author?: string, page: number = 1) => {
+    // En az bir arama kriteri olmalı
+    if (!query?.trim() && !title?.trim() && !author?.trim()) return;
+    
+    setIsSearchingBooks(true);
+    try {
+      // URL parametrelerini oluştur
+      const searchParams = new URLSearchParams();
+      if (query?.trim()) searchParams.append('q', query.trim());
+      if (title?.trim()) searchParams.append('title', title.trim());
+      if (author?.trim()) searchParams.append('author', author.trim());
+      searchParams.append('page', page.toString());
+      searchParams.append('per_page', '10');
+      
+      const response = await fetch(`/api/books/search?${searchParams.toString()}`);
+      if (response.ok) {
+        const data: BookSearchResult = await response.json();
+        setBookSearchResults(data);
+        setCurrentPage(page);
+      } else {
+        console.error('Kitap arama hatası:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Kitap arama hatası:', error);
+    } finally {
+      setIsSearchingBooks(false);
+    }
+  };
+
+  // Kitap bölümlerini yükleme fonksiyonu
+  const loadBookChapters = async (bookId: string) => {
+    setIsLoadingChapters(true);
+    try {
+      const response = await fetch(`/api/books/${bookId}/chapters`);
+      if (response.ok) {
+        const chapters: Chapter[] = await response.json();
+        setBookChapters(chapters);
+      } else {
+        const errorData = await response.json();
+        console.error('Bölüm yükleme hatası:', errorData);
+        setError(`Bölüm yükleme hatası: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Bölüm yükleme hatası:', error);
+      setError('Bölümler yüklenirken bir hata oluştu. Lütfen tekrar deneyin.');
+    } finally {
+      setIsLoadingChapters(false);
+    }
+  };
+
+  // Mevcut ses kontrolü fonksiyonu
+  const checkExistingAudio = async (chapterId: string, voiceModel: string, speakingRate: number, level: string) => {
+    if (!selectedBook) {
+      console.error('No book selected for audio check');
+      return null;
+    }
+    
+    setIsCheckingExistingAudio(true);
+    try {
+      const response = await fetch(`/api/books/${selectedBook.id}/chapters/${chapterId}/audio?voice_model=${voiceModel}&speaking_rate=${speakingRate}&level=${level}`);
+      if (response.ok) {
+        const audio: ExistingAudio = await response.json();
+        setExistingAudio(audio);
+        return audio;
+      } else {
+        setExistingAudio(null);
+        return null;
+      }
+    } catch (error) {
+      console.error('Mevcut ses kontrolü hatası:', error);
+      setExistingAudio(null);
+      return null;
+    } finally {
+      setIsCheckingExistingAudio(false);
+    }
+  };
+
+  // Kitap seçimi fonksiyonu
+  const handleBookSelect = (book: Book) => {
+    setSelectedBook(book);
+    setSelectedChapter(null);
+    setBookChapters([]);
+    setExistingAudio(null);
+    loadBookChapters(book.id);
+  };
+
+  // Bölüm seçimi fonksiyonu
+  const handleChapterSelect = async (chapter: Chapter) => {
+    setSelectedChapter(chapter);
+    setTextInput(chapter.chapter_text);
+    
+    // Mevcut ses kontrolü yap
+    await checkExistingAudio(chapter.id, voiceType, speakingRate, englishLevel);
+  };
+
+  // Kitap arama submit fonksiyonu
+  const handleBookSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    // En az bir arama kriteri olmalı
+    if (bookSearchQuery.trim() || bookTitleSearch.trim() || bookAuthorSearch.trim()) {
+      searchBooks(bookSearchQuery, bookTitleSearch, bookAuthorSearch, 1);
+    }
+  };
+
   const handleSubmit = async (inputData: InputData) => {
     setIsLoading(true);
     setError(null);
@@ -465,6 +630,7 @@ const Welcome: React.FC = () => {
         SesHızı: inputData.SesHızı,
         voice: inputData.voice,
         chapter: (inputData as any).chapter,
+        chapter_id: selectedChapter?.id, // Kitap bölümü ID'sini ekle
       };
 
       // "subject" (Konu) ve "topic" (Hobi) type'ları için özel işlem
@@ -496,6 +662,27 @@ const Welcome: React.FC = () => {
       }
 
       const result = await processTts(processInput);
+      
+      // Debug: TTS sonucunu logla
+      console.log('🔍 [FRONTEND DEBUG] Full TTS Result:', result);
+      console.log('🔍 [FRONTEND DEBUG] TTS Result Analysis:', {
+        hasResult: !!result,
+        hasMp3Url: !!result?.mp3_url,
+        // Snake case versions
+        hasTranslatedText_snake: !!result?.translated_text,
+        hasAdaptedText_snake: !!result?.adapted_text,
+        // Camel case versions
+        hasTranslatedText_camel: !!result?.translatedText,
+        hasAdaptedText_camel: !!result?.adaptedText,
+        // Values
+        translatedText_snake: result?.translated_text ? result.translated_text.substring(0, 50) + '...' : 'UNDEFINED',
+        adaptedText_snake: result?.adapted_text ? result.adapted_text.substring(0, 50) + '...' : 'UNDEFINED',
+        translatedText_camel: result?.translatedText ? result.translatedText.substring(0, 50) + '...' : 'UNDEFINED',
+        adaptedText_camel: result?.adaptedText ? result.adaptedText.substring(0, 50) + '...' : 'UNDEFINED',
+        // All keys in result
+        resultKeys: result ? Object.keys(result) : []
+      });
+      
       if (result && result.mp3_url) {
         setAudioResult({
           message: result.message || t('audio_generated_success'),
@@ -505,7 +692,14 @@ const Welcome: React.FC = () => {
         });
         const input = processInput.type === 'text' ? processInput.input : inputData.input;
         try {
-          await submitContent(input || '', processInput.type, inputData.level, result.mp3_url);
+          await submitContent(
+            input || '', 
+            processInput.type, 
+            inputData.level, 
+            result.mp3_url, 
+            result.translatedText,
+            result.adaptedText
+          );
           console.log('İçerik başarıyla kaydedildi');
           // Content history'yi yeniden yükle
           fetchContentHistory();
@@ -830,8 +1024,8 @@ const Welcome: React.FC = () => {
                         contentType === option.id ? 'bg-blue-50 border-blue-300' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                       }`}
                     >
-                      <i className={`${option.icon} text-xl ${contentType === option.id ? 'text-blue-600' : 'text-gray-500'}`}></i>
-                      <span className={`mt-2 text-sm ${contentType === option.id ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>
+                      <i className={`${option.icon} text-2xl mb-2 ${contentType === option.id ? 'text-blue-600' : 'text-gray-500'}`}></i>
+                      <span className={`text-sm text-center ${contentType === option.id ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>
                         {option.name}
                       </span>
                     </div>
@@ -1015,8 +1209,278 @@ const Welcome: React.FC = () => {
                       </div>
                     )}
                     
+                    {/* Kitap sekmesi */}
+                    {contentType === 'book' && (
+                      <div className="space-y-6">
+                        {/* Kitap Arama */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-3">
+                            Kitap Ara:
+                          </label>
+                          <form onSubmit={handleBookSearch} className="space-y-4">
+                            {/* Genel Arama */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Genel Arama (İsteğe Bağlı)
+                              </label>
+                              <input
+                                type="text"
+                                value={bookSearchQuery}
+                                onChange={(e) => setBookSearchQuery(e.target.value)}
+                                placeholder="Herhangi bir kelime girin..."
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                              />
+                            </div>
+
+                            {/* Kitap İsmi ve Yazar İsmi */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">
+                                  Kitap İsmi
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bookTitleSearch}
+                                  onChange={(e) => setBookTitleSearch(e.target.value)}
+                                  placeholder="Örn: Frankenstein"
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">
+                                  Yazar İsmi
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bookAuthorSearch}
+                                  onChange={(e) => setBookAuthorSearch(e.target.value)}
+                                  placeholder="Örn: Mary Shelley"
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Arama Butonu */}
+                            <div className="flex justify-center">
+                              <Button 
+                                type="submit"
+                                className={`px-8 py-3 !rounded-button whitespace-nowrap ${
+                                  (bookSearchQuery.trim() || bookTitleSearch.trim() || bookAuthorSearch.trim()) && !isSearchingBooks
+                                    ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' 
+                                    : 'bg-gray-400 cursor-not-allowed'
+                                }`}
+                                disabled={!(bookSearchQuery.trim() || bookTitleSearch.trim() || bookAuthorSearch.trim()) || isSearchingBooks}
+                              >
+                                {isSearchingBooks ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    Aranıyor...
+                                  </>
+                                ) : (
+                                  <>
+                                    <i className="fas fa-search mr-2"></i>
+                                    Kitap Ara
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+
+                            {/* Arama İpucu */}
+                            <div className="text-xs text-gray-500 text-center">
+                              <i className="fas fa-info-circle mr-1"></i>
+                              En az bir arama kriteri girin. Tüm alanları birlikte kullanabilirsiniz.
+                            </div>
+                          </form>
+                        </div>
+
+                        {/* Kitap Arama Sonuçları */}
+                        {bookSearchResults && (
+                          <div>
+                            <div className="flex justify-between items-center mb-3">
+                              <h4 className="text-md font-medium text-gray-700">
+                                Arama Sonuçları ({bookSearchResults.total} kitap)
+                              </h4>
+                              {bookSearchResults.total_pages > 1 && (
+                                <div className="flex items-center space-x-2">
+                                  <Button
+                                    onClick={() => searchBooks(bookSearchQuery, bookTitleSearch, bookAuthorSearch, currentPage - 1)}
+                                    disabled={currentPage <= 1}
+                                    variant="outline"
+                                    size="sm"
+                                    className="!rounded-button"
+                                  >
+                                    <i className="fas fa-chevron-left"></i>
+                                  </Button>
+                                  <span className="text-sm text-gray-600">
+                                    {currentPage} / {bookSearchResults.total_pages}
+                                  </span>
+                                  <Button
+                                    onClick={() => searchBooks(bookSearchQuery, bookTitleSearch, bookAuthorSearch, currentPage + 1)}
+                                    disabled={currentPage >= bookSearchResults.total_pages}
+                                    variant="outline"
+                                    size="sm"
+                                    className="!rounded-button"
+                                  >
+                                    <i className="fas fa-chevron-right"></i>
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                            <div className="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
+                              {bookSearchResults.books.map((book) => (
+                                <div
+                                  key={book.id}
+                                  onClick={() => handleBookSelect(book)}
+                                  className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors ${
+                                    selectedBook?.id === book.id ? 'bg-blue-50 border-blue-200' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-start space-x-3">
+                                    {book.cover_image ? (
+                                      <img
+                                        src={book.cover_image}
+                                        alt={book.title}
+                                        className="w-12 h-16 object-cover rounded"
+                                      />
+                                    ) : (
+                                      <div className="w-12 h-16 bg-gray-200 rounded flex items-center justify-center">
+                                        <i className="fas fa-book text-gray-400"></i>
+                                      </div>
+                                    )}
+                                    <div className="flex-1">
+                                      <h5 className="font-medium text-gray-900">{book.title}</h5>
+                                      <p className="text-sm text-gray-600">{book.author}</p>
+                                      {book.description && (
+                                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                          {book.description}
+                                        </p>
+                                      )}
+                                      <div className="flex items-center space-x-2 mt-2">
+                                        <Badge variant="secondary" className="text-xs">
+                                          {book.total_chapters} bölüm
+                                        </Badge>
+                                        {book.genre && (
+                                          <Badge variant="outline" className="text-xs">
+                                            {book.genre}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Seçilen Kitabın Bölümleri */}
+                        {selectedBook && (
+                          <div>
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="text-md font-medium text-gray-700">
+                                "{selectedBook.title}" Bölümleri
+                              </h4>
+                              {isLoadingChapters && (
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                              )}
+                            </div>
+                            {isLoadingChapters ? (
+                              <div className="flex flex-col items-center justify-center p-8 border border-gray-200 rounded-lg">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                <span className="ml-3 text-gray-600 mt-2">Bölümler yükleniyor...</span>
+                                <span className="text-sm text-gray-500 mt-1">
+                                  {selectedBook?.text_url ? 'Kitap metni URL\'den çıkarılıyor...' : 'Veritabanından yükleniyor...'}
+                                </span>
+                              </div>
+                            ) : bookChapters.length > 0 ? (
+                              <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+                                {bookChapters.map((chapter) => (
+                                  <div
+                                    key={chapter.id}
+                                    onClick={() => handleChapterSelect(chapter)}
+                                    className={`p-3 border-b border-gray-100 cursor-pointer hover:bg-green-50 transition-colors ${
+                                      selectedChapter?.id === chapter.id ? 'bg-green-50 border-green-200' : ''
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <h6 className="font-medium text-gray-900">
+                                          Bölüm {chapter.chapter_index}: {chapter.chapter_title}
+                                        </h6>
+                                        <p className="text-sm text-gray-600">
+                                          {chapter.chapter_text ? `${chapter.chapter_text.split(' ').length} kelime` : 'Kelime sayısı hesaplanıyor...'}
+                                        </p>
+                                      </div>
+                                      {selectedChapter?.id === chapter.id && (
+                                        <i className="fas fa-check-circle text-green-600"></i>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="p-4 border border-gray-200 rounded-lg text-center text-gray-500">
+                                Bu kitap için bölüm bulunamadı.
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Mevcut Ses Uyarısı */}
+                        {existingAudio && selectedChapter && (
+                          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-start space-x-3">
+                              <i className="fas fa-info-circle text-green-600 mt-1"></i>
+                              <div>
+                                <h5 className="font-medium text-green-800">Mevcut Ses Bulundu!</h5>
+                                <p className="text-sm text-green-700 mt-1">
+                                  Bu bölüm için aynı ayarlarla ({existingAudio.voice_model}, {existingAudio.speaking_rate}x hız, {existingAudio.level?.toUpperCase() || 'Bilinmeyen'} seviye) 
+                                  daha önce oluşturulmuş ses dosyası mevcut. Yeni ses oluşturmak yerine mevcut sesi kullanabilirsiniz.
+                                </p>
+                                <Button
+                                  onClick={() => {
+                                    setAudioResult({
+                                      message: selectedChapter.chapter_text,
+                                      mp3_url: existingAudio.mp3_url,
+                                      vtt_url: existingAudio.vtt_url || '',
+                                      level: existingAudio.level
+                                    });
+                                  }}
+                                  className="mt-2 bg-green-600 hover:bg-green-700 !rounded-button"
+                                  size="sm"
+                                >
+                                  <i className="fas fa-play mr-2"></i>
+                                  Mevcut Sesi Kullan
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Seçilen Bölüm İçeriği */}
+                        {selectedChapter && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Seçilen Bölüm İçeriği:
+                            </label>
+                            <div className="relative">
+                              <textarea
+                                value={textInput}
+                                onChange={(e) => setTextInput(e.target.value)}
+                                className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                                placeholder="Bölüm içeriği burada görünecek..."
+                              />
+                              <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded text-xs text-gray-500">
+                                {selectedChapter.chapter_text ? selectedChapter.chapter_text.split(' ').length : 0} kelime
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Diğer içerik türleri için genel textarea */}
-                    {contentType !== 'topic' && contentType !== 'subject' && (
+                    {contentType !== 'topic' && contentType !== 'subject' && contentType !== 'book' && (
                       <div className="relative">
                         <textarea
                           value={textInput}
@@ -1076,47 +1540,8 @@ const Welcome: React.FC = () => {
                       </Button>
                     ))}
                   </div>
-                </div>
 
-                {/* Sağ Kolon - Ses Kategorisi, Cinsiyet ve Aksan */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">Ses Kategorisi</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-                    {voiceCategories.map((category) => (
-                      <Button
-                        key={category.value}
-                        onClick={() => {
-                          setSelectedVoiceCategory(category.value);
-                          // Kategori değiştiğinde ilk sesi seç
-                          const categoryVoices = detailedVoices[category.value as keyof typeof detailedVoices];
-                          if (categoryVoices && categoryVoices.length > 0) {
-                            setVoiceType(categoryVoices[0].id);
-                          }
-                        }}
-                        variant={selectedVoiceCategory === category.value ? "default" : "outline"}
-                        className={`!rounded-button whitespace-nowrap cursor-pointer h-16 flex flex-col items-center justify-center ${
-                          selectedVoiceCategory === category.value ? 'bg-blue-600' : ''
-                        }`}
-                      >
-                        <div className="flex items-center space-x-2">
-                          <i className={category.icon}></i>
-                          <span className="font-medium">{category.label}</span>
-                        </div>
-                        <Badge 
-                          variant="outline" 
-                          className={`mt-1 text-xs ${
-                            category.badge === 'Ücretsiz' ? 'bg-green-100 text-green-700 border-green-200' :
-                            category.badge === 'Premium' ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                            category.badge === 'Gold' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                            category.badge === 'Platinium' ? 'bg-gray-100 text-gray-700 border-gray-200' : ''
-                          }`}
-                        >
-                          {category.badge}
-                        </Badge>
-                      </Button>
-                    ))}
-                  </div>
-
+                  {/* Cinsiyet ve Aksan Filtreleri */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div>
                       <h4 className="text-md font-medium text-gray-600 mb-2">Cinsiyet</h4>
@@ -1157,6 +1582,56 @@ const Welcome: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Sağ Kolon - Ses Kategorisi */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-700 mb-3">Ses Kategorisi</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                    {voiceCategories.map((category) => (
+                      <Button
+                        key={category.value}
+                        onClick={() => {
+                          setSelectedVoiceCategory(category.value);
+                          // Kategori değiştiğinde ilk sesi seç
+                          const categoryVoices = detailedVoices[category.value as keyof typeof detailedVoices];
+                          if (categoryVoices && categoryVoices.length > 0) {
+                            setVoiceType(categoryVoices[0].id);
+                          }
+                        }}
+                        variant={selectedVoiceCategory === category.value ? "default" : "outline"}
+                        className={`!rounded-button cursor-pointer h-auto flex flex-col items-center justify-center p-2 text-center transition-all duration-200 ${
+                          selectedVoiceCategory === category.value ? 'bg-blue-600' : ''
+                        }`}
+                      >
+                        {/* İkon ve Label */}
+                        <div className="flex items-center justify-center space-x-1 mb-1 min-h-[24px]">
+                          <i className={`${category.icon} text-xs`}></i>
+                          <span className="font-medium text-xs leading-none">{category.label}</span>
+                        </div>
+                        
+                        {/* Badge */}
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs px-1.5 py-0.5 mb-1 ${
+                            category.badge === 'Ücretsiz' ? 'bg-green-100 text-green-700 border-green-200' :
+                            category.badge === 'Premium' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                            category.badge === 'Gold' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                            category.badge === 'Platinium' ? 'bg-gray-100 text-gray-700 border-gray-200' : ''
+                          }`}
+                        >
+                          {category.badge}
+                        </Badge>
+                        
+                        {/* SSML Support */}
+                        {category.ssmlSupport && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full leading-none">
+                            SSML
+                          </span>
+                        )}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* Mevcut Sesler - Full Width */}
@@ -1176,7 +1651,14 @@ const Welcome: React.FC = () => {
                             className="mr-3 text-blue-600"
                           />
                           <div className="flex-1">
-                            <div className="font-medium text-sm">{voice.name} <span className="text-gray-400 font-mono">[{voice.id}]</span></div>
+                            <div className="font-medium text-sm">
+                              {voice.name} <span className="text-gray-400 font-mono">[{voice.id}]</span>
+                              {voice.ssmlSupport && (
+                                <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                  SSML destekler
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-gray-500">
                               {voice.accent === 'american' ? 'Amerikan' : 
                                voice.accent === 'british' ? 'İngiliz' : 
@@ -1332,65 +1814,114 @@ const Welcome: React.FC = () => {
                 ) : contentHistory.length > 0 ? (
                   <div className="space-y-4">
                     {(showAllHistory ? contentHistory : contentHistory.slice(0, 5)).map((item) => (
-                      <div key={item.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant="outline" className="text-xs">
-                                {(item.input_type || 'unknown').toUpperCase()}
-                              </Badge>
-                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                {item.level || 'N/A'}
-                              </Badge>
-                              <span className="text-xs text-gray-500">
-                                {new Date(item.created_at).toLocaleDateString('tr-TR', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </span>
+                      <div key={item.id} className="bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
+                        {/* Compact Header - Always Visible */}
+                        <div 
+                          className="p-4 cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => {
+                            setExpandedHistoryItem(expandedHistoryItem === item.id ? null : item.id);
+                          }}
+                        >
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline" className="text-xs">
+                                  {(item.input_type || 'unknown').toUpperCase()}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                  {item.level || 'N/A'}
+                                </Badge>
+                                <span className="text-xs text-gray-500">
+                                  {new Date(item.created_at).toLocaleDateString('tr-TR', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                              </div>
+                              <div className="mb-3">
+                                <h4 className="font-medium text-gray-800 mb-1">İngilizce Metin (Seviyenize Uyarlanmış):</h4>
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {item.adapted_text || item.input}
+                                </p>
+                                {item.adapted_text && (
+                                  <details className="mt-2">
+                                    <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+                                      Orijinal Türkçe metni göster
+                                    </summary>
+                                    <p className="text-xs text-gray-500 mt-1 p-2 bg-gray-100 rounded">
+                                      {item.input}
+                                    </p>
+                                  </details>
+                                )}
+                              </div>
                             </div>
-                            <div className="mb-3">
-                              <h4 className="font-medium text-gray-800 mb-1">Orijinal Metin:</h4>
-                              <p className="text-sm text-gray-600 line-clamp-2">
-                                {item.input}
-                              </p>
+                            <div className="flex items-center gap-2">
+                              <div className="text-xs text-gray-500">
+                                {expandedHistoryItem === item.id ? 'Daralt' : 'Oynatıcıyı Aç'}
+                              </div>
+                              <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <audio 
-                              controls 
-                              className="w-64"
-                              src={convertToPlayableUrl(item.mp3_url)}
-                              preload="none"
-                              onError={(e) => {
-                                console.error("❌ Audio yükleme hatası:", e);
-                                console.error("❌ Audio src:", convertToPlayableUrl(item.mp3_url));
-                                console.error("❌ Audio error details:", e.currentTarget.error);
-                              }}
-                              onLoadStart={() => console.log("🔄 Audio yükleniyor:", convertToPlayableUrl(item.mp3_url))}
-                              onCanPlay={() => console.log("✅ Audio çalınmaya hazır:", convertToPlayableUrl(item.mp3_url))}
-                              onLoadedData={() => console.log("📊 Audio data yüklendi:", convertToPlayableUrl(item.mp3_url))}
-                              onPlay={() => console.log("▶️ Audio çalmaya başladı:", convertToPlayableUrl(item.mp3_url))}
-                              onPause={() => console.log("⏸️ Audio duraklatıldı:", convertToPlayableUrl(item.mp3_url))}
-                            >
-                              Tarayıcınız ses dosyasını desteklemiyor.
-                            </audio>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="!rounded-button whitespace-nowrap cursor-pointer"
-                              onClick={() => {
-                                // Ses dosyasını yeni sekmede aç
-                                window.open(convertToPlayableUrl(item.mp3_url), '_blank');
-                              }}
-                            >
-                              <i className="fas fa-external-link-alt"></i>
-                            </Button>
                           </div>
                         </div>
+
+                        {/* Expanded Player View - Toggleable */}
+                        {expandedHistoryItem === item.id && (
+                          <div className="border-t border-gray-200 bg-white p-6">
+                            <div className="flex items-center mb-4">
+                              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-bold mr-3">
+                                <i className="fas fa-play text-sm"></i>
+                              </div>
+                              <h3 className="text-lg font-semibold text-green-600">Senkronize Oynatıcı</h3>
+                            </div>
+                            
+                            {/* Use OutputSection component for full functionality */}
+                            <OutputSection 
+                              audioResult={{
+                                message: item.adapted_text || item.input,
+                                mp3_url: item.mp3_url,
+                                vtt_url: item.mp3_url.replace('.mp3', '.vtt'), // Assume VTT exists
+                                level: item.level,
+                                timepoints: [], // Will be loaded from VTT
+                                words: (item.adapted_text || item.input).split(/\s+/).filter(word => word.length > 0),
+                                original_turkish: item.input,
+                                speaking_rate: 1.0
+                              }}
+                              isLoggedIn={isAuthenticated}
+                            />
+
+                            {/* Quick actions */}
+                            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="!rounded-button whitespace-nowrap cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(convertToPlayableUrl(item.mp3_url), '_blank');
+                                }}
+                              >
+                                <i className="fas fa-external-link-alt mr-2"></i>
+                                Yeni Sekmede Aç
+                              </Button>
+                              
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="!rounded-button whitespace-nowrap cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedHistoryItem(null);
+                                }}
+                              >
+                                <i className="fas fa-times mr-2"></i>
+                                Kapat
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                     

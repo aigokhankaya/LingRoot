@@ -150,6 +150,7 @@ export interface ProcessInputData {
     SesHızı?: number;
     voice?: string;
     chapter?: string;
+    chapter_id?: string;
 }
 
 export interface TtsResponseData {
@@ -159,6 +160,12 @@ export interface TtsResponseData {
     vtt_url: string;
     timepoints?: any[];
     words?: string[];
+    // Snake case versions (for database)
+    translated_text?: string;
+    adapted_text?: string;
+    // Camel case versions (for frontend)
+    translatedText?: string;
+    adaptedText?: string;
 }
 
 export interface ApiResponse<T = any> {
@@ -272,14 +279,14 @@ async function handleApiResponse<T>(response: Response): Promise<ApiResponse<T>>
 }
 
 export const processTts = async (data: ProcessInputData): Promise<TtsResponseData> => {
-    const { type, input, file, level, SesHızı, voice } = data;
+    const { type, input, file, level, SesHızı, voice, chapter_id } = data;
     const url = `${getApiUrl("tts/process")}`;
     let headers: Record<string, string>;
     let body: string | FormData;
 
     if (type === "text") {
         headers = createHeaders("application/json");
-        body = JSON.stringify({ input, type, level, SesHızı, voice });
+        body = JSON.stringify({ input, type, level, SesHızı, voice, chapter_id });
     } else {
         headers = createHeaders();
         const formData = new FormData();
@@ -287,6 +294,7 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
         formData.append("type", type);
         if (SesHızı !== undefined) formData.append("SesHızı", SesHızı.toString());
         if (voice) formData.append("voice", voice);
+        if (chapter_id) formData.append("chapter_id", chapter_id);
 
         if (input && type !== "file") {
             formData.append("input", input);
@@ -312,6 +320,12 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
             vtt_url: apiResponse.vtt_url || "",
             timepoints: apiResponse.timepoints || [],
             words: apiResponse.words || [],
+            // Snake case versions (for database compatibility)
+            translated_text: apiResponse.translated_text || "",
+            adapted_text: apiResponse.adapted_text || "",
+            // Camel case versions (for frontend)
+            translatedText: apiResponse.translatedText || "",
+            adaptedText: apiResponse.adaptedText || "",
         };
     } catch (error) {
         console.error("Process TTS API call error:", error);
@@ -324,7 +338,9 @@ export const submitContent = async (
     input: string,
     inputType: string,
     level: string,
-    mp3Url: string
+    mp3Url: string,
+    translatedText?: string,
+    adaptedText?: string
 ): Promise<ApiResponse> => {
     const url = getApiUrl('/content/submit');
     const headers = createHeaders("application/json");
@@ -334,6 +350,8 @@ export const submitContent = async (
         input_type: inputType,
         level,
         mp3_url: mp3Url,
+        translated_text: translatedText || '',
+        adapted_text: adaptedText || '',
     });
 
     try {

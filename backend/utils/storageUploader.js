@@ -25,30 +25,38 @@ if (supabaseUrl && supabaseServiceKey) {
 }
 
 /**
- * Uploads a local file to Supabase storage and returns the public URL.
+ * Uploads a local file or Buffer to Supabase storage and returns the public URL.
  * Includes fallback for public URL retrieval.
- * @param {string} localFilePath Path to the local file to upload.
+ * @param {string|Buffer} localFilePathOrBuffer Path to the local file or Buffer to upload.
  * @param {string} destinationFilename Desired filename in the bucket.
  * @returns {Promise<string|null>} The public URL of the uploaded file, or null on error.
  */
-async function uploadToSupabase(localFilePath, destinationFilename) {
+async function uploadToSupabase(localFilePathOrBuffer, destinationFilename) {
     if (!supabase) {
         logger.error("Supabase client is not initialized. Cannot upload file.");
-        return null;
-    }
-
-    if (!fs.existsSync(localFilePath)) {
-        logger.error(`Local file not found for upload: ${localFilePath}`);
         return null;
     }
 
     const cleanFilename = destinationFilename.replace(/\s+/g, "_");
     const supabasePath = `audio/${cleanFilename}`;
 
-    logger.info(`Attempting to upload ${localFilePath} to Supabase bucket '${bucketName}' at path '${supabasePath}'`);
+    let fileBuffer;
+    
+    // Check if input is a Buffer or file path
+    if (Buffer.isBuffer(localFilePathOrBuffer)) {
+        logger.info(`Attempting to upload Buffer (${localFilePathOrBuffer.length} bytes) to Supabase bucket '${bucketName}' at path '${supabasePath}'`);
+        fileBuffer = localFilePathOrBuffer;
+    } else {
+        // It's a file path
+        if (!fs.existsSync(localFilePathOrBuffer)) {
+            logger.error(`Local file not found for upload: ${localFilePathOrBuffer}`);
+            return null;
+        }
+        logger.info(`Attempting to upload ${localFilePathOrBuffer} to Supabase bucket '${bucketName}' at path '${supabasePath}'`);
+        fileBuffer = fs.readFileSync(localFilePathOrBuffer);
+    }
 
     try {
-        const fileBuffer = fs.readFileSync(localFilePath);
 
         const { data, error: uploadError } = await supabase.storage
             .from(bucketName)

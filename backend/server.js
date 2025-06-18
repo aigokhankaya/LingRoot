@@ -155,6 +155,17 @@ const startServer = () => {
 // Database connection and server start (Removed Sequelize logic)
 logger.info("Starting server...");
 app.set("trust proxy", 1);
+
+// Run migration on production startup
+if (process.env.NODE_ENV === 'production' && process.env.DATABASE_URL) {
+  logger.info("Production environment detected, running migration...");
+  const { runMigration } = require('./scripts/migrate');
+  runMigration().catch(error => {
+    logger.error("Migration failed:", error);
+    // Don't exit the process, just log the error
+  });
+}
+
 startServer();
 
 // Global exception handlers
