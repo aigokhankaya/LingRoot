@@ -22,7 +22,10 @@ const nextConfig = {
     const isDev = process.env.NODE_ENV === 'development';
     const backendUrl = isDev 
       ? 'http://localhost:5001' 
-      : (process.env.NEXT_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com');
+      : 'https://lingloops-backend.onrender.com';
+    
+    console.log('[NEXT.JS REWRITES] Environment:', process.env.NODE_ENV);
+    console.log('[NEXT.JS REWRITES] Backend URL:', backendUrl);
     
     return [
       // Specific API routes first (before catch-all)
@@ -30,13 +33,13 @@ const nextConfig = {
         source: '/api/youtube-transcript',
         destination: isDev 
           ? 'http://localhost:8001/scrape-transcript'
-          : 'https://lingloops-backend.onrender.com/api/youtube-transcript',
+          : `${backendUrl}/api/youtube-transcript`,
       },
       {
         source: '/api/youtube-transcript-alt',
         destination: isDev 
           ? 'http://localhost:8051/scrape-transcript'
-          : 'https://lingloops-backend.onrender.com/api/youtube-transcript-alt',
+          : `${backendUrl}/api/youtube-transcript-alt`,
       },
       // Route all other API requests to the backend Express server
       {
