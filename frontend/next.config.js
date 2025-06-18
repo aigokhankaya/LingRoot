@@ -18,20 +18,30 @@ const nextConfig = {
     return config;
   },
   async rewrites() {
+    // Determine backend URL based on environment
+    const isDev = process.env.NODE_ENV === 'development';
+    const backendUrl = isDev 
+      ? 'http://localhost:5001' 
+      : (process.env.NEXT_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com');
+    
     return [
       // Specific API routes first (before catch-all)
       {
         source: '/api/youtube-transcript',
-        destination: 'http://localhost:8001/scrape-transcript',
+        destination: isDev 
+          ? 'http://localhost:8001/scrape-transcript'
+          : 'https://lingloops-backend.onrender.com/api/youtube-transcript',
       },
       {
         source: '/api/youtube-transcript-alt',
-        destination: 'http://localhost:8051/scrape-transcript',
+        destination: isDev 
+          ? 'http://localhost:8051/scrape-transcript'
+          : 'https://lingloops-backend.onrender.com/api/youtube-transcript-alt',
       },
       // Route all other API requests to the backend Express server
       {
         source: '/api/:path*',
-        destination: 'http://localhost:5001/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },

@@ -516,7 +516,12 @@ const Welcome: React.FC = () => {
   // Kitap arama fonksiyonu
   const searchBooks = async (query?: string, title?: string, author?: string, page: number = 1) => {
     // En az bir arama kriteri olmalı
-    if (!query?.trim() && !title?.trim() && !author?.trim()) return;
+    if (!query?.trim() && !title?.trim() && !author?.trim()) {
+      console.log('🔍 [BOOK SEARCH] No search criteria provided');
+      return;
+    }
+    
+    console.log('🔍 [BOOK SEARCH] Starting search with:', { query, title, author, page });
     
     setIsSearchingBooks(true);
     try {
@@ -528,16 +533,26 @@ const Welcome: React.FC = () => {
       searchParams.append('page', page.toString());
       searchParams.append('per_page', '10');
       
-      const response = await fetch(`/api/books/search?${searchParams.toString()}`);
+      const searchUrl = `/api/books/search?${searchParams.toString()}`;
+      console.log('🔍 [BOOK SEARCH] Fetching URL:', searchUrl);
+      
+      const response = await fetch(searchUrl);
+      console.log('🔍 [BOOK SEARCH] Response status:', response.status);
+      console.log('🔍 [BOOK SEARCH] Response headers:', Object.fromEntries(response.headers.entries()));
+      
       if (response.ok) {
         const data: BookSearchResult = await response.json();
+        console.log('🔍 [BOOK SEARCH] Success! Found:', data.total, 'books');
+        console.log('🔍 [BOOK SEARCH] Books data:', data);
         setBookSearchResults(data);
         setCurrentPage(page);
       } else {
-        console.error('Kitap arama hatası:', response.statusText);
+        const errorText = await response.text();
+        console.error('🔍 [BOOK SEARCH] Error response:', response.status, response.statusText);
+        console.error('🔍 [BOOK SEARCH] Error body:', errorText);
       }
     } catch (error) {
-      console.error('Kitap arama hatası:', error);
+      console.error('🔍 [BOOK SEARCH] Fetch error:', error);
     } finally {
       setIsSearchingBooks(false);
     }
