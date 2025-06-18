@@ -1,136 +1,204 @@
-# Kitap Özelliği Deployment Rehberi
+# Kitaplar (Books) Özelliği Deployment Rehberi
 
-## 📚 Özellik Özeti
+Bu rehber, LingRoot uygulamasına kitap okuma ve TTS özelliğinin nasıl deploy edileceğini açıklar.
 
-Bu deployment, Welcome sayfasına kitap arama ve bölüm seçimi özelliği ekler:
+## 📋 Gerekli Hazırlıklar
 
-- Kitap adı ve yazar ile arama
-- Sayfalama desteği
-- Bölüm listeleme ve seçimi
-- Mevcut ses dosyası kontrolü
-- Otomatik ses cache sistemi
+### 1. Veritabanı Yapısı
 
-## 🗄️ Veritabanı Değişiklikleri
+Mevcut veritabanında aşağıdaki tablolar bulunmalıdır:
 
-### Yeni Tablolar
+#### Books Tablosu (Mevcut)
+```sql
+-- Zaten mevcut tablo yapısı:
+-- books tablosu kolonları: id, gutendex_id, title, authors, cover_url, download_count, language, copyright, subjects, created_at, text_url
+```
 
-1. **books** - Kitap bilgileri
-2. **chapters** - Bölüm içerikleri  
-3. **chapter_audio** - Ses dosyası cache
+#### Book Chapters Tablosu (Mevcut)
+```sql
+-- Zaten mevcut tablo yapısı:
+-- book_chapters tablosu kolonları: id, book_id, chapter_index, chapter_title, chapter_text, created_at
+```
 
-### Migration
+#### Chapter Audio Cache Tablosu (Yeni - Opsiyonel)
+```sql
+-- Yeni tablo - ses dosyalarını cache'lemek için
+CREATE TABLE IF NOT EXISTS chapter_audio (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    chapter_id UUID NOT NULL REFERENCES book_chapters(id) ON DELETE CASCADE,
+    voice_model VARCHAR(100) NOT NULL,
+    speaking_rate DECIMAL(3,2) NOT NULL,
+    level VARCHAR(10) NOT NULL,
+    mp3_url VARCHAR(1000) NOT NULL,
+    vtt_url VARCHAR(1000),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(chapter_id, voice_model, speaking_rate, level)
+);
+```
 
-Production'da otomatik migration çalışır. Manuel çalıştırmak için:
+### 2. Migration Çalıştırma
 
 ```bash
-npm run migrate
+# Backend klasörüne git
+cd backend
+
+# Migration'ı çalıştır
+node run_migration.js migrations/create_books_tables.sql
 ```
 
-## 🔧 Environment Variables
+### 3. Bağımlılık Kurulumu
 
-Render'da aşağıdaki environment variable'ı ekleyin:
+```bash
+# Backend dependencies
+cd backend
+npm install cheerio
 
+# Frontend dependencies
+cd ../frontend
+npm install
 ```
-DATABASE_URL=postgresql://username:password@host:port/database?sslmode=require
-```
-
-## 📁 Yeni Dosyalar
-
-### Backend
-- `routes/books.js` - Kitap API endpoint'leri
-- `migrations/create_books_tables.sql` - Veritabanı migration
-- `scripts/migrate.js` - Production migration script
-
-### Frontend
-- Welcome sayfasında kitap sekmesi eklendi
-- Yeni interface'ler: Book, Chapter, BookSearchResult, ExistingAudio
 
 ## 🚀 Deployment Adımları
 
-### 1. Backend Deployment (Render)
+### 1. Backend Deployment
 
-```bash
-# Render otomatik deployment yapacak
-# Migration otomatik çalışacak
+#### Environment Variables
+Render/Heroku'da aşağıdaki environment variable'ların ayarlandığından emin olun:
+
+```env
+DATABASE_URL=your_postgresql_connection_string
+NODE_ENV=production
+PORT=8080
 ```
+
+#### Package.json Dependencies
+`backend/package.json` dosyasında şu dependencies'lerin olduğundan emin olun:
+```json
+{
+  "dependencies": {
+    "cheerio": "^1.1.0",
+    "axios": "^1.6.2"
+  }
+}
+```
+
+#### Files to Deploy
+Aşağıdaki dosyaların backend'de mevcut olduğundan emin olun:
+- `routes/books.js` - API endpoints
+- `utils/bookTextExtractor.js` - Text extraction utility
+- `migrations/create_books_tables.sql` - Database migration
 
 ### 2. Frontend Deployment
 
+#### Next.js Build
 ```bash
-# Frontend değişiklikleri otomatik deploy olacak
+cd frontend
+npm run build
 ```
 
-### 3. Verification
-
-Production'da test edin:
-
-```bash
-# Kitap arama
-curl "https://your-backend.onrender.com/api/books/search?q=gatsby"
-
-# Bölüm listeleme
-curl "https://your-backend.onrender.com/api/books/1/chapters"
+#### Environment Variables (Vercel)
+```env
+NEXT_PUBLIC_API_URL=https://your-backend-url.com
 ```
 
-## 🔍 API Endpoints
+## 📱 Özellik Kullanımı
 
-### Kitap Arama
-```
-GET /api/books/search?q={query}&page={page}&per_page={limit}
+### 1. API Endpoints
+
+#### Kitap Arama
+```http
+GET /api/books/search?q=gatsby&page=1&per_page=10
 ```
 
-### Bölüm Listeleme
-```
+#### Kitap Bölümlerini Getir
+```http
 GET /api/books/{bookId}/chapters
 ```
 
-### Mevcut Ses Kontrolü
-```
-GET /api/books/chapters/{chapterId}/audio?voice={voice}&rate={rate}&level={level}
-```
-
-### Ses Kaydetme
-```
-POST /api/books/chapters/{chapterId}/audio
+#### Tek Bölüm Getir
+```http
+GET /api/books/{bookId}/chapters/{chapterId}
 ```
 
-## 🎯 Kullanım
+#### Ses Cache (Opsiyonel)
+```http
+GET /api/books/{bookId}/chapters/{chapterId}/audio?voice_model=Joanna&speaking_rate=1.0&level=A1
+POST /api/books/{bookId}/chapters/{chapterId}/audio
+```
 
-1. Welcome sayfasında "Kitap" sekmesini seçin
-2. Kitap adı veya yazar adı ile arama yapın
-3. Listeden bir kitap seçin
-4. Bölüm listesinden bir bölüm seçin
-5. Mevcut ses varsa kullanın, yoksa yeni ses oluşturun
+### 2. Frontend Kullanımı
+
+Kitap özellikleri şu sayfalardan erişilebilir:
+- Kitap arama ve seçimi
+- Bölüm listesi görüntüleme  
+- TTS ile dinleme (mevcut TTS sistemi ile entegre)
+
+## 🔧 Teknik Detaylar
+
+### Text Extraction
+- Gutenberg Project HTML formatını destekler
+- Otomatik chapter detection (regex patterns)
+- Fallback: Eşit parçalara bölme
+- Minimum chapter length: 100 karakter
+
+### Veritabanı Yapısı
+- **books**: Mevcut Gutenberg kitap bilgileri
+- **book_chapters**: Chapter'lar (index, title, text)
+- **chapter_audio**: TTS cache (opsiyonel optimizasyon)
+
+### Performance
+- Chapter'lar ilk erişimde extract edilir ve DB'ye kaydedilir
+- Sonraki erişimlerde cache'den gelir
+- Ses dosyaları opsiyonel olarak cache'lenebilir
 
 ## 🐛 Troubleshooting
 
-### Migration Hatası
+### Migration Hataları
 ```bash
-# Manuel migration çalıştırın
-node scripts/migrate.js
+# Manual migration check
+psql $DATABASE_URL -c "\dt" # List tables
+psql $DATABASE_URL -c "\d books" # Check books table structure
+psql $DATABASE_URL -c "\d book_chapters" # Check chapters table structure
 ```
 
-### Veritabanı Bağlantı Hatası
-- DATABASE_URL environment variable'ını kontrol edin
-- PostgreSQL bağlantısını test edin
+### Text Extraction Hataları
+- Network timeout: URL erişim problemi
+- Parsing hataları: HTML yapı değişiklikleri
+- Empty chapters: Regex pattern uyumsuzluğu
 
-### API Hatası
-- Render logs'ları kontrol edin
-- CORS ayarlarını kontrol edin
+### Performance Issues
+- Büyük kitaplar için chapter extraction yavaş olabilir
+- Chapter audio cache kullanımı önerilir
+- Database indexing kritik (migration'da dahil)
 
-## 📊 Monitoring
+## ✅ Test Checklist
 
-Production'da izlenecek metrikler:
+- [ ] Migration başarıyla çalıştı
+- [ ] Backend dependencies yüklendi
+- [ ] API endpoints çalışıyor
+- [ ] Kitap arama fonksiyonu çalışıyor
+- [ ] Chapter extraction çalışıyor
+- [ ] TTS entegrasyonu çalışıyor
+- [ ] Frontend build başarılı
+- [ ] Production environment variables ayarlandı
 
-- Kitap arama response time
-- Bölüm yükleme başarı oranı
-- Ses cache hit rate
-- Database connection pool durumu
+## 📚 Desteklenen Kitap Formatları
 
-## 🔄 Rollback
+- Project Gutenberg HTML formatı
+- UTF-8 encoding
+- İngilizce, Türkçe chapter başlıkları
+- Roman numeral ve sayısal chapter numaraları
 
-Gerekirse önceki versiona dönmek için:
+## 🔄 Update Yönergeleri
 
-1. Render'da önceki deployment'ı restore edin
-2. Veritabanı değişiklikleri geri alınmayacak (güvenli)
-3. Frontend'i önceki versiona deploy edin 
+Yeni özellik eklendiğinde:
+
+1. Backend değişiklikleri deploy et
+2. Database migration varsa çalıştır  
+3. Frontend build ve deploy
+4. API endpoint testleri yap
+5. End-to-end test yap
+
+---
+
+**Not**: Bu özellik mevcut TTS ve user management sistemi ile tam uyumludur. Ek configuration gerekmez. 

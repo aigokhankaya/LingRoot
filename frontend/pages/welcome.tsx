@@ -62,15 +62,16 @@ interface Book {
   genre?: string;
   publication_year?: number;
   total_chapters: number;
+  text_url?: string;
 }
 
 interface Chapter {
   id: string;
   book_id: string;
-  chapter_number: number;
-  title: string;
-  content: string;
-  word_count: number;
+  chapter_index: number;
+  chapter_title: string;
+  chapter_text: string;
+  created_at: string;
 }
 
 interface BookSearchResult {
@@ -129,6 +130,8 @@ const Welcome: React.FC = () => {
   
   // Kitap arama ve seçim state'leri
   const [bookSearchQuery, setBookSearchQuery] = useState<string>('');
+  const [bookTitleSearch, setBookTitleSearch] = useState<string>('');
+  const [bookAuthorSearch, setBookAuthorSearch] = useState<string>('');
   const [bookSearchResults, setBookSearchResults] = useState<BookSearchResult | null>(null);
   const [isSearchingBooks, setIsSearchingBooks] = useState<boolean>(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
@@ -506,12 +509,21 @@ const Welcome: React.FC = () => {
   };
 
   // Kitap arama fonksiyonu
-  const searchBooks = async (query: string, page: number = 1) => {
-    if (!query.trim()) return;
+  const searchBooks = async (query?: string, title?: string, author?: string, page: number = 1) => {
+    // En az bir arama kriteri olmalı
+    if (!query?.trim() && !title?.trim() && !author?.trim()) return;
     
     setIsSearchingBooks(true);
     try {
-      const response = await fetch(`/api/books/search?q=${encodeURIComponent(query)}&page=${page}&per_page=10`);
+      // URL parametrelerini oluştur
+      const searchParams = new URLSearchParams();
+      if (query?.trim()) searchParams.append('q', query.trim());
+      if (title?.trim()) searchParams.append('title', title.trim());
+      if (author?.trim()) searchParams.append('author', author.trim());
+      searchParams.append('page', page.toString());
+      searchParams.append('per_page', '10');
+      
+      const response = await fetch(`/api/books/search?${searchParams.toString()}`);
       if (response.ok) {
         const data: BookSearchResult = await response.json();
         setBookSearchResults(data);
@@ -535,10 +547,13 @@ const Welcome: React.FC = () => {
         const chapters: Chapter[] = await response.json();
         setBookChapters(chapters);
       } else {
-        console.error('Bölüm yükleme hatası:', response.statusText);
+        const errorData = await response.json();
+        console.error('Bölüm yükleme hatası:', errorData);
+        setError(`Bölüm yükleme hatası: ${errorData.error || response.statusText}`);
       }
     } catch (error) {
       console.error('Bölüm yükleme hatası:', error);
+      setError('Bölümler yüklenirken bir hata oluştu. Lütfen tekrar deneyin.');
     } finally {
       setIsLoadingChapters(false);
     }
@@ -546,9 +561,14 @@ const Welcome: React.FC = () => {
 
   // Mevcut ses kontrolü fonksiyonu
   const checkExistingAudio = async (chapterId: string, voiceModel: string, speakingRate: number, level: string) => {
+    if (!selectedBook) {
+      console.error('No book selected for audio check');
+      return null;
+    }
+    
     setIsCheckingExistingAudio(true);
     try {
-      const response = await fetch(`/api/books/chapters/${chapterId}/audio?voice=${voiceModel}&rate=${speakingRate}&level=${level}`);
+      const response = await fetch(`/api/books/${selectedBook.id}/chapters/${chapterId}/audio?voice_model=${voiceModel}&speaking_rate=${speakingRate}&level=${level}`);
       if (response.ok) {
         const audio: ExistingAudio = await response.json();
         setExistingAudio(audio);
@@ -578,7 +598,7 @@ const Welcome: React.FC = () => {
   // Bölüm seçimi fonksiyonu
   const handleChapterSelect = async (chapter: Chapter) => {
     setSelectedChapter(chapter);
-    setTextInput(chapter.content);
+    setTextInput(chapter.chapter_text);
     
     // Mevcut ses kontrolü yap
     await checkExistingAudio(chapter.id, voiceType, speakingRate, englishLevel);
@@ -587,8 +607,9 @@ const Welcome: React.FC = () => {
   // Kitap arama submit fonksiyonu
   const handleBookSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (bookSearchQuery.trim()) {
-      searchBooks(bookSearchQuery, 1);
+    // En az bir arama kriteri olmalı
+    if (bookSearchQuery.trim() || bookTitleSearch.trim() || bookAuthorSearch.trim()) {
+      searchBooks(bookSearchQuery, bookTitleSearch, bookAuthorSearch, 1);
     }
   };
 
@@ -970,8 +991,8 @@ const Welcome: React.FC = () => {
                         contentType === option.id ? 'bg-blue-50 border-blue-300' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                       }`}
                     >
-                      <i className={`${option.icon} text-xl ${contentType === option.id ? 'text-blue-600' : 'text-gray-500'}`}></i>
-                      <span className={`mt-2 text-sm ${contentType === option.id ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>
+                      <i className={`${option.icon} text-2xl mb-2 ${contentType === option.id ? 'text-blue-600' : 'text-gray-500'}`}></i>
+                      <span className={`text-sm text-center ${contentType === option.id ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>
                         {option.name}
                       </span>
                     </div>
@@ -1160,40 +1181,82 @@ const Welcome: React.FC = () => {
                       <div className="space-y-6">
                         {/* Kitap Arama */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-3">
                             Kitap Ara:
                           </label>
-                          <form onSubmit={handleBookSearch} className="flex gap-3">
-                            <div className="flex-1">
+                          <form onSubmit={handleBookSearch} className="space-y-4">
+                            {/* Genel Arama */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Genel Arama (İsteğe Bağlı)
+                              </label>
                               <input
                                 type="text"
                                 value={bookSearchQuery}
                                 onChange={(e) => setBookSearchQuery(e.target.value)}
-                                placeholder="Kitap adı veya yazar adı girin..."
+                                placeholder="Herhangi bir kelime girin..."
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
                               />
                             </div>
-                            <Button 
-                              type="submit"
-                              className={`px-6 py-3 !rounded-button whitespace-nowrap ${
-                                bookSearchQuery.trim() && !isSearchingBooks
-                                  ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' 
-                                  : 'bg-gray-400 cursor-not-allowed'
-                              }`}
-                              disabled={!bookSearchQuery.trim() || isSearchingBooks}
-                            >
-                              {isSearchingBooks ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                  Aranıyor...
-                                </>
-                              ) : (
-                                <>
-                                  <i className="fas fa-search mr-2"></i>
-                                  Ara
-                                </>
-                              )}
-                            </Button>
+
+                            {/* Kitap İsmi ve Yazar İsmi */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">
+                                  Kitap İsmi
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bookTitleSearch}
+                                  onChange={(e) => setBookTitleSearch(e.target.value)}
+                                  placeholder="Örn: Frankenstein"
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">
+                                  Yazar İsmi
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bookAuthorSearch}
+                                  onChange={(e) => setBookAuthorSearch(e.target.value)}
+                                  placeholder="Örn: Mary Shelley"
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Arama Butonu */}
+                            <div className="flex justify-center">
+                              <Button 
+                                type="submit"
+                                className={`px-8 py-3 !rounded-button whitespace-nowrap ${
+                                  (bookSearchQuery.trim() || bookTitleSearch.trim() || bookAuthorSearch.trim()) && !isSearchingBooks
+                                    ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' 
+                                    : 'bg-gray-400 cursor-not-allowed'
+                                }`}
+                                disabled={!(bookSearchQuery.trim() || bookTitleSearch.trim() || bookAuthorSearch.trim()) || isSearchingBooks}
+                              >
+                                {isSearchingBooks ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    Aranıyor...
+                                  </>
+                                ) : (
+                                  <>
+                                    <i className="fas fa-search mr-2"></i>
+                                    Kitap Ara
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+
+                            {/* Arama İpucu */}
+                            <div className="text-xs text-gray-500 text-center">
+                              <i className="fas fa-info-circle mr-1"></i>
+                              En az bir arama kriteri girin. Tüm alanları birlikte kullanabilirsiniz.
+                            </div>
                           </form>
                         </div>
 
@@ -1207,7 +1270,7 @@ const Welcome: React.FC = () => {
                               {bookSearchResults.total_pages > 1 && (
                                 <div className="flex items-center space-x-2">
                                   <Button
-                                    onClick={() => searchBooks(bookSearchQuery, currentPage - 1)}
+                                    onClick={() => searchBooks(bookSearchQuery, bookTitleSearch, bookAuthorSearch, currentPage - 1)}
                                     disabled={currentPage <= 1}
                                     variant="outline"
                                     size="sm"
@@ -1219,7 +1282,7 @@ const Welcome: React.FC = () => {
                                     {currentPage} / {bookSearchResults.total_pages}
                                   </span>
                                   <Button
-                                    onClick={() => searchBooks(bookSearchQuery, currentPage + 1)}
+                                    onClick={() => searchBooks(bookSearchQuery, bookTitleSearch, bookAuthorSearch, currentPage + 1)}
                                     disabled={currentPage >= bookSearchResults.total_pages}
                                     variant="outline"
                                     size="sm"
@@ -1289,9 +1352,12 @@ const Welcome: React.FC = () => {
                               )}
                             </div>
                             {isLoadingChapters ? (
-                              <div className="flex items-center justify-center p-8 border border-gray-200 rounded-lg">
+                              <div className="flex flex-col items-center justify-center p-8 border border-gray-200 rounded-lg">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                                <span className="ml-3 text-gray-600">Bölümler yükleniyor...</span>
+                                <span className="ml-3 text-gray-600 mt-2">Bölümler yükleniyor...</span>
+                                <span className="text-sm text-gray-500 mt-1">
+                                  {selectedBook?.text_url ? 'Kitap metni URL\'den çıkarılıyor...' : 'Veritabanından yükleniyor...'}
+                                </span>
                               </div>
                             ) : bookChapters.length > 0 ? (
                               <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
@@ -1306,10 +1372,10 @@ const Welcome: React.FC = () => {
                                     <div className="flex items-center justify-between">
                                       <div>
                                         <h6 className="font-medium text-gray-900">
-                                          Bölüm {chapter.chapter_number}: {chapter.title}
+                                          Bölüm {chapter.chapter_index}: {chapter.chapter_title}
                                         </h6>
                                         <p className="text-sm text-gray-600">
-                                          {chapter.word_count} kelime
+                                          {chapter.chapter_text ? `${chapter.chapter_text.split(' ').length} kelime` : 'Kelime sayısı hesaplanıyor...'}
                                         </p>
                                       </div>
                                       {selectedChapter?.id === chapter.id && (
@@ -1341,7 +1407,7 @@ const Welcome: React.FC = () => {
                                 <Button
                                   onClick={() => {
                                     setAudioResult({
-                                      message: selectedChapter.content,
+                                      message: selectedChapter.chapter_text,
                                       mp3_url: existingAudio.mp3_url,
                                       vtt_url: existingAudio.vtt_url || '',
                                       level: existingAudio.level
@@ -1372,7 +1438,7 @@ const Welcome: React.FC = () => {
                                 placeholder="Bölüm içeriği burada görünecek..."
                               />
                               <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded text-xs text-gray-500">
-                                {selectedChapter.word_count} kelime
+                                {selectedChapter.chapter_text ? selectedChapter.chapter_text.split(' ').length : 0} kelime
                               </div>
                             </div>
                           </div>
