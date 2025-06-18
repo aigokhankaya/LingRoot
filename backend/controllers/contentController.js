@@ -380,7 +380,7 @@ exports.submitContent = async (req, res) => {
   let stepSequence = 1;
 
   try {
-    const { input, input_type, level, mp3_url } = req.body;
+    const { input, input_type, level, mp3_url, translated_text, adapted_text } = req.body;
     const user_id = req.user?.id;
     logger.info(`submitContent request received for user ID: ${user_id || 'anon'}`, { 
       input_type, 
@@ -465,6 +465,14 @@ exports.submitContent = async (req, res) => {
       validUserId = null;
     }
     
+    // Debug: Kaydedilecek verileri logla
+    console.log('🔍 [SUBMIT CONTENT DEBUG]', {
+      input: input ? input.substring(0, 50) + '...' : 'EMPTY',
+      translated_text: translated_text ? translated_text.substring(0, 50) + '...' : 'EMPTY',
+      adapted_text: adapted_text ? adapted_text.substring(0, 50) + '...' : 'EMPTY',
+      user_id: validUserId
+    });
+
     // Supabase veritabanına kaydet
     logger.info(`Saving content history to database for user ID: ${validUserId}`);
     const now = new Date().toISOString();
@@ -476,6 +484,8 @@ exports.submitContent = async (req, res) => {
           input_type,
           level,
           mp3_url: convertedMp3Url,
+          translated_text: translated_text || '',
+          adapted_text: adapted_text || '',
           user_id: validUserId,
           created_at: now,
           updated_at: now,

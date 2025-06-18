@@ -160,6 +160,12 @@ export interface TtsResponseData {
     vtt_url: string;
     timepoints?: any[];
     words?: string[];
+    // Snake case versions (for database)
+    translated_text?: string;
+    adapted_text?: string;
+    // Camel case versions (for frontend)
+    translatedText?: string;
+    adaptedText?: string;
 }
 
 export interface ApiResponse<T = any> {
@@ -314,6 +320,12 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
             vtt_url: apiResponse.vtt_url || "",
             timepoints: apiResponse.timepoints || [],
             words: apiResponse.words || [],
+            // Snake case versions (for database compatibility)
+            translated_text: apiResponse.translated_text || "",
+            adapted_text: apiResponse.adapted_text || "",
+            // Camel case versions (for frontend)
+            translatedText: apiResponse.translatedText || "",
+            adaptedText: apiResponse.adaptedText || "",
         };
     } catch (error) {
         console.error("Process TTS API call error:", error);
@@ -326,7 +338,9 @@ export const submitContent = async (
     input: string,
     inputType: string,
     level: string,
-    mp3Url: string
+    mp3Url: string,
+    translatedText?: string,
+    adaptedText?: string
 ): Promise<ApiResponse> => {
     const url = getApiUrl('/content/submit');
     const headers = createHeaders("application/json");
@@ -336,6 +350,8 @@ export const submitContent = async (
         input_type: inputType,
         level,
         mp3_url: mp3Url,
+        translated_text: translatedText || '',
+        adapted_text: adaptedText || '',
     });
 
     try {

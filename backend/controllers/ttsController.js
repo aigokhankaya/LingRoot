@@ -350,8 +350,9 @@ const processTtsRequest = async (req, res) => {
             promptText: cleanedText
         });
         let textToAdapt = cleanedText;
+        let translationResult = '';
         try {
-            const translationResult = await translateToEnglishWithOpenAI(cleanedText);
+            translationResult = await translateToEnglishWithOpenAI(cleanedText);
             if (!translationResult || translationResult.trim() === "") {
                 logger.error(`[${requestId}] Translation result is empty, chunkText will not be called.`);
                 logRequestStep(requestId, 'translate:error', { error: 'Translation result is empty.' });
@@ -584,6 +585,7 @@ const processTtsRequest = async (req, res) => {
                     }
 
                     // RETURN CHAPTER CACHED RESULT IMMEDIATELY!
+                    console.log('🎯 [CHAPTER CACHE RETURN] Using chapter cache return');
                     return res.status(200).json({
                         success: true,
                         message: adaptedText,
@@ -598,7 +600,13 @@ const processTtsRequest = async (req, res) => {
                         chapter_audio_id: cached.id,
                         speaking_rate: speakingRate,
                         estimated_duration: estimatedDuration,
-                        cache_source: 'chapter_audio'
+                        cache_source: 'chapter_audio',
+                        // Çeviri ve adaptasyon sonuçları (database kayıt için)
+                        translated_text: translationResult || '',
+                        adapted_text: adaptedText,
+                        // Frontend için camelCase versiyonları da ekle (TEST VALUES)
+                        translatedText: translationResult || 'TEST_CACHE1_EMPTY',
+                        adaptedText: adaptedText || 'TEST_CACHE1_ADAPTED'
                     });
                 }
             }
@@ -632,6 +640,7 @@ const processTtsRequest = async (req, res) => {
                 });
                 
                 // RETURN CONTENT CACHED RESULT IMMEDIATELY!
+                console.log('🎯 [CONTENT CACHE RETURN] Using content cache return');
                 return res.status(200).json({
                     success: true,
                     message: adaptedText,
@@ -649,7 +658,13 @@ const processTtsRequest = async (req, res) => {
                     content_cache_hit: true,
                     content_record_id: cached.id,
                     speaking_rate: speakingRate,
-                    estimated_duration: estimatedDuration
+                    estimated_duration: estimatedDuration,
+                    // Çeviri ve adaptasyon sonuçları (database kayıt için)
+                    translated_text: translationResult || '',
+                    adapted_text: adaptedText,
+                    // Frontend için camelCase versiyonları da ekle (TEST VALUES)
+                    translatedText: translationResult || 'TEST_CACHE2_EMPTY',
+                    adaptedText: adaptedText || 'TEST_CACHE2_ADAPTED'
                 });
             }
             
@@ -855,7 +870,18 @@ const processTtsRequest = async (req, res) => {
             }
         }
 
-        return res.status(200).json({
+        // Debug: Çeviri ve adaptasyon sonuçlarını logla
+        console.log('🔍 [TTS RESPONSE DEBUG]', {
+            translationResult: translationResult ? translationResult.substring(0, 100) + '...' : 'EMPTY',
+            adaptedText: adaptedText ? adaptedText.substring(0, 100) + '...' : 'EMPTY',
+            isCacheHit: req.body.is_cached || false,
+            hasTranslationResult: !!translationResult,
+            hasAdaptedText: !!adaptedText
+        });
+
+        console.log('🎯 [MAIN RETURN] Using main return statement with translated fields');
+
+        const responseData = {
             success: true,
             message: adaptedText,
             level: level,
@@ -870,8 +896,35 @@ const processTtsRequest = async (req, res) => {
             speaking_rate: speakingRate,
             word_timings_count: allWordTimings.length,
             audio_segments: audioSegments.length,
-            is_real_timing: true
+            is_real_timing: true,
+            // Çeviri ve adaptasyon sonuçları (database kayıt için)
+            translated_text: translationResult || '',
+            adapted_text: adaptedText,
+            // Frontend için camelCase versiyonları da ekle (TEST VALUES)
+            translatedText: translationResult || 'TEST_EMPTY_TRANSLATION',
+            adaptedText: adaptedText || 'TEST_EMPTY_ADAPTED'
+        };
+
+        // Final response debug log
+        console.log('📤 [RESPONSE DATA]', {
+            success: responseData.success,
+            hasMessage: !!responseData.message,
+            // Snake case versions
+            hasTranslatedText_snake: !!responseData.translated_text,
+            hasAdaptedText_snake: !!responseData.adapted_text,
+            // Camel case versions  
+            hasTranslatedText_camel: !!responseData.translatedText,
+            hasAdaptedText_camel: !!responseData.adaptedText,
+            // Lengths
+            translatedTextLength_snake: responseData.translated_text ? responseData.translated_text.length : 0,
+            adaptedTextLength_snake: responseData.adapted_text ? responseData.adapted_text.length : 0,
+            translatedTextLength_camel: responseData.translatedText ? responseData.translatedText.length : 0,
+            adaptedTextLength_camel: responseData.adaptedText ? responseData.adaptedText.length : 0,
+            // All field names in response
+            responseKeys: Object.keys(responseData)
         });
+
+        return res.status(200).json(responseData);
 
     } catch (error) {
         logRequestStep(requestId, 'error', { error: error.message, stack: error.stack });
