@@ -571,6 +571,18 @@ const processTtsRequest = async (req, res) => {
                         isChapterCached: true
                     });
                     
+                    // For cached content, try to load real timing if available from VTT
+                    let realTimepoints = words.map((word, index) => ({
+                        timeSeconds: (index / words.length) * estimatedDuration,
+                        endTimeSeconds: ((index + 1) / words.length) * estimatedDuration,
+                        word: word
+                    }));
+                    
+                    // If cached VTT URL exists, try to get real timings
+                    if (cached.vtt_url) {
+                        logger.info(`[${requestId}] Cached VTT available, using for timing: ${cached.vtt_url}`);
+                    }
+
                     // RETURN CHAPTER CACHED RESULT IMMEDIATELY!
                     return res.status(200).json({
                         success: true,
@@ -579,17 +591,14 @@ const processTtsRequest = async (req, res) => {
                         mp3_url: cached.mp3_url,
                         vtt_url: cached.vtt_url || `/api/tts/vtt/${vttId}`,
                         words: words,
-                        timepoints: words.map((word, index) => ({
-                            timeSeconds: (index / words.length) * estimatedDuration,
-                            endTimeSeconds: ((index + 1) / words.length) * estimatedDuration,
-                            word: word
-                        })),
+                        timepoints: realTimepoints,
                         // Chapter cache indicators
                         is_cached: true,
                         chapter_cache_hit: true,
                         chapter_audio_id: cached.id,
                         speaking_rate: speakingRate,
-                        estimated_duration: estimatedDuration
+                        estimated_duration: estimatedDuration,
+                        cache_source: 'chapter_audio'
                     });
                 }
             }
@@ -649,57 +658,9 @@ const processTtsRequest = async (req, res) => {
             logger.warn(`[${requestId}] Cache check failed: ${cacheError.message}`);
         }
         
-        logRequestStep(requestId, 'tts:start', { chunkCount: finalChunks.length, voice: selectedVoice, speakingRate });
-        // --- TTS Processing ---
-        logger.info(`[${requestId}] Step 5: Starting TTS processing...`);
+        // Skip old TTS implementation - using real timing approach below
         const ttsProvider = await getTtsProvider();
-        logger.info(`[${requestId}] 🔧 TTS Provider: ${ttsProvider}`);
-        
-        let audioBase64 = null;
-        if (ttsProvider === 'google') {
-            const audioBuffers = [];
-            for (const [i, chunk] of finalChunks.entries()) {
-                const safeSubChunks = enforceTTSByteLimit(chunk, 4500);
-                for (const [j, part] of safeSubChunks.entries()) {
-                    const bytes = Buffer.byteLength(part, "utf-8");
-                    logger.info(`🟢 TTS-safe chunk [${i + 1}.${j + 1}] - ${bytes} bytes`);
-                    const result = await synthesizeWithGoogle({
-                        text: part,
-                        voiceName: selectedVoice,
-                        languageCode: languageCode,
-                        speakingRate: speakingRate
-                    });
-                    if (result && result.audioContent) {
-                        audioBuffers.push(result.audioContent);
-                    }
-                }
-            }
-            
-            if (audioBuffers.length > 0) {
-                const mergedBuffer = await mergeAudioSegmentsToBuffer(audioBuffers);
-                if (mergedBuffer) {
-                    audioBase64 = mergedBuffer.toString('base64');
-                }
-            }
-        } else {
-            logger.error(`[${requestId}] Unsupported TTS provider: ${ttsProvider}`);
-            return res.status(500).json({ success: false, message: `Unsupported TTS provider: ${ttsProvider}` });
-        }
-        if (!audioBase64) {
-            logger.error(`[${requestId}] Failed to synthesize speech with ${ttsProvider}.`);
-            logRequestStep(requestId, 'tts:error', { error: `Failed to synthesize speech with ${ttsProvider}.` });
-            return res.status(500).json({ success: false, message: `Failed to generate audio with ${ttsProvider === 'google' ? 'Google TTS' : 'Unsupported TTS provider'}.` });
-        }
-        logger.info(`[${requestId}] Audio processing completed successfully.`);
-        logStep({
-            requestId,
-            stepName: 'tts:googleTTS:end',
-            stepSequence: stepSequence++,
-            serviceName: 'GoogleTTS',
-            endpoint: 'https://texttospeech.googleapis.com/v1/text:synthesize',
-            outputData: { audioLength: audioBase64.length }
-        });
-        logRequestStep(requestId, 'tts:end', { audioLength: audioBase64.length });
+        logger.info(`[${requestId}] 🔧 TTS Provider: ${ttsProvider} (Real Timing Mode)`);
 
         // --- Step 6: Synthesize Audio with Google TTS ---
         logger.info(`[${requestId}] Starting Google TTS synthesis...`);

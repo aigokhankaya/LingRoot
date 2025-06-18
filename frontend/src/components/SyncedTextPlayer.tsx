@@ -93,7 +93,9 @@ export default function SyncedTextPlayer({
 }: SyncedTextPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [currentWordIndex, setCurrentWordIndex] = useState<number>(-1);
+  const [currentSentenceIndex, setCurrentSentenceIndex] = useState<number>(-1);
   const [wordTimestamps, setWordTimestamps] = useState<WordTimestamp[]>([]);
+  const [sentenceTimestamps, setSentenceTimestamps] = useState<Array<{sentence: string, startTime: number, endTime: number, wordStartIndex: number, wordEndIndex: number}>>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [vttCues, setVttCues] = useState<VttCue[]>([]);
@@ -103,6 +105,8 @@ export default function SyncedTextPlayer({
   const [userInteractions, setUserInteractions] = useState<Array<{wordIndex: number, timestamp: number}>>([]);
   const [isAdaptiveMode, setIsAdaptiveMode] = useState(true);
   const [timingMethod, setTimingMethod] = useState<'VTT' | 'Backend' | 'Adaptive' | 'Linear'>('VTT');
+  const [playbackRate, setPlaybackRate] = useState<number>(1.0); // 0.5x ile 2.0x arası hız kontrolü
+  const [highlightType, setHighlightType] = useState<'word' | 'sentence'>('word'); // Vurgulama türü
 
   // VTT dosyasını fetch et ve parse et
   useEffect(() => {
@@ -176,6 +180,15 @@ export default function SyncedTextPlayer({
       audio.removeEventListener('error', handleError);
     };
   }, [audioUrl, speakingRate]);
+
+  // Playback rate değiştiğinde audio'yu güncelle
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio && isAudioLoaded) {
+      audio.playbackRate = playbackRate;
+      console.log(`🎵 Playback rate set to: ${playbackRate}x`);
+    }
+  }, [playbackRate, isAudioLoaded]);
 
   // Adaptive timing hesaplama fonksiyonu (konuşma hızını dikkate alır)
   const calculateAdaptiveTimestamps = (baseDuration: number, userHints: Array<{wordIndex: number, timestamp: number}>) => {
@@ -305,10 +318,49 @@ export default function SyncedTextPlayer({
     setWordTimestamps(calculatedTimestamps);
     setTimingMethod(activeMethod as any);
     
+    // Cümle timing'lerini hesapla
+    const calculateSentenceTimings = () => {
+      // Metni cümlelere böl
+      const sentences = originalText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+      const sentenceTimings = [];
+      
+      let currentWordIndex = 0;
+      
+      for (let i = 0; i < sentences.length; i++) {
+        const sentence = sentences[i].trim();
+        if (!sentence) continue;
+        
+        // Bu cümledeki kelime sayısını hesapla
+        const sentenceWords = sentence.split(/\s+/).filter(word => word.length > 0);
+        const wordStartIndex = currentWordIndex;
+        const wordEndIndex = currentWordIndex + sentenceWords.length - 1;
+        
+        // Cümlenin başlangıç ve bitiş zamanını belirle
+        const startTime = calculatedTimestamps[wordStartIndex]?.startTime || 0;
+        const endTime = calculatedTimestamps[wordEndIndex]?.endTime || audioDuration;
+        
+        sentenceTimings.push({
+          sentence,
+          startTime,
+          endTime,
+          wordStartIndex,
+          wordEndIndex
+        });
+        
+        currentWordIndex += sentenceWords.length;
+      }
+      
+      return sentenceTimings;
+    };
+    
+    const sentenceTimings = calculateSentenceTimings();
+    setSentenceTimestamps(sentenceTimings);
+    
     console.log(`🎯 Timing method: ${activeMethod}, Speaking rate: ${speakingRate}x, Duration: ${audioDuration}s`);
     console.log(`📊 First 5 word timings:`, calculatedTimestamps.slice(0, 5));
+    console.log(`📝 First 3 sentence timings:`, sentenceTimings.slice(0, 3));
     console.log(`🔢 Timepoints from backend (first 5):`, timepoints?.slice(0, 5));
-    console.log(`📈 Total words: ${textWords.length}, Total timepoints: ${timepoints?.length || 0}`);
+    console.log(`📈 Total words: ${textWords.length}, Total sentences: ${sentenceTimings.length}, Total timepoints: ${timepoints?.length || 0}`);
     
     // Backend timepoints için ek debug bilgisi
     if (activeMethod === 'Backend' && timepoints && timepoints.length > 0) {
@@ -336,49 +388,50 @@ export default function SyncedTextPlayer({
       
               // Backend timepoints varsa çok hassas eşleşme kullan
         if (timingMethod === 'Backend') {
-          // Önce tam eşleşme ara (kelimenin tam zamanı içinde)
+          // ULTRA HASSAS SENKRONIZASYON - Birebir timing için
+          // Hiç tolerans kullanmadan tam eşleşme
+          
+          // 1. TAM ZAMANLAMA KONTROLÜ - Kelimenin tam zamanı içinde mi?
           for (let i = 0; i < wordTimestamps.length; i++) {
             const timestamp = wordTimestamps[i];
+            
+            // Kelime tam zamanı içinde mi kontrol et - hiç tolerans yok
             if (currentTime >= timestamp.startTime && currentTime <= timestamp.endTime) {
               foundWordIndex = i;
               break;
             }
           }
           
-          // Tam eşleşme yoksa, çok küçük toleransla ara
+          // Tam eşleşme yoksa, EN YAKINI değil, EN UYGUN ZAMANI bul
           if (foundWordIndex === -1) {
-            const preciseTolerance = 0.02; // 20ms tolerance - ultra hassas
+            // Çok küçük toleransla sadece çok yakın olanları kabul et
+            const ultraPreciseTolerance = 0.01; // Sadece 10ms tolerans - çok hassas
             
             for (let i = 0; i < wordTimestamps.length; i++) {
               const timestamp = wordTimestamps[i];
-              if (currentTime >= timestamp.startTime - preciseTolerance && 
-                  currentTime <= timestamp.endTime + preciseTolerance) {
+              
+              // Kelimenin başlangıcına çok yakınsa (10ms içinde)
+              if (Math.abs(currentTime - timestamp.startTime) <= ultraPreciseTolerance) {
                 foundWordIndex = i;
                 break;
               }
             }
           }
           
-          // Hala bulunamadıysa, en yakın kelimeyi bul ama çok sıkı kriterlerle
+          // Hala bulunamadıysa, gelecek kelimeyi kontrol et (ses biraz önde olabilir)
           if (foundWordIndex === -1) {
-            let closestIndex = -1;
-            let closestDistance = Infinity;
+            const futureCheckTolerance = 0.05; // 50ms gelecek kontrolü
             
             for (let i = 0; i < wordTimestamps.length; i++) {
               const timestamp = wordTimestamps[i];
-              // Kelime başlangıcına olan mesafeyi öncelikle
-              const distanceToStart = Math.abs(currentTime - timestamp.startTime);
-              const distanceToEnd = Math.abs(currentTime - timestamp.endTime);
-              const distance = Math.min(distanceToStart, distanceToEnd);
               
-              // Çok sıkı tolerans - sadece 50ms içindeki kelimeleri kabul et
-              if (distance < closestDistance && distance <= 0.05) {
-                closestDistance = distance;
-                closestIndex = i;
+              // Gelecek kelime çok yakınsa ve mevcut time biraz ilerideyse
+              if (currentTime > timestamp.startTime - futureCheckTolerance && 
+                  currentTime < timestamp.startTime + futureCheckTolerance) {
+                foundWordIndex = i;
+                break;
               }
             }
-            
-            foundWordIndex = closestIndex;
           }
       } else {
         // Diğer timing methodları için normal tolerance
@@ -414,16 +467,79 @@ export default function SyncedTextPlayer({
         }
       }
       
-      if (foundWordIndex !== currentWordIndex && foundWordIndex !== -1) {
+      // AGRESIF GÜNCELLEME - Kelime atlamamak için
+      if (foundWordIndex !== -1) {
+        // HEMEN güncelle - hiç bekleme
         setCurrentWordIndex(foundWordIndex);
         
-        // Debug bilgisi
+        // Debug bilgisi - ULTRA HASSAS SENKRONIZASYON tracking  
         if (process.env.NODE_ENV === 'development') {
           const timestamp = wordTimestamps[foundWordIndex];
-          const offset = currentTime - timestamp.startTime;
-          const offsetStatus = Math.abs(offset) <= 0.05 ? '✅ Perfect' : 
-                              Math.abs(offset) <= 0.1 ? '⚠️ Close' : '❌ Off';
-          console.log(`🎯 Word ${foundWordIndex}: "${timestamp?.word}" at ${currentTime.toFixed(2)}s (expected: ${timestamp?.startTime.toFixed(2)}s-${timestamp?.endTime.toFixed(2)}s) ${offsetStatus} (${offset > 0 ? '+' : ''}${offset.toFixed(2)}s)`);
+          const actualOffset = currentTime - timestamp.startTime;
+          const wordDuration = timestamp.endTime - timestamp.startTime;
+          const wordProgress = (currentTime - timestamp.startTime) / wordDuration;
+          
+          // Ultra hassas senkronizasyon kriterleri
+          const isExactMatch = currentTime >= timestamp.startTime && currentTime <= timestamp.endTime;
+          const offsetMs = Math.abs(actualOffset) * 1000; // milisaniye cinsinden
+          
+          const syncStatus = isExactMatch ? '🎯 EXACT MATCH' : 
+                            offsetMs <= 10 ? '🟢 Ultra Precise (<10ms)' : 
+                            offsetMs <= 25 ? '🟡 Very Good (<25ms)' : 
+                            offsetMs <= 50 ? '🟠 Acceptable (<50ms)' : '🔴 Off Sync (>50ms)';
+          
+          const rangeIcon = isExactMatch ? '✅' : '❌';
+          const progressIcon = wordProgress >= 0 && wordProgress <= 1 ? '📍' : '📌';
+          
+          console.log(`${rangeIcon} ${progressIcon} Word ${foundWordIndex}: "${timestamp?.word}" | Time: ${currentTime.toFixed(3)}s | Range: ${timestamp?.startTime.toFixed(3)}s-${timestamp?.endTime.toFixed(3)}s | ${syncStatus} | Offset: ${actualOffset > 0 ? '+' : ''}${actualOffset.toFixed(3)}s (${offsetMs.toFixed(1)}ms) | Progress: ${(wordProgress * 100).toFixed(1)}% | Rate: ${playbackRate}x`);
+        }
+      } else {
+        // Kelime bulunamadıysa VURGULAMAYı ÇıKAR - tam senkron için
+        // Sadece tam eşleşme olduğunda vurgula, yoksa hiç vurgulama
+        if (currentWordIndex !== -1) {
+          setCurrentWordIndex(-1); // Vurgulamayı kaldır
+        }
+      }
+      
+      // CÜMLE VURGULAMASI - Hangi cümlede olduğumuzu bul
+      if (highlightType === 'sentence' && sentenceTimestamps.length > 0) {
+        let foundSentenceIndex = -1;
+        
+        // Aktif cümleyi bul
+        for (let i = 0; i < sentenceTimestamps.length; i++) {
+          const sentence = sentenceTimestamps[i];
+          if (currentTime >= sentence.startTime && currentTime <= sentence.endTime) {
+            foundSentenceIndex = i;
+            break;
+          }
+        }
+        
+        // Bulunamadıysa en yakın cümleyi bul
+        if (foundSentenceIndex === -1) {
+          let closestIndex = -1;
+          let closestDistance = Infinity;
+          
+          for (let i = 0; i < sentenceTimestamps.length; i++) {
+            const sentence = sentenceTimestamps[i];
+            const distance = Math.min(
+              Math.abs(currentTime - sentence.startTime),
+              Math.abs(currentTime - sentence.endTime)
+            );
+            
+            if (distance < closestDistance) {
+              closestDistance = distance;
+              closestIndex = i;
+            }
+          }
+          
+          // Geniş toleransla kabul et
+          if (closestDistance <= 0.2) {
+            foundSentenceIndex = closestIndex;
+          }
+        }
+        
+        if (foundSentenceIndex !== -1) {
+          setCurrentSentenceIndex(foundSentenceIndex);
         }
       }
       
@@ -444,10 +560,17 @@ export default function SyncedTextPlayer({
       setCurrentWordIndex(-1);
     };
 
-    // 60 FPS için RAF kullan
-    const updateLoop = () => {
-      if (audio && !audio.paused) {
-        handleTimeUpdate();
+    // ULTRA HIGH FREQUENCY UPDATE - 240 FPS equivalent
+    // Birebir senkronizasyon için çok yüksek frekans güncelleme
+    let lastUpdateTime = 0;
+    const targetInterval = 1000 / 240; // 240 FPS = ~4.17ms interval
+    
+    const updateLoop = (currentAnimationTime: number) => {
+      if (currentAnimationTime - lastUpdateTime >= targetInterval) {
+        if (audio && !audio.paused) {
+          handleTimeUpdate();
+        }
+        lastUpdateTime = currentAnimationTime;
       }
       requestAnimationFrame(updateLoop);
     };
@@ -456,14 +579,14 @@ export default function SyncedTextPlayer({
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
     
-    updateLoop();
+    updateLoop(0);
 
     return () => {
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [currentWordIndex, wordTimestamps, vttCues, currentCueIndex, autoHighlight]);
+  }, [currentWordIndex, wordTimestamps, vttCues, currentCueIndex, autoHighlight, highlightType, sentenceTimestamps, playbackRate]);
 
   const handleWordClick = (wordIndex: number, startTime: number) => {
     const audio = audioRef.current;
@@ -485,13 +608,45 @@ export default function SyncedTextPlayer({
     console.log(`Word clicked: ${wordIndex}, Time: ${startTime}s`);
   };
 
+  const handleSentenceClick = (sentenceIndex: number, startTime: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    // Audio zamanını ayarla
+    audio.currentTime = startTime;
+    
+    // Current sentence index'i güncelle
+    setCurrentSentenceIndex(sentenceIndex);
+    
+    console.log(`Sentence clicked: ${sentenceIndex}, Time: ${startTime}s`);
+  };
+
   const renderHighlightedText = () => {
     if (!originalText) return null;
     
+    if (highlightType === 'sentence') {
+      return renderHighlightedSentences();
+    } else {
+      return renderHighlightedWords();
+    }
+  };
+
+  const renderHighlightedWords = () => {
     const textWords = originalText.split(/\s+/).filter(word => word.length > 0);
     
-    return (
-      <div className="text-lg leading-relaxed">
+          return (
+        <div 
+          className="text-lg leading-loose" 
+          style={{ 
+            lineHeight: '3rem',
+            // CONTAINER STABILIZATION
+            overflow: 'hidden',
+            position: 'relative',
+            // PREVENT LAYOUT SHIFTS
+            containIntrinsicSize: 'auto',
+            contain: 'layout style'
+          }}
+        >
         {textWords.map((word, index) => {
           const isCurrentWord = index === currentWordIndex;
           const timestamp = wordTimestamps[index];
@@ -499,19 +654,81 @@ export default function SyncedTextPlayer({
           return (
             <span
               key={index}
-              className={`inline-block mx-1 cursor-pointer transition-all duration-150 hover:text-blue-600 ${
+              className={`inline-block cursor-pointer transition-colors duration-[25ms] hover:text-blue-600 font-semibold ${
                 isCurrentWord 
-                  ? 'bg-yellow-200 text-yellow-800 font-semibold px-2 py-1 rounded animate-pulse shadow-md transform scale-110' 
+                  ? 'bg-yellow-300 text-yellow-900 rounded shadow-lg' 
                   : 'text-gray-800'
               }`}
               onClick={() => timestamp && handleWordClick(index, timestamp.startTime)}
               title={timestamp ? `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s - ${timestamp.endTime.toFixed(2)}s` : 'Timing bilgisi yok'}
               style={{
-                animationDuration: isCurrentWord ? '1s' : undefined,
-                boxShadow: isCurrentWord ? '0 0 10px rgba(255, 193, 7, 0.5)' : undefined
+                // SABİT BOYUTLAR - Layout shift'i önlemek için
+                minHeight: '2.2rem',
+                height: '2.2rem',
+                // SABİT PADDING - vurgulu/vurgusuz aynı boyut
+                padding: '0.25rem 0.5rem',
+                margin: '0.125rem 0.25rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                verticalAlign: 'top',
+                // BOX-SIZING - padding'i boyuta dahil et
+                boxSizing: 'border-box',
+                // BORDER - vurgulu/vurgusuz aynı kalınlık
+                border: isCurrentWord ? '2px solid #fbbf24' : '2px solid transparent',
+                // SHADOW - layout'u etkilemesin
+                boxShadow: isCurrentWord ? '0 0 8px rgba(251, 191, 36, 0.4)' : 'none',
+                // TRANSFORM - hiçbir transform kullanma
+                transform: 'none',
+                // BACKGROUND - geçiş sırasında boyut değişimi olmasın
+                backgroundColor: isCurrentWord ? '#fde68a' : 'transparent',
+                // TEXT OVERFLOW - uzun kelimeler için
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                maxWidth: 'fit-content',
+                // FLEX PROPERTIES - içerik merkezleme
+                justifyContent: 'center',
+                textAlign: 'center'
               }}
             >
               {word}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderHighlightedSentences = () => {
+    if (sentenceTimestamps.length === 0) return null;
+    
+    return (
+      <div className="text-lg leading-loose" style={{ lineHeight: '2.5rem' }}>
+        {sentenceTimestamps.map((sentenceData, index) => {
+          const isCurrentSentence = index === currentSentenceIndex;
+          
+          return (
+            <span
+              key={index}
+              className={`inline-block mx-2 my-1 cursor-pointer transition-all duration-[25ms] hover:text-blue-600 ${
+                isCurrentSentence 
+                  ? 'bg-blue-200 text-blue-900 font-bold px-3 py-2 rounded-lg shadow-lg border-2 border-blue-400' 
+                  : 'text-gray-800 px-2 py-1 hover:bg-gray-100 rounded'
+              }`}
+              onClick={() => handleSentenceClick(index, sentenceData.startTime)}
+              title={`Cümle ${index + 1}: ${sentenceData.startTime.toFixed(2)}s - ${sentenceData.endTime.toFixed(2)}s`}
+              style={{
+                // SABİT YÜKSEKLİK - her cümle aynı yükseklikte
+                minHeight: '2.5rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                verticalAlign: 'top',
+                // Cümle vurgulaması için özel styling
+                boxShadow: isCurrentSentence ? '0 0 12px rgba(59, 130, 246, 0.6)' : 'none',
+                transform: 'none',
+                wordBreak: 'break-word'
+              }}
+            >
+              {sentenceData.sentence.trim()}.
             </span>
           );
         })}
@@ -568,7 +785,10 @@ export default function SyncedTextPlayer({
               </span>
             )}
             <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full">
-              Hız: {speakingRate}x
+              TTS Hız: {speakingRate}x
+            </span>
+            <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full">
+              Oynatma: {playbackRate}x
             </span>
             <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
               {timingMethod} Mode
@@ -578,6 +798,82 @@ export default function SyncedTextPlayer({
                 {userInteractions.length} hints
               </span>
             )}
+          </div>
+        </div>
+
+        {/* Playback Speed Controls */}
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+          <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+            <i className="fas fa-tachometer-alt mr-2 text-orange-600"></i>
+            Oynatma Hızı Kontrolü
+          </h3>
+          <div className="flex items-center space-x-2 flex-wrap">
+            {[0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0].map((rate) => (
+              <button
+                key={rate}
+                onClick={() => setPlaybackRate(rate)}
+                className={`px-3 py-2 rounded transition-all duration-200 text-sm font-medium min-w-[60px] ${
+                  playbackRate === rate
+                    ? 'bg-orange-600 text-white shadow-lg transform scale-105'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-orange-50 hover:border-orange-300'
+                }`}
+                disabled={!isAudioLoaded}
+                title={`${rate}x hızında oynat`}
+              >
+                {rate}x
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 text-sm text-gray-600 flex items-center">
+            <i className="fas fa-info-circle mr-2"></i>
+            <span>
+              {playbackRate < 1.0 && 'Daha yavaş konuşma - dil öğrenme için ideal'}
+              {playbackRate === 1.0 && 'Normal hız - standart dinleme deneyimi'}
+              {playbackRate > 1.0 && playbackRate <= 1.5 && 'Hızlı dinleme - daha verimli öğrenme'}
+              {playbackRate > 1.5 && 'Çok hızlı - ileri seviye kullanıcılar için'}
+            </span>
+          </div>
+        </div>
+
+        {/* Highlight Type Controls */}
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+          <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+            <i className="fas fa-highlighter mr-2 text-purple-600"></i>
+            Vurgulama Türü
+          </h3>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setHighlightType('word')}
+              className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium flex items-center space-x-2 ${
+                highlightType === 'word'
+                  ? 'bg-purple-600 text-white shadow-lg transform scale-105'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-purple-50 hover:border-purple-300'
+              }`}
+              title="Kelimeleri tek tek vurgula"
+            >
+              <i className="fas fa-font text-sm"></i>
+              <span>Kelime</span>
+            </button>
+            
+            <button
+              onClick={() => setHighlightType('sentence')}
+              className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium flex items-center space-x-2 ${
+                highlightType === 'sentence'
+                  ? 'bg-purple-600 text-white shadow-lg transform scale-105'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-purple-50 hover:border-purple-300'
+              }`}
+              title="Cümleleri vurgula"
+            >
+              <i className="fas fa-paragraph text-sm"></i>
+              <span>Cümle</span>
+            </button>
+          </div>
+          <div className="mt-3 text-sm text-gray-600 flex items-center">
+            <i className="fas fa-info-circle mr-2"></i>
+            <span>
+              {highlightType === 'word' && 'Kelimeler tek tek vurgulanır - detaylı takip için ideal'}
+              {highlightType === 'sentence' && 'Cümleler bütün olarak vurgulanır - genel anlama odaklanma için ideal'}
+            </span>
           </div>
         </div>
 
