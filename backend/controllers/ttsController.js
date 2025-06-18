@@ -535,6 +535,120 @@ const processTtsRequest = async (req, res) => {
             }
         }
         const adaptedText = finalChunks.join('\n\n');
+        
+        // --- DUAL CACHE CHECK: contenthistory + chapter_audio ---
+        logger.info(`[${requestId}] 🎯 CHECKING CACHE: text(${adaptedText.length}chars) + level(${level}) + voice(${selectedVoice})`);
+        
+        try {
+            // 1. Önce chapter_audio tablosunda kontrol et (eğer chapter_id varsa)
+            if (req.body.chapter_id) {
+                logger.info(`[${requestId}] 🔍 Checking chapter_audio for chapter_id: ${req.body.chapter_id}`);
+                const { data: chapterAudio, error: chapterError } = await supabase
+                    .from('chapter_audio')
+                    .select('mp3_url, vtt_url, created_at, id')
+                    .eq('chapter_id', req.body.chapter_id)
+                    .eq('voice_model', selectedVoice)
+                    .eq('speaking_rate', speakingRate)
+                    .eq('level', level)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                    
+                if (!chapterError && chapterAudio && chapterAudio.length > 0) {
+                    const cached = chapterAudio[0];
+                    logger.info(`[${requestId}] 🎯 CHAPTER CACHE HIT! Using existing chapter audio ID: ${cached.id}`);
+                    
+                    // Create VTT for cached content
+                    const words = adaptedText.split(/\s+/).filter(word => word.length > 0);
+                    const estimatedDuration = (words.length / (150 * speakingRate)) * 60;
+                    
+                    const vttContent = createWordLevelVTT(adaptedText, estimatedDuration);
+                    const vttId = `cached_chapter_vtt_${Date.now()}`;
+                    tempVttFiles.set(vttId, {
+                        content: vttContent,
+                        createdAt: new Date(),
+                        text: adaptedText,
+                        duration: estimatedDuration,
+                        isChapterCached: true
+                    });
+                    
+                    // RETURN CHAPTER CACHED RESULT IMMEDIATELY!
+                    return res.status(200).json({
+                        success: true,
+                        message: adaptedText,
+                        level: level,
+                        mp3_url: cached.mp3_url,
+                        vtt_url: cached.vtt_url || `/api/tts/vtt/${vttId}`,
+                        words: words,
+                        timepoints: words.map((word, index) => ({
+                            timeSeconds: (index / words.length) * estimatedDuration,
+                            endTimeSeconds: ((index + 1) / words.length) * estimatedDuration,
+                            word: word
+                        })),
+                        // Chapter cache indicators
+                        is_cached: true,
+                        chapter_cache_hit: true,
+                        chapter_audio_id: cached.id,
+                        speaking_rate: speakingRate,
+                        estimated_duration: estimatedDuration
+                    });
+                }
+            }
+            
+            // 2. Sonra contenthistory tablosunda kontrol et
+            logger.info(`[${requestId}] 🔍 Checking contenthistory table...`);
+            const { data: cachedContent, error: cacheError } = await supabase
+                .from('contenthistory')
+                .select('mp3_url, created_at, id')
+                .eq('input', adaptedText)
+                .eq('level', level)
+                .order('created_at', { ascending: false })
+                .limit(1);
+                
+            if (!cacheError && cachedContent && cachedContent.length > 0) {
+                const cached = cachedContent[0];
+                logger.info(`[${requestId}] 🎯 CONTENT CACHE HIT! Using existing audio from ${cached.created_at}`);
+                
+                // Create VTT for cached content
+                const words = adaptedText.split(/\s+/).filter(word => word.length > 0);
+                const estimatedDuration = (words.length / (150 * speakingRate)) * 60;
+                
+                const vttContent = createWordLevelVTT(adaptedText, estimatedDuration);
+                const vttId = `cached_content_vtt_${Date.now()}`;
+                tempVttFiles.set(vttId, {
+                    content: vttContent,
+                    createdAt: new Date(),
+                    text: adaptedText,
+                    duration: estimatedDuration,
+                    isContentCached: true
+                });
+                
+                // RETURN CONTENT CACHED RESULT IMMEDIATELY!
+                return res.status(200).json({
+                    success: true,
+                    message: adaptedText,
+                    level: level,
+                    mp3_url: cached.mp3_url,
+                    vtt_url: `/api/tts/vtt/${vttId}`,
+                    words: words,
+                    timepoints: words.map((word, index) => ({
+                        timeSeconds: (index / words.length) * estimatedDuration,
+                        endTimeSeconds: ((index + 1) / words.length) * estimatedDuration,
+                        word: word
+                    })),
+                    // Content cache indicators
+                    is_cached: true,
+                    content_cache_hit: true,
+                    content_record_id: cached.id,
+                    speaking_rate: speakingRate,
+                    estimated_duration: estimatedDuration
+                });
+            }
+            
+            logger.info(`[${requestId}] 🎯 CACHE MISS - No cached version found. Will create new TTS`);
+        } catch (cacheError) {
+            logger.warn(`[${requestId}] Cache check failed: ${cacheError.message}`);
+        }
+        
         logRequestStep(requestId, 'tts:start', { chunkCount: finalChunks.length, voice: selectedVoice, speakingRate });
         // --- TTS Processing ---
         logger.info(`[${requestId}] Step 5: Starting TTS processing...`);
@@ -754,31 +868,26 @@ const processTtsRequest = async (req, res) => {
         // Kitap bölümü için ses oluşturulmuşsa chapter_audio tablosuna kaydet
         if (req.body.chapter_id) {
             try {
-                const { Pool } = require('pg');
-                const pool = new Pool({
-                    connectionString: process.env.DATABASE_URL,
-                    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-                });
+                const { data, error } = await supabase
+                    .from('chapter_audio')
+                    .upsert({
+                        chapter_id: req.body.chapter_id,
+                        voice_model: selectedVoice || 'en-US-Standard-C',
+                        speaking_rate: speakingRate || 1.0,
+                        level: level || 'a1',
+                        mp3_url: finalMp3Url,
+                        vtt_url: vttUrl,
+                        created_at: new Date().toISOString()
+                    }, {
+                        onConflict: 'chapter_id,voice_model,speaking_rate,level'
+                    })
+                    .select();
                 
-                const insertQuery = `
-                    INSERT INTO chapter_audio (chapter_id, voice_model, speaking_rate, level, mp3_url, vtt_url, created_at)
-                    VALUES ($1, $2, $3, $4, $5, $6, NOW())
-                    ON CONFLICT (chapter_id, voice_model, speaking_rate, level) 
-                    DO UPDATE SET mp3_url = EXCLUDED.mp3_url, vtt_url = EXCLUDED.vtt_url, created_at = NOW()
-                    RETURNING id
-                `;
+                if (error) {
+                    throw error;
+                }
                 
-                const result = await pool.query(insertQuery, [
-                    req.body.chapter_id,
-                    voice || 'en-US-Standard-C',
-                    speakingRate || 1.0,
-                    level || 'a1',
-                    finalMp3Url,
-                    vttUrl
-                ]);
-                
-                logger.info(`[${requestId}] Chapter audio saved to database: ${result.rows[0].id}`);
-                await pool.end(); // Pool bağlantısını kapat
+                logger.info(`[${requestId}] Chapter audio saved to database via Supabase: ${data[0]?.id}`);
             } catch (dbError) {
                 logger.error(`[${requestId}] Error saving chapter audio to database: ${dbError.message}`);
                 // Don't fail the request if database save fails

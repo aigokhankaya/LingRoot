@@ -283,7 +283,7 @@ router.get('/:bookId/chapters/:chapterId/audio', async (req, res) => {
     
     const { data: audio, error } = await supabase
       .from('chapter_audio')
-      .select('mp3_url, vtt_url, created_at')
+      .select('id, chapter_id, voice_model, speaking_rate, level, mp3_url, vtt_url, created_at')
       .eq('chapter_id', chapterId)
       .eq('voice_model', voice_model)
       .eq('speaking_rate', speaking_rate)

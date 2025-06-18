@@ -73,8 +73,8 @@ async function synthesizeWithGoogle(options) {
   logger.info(`Google TTS synthesis starting - Voice: ${voiceName}, Rate: ${speakingRate}x, Length: ${text.length} chars`);
   
   try {
-    // Bazı sesler SSML desteklemez (Journey, Chirp gibi)
-    const ssmlUnsupportedVoices = ['Journey', 'Chirp'];
+    // Bazı sesler SSML desteklemez (Journey, Chirp, Studio gibi)
+    const ssmlUnsupportedVoices = ['Journey', 'Chirp', 'Studio'];
     const isSSMLUnsupported = ssmlUnsupportedVoices.some(unsupported => voiceName.includes(unsupported));
     
     if (isSSMLUnsupported) {

@@ -1401,7 +1401,7 @@ const Welcome: React.FC = () => {
                               <div>
                                 <h5 className="font-medium text-green-800">Mevcut Ses Bulundu!</h5>
                                 <p className="text-sm text-green-700 mt-1">
-                                  Bu bölüm için aynı ayarlarla ({existingAudio.voice_model}, {existingAudio.speaking_rate}x hız, {existingAudio.level.toUpperCase()} seviye) 
+                                  Bu bölüm için aynı ayarlarla ({existingAudio.voice_model}, {existingAudio.speaking_rate}x hız, {existingAudio.level?.toUpperCase() || 'Bilinmeyen'} seviye) 
                                   daha önce oluşturulmuş ses dosyası mevcut. Yeni ses oluşturmak yerine mevcut sesi kullanabilirsiniz.
                                 </p>
                                 <Button
