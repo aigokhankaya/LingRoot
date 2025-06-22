@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useTranslation } from '@/lib/i18n';
-import { ProcessInputData, getToken, API_BASE_URL, getApiUrl, getTopicDetailSuggestions, fetchYoutubeTranscript } from '../lib/api';
+import { ProcessInputData, getToken, API_BASE_URL, getApiUrl, getTopicDetailSuggestions, getGeneratedSuggestions, fetchYoutubeTranscript } from '../lib/api';
 import { searchBooks, fetchBookContent } from '../services/bookService';
 import InterestManager from './InterestManager';
 import { FaCog } from 'react-icons/fa';
@@ -53,7 +53,10 @@ function splitBookIntoChapters(bookText: string) {
 
 export default function InputSection({ onSubmit, isLoading }: InputSectionProps): React.ReactElement {
   const { t } = useTranslation();
-  const [inputType, setInputType] = useState<InputType>('suggestion'); // Başlangıçta öneri seçili olsun
+  
+  // Debug mesajı
+  console.log("🔍 InputSection render - şu anki inputType:", useState<InputType>('suggestion')[0]);
+  const [inputType, setInputType] = useState<InputType>('topic'); // Test için konu sekmesini başlangıç yap
   const [text, setText] = useState<string>('');
   const [topic, setTopic] = useState<string>('');
   const [youtubeLink, setYoutubeLink] = useState<string>('');
@@ -75,6 +78,10 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [bookLoading, setBookLoading] = useState<boolean>(false);
   const [ttsProvider, setTtsProvider] = useState<'amazon' | 'google'>('google');
   const [interests, setInterests] = useState<string[]>([]);
+  
+  // Debug: interests state'ini izle
+  console.log("🔍 Interests state şu anda:", interests);
+  const [generatedSuggestions, setGeneratedSuggestions] = useState<string[]>([]);
   const [isLoadingTopicSuggestions, setIsLoadingTopicSuggestions] = useState<boolean>(false);
   const [topicDetailSuggestions, setTopicDetailSuggestions] = useState<string[]>([]);
   const [selectedDetailTopic, setSelectedDetailTopic] = useState<string>('');
@@ -214,15 +221,31 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
             const data = JSON.parse(responseText);
             console.log("API yanıt (JSON):", data);
             
+            let keywords: string[] = [];
+            
             if (Array.isArray(data)) {
-              const keywords = data.map((item: { interest_keyword: string }) => item.interest_keyword);
-              console.log("Ayrıştırılan ilgi alanları:", keywords);
-              setInterests(keywords);
-              console.log("İlgi alanları başarıyla yüklendi:", keywords);
+              // Direk array formatı: [{"interest_keyword":"Teknoloji"}, ...]
+              keywords = data.map((item: { interest_keyword: string }) => item.interest_keyword);
+              console.log("✅ Direk array formatı işlendi");
+            } else if (data.success && data.data && Array.isArray(data.data)) {
+              // Success wrapper formatı: {"success":true,"data":["Teknoloji","Bilim",...]}
+              if (typeof data.data[0] === 'string') {
+                // String array formatı
+                keywords = data.data;
+                console.log("✅ Success wrapper string array formatı işlendi");
+              } else {
+                // Object array formatı  
+                keywords = data.data.map((item: { interest_keyword: string }) => item.interest_keyword);
+                console.log("✅ Success wrapper object array formatı işlendi");
+              }
             } else {
-              console.error("API yanıt formatı beklendiği gibi değil:", data);
-              setInterests(['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi']);
+              console.error("❌ API yanıt formatı beklendiği gibi değil:", data);
+              keywords = ['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi'];
             }
+            
+            console.log("🎯 Ayrıştırılan ilgi alanları:", keywords);
+            setInterests(keywords);
+            console.log("✅ İlgi alanları başarıyla yüklendi:", keywords);
           } catch (parseError) {
             console.error("API yanıtı ayrıştırılırken hata oluştu:", parseError);
             setInterests(['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi']);
@@ -302,6 +325,11 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
 
   // Konu önerisi butonu için click handler ekleyelim
   const handleGetTopicSuggestions = async () => {
+    console.log("🎯 Öneriler butonu tıklandı!");
+    console.log("🔑 Token kontrol:", localStorage.getItem("lingroot_token") ? "✅ Mevcut" : "❌ Yok");
+    console.log("📍 Seçili konu:", topic);
+    console.log("📚 Seçili seviye:", level);
+    
     if (!topic) {
       alert("Lütfen önce bir konu seçin");
       return;
@@ -309,7 +337,10 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     
     setIsLoadingTopicSuggestions(true);
     try {
+      console.log("🚀 API çağrısı başlatılıyor...");
       const response = await getTopicDetailSuggestions(topic, level);
+      console.log("✅ API yanıtı:", response);
+      
       if (response.success && response.data.suggestions) {
         setTopicDetailSuggestions(response.data.suggestions);
         console.log(`${topic} konusu için ${response.data.suggestions.length} öneri alındı`);
@@ -318,7 +349,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         alert("Konu önerileri alınamadı: " + (response.message || "Bilinmeyen hata"));
       }
     } catch (error: any) {
-      console.error("Konu önerileri alınırken hata oluştu:", error);
+      console.error("🚨 Konu önerileri alınırken hata oluştu:", error);
       const errorMessage = error.message || "Bilinmeyen bir hata oluştu";
       alert(`Konu önerileri alınamadı: ${errorMessage}`);
     } finally {
@@ -348,6 +379,15 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   // Form submit fonksiyonu
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
+    
+    console.log("🚀 Form submit başladı!");
+    console.log("📝 inputType:", inputType);
+    console.log("📍 topic:", topic);
+    console.log("📄 text:", text);
+    console.log("🎵 voice:", voice);
+    console.log("📊 level:", level);
+    console.log("⚡ speakingRate:", speakingRate);
+    
     if (!voice) {
       alert("Lütfen bir ses seçin!");
       return;
@@ -388,6 +428,9 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
           SesHızı: speakingRate,
           voice
         };
+        console.log("📦 InputData oluşturuldu:", inputData);
+        console.log("🎯 onSubmit çağrılıyor...");
+        
         onSubmit(inputData);
         return;
       } catch (error) {
@@ -416,6 +459,10 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       voice, // Seçili ses burada gönderiliyor
       chapter: inputType === 'book' ? bookChapter : undefined,
     };
+    
+    console.log("📦 InputData oluşturuldu:", inputData);
+    console.log("🎯 onSubmit çağrılıyor...");
+    
     onSubmit(inputData);
   };
 
@@ -528,6 +575,31 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       setUploadingFile(false);
     }
   };
+
+  // Generated suggestions'ları çek
+  useEffect(() => {
+    const fetchGeneratedSuggestions = async () => {
+      try {
+        console.log("🎯 Generated suggestions çekiliyor...");
+        const response = await getGeneratedSuggestions();
+        
+        if (response.success && response.data.suggestions) {
+          setGeneratedSuggestions(response.data.suggestions);
+          console.log(`✅ ${response.data.suggestions.length} konu başlığı yüklendi:`, response.data.suggestions);
+        } else {
+          console.error("Generated suggestions alınamadı:", response);
+          // Fallback değerler
+          setGeneratedSuggestions(['Seyahat ve Turizm', 'Teknoloji ve İnovasyon', 'Sağlık ve Beslenme']);
+        }
+      } catch (error) {
+        console.error("Generated suggestions çekerken hata:", error);
+        // Fallback değerler
+        setGeneratedSuggestions(['Seyahat ve Turizm', 'Teknoloji ve İnovasyon', 'Sağlık ve Beslenme']);
+      }
+    };
+    
+    fetchGeneratedSuggestions();
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -675,13 +747,45 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
 
             {inputType === 'topic' && (
               <div className="space-y-4">
+                {/* Debug info */}
+                <div className="text-xs text-gray-500">
+                  Debug: {interests.length} ilgi alanı yüklendi
+                </div>
+                
+                {/* Hazır Konu Listesi */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Enter topic
+                    İlgi Alanlarınızdan Seçin
+                  </label>
+                  <select
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                  >
+                    <option value="" disabled>
+                      {interests.length === 0 ? 'İlgi alanları yükleniyor...' : 'İlgi Alanı Seçin'}
+                    </option>
+                    {interests.length > 0 ? (
+                      interests.map((interest, index) => (
+                        <option key={index} value={interest}>{interest}</option>
+                      ))
+                    ) : (
+                      // Fallback konular eğer API çalışmıyorsa
+                      ['Seyahat ve Turizm', 'Teknoloji ve İnovasyon', 'Sağlık ve Beslenme', 'Çevre ve Sürdürülebilirlik'].map((fallback, index) => (
+                        <option key={`fallback-${index}`} value={fallback}>{fallback} (fallback)</option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                
+                {/* Manuel Konu Girişi */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Veya Kendi Konunuzu Yazın
                   </label>
                   <input
                     type="text"
-                    placeholder="Enter a topic"
+                    placeholder="Kendi konunuzu yazın..."
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}

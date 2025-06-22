@@ -705,15 +705,20 @@ const Welcome: React.FC = () => {
           vtt_url: result.vtt_url,
           level: inputData.level
         });
-        const input = processInput.type === 'text' ? processInput.input : inputData.input;
+        // Input değerini belirle - kitap bölümü için chapter title kullan
+        let input = processInput.input || inputData.input || inputData.text;
+        if (processInput.type === 'book' && selectedChapter) {
+          input = `${selectedChapter.chapter_title} (Chapter ${selectedChapter.chapter_index})`;
+        }
+        
         try {
           await submitContent(
-            input || '', 
+            input || 'Unknown input', 
             processInput.type, 
             inputData.level, 
             result.mp3_url, 
-            result.translatedText,
-            result.adaptedText
+            result.translated_text || result.translatedText || '',
+            result.adapted_text || result.adaptedText || ''
           );
           console.log('İçerik başarıyla kaydedildi');
           // Content history'yi yeniden yükle

@@ -5,6 +5,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const { logRequestStep } = require('../utils/requestLogger');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../utils/logger');
+const { supabase } = require('../config/db');
 
 exports.getTopicDetailSuggestions = async (req, res) => {
   const { topic, level } = req.body;
@@ -122,6 +123,40 @@ exports.getTopicDetailSuggestions = async (req, res) => {
       success: false, 
       message: "Konu önerileri oluşturulurken bir hata oluştu.", 
       error: err.message 
+    });
+  }
+};
+
+exports.getGeneratedSuggestions = async (req, res) => {
+  try {
+    console.log('🎯 Generated suggestions istendi');
+    
+    // Supabase'den generated_suggestions tablosunu sorgula
+    const { data, error } = await supabase
+      .from('generated_suggestions')
+      .select('title, summary, interest_keyword')
+      .order('title', { ascending: true });
+    
+    if (error) {
+      console.error('Supabase hatası:', error);
+      throw error;
+    }
+    
+    console.log(`✅ ${data.length} adet konu başlığı bulundu`);
+    
+    res.json({
+      success: true,
+      data: {
+        suggestions: data.map(item => item.title),
+        details: data
+      }
+    });
+  } catch (err) {
+    console.error('Generated suggestions alınırken hata:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Konu başlıkları alınamadı',
+      error: err.message
     });
   }
 }; 

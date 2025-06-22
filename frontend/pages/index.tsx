@@ -466,46 +466,10 @@ const App: React.FC = () => {
                             </DialogContent>
                         </Dialog>
 
-                        {/* KAYIT OL MODALI */}
-                        <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
-                            <DialogTrigger asChild>
-                                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button whitespace-nowrap">{t.nav.signup}</Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-md">
-                                <DialogHeader>
-                                    <DialogTitle className="text-2xl font-bold text-center mb-2">{t.register.title}</DialogTitle>
-                                    <DialogDescription className="text-center">{t.register.description}</DialogDescription>
-                                </DialogHeader>
-                                <form onSubmit={handleRegisterSubmit} className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="fullName">{t.register.fullNameLabel}</Label>
-                                        <Input id="fullName" name="fullName" placeholder={t.register.fullNamePlaceholder} onChange={handleRegisterChange} required />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="register-email">{t.register.emailLabel}</Label>
-                                        <Input id="register-email" name="email" type="email" placeholder={t.register.emailPlaceholder} value={registerForm.email} onChange={handleRegisterChange} required />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="phoneNumber">{t.register.phoneLabel}</Label>
-                                        <Input 
-                                            id="phoneNumber" 
-                                            name="phoneNumber" 
-                                            placeholder="+90 (555) 123 45 67"
-                                            value={registerForm.phoneNumber} 
-                                            onChange={handleRegisterChange}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="register-password">{t.register.passwordLabel}</Label>
-                                        <Input id="register-password" name="password" type="password" value={registerForm.password} onChange={handleRegisterChange} required />
-                                    </div>
-                                    {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-                                    <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white !rounded-button" disabled={loading}>
-                                        {loading ? t.register.loadingButton : t.register.registerButton}
-                                    </Button>
-                                </form>
-                            </DialogContent>
-                        </Dialog>
+                        {/* KAYIT OL BUTONU */}
+                        <a href="/register">
+                            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button whitespace-nowrap">{t.nav.signup}</Button>
+                        </a>
                     </div>
           
                     {/* Mobile Menu Button */}
@@ -602,45 +566,9 @@ const App: React.FC = () => {
                                     </DialogContent>
                                 </Dialog>
                                 
-                                <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.signup}</Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="sm:max-w-md">
-                                        <DialogHeader>
-                                            <DialogTitle className="text-2xl font-bold text-center mb-2">{t.register.title}</DialogTitle>
-                                            <DialogDescription className="text-center">{t.register.description}</DialogDescription>
-                                        </DialogHeader>
-                                        <form onSubmit={handleRegisterSubmit} className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="mobile-fullName">{t.register.fullNameLabel}</Label>
-                                                <Input id="mobile-fullName" name="fullName" placeholder={t.register.fullNamePlaceholder} onChange={handleRegisterChange} required />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="mobile-register-email">{t.register.emailLabel}</Label>
-                                                <Input id="mobile-register-email" name="email" type="email" placeholder={t.register.emailPlaceholder} value={registerForm.email} onChange={handleRegisterChange} required />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="mobile-phoneNumber">{t.register.phoneLabel}</Label>
-                                                <Input 
-                                                    id="mobile-phoneNumber" 
-                                                    name="phoneNumber" 
-                                                    placeholder="+90 (555) 123 45 67"
-                                                    value={registerForm.phoneNumber} 
-                                                    onChange={handleRegisterChange}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="mobile-register-password">{t.register.passwordLabel}</Label>
-                                                <Input id="mobile-register-password" name="password" type="password" value={registerForm.password} onChange={handleRegisterChange} required />
-                                            </div>
-                                            {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-                                            <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white !rounded-button" disabled={loading}>
-                                                {loading ? t.register.loadingButton : t.register.registerButton}
-                                            </Button>
-                                        </form>
-                                    </DialogContent>
-                                </Dialog>
+                                <a href="/register" onClick={() => setIsMobileMenuOpen(false)}>
+                                    <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button">{t.nav.signup}</Button>
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -666,7 +594,7 @@ const App: React.FC = () => {
                             {t.hero.description}
                         </p>
                         <div className="flex gap-4 hero-buttons">
-                            <a href="https://readdy.ai/home/11d28807-c376-4c34-ad7f-2622a9d675a0/9ca9e5ea-13a7-4fff-a0f6-eff90c6a2ed3" data-readdy="true">
+                            <a href="/register">
                                 <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-base py-4 px-6 !rounded-button whitespace-nowrap">
                                     <i className="fas fa-rocket mr-2"></i> {t.hero.tryButton}
                                 </Button>
@@ -745,9 +673,11 @@ const App: React.FC = () => {
                                         {level === 5 && <p className="text-gray-700">The implications of artificial intelligence on modern society are profound and multifaceted, encompassing economic, ethical, and philosophical dimensions.</p>}
                                     </div>
                                 </div>
-                                <Button className="mt-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button whitespace-nowrap">
-                                    {t.demo.tryYourContent}
-                                </Button>
+                                <a href="/register">
+                                    <Button className="mt-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button whitespace-nowrap">
+                                        {t.demo.tryYourContent}
+                                    </Button>
+                                </a>
                             </div>
                             <div className="relative overflow-hidden">
                                 <div className="relative aspect-video w-full h-full">
@@ -943,11 +873,13 @@ const App: React.FC = () => {
                                     />
                                     <i className="fas fa-link absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                                     <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                                        <Button
-                                            className="h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-md whitespace-nowrap px-5"
-                                        >
-                                            {t.tryNow.tryButton}
-                                        </Button>
+                                        <a href="/register">
+                                            <Button
+                                                className="h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-md whitespace-nowrap px-5"
+                                            >
+                                                {t.tryNow.tryButton}
+                                            </Button>
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -980,9 +912,11 @@ const App: React.FC = () => {
                         <p className="text-xl text-gray-600 mb-8">
                             {t.cta.description}
                         </p>
-                        <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-lg py-6 px-8 !rounded-button whitespace-nowrap">
-                            <i className="fas fa-rocket mr-2"></i> {t.cta.button}
-                        </Button>
+                        <a href="/register">
+                            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-lg py-6 px-8 !rounded-button whitespace-nowrap">
+                                <i className="fas fa-rocket mr-2"></i> {t.cta.button}
+                            </Button>
+                        </a>
                         <div className="mt-8 flex justify-center items-center space-x-6">
                             {t.cta.benefits.map((benefit, index) => (
                                 <div key={index} className="flex items-center">

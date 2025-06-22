@@ -53,7 +53,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           credentials: 'include'
         });
         
+        console.log('[AUTH] /auth/me response status:', response.status);
         const data = await response.json();
+        console.log('[AUTH] /auth/me response data:', data);
         
         if (response.ok && data.success && (data.user || data.data?.user)) {
           const userData = data.user || data.data.user;
@@ -73,7 +75,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
             localStorage.setItem('lingroot_token', data.data.token);
           }
         } else {
-          console.log('[AUTH] Oturum geçersiz');
+          console.log('[AUTH] Oturum geçersiz, response:', response.status, data);
           // Mock kullanıcı oluştur (development için)
           if (process.env.NODE_ENV === 'development' && process.env.USE_MOCK_USER === 'true') {
             console.log('[AUTH] Development ortamında mock kullanıcı oluşturuluyor (hata sonrası)');

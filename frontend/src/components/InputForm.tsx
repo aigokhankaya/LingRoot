@@ -63,7 +63,14 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
         }
         try {
           const logInput = data.text || data.input || data.file?.name || "unknown_input";
-          await submitContent(logInput, inputType, result.level || level, result.mp3_url);
+          await submitContent(
+            logInput, 
+            inputType, 
+            result.level || level, 
+            result.mp3_url,
+            result.translated_text || result.translatedText || '',
+            result.adapted_text || result.adaptedText || ''
+          );
           console.log("Content submission logged successfully.");
         } catch (logError) {
           console.error("Error logging content submission:", logError);

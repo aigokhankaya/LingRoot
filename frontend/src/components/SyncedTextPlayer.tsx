@@ -636,9 +636,9 @@ export default function SyncedTextPlayer({
     
           return (
         <div 
-          className="text-lg leading-loose" 
+          className="text-lg leading-relaxed" 
           style={{ 
-            lineHeight: '3rem',
+            lineHeight: '1.8rem',
             // CONTAINER STABILIZATION
             overflow: 'hidden',
             position: 'relative',
@@ -654,7 +654,7 @@ export default function SyncedTextPlayer({
           return (
             <span
               key={index}
-              className={`inline-block cursor-pointer transition-colors duration-[25ms] hover:text-blue-600 font-semibold ${
+              className={`inline-block cursor-pointer transition-colors duration-[25ms] hover:text-blue-600 font-normal ${
                 isCurrentWord 
                   ? 'bg-yellow-300 text-yellow-900 rounded shadow-lg' 
                   : 'text-gray-800'
@@ -663,11 +663,11 @@ export default function SyncedTextPlayer({
               title={timestamp ? `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s - ${timestamp.endTime.toFixed(2)}s` : 'Timing bilgisi yok'}
               style={{
                 // SABİT BOYUTLAR - Layout shift'i önlemek için
-                minHeight: '2.2rem',
-                height: '2.2rem',
-                // SABİT PADDING - vurgulu/vurgusuz aynı boyut
-                padding: '0.25rem 0.5rem',
-                margin: '0.125rem 0.25rem',
+                minHeight: '1.8rem',
+                height: '1.8rem',
+                // SABİT PADDING - vurgulu/vurgusuz aynı boyut (azaltıldı)
+                padding: '0.15rem 0.25rem',
+                margin: '0.1rem 0.15rem',
                 display: 'inline-flex',
                 alignItems: 'center',
                 verticalAlign: 'top',
@@ -702,23 +702,23 @@ export default function SyncedTextPlayer({
     if (sentenceTimestamps.length === 0) return null;
     
     return (
-      <div className="text-lg leading-loose" style={{ lineHeight: '2.5rem' }}>
+      <div className="text-lg leading-relaxed" style={{ lineHeight: '1.8rem' }}>
         {sentenceTimestamps.map((sentenceData, index) => {
           const isCurrentSentence = index === currentSentenceIndex;
           
           return (
             <span
               key={index}
-              className={`inline-block mx-2 my-1 cursor-pointer transition-all duration-[25ms] hover:text-blue-600 ${
+              className={`inline-block mx-1 my-1 cursor-pointer transition-all duration-[25ms] hover:text-blue-600 font-normal ${
                 isCurrentSentence 
-                  ? 'bg-blue-200 text-blue-900 font-bold px-3 py-2 rounded-lg shadow-lg border-2 border-blue-400' 
-                  : 'text-gray-800 px-2 py-1 hover:bg-gray-100 rounded'
+                  ? 'bg-blue-200 text-blue-900 px-2 py-1 rounded-lg shadow-lg border-2 border-blue-400' 
+                  : 'text-gray-800 px-1 py-1 hover:bg-gray-100 rounded'
               }`}
               onClick={() => handleSentenceClick(index, sentenceData.startTime)}
               title={`Cümle ${index + 1}: ${sentenceData.startTime.toFixed(2)}s - ${sentenceData.endTime.toFixed(2)}s`}
               style={{
-                // SABİT YÜKSEKLİK - her cümle aynı yükseklikte
-                minHeight: '2.5rem',
+                // SABİT YÜKSEKLİK - her cümle aynı yükseklikte (azaltıldı)
+                minHeight: '1.8rem',
                 display: 'inline-flex',
                 alignItems: 'center',
                 verticalAlign: 'top',
@@ -896,6 +896,67 @@ export default function SyncedTextPlayer({
           <h3 className="text-lg font-semibold text-gray-800 mb-4">
             🎵 Senkronize Metin
           </h3>
+
+          {/* Audio Controls - Moved here */}
+          {showControls && (
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handlePlayPause}
+                  disabled={!isAudioLoaded}
+                  className={`flex items-center justify-center w-12 h-12 text-white rounded-full transition-colors ${
+                    !isAudioLoaded 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                  title={!isAudioLoaded ? 'Audio yükleniyor...' : isPlaying ? 'Duraklat' : 'Oynat'}
+                >
+                  {!isAudioLoaded ? (
+                    <svg className="w-6 h-6 animate-spin" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                    </svg>
+                  ) : isPlaying ? (
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+                
+                <div className="flex-1">
+                  <input
+                    type="range"
+                    min="0"
+                    max={audioDuration || 0}
+                    value={currentTime}
+                    onChange={handleSeek}
+                    disabled={!isAudioLoaded}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                  <div className="flex justify-between text-sm text-gray-500 mt-1">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(audioDuration)}</span>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setIsAdaptiveMode(!isAdaptiveMode)}
+                    className={`px-3 py-1 text-sm rounded transition-colors ${
+                      isAdaptiveMode 
+                        ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {isAdaptiveMode ? 'Adaptive' : 'Linear'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         
           {renderHighlightedText()}
           
@@ -906,67 +967,6 @@ export default function SyncedTextPlayer({
             </div>
           )}
         </div>
-      
-      {/* Audio Controls */}
-      {showControls && (
-        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={handlePlayPause}
-              disabled={!isAudioLoaded}
-              className={`flex items-center justify-center w-12 h-12 text-white rounded-full transition-colors ${
-                !isAudioLoaded 
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-700'
-              }`}
-              title={!isAudioLoaded ? 'Audio yükleniyor...' : isPlaying ? 'Duraklat' : 'Oynat'}
-            >
-              {!isAudioLoaded ? (
-                <svg className="w-6 h-6 animate-spin" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                </svg>
-              ) : isPlaying ? (
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-              ) : (
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                </svg>
-              )}
-            </button>
-            
-            <div className="flex-1">
-              <input
-                type="range"
-                min="0"
-                max={audioDuration || 0}
-                value={currentTime}
-                onChange={handleSeek}
-                disabled={!isAudioLoaded}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-              />
-              <div className="flex justify-between text-sm text-gray-500 mt-1">
-                <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(audioDuration)}</span>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setIsAdaptiveMode(!isAdaptiveMode)}
-                className={`px-3 py-1 text-sm rounded transition-colors ${
-                  isAdaptiveMode 
-                    ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {isAdaptiveMode ? 'Adaptive' : 'Linear'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Download Section */}
       {downloadUrls && (

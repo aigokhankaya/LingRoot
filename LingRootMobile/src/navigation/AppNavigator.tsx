@@ -14,6 +14,7 @@ import RegisterScreen from '../screens/RegisterScreen';
 import HomeScreen from '../screens/HomeScreen';
 import LibraryScreen from '../screens/LibraryScreen';
 import CreateScreen from '../screens/CreateScreen';
+import SuggestionsScreen from '../screens/SuggestionsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -51,6 +52,9 @@ const MainTabs = () => {
             case 'Create':
               iconName = 'add-circle';
               break;
+            case 'Suggestions':
+              iconName = 'lightbulb';
+              break;
             case 'Profile':
               iconName = 'person';
               break;
@@ -79,6 +83,11 @@ const MainTabs = () => {
         name="Create" 
         component={CreateScreen}
         options={{ tabBarLabel: 'Oluştur' }}
+      />
+      <Tab.Screen 
+        name="Suggestions" 
+        component={SuggestionsScreen}
+        options={{ tabBarLabel: 'Öneriler' }}
       />
       <Tab.Screen 
         name="Profile" 

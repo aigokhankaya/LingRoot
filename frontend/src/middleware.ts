@@ -141,20 +141,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - api (API routes)
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * - / (root path, assuming it's public)
-         * - /login (public login page)
-         * - /register (public register page)
-         * - /admin (admin routes - temporarily disabled for JWT auth)
-         */
-        '/((?!api|_next/static|_next/image|favicon.ico|^/$|^/login$|^/register$|^/admin).*)',
-        // Admin routes temporarily disabled - using JWT auth instead
-        // '/admin/:path*', 
+        // Admin routes only
+        '/admin/:path*',
     ],
 };
 

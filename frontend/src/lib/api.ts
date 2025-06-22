@@ -358,6 +358,14 @@ export const submitContent = async (
         console.log(`Calling Submit Content API: ${url}`);
         console.log('Headers:', headers);
         console.log('Body:', body);
+        console.log('Submit Content Parameters:', {
+            input: input || 'EMPTY',
+            inputType: inputType || 'EMPTY',
+            level: level || 'EMPTY',
+            mp3Url: mp3Url || 'EMPTY',
+            translatedText: translatedText || 'EMPTY',
+            adaptedText: adaptedText || 'EMPTY'
+        });
         
         const response = await fetch(url, {
             method: "POST",
@@ -418,8 +426,12 @@ export const getContentHistory = async (): Promise<ApiResponse> => {
 export const getTopicDetailSuggestions = async (topic: string, level: string): Promise<any> => {
   const apiUrl = `${getApiUrl("topic-detail/suggestions")}`;
   
+  console.log("🔗 API URL:", apiUrl);
+  console.log("📝 Request data:", { topic, level });
+  
   try {
     const headers = createHeaders('application/json');
+    console.log("📋 Headers:", headers);
     
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -428,14 +440,25 @@ export const getTopicDetailSuggestions = async (topic: string, level: string): P
       credentials: 'include'
     });
     
+    console.log("📊 Response status:", response.status, response.statusText);
+    
     if (!response.ok) {
-      const error = await response.json();
+      const errorText = await response.text();
+      console.error("❌ Error response:", errorText);
+      let error;
+      try {
+        error = JSON.parse(errorText);
+      } catch {
+        error = { message: errorText };
+      }
       throw new Error(error.message || 'Detaylı konu önerileri alınamadı');
     }
     
-    return await response.json();
+    const result = await response.json();
+    console.log("✅ Success response:", result);
+    return result;
   } catch (error) {
-    console.error('Konu önerileri alınırken hata oluştu:', error);
+    console.error('🚨 Konu önerileri alınırken hata oluştu:', error);
     throw error;
   }
 };
@@ -594,6 +617,35 @@ export const rewriteToNarration = async (inputText: string, level: string): Prom
     return data;
   } catch (error) {
     console.error('[API] rewriteToNarration error:', error);
+    throw error;
+  }
+};
+
+// Generated suggestions tablosundan konu başlıklarını getir
+export const getGeneratedSuggestions = async (): Promise<any> => {
+  const apiUrl = `${getApiUrl("topic-detail/generated-suggestions")}`;
+  
+  console.log("🎯 Generated suggestions API çağrısı:", apiUrl);
+  
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    
+    console.log("📊 Generated suggestions response status:", response.status, response.statusText);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ Generated suggestions error response:", errorText);
+      throw new Error(`Generated suggestions failed: ${response.status} ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    console.log("✅ Generated suggestions result:", result);
+    return result;
+  } catch (error) {
+    console.error('🚨 Generated suggestions alınırken hata oluştu:', error);
     throw error;
   }
 };

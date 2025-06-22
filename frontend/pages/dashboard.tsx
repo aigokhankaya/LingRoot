@@ -4,17 +4,31 @@ import { useAuth } from '../src/lib/auth';
 import { useRouter } from 'next/router';
 
 const Dashboard = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    console.log('[DASHBOARD] Auth durumu:', { isLoading, isAuthenticated, user: !!user });
+    // Sadece loading tamamlandıktan sonra redirect yap
+    if (!isLoading && !isAuthenticated) {
+      console.log('[DASHBOARD] Auth loading tamamlandı, authenticated değil, login sayfasına yönlendiriliyor');
       router.push('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isLoading, router, user]);
 
-  if (!user) {
+  // Loading durumunda loading mesajı göster
+  if (isLoading) {
     return <div className="p-8 text-center text-lg">Yükleniyor...</div>;
+  }
+
+  // Loading tamamlandı ama authenticated değilse (redirect edilirken)
+  if (!isAuthenticated) {
+    return <div className="p-8 text-center text-lg">Yönlendiriliyor...</div>;
+  }
+
+  // User yoksa (beklenmeyen durum)
+  if (!user) {
+    return <div className="p-8 text-center text-lg">Kullanıcı bilgileri yükleniyor...</div>;
   }
 
   // Eksik alanlar için fallback

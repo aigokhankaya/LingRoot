@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { TTSRequest, TTSResponse, APIResponse } from '../types';
+import { supabase } from './supabase';
 
 // Backend URL'i environment variables'dan alacağız
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5001';
@@ -19,12 +20,16 @@ const apiClient = axios.create({
 
 // Request interceptor - authentication token eklemek için
 apiClient.interceptors.request.use(
-  (config) => {
-    // Burada kullanıcı token'ını header'a ekleyebiliriz
-    // const token = await AsyncStorage.getItem('auth_token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+  async (config) => {
+    // Supabase'den token al
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        config.headers.Authorization = `Bearer ${session.access_token}`;
+      }
+    } catch (error) {
+      console.warn('Token alınamadı:', error);
+    }
     return config;
   },
   (error) => {
@@ -93,6 +98,19 @@ export const apiService = {
       return response.data;
     } catch (error: any) {
       throw new Error('API bağlantısı başarısız');
+    }
+  },
+
+  // Konu önerileri alma
+  async getTopicSuggestions(topic: string, level: string): Promise<any> {
+    try {
+      const response = await apiClient.post('/api/topic-detail/suggestions', {
+        topic,
+        level,
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Konu önerileri alınamadı');
     }
   },
 }; 

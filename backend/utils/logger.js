@@ -75,7 +75,7 @@ const logFormat = winston.format.combine(
       logMessage = sanitizeLogContent(message);
     }
     
-    return `${timestamp} [${(level || 'INFO').toUpperCase()}]: ${logMessage}`;
+    return `${timestamp} [${(level && typeof level === 'string' ? level.toUpperCase() : 'INFO')}]: ${logMessage}`;
   })
 );
 

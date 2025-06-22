@@ -400,6 +400,11 @@ exports.submitContent = async (req, res) => {
         input_type: !!input_type, 
         level: !!level,
         mp3_url: !!mp3_url,
+        // Değerleri de logla
+        inputValue: input,
+        inputTypeValue: input_type,
+        levelValue: level,
+        mp3UrlValue: mp3_url ? mp3_url.substring(0, 50) + '...' : null,
         requestBody: req.body
       });
       return res.status(400).json({
