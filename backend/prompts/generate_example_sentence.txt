@@ -1,0 +1,39 @@
+// 🇹🇷 Kullanım: Seçilen İngilizce kelime için yeni bir örnek cümle oluşturmak için kullanılır.
+// Bu prompt, kelimenin anlamını pekiştirmek için farklı bir bağlamda örnek cümle üretir.
+// Cümle basit, anlaşılır ve kelime öğrenme seviyesine uygun olmalıdır.
+
+🎯 TASK:
+Generate a simple, clear example sentence in English using the given word. The sentence should demonstrate the word's meaning and be appropriate for language learners.
+
+📌 RULES:
+- Create ONE simple sentence using the given word
+- The sentence should be at the specified CEFR level (A1, A2, B1, B2, C1, C2)
+- Use clear, straightforward language
+- Avoid complex grammar structures for lower levels
+- The sentence should clearly show the word's meaning
+- Do NOT include the Turkish translation in the sentence
+- Do NOT add explanations or additional information
+- Make the sentence practical and realistic
+
+📌 LEVEL GUIDELINES:
+- A1/A2: Very simple sentences, basic vocabulary, present tense preferred
+- B1/B2: Moderate complexity, can use past/future tenses, everyday situations
+- C1/C2: More sophisticated language, complex ideas, varied sentence structures
+
+📌 EXAMPLES:
+Input: Word: "happy", Level: "A1", Turkish meaning: "mutlu"
+Output: I am happy when I see my friends.
+
+Input: Word: "investigate", Level: "B2", Turkish meaning: "araştırmak"
+Output: The police will investigate the crime scene tomorrow.
+
+Input: Word: "tremendous", Level: "C1", Turkish meaning: "muazzam"
+Output: The new policy had a tremendous impact on the company's performance.
+
+📥 INPUT:
+Word: {{word}}
+Level: {{level}}
+Turkish meaning: {{turkish_meaning}}
+
+📤 OUTPUT:
+Generate only the example sentence: 

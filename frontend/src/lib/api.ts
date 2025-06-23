@@ -650,3 +650,173 @@ export const getGeneratedSuggestions = async (): Promise<any> => {
   }
 };
 
+// Vocabulary API functions
+export interface VocabularyWord {
+  id?: number;
+  word: string;
+  original_word?: string;
+  definition?: string;
+  example_sentence?: string;
+  example_sentence_turkish?: string; // Örnek cümlenin Türkçe çevirisi
+  notes?: string;
+  level?: string;
+  is_learned?: boolean;
+  original_sentence?: string; // Kelimenin orijinal metindeki cümlesi
+  created_at?: string;
+  updated_at?: string;
+}
+
+export const getVocabulary = async (): Promise<VocabularyWord[]> => {
+  try {
+    const url = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:5001/api/vocabulary'
+      : '/api/vocabulary';
+    
+    const headers = createHeaders('application/json');
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers,
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.success ? data.data : [];
+  } catch (error) {
+    console.error('Error fetching vocabulary:', error);
+    throw error;
+  }
+};
+
+export const addWordToVocabulary = async (word: string, definition?: string, sentence?: string, level?: string): Promise<VocabularyWord> => {
+  try {
+    const url = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:5001/api/vocabulary/add'
+      : '/api/vocabulary/add';
+    
+    const headers = createHeaders('application/json');
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers,
+      body: JSON.stringify({
+        word,
+        definition,
+        sentence,
+        level
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.data;
+  } catch (error) {
+    console.error('Error adding word to vocabulary:', error);
+    throw error;
+  }
+};
+
+export const deleteWordFromVocabulary = async (wordId: number): Promise<void> => {
+  try {
+    const url = process.env.NODE_ENV === 'development' 
+      ? `http://localhost:5001/api/vocabulary/${wordId}`
+      : `/api/vocabulary/${wordId}`;
+    
+    const headers = createHeaders('application/json');
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Error deleting word from vocabulary:', error);
+    throw error;
+  }
+};
+
+export const updateWordInVocabulary = async (wordId: number, updates: Partial<VocabularyWord>): Promise<VocabularyWord> => {
+  try {
+    const url = process.env.NODE_ENV === 'development' 
+      ? `http://localhost:5001/api/vocabulary/${wordId}`
+      : `/api/vocabulary/${wordId}`;
+    
+    const headers = createHeaders('application/json');
+    
+    const response = await fetch(url, {
+      method: 'PUT',
+      credentials: 'include',
+      headers,
+      body: JSON.stringify(updates),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.data;
+  } catch (error) {
+    console.error('Error updating word in vocabulary:', error);
+    throw error;
+  }
+};
+
+// Kelime çevirisi ile birlikte ekleme
+export const addWordWithTranslation = async (
+  word: string, 
+  context: string, 
+  level?: string,
+  originalSentence?: string
+): Promise<{
+  data: VocabularyWord;
+  message: string;
+  isExisting: boolean;
+  translationError?: boolean;
+}> => {
+  try {
+    const url = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:5001/api/vocabulary/add-with-translation'
+      : '/api/vocabulary/add-with-translation';
+    
+    const headers = createHeaders('application/json');
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers,
+      body: JSON.stringify({
+        word,
+        context,
+        level,
+        originalSentence
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+    
+    return response.json();
+  } catch (error) {
+    console.error('Error adding word with translation:', error);
+    throw error;
+  }
+};
+

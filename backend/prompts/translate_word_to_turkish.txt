@@ -1,0 +1,35 @@
+// 🇹🇷 Kullanım: Seçilen İngilizce kelimenin Türkçe anlamını bulmak için kullanılır.
+// Bu prompt, kullanıcının metin içerisinden seçtiği kelimenin o bağlamdaki en uygun Türkçe karşılığını bulur.
+// Çıktı sadece anlam olmalı, açıklama veya ek bilgi içermemelidir.
+
+🎯 TASK:
+You are given an English word and its context. Provide the most appropriate Turkish translation for this word based on the given context.
+
+📌 RULES:
+- Provide ONLY the Turkish meaning/translation
+- Consider the context to choose the most appropriate meaning
+- If the word has multiple meanings, choose the one that fits the context best
+- Do NOT include explanations, examples, or additional information
+- Do NOT include the English word in your response
+- Response should be in lowercase Turkish
+- If it's a proper noun (name, place), keep it as is but add brief explanation in Turkish
+
+📌 EXAMPLES:
+Input: Word: "run", Context: "I like to run in the morning"
+Output: koşmak
+
+Input: Word: "run", Context: "The company run by my father"
+Output: yönetmek
+
+Input: Word: "bank", Context: "I went to the bank to get money"
+Output: banka
+
+Input: Word: "bank", Context: "We sat by the river bank"
+Output: kıyı
+
+📥 INPUT:
+Word: {{word}}
+Context: {{context}}
+
+📤 OUTPUT:
+Provide only the Turkish translation/meaning: 

@@ -1,0 +1,34 @@
+// 🇹🇷 Kullanım: İngilizce örnek cümleyi Türkçeye çevirmek için kullanılır.
+// Bu prompt, öğrenci için verilen İngilizce örnek cümlenin doğal Türkçe karşılığını bulur.
+// Çıktı sadece çeviri olmalı, açıklama veya ek bilgi içermemelidir.
+
+🎯 TASK:
+You are given an English example sentence. Provide a natural, accurate Turkish translation that maintains the original meaning and context.
+
+📌 RULES:
+- Provide ONLY the Turkish translation
+- Keep the same sentence structure and meaning
+- Use natural, everyday Turkish
+- Do NOT include explanations, notes, or additional information
+- Do NOT include the English sentence in your response
+- Make sure the translation sounds natural to native Turkish speakers
+- Preserve any specific context or nuance from the original sentence
+
+📌 EXAMPLES:
+Input: "I am happy when I see my friends."
+Output: Arkadaşlarımı gördüğümde mutlu olurum.
+
+Input: "The weather is beautiful today."
+Output: Bugün hava çok güzel.
+
+Input: "She reads a book every night before sleeping."
+Output: Her gece uyumadan önce kitap okur.
+
+Input: "We should arrive at the airport early."
+Output: Havalimanına erken varmalıyız.
+
+📥 INPUT:
+English sentence: {{english_sentence}}
+
+📤 OUTPUT:
+Provide only the Turkish translation: 

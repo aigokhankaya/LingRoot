@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { addWordToVocabulary, addWordWithTranslation } from '../lib/api';
 
 interface Timepoint {
   timeSeconds: number;
@@ -38,6 +39,15 @@ interface SyncedTextPlayerProps {
     wordsCount?: number;
     timepointsCount?: number;
   };
+}
+
+// Context Menu interface
+interface ContextMenu {
+  show: boolean;
+  x: number;
+  y: number;
+  word: string;
+  wordIndex: number;
 }
 
 // VTT Parser utility
@@ -107,6 +117,9 @@ export default function SyncedTextPlayer({
   const [timingMethod, setTimingMethod] = useState<'VTT' | 'Backend' | 'Adaptive' | 'Linear'>('VTT');
   const [playbackRate, setPlaybackRate] = useState<number>(1.0); // 0.5x ile 2.0x arası hız kontrolü
   const [highlightType, setHighlightType] = useState<'word' | 'sentence'>('word'); // Vurgulama türü
+  const [timingOffset, setTimingOffset] = useState<number>(0); // Metin vurgusu timing offset (saniye)
+  const [contextMenu, setContextMenu] = useState<ContextMenu>({ show: false, x: 0, y: 0, word: '', wordIndex: -1 });
+  const [isAddingWord, setIsAddingWord] = useState(false);
 
   // VTT dosyasını fetch et ve parse et
   useEffect(() => {
@@ -380,8 +393,9 @@ export default function SyncedTextPlayer({
     if (!audio) return;
 
     const handleTimeUpdate = () => {
-      const currentTime = audio.currentTime;
-      setCurrentTime(currentTime);
+      const rawCurrentTime = audio.currentTime;
+      const currentTime = rawCurrentTime + timingOffset; // Timing offset uygula
+      setCurrentTime(rawCurrentTime); // UI için raw time kullan
       
       // Çok hassas kelime tracking - backend timepoints için optimize edilmiş
       let foundWordIndex = -1;
@@ -491,7 +505,7 @@ export default function SyncedTextPlayer({
           const rangeIcon = isExactMatch ? '✅' : '❌';
           const progressIcon = wordProgress >= 0 && wordProgress <= 1 ? '📍' : '📌';
           
-          console.log(`${rangeIcon} ${progressIcon} Word ${foundWordIndex}: "${timestamp?.word}" | Time: ${currentTime.toFixed(3)}s | Range: ${timestamp?.startTime.toFixed(3)}s-${timestamp?.endTime.toFixed(3)}s | ${syncStatus} | Offset: ${actualOffset > 0 ? '+' : ''}${actualOffset.toFixed(3)}s (${offsetMs.toFixed(1)}ms) | Progress: ${(wordProgress * 100).toFixed(1)}% | Rate: ${playbackRate}x`);
+          console.log(`${rangeIcon} ${progressIcon} Word ${foundWordIndex}: "${timestamp?.word}" | Raw Time: ${rawCurrentTime.toFixed(3)}s | Adjusted Time: ${currentTime.toFixed(3)}s | Range: ${timestamp?.startTime.toFixed(3)}s-${timestamp?.endTime.toFixed(3)}s | ${syncStatus} | Timing Offset: ${timingOffset > 0 ? '+' : ''}${(timingOffset * 1000).toFixed(0)}ms | Actual Offset: ${actualOffset > 0 ? '+' : ''}${actualOffset.toFixed(3)}s (${offsetMs.toFixed(1)}ms) | Progress: ${(wordProgress * 100).toFixed(1)}% | Rate: ${playbackRate}x`);
         }
       } else {
         // Kelime bulunamadıysa VURGULAMAYı ÇıKAR - tam senkron için
@@ -634,19 +648,19 @@ export default function SyncedTextPlayer({
   const renderHighlightedWords = () => {
     const textWords = originalText.split(/\s+/).filter(word => word.length > 0);
     
-          return (
-        <div 
-          className="text-lg leading-relaxed" 
-          style={{ 
-            lineHeight: '1.8rem',
-            // CONTAINER STABILIZATION
-            overflow: 'hidden',
-            position: 'relative',
-            // PREVENT LAYOUT SHIFTS
-            containIntrinsicSize: 'auto',
-            contain: 'layout style'
-          }}
-        >
+    return (
+      <div 
+        className="text-lg leading-relaxed" 
+        style={{ 
+          lineHeight: '1.8rem',
+          // CONTAINER STABILIZATION
+          overflow: 'hidden',
+          position: 'relative',
+          // PREVENT LAYOUT SHIFTS
+          containIntrinsicSize: 'auto',
+          contain: 'layout style'
+        }}
+      >
         {textWords.map((word, index) => {
           const isCurrentWord = index === currentWordIndex;
           const timestamp = wordTimestamps[index];
@@ -660,6 +674,7 @@ export default function SyncedTextPlayer({
                   : 'text-gray-800'
               }`}
               onClick={() => timestamp && handleWordClick(index, timestamp.startTime)}
+              onContextMenu={(e) => handleWordRightClick(e, word, index)}
               title={timestamp ? `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s - ${timestamp.endTime.toFixed(2)}s` : 'Timing bilgisi yok'}
               style={{
                 // SABİT BOYUTLAR - Layout shift'i önlemek için
@@ -762,6 +777,181 @@ export default function SyncedTextPlayer({
     setCurrentTime(seekTime);
   };
 
+  // Context menu handling
+  const handleWordRightClick = (e: React.MouseEvent, word: string, wordIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    setContextMenu({
+      show: true,
+      x: e.clientX,
+      y: e.clientY,
+      word: word.replace(/[.,!?;:]/g, ''), // Remove punctuation
+      wordIndex
+    });
+  };
+
+  const hideContextMenu = () => {
+    setContextMenu({ show: false, x: 0, y: 0, word: '', wordIndex: -1 });
+  };
+
+  const handleAddToVocabulary = async () => {
+    if (!contextMenu.word || isAddingWord) return;
+    
+    setIsAddingWord(true);
+    try {
+      // Kelimenin etrafındaki bağlamı bul
+      const wordIndex = contextMenu.wordIndex;
+      const allWords = words;
+      
+      console.log(`Debug - Word index: ${wordIndex}, Total words: ${allWords.length}`);
+      console.log(`Debug - All words:`, allWords.slice(Math.max(0, wordIndex - 3), wordIndex + 4));
+      
+      let context = '';
+      let originalSentence = '';
+      
+      // Orijinal cümleyi bul - cümle sınırlarını belirle
+      const findOriginalSentence = (text: string, targetWord: string): string => {
+        console.log(`Searching for word "${targetWord}" in text of length: ${text.length}`);
+        
+        // Daha geniş cümle ayırıcıları kullan ve boş cümleleri temizle
+        const sentences = text.split(/[.!?;]+/).map(s => s.trim()).filter(s => s.length > 5);
+        
+        console.log(`Found ${sentences.length} sentences`);
+        
+        for (let i = 0; i < sentences.length; i++) {
+          const sentence = sentences[i];
+          if (sentence.toLowerCase().includes(targetWord.toLowerCase())) {
+            console.log(`Found word in sentence ${i}: "${sentence}"`);
+            
+            // Cümleyi düzenle - nokta yoksa ekle
+            let cleanSentence = sentence.trim();
+            if (!cleanSentence.match(/[.!?]$/)) {
+              cleanSentence += '.';
+            }
+            return cleanSentence;
+          }
+        }
+        
+        console.log(`Word not found in sentences, trying character-based search`);
+        
+        // Eğer cümlelerde bulamazsa kelimenin etrafındaki metni al
+        const wordPos = text.toLowerCase().indexOf(targetWord.toLowerCase());
+        if (wordPos >= 0) {
+          console.log(`Found word at position: ${wordPos}`);
+          
+          // Kelimeden önceki ve sonraki cümle sınırlarını bul
+          let start = wordPos;
+          let end = wordPos + targetWord.length;
+          
+          // Geriye doğru giderek cümle başlangıcını bul
+          while (start > 0 && !text[start].match(/[.!?]/)) {
+            start--;
+          }
+          if (start > 0) start++; // Nokta işaretini geç
+          
+          // İleriye doğru giderek cümle sonunu bul
+          while (end < text.length && !text[end].match(/[.!?]/)) {
+            end++;
+          }
+          if (end < text.length) end++; // Nokta işaretini dahil et
+          
+          const extractedSentence = text.substring(start, end).trim();
+          console.log(`Extracted sentence: "${extractedSentence}"`);
+          return extractedSentence;
+        }
+        
+        console.log(`Word "${targetWord}" not found in text`);
+        return '';
+      };
+      
+      // Eğer words array'i varsa buradan context al
+      if (allWords && allWords.length > 0 && wordIndex >= 0 && wordIndex < allWords.length) {
+        const startIndex = Math.max(0, wordIndex - 5);
+        const endIndex = Math.min(allWords.length, wordIndex + 6);
+        const contextWords = allWords.slice(startIndex, endIndex);
+        context = contextWords.join(' ');
+        
+        // Orijinal cümleyi de bul
+        originalSentence = findOriginalSentence(originalText, contextMenu.word);
+      }
+      
+      // Eğer context boşsa original text'ten bir parça al
+      if (!context || context.trim().length < 10) {
+        console.log('Words array context failed, using originalText');
+        const textWords = originalText.split(/\s+/);
+        const wordInText = textWords.findIndex(w => w.toLowerCase().includes(contextMenu.word.toLowerCase()));
+        
+        if (wordInText >= 0) {
+          const startIdx = Math.max(0, wordInText - 5);
+          const endIdx = Math.min(textWords.length, wordInText + 6);
+          context = textWords.slice(startIdx, endIdx).join(' ');
+          originalSentence = findOriginalSentence(originalText, contextMenu.word);
+        } else {
+          // Son çare olarak kelimeyi originalText'te ara
+          const wordPos = originalText.toLowerCase().indexOf(contextMenu.word.toLowerCase());
+          if (wordPos >= 0) {
+            const start = Math.max(0, wordPos - 50);
+            const end = Math.min(originalText.length, wordPos + 50);
+            context = originalText.substring(start, end);
+            originalSentence = findOriginalSentence(originalText, contextMenu.word);
+          } else {
+            // Hiçbir şey bulamazsa basit bir context oluştur
+            context = `The word "${contextMenu.word}" appears in an English text.`;
+            originalSentence = '';
+          }
+        }
+      }
+      
+      console.log(`Final context for "${contextMenu.word}": "${context}"`);
+      console.log(`Original sentence for "${contextMenu.word}": "${originalSentence}"`);
+      
+      // Context hala boşsa hata ver
+      if (!context || context.trim().length < 5) {
+        throw new Error('Bağlam metni oluşturulamadı. Lütfen manuel olarak kelime ekleyin.');
+      }
+      
+      // OpenAI çevirisi ile kelime ekle
+      const result = await addWordWithTranslation(contextMenu.word, context, level, originalSentence);
+      
+      if (result.isExisting) {
+        alert(`"${contextMenu.word}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${result.data.definition || 'Belirtilmemiş'}\nÖrnek: ${result.data.example_sentence || 'Belirtilmemiş'}`);
+      } else if (result.translationError) {
+        alert(`"${contextMenu.word}" kelimesi eklendi ancak çeviri yapılamadı. Anlamı manuel olarak ekleyebilirsiniz.`);
+      } else {
+        alert(`"${contextMenu.word}" kelimesi başarıyla eklendi!\n\nAnlam: ${result.data.definition}\nÖrnek Cümle: ${result.data.example_sentence}\nSeviye: ${result.data.level}`);
+      }
+      
+      console.log(`Word "${contextMenu.word}" processed:`, result);
+      
+    } catch (error: any) {
+      console.error('Error adding word to vocabulary:', error);
+      if (error.message.includes('zaten listede mevcut')) {
+        alert(`"${contextMenu.word}" kelimesi zaten kelime listenizdedir.`);
+      } else {
+        alert(`Kelime eklenirken hata oluştu: ${error.message}`);
+      }
+    } finally {
+      setIsAddingWord(false);
+      hideContextMenu();
+    }
+  };
+
+  // Click outside to close context menu
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (contextMenu.show) {
+        hideContextMenu();
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [contextMenu.show]);
+
   return (
     <div className={`w-full ${className}`}>
       <audio
@@ -771,6 +961,46 @@ export default function SyncedTextPlayer({
         className="hidden"
       />
       
+      {/* Context Menu */}
+      {contextMenu.show && (
+        <div
+          className="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg py-2 min-w-[150px]"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-3 py-1 text-xs text-gray-500 border-b border-gray-200">
+            "{contextMenu.word}"
+          </div>
+          <button
+            onClick={handleAddToVocabulary}
+            disabled={isAddingWord}
+            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isAddingWord ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                Çeviriliyor...
+              </>
+            ) : (
+              <>
+                <i className="fas fa-plus mr-2 text-green-600"></i>
+                Kelime Listesine Ekle (AI Çeviri)
+              </>
+            )}
+          </button>
+          <button
+            onClick={hideContextMenu}
+            className="w-full text-left px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 flex items-center"
+          >
+            <i className="fas fa-times mr-2"></i>
+            İptal
+          </button>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-6">
         {/* Header with level and speaking rate */}
         <div className="flex items-center justify-between mb-6">
@@ -833,6 +1063,211 @@ export default function SyncedTextPlayer({
               {playbackRate > 1.5 && 'Çok hızlı - ileri seviye kullanıcılar için'}
             </span>
           </div>
+        </div>
+
+        {/* Ultra Precise Timing Offset Control */}
+        <div className="mb-6 p-4 bg-red-50 rounded-lg border border-red-200">
+          <h3 className="text-lg font-semibold text-red-800 mb-3 flex items-center">
+            <i className="fas fa-crosshairs mr-2 text-red-600"></i>
+            🎯 Ultra Hassas Metin Vurgusu Senkronizasyonu
+          </h3>
+          
+          {/* Current Offset Display */}
+          <div className="mb-4 p-3 bg-white rounded-lg border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="text-sm font-medium text-gray-700">Mevcut Offset:</div>
+                <div className={`text-lg font-bold px-3 py-1 rounded ${
+                  timingOffset === 0 ? 'bg-green-100 text-green-800' : 
+                  Math.abs(timingOffset) <= 0.1 ? 'bg-yellow-100 text-yellow-800' : 
+                  'bg-red-100 text-red-800'
+                }`}>
+                  {timingOffset > 0 ? '+' : ''}{(timingOffset * 1000).toFixed(0)}ms
+                </div>
+                <div className="text-xs text-gray-500">
+                  ({timingOffset > 0 ? 'Metin önde' : timingOffset < 0 ? 'Metin geride' : 'Senkron'})
+                </div>
+              </div>
+              <button
+                onClick={() => setTimingOffset(0)}
+                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-sm transition-colors"
+                title="Offset'i sıfırla"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+
+                     {/* Coarse Adjustment for Large Offsets */}
+           <div className="mb-3">
+             <div className="text-sm font-medium text-gray-700 mb-2">Büyük Ayarlar (saniye bazında):</div>
+             <div className="flex items-center space-x-2 justify-center">
+               <button
+                 onClick={() => setTimingOffset(prev => Math.max(prev - 1, -5))}
+                 className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded font-mono text-sm"
+                 title="1 saniye geri"
+               >
+                 -1s
+               </button>
+               <button
+                 onClick={() => setTimingOffset(prev => Math.max(prev - 0.5, -5))}
+                 className="px-3 py-2 bg-red-400 hover:bg-red-500 text-white rounded font-mono text-sm"
+                 title="500ms geri"
+               >
+                 -500ms
+               </button>
+               <button
+                 onClick={() => setTimingOffset(prev => Math.max(prev - 0.1, -5))}
+                 className="px-3 py-2 bg-red-300 hover:bg-red-400 text-red-800 rounded font-mono text-sm"
+                 title="100ms geri"
+               >
+                 -100ms
+               </button>
+               <div className="flex-1 mx-4">
+                 <input
+                   type="range"
+                   min="-5"
+                   max="5"
+                   step="0.001"
+                   value={timingOffset}
+                   onChange={(e) => setTimingOffset(parseFloat(e.target.value))}
+                   className="w-full h-3 bg-gradient-to-r from-red-300 via-green-300 to-blue-300 rounded-lg appearance-none cursor-pointer"
+                   title={`Timing offset: ${(timingOffset * 1000).toFixed(0)}ms`}
+                 />
+               </div>
+               <button
+                 onClick={() => setTimingOffset(prev => Math.min(prev + 0.1, 5))}
+                 className="px-3 py-2 bg-blue-300 hover:bg-blue-400 text-blue-800 rounded font-mono text-sm"
+                 title="100ms ileri"
+               >
+                 +100ms
+               </button>
+               <button
+                 onClick={() => setTimingOffset(prev => Math.min(prev + 0.5, 5))}
+                 className="px-3 py-2 bg-blue-400 hover:bg-blue-500 text-white rounded font-mono text-sm"
+                 title="500ms ileri"
+               >
+                 +500ms
+               </button>
+               <button
+                 onClick={() => setTimingOffset(prev => Math.min(prev + 1, 5))}
+                 className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded font-mono text-sm"
+                 title="1 saniye ileri"
+               >
+                 +1s
+               </button>
+             </div>
+           </div>
+
+           {/* Ultra Fine Adjustment */}
+           <div className="mb-4">
+             <div className="text-sm font-medium text-gray-700 mb-2">Ultra Hassas Ayar (1ms hassasiyet):</div>
+             <div className="flex items-center space-x-2 justify-center">
+               <button
+                 onClick={() => setTimingOffset(prev => Math.max(prev - 0.001, -5))}
+                 className="px-2 py-1 bg-red-200 hover:bg-red-300 text-red-800 rounded text-xs font-mono"
+                 title="1ms geri"
+               >
+                 -1ms
+               </button>
+               <button
+                 onClick={() => setTimingOffset(prev => Math.max(prev - 0.005, -5))}
+                 className="px-2 py-1 bg-red-300 hover:bg-red-400 text-red-800 rounded text-xs font-mono"
+                 title="5ms geri"
+               >
+                 -5ms
+               </button>
+               <button
+                 onClick={() => setTimingOffset(prev => Math.max(prev - 0.01, -5))}
+                 className="px-2 py-1 bg-red-400 hover:bg-red-500 text-white rounded text-xs font-mono"
+                 title="10ms geri"
+               >
+                 -10ms
+               </button>
+               <button
+                 onClick={() => setTimingOffset(prev => Math.max(prev - 0.05, -5))}
+                 className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-mono"
+                 title="50ms geri"
+               >
+                 -50ms
+               </button>
+               
+               <div className="px-4 py-2 bg-gray-100 rounded font-mono text-sm font-bold text-center min-w-[100px]">
+                 {timingOffset >= 0 ? '+' : ''}{(timingOffset * 1000).toFixed(0)}ms
+               </div>
+               
+               <button
+                 onClick={() => setTimingOffset(prev => Math.min(prev + 0.05, 5))}
+                 className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-mono"
+                 title="50ms ileri"
+               >
+                 +50ms
+               </button>
+               <button
+                 onClick={() => setTimingOffset(prev => Math.min(prev + 0.01, 5))}
+                 className="px-2 py-1 bg-blue-400 hover:bg-blue-500 text-white rounded text-xs font-mono"
+                 title="10ms ileri"
+               >
+                 +10ms
+               </button>
+               <button
+                 onClick={() => setTimingOffset(prev => Math.min(prev + 0.005, 5))}
+                 className="px-2 py-1 bg-blue-300 hover:bg-blue-400 text-blue-800 rounded text-xs font-mono"
+                 title="5ms ileri"
+               >
+                 +5ms
+               </button>
+               <button
+                 onClick={() => setTimingOffset(prev => Math.min(prev + 0.001, 5))}
+                 className="px-2 py-1 bg-blue-200 hover:bg-blue-300 text-blue-800 rounded text-xs font-mono"
+                 title="1ms ileri"
+               >
+                 +1ms
+               </button>
+             </div>
+           </div>
+
+                     {/* Quick Presets */}
+           <div className="mb-4">
+             <div className="text-sm font-medium text-gray-700 mb-2">Hızlı Ayarlar:</div>
+             <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+               {/* Extreme negative offsets */}
+               {[-5, -3, -2, -1, -0.5, -0.25, -0.1, -0.05, 0, 0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5].map((offset) => (
+                 <button
+                   key={offset}
+                   onClick={() => setTimingOffset(offset)}
+                   className={`px-2 py-1 rounded text-xs font-mono transition-all duration-200 ${
+                     Math.abs(timingOffset - offset) < 0.001
+                       ? 'bg-purple-600 text-white shadow-lg transform scale-105'
+                       : Math.abs(offset) >= 2
+                       ? 'bg-orange-50 text-orange-700 border border-orange-300 hover:bg-orange-100 hover:border-orange-400'
+                       : Math.abs(offset) >= 0.5
+                       ? 'bg-yellow-50 text-yellow-700 border border-yellow-300 hover:bg-yellow-100 hover:border-yellow-400'
+                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-purple-50 hover:border-purple-300'
+                   }`}
+                   title={`${offset > 0 ? '+' : ''}${(offset * 1000).toFixed(0)}ms offset ayarla`}
+                 >
+                   {offset > 0 ? '+' : ''}{Math.abs(offset) >= 1 ? offset.toFixed(0) : (offset * 1000).toFixed(0)}
+                   {Math.abs(offset) >= 1 ? 's' : 'ms'}
+                 </button>
+               ))}
+             </div>
+           </div>
+
+                     <div className="text-xs text-gray-600 flex items-start space-x-2">
+             <i className="fas fa-lightbulb mt-0.5 text-yellow-500"></i>
+             <div>
+               <div className="font-medium mb-1">💡 Kullanım İpuçları:</div>
+               <ul className="list-disc list-inside space-y-1">
+                 <li><strong>Metin geride kalıyorsa:</strong> Pozitif değer (+) kullanın (mavi butonlar)</li>
+                 <li><strong>Metin önde gidiyorsa:</strong> Negatif değer (-) kullanın (kırmızı butonlar)</li>
+                 <li><strong>Büyük farklar için:</strong> Saniye bazında butonları (±1s, ±500ms, ±100ms) kullanın</li>
+                 <li><strong>İnce ayar için:</strong> Milisaniye butonlarını (±50ms, ±10ms, ±5ms, ±1ms) kullanın</li>
+                 <li><strong>Slider:</strong> -5s ile +5s arası sürekli ayar için kaydırıcıyı kullanın</li>
+                 <li><strong>Preset'ler:</strong> Yaygın değerler için hızlı preset butonlarını kullanın</li>
+               </ul>
+             </div>
+           </div>
         </div>
 
         {/* Highlight Type Controls */}
