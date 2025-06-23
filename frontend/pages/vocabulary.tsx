@@ -10,8 +10,8 @@ import { Label } from "../src/components/ui/label";
 import { Avatar, AvatarFallback } from "../src/components/ui/avatar";
 import { Badge } from "../src/components/ui/badge";
 import { Progress } from "../src/components/ui/progress";
-import { Checkbox } from "../src/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../src/components/ui/select";
+
+
 import Footer from '../src/components/Footer';
 
 export default function Vocabulary() {
@@ -334,22 +334,19 @@ export default function Vocabulary() {
                     
                     <div>
                       <Label htmlFor="level">Seviye</Label>
-                      <Select 
+                      <select
+                        id="level"
                         value={newWord.level}
-                        onValueChange={(value: string) => setNewWord({...newWord, level: value})}
+                        onChange={(e) => setNewWord({...newWord, level: e.target.value})}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                       >
-                        <SelectTrigger id="level" className="mt-1">
-                          <SelectValue placeholder="Seviye seçin" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="a1">A1</SelectItem>
-                          <SelectItem value="a2">A2</SelectItem>
-                          <SelectItem value="b1">B1</SelectItem>
-                          <SelectItem value="b2">B2</SelectItem>
-                          <SelectItem value="c1">C1</SelectItem>
-                          <SelectItem value="c2">C2</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <option value="a1">A1</option>
+                        <option value="a2">A2</option>
+                        <option value="b1">B1</option>
+                        <option value="b2">B2</option>
+                        <option value="c1">C1</option>
+                        <option value="c2">C2</option>
+                      </select>
                     </div>
                     
                     <div className="col-span-2">
@@ -421,30 +418,28 @@ export default function Vocabulary() {
                 <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Select value={activeLevel} onValueChange={setActiveLevel}>
-                  <SelectTrigger className="w-[120px]">
-                    <SelectValue placeholder="Tüm Seviyeler" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tüm Seviyeler</SelectItem>
-                    <SelectItem value="a1">A1</SelectItem>
-                    <SelectItem value="a2">A2</SelectItem>
-                    <SelectItem value="b1">B1</SelectItem>
-                    <SelectItem value="b2">B2</SelectItem>
-                    <SelectItem value="c1">C1</SelectItem>
-                    <SelectItem value="c2">C2</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={learnedFilter} onValueChange={setLearnedFilter}>
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue placeholder="Öğrenme Durumu" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tümü</SelectItem>
-                    <SelectItem value="learned">Öğrenildi</SelectItem>
-                    <SelectItem value="not-learned">Öğrenilmedi</SelectItem>
-                  </SelectContent>
-                </Select>
+                <select 
+                  value={activeLevel} 
+                  onChange={(e) => setActiveLevel(e.target.value)}
+                  className="w-[120px] rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                >
+                  <option value="all">Tüm Seviyeler</option>
+                  <option value="a1">A1</option>
+                  <option value="a2">A2</option>
+                  <option value="b1">B1</option>
+                  <option value="b2">B2</option>
+                  <option value="c1">C1</option>
+                  <option value="c2">C2</option>
+                </select>
+                <select 
+                  value={learnedFilter} 
+                  onChange={(e) => setLearnedFilter(e.target.value)}
+                  className="w-[150px] rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                >
+                  <option value="all">Tümü</option>
+                  <option value="learned">Öğrenildi</option>
+                  <option value="not-learned">Öğrenilmedi</option>
+                </select>
               </div>
             </div>
           </div>
@@ -529,11 +524,12 @@ export default function Vocabulary() {
                         <div className="flex justify-between items-start">
                           <div className="flex items-center">
                             <div className="mr-3">
-                              <Checkbox
+                              <input
+                                type="checkbox"
                                 id={`word-learned-${word.id}`}
                                 checked={word.is_learned || false}
-                                onCheckedChange={() => handleToggleLearned(word.id!, word.is_learned || false)}
-                                className="h-5 w-5"
+                                onChange={() => handleToggleLearned(word.id!, word.is_learned || false)}
+                                className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                 onClick={(e) => e.stopPropagation()}
                               />
                             </div>
