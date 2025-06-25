@@ -50,7 +50,8 @@ export default function NasilCalisir() {
               LingRoot <span className="text-[#28a745]">Nasıl Çalışır?</span>
             </h1>
             <p className="text-lg text-gray-700 mb-12 text-center max-w-3xl mx-auto">
-              Sadece üç basit adımda, sevdiğiniz içerikleri kendi İngilizce seviyenize uygun hale getirin.
+              Sevdiğin içerikleri kendi İngilizce seviyende dinlemek için sadece üç adım yeterli. 
+              Yapay zeka teknolojimiz, içerikleri analiz eder ve seviyenize uygun hale getirir.
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
@@ -65,8 +66,11 @@ export default function NasilCalisir() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-bold text-[#28a745] mb-3">İçeriğinizi Yükleyin</h3>
-                  <p className="text-gray-600">Sevdiğiniz YouTube videosunu, Spotify podcast'ini veya metni platforma aktarın ve öğrenmeye hazırlanın.</p>
+                  <h3 className="text-xl font-bold text-[#28a745] mb-3">İçeriğinizi Seçin</h3>
+                  <p className="text-gray-600">
+                    YouTube videosu, Spotify podcast'i, bir haber yazısı… Sadece linki yapıştır veya metni yükle. 
+                    LingRoot, farklı kaynaklardan gelen içerikleri destekleyecek esneklikte tasarlanmıştır.
+                  </p>
                 </div>
               </div>
               
@@ -78,8 +82,11 @@ export default function NasilCalisir() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-bold text-[#28a745] mb-3">Seviyenizi Seçin</h3>
-                  <p className="text-gray-600">A1'den C2'ye kadar olan İngilizce seviyelerinden kendinize en uygun olanı belirleyin.</p>
+                  <h3 className="text-xl font-bold text-[#28a745] mb-3">Seviyenizi Belirleyin</h3>
+                  <p className="text-gray-600">
+                    A1'den C2'ye kadar İngilizce seviyenizi seçin. İçerik, senin anlayabileceğin İngilizceye otomatik olarak çevrilir. 
+                    Dil işleme modeli, cümle yapılarını ve kelime dağarcığını seçilen seviyeye uyarlar.
+                  </p>
                 </div>
               </div>
               
@@ -92,8 +99,91 @@ export default function NasilCalisir() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-bold text-[#28a745] mb-3">Öğrenmeye Başlayın!</h3>
-                  <p className="text-gray-600">LingRoot, içeriği anında seviyenize uyarlar. Farklı seviyelerde dinleyin ve İngilizcenizi hızla geliştirin!</p>
+                  <h3 className="text-xl font-bold text-[#28a745] mb-3">Dinle ve Öğren</h3>
+                  <p className="text-gray-600">
+                    İçerik yapay zeka tarafından seslendirilir, altyazı eklenir ve seviyene özel hale gelir. 
+                    Artık sevdiğin şeyleri dinleyerek İngilizce öğrenebilirsin. Senkronize altyazılar ve anlık çeviri özellikleriyle dinleme deneyimini kontrol edebilirsin.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Detailed Process Section */}
+        <section className="py-16 bg-gradient-to-b from-white to-gray-50">
+          <div className="max-w-6xl mx-auto px-6">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-6">
+                Teknik <span className="text-[#28a745]">Detaylar</span>
+              </h2>
+              <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+                LingRoot'un arka planında çalışan yapay zeka sisteminin nasıl işlediğini daha detaylı inceleyelim.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div>
+                <h3 className="text-2xl font-bold text-[#333333] mb-6">İçerik İşleme Süreci</h3>
+                <div className="space-y-6">
+                  <div className="flex items-start">
+                    <div className="w-8 h-8 bg-[#28a745] rounded-full flex items-center justify-center text-white font-bold text-sm mr-4 mt-1">1</div>
+                    <div>
+                      <h4 className="font-bold text-[#333333] mb-2">Metin Analizi</h4>
+                      <p className="text-gray-600">Yapay zeka, içeriğin zorluğunu, kullanılan dil yapılarını ve kelime dağarcığını analiz eder.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start">
+                    <div className="w-8 h-8 bg-[#28a745] rounded-full flex items-center justify-center text-white font-bold text-sm mr-4 mt-1">2</div>
+                    <div>
+                      <h4 className="font-bold text-[#333333] mb-2">Seviye Uyarlama</h4>
+                      <p className="text-gray-600">CEFR standartlarına göre cümle yapıları sadeleştirilir, karmaşık kelimeler daha basit alternatiflerle değiştirilir.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start">
+                    <div className="w-8 h-8 bg-[#28a745] rounded-full flex items-center justify-center text-white font-bold text-sm mr-4 mt-1">3</div>
+                    <div>
+                      <h4 className="font-bold text-[#333333] mb-2">Ses Sentezi</h4>
+                      <p className="text-gray-600">Sadeleştirilen metin, doğal telaffuzla seslendirilir ve senkronize altyazılar oluşturulur.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start">
+                    <div className="w-8 h-8 bg-[#28a745] rounded-full flex items-center justify-center text-white font-bold text-sm mr-4 mt-1">4</div>
+                    <div>
+                      <h4 className="font-bold text-[#333333] mb-2">Optimizasyon</h4>
+                      <p className="text-gray-600">İçerik, öğrenme açısından en uygun hız ve tonlamada sunulur.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-br from-[#28a745]/10 to-[#28a745]/5 rounded-2xl p-8">
+                <h3 className="text-xl font-bold text-[#333333] mb-6">Örnek Dönüşüm</h3>
+                
+                <div className="mb-6">
+                  <h4 className="text-sm font-bold text-red-600 mb-2">Orijinal (C2 Seviyesi):</h4>
+                  <p className="text-sm text-gray-700 bg-white p-3 rounded border-l-4 border-red-300">
+                    "The unprecedented technological advancement has engendered profound transformations in contemporary society."
+                  </p>
+                </div>
+                
+                <div className="mb-6">
+                  <h4 className="text-sm font-bold text-[#28a745] mb-2">A2 Seviyesine Uyarlanmış:</h4>
+                  <p className="text-sm text-gray-700 bg-white p-3 rounded border-l-4 border-[#28a745]">
+                    "New technology has made big changes in our society today."
+                  </p>
+                </div>
+                
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <h5 className="font-bold text-blue-700 text-sm mb-2">Yapılan Değişiklikler:</h5>
+                  <ul className="text-sm text-blue-600 space-y-1">
+                    <li>• Karmaşık kelimeler basitleştirildi</li>
+                    <li>• Cümle yapısı sadeleştirildi</li>
+                    <li>• A2 seviyesi kelime dağarcığı kullanıldı</li>
+                  </ul>
                 </div>
               </div>
             </div>
