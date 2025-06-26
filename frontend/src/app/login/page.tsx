@@ -39,14 +39,10 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Logo ve başlık */}
       <header className="w-full flex justify-center items-center py-8">
-        <Image
-          src="/LingRoot_MainLogo.png"
-          alt="LingRoot Logo"
-          width={160}
-          height={48}
-          priority
-          className="object-contain"
-        />
+        <div className="flex items-center space-x-4">
+          <img src="/logo.svg" alt="LingRoot Logo" className="w-12 h-12" />
+          <span className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent tracking-tight">LingRoot</span>
+        </div>
       </header>
       
       {/* Giriş formu */}

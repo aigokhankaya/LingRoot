@@ -10,11 +10,9 @@ export default function Footer() {
           {/* Logo ve Slogan */}
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-[#28a745] rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-lg">LR</span>
-              </div>
-              <span className="font-bold text-2xl text-white">
-                <span className="text-[#28a745]">Ling</span>Root
+              <img src="/logo.svg" alt="LingRoot Logo" className="w-12 h-12" />
+              <span className="font-extrabold text-2xl bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent tracking-tight">
+                LingRoot
               </span>
             </div>
             <p className="text-gray-300 mb-4">

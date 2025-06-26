@@ -5,72 +5,88 @@ import Footer from '../src/components/Footer';
 
 export default function About() {
   return (
-    <div className="min-h-screen flex flex-col bg-white font-['Roboto',sans-serif]">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-blue-50">
       <Head>
         <title>Hakkımızda | LingRoot</title>
         <meta name="description" content="LingRoot'un hikayesi, misyonu ve vizyonu. Teknoloji destekli dil öğrenme yaklaşımımızla İngilizce öğrenimi hayatınızın doğal bir parçası oluyor." />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/favicon.ico" />
-        <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&family=Lato:wght@400;700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
       </Head>
       
-      {/* Header */}
-      <header className="fixed w-full py-4 px-6 flex justify-between items-center z-50 bg-white border-b border-gray-100 shadow-sm">
-        <Link href="/" className="flex items-center">
-          <h1 className="text-2xl font-['Nunito',sans-serif] font-bold">
-            <span className="text-[#28a745]">Ling</span>
-            <span className="text-[#333333]">Root</span>
-          </h1>
+      {/* Header - Ana sayfa stilinde */}
+      <header className="fixed w-full py-3 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
+        <Link href="/" className="flex items-center space-x-2">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+            <span className="text-white font-bold text-lg">LR</span>
+          </div>
+          <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            LingRoot
+          </span>
         </Link>
         
-        <div className="flex items-center space-x-5">
-          <Link href="/about" className="text-[#28a745] hover:text-[#218838] font-medium">
+        <nav className="hidden md:flex items-center space-x-6">
+          <Link href="/about" className="text-blue-600 hover:text-blue-700 font-medium transition-colors">
             Hakkımızda
           </Link>
-          <Link href="/nasil-calisir" className="text-gray-700 hover:text-gray-900 font-medium">
+          <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
             Nasıl Çalışır?
           </Link>
-          <Link href="/ozellikler" className="text-gray-700 hover:text-gray-900 font-medium">
+          <Link href="/ozellikler" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
             Özellikler
           </Link>
-          <Link href="/fiyatlandirma" className="text-gray-700 hover:text-gray-900 font-medium">
+          <Link href="/fiyatlandirma" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
             Fiyatlandırma
           </Link>
-          <Link href="/blog" className="text-gray-700 hover:text-gray-900 font-medium">
+          <Link href="/blog" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
             Blog
           </Link>
-          <Link href="/login" className="text-gray-700 hover:text-gray-900 font-medium">
+        </nav>
+
+        <div className="flex items-center space-x-3">
+          <Link href="/login" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
             Giriş Yap
           </Link>
-          <Link href="/register" className="ml-2 px-4 py-2 bg-[#28a745] text-white rounded font-medium hover:bg-[#218838] transition-colors">
-            Kayıt Ol
+          <Link href="/register" 
+            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl">
+            Ücretsiz Başla
           </Link>
         </div>
       </header>
 
-      <main className="flex-grow pt-24">
+      <main className="flex-grow pt-20">
         {/* Hero Section */}
-        <section className="py-16 bg-gradient-to-b from-[#f1f9ee] to-white">
-          <div className="max-w-6xl mx-auto px-6 text-center">
-            <h1 className="text-5xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-6">
-              LingRoot <span className="text-[#28a745]">Hakkında</span>
+        <section className="py-16 px-6">
+          <div className="max-w-6xl mx-auto text-center">
+            <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-100 text-blue-700 text-sm font-medium mb-6">
+              <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+              LingRoot Hakkında
+            </div>
+            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-6">
+              Hikayemiz
             </h1>
-            <p className="text-xl text-gray-700 max-w-4xl mx-auto leading-relaxed">
-              Teknolojiyi kullanarak dil öğrenme deneyimini kökten değiştirmek amacıyla kurulmuş yenilikçi bir platformdur. 
-              <strong className="text-[#28a745]"> "İngilizce öğrenmek için hayatını değiştirmene gerek yok – dinlemeye devam et"</strong>
+            <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+              Teknoloji ile dil öğrenme deneyimini kökten değiştirmek için kurulmuş yenilikçi platform.
             </p>
+            <div className="mt-8 flex justify-center">
+              <div className="px-6 py-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-full border border-blue-200">
+                <span className="text-blue-700 font-semibold">
+                  "İngilizce öğrenmek için hayatını değiştirmene gerek yok – dinlemeye devam et"
+                </span>
+              </div>
+            </div>
           </div>
         </section>
 
         {/* Main Story Section */}
-        <section className="py-16 bg-white">
-          <div className="max-w-6xl mx-auto px-6">
+        <section className="py-16 px-6 bg-white">
+          <div className="max-w-6xl mx-auto">
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div>
-                <h2 className="text-3xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-6">
-                  Bizim Hikayemiz
+                <h2 className="text-3xl font-bold text-gray-900 mb-6">
+                  Bizim <span className="text-blue-600">Hikayemiz</span>
                 </h2>
-                <div className="space-y-4 text-gray-700 leading-relaxed">
+                <div className="space-y-4 text-gray-600 leading-relaxed">
                   <p>
                     LingRoot, teknolojiyi kullanarak dil öğrenme deneyimini kökten değiştirmek amacıyla kurulmuş yenilikçi bir platformdur. 
                     Misyonumuz, kullanıcıların İngilizce öğrenmek için günlük hayatlarından ödün vermeden, sevdikleri içeriklerle pratik yapabilmelerini sağlamaktır.
@@ -87,19 +103,21 @@ export default function About() {
                   </p>
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-[#28a745]/10 to-[#28a745]/5 rounded-2xl p-8">
-                <div className="bg-white rounded-xl p-6 shadow-lg">
-                  <div className="flex items-center mb-4">
-                    <div className="w-12 h-12 bg-[#28a745] rounded-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
+              <div className="relative">
+                <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8 border border-blue-100">
+                  <div className="bg-white rounded-xl p-6 shadow-lg">
+                    <div className="flex items-center mb-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-xl font-bold text-blue-600 ml-3">2025</h3>
                     </div>
-                    <h3 className="text-xl font-bold text-[#28a745] ml-3">2025</h3>
+                    <p className="text-gray-600">
+                      İstanbul merkezli olarak yola çıktık ve o günden beri kullanıcılarımızın geri bildirimleriyle platformumuzu sürekli geliştiriyoruz.
+                    </p>
                   </div>
-                  <p className="text-gray-700">
-                    İstanbul merkezli olarak yola çıktık ve o günden beri kullanıcılarımızın geri bildirimleriyle platformumuzu sürekli geliştiriyoruz.
-                  </p>
                 </div>
               </div>
             </div>
@@ -107,36 +125,42 @@ export default function About() {
         </section>
 
         {/* Mission & Vision */}
-        <section className="py-16 bg-gray-50">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="grid md:grid-cols-2 gap-12">
-              <div className="bg-white rounded-2xl p-8 shadow-lg border-l-4 border-[#28a745]">
+        <section className="py-16 px-6 bg-gradient-to-br from-blue-50 to-purple-50">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                Misyon & <span className="text-blue-600">Vizyon</span>
+              </h2>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="bg-white rounded-2xl p-8 shadow-lg border-l-4 border-blue-500">
                 <div className="flex items-center mb-6">
-                  <div className="w-12 h-12 bg-[#28a745] rounded-full flex items-center justify-center">
+                  <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                     </svg>
                   </div>
-                  <h3 className="text-2xl font-['Nunito',sans-serif] font-bold text-[#333333] ml-4">Misyonumuz</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 ml-4">Misyonumuz</h3>
                 </div>
-                <p className="text-gray-700 leading-relaxed">
+                <p className="text-gray-600 leading-relaxed">
                   Sevdiğiniz içerikleri kullanarak, hayat tarzınızı değiştirmeden İngilizcenizi geliştirme imkânı sunmak. 
                   Bunu en yeni teknolojileri kullanarak, her seviyeden kullanıcıya uygun, kişiselleştirilmiş ve erişilebilir 
                   bir öğrenme deneyimi ile gerçekleştirmek.
                 </p>
               </div>
 
-              <div className="bg-white rounded-2xl p-8 shadow-lg border-l-4 border-[#fd7e14]">
+              <div className="bg-white rounded-2xl p-8 shadow-lg border-l-4 border-purple-500">
                 <div className="flex items-center mb-6">
-                  <div className="w-12 h-12 bg-[#fd7e14] rounded-full flex items-center justify-center">
+                  <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
                   </div>
-                  <h3 className="text-2xl font-['Nunito',sans-serif] font-bold text-[#333333] ml-4">Vizyonumuz</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 ml-4">Vizyonumuz</h3>
                 </div>
-                <p className="text-gray-700 leading-relaxed">
+                <p className="text-gray-600 leading-relaxed">
                   İngilizce başta olmak üzere yabancı dil öğrenimini tüm dünyada insanlar için günlük yaşamın doğal bir parçası haline getirmek. 
                   Teknoloji odaklı yaklaşımımızla, dil bariyerlerini ortadan kaldırarak bireylerin bilgiye ve iletişime engelsiz erişebildiği bir gelecek yaratmayı hedefliyoruz.
                 </p>
@@ -146,11 +170,11 @@ export default function About() {
         </section>
 
         {/* Why We Started */}
-        <section className="py-16 bg-white">
-          <div className="max-w-6xl mx-auto px-6">
+        <section className="py-16 px-6 bg-white">
+          <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-6">
-                Neden <span className="text-[#28a745]">LingRoot</span>?
+              <h2 className="text-3xl font-bold text-gray-900 mb-6">
+                Neden <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent font-extrabold">LingRoot</span>?
               </h2>
             </div>
             
@@ -195,47 +219,47 @@ export default function About() {
         </section>
 
         {/* Values */}
-        <section className="py-16 bg-[#f1f9ee]">
-          <div className="max-w-6xl mx-auto px-6">
+        <section className="py-16 px-6 bg-gradient-to-br from-blue-50 to-purple-50">
+          <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-6">
-                Temel <span className="text-[#28a745]">Değerlerimiz</span>
+              <h2 className="text-3xl font-bold text-gray-900 mb-6">
+                Temel <span className="text-blue-600">Değerlerimiz</span>
               </h2>
             </div>
             
             <div className="grid md:grid-cols-3 gap-8">
               <div className="bg-white rounded-xl p-8 shadow-lg text-center hover:shadow-xl transition-shadow">
-                <div className="w-16 h-16 bg-[#28a745] rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-[#333333] mb-4">Şeffaflık</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Şeffaflık</h3>
                 <p className="text-gray-600">
                   Kullanıcılarımızla her zaman açık ve dürüst iletişim kuruyoruz. Süreçlerimiz ve verileriniz hakkında tam şeffaflık sağlıyoruz.
                 </p>
               </div>
 
               <div className="bg-white rounded-xl p-8 shadow-lg text-center hover:shadow-xl transition-shadow">
-                <div className="w-16 h-16 bg-[#fd7e14] rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-6">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-[#333333] mb-4">Yenilikçilik</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Yenilikçilik</h3>
                 <p className="text-gray-600">
                   En yeni teknolojileri takip ederek, dil öğrenme deneyimini sürekli geliştiren çözümler sunuyoruz.
                 </p>
               </div>
 
               <div className="bg-white rounded-xl p-8 shadow-lg text-center hover:shadow-xl transition-shadow">
-                <div className="w-16 h-16 bg-[#6c757d] rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-[#333333] mb-4">Kullanıcı Odaklılık</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Kullanıcı Odaklılık</h3>
                 <p className="text-gray-600">
                   Her karar ve geliştirmede kullanıcı deneyimini merkeze alıyor, ihtiyaçlarınızı önceleyerek hareket ediyoruz.
                 </p>
@@ -245,19 +269,19 @@ export default function About() {
         </section>
 
         {/* Security & Trust */}
-        <section className="py-16 bg-white">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-12 border border-blue-200">
+        <section className="py-16 px-6 bg-white">
+          <div className="max-w-6xl mx-auto">
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-12 border border-blue-200">
               <div className="text-center">
-                <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
                   <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
-                <h2 className="text-3xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-6">
+                <h2 className="text-3xl font-bold text-gray-900 mb-6">
                   Güvenlik ve <span className="text-blue-600">Gizlilik</span>
                 </h2>
-                <p className="text-gray-700 text-lg leading-relaxed max-w-4xl mx-auto">
+                <p className="text-gray-600 text-lg leading-relaxed max-w-4xl mx-auto">
                   LingRoot, kullanıcı güvenliği ve gizliliğini ön planda tutan profesyonel bir yaklaşıma sahiptir. 
                   Platformumuzda yaptığınız tüm işlemler ve paylaştığınız veriler, uluslararası standartlarda korunur. 
                   Verilerinizin güvenliği bizim için bir öncelik değil, vazgeçilmez bir gerekliliktir.
@@ -268,20 +292,22 @@ export default function About() {
         </section>
 
         {/* Call to Action */}
-        <section className="py-16 bg-gradient-to-r from-[#28a745] to-[#20c997] text-white">
-          <div className="max-w-4xl mx-auto px-6 text-center">
-            <h2 className="text-4xl font-['Nunito',sans-serif] font-bold mb-6">
+        <section className="py-16 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-4xl font-bold mb-6">
               LingRoot – We're Rooting for You!
             </h2>
             <p className="text-xl mb-8 opacity-90">
               Dil öğrenme yolculuğunuzda size kökünden (Root'tan) destek olmayı sürdüreceğiz. 
               Siz de bu yolculukta bize katılarak İngilizce öğreniminin ne kadar keyifli olabileceğini keşfedin.
             </p>
-            <div className="space-x-4">
-              <Link href="/register" className="inline-block px-8 py-4 bg-white text-[#28a745] rounded-lg font-bold hover:bg-gray-100 transition-colors">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/register" 
+                className="px-8 py-4 bg-white text-blue-600 rounded-lg font-bold hover:bg-gray-100 transition-colors shadow-lg">
                 Hemen Başla
               </Link>
-              <Link href="/nasil-calisir" className="inline-block px-8 py-4 border border-white text-white rounded-lg font-bold hover:bg-white hover:text-[#28a745] transition-colors">
+              <Link href="/nasil-calisir" 
+                className="px-8 py-4 border border-white text-white rounded-lg font-bold hover:bg-white hover:text-blue-600 transition-colors">
                 Nasıl Çalıştığını Öğren
               </Link>
             </div>

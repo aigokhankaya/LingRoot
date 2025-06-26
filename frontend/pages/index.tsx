@@ -377,13 +377,14 @@ const App: React.FC = () => {
             {/* Navigation */}
             <nav className="bg-white shadow-sm py-3 sticky top-0 z-50">
                 <div className="container mx-auto px-8 flex justify-between items-center">
-                    <div className="flex items-center space-x-2">
-                        <i className="fas fa-language text-blue-600 text-xl md:text-2xl"></i>
-                        <span className="text-lg md:text-xl font-bold text-blue-600">LingRoot</span>
+                    <div className="flex items-center space-x-3">
+                        <img src="/logo.svg" alt="LingRoot Logo" className="w-8 h-8 md:w-10 md:h-10" />
+                        <span className="text-xl md:text-2xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent tracking-tight">LingRoot</span>
                     </div>
                     
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-6">
+                        <a href="/about" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">Hakkımızda</a>
                         <a href="#nasil-calisir" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.howItWorks}</a>
                         <a href="#ozellikler" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.features}</a>
                         <a href="#yorumlar" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.testimonials}</a>
@@ -491,6 +492,7 @@ const App: React.FC = () => {
                 {isMobileMenuOpen && (
                     <div className="md:hidden bg-white border-t border-gray-200 mobile-menu">
                         <div className="container mx-auto px-4 py-4 space-y-4">
+                            <a href="/about" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>Hakkımızda</a>
                             <a href="#nasil-calisir" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.howItWorks}</a>
                             <a href="#ozellikler" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.features}</a>
                             <a href="#yorumlar" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.testimonials}</a>
@@ -938,7 +940,7 @@ const App: React.FC = () => {
                         <div>
                             <div className="flex items-center space-x-2 mb-6">
                                 <i className="fas fa-language text-blue-400 text-3xl"></i>
-                                <span className="text-2xl font-bold">LingRoot</span>
+                                <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent tracking-tight">LingRoot</span>
                             </div>
                             <p className="text-gray-400 mb-4">
                                 {t.footer.slogan}
