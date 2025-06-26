@@ -5,74 +5,134 @@ import Footer from '../src/components/Footer';
 
 export default function KVKK() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-blue-50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <Head>
         <title>KVKK - Kişisel Verilerin Korunması | LingRoot</title>
         <meta name="description" content="LingRoot KVKK uyumluluk belgesi. Kişisel verilerin korunması kanunu çerçevesinde haklar ve yükümlülükler." />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/favicon.ico" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
       </Head>
       
       {/* Header */}
-      <header className="fixed w-full py-3 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-            <span className="text-white font-bold text-lg">LR</span>
+      <header className="fixed w-full py-4 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
+        <Link href="/" className="flex items-center space-x-3">
+          <div className="w-12 h-12 relative">
+            {/* Modern SVG Logo */}
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 48 48"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="drop-shadow-lg"
+            >
+              {/* Background Circle with Gradient */}
+              <circle
+                cx="24"
+                cy="24"
+                r="22"
+                fill="url(#gradient)"
+                stroke="url(#borderGradient)"
+                strokeWidth="2"
+              />
+              
+              {/* Speech Bubble */}
+              <path
+                d="M32 18c0-4.4-3.6-8-8-8s-8 3.6-8 8 3.6 8 8 8c1.1 0 2.2-.2 3.2-.6l4.8 2.4v-4.2c1.2-1.5 1.9-3.4 1.9-5.6z"
+                fill="white"
+                fillOpacity="0.9"
+              />
+              
+              {/* Root/Tree Symbol inside speech bubble */}
+              <path
+                d="M24 14v8m-3-4h6m-6 2h6"
+                stroke="url(#textGradient)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              
+              {/* Decorative dots */}
+              <circle cx="18" cy="30" r="1.5" fill="url(#accentGradient)" />
+              <circle cx="22" cy="32" r="1" fill="url(#accentGradient)" />
+              <circle cx="26" cy="32" r="1" fill="url(#accentGradient)" />
+              <circle cx="30" cy="30" r="1.5" fill="url(#accentGradient)" />
+
+              <defs>
+                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#3b82f6" />
+                  <stop offset="50%" stopColor="#8b5cf6" />
+                  <stop offset="100%" stopColor="#3b82f6" />
+                </linearGradient>
+                <linearGradient id="borderGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#2563eb" />
+                  <stop offset="100%" stopColor="#7c3aed" />
+                </linearGradient>
+                <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#1d4ed8" />
+                  <stop offset="100%" stopColor="#6d28d9" />
+                </linearGradient>
+                <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#60a5fa" />
+                  <stop offset="100%" stopColor="#a78bfa" />
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
-          <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <span className="font-extrabold text-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent tracking-tight">
             LingRoot
           </span>
         </Link>
         
-        <nav className="hidden md:flex items-center space-x-6">
-          <Link href="/about" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
+        <nav className="hidden md:flex items-center space-x-8">
+          <Link href="/about" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             Hakkımızda
           </Link>
-          <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
+          <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             Nasıl Çalışır?
           </Link>
-          <Link href="/contact" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
+          <Link href="/contact" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             İletişim
           </Link>
         </nav>
 
-        <div className="flex items-center space-x-3">
-          <Link href="/login" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
+        <div className="flex items-center space-x-4">
+          <Link href="/login" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             Giriş Yap
           </Link>
           <Link href="/register" 
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl">
+            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
             Ücretsiz Başla
           </Link>
         </div>
       </header>
 
-      <main className="flex-grow pt-20">
+      <main className="flex-grow pt-24">
         {/* Hero Section */}
-        <section className="py-16 px-6">
+        <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-purple-600">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-100 text-blue-700 text-sm font-medium mb-6">
-              <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+            <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
+              <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
               Yasal Belgeler
             </div>
-            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-6">
+            <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
               KVKK
             </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto leading-relaxed">
               Kişisel Verilerin Korunması Kanunu çerçevesinde haklarınız ve veri işleme süreçlerimiz.
             </p>
           </div>
         </section>
 
         {/* Content */}
-        <section className="py-16 px-6 bg-white">
+        <section className="py-20 px-6 bg-white">
           <div className="max-w-4xl mx-auto">
             <div className="prose prose-lg max-w-none">
               
               {/* Son Güncellenme */}
-              <div className="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-sm text-blue-800 mb-0">
+              <div className="mb-12 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl border border-blue-200 shadow-lg">
+                <p className="text-blue-800 mb-0 font-medium">
                   <strong>Son Güncellenme:</strong> 1 Ocak 2025 | <strong>KVKK Uyumluluk:</strong> 6698 Sayılı Kanun
                 </p>
               </div>

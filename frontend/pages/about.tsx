@@ -285,8 +285,8 @@ export default function About() {
                   LingRoot, kullanıcı güvenliği ve gizliliğini ön planda tutan profesyonel bir yaklaşıma sahiptir. 
                   Platformumuzda yaptığınız tüm işlemler ve paylaştığınız veriler, uluslararası standartlarda korunur. 
                   Verilerinizin güvenliği bizim için bir öncelik değil, vazgeçilmez bir gerekliliktir.
-                </p>
-              </div>
+        </p>
+      </div>
             </div>
           </div>
         </section>
@@ -313,9 +313,9 @@ export default function About() {
             </div>
           </div>
         </section>
-      </main>
+    </main>
 
       <Footer />
     </div>
   );
-}
+} 

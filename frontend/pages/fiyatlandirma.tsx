@@ -15,110 +15,168 @@ export default function Fiyatlandirma() {
       </Head>
       
       {/* Header */}
-      <header className="fixed w-full py-4 px-6 flex justify-between items-center z-50 bg-white border-b border-gray-100 shadow-sm">
-        <Link href="/" className="flex items-center">
-          <h1 className="text-2xl font-['Nunito',sans-serif] font-bold">
-            <span className="text-[#28a745]">Ling</span>
-            <span className="text-[#333333]">Root</span>
-          </h1>
+      <header className="fixed w-full py-4 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
+        <Link href="/" className="flex items-center space-x-3">
+          <div className="w-12 h-12 relative">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 48 48"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="drop-shadow-lg"
+            >
+              <circle cx="24" cy="24" r="22" fill="url(#gradient)" stroke="url(#borderGradient)" strokeWidth="2" />
+              <path d="M32 18c0-4.4-3.6-8-8-8s-8 3.6-8 8 3.6 8 8 8c1.1 0 2.2-.2 3.2-.6l4.8 2.4v-4.2c1.2-1.5 1.9-3.4 1.9-5.6z" fill="white" fillOpacity="0.9" />
+              <path d="M24 14v8m-3-4h6m-6 2h6" stroke="url(#textGradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="18" cy="30" r="1.5" fill="url(#accentGradient)" />
+              <circle cx="22" cy="32" r="1" fill="url(#accentGradient)" />
+              <circle cx="26" cy="32" r="1" fill="url(#accentGradient)" />
+              <circle cx="30" cy="30" r="1.5" fill="url(#accentGradient)" />
+              <defs>
+                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#3b82f6" />
+                  <stop offset="50%" stopColor="#8b5cf6" />
+                  <stop offset="100%" stopColor="#3b82f6" />
+                </linearGradient>
+                <linearGradient id="borderGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#2563eb" />
+                  <stop offset="100%" stopColor="#7c3aed" />
+                </linearGradient>
+                <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#1d4ed8" />
+                  <stop offset="100%" stopColor="#6d28d9" />
+                </linearGradient>
+                <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#60a5fa" />
+                  <stop offset="100%" stopColor="#a78bfa" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span className="font-extrabold text-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent tracking-tight">
+            LingRoot
+          </span>
         </Link>
         
-        {/* Navigation Menu - Right Side */}
-        <div className="flex items-center space-x-5">
-          <Link href="/nasil-calisir" className="text-gray-700 hover:text-gray-900 font-medium">
+        <nav className="hidden md:flex items-center space-x-8">
+          <Link href="/about" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
+            Hakkımızda
+          </Link>
+          <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             Nasıl Çalışır?
           </Link>
-          <Link href="/ozellikler" className="text-gray-700 hover:text-gray-900 font-medium">
+          <Link href="/ozellikler" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             Özellikler
           </Link>
-          <Link href="/fiyatlandirma" className="text-[#28a745] hover:text-[#218838] font-medium">
+          <Link href="/fiyatlandirma" className="text-blue-600 hover:text-blue-700 font-semibold transition-colors duration-200">
             Fiyatlandırma
           </Link>
-          <Link href="/login" className="text-gray-700 hover:text-gray-900 font-medium">
+          <Link href="/blog" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
+            Blog
+          </Link>
+        </nav>
+
+        <div className="flex items-center space-x-4">
+          <Link href="/login" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             Giriş Yap
           </Link>
-          <Link href="/register" className="ml-2 px-4 py-2 bg-[#28a745] text-white rounded font-medium hover:bg-[#218838] transition-colors">
-            Kayıt Ol
+          <Link href="/register" 
+            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+            Ücretsiz Başla
           </Link>
         </div>
       </header>
 
       <main className="flex-grow pt-24">
-        <section className="py-12 bg-[#f1f9ee]">
-          <div className="max-w-6xl mx-auto px-6">
-            <h1 className="text-4xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-6 text-center">
-              LingRoot <span className="text-[#28a745]">Fiyatlandırma</span>
+        {/* Hero Section */}
+        <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-purple-600">
+          <div className="max-w-6xl mx-auto text-center">
+            <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
+              <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
+              Planlar ve Fiyatlar
+            </div>
+            <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
+              LingRoot <span className="text-blue-200">Fiyatlandırma</span>
             </h1>
-            <p className="text-lg text-gray-700 mb-12 text-center max-w-3xl mx-auto">
+            <p className="text-xl md:text-2xl text-blue-100 max-w-4xl mx-auto leading-relaxed">
               İhtiyaçlarınıza en uygun planı seçin ve İngilizce öğrenme serüveninize hemen başlayın.
             </p>
           </div>
         </section>
 
-        <section className="py-16 bg-white">
-          <div className="max-w-6xl mx-auto px-6">
+        <section className="py-20 px-6 bg-white">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+                Size Uygun <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Planı Seçin</span>
+              </h2>
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                Tüm planlarımızda 7 gün ücretsiz deneme imkanı
+              </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Ücretsiz Plan */}
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all overflow-hidden">
-                <div className="bg-gray-50 p-6">
+              <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden hover:-translate-y-2">
+                <div className="bg-gradient-to-r from-gray-100 to-gray-200 p-6">
                   <h3 className="text-xl font-bold text-gray-800 mb-2 text-center">Ücretsiz</h3>
                   <div className="text-center">
-                    <span className="text-3xl font-bold text-[#28a745]">0 ₺</span>
+                    <span className="text-4xl font-bold bg-gradient-to-r from-gray-600 to-gray-800 bg-clip-text text-transparent">0 ₺</span>
                     <span className="text-gray-600">/ay</span>
                   </div>
                 </div>
-                <div className="p-6">
-                  <ul className="space-y-3 mb-6">
+                <div className="p-8">
+                  <ul className="space-y-4 mb-8">
                     <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span className="text-gray-600">Günlük 5 içerik dönüştürme</span>
+                      <span className="text-gray-700">Günlük 5 içerik dönüştürme</span>
                     </li>
                     <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span className="text-gray-600">3 seviyeye erişim (A1-B1)</span>
+                      <span className="text-gray-700">3 seviyeye erişim (A1-B1)</span>
                     </li>
                     <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      <span className="text-gray-600">Temel kelime kaydetme özelliği</span>
+                      <span className="text-gray-700">Temel kelime kaydetme özelliği</span>
                     </li>
                     <li className="flex items-start text-gray-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                       <span>Çevrimdışı erişim</span>
                     </li>
                     <li className="flex items-start text-gray-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                       <span>Telaffuz geri bildirimleri</span>
                     </li>
                   </ul>
-                  <Link href="/register" className="block w-full py-3 px-4 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded text-center font-medium transition-colors">
+                  <Link href="/register" className="block w-full py-3 px-6 bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-800 rounded-xl text-center font-semibold transition-all duration-200 shadow-md hover:shadow-lg">
                     Ücretsiz Başla
                   </Link>
                 </div>
               </div>
               
               {/* Aylık Plan */}
-              <div className="bg-white rounded-xl border-2 border-[#28a745] shadow-lg hover:shadow-xl transition-all transform scale-105 md:scale-100 md:hover:scale-105 z-10 overflow-hidden">
-                <div className="bg-[#28a745] p-6 relative">
-                  <div className="absolute top-0 right-0 mt-2 mr-3">
-                    <div className="bg-[#fd7e14] text-white text-xs px-2 py-1 rounded-full font-bold">EN POPÜLER</div>
+              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl border-2 border-blue-300 shadow-2xl hover:shadow-3xl transition-all duration-300 transform scale-105 md:scale-100 md:hover:scale-105 z-10 overflow-hidden hover:-translate-y-2">
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 relative">
+                  <div className="absolute top-0 right-0 mt-3 mr-4">
+                    <div className="bg-orange-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg">EN POPÜLER</div>
                   </div>
                   <h3 className="text-xl font-bold text-white mb-2 text-center">Aylık</h3>
                   <div className="text-center">
-                    <span className="text-3xl font-bold text-white">49 ₺</span>
+                    <span className="text-4xl font-bold text-white">49 ₺</span>
                     <span className="text-white opacity-90">/ay</span>
                   </div>
                 </div>
-                <div className="p-6">
+                <div className="p-8">
                   <ul className="space-y-3 mb-6">
                     <li className="flex items-start">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

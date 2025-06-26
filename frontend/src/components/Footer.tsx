@@ -6,9 +6,9 @@ export default function Footer() {
   return (
     <footer className="bg-gray-900 text-white py-12 px-4">
       <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-8">
           {/* Logo ve Slogan */}
-          <div className="col-span-1 md:col-span-2">
+          <div className="col-span-1 md:col-span-2 lg:col-span-2">
             <div className="flex items-center gap-3 mb-4">
               <img src="/logo.svg" alt="LingRoot Logo" className="w-12 h-12" />
               <span className="font-extrabold text-2xl bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent tracking-tight">
@@ -56,6 +56,38 @@ export default function Footer() {
               <li>
                 <Link href="/tips" className="text-gray-400 hover:text-white transition-colors duration-200">
                   Kullanıcı Yorumları
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className="text-gray-400 hover:text-white transition-colors duration-200">
+                  İletişim
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Yasal */}
+          <div>
+            <h3 className="text-lg font-bold mb-4">Yasal</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link href="/privacy-policy" className="text-gray-400 hover:text-white transition-colors duration-200">
+                  Gizlilik Politikası
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms" className="text-gray-400 hover:text-white transition-colors duration-200">
+                  Kullanım Şartları
+                </Link>
+              </li>
+              <li>
+                <Link href="/cookie-policy" className="text-gray-400 hover:text-white transition-colors duration-200">
+                  Çerez Politikası
+                </Link>
+              </li>
+              <li>
+                <Link href="/kvkk" className="text-gray-400 hover:text-white transition-colors duration-200">
+                  KVKK
                 </Link>
               </li>
             </ul>

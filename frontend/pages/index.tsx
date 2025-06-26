@@ -946,16 +946,16 @@ const App: React.FC = () => {
                                 {t.footer.slogan}
                             </p>
                             <div className="flex space-x-4">
-                                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
+                                <a href="https://facebook.com/lingroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
                                     <i className="fab fa-facebook-f text-xl"></i>
                                 </a>
-                                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
+                                <a href="https://twitter.com/lingroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
                                     <i className="fab fa-twitter text-xl"></i>
                                 </a>
-                                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
+                                <a href="https://instagram.com/lingroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
                                     <i className="fab fa-instagram text-xl"></i>
                                 </a>
-                                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
+                                <a href="https://youtube.com/@lingroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
                                     <i className="fab fa-youtube text-xl"></i>
                                 </a>
                             </div>
@@ -963,17 +963,20 @@ const App: React.FC = () => {
                         <div>
                             <h3 className="text-lg font-bold mb-4">{t.footer.quickLinks.title}</h3>
                             <ul className="space-y-2">
-                                {t.footer.quickLinks.links.map((link, index) => (
-                                    <li key={index}><a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{link}</a></li>
-                                ))}
+                                <li><a href="/about" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Hakkımızda</a></li>
+                                <li><a href="/nasil-calisir" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Nasıl Çalışır?</a></li>
+                                <li><a href="/fiyatlandirma" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Fiyatlandırma</a></li>
+                                <li><a href="/blog" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Blog</a></li>
+                                <li><a href="/contact" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">İletişim</a></li>
                             </ul>
                         </div>
                         <div>
                             <h3 className="text-lg font-bold mb-4">{t.footer.legal.title}</h3>
                             <ul className="space-y-2">
-                                {t.footer.legal.links.map((link, index) => (
-                                    <li key={index}><a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{link}</a></li>
-                                ))}
+                                <li><a href="/privacy-policy" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Gizlilik Politikası</a></li>
+                                <li><a href="/terms" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Kullanım Şartları</a></li>
+                                <li><a href="/cookie-policy" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Çerez Politikası</a></li>
+                                <li><a href="/kvkk" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">KVKK</a></li>
                             </ul>
                         </div>
                         <div>
