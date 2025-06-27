@@ -2,6 +2,7 @@ import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Footer from '../src/components/Footer';
+import StandardHeader from '../src/components/common/StandardHeader';
 
 export default function Tips() {
   const tips = [
@@ -95,39 +96,7 @@ export default function Tips() {
         <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&family=Lato:wght@400;700&display=swap" rel="stylesheet" />
       </Head>
       
-      {/* Header */}
-      <header className="fixed w-full py-4 px-6 flex justify-between items-center z-50 bg-white border-b border-gray-100 shadow-sm">
-        <Link href="/" className="flex items-center">
-          <h1 className="text-2xl font-['Nunito',sans-serif] font-bold">
-            <span className="text-[#28a745]">Ling</span>
-            <span className="text-[#333333]">Root</span>
-          </h1>
-        </Link>
-        
-        <div className="flex items-center space-x-5">
-          <Link href="/about" className="text-gray-700 hover:text-gray-900 font-medium">
-            Hakkımızda
-          </Link>
-          <Link href="/nasil-calisir" className="text-gray-700 hover:text-gray-900 font-medium">
-            Nasıl Çalışır?
-          </Link>
-          <Link href="/ozellikler" className="text-gray-700 hover:text-gray-900 font-medium">
-            Özellikler
-          </Link>
-          <Link href="/blog" className="text-gray-700 hover:text-gray-900 font-medium">
-            Blog
-          </Link>
-          <Link href="/tips" className="text-[#28a745] hover:text-[#218838] font-medium">
-            İpuçları
-          </Link>
-          <Link href="/login" className="text-gray-700 hover:text-gray-900 font-medium">
-            Giriş Yap
-          </Link>
-          <Link href="/register" className="ml-2 px-4 py-2 bg-[#28a745] text-white rounded font-medium hover:bg-[#218838] transition-colors">
-            Kayıt Ol
-          </Link>
-        </div>
-      </header>
+      <StandardHeader />
 
       <main className="flex-grow pt-24">
         {/* Hero Section */}
