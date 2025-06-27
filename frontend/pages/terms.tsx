@@ -6,48 +6,43 @@ import StandardHeader from '../src/components/common/StandardHeader';
 
 export default function Terms() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <Head>
         <title>Kullanım Şartları | LingRoot</title>
         <meta name="description" content="LingRoot Kullanım Şartları. Platform kullanım kuralları, kullanıcı sorumlulukları ve hizmet koşulları." />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/favicon.ico" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
       </Head>
       
       <StandardHeader />
 
-      <main className="flex-grow pt-24">
+      <main className="flex-grow">
         {/* Hero Section */}
-        <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-purple-600">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
-              <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
-              Yasal Belgeler
-            </div>
-            <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
+        <section className="py-20 bg-gradient-to-b from-blue-50 to-white">
+          <div className="container mx-auto px-4 text-center">
+            <h1 className="text-4xl font-bold text-gray-900 mb-6">
               Kullanım Şartları
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
               LingRoot platformunu kullanırken uymanız gereken kurallar ve koşullar hakkında bilgi edinin.
             </p>
           </div>
         </section>
 
         {/* Content */}
-        <section className="py-20 px-6 bg-white">
-          <div className="max-w-4xl mx-auto">
-            <div className="prose prose-lg max-w-none">
+        <section className="py-20 bg-white">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto">
               
               {/* Son Güncellenme */}
-              <div className="mb-12 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl border border-blue-200 shadow-lg">
+              <div className="mb-16 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-lg">
                 <p className="text-blue-800 mb-0 font-medium">
                   <strong>Son Güncellenme:</strong> 1 Ocak 2025
                 </p>
               </div>
 
               {/* Giriş */}
-              <div className="mb-12">
+              <div className="mb-16">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
                   Platform Kullanım <span className="text-blue-600">Kuralları</span>
                 </h2>
@@ -62,7 +57,7 @@ export default function Terms() {
               </div>
 
               {/* Platform Kullanımı */}
-              <div className="mb-12">
+              <div className="mb-16">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   1. Platform <span className="text-blue-600">Kullanımı</span>
                 </h2>
@@ -92,7 +87,7 @@ export default function Terms() {
               </div>
 
               {/* Hesap Sorumlulukları */}
-              <div className="mb-12">
+              <div className="mb-16">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   2. Hesap <span className="text-blue-600">Sorumlulukları</span>
                 </h2>
@@ -121,7 +116,7 @@ export default function Terms() {
               </div>
 
               {/* İçerik ve Telif Hakkı */}
-              <div className="mb-12">
+              <div className="mb-16">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   3. İçerik ve <span className="text-blue-600">Telif Hakkı</span>
                 </h2>
@@ -144,130 +139,33 @@ export default function Terms() {
                         <li>• Creative Commons lisanslı materyalleri kullanabilirsiniz</li>
                         <li>• Şüpheli durumlarda hukuki danışmanlık alın</li>
                         <li>• İhlal durumunda hesabınız kapatılabilir</li>
-                      </ul>
-                    </div>
+        </ul>
+      </div>
                   </div>
-                </div>
-              </div>
-
-              {/* Ödeme ve İade */}
-              <div className="mb-12">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  4. Ödeme ve <span className="text-blue-600">İade Koşulları</span>
-                </h2>
-                
-                <div className="space-y-6">
-                  <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">💳 Ödeme Şartları</h3>
-                    <ul className="text-gray-600 space-y-2">
-                      <li>• Aylık/yıllık abonelik ödemeleri peşin tahsil edilir</li>
-                      <li>• Fiyatlar KDV dahildir</li>
-                      <li>• Otomatik yenilenme varsayılan olarak açıktır</li>
-                      <li>• İptal dilediğiniz zaman yapılabilir</li>
-                    </ul>
-                  </div>
-
-                  <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">🔄 İade Politikası</h3>
-                    <ul className="text-gray-600 space-y-2">
-                      <li>• 14 gün içinde sebepsiz iade hakkı</li>
-                      <li>• Kullanım süresi ve miktarı iade tutarını etkilemez</li>
-                      <li>• İade süreci 5-10 iş günü sürer</li>
-                      <li>• Yıllık aboneliklerde eşit oranda iade yapılır</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              {/* Hizmet Sınırlamaları */}
-              <div className="mb-12">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  5. Hizmet <span className="text-blue-600">Sınırlamaları</span>
-                </h2>
-                
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-8 border border-blue-200">
-                  <div className="grid md:grid-cols-3 gap-6">
-                    <div className="text-center">
-                      <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Erişilebilirlik</h3>
-                      <p className="text-gray-600 text-sm">7/24 erişim hedeflenir ancak bakım kesintileri olabilir</p>
-                    </div>
-
-                    <div className="text-center">
-                      <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">İçerik Sınırları</h3>
-                      <p className="text-gray-600 text-sm">Plan tipine göre günlük işlem limitleri uygulanır</p>
-                    </div>
-
-                    <div className="text-center">
-                      <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364M12 2.25a9.75 9.75 0 100 19.5 9.75 9.75 0 000-19.5z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Destek</h3>
-                      <p className="text-gray-600 text-sm">Hafta içi iş saatlerinde öncelikli destek</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sorumluluk Reddi */}
-              <div className="mb-12">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  6. Sorumluluk <span className="text-blue-600">Reddi</span>
-                </h2>
-                
-                <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                  <p className="text-gray-600 leading-relaxed mb-4">
-                    LingRoot, hizmetin kesintisiz ve hatasız olacağını garanti etmez. Platform kullanımından 
-                    doğabilecek dolaylı zararlardan sorumlu tutulamaz.
-                  </p>
-                  <ul className="text-gray-600 space-y-2">
-                    <li>• Teknik arızalar ve sistem kesintileri</li>
-                    <li>• Üçüncü taraf hizmet sağlayıcıların sorunları</li>
-                    <li>• Kullanıcı hatalarından kaynaklanan veri kayıpları</li>
-                    <li>• İnternet bağlantısı ve cihaz uyumluluk sorunları</li>
-                  </ul>
                 </div>
               </div>
 
               {/* İletişim */}
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  7. <span className="text-blue-600">İletişim ve Şikayetler</span>
+                  İletişim ve <span className="text-blue-600">Şikayetler</span>
                 </h2>
                 
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-white">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-8 text-white">
                   <h3 className="text-xl font-semibold mb-4">Kullanım şartları hakkında sorularınız mı var?</h3>
-                  <p className="mb-6 opacity-90">
-                    Kullanım şartları veya platform kullanımı hakkında herhangi bir sorunuz varsa, 
-                    hukuk ekibimizle iletişime geçebilirsiniz.
+                  <p className="mb-6">
+                    Kullanım şartları, gizlilik politikası veya platform kullanımı hakkında herhangi bir sorunuz 
+                    varsa, destek ekibimizle iletişime geçebilirsiniz.
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <Link href="/contact" 
-                      className="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors text-center">
-                      İletişime Geç
-                    </Link>
-                    <a href="mailto:legal@lingroot.com" 
-                      className="px-6 py-3 border border-white text-white rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors text-center">
-                      legal@lingroot.com
-                    </a>
-                  </div>
+                  <Link href="/contact" className="inline-block bg-white text-blue-600 px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                    İletişime Geçin
+                  </Link>
                 </div>
               </div>
             </div>
           </div>
         </section>
-      </main>
+    </main>
 
       <Footer />
     </div>

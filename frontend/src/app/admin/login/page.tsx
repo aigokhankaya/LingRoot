@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -53,6 +52,10 @@ export default function AdminLoginPage() {
             if (data.data.token) {
                 localStorage.setItem('lingroot_token', data.data.token);
                 localStorage.setItem('lingroot_remember_me', rememberMe.toString());
+                
+                // Cookie'lere de kaydet (middleware için)
+                document.cookie = `lingroot_token=${data.data.token}; path=/; ${rememberMe ? 'max-age=2592000' : 'max-age=3600'}; SameSite=Strict`;
+                document.cookie = `lingroot_remember_me=${rememberMe}; path=/; ${rememberMe ? 'max-age=2592000' : 'max-age=3600'}; SameSite=Strict`;
             }
 
             console.log('Admin login successful, redirecting...');
