@@ -8,7 +8,7 @@ import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, loginWithPhone, smsLogin, verifySmsLogin } = useAuth();
+  const { login, loginWithPhone, smsLogin, verifySmsLogin, loginWithGoogle } = useAuth();
   
   // Form states
   const [loginType, setLoginType] = useState<'email' | 'phone' | 'sms'>('email'); // email: e-posta+şifre, phone: telefon+şifre, sms: telefon numarası SMS doğrulama
@@ -133,6 +133,63 @@ export default function LoginPage() {
     }
     
     return value;
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('🚀 Google ile giriş işlemi başlatılıyor...');
+      
+      // Google Auth modülünü dinamik olarak import et
+      console.log('📦 Google Auth modülü yükleniyor...');
+      const { initializeGoogleAuth, signInWithGoogle } = await import('../../lib/googleAuth');
+      
+      // Google Auth'u başlat
+      console.log('🔧 Google Auth başlatılıyor...');
+      await initializeGoogleAuth();
+      
+      // Google Sign-In'i tetikle
+      console.log('🎯 Google Sign-In tetikleniyor...');
+      const { credential } = await signInWithGoogle();
+      
+      // useAuth hook'undan loginWithGoogle fonksiyonunu kullan
+      console.log('🔐 Backend ile kimlik doğrulama yapılıyor...');
+      const result = await loginWithGoogle(credential, rememberMe);
+      
+      if (result.success) {
+        // Başarılı giriş sonrası welcome sayfasına yönlendir
+        console.log('✅ Google ile giriş başarılı, welcome sayfasına yönlendiriliyor...');
+        router.push('/welcome');
+      } else {
+        console.error('❌ Backend kimlik doğrulama hatası:', result.message);
+        setError(result.message || 'Google ile giriş yaparken bir hata oluştu.');
+      }
+    } catch (err: any) {
+      console.error('❌ Google giriş hatası:', err);
+      
+      // Kullanıcı dostu hata mesajları
+      let userErrorMessage = 'Google ile giriş yaparken bir hata oluştu.';
+      
+      if (err.message.includes('popup') || err.message.includes('pencere')) {
+        userErrorMessage = 'Google giriş penceresi açılamadı veya kapatıldı. Lütfen popup engelleyiciyi kontrol edin ve tekrar deneyin.';
+      } else if (err.message.includes('cancelled') || err.message.includes('iptal')) {
+        userErrorMessage = 'Google girişi iptal edildi.';
+      } else if (err.message.includes('timeout') || err.message.includes('zaman aşımı')) {
+        userErrorMessage = 'Google giriş zaman aşımına uğradı. Lütfen tekrar deneyin.';
+      } else if (err.message.includes('yapılandırılmamış') || err.message.includes('Client ID')) {
+        userErrorMessage = 'Google giriş servisi geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin.';
+      } else if (err.message.includes('yüklenmedi') || err.message.includes('Services')) {
+        userErrorMessage = 'Google servisleri yüklenemedi. İnternet bağlantınızı kontrol edin ve sayfayı yenileyin.';
+      } else if (err.message.includes('Failed to fetch') || err.message.includes('bağlanılamadı')) {
+        userErrorMessage = 'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin ve tekrar deneyin.';
+      }
+      
+      setError(userErrorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -503,6 +560,38 @@ export default function LoginPage() {
               )}
             </form>
           )}
+          
+          {/* Google ile giriş butonu - Tüm giriş tiplerinde göster */}
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">veya</span>
+              </div>
+            </div>
+            
+            <div className="mt-6">
+              <button
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2"></div>
+                    Google ile bağlanılıyor...
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center">
+                    <i className="fab fa-google mr-2 text-red-500"></i> 
+                    Google ile Giriş Yap
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
           
           {/* Kayıt ol linki */}
           <div className="text-sm text-center mt-4">

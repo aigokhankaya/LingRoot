@@ -728,17 +728,7 @@ const App: React.FC = () => {
                                 <i className="fas fa-rocket mr-2"></i> {t.cta.button}
                             </Button>
                         </a>
-                        <div className="mt-8 flex justify-center items-center space-x-6">
-                            {t.cta.benefits.map((benefit, index) => (
-                                <div key={index} className="flex items-center">
-                                    <i 
-                                        className="fas fa-check-circle mr-2" 
-                                        style={{ color: '#22c55e' }}
-                                    ></i>
-                                    <span className="text-gray-600">{benefit}</span>
-                                </div>
-                            ))}
-                        </div>
+
                     </div>
                 </div>
             </section>

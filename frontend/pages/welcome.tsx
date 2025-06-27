@@ -652,28 +652,46 @@ const Welcome: React.FC = () => {
       // "subject" (Konu) ve "topic" (Hobi) type'ları için özel işlem
       if (inputData.type === 'subject' || inputData.type === 'topic') {
         const typeLabel = inputData.type === 'subject' ? 'Subject (Konu)' : 'Topic (Hobi)';
-        console.log(`${typeLabel} type detected, rewriting to narration...`);
+        console.log(`${typeLabel} type detected, attempting to rewrite to narration...`);
         
-        // Metni anlatım formatına dönüştür
-        const narrationResult = await rewriteToNarration(
-          inputData.text || inputData.input || '', 
-          inputData.level
-        );
-        
-        if (narrationResult.success && narrationResult.data.narration_text) {
-          // Dönüştürülmüş metni kullan ve type'ı text olarak değiştir
+        try {
+          // Metni anlatım formatına dönüştür
+          const narrationResult = await rewriteToNarration(
+            inputData.text || inputData.input || '', 
+            inputData.level
+          );
+          
+          if (narrationResult.success && narrationResult.data.narration_text) {
+            // Dönüştürülmüş metni kullan ve type'ı text olarak değiştir
+            processInput = {
+              ...processInput,
+              type: 'text',
+              input: narrationResult.data.narration_text
+            };
+            
+            console.log(`${typeLabel} text rewritten to narration format:`, {
+              originalLength: (inputData.text || inputData.input || '').length,
+              narrationLength: narrationResult.data.narration_text.length
+            });
+          } else {
+            console.warn('Narration rewrite failed, proceeding with original text as text type');
+            // Başarısız olursa orijinal metni text olarak işle
+            processInput = {
+              ...processInput,
+              type: 'text',
+              input: inputData.text || inputData.input || ''
+            };
+          }
+        } catch (narrationError: any) {
+          console.error(`${typeLabel} narration rewrite error:`, narrationError);
+          console.log('Proceeding with original text as text type...');
+          
+          // Hata durumunda orijinal metni text olarak işle
           processInput = {
             ...processInput,
             type: 'text',
-            input: narrationResult.data.narration_text
+            input: inputData.text || inputData.input || ''
           };
-          
-          console.log(`${typeLabel} text rewritten to narration format:`, {
-            originalLength: (inputData.text || inputData.input || '').length,
-            narrationLength: narrationResult.data.narration_text.length
-          });
-        } else {
-          throw new Error('Metin anlatım formatına dönüştürülemedi.');
         }
       }
 
@@ -1057,8 +1075,22 @@ const Welcome: React.FC = () => {
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-lg font-medium text-gray-700">İçerik Girişi</h3>
                   <div className="flex space-x-2">
-                    <Button variant="outline" size="sm" className="!rounded-button whitespace-nowrap cursor-pointer">
-                      <i className="fas fa-cog mr-2"></i> Ayarlar
+                    <Button 
+                      onClick={handleGenerate}
+                      disabled={isLoading}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm flex items-center space-x-2 !rounded-button whitespace-nowrap cursor-pointer"
+                    >
+                      {isLoading ? (
+                        <>
+                          <i className="fas fa-circle-notch fa-spin"></i>
+                          <span>Oluşturuluyor...</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-volume-up"></i>
+                          <span>Ses Oluştur</span>
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -1562,95 +1594,64 @@ const Welcome: React.FC = () => {
                     ))}
                   </div>
 
-                  {/* Cinsiyet ve Aksan Filtreleri */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div>
-                      <h4 className="text-md font-medium text-gray-600 mb-2">Cinsiyet</h4>
-                      <div className="grid grid-cols-3 gap-2">
-                        {genderOptions.map((gender) => (
-                          <Button
-                            key={gender.value}
-                            onClick={() => setSelectedGender(gender.value)}
-                            variant={selectedGender === gender.value ? "default" : "outline"}
-                            size="sm"
-                            className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                              selectedGender === gender.value ? 'bg-blue-600' : ''
-                            }`}
-                          >
-                            {gender.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h4 className="text-md font-medium text-gray-600 mb-2">Aksan</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {accentVoiceOptions.map((accent) => (
-                          <Button
-                            key={accent.value}
-                            onClick={() => setSelectedAccent(accent.value)}
-                            variant={selectedAccent === accent.value ? "default" : "outline"}
-                            size="sm"
-                            className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                              selectedAccent === accent.value ? 'bg-blue-600' : ''
-                            }`}
-                          >
-                            {accent.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Sağ Kolon - Ses Kategorisi */}
                 <div>
                   <h3 className="text-lg font-medium text-gray-700 mb-3">Ses Kategorisi</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-                    {voiceCategories.map((category) => (
-                      <Button
-                        key={category.value}
-                        onClick={() => {
-                          setSelectedVoiceCategory(category.value);
-                          // Kategori değiştiğinde ilk sesi seç
-                          const categoryVoices = detailedVoices[category.value as keyof typeof detailedVoices];
-                          if (categoryVoices && categoryVoices.length > 0) {
-                            setVoiceType(categoryVoices[0].id);
-                          }
-                        }}
-                        variant={selectedVoiceCategory === category.value ? "default" : "outline"}
-                        className={`!rounded-button cursor-pointer h-auto flex flex-col items-center justify-center p-2 text-center transition-all duration-200 ${
-                          selectedVoiceCategory === category.value ? 'bg-blue-600' : ''
-                        }`}
+                  <div className="mb-6">
+                    <select 
+                      value={selectedVoiceCategory} 
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setSelectedVoiceCategory(value);
+                        // Kategori değiştiğinde ilk sesi seç
+                        const categoryVoices = detailedVoices[value as keyof typeof detailedVoices];
+                        if (categoryVoices && categoryVoices.length > 0) {
+                          setVoiceType(categoryVoices[0].id);
+                        }
+                      }}
+                      className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {voiceCategories.map((category) => (
+                        <option key={category.value} value={category.value}>
+                          {category.label} ({category.badge})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Cinsiyet ve Aksan Filtreleri */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <h4 className="text-md font-medium text-gray-600 mb-2">Cinsiyet</h4>
+                      <select 
+                        value={selectedGender} 
+                        onChange={(e) => setSelectedGender(e.target.value)}
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {/* İkon ve Label */}
-                        <div className="flex items-center justify-center space-x-1 mb-1 min-h-[24px]">
-                          <i className={`${category.icon} text-xs`}></i>
-                          <span className="font-medium text-xs leading-none">{category.label}</span>
-                        </div>
-                        
-                        {/* Badge */}
-                        <Badge 
-                          variant="outline" 
-                          className={`text-xs px-1.5 py-0.5 mb-1 ${
-                            category.badge === 'Ücretsiz' ? 'bg-green-100 text-green-700 border-green-200' :
-                            category.badge === 'Premium' ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                            category.badge === 'Gold' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                            category.badge === 'Platinium' ? 'bg-gray-100 text-gray-700 border-gray-200' : ''
-                          }`}
-                        >
-                          {category.badge}
-                        </Badge>
-                        
-                        {/* SSML Support */}
-                        {category.ssmlSupport && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full leading-none">
-                            SSML
-                          </span>
-                        )}
-                      </Button>
-                    ))}
+                        {genderOptions.map((gender) => (
+                          <option key={gender.value} value={gender.value}>
+                            {gender.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <h4 className="text-md font-medium text-gray-600 mb-2">Aksan</h4>
+                      <select 
+                        value={selectedAccent} 
+                        onChange={(e) => setSelectedAccent(e.target.value)}
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {accentVoiceOptions.map((accent) => (
+                          <option key={accent.value} value={accent.value}>
+                            {accent.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1699,24 +1700,21 @@ const Welcome: React.FC = () => {
                 </div>
               </div>
 
-              {/* DUYGU TONU - Geçici olarak gizlendi */}
-              {/*
-              <h3 className="text-lg font-medium text-gray-700 mb-3">Duygu Tonu</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
-                {emotionOptions.map((emotion) => (
-                  <Button
-                    key={emotion.value}
-                    onClick={() => setEmotionType(emotion.value)}
-                    variant={emotionType === emotion.value ? "default" : "outline"}
-                    className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                      emotionType === emotion.value ? 'bg-blue-600' : ''
-                    }`}
-                  >
-                    {emotion.label}
-                  </Button>
-                ))}
+              {/* DUYGU TONU */}
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-700 mb-3">Duygu Tonu</h3>
+                <select 
+                  value={emotionType} 
+                  onChange={(e) => setEmotionType(e.target.value)}
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {emotionOptions.map((emotion) => (
+                    <option key={emotion.value} value={emotion.value}>
+                      {emotion.label}
+                    </option>
+                  ))}
+                </select>
               </div>
-              */}
               
               {/* ÇIKTI FORMATı - Geçici olarak gizlendi */}
               {/*
@@ -1737,6 +1735,29 @@ const Welcome: React.FC = () => {
               </div>
               */}
               
+              {/* SES OLUŞTUR BUTONU - Ana işlem butonu olarak en üst kısımda */}
+              <div className="mb-6">
+                <div className="flex justify-center">
+                  <Button
+                    onClick={handleGenerate}
+                    disabled={isLoading}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg flex items-center space-x-2 !rounded-button whitespace-nowrap cursor-pointer w-full max-w-md"
+                  >
+                    {isLoading ? (
+                      <>
+                        <i className="fas fa-circle-notch fa-spin"></i>
+                        <span>Ses Oluşturuluyor...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-volume-up"></i>
+                        <span>Ses Oluştur</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
               <div className="mt-4">
                 <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
                   <div className="flex items-center justify-between mb-4">
@@ -1758,26 +1779,6 @@ const Welcome: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-
-          <div className="flex justify-center mt-8">
-            <Button
-              onClick={handleGenerate}
-              disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg flex items-center space-x-2 !rounded-button whitespace-nowrap cursor-pointer"
-            >
-              {isLoading ? (
-                <>
-                  <i className="fas fa-circle-notch fa-spin"></i>
-                  <span>Ses Oluşturuluyor...</span>
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-volume-up"></i>
-                  <span>Ses Oluştur</span>
-                </>
-              )}
-            </Button>
-          </div>
 
           {/* Output Section */}
           {audioResult && (
