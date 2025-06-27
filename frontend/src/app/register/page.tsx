@@ -93,10 +93,10 @@ export default function RegisterPage() {
       <nav className="bg-white shadow-sm py-4 sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            <a href="/" className="flex items-center">
-              <i className="fas fa-language text-blue-600 text-3xl"></i>
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">LingRoot</span>
-            </a>
+                          <a href="/" className="flex items-center space-x-3">
+                <img src="/logo.svg" alt="LingRoot Logo" className="w-10 h-10" />
+                <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent tracking-tight">LingRoot</span>
+              </a>
           </div>
           <div className="flex items-center space-x-4">
             <a href="/" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer">
@@ -113,7 +113,7 @@ export default function RegisterPage() {
             {/* Form Column */}
             <div className="lg:w-7/12 bg-white rounded-xl shadow-xl p-8 mx-auto">
               <div className="max-w-md mx-auto">
-                <h1 className="text-3xl font-bold mb-2 text-gray-900">LingRoot'a Hoş Geldiniz</h1>
+                <h1 className="text-3xl font-bold mb-2 text-gray-900"><span className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent font-extrabold">LingRoot</span>'a Hoş Geldiniz</h1>
                 <p className="text-gray-600 mb-8">Sevdiğiniz içeriklerle İngilizce öğrenme yolculuğunuza başlamak için hemen kaydolun.</p>
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -389,10 +389,10 @@ export default function RegisterPage() {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center space-x-2 mb-6">
-                <i className="fas fa-language text-blue-400 text-3xl"></i>
-                <span className="text-2xl font-bold">LingRoot</span>
-              </div>
+                              <div className="flex items-center space-x-3 mb-6">
+                  <img src="/logo.svg" alt="LingRoot Logo" className="w-12 h-12" />
+                  <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent tracking-tight">LingRoot</span>
+                </div>
               <p className="text-gray-400 mb-4">
                 "Your routines turn into English."
               </p>

@@ -103,8 +103,10 @@ export default function Profile() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
-              <Image src="/logo.svg" alt="LingRoot" width={32} height={32} sizes="32px" priority />
-              <h1 className="text-xl font-semibold text-gray-900">LingRoot Dashboard</h1>
+                              <img src="/logo.svg" alt="LingRoot" className="w-8 h-8" />
+                <h1 className="text-xl font-semibold text-gray-900">
+                  <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent font-extrabold">LingRoot</span> Dashboard
+                </h1>
             </div>
             <div className="flex items-center space-x-2">
               <Link href="/profile" className="flex items-center space-x-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
