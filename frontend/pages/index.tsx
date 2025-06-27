@@ -143,7 +143,7 @@ const App: React.FC = () => {
                 throw new Error('Google Client ID yapılandırılmamış. Lütfen .env.local dosyasında NEXT_PUBLIC_GOOGLE_CLIENT_ID değerini ayarlayın.');
             }
             
-            // Google Auth'u başlat
+            // Google Auth'u başlat.
             console.log('🔄 Google Auth başlatılıyor...');
             await initializeGoogleAuth();
             
