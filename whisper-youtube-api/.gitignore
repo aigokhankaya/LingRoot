@@ -1,0 +1,14 @@
+node_modules/
+downloads/
+*.log
+.env
+.DS_Store
+*.mp3
+*.mp4
+*.wav
+*.m4a
+*.webm
+*.flac
+*.json
+temp_*
+whisper_models/ 

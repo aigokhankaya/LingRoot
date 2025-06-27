@@ -5,6 +5,7 @@ const logger = require("../utils/logger"); // Import logger
 const { logStep } = require('../utils/stepLogger');
 const { v4: uuidv4 } = require('uuid');
 const { processTextPipeline } = require('../utils/pipeline');
+const fetch = require('node-fetch');
 
 // Supabase istemcisini oluştur
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -606,4 +607,187 @@ exports.createContent = async (req, res) => {
     });
   }
 };
+
+/**
+ * YouTube transcript çıkarma fonksiyonu - Whisper API Only (En Güvenilir)
+ */
+exports.fetchYoutubeToTranscript = async (req, res) => {
+  const { youtubeUrl, includeTimestamps = false } = req.body;
+  
+  try {
+    logger.info(`YouTube transkript çıkarma başlatılıyor: ${youtubeUrl} (timestamps: ${includeTimestamps})`);
+    
+    if (!youtubeUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'YouTube URL gerekli'
+      });
+    }
+
+    // YouTube URL format kontrolü
+    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)?([a-zA-Z0-9_-]{11})/;
+    if (!youtubeRegex.test(youtubeUrl)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Geçerli bir YouTube URL formatı değil'
+      });
+    }
+
+    // Video ID'sini çıkar
+    const videoIdMatch = youtubeUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/);
+    const videoId = videoIdMatch ? videoIdMatch[1] : null;
+    
+    if (!videoId) {
+      return res.status(400).json({
+        success: false,
+        error: 'YouTube video ID çıkarılamadı'
+      });
+    }
+
+    logger.info(`Video ID: ${videoId} için Whisper API ile transkript çıkarılıyor`);
+
+    // Whisper API kullan (En güvenilir yöntem)
+    try {
+      const whisperApiUrl = 'http://localhost:3005';
+      
+      // Health check yapmadan direkt dene (daha hızlı)
+      logger.info('Whisper API ile transkripsiyon başlatılıyor...');
+      
+      const whisperResponse = await fetch(`${whisperApiUrl}/transcribe`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: youtubeUrl,
+          model: 'base',
+          language: 'auto'
+        }),
+        timeout: 300000 // 5 dakika timeout
+      });
+
+      if (whisperResponse.ok) {
+        const whisperResult = await whisperResponse.json();
+        
+        if (whisperResult.success && whisperResult.transcript) {
+          logger.info(`Whisper API ile başarılı: ${whisperResult.transcript.length} karakter`);
+          
+          // Transkripti formatla - zaman damgalarıyla veya sadece metin
+          let formattedTranscript = whisperResult.transcript;
+          let segments = [];
+          
+          if (whisperResult.segments && Array.isArray(whisperResult.segments)) {
+            segments = whisperResult.segments;
+            
+            if (includeTimestamps) {
+              // Zaman damgalarıyla formatla
+              formattedTranscript = whisperResult.segments
+                .map(segment => {
+                  const startTime = formatTimestamp(segment.start);
+                  const endTime = formatTimestamp(segment.end);
+                  return `[${startTime} --> ${endTime}] ${segment.text.trim()}`;
+                })
+                .join('\n');
+                
+              logger.info(`Transkript zaman damgalarıyla formatlandı: ${segments.length} segment`);
+            } else {
+              // Sadece metni birleştir (zaman damgaları olmadan)
+              formattedTranscript = whisperResult.segments
+                .map(segment => segment.text.trim())
+                .join(' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+                
+              logger.info(`Transkript düz metin olarak formatlandı`);
+            }
+          } else {
+            // Segments yoksa direkt transcripti kullan ve zaman damgalarını temizle
+            if (!includeTimestamps) {
+              formattedTranscript = cleanTimestampsFromText(whisperResult.transcript);
+            }
+          }
+          
+          return res.json({
+            success: true,
+            videoId: whisperResult.videoId || videoId,
+            title: whisperResult.title || `Video ${videoId}`,
+            transcript: formattedTranscript,
+            language: whisperResult.language || 'auto',
+            source: 'whisper-api-local',
+            extractedAt: new Date().toISOString(),
+            statistics: {
+              characterCount: formattedTranscript.length,
+              wordCount: formattedTranscript.split(/\s+/).length,
+              segmentCount: segments.length || 0
+            },
+            method: 'whisper-primary',
+            duration: whisperResult.duration,
+            processing: whisperResult.processing,
+            includeTimestamps: includeTimestamps,
+            segments: includeTimestamps ? segments : undefined // Sadece timestamps istendiğinde segments'i döndür
+          });
+        } else {
+          throw new Error('Whisper API\'den geçersiz yanıt alındı');
+        }
+      } else {
+        const errorText = await whisperResponse.text();
+        throw new Error(`Whisper API hatası: ${whisperResponse.status} - ${errorText}`);
+      }
+      
+    } catch (whisperError) {
+      logger.error(`Whisper API hatası: ${whisperError.message}`);
+      
+      // Whisper API başarısız ise kullanıcıya açık mesaj ver
+      return res.status(503).json({
+        success: false,
+        error: 'Transkripsiyon servisi şu anda kullanılamıyor.',
+        details: 'Whisper API bağlantısı kurulamadı veya timeout oluştu.',
+        suggestion: 'Lütfen daha sonra tekrar deneyin veya daha kısa bir video seçin.',
+        technicalError: whisperError.message,
+        videoId: videoId,
+        whisperApiStatus: 'unavailable'
+      });
+    }
+
+  } catch (error) {
+    logger.error('YouTube transkript çıkarma genel hatası:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Transkript çıkarma sırasında hata oluştu: ' + error.message
+    });
+  }
+};
+
+/**
+ * Saniye formatını timestamp formatına çevir
+ * @param {number} seconds - Saniye cinsinden zaman
+ * @returns {string} - MM:SS.mmm formatında zaman
+ */
+function formatTimestamp(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  const wholeSeconds = Math.floor(remainingSeconds);
+  const milliseconds = Math.floor((remainingSeconds - wholeSeconds) * 1000);
+  
+  return `${minutes.toString().padStart(2, '0')}:${wholeSeconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
+}
+
+/**
+ * Metinden zaman damgalarını temizle
+ * @param {string} text - Orijinal metin
+ * @returns {string} - Temizlenmiş metin
+ */
+function cleanTimestampsFromText(text) {
+  if (!text) return '';
+  
+  return text
+    // [MM:SS.mmm --> MM:SS.mmm] formatını temizle
+    .replace(/\[\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}\.\d{3}\]/g, '')
+    // [HH:MM:SS.mmm --> HH:MM:SS.mmm] formatını da temizle
+    .replace(/\[\d{2}:\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}\.\d{3}\]/g, '')
+    // Çift boşlukları tek boşluğa çevir
+    .replace(/\s+/g, ' ')
+    // Başındaki ve sonundaki boşlukları temizle
+    .trim();
+}
 

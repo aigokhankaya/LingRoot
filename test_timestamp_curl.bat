@@ -1,0 +1,26 @@
+@echo off
+echo 🚀 Zaman damgası özelliği curl ile test ediliyor...
+echo.
+
+echo 📝 Test 1: Zaman damgaları olmadan (includeTimestamps: false)
+curl -X POST http://localhost:5001/api/content/youtube-transcript ^
+  -H "Content-Type: application/json" ^
+  -d "{\"youtubeUrl\": \"https://www.youtube.com/watch?v=6O5Kf4CHKco\", \"includeTimestamps\": false}"
+echo.
+echo.
+
+echo 📝 Test 2: Zaman damgaları ile (includeTimestamps: true)
+curl -X POST http://localhost:5001/api/content/youtube-transcript ^
+  -H "Content-Type: application/json" ^
+  -d "{\"youtubeUrl\": \"https://www.youtube.com/watch?v=6O5Kf4CHKco\", \"includeTimestamps\": true}"
+echo.
+echo.
+
+echo 📝 Test 3: Default davranış (includeTimestamps belirtilmemiş)
+curl -X POST http://localhost:5001/api/content/youtube-transcript ^
+  -H "Content-Type: application/json" ^
+  -d "{\"youtubeUrl\": \"https://www.youtube.com/watch?v=6O5Kf4CHKco\"}"
+echo.
+
+echo 🏁 Test tamamlandı!
+pause 

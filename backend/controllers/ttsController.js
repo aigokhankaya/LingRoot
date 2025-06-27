@@ -302,7 +302,7 @@ const processTtsRequest = async (req, res) => {
         if (rawText === null) {
             logger.error(`[${requestId}] Failed to extract text from input.`);
             logRequestStep(requestId, 'extractText:error', { error: 'Failed to extract text from input.' });
-            if (["youtube", "spotify"].includes(inputType)) { // Removed 'file' as it's handled
+            if (["spotify"].includes(inputType)) { // Removed 'file' and 'youtube' as they're handled
                  logger.warn(`[${requestId}] Input type '${inputType}' processing is not implemented yet.`);
                  return res.status(501).json({ success: false, message: `Processing for input type '${inputType}' is not implemented yet.` });
             }

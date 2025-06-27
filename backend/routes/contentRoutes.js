@@ -18,6 +18,7 @@ router.post('/process-link', contentController.processLink);
 router.post('/process-text', contentController.processText);
 router.post('/process-file', contentController.processFile);
 router.post('/process-youtube', contentController.processYoutube);
+router.post('/youtube-transcript', contentController.fetchYoutubeToTranscript);
 router.post('/process-web', contentController.processWeb);
 router.post('/process-book', contentController.processBook);
 router.post('/process-spotify', contentController.processSpotify);
