@@ -96,40 +96,34 @@ export default function LoginPage() {
                 />
               </div>
               
-              {/* Beni hatırla checkbox - Çok belirgin stil */}
-              <div 
-                className="flex items-center p-4 bg-yellow-50 rounded-lg border-2 border-yellow-300"
-                style={{ 
-                  backgroundColor: '#fefce8', 
-                  borderColor: '#facc15',
-                  minHeight: '60px'
-                }}
-              >
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  style={{ 
-                    width: '20px', 
-                    height: '20px',
-                    accentColor: '#2563eb',
-                    cursor: 'pointer'
-                  }}
-                />
-                <label 
-                  htmlFor="remember-me" 
-                  className="ml-4 text-base font-bold text-gray-900 cursor-pointer"
-                  style={{ fontSize: '16px', fontWeight: 'bold', color: '#1f2937' }}
-                >
-                  🔒 BENİ HATIRLA (30 gün boyunca oturum açık kalsın)
-                </label>
-              </div>
-              
-              {/* Debug: Checkbox durumunu göster */}
-              <div className="text-sm text-center p-2 bg-blue-100 rounded">
-                <strong>Debug:</strong> Beni hatırla durumu = <span className="font-bold text-blue-600">{rememberMe ? 'SEÇİLİ ✅' : 'SEÇİLİ DEĞİL ❌'}</span>
+              {/* Beni hatırla checkbox */}
+              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center">
+                  <input
+                    id="remember-me"
+                    name="remember-me"
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                  />
+                  <label 
+                    htmlFor="remember-me" 
+                    className="ml-3 text-sm font-medium text-gray-900 cursor-pointer select-none"
+                  >
+                    Beni hatırla
+                  </label>
+                </div>
+                <div className="text-sm text-gray-600">
+                  {rememberMe ? (
+                    <span className="flex items-center text-green-600">
+                      <i className="fas fa-check-circle mr-1"></i>
+                      30 gün aktif
+                    </span>
+                  ) : (
+                    <span className="text-gray-500">1 saat aktif</span>
+                  )}
+                </div>
               </div>
             </div>
 

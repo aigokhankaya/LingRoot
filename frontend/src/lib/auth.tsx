@@ -142,7 +142,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       const response = await fetch(getApiUrl('auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, rememberMe }),
         credentials: 'include'
       });
       
@@ -185,11 +185,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         };
         setUser(user);
         setIsAuthenticated(true);
-        // Eğer backend token döndürüyorsa localStorage'a kaydet
+        // Eğer backend token döndürüyorsa localStorage ve cookie'ye kaydet
         if (data.data.token) {
           localStorage.setItem('lingroot_token', data.data.token);
-          // Beni hatırla seçeneği için flag kaydet
           localStorage.setItem('lingroot_remember_me', rememberMe.toString());
+          
+          // Cookie'lere de kaydet (middleware için)
+          document.cookie = `lingroot_token=${data.data.token}; path=/; ${rememberMe ? 'max-age=2592000' : 'max-age=3600'}; SameSite=Strict`;
+          document.cookie = `lingroot_remember_me=${rememberMe}; path=/; ${rememberMe ? 'max-age=2592000' : 'max-age=3600'}; SameSite=Strict`;
+          
           console.log('[AUTH] Token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
         }
         console.log('[AUTH] setUser & setIsAuthenticated', user);
@@ -245,6 +249,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   const logout = () => {
     localStorage.removeItem('lingroot_token');
     localStorage.removeItem('lingroot_remember_me');
+    
+    // Cookie'leri de temizle
+    document.cookie = 'lingroot_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
+    document.cookie = 'lingroot_remember_me=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
+    
     setUser(null);
     setIsAuthenticated(false);
   };
@@ -319,6 +328,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         if (data.data.token) {
           localStorage.setItem('lingroot_token', data.data.token);
           localStorage.setItem('lingroot_remember_me', rememberMe.toString());
+          
+          // Cookie'lere de kaydet (middleware için)
+          document.cookie = `lingroot_token=${data.data.token}; path=/; ${rememberMe ? 'max-age=2592000' : 'max-age=3600'}; SameSite=Strict`;
+          document.cookie = `lingroot_remember_me=${rememberMe}; path=/; ${rememberMe ? 'max-age=2592000' : 'max-age=3600'}; SameSite=Strict`;
+          
           console.log('[AUTH] Google token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
         }
         

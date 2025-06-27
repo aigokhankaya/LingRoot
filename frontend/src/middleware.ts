@@ -1,148 +1,130 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { getUserRole } from '@/lib/supabaseClient'; // Assuming getUserRole is accessible server-side
+
+// JWT token decode function
+function decodeJWT(token: string) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload;
+  } catch (error) {
+    return null;
+  }
+}
+
+// Check if token is expired
+function isTokenExpired(token: string, rememberMe: boolean = false): boolean {
+  const payload = decodeJWT(token);
+  if (!payload) return true;
+  
+  const currentTime = Date.now() / 1000;
+  
+  // Check JWT expiration first
+  if (payload.exp < currentTime) {
+    return true;
+  }
+  
+  // If "remember me" is not selected, check 1-hour idle timeout
+  if (!rememberMe) {
+    const tokenAge = currentTime - payload.iat;
+    const oneHour = 60 * 60; // 1 hour in seconds
+    
+    if (tokenAge > oneHour) {
+      return true;
+    }
+  }
+  
+  return false;
+}
 
 export async function middleware(request: NextRequest) {
-    let response = NextResponse.next({
-        request: {
-            headers: request.headers,
-        },
-    });
+  const pathname = request.nextUrl.pathname;
+  const isAdminRoute = pathname.startsWith('/admin');
+  const isAdminLoginPage = pathname === '/admin/login';
+  const isPublicRoute = ['/', '/login', '/register', '/about', '/contact', '/terms', '/privacy', '/features', '/how-it-works', '/tips', '/nasil-calisir', '/ozellikler'].includes(pathname);
 
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mock-project.supabase.co',
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key',
-        {
-            cookies: {
-                get(name: string) {
-                    return request.cookies.get(name)?.value;
-                },
-                set(name: string, value: string, options: CookieOptions) {
-                    request.cookies.set({
-                        name,
-                        value,
-                        ...options,
-                    });
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
-                    });
-                    response.cookies.set({
-                        name,
-                        value,
-                        ...options,
-                    });
-                },
-                remove(name: string, options: CookieOptions) {
-                    request.cookies.set({
-                        name,
-                        value: '',
-                        ...options,
-                    });
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
-                    });
-                    response.cookies.set({
-                        name,
-                        value: '',
-                        ...options,
-                    });
-                },
-            },
+  // Get token from cookie or localStorage (we'll use a cookie approach for server-side)
+  const token = request.cookies.get('lingroot_token')?.value;
+  const rememberMe = request.cookies.get('lingroot_remember_me')?.value === 'true';
+
+  // For admin routes
+  if (isAdminRoute) {
+    // If accessing admin login page
+    if (isAdminLoginPage) {
+      // If user already has valid admin token, redirect to dashboard
+      if (token && !isTokenExpired(token, rememberMe)) {
+        const payload = decodeJWT(token);
+        if (payload?.role === 'admin') {
+          return NextResponse.redirect(new URL('/admin/dashboard', request.url));
         }
-    );
-
-    const { data: { session } } = await supabase.auth.getSession();
-
-    const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
-    const isLoginPage = request.nextUrl.pathname === '/admin/login';
-
-    // If accessing admin routes (excluding login) without a session, redirect to login
-    if (isAdminRoute && !isLoginPage && !session) {
-        console.log('Middleware: No session, redirecting to admin login.');
-        return NextResponse.redirect(new URL('/admin/login', request.url));
+      }
+      // Let them access login page
+      return NextResponse.next();
     }
-
-    // If accessing admin routes (excluding login) with a session, check role
-    if (isAdminRoute && !isLoginPage && session) {
-        console.log('Middleware: Session found, checking admin role for user:', session.user.id);
-        try {
-            // IMPORTANT: getUserRole needs to be adapted for server-side Supabase client
-            // Or, store role in JWT claims during login if possible for faster checks.
-            // For now, assuming getUserRole can work with the server client implicitly or needs adjustment.
-
-            // Let's modify getUserRole to accept the server client instance
-            const { data: profileData, error: profileError } = await supabase
-                .from('profiles') // Adjust if your table name is different
-                .select('role')
-                .eq('id', session.user.id)
-                .single();
-
-            if (profileError) {
-                 console.error('Middleware: Error fetching user profile:', profileError.message);
-                 // Log out and redirect to login on error fetching profile
-                 await supabase.auth.signOut();
-                 response = NextResponse.redirect(new URL('/admin/login?error=role_check_failed', request.url));
-                 // Clear the cookie manually as redirect might happen before Supabase client updates it
-                 response.cookies.delete('sb-access-token'); // Adjust cookie name if needed
-                 response.cookies.delete('sb-refresh-token'); // Adjust cookie name if needed
+    
+    // For other admin routes, check authentication and authorization
+    if (!token || isTokenExpired(token, rememberMe)) {
+      console.log('Middleware: No valid token for admin route, redirecting to login');
+      const response = NextResponse.redirect(new URL('/admin/login', request.url));
+      // Clear expired tokens
+      response.cookies.delete('lingroot_token');
+      response.cookies.delete('lingroot_remember_me');
                  return response;
             }
 
-            const userRole = profileData?.role;
-            console.log('Middleware: User role is:', userRole);
-
-            if (userRole !== 'admin') {
-                console.log('Middleware: User is not admin, redirecting to login.');
-                // Log out the user if they somehow have a session but aren't admin
-                await supabase.auth.signOut();
-                response = NextResponse.redirect(new URL('/admin/login?error=not_admin', request.url));
-                // Clear the cookie manually
-                response.cookies.delete('sb-access-token'); // Adjust cookie name if needed
-                response.cookies.delete('sb-refresh-token'); // Adjust cookie name if needed
+    // Check if user is admin
+    const payload = decodeJWT(token);
+    if (payload?.role !== 'admin') {
+      console.log('Middleware: User is not admin, redirecting to login');
+      const response = NextResponse.redirect(new URL('/admin/login?error=not_admin', request.url));
+      response.cookies.delete('lingroot_token');
+      response.cookies.delete('lingroot_remember_me');
                 return response;
             }
-            // User is admin, allow access
-            console.log('Middleware: Admin access granted.');
-        } catch (err) {
-            console.error('Middleware: Unexpected error during role check:', err);
-            await supabase.auth.signOut();
-            response = NextResponse.redirect(new URL('/admin/login?error=unexpected', request.url));
-            response.cookies.delete('sb-access-token'); // Adjust cookie name if needed
-            response.cookies.delete('sb-refresh-token'); // Adjust cookie name if needed
+    
+    // User is authenticated admin, allow access
+    return NextResponse.next();
+  }
+
+  // For protected user routes (dashboard, profile, etc.)
+  const isProtectedRoute = ['/dashboard', '/profile', '/welcome', '/vocabulary', '/pronunciation'].includes(pathname);
+  
+  if (isProtectedRoute) {
+    if (!token || isTokenExpired(token, rememberMe)) {
+      console.log('Middleware: No valid token for protected route, redirecting to login');
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.delete('lingroot_token');
+      response.cookies.delete('lingroot_remember_me');
             return response;
-        }
     }
+    
+    // User is authenticated, allow access
+    return NextResponse.next();
+  }
 
-    // If accessing login page with an active admin session, redirect to dashboard
-    if (isLoginPage && session) {
-        // Check role again just to be sure before redirecting away from login
-        const { data: profileData } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
-        if (profileData?.role === 'admin') {
-            console.log('Middleware: Admin already logged in, redirecting to dashboard.');
-            return NextResponse.redirect(new URL('/admin/dashboard', request.url));
-        }
-        // If session exists but not admin, sign out and let them stay on login
-        await supabase.auth.signOut();
+  // For login/register pages, redirect authenticated users to dashboard
+  if (['/login', '/register'].includes(pathname)) {
+    if (token && !isTokenExpired(token, rememberMe)) {
+      console.log('Middleware: User already authenticated, redirecting to welcome');
+      return NextResponse.redirect(new URL('/welcome', request.url));
     }
+  }
 
-    // Refresh session if needed
-    await supabase.auth.getSession();
-
-    return response;
+  // Allow access to public routes
+  return NextResponse.next();
 }
 
 export const config = {
     matcher: [
-        // Admin routes only
+    // Admin routes
         '/admin/:path*',
+    // Protected user routes
+    '/dashboard/:path*',
+    '/profile/:path*',
+    '/welcome/:path*',
+    '/vocabulary/:path*',
+    '/pronunciation/:path*',
+    // Auth routes
+    '/login',
+    '/register'
     ],
 };
 
