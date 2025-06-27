@@ -26,7 +26,6 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 
 
 import { getApiUrl } from "../src/lib/api";
-import { initializeGoogleAuth, signInWithGoogle, decodeGoogleCredential } from "../src/lib/googleAuth";
 import dynamic from 'next/dynamic';
 // import Lottie from "lottie-react"; // Kaldırılacak
 import learnAnimation from "../public/animations/language-learn.json";
@@ -135,38 +134,54 @@ const App: React.FC = () => {
         setError(null);
         
         try {
-            console.log('🔄 Google giriş başlatılıyor...');
+            console.log('🚀 Google giriş başlatılıyor...');
             
-            // Google Client ID kontrolü
-            const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-            if (!clientId || clientId === 'your-google-client-id-here.apps.googleusercontent.com') {
-                throw new Error('Google Client ID yapılandırılmamış. Lütfen .env.local dosyasında NEXT_PUBLIC_GOOGLE_CLIENT_ID değerini ayarlayın.');
-            }
+            // Google Auth modülünü dinamik olarak import et
+            console.log('📦 Google Auth modülü yükleniyor...');
+            const { initializeGoogleAuth, signInWithGoogle } = await import('../src/lib/googleAuth');
             
             // Google Auth'u başlat
-            console.log('🔄 Google Auth başlatılıyor...');
+            console.log('🔧 Google Auth başlatılıyor...');
             await initializeGoogleAuth();
             
             // Google Sign-In'i tetikle
-            console.log('🔄 Google Sign-In tetikleniyor...');
+            console.log('🎯 Google Sign-In tetikleniyor...');
             const { credential } = await signInWithGoogle();
             console.log('✅ Google credential alındı');
             
-            // Backend'e gönder
-            console.log('🔄 Backend\'e gönderiliyor...');
+            // useAuth hook'undan loginWithGoogle fonksiyonunu kullan
+            console.log('🔐 Backend ile kimlik doğrulama yapılıyor...');
             const result = await loginWithGoogle(credential, loginForm.rememberMe);
             
             if (result.success) {
-                console.log('✅ Google giriş başarılı');
+                console.log('✅ Google giriş başarılı, dashboard\'a yönlendiriliyor...');
                 setIsLoginOpen(false);
-                router.push('/welcome');
+                router.push('/dashboard');
             } else {
                 console.error('❌ Backend giriş hatası:', result.message);
                 setError(result.message || 'Google ile giriş başarısız.');
             }
         } catch (err: any) {
             console.error('❌ Google login error:', err);
-            setError(err.message || 'Google ile giriş sırasında bir hata oluştu.');
+            
+            // Kullanıcı dostu hata mesajları
+            let userErrorMessage = 'Google ile giriş sırasında bir hata oluştu.';
+            
+            if (err.message.includes('popup') || err.message.includes('pencere')) {
+                userErrorMessage = 'Google giriş penceresi açılamadı veya kapatıldı. Lütfen popup engelleyiciyi kontrol edin ve tekrar deneyin.';
+            } else if (err.message.includes('cancelled') || err.message.includes('iptal')) {
+                userErrorMessage = 'Google girişi iptal edildi.';
+            } else if (err.message.includes('timeout') || err.message.includes('zaman aşımı')) {
+                userErrorMessage = 'Google giriş zaman aşımına uğradı. Lütfen tekrar deneyin.';
+            } else if (err.message.includes('yapılandırılmamış') || err.message.includes('Client ID')) {
+                userErrorMessage = 'Google giriş servisi geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin.';
+            } else if (err.message.includes('yüklenmedi') || err.message.includes('Services')) {
+                userErrorMessage = 'Google servisleri yüklenemedi. İnternet bağlantınızı kontrol edin ve sayfayı yenileyin.';
+            } else if (err.message.includes('Failed to fetch') || err.message.includes('bağlanılamadı')) {
+                userErrorMessage = 'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin ve tekrar deneyin.';
+            }
+            
+            setError(userErrorMessage);
         } finally {
             setLoading(false);
         }

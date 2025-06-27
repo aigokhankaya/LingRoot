@@ -1,10 +1,12 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { createClient } = require("@supabase/supabase-js");
+const axios = require('axios');
 require("dotenv").config();
 const logger = require("../utils/logger");
 const { logStep } = require('../utils/stepLogger');
 const { v4: uuidv4 } = require('uuid');
+const { sendWelcomeEmail, testEmailConnection } = require("../utils/emailService");
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
@@ -122,6 +124,15 @@ exports.register = async (req, res) => {
 
     const token = generateToken(newUser[0].id, newUser[0].email, newUser[0].role, false);
     const refreshToken = generateRefreshToken(newUser[0].id);
+
+    // Hoşgeldin maili gönder (async olarak, hata olursa da kayıt işlemini etkilemesin)
+    try {
+      await sendWelcomeEmail(newUser[0].email, newUser[0].firstname);
+      logger.info(`[REGISTER] ✅ Hoşgeldin maili gönderildi: ${newUser[0].email}`);
+    } catch (emailError) {
+      logger.error(`[REGISTER] ❌ Hoşgeldin maili gönderilemedi: ${newUser[0].email}`, emailError);
+      // Mail hatası kayıt işlemini etkilemesin, sadece logla
+    }
 
     logStep({
       requestId,
@@ -288,49 +299,49 @@ exports.googleLogin = async (req, res) => {
     // Google credential'ı decode et
     let googleUser;
     
+    // Google credential'ı decode et - her zaman gerçek credential
     // Credential'ın tipini belirle (JWT vs Access Token)
     // JWT'ler 3 bölümden oluşur: header.payload.signature
     const parts = credential.split('.');
     const isJWT = parts.length === 3;
     
-    console.log('[GOOGLE_LOGIN] Credential analizi:');
+    console.log('[GOOGLE_LOGIN] Gerçek Google credential analizi:');
     console.log('- Uzunluk:', credential.length);
     console.log('- Bölüm sayısı:', parts.length);
     console.log('- İlk 50 karakter:', credential.substring(0, 50));
     console.log('- JWT olarak algılandı:', isJWT);
     
-    try {
-      if (isJWT) {
-        // JWT token decode et (One Tap durumu)
-        console.log('[GOOGLE_LOGIN] JWT credential decode ediliyor...');
-        const base64Url = credential.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        googleUser = JSON.parse(jsonPayload);
-        console.log('[GOOGLE_LOGIN] JWT decode başarılı:', { email: googleUser.email, name: googleUser.name });
-      } else {
-        // Access token ile Google API'den kullanıcı bilgilerini al (OAuth popup durumu)
-        console.log('[GOOGLE_LOGIN] Access token ile kullanıcı bilgileri alınıyor...');
-        const axios = require('axios');
-        
-        const response = await axios.get(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${credential}`);
-        googleUser = response.data;
-        
-        // JWT formatına uygun hale getir
-        googleUser.sub = googleUser.id;
-        googleUser.given_name = googleUser.given_name || googleUser.name?.split(' ')[0];
-        googleUser.family_name = googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ');
-        
-        console.log('[GOOGLE_LOGIN] Access token ile kullanıcı bilgileri başarılı:', { email: googleUser.email, name: googleUser.name });
+      try {
+        if (isJWT) {
+          // JWT token decode et (One Tap durumu)
+          console.log('[GOOGLE_LOGIN] JWT credential decode ediliyor...');
+          const base64Url = credential.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          googleUser = JSON.parse(jsonPayload);
+          console.log('[GOOGLE_LOGIN] JWT decode başarılı:', { email: googleUser.email, name: googleUser.name });
+        } else {
+          // Access token ile Google API'den kullanıcı bilgilerini al (OAuth popup durumu)
+          console.log('[GOOGLE_LOGIN] Access token ile kullanıcı bilgileri alınıyor...');
+          
+          const response = await axios.get(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${credential}`);
+          googleUser = response.data;
+          
+          // JWT formatına uygun hale getir
+          googleUser.sub = googleUser.id;
+          googleUser.given_name = googleUser.given_name || googleUser.name?.split(' ')[0];
+          googleUser.family_name = googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ');
+          
+          console.log('[GOOGLE_LOGIN] Access token ile kullanıcı bilgileri başarılı:', { email: googleUser.email, name: googleUser.name });
+        }
+      } catch (decodeError) {
+        logger.error('[GOOGLE_LOGIN] Credential decode hatası:', decodeError);
+        console.log('[GOOGLE_LOGIN] Credential tipi:', isJWT ? 'JWT' : 'Access Token');
+        console.log('[GOOGLE_LOGIN] Credential uzunluğu:', credential.length);
+        return res.status(400).json({ success: false, message: "Geçersiz Google credential" });
       }
-    } catch (decodeError) {
-      logger.error('[GOOGLE_LOGIN] Credential decode hatası:', decodeError);
-      console.log('[GOOGLE_LOGIN] Credential tipi:', isJWT ? 'JWT' : 'Access Token');
-      console.log('[GOOGLE_LOGIN] Credential uzunluğu:', credential.length);
-      return res.status(400).json({ success: false, message: "Geçersiz Google credential" });
-    }
 
     const { email, name, given_name, family_name, picture } = googleUser;
     
@@ -400,6 +411,14 @@ exports.googleLogin = async (req, res) => {
       }
 
       user = createdUser;
+      
+      // Yeni Google kullanıcısına hoşgeldin maili gönder
+      try {
+        await sendWelcomeEmail(user.email, user.firstname);
+        logger.info(`[GOOGLE_LOGIN] ✅ Yeni kullanıcıya hoşgeldin maili gönderildi: ${user.email}`);
+      } catch (emailError) {
+        logger.error(`[GOOGLE_LOGIN] ❌ Hoşgeldin maili gönderilemedi: ${user.email}`, emailError);
+      }
     }
 
     // JWT token oluştur
