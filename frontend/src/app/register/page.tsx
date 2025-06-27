@@ -17,6 +17,7 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
+    phoneNumber: '',
     password: '',
     confirmPassword: '',
     acceptTerms: false
@@ -30,6 +31,39 @@ export default function RegisterPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Telefon numarası formatlaması için yardımcı fonksiyon
+  const formatPhoneNumber = (value: string) => {
+    // Sadece rakamları al
+    const cleaned = value.replace(/\D/g, '');
+    
+    // Eğer 90 ile başlıyorsa +90 ekle
+    if (cleaned.startsWith('90') && cleaned.length <= 12) {
+      const formatted = cleaned.replace(/^90(\d{3})(\d{3})(\d{2})(\d{2})$/, '+90 ($1) $2 $3 $4');
+      return formatted !== cleaned ? formatted : `+90 ${cleaned.slice(2)}`;
+    }
+    
+    // Eğer 5 ile başlıyorsa +90 ekle
+    if (cleaned.startsWith('5') && cleaned.length <= 10) {
+      if (cleaned.length === 10) {
+        return cleaned.replace(/^(\d{3})(\d{3})(\d{2})(\d{2})$/, '+90 ($1) $2 $3 $4');
+      }
+      return `+90 ${cleaned}`;
+    }
+    
+    // Eğer + ile başlıyorsa olduğu gibi bırak
+    if (value.startsWith('+')) {
+      return value;
+    }
+    
+    return value;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    const formattedValue = formatPhoneNumber(value);
+    setFormData(prev => ({ ...prev, phoneNumber: formattedValue }));
+  };
+
   const handleCheckboxChange = (checked: boolean) => {
     setFormData(prev => ({ ...prev, acceptTerms: checked }));
   };
@@ -39,7 +73,7 @@ export default function RegisterPage() {
     setError(null);
     
     // Validate form data
-    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
+    if (!formData.username || !formData.email || !formData.phoneNumber || !formData.password || !formData.confirmPassword) {
       setError('Lütfen tüm alanları doldurun.');
       return;
     }
@@ -57,8 +91,8 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Backend'e kayıt isteği gönder
-      const result = await register(formData.username, '', formData.email, '', formData.password);
+      // Backend'e kayıt isteği gönder - register fonksiyonu (firstName, lastName, email, phoneNumber, password) parametreleri alıyor
+      const result = await register(formData.username, '', formData.email, formData.phoneNumber, formData.password);
       if (result.success) {
         // Başarılı kayıt sonrası dashboard'a yönlendir
         router.push('/dashboard');
@@ -198,6 +232,20 @@ export default function RegisterPage() {
                       placeholder="ornek@email.com"
                       value={formData.email}
                       onChange={handleChange}
+                      className="border-gray-300 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="phoneNumber">Telefon Numarası</Label>
+                    <Input
+                      id="phoneNumber"
+                      name="phoneNumber"
+                      type="tel"
+                      placeholder="+90 (5xx) xxx xx xx"
+                      value={formData.phoneNumber}
+                      onChange={handlePhoneChange}
                       className="border-gray-300 focus:border-blue-500"
                       required
                     />

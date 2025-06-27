@@ -177,9 +177,15 @@ exports.login = async (req, res) => {
   try {
     logger.info('[LOGIN] req.body:', req.body);
     console.log("[LOGIN] Gelen istek verisi:", req.body); // Bunu ekle
-    const { email, password, rememberMe } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Lütfen e-posta ve şifre girin" });
+    const { email, phoneNumber, password, rememberMe } = req.body;
+
+    // Check if logging in with email or phone
+    if (!password) {
+      return res.status(400).json({ success: false, message: "Lütfen şifre girin" });
+    }
+
+    if (!email && !phoneNumber) {
+      return res.status(400).json({ success: false, message: "Lütfen e-posta veya telefon numarası girin" });
     }
 
     // Check if mock auth mode is enabled from parameters table
@@ -193,11 +199,11 @@ exports.login = async (req, res) => {
       const mockAuthEnabled = paramData?.value === 'true' || paramData?.value === true;
 
       if (mockAuthEnabled) {
-        logger.info('[LOGIN] Mock auth mode enabled - allowing mock login for:', email);
+        logger.info('[LOGIN] Mock auth mode enabled - allowing mock login for:', email || phoneNumber);
         
         const mockUser = {
           id: 'dev-user-123',
-          email: email,
+          email: email || `${phoneNumber}@mockuser.com`,
           name: 'Development User',
           role: 'user',
           membership_status: 'premium',
@@ -223,16 +229,20 @@ exports.login = async (req, res) => {
       // Continue with normal authentication if parameter check fails
     }
 
-    const { data: user, error } = await supabase
-      .from('users')
-      .select("*")
-      .eq("email", email)
-      .single();
+    // Build query for email or phone
+    let query = supabase.from('users').select("*");
+    if (email) {
+      query = query.eq("email", email);
+    } else {
+      query = query.eq("phonenumber", phoneNumber);
+    }
+
+    const { data: user, error } = await query.single();
     if (error) logger.error('[LOGIN] Error fetching user:', error);
 
     if (error || !user || !(await bcrypt.compare(password, user.password))) {
-      logger.warn('[LOGIN] Invalid credentials for email:', email);
-      return res.status(401).json({ success: false, message: "Geçersiz e-posta veya şifre" });
+      logger.warn('[LOGIN] Invalid credentials for:', email || phoneNumber);
+      return res.status(401).json({ success: false, message: "Geçersiz giriş bilgileri" });
     }
 
     const token = generateToken(user.id, user.email, user.role, rememberMe);
@@ -564,4 +574,232 @@ exports.verifyEmail = async (req, res) => {
   return res.status(501).json({ success: false, message: "E-posta doğrulama fonksiyonu henüz hazır değil" });
 };
 
-// Duplicate function removed - using the main googleLogin function above
+// SMS Login - Send verification code to phone number
+exports.smsLogin = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+  
+  try {
+    logger.info(`[SMS_LOGIN] req.body:`, req.body);
+    logStep({
+      requestId,
+      stepName: 'auth:sms-login:start',
+      stepSequence: stepSequence++,
+      serviceName: 'Express',
+      endpoint: '/auth/sms-login',
+      inputData: req.body
+    });
+
+    const { phoneNumber } = req.body;
+
+    if (!phoneNumber) {
+      return res.status(400).json({ success: false, message: "Telefon numarası gerekli" });
+    }
+
+    // Validate phone number format
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      return res.status(400).json({ success: false, message: "Geçersiz telefon numarası formatı" });
+    }
+
+    // Check if user exists with this phone number
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select("id, firstname, lastname, email, phonenumber")
+      .eq("phonenumber", phoneNumber)
+      .maybeSingle();
+
+    if (fetchError) {
+      logger.error('[SMS_LOGIN] Error fetching user:', fetchError);
+      return res.status(500).json({ success: false, message: "Veritabanı hatası" });
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Bu telefon numarası ile kayıtlı kullanıcı bulunamadı" });
+    }
+
+    // Generate 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Update user with verification code
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        verificationtoken: verificationCode,
+        verificationexpires: verificationExpires.toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", user.id);
+
+    if (updateError) {
+      logger.error('[SMS_LOGIN] Error updating verification code:', updateError);
+      return res.status(500).json({ success: false, message: "Doğrulama kodu oluşturulamadı" });
+    }
+
+    // Send SMS (mock for now)
+    try {
+      await sendSMS(phoneNumber, `LingRoot doğrulama kodunuz: ${verificationCode}. Kod 10 dakika geçerlidir.`);
+      logger.info(`[SMS_LOGIN] Verification code sent to: ${phoneNumber}`);
+    } catch (smsError) {
+      logger.error(`[SMS_LOGIN] Failed to send SMS to ${phoneNumber}:`, smsError);
+      // Continue anyway for development, in production you might want to return error
+      logger.warn(`[SMS_LOGIN] SMS failed but continuing for development purposes`);
+    }
+
+    logStep({
+      requestId,
+      stepName: 'auth:sms-login:success',
+      stepSequence: stepSequence++,
+      status: 'success',
+      outputData: { userId: user.id, phoneNumber }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Doğrulama kodu gönderildi",
+      data: {
+        userId: user.id,
+        message: `${phoneNumber} numarasına doğrulama kodu gönderildi`
+      }
+    });
+
+  } catch (error) {
+    logStep({
+      requestId,
+      stepName: 'auth:sms-login:error',
+      stepSequence: stepSequence++,
+      status: 'failure',
+      error
+    });
+    logger.error("SMS login error", error);
+    return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
+  }
+};
+
+// Verify SMS code and complete login
+exports.verifySmsLogin = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+
+  try {
+    logger.info(`[VERIFY_SMS] req.body:`, req.body);
+    logStep({
+      requestId,
+      stepName: 'auth:verify-sms:start',
+      stepSequence: stepSequence++,
+      serviceName: 'Express',
+      endpoint: '/auth/verify-sms',
+      inputData: req.body
+    });
+
+    const { userId, verificationCode, rememberMe } = req.body;
+
+    if (!userId || !verificationCode) {
+      return res.status(400).json({ success: false, message: "Kullanıcı ID ve doğrulama kodu gerekli" });
+    }
+
+    // Get user and check verification code
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    if (fetchError || !user) {
+      logger.error('[VERIFY_SMS] Error fetching user:', fetchError);
+      return res.status(404).json({ success: false, message: "Kullanıcı bulunamadı" });
+    }
+
+    // Check if verification code matches and is not expired
+    if (!user.verificationtoken || user.verificationtoken !== verificationCode) {
+      logger.warn(`[VERIFY_SMS] Invalid verification code for user ${userId}`);
+      return res.status(400).json({ success: false, message: "Geçersiz doğrulama kodu" });
+    }
+
+    if (!user.verificationexpires || new Date() > new Date(user.verificationexpires)) {
+      logger.warn(`[VERIFY_SMS] Expired verification code for user ${userId}`);
+      return res.status(400).json({ success: false, message: "Doğrulama kodu süresi dolmuş. Yeni kod talep edin." });
+    }
+
+    // Clear verification code and mark as verified
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        verificationtoken: null,
+        verificationexpires: null,
+        isverified: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", userId);
+
+    if (updateError) {
+      logger.error('[VERIFY_SMS] Error clearing verification code:', updateError);
+      return res.status(500).json({ success: false, message: "Giriş tamamlanamadı" });
+    }
+
+    // Generate tokens
+    const token = generateToken(user.id, user.email, user.role, rememberMe);
+    const refreshToken = generateRefreshToken(user.id);
+
+    // Remove sensitive data
+    delete user.password;
+    delete user.verificationtoken;
+    delete user.resetPasswordToken;
+
+    logStep({
+      requestId,
+      stepName: 'auth:verify-sms:success',
+      stepSequence: stepSequence++,
+      status: 'success',
+      outputData: { userId: user.id }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "SMS doğrulama başarılı, giriş yapıldı",
+      data: {
+        user,
+        token,
+        refreshToken
+      }
+    });
+
+  } catch (error) {
+    logStep({
+      requestId,
+      stepName: 'auth:verify-sms:error',
+      stepSequence: stepSequence++,
+      status: 'failure',
+      error
+    });
+    logger.error("SMS verification error", error);
+    return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
+  }
+};
+
+// Mock SMS sending function (replace with real SMS service)
+async function sendSMS(phoneNumber, message) {
+  // For development, just log the SMS
+  logger.info(`[SMS] MOCK SMS to ${phoneNumber}: ${message}`);
+  
+  // In production, integrate with a real SMS provider like:
+  // - Twilio
+  // - Nexmo/Vonage  
+  // - Turkish SMS providers (Netgsm, İleti Merkezi, etc.)
+  
+  // Example Twilio integration (commented out):
+  /*
+  const twilio = require('twilio');
+  const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+  
+  await client.messages.create({
+    body: message,
+    from: process.env.TWILIO_PHONE_NUMBER,
+    to: phoneNumber
+  });
+  */
+  
+  // For now, just simulate success
+  return Promise.resolve();
+}

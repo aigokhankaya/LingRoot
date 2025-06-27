@@ -101,7 +101,7 @@ export default function Fiyatlandirma() {
                   </div>
                   <h3 className="text-xl font-bold text-white mb-2 text-center">Aylık</h3>
                   <div className="text-center">
-                    <span className="text-4xl font-bold text-white">49 ₺</span>
+                    <span className="text-4xl font-bold text-white">350 ₺</span>
                     <span className="text-white opacity-90">/ay</span>
                   </div>
                 </div>
@@ -149,9 +149,9 @@ export default function Fiyatlandirma() {
                 <div className="bg-gray-50 p-6">
                   <h3 className="text-xl font-bold text-gray-800 mb-2 text-center">Yıllık</h3>
                   <div className="text-center">
-                    <span className="text-3xl font-bold text-blue-600">399 ₺</span>
+                    <span className="text-3xl font-bold text-blue-600">2500 ₺</span>
                     <span className="text-gray-600">/yıl</span>
-                    <div className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded inline-block mt-1">%32 TASARRUF</div>
+                    <div className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded inline-block mt-1">%40 TASARRUF</div>
                   </div>
                 </div>
                 <div className="p-6">
