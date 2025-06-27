@@ -434,7 +434,7 @@ const App: React.FC = () => {
                                     </DialogHeader>
                                     <div className="relative aspect-video w-full overflow-hidden rounded-lg">
                                         <iframe
-                                            src="https://www.youtube.com/embed/demo-video-id"
+                                            src="https://www.youtube.com/embed/fn1OKImuTsE"
                                             className="absolute inset-0 h-full w-full"
                                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                             allowFullScreen>
@@ -499,11 +499,11 @@ const App: React.FC = () => {
                                     </Button>
                                 </a>
                             </div>
-                            <div className="relative overflow-hidden">
-                                <div className="relative aspect-video w-full h-full">
+                            <div className="relative overflow-hidden flex justify-center items-center p-1">
+                                <div className="relative aspect-video w-full max-w-2xl">
                                     <iframe
-                                        src="https://www.youtube.com/embed/demo-video-id"
-                                        className="absolute inset-0 h-full w-full"
+                                        src="https://www.youtube.com/embed/fn1OKImuTsE"
+                                        className="absolute inset-0 h-full w-full rounded-lg shadow-lg"
                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                         allowFullScreen>
                                     </iframe>
@@ -520,16 +520,7 @@ const App: React.FC = () => {
                         <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.howItWorks.title}</h2>
                         <p className="text-xl text-gray-600 max-w-3xl mx-auto">{t.howItWorks.description}</p>
                     </div>
-                    <div className="mb-16">
-                        <div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg mb-6">
-                            <iframe
-                                src="https://www.youtube.com/embed/demo-video-id"
-                                className="absolute inset-0 h-full w-full"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen>
-                            </iframe>
-                        </div>
-                    </div>
+
                     <div className="grid md:grid-cols-3 gap-8">
                         {t.howItWorks.steps.map((step, index) => (
                             <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col how-it-works-card">
