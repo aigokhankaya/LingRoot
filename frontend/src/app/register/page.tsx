@@ -12,11 +12,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   
   const [formData, setFormData] = useState({
     username: '',
     email: '',
+    phoneNumber: '',
     password: '',
     confirmPassword: '',
     acceptTerms: false
@@ -30,6 +31,39 @@ export default function RegisterPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Telefon numarası formatlaması için yardımcı fonksiyon
+  const formatPhoneNumber = (value: string) => {
+    // Sadece rakamları al
+    const cleaned = value.replace(/\D/g, '');
+    
+    // Eğer 90 ile başlıyorsa +90 ekle
+    if (cleaned.startsWith('90') && cleaned.length <= 12) {
+      const formatted = cleaned.replace(/^90(\d{3})(\d{3})(\d{2})(\d{2})$/, '+90 ($1) $2 $3 $4');
+      return formatted !== cleaned ? formatted : `+90 ${cleaned.slice(2)}`;
+    }
+    
+    // Eğer 5 ile başlıyorsa +90 ekle
+    if (cleaned.startsWith('5') && cleaned.length <= 10) {
+      if (cleaned.length === 10) {
+        return cleaned.replace(/^(\d{3})(\d{3})(\d{2})(\d{2})$/, '+90 ($1) $2 $3 $4');
+      }
+      return `+90 ${cleaned}`;
+    }
+    
+    // Eğer + ile başlıyorsa olduğu gibi bırak
+    if (value.startsWith('+')) {
+      return value;
+    }
+    
+    return value;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    const formattedValue = formatPhoneNumber(value);
+    setFormData(prev => ({ ...prev, phoneNumber: formattedValue }));
+  };
+
   const handleCheckboxChange = (checked: boolean) => {
     setFormData(prev => ({ ...prev, acceptTerms: checked }));
   };
@@ -39,7 +73,7 @@ export default function RegisterPage() {
     setError(null);
     
     // Validate form data
-    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
+    if (!formData.username || !formData.email || !formData.phoneNumber || !formData.password || !formData.confirmPassword) {
       setError('Lütfen tüm alanları doldurun.');
       return;
     }
@@ -57,8 +91,8 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Backend'e kayıt isteği gönder
-      const result = await register(formData.username, '', formData.email, '', formData.password);
+      // Backend'e kayıt isteği gönder - register fonksiyonu (firstName, lastName, email, phoneNumber, password) parametreleri alıyor
+      const result = await register(formData.username, '', formData.email, formData.phoneNumber, formData.password);
       if (result.success) {
         // Başarılı kayıt sonrası dashboard'a yönlendir
         router.push('/dashboard');
@@ -72,9 +106,61 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGoogleRegister = () => {
-    // Google OAuth implementasyonu
-    console.log('Google ile kayıt ol');
+  const handleGoogleRegister = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('🚀 Google ile kayıt/giriş işlemi başlatılıyor...');
+      
+      // Google Auth modülünü dinamik olarak import et
+      console.log('📦 Google Auth modülü yükleniyor...');
+      const { initializeGoogleAuth, signInWithGoogle } = await import('../../lib/googleAuth');
+      
+      // Google Auth'u başlat
+      console.log('🔧 Google Auth başlatılıyor...');
+      await initializeGoogleAuth();
+      
+      // Google Sign-In'i tetikle
+      console.log('🎯 Google Sign-In tetikleniyor...');
+      const { credential } = await signInWithGoogle();
+      
+      // useAuth hook'undan loginWithGoogle fonksiyonunu kullan
+      console.log('🔐 Backend ile kimlik doğrulama yapılıyor...');
+      const result = await loginWithGoogle(credential);
+      
+      if (result.success) {
+        // Başarılı giriş sonrası dashboard'a yönlendir
+        console.log('✅ Google ile giriş başarılı, dashboard\'a yönlendiriliyor...');
+        router.push('/dashboard');
+      } else {
+        console.error('❌ Backend kimlik doğrulama hatası:', result.message);
+        setError(result.message || 'Google ile giriş yaparken bir hata oluştu.');
+      }
+    } catch (err: any) {
+      console.error('❌ Google kayıt hatası:', err);
+      
+      // Kullanıcı dostu hata mesajları
+      let userErrorMessage = 'Google ile kayıt olurken bir hata oluştu.';
+      
+      if (err.message.includes('popup') || err.message.includes('pencere')) {
+        userErrorMessage = 'Google giriş penceresi açılamadı veya kapatıldı. Lütfen popup engelleyiciyi kontrol edin ve tekrar deneyin.';
+      } else if (err.message.includes('cancelled') || err.message.includes('iptal')) {
+        userErrorMessage = 'Google girişi iptal edildi.';
+      } else if (err.message.includes('timeout') || err.message.includes('zaman aşımı')) {
+        userErrorMessage = 'Google giriş zaman aşımına uğradı. Lütfen tekrar deneyin.';
+      } else if (err.message.includes('yapılandırılmamış') || err.message.includes('Client ID')) {
+        userErrorMessage = 'Google giriş servisi geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin.';
+      } else if (err.message.includes('yüklenmedi') || err.message.includes('Services')) {
+        userErrorMessage = 'Google servisleri yüklenemedi. İnternet bağlantınızı kontrol edin ve sayfayı yenileyin.';
+      } else if (err.message.includes('Failed to fetch') || err.message.includes('bağlanılamadı')) {
+        userErrorMessage = 'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin ve tekrar deneyin.';
+      }
+      
+      setError(userErrorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFacebookRegister = () => {
@@ -152,6 +238,20 @@ export default function RegisterPage() {
                   </div>
                   
                   <div className="space-y-2">
+                    <Label htmlFor="phoneNumber">Telefon Numarası</Label>
+                    <Input
+                      id="phoneNumber"
+                      name="phoneNumber"
+                      type="tel"
+                      placeholder="+90 (5xx) xxx xx xx"
+                      value={formData.phoneNumber}
+                      onChange={handlePhoneChange}
+                      className="border-gray-300 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
                     <Label htmlFor="password">Şifre</Label>
                     <Input
                       id="password"
@@ -187,7 +287,7 @@ export default function RegisterPage() {
                       onChange={(e) => handleCheckboxChange(e.target.checked)}
                       className="mt-1"
                     />
-                    <Label htmlFor="terms" className="text-sm text-gray-600 font-normal">
+                    <Label htmlFor="terms" className="text-sm text-gray-600 font-normal leading-relaxed">
                       <span>LingRoot'un </span>
                       <a href="/terms" className="text-blue-600 hover:underline cursor-pointer">Kullanım Şartları</a>
                       <span> ve </span>
@@ -198,10 +298,17 @@ export default function RegisterPage() {
                   
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-6"
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 font-semibold text-base"
                     disabled={!formData.acceptTerms || loading}
                   >
-                    {loading ? 'Hesap Oluşturuluyor...' : 'Ücretsiz Hesap Oluştur'}
+                    {loading ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Hesap Oluşturuluyor...
+                      </div>
+                    ) : (
+                      'Ücretsiz Hesap Oluştur'
+                    )}
                   </Button>
                 </form>
                 
@@ -215,24 +322,41 @@ export default function RegisterPage() {
                 <div className="space-y-3">
                   <Button 
                     variant="outline" 
-                    className="w-full py-6 border-gray-300 hover:bg-gray-50"
+                    className="w-full py-3 border-gray-300 hover:bg-gray-50 font-medium"
                     onClick={handleGoogleRegister}
+                    disabled={loading}
                   >
-                    <i className="fab fa-google mr-2 text-red-500"></i> Google ile Kaydol
+                    {loading ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2"></div>
+                        Google ile bağlanılıyor...
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center">
+                        <i className="fab fa-google mr-2 text-red-500"></i> 
+                        Google ile Kaydol
+                      </div>
+                    )}
                   </Button>
                   <Button 
                     variant="outline" 
-                    className="w-full py-6 border-gray-300 hover:bg-gray-50"
+                    className="w-full py-3 border-gray-300 hover:bg-gray-50 font-medium"
                     onClick={handleFacebookRegister}
                   >
-                    <i className="fab fa-facebook mr-2 text-blue-600"></i> Facebook ile Kaydol
+                    <div className="flex items-center justify-center">
+                      <i className="fab fa-facebook mr-2 text-blue-600"></i> 
+                      Facebook ile Kaydol
+                    </div>
                   </Button>
                   <Button 
                     variant="outline" 
-                    className="w-full py-6 border-gray-300 hover:bg-gray-50"
+                    className="w-full py-3 border-gray-300 hover:bg-gray-50 font-medium"
                     onClick={handleAppleRegister}
                   >
-                    <i className="fab fa-apple mr-2"></i> Apple ile Kaydol
+                    <div className="flex items-center justify-center">
+                      <i className="fab fa-apple mr-2"></i> 
+                      Apple ile Kaydol
+                    </div>
                   </Button>
                 </div>
                 

@@ -2,6 +2,7 @@ import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Footer from '../src/components/Footer';
+import StandardHeader from '../src/components/common/StandardHeader';
 
 export default function About() {
   return (
@@ -14,45 +15,7 @@ export default function About() {
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
       </Head>
       
-      {/* Header - Ana sayfa stilinde */}
-      <header className="fixed w-full py-3 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-            <span className="text-white font-bold text-lg">LR</span>
-          </div>
-          <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            LingRoot
-          </span>
-        </Link>
-        
-        <nav className="hidden md:flex items-center space-x-6">
-          <Link href="/about" className="text-blue-600 hover:text-blue-700 font-medium transition-colors">
-            Hakkımızda
-          </Link>
-          <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
-            Nasıl Çalışır?
-          </Link>
-          <Link href="/ozellikler" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
-            Özellikler
-          </Link>
-          <Link href="/fiyatlandirma" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
-            Fiyatlandırma
-          </Link>
-          <Link href="/blog" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
-            Blog
-          </Link>
-        </nav>
-
-        <div className="flex items-center space-x-3">
-          <Link href="/login" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
-            Giriş Yap
-          </Link>
-          <Link href="/register" 
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl">
-            Ücretsiz Başla
-          </Link>
-        </div>
-      </header>
+      <StandardHeader />
 
       <main className="flex-grow pt-20">
         {/* Hero Section */}

@@ -753,10 +753,24 @@ const processTtsRequest = async (req, res) => {
         logger.info(`[${requestId}] Merging ${audioSegments.length} audio segments...`);
         
         const audioBuffers = audioSegments.map(segment => segment.audioContent);
-        const mergedAudioBuffer = await mergeAudioSegmentsToBuffer(audioBuffers);
+        let mergedAudioBuffer = await mergeAudioSegmentsToBuffer(audioBuffers);
         
         if (!mergedAudioBuffer) {
-            throw new Error('Audio merging failed');
+            logger.error(`[${requestId}] Audio merging failed - attempting simple concatenation`);
+            // Fallback: simple concatenation without FFmpeg
+            const totalLength = audioBuffers.reduce((acc, buffer) => acc + buffer.length, 0);
+            const combinedBuffer = Buffer.alloc(totalLength);
+            let offset = 0;
+            for (const buffer of audioBuffers) {
+                buffer.copy(combinedBuffer, offset);
+                offset += buffer.length;
+            }
+            if (combinedBuffer.length > 0) {
+                logger.info(`[${requestId}] Simple concatenation successful - Size: ${combinedBuffer.length} bytes`);
+                mergedAudioBuffer = combinedBuffer;
+            } else {
+                throw new Error('Audio merging failed completely');
+            }
         }
 
         const mergedAudioBase64 = mergedAudioBuffer.toString('base64');

@@ -16,6 +16,9 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
+  loginWithPhone: (phoneNumber: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
+  smsLogin: (phoneNumber: string) => Promise<{ success: boolean; message?: string; userId?: string }>;
+  verifySmsLogin: (userId: string, verificationCode: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
   loginWithGoogle: (credential: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   register: (firstName: string, lastName: string, email: string, phoneNumber: string, password: string) => Promise<{ success: boolean; message?: string }>;
@@ -142,7 +145,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       const response = await fetch(getApiUrl('auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, rememberMe }),
         credentials: 'include'
       });
       
@@ -185,11 +188,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         };
         setUser(user);
         setIsAuthenticated(true);
-        // Eğer backend token döndürüyorsa localStorage'a kaydet
+        // Eğer backend token döndürüyorsa localStorage ve cookie'ye kaydet
         if (data.data.token) {
           localStorage.setItem('lingroot_token', data.data.token);
-          // Beni hatırla seçeneği için flag kaydet
           localStorage.setItem('lingroot_remember_me', rememberMe.toString());
+          
+          // Cookie'lere de kaydet (middleware için)
+          document.cookie = `lingroot_token=${data.data.token}; path=/; ${rememberMe ? 'max-age=2592000' : 'max-age=3600'}; SameSite=Strict`;
+          document.cookie = `lingroot_remember_me=${rememberMe}; path=/; ${rememberMe ? 'max-age=2592000' : 'max-age=3600'}; SameSite=Strict`;
+          
           console.log('[AUTH] Token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
         }
         console.log('[AUTH] setUser & setIsAuthenticated', user);
@@ -245,6 +252,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
   const logout = () => {
     localStorage.removeItem('lingroot_token');
     localStorage.removeItem('lingroot_remember_me');
+    
+    // Cookie'leri de temizle
+    document.cookie = 'lingroot_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
+    document.cookie = 'lingroot_remember_me=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
+    
     setUser(null);
     setIsAuthenticated(false);
   };
@@ -319,6 +331,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         if (data.data.token) {
           localStorage.setItem('lingroot_token', data.data.token);
           localStorage.setItem('lingroot_remember_me', rememberMe.toString());
+          
+          // Cookie'lere de kaydet (middleware için)
+          document.cookie = `lingroot_token=${data.data.token}; path=/; ${rememberMe ? 'max-age=2592000' : 'max-age=3600'}; SameSite=Strict`;
+          document.cookie = `lingroot_remember_me=${rememberMe}; path=/; ${rememberMe ? 'max-age=2592000' : 'max-age=3600'}; SameSite=Strict`;
+          
           console.log('[AUTH] Google token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
         }
         
@@ -336,6 +353,159 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         return { success: false, message: 'Sunucuya bağlanılamadı, lütfen internet bağlantınızı kontrol edin.' };
       }
       return { success: false, message: error.message || 'Google ile giriş sırasında bir hata oluştu.' };
+    }
+  };
+
+  const loginWithPhone = async (phoneNumber: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
+    try {
+      console.log('[AUTH] loginWithPhone() called', { phoneNumber });
+
+      const response = await fetch(getApiUrl('auth/login'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber, password, rememberMe }),
+        credentials: 'include'
+      });
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        console.log('[AUTH] loginWithPhone() JSON parse error', jsonErr);
+        return { success: false, message: 'Sunucudan geçersiz yanıt alındı.' };
+      }
+
+      console.log('[AUTH] loginWithPhone() response data:', data);
+
+      if (response.ok && data.success) {
+        const rawUser = data.data.user;
+        const user: User = {
+          id: rawUser.id,
+          email: rawUser.email,
+          role: rawUser.role || 'user',
+          membershipStatus: rawUser.membershipStatus || rawUser.membership_status || 'free',
+        };
+        setUser(user);
+        setIsAuthenticated(true);
+
+        if (data.data.token) {
+          localStorage.setItem('lingroot_token', data.data.token);
+          localStorage.setItem('lingroot_remember_me', rememberMe.toString());
+          
+          // Cookie'lere de kaydet (middleware için)
+          document.cookie = `lingroot_token=${data.data.token}; path=/; ${rememberMe ? 'max-age=2592000' : 'max-age=3600'}; SameSite=Strict`;
+          document.cookie = `lingroot_remember_me=${rememberMe}; path=/; ${rememberMe ? 'max-age=2592000' : 'max-age=3600'}; SameSite=Strict`;
+          
+          console.log('[AUTH] Phone login token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
+        }
+
+        return { success: true };
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+        return { success: false, message: data.message || 'Telefon ile giriş başarısız.' };
+      }
+    } catch (error: any) {
+      console.log('[AUTH] loginWithPhone() error', error);
+      setUser(null);
+      setIsAuthenticated(false);
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        return { success: false, message: 'Sunucuya bağlanılamadı, lütfen internet bağlantınızı kontrol edin.' };
+      }
+      return { success: false, message: error.message || 'Telefon ile giriş sırasında bir hata oluştu.' };
+    }
+  };
+
+  const smsLogin = async (phoneNumber: string): Promise<{ success: boolean; message?: string; userId?: string }> => {
+    try {
+      console.log('[AUTH] smsLogin() called', { phoneNumber });
+
+      const response = await fetch(getApiUrl('auth/sms-login'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber })
+      });
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        console.log('[AUTH] smsLogin() JSON parse error', jsonErr);
+        return { success: false, message: 'Sunucudan geçersiz yanıt alındı.' };
+      }
+
+      console.log('[AUTH] smsLogin() response data:', data);
+      return { 
+        success: data.success, 
+        message: data.message,
+        userId: data.data?.userId 
+      };
+    } catch (error: any) {
+      console.log('[AUTH] smsLogin() error', error);
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        return { success: false, message: 'Sunucuya bağlanılamadı, lütfen internet bağlantınızı kontrol edin.' };
+      }
+      return { success: false, message: error.message || 'SMS gönderimi sırasında bir hata oluştu.' };
+    }
+  };
+
+  const verifySmsLogin = async (userId: string, verificationCode: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
+    try {
+      console.log('[AUTH] verifySmsLogin() called', { userId, verificationCode });
+
+      const response = await fetch(getApiUrl('auth/verify-sms'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, verificationCode, rememberMe }),
+        credentials: 'include'
+      });
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        console.log('[AUTH] verifySmsLogin() JSON parse error', jsonErr);
+        return { success: false, message: 'Sunucudan geçersiz yanıt alındı.' };
+      }
+
+      console.log('[AUTH] verifySmsLogin() response data:', data);
+
+      if (response.ok && data.success) {
+        const rawUser = data.data.user;
+        const user: User = {
+          id: rawUser.id,
+          email: rawUser.email,
+          role: rawUser.role || 'user',
+          membershipStatus: rawUser.membershipStatus || rawUser.membership_status || 'free',
+        };
+        setUser(user);
+        setIsAuthenticated(true);
+
+        if (data.data.token) {
+          localStorage.setItem('lingroot_token', data.data.token);
+          localStorage.setItem('lingroot_remember_me', rememberMe.toString());
+          
+          // Cookie'lere de kaydet (middleware için)
+          document.cookie = `lingroot_token=${data.data.token}; path=/; ${rememberMe ? 'max-age=2592000' : 'max-age=3600'}; SameSite=Strict`;
+          document.cookie = `lingroot_remember_me=${rememberMe}; path=/; ${rememberMe ? 'max-age=2592000' : 'max-age=3600'}; SameSite=Strict`;
+          
+          console.log('[AUTH] SMS verification token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
+        }
+
+        return { success: true };
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+        return { success: false, message: data.message || 'SMS doğrulama başarısız.' };
+      }
+    } catch (error: any) {
+      console.log('[AUTH] verifySmsLogin() error', error);
+      setUser(null);
+      setIsAuthenticated(false);
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        return { success: false, message: 'Sunucuya bağlanılamadı, lütfen internet bağlantınızı kontrol edin.' };
+      }
+      return { success: false, message: error.message || 'SMS doğrulama sırasında bir hata oluştu.' };
     }
   };
 
@@ -376,7 +546,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     }
   };
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, loginWithGoogle, logout, register }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, loginWithPhone, smsLogin, verifySmsLogin, loginWithGoogle, logout, register }}>
       {children}
     </AuthContext.Provider>
   );

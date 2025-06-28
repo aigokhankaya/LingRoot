@@ -6,6 +6,8 @@ const authController = require('../controllers/authController');
 // Public routes
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.post('/sms-login', authController.smsLogin);
+router.post('/verify-sms', authController.verifySmsLogin);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 router.post('/verify-email/:token', authController.verifyEmail);

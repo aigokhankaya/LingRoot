@@ -148,9 +148,9 @@ export default function CookiePolicy() {
                 </p>
                 <p className="text-gray-600 leading-relaxed">
                   Sitemizi kullanmaya devam ederek çerez kullanımını kabul etmiş sayılırsınız. 
-                  Çerez tercihlerinizi tarayıcı ayarlarınızdan dilediğiniz zaman değiştirebilirsiniz.
-                </p>
-              </div>
+          Çerez tercihlerinizi tarayıcı ayarlarınızdan dilediğiniz zaman değiştirebilirsiniz.
+        </p>
+      </div>
 
               {/* Çerez Nedir */}
               <div className="mb-12">
@@ -376,7 +376,7 @@ export default function CookiePolicy() {
             </div>
           </div>
         </section>
-      </main>
+    </main>
 
       <Footer />
     </div>
