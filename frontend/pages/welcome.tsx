@@ -1838,21 +1838,25 @@ const Welcome: React.FC = () => {
                     {(showAllHistory ? contentHistory : contentHistory.slice(0, 5)).map((item) => (
                       <div key={item.id} className="bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
                         {/* Compact Header - Always Visible */}
-                        <div 
-                          className="p-4 cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => {
-                            setExpandedHistoryItem(expandedHistoryItem === item.id ? null : item.id);
-                          }}
-                        >
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="outline" className="text-xs">
-                                  {(item.input_type || 'unknown').toUpperCase()}
-                                </Badge>
-                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                  {item.level || 'N/A'}
-                                </Badge>
+                        <div className="p-4">
+                          <div className="flex flex-col gap-4">
+                            {/* Başlık ve Bilgiler */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-bold">
+                                  <i className="fas fa-music text-sm"></i>
+                                </div>
+                                <h4 className="font-medium text-green-600">Senkronize Oynatıcı</h4>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {(item.input_type || 'unknown').toUpperCase()}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                    {item.level || 'N/A'}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
                                 <span className="text-xs text-gray-500">
                                   {new Date(item.created_at).toLocaleDateString('tr-TR', {
                                     year: 'numeric',
@@ -1860,90 +1864,29 @@ const Welcome: React.FC = () => {
                                     day: 'numeric',
                                     hour: '2-digit',
                                     minute: '2-digit'
-                                  })}
+                                                                    })}
                                 </span>
                               </div>
-                              <div className="mb-3">
-                                <h4 className="font-medium text-gray-800 mb-1">İngilizce Metin (Seviyenize Uyarlanmış):</h4>
-                                <p className="text-sm text-gray-600 line-clamp-2">
-                                  {item.adapted_text || item.input}
-                                </p>
-                                {item.adapted_text && (
-                                  <details className="mt-2">
-                                    <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
-                                      Orijinal Türkçe metni göster
-                                    </summary>
-                                    <p className="text-xs text-gray-500 mt-1 p-2 bg-gray-100 rounded">
-                                      {item.input}
-                                    </p>
-                                  </details>
-                                )}
-                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <div className="text-xs text-gray-500">
-                                {expandedHistoryItem === item.id ? 'Daralt' : 'Oynatıcıyı Aç'}
-                              </div>
-                              <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
+
+                            {/* Gelişmiş Senkronize Oynatıcı - Direkt göster */}
+                            <div className="mt-2">
+                              <OutputSection 
+                                audioResult={{
+                                  message: item.adapted_text || item.input || 'Metin mevcut değil',
+                                  mp3_url: item.mp3_url,
+                                  vtt_url: item.mp3_url.replace('.mp3', '.vtt'), // Assume VTT exists
+                                  level: item.level || 'A1',
+                                  timepoints: [], // Will be loaded from VTT
+                                  words: (item.adapted_text || item.input || 'Metin mevcut değil').split(/\s+/).filter(word => word.length > 0),
+                                  original_turkish: item.input || 'Orijinal metin mevcut değil',
+                                  speaking_rate: 1.0
+                                }}
+                                isLoggedIn={isAuthenticated}
+                              />
                             </div>
                           </div>
                         </div>
-
-                        {/* Expanded Player View - Toggleable */}
-                        {expandedHistoryItem === item.id && (
-                          <div className="border-t border-gray-200 bg-white p-6">
-                            <div className="flex items-center mb-4">
-                              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-bold mr-3">
-                                <i className="fas fa-play text-sm"></i>
-                              </div>
-                              <h3 className="text-lg font-semibold text-green-600">Senkronize Oynatıcı</h3>
-                            </div>
-                            
-                            {/* Use OutputSection component for full functionality */}
-                            <OutputSection 
-                              audioResult={{
-                                message: item.adapted_text || item.input,
-                                mp3_url: item.mp3_url,
-                                vtt_url: item.mp3_url.replace('.mp3', '.vtt'), // Assume VTT exists
-                                level: item.level,
-                                timepoints: [], // Will be loaded from VTT
-                                words: (item.adapted_text || item.input).split(/\s+/).filter(word => word.length > 0),
-                                original_turkish: item.input,
-                                speaking_rate: 1.0
-                              }}
-                              isLoggedIn={isAuthenticated}
-                            />
-
-                            {/* Quick actions */}
-                            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="!rounded-button whitespace-nowrap cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  window.open(convertToPlayableUrl(item.mp3_url), '_blank');
-                                }}
-                              >
-                                <i className="fas fa-external-link-alt mr-2"></i>
-                                Yeni Sekmede Aç
-                              </Button>
-                              
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="!rounded-button whitespace-nowrap cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedHistoryItem(null);
-                                }}
-                              >
-                                <i className="fas fa-times mr-2"></i>
-                                Kapat
-                              </Button>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     ))}
                     
