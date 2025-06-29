@@ -14,11 +14,11 @@ import {
   CardDescription,
 } from "../src/components/ui/card";
 import { Badge } from "../src/components/ui/badge";
-import { Separator } from "../src/components/ui/separator";
-import { ScrollArea } from "../src/components/ui/scroll-area";
-import { RadioGroup, RadioGroupItem } from "../src/components/ui/radio-group";
-import { Label } from "../src/components/ui/label";
-import { Alert, AlertDescription } from "../src/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
