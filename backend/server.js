@@ -27,6 +27,7 @@ const userRoutes = require("./routes/userRoutes"); // 👈 İlgi alanları burad
 const parameterRoutes = require("./routes/parameterRoutes");
 const vocabularyRoutes = require("./routes/vocabularyRoutes"); // 👈 Vocabulary route eklendi
 const testEmailRoutes = require("./routes/testEmailRoutes"); // 👈 Email test routes
+const chatRoutes = require("./routes/chatRoutes"); // 👈 Chat routes eklendi
 
 // Initialize Express app
 const app = express();
@@ -101,6 +102,9 @@ if (!fs.existsSync(uploadDir)) {
   }
 }
 
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Mount routes
 
 app.use("/api/auth", authRoutes);
@@ -117,6 +121,7 @@ app.use("/api", userRoutes); // ✅ user-interests endpoint burada aktif
 app.use("/api/parameters", parameterRoutes);
 app.use("/api/vocabulary", vocabularyRoutes); // 👈 Vocabulary route eklendi
 app.use("/api/test-email", testEmailRoutes); // 👈 Email test routes
+app.use("/api/chat", chatRoutes); // 👈 Chat routes eklendi
 app.use('/auth', authRoutes);
 
 // Health check endpoint (Render için)

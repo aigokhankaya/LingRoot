@@ -148,6 +148,12 @@ const Welcome: React.FC = () => {
   // Content history expanded view state
   const [expandedHistoryItem, setExpandedHistoryItem] = useState<string | null>(null);
   
+  // Chat state'leri
+  const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([]);
+  const [chatInput, setChatInput] = useState<string>('');
+  const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
+  const [chatInitialized, setChatInitialized] = useState<boolean>(false);
+  
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
     { id: 'text', name: 'Metin', icon: 'fas fa-file-alt' },
@@ -160,6 +166,7 @@ const Welcome: React.FC = () => {
     { id: 'book', name: 'Kitap', icon: 'fas fa-book' },
     { id: 'custom', name: 'Öneriler', icon: 'fas fa-plus' },
     { id: 'hashtag', name: 'Etiket', icon: 'fas fa-hashtag' },
+    { id: 'chat', name: 'Chat', icon: 'fas fa-comments' },
   ];
   
   const levelOptions = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -871,41 +878,108 @@ const Welcome: React.FC = () => {
     await handleSubmit(inputData);
   };
 
-  if (user === undefined) {
-    return (
-      <main className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </main>
-    );
-  }
+  // Chat fonksiyonları
+  const initializeChat = async () => {
+    if (chatInitialized) return;
+    
+    try {
+      const response = await fetch('/api/chat/initial', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-  // Auth loading durumunda loading göster
-  if (authLoading) {
-    return (
-      <main className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Yükleniyor...</p>
-        </div>
-      </main>
-    );
-  }
+      if (response.ok) {
+        const data = await response.json();
+        setChatMessages(data.data.conversationHistory);
+        setChatInitialized(true);
+      }
+    } catch (error) {
+      console.error('Chat initialization error:', error);
+      // Fallback mesaj
+      setChatMessages([{
+        role: 'assistant',
+        content: 'Merhaba! 👋 Bugün ne dinlemek istersin? İlgi alanlarını, hobilerini veya merak ettiğin konuları söyle, sana özel İngilizce içerikler önereyim. Hangi konuda bir şeyler dinlemek istiyorsun?'
+      }]);
+      setChatInitialized(true);
+    }
+  };
 
-  // Auth tamamlandıktan sonra user kontrolü
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || isChatLoading) return;
+
+    const userMessage = chatInput.trim();
+    setChatInput('');
+    setIsChatLoading(true);
+
+    // Kullanıcı mesajını hemen ekle
+    const newMessages = [...chatMessages, { role: 'user', content: userMessage }];
+    setChatMessages(newMessages);
+
+    try {
+      const response = await fetch('/api/chat/message', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          conversationHistory: chatMessages
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setChatMessages(data.data.conversationHistory);
+      } else {
+        // Hata durumunda fallback cevap
+        setChatMessages([...newMessages, {
+          role: 'assistant',
+          content: 'Üzgünüm, şu anda bir sorun yaşıyorum. Lütfen tekrar deneyin.'
+        }]);
+      }
+    } catch (error) {
+      console.error('Chat message error:', error);
+      // Hata durumunda fallback cevap
+      setChatMessages([...newMessages, {
+        role: 'assistant',
+        content: 'Üzgünüm, şu anda bir sorun yaşıyorum. Lütfen tekrar deneyin.'
+      }]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const handleChatKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  };
+
+  // Chat seçildiğinde initialize et
+  React.useEffect(() => {
+    if (contentType === 'chat') {
+      initializeChat();
+    }
+  }, [contentType]);
+
+  // Chat'den metin seçme fonksiyonu
+  const selectTextFromChat = (text: string) => {
+    setTextInput(text);
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      router.replace('/');
+    }
+  }, [isAuthenticated, user]);
+
   if (!isAuthenticated || !user) {
-    return (
-      <main className="min-h-screen flex items-center justify-center text-xl text-gray-500">
-        <div className="text-center">
-          <p className="mb-4">Oturum açmanız gerekiyor.</p>
-          <button 
-            onClick={() => router.push('/login')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md"
-          >
-            Giriş Yap
-          </button>
-        </div>
-      </main>
-    );
+    return null;
   }
 
   const displayName = (user as any).name || user.email;
@@ -1259,6 +1333,130 @@ const Welcome: React.FC = () => {
                             <i className="fas fa-edit text-xl"></i>
                           </button>
                         </div>
+                      </div>
+                    )}
+
+                    {/* Chat sekmesi */}
+                    {contentType === 'chat' && (
+                      <div className="space-y-4">
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+                          <div className="flex items-center mb-2">
+                            <i className="fas fa-robot text-blue-600 mr-2"></i>
+                            <h3 className="text-lg font-medium text-blue-800">AI Chat Asistanı</h3>
+                          </div>
+                          <p className="text-sm text-blue-700">
+                            Yapay zeka asistanımla sohbet ederek size özel İngilizce içerik önerileri alın. 
+                            İlgi alanlarınızı, seviyenizi ve bugün ne dinlemek istediğinizi söyleyin!
+                          </p>
+                        </div>
+
+                        {/* Chat Mesajları */}
+                        <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+                          <div className="h-96 overflow-y-auto p-4 space-y-3">
+                            {chatMessages.map((message, index) => (
+                              <div
+                                key={index}
+                                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                              >
+                                <div
+                                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                                    message.role === 'user'
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}
+                                >
+                                  <div className="flex items-start space-x-2">
+                                    {message.role === 'assistant' && (
+                                      <i className="fas fa-robot text-blue-600 mt-1 flex-shrink-0"></i>
+                                    )}
+                                    <div className="text-sm whitespace-pre-wrap">
+                                      {message.content}
+                                      {message.role === 'assistant' && message.content.length > 50 && (
+                                        <div className="mt-2 pt-2 border-t border-gray-200">
+                                          <Button
+                                            onClick={() => selectTextFromChat(message.content)}
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-xs !rounded-button whitespace-nowrap cursor-pointer"
+                                          >
+                                            <i className="fas fa-arrow-right mr-1"></i>
+                                            Bu Metni Seç
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                            
+                            {isChatLoading && (
+                              <div className="flex justify-start">
+                                <div className="max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-gray-100">
+                                  <div className="flex items-center space-x-2">
+                                    <i className="fas fa-robot text-blue-600"></i>
+                                    <div className="flex space-x-1">
+                                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Chat Input */}
+                          <div className="border-t border-gray-200 p-4">
+                            <div className="flex space-x-3">
+                              <input
+                                type="text"
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                onKeyPress={handleChatKeyPress}
+                                placeholder="Mesajınızı yazın..."
+                                className="flex-1 p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                                disabled={isChatLoading}
+                              />
+                              <Button
+                                onClick={sendChatMessage}
+                                disabled={!chatInput.trim() || isChatLoading}
+                                className={`px-4 py-3 !rounded-button whitespace-nowrap ${
+                                  chatInput.trim() && !isChatLoading
+                                    ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
+                                    : 'bg-gray-400 cursor-not-allowed'
+                                }`}
+                              >
+                                {isChatLoading ? (
+                                  <i className="fas fa-circle-notch fa-spin"></i>
+                                ) : (
+                                  <i className="fas fa-paper-plane"></i>
+                                )}
+                              </Button>
+                            </div>
+                            <div className="mt-2 text-xs text-gray-500">
+                              <i className="fas fa-info-circle mr-1"></i>
+                              Enter tuşuna basarak mesaj gönderebilirsiniz
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Chat'den metin seçimi için özel alan */}
+                        {textInput && (
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <div className="flex items-center mb-2">
+                              <i className="fas fa-check-circle text-green-600 mr-2"></i>
+                              <h4 className="font-medium text-green-800">Seçilen İçerik</h4>
+                            </div>
+                            <div className="text-sm text-green-700 bg-white p-3 rounded border border-green-200 max-h-32 overflow-y-auto">
+                              {textInput}
+                            </div>
+                            <div className="mt-3 text-xs text-green-600">
+                              <i className="fas fa-arrow-down mr-1"></i>
+                              Bu içerik ses dönüşümü için hazır. Aşağıdaki ayarları yapıp "Ses Oluştur" butonuna tıklayın.
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                     

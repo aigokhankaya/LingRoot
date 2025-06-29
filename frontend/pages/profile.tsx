@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { useAuth } from '../src/lib/auth';
 import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
-import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle, FaTimes, FaCamera, FaSave } from 'react-icons/fa';
 import { getContentHistory } from '../src/lib/api';
 import InterestManager from '../src/components/InterestManager';
 
@@ -14,6 +14,17 @@ export default function Profile() {
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [contentHistory, setContentHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  
+  // Profile edit modal states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    bio: '',
+    profilePhoto: null as File | null
+  });
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function fetchActivities() {
@@ -57,6 +68,80 @@ export default function Profile() {
     }
     fetchHistory();
   }, []);
+
+  // Initialize edit form when modal opens
+  useEffect(() => {
+    if (isEditModalOpen && user) {
+      setEditForm({
+        name: (user as any).name || user.email,
+        bio: (user as any).bio || '',
+        profilePhoto: null
+      });
+      setPreviewUrl((user as any).avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent((user as any).name || user.email)}`);
+    }
+  }, [isEditModalOpen, user]);
+
+  // Handle profile photo selection
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert('Dosya boyutu 5MB\'dan küçük olmalıdır.');
+        return;
+      }
+      
+      if (!file.type.startsWith('image/')) {
+        alert('Lütfen bir resim dosyası seçin.');
+        return;
+      }
+
+      setEditForm(prev => ({ ...prev, profilePhoto: file }));
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreviewUrl(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle form submission
+  const handleSaveProfile = async () => {
+    setIsSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', editForm.name);
+      formData.append('bio', editForm.bio);
+      
+      if (editForm.profilePhoto) {
+        formData.append('profilePhoto', editForm.profilePhoto);
+      }
+
+      // Mock API call - replace with actual API endpoint
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        alert('Profil başarıyla güncellendi!');
+        setIsEditModalOpen(false);
+        // Reload page to show updated profile
+        window.location.reload();
+      } else {
+        alert('Profil güncellenirken bir hata oluştu.');
+      }
+    } catch (error) {
+      console.error('Profile update error:', error);
+      alert('Profil güncellenirken bir hata oluştu.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Auth loading durumunda loading göster
   if (authLoading) {
@@ -109,11 +194,10 @@ export default function Profile() {
                 </h1>
             </div>
             <div className="flex items-center space-x-2">
-              <Link href="/profile" className="flex items-center space-x-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+              <Link href="/profile" className="flex items-center px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
                 <span className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 text-gray-600 font-bold text-sm border border-gray-300">
                   {displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0,2)}
                 </span>
-                <span className="text-gray-700 text-sm font-medium">{user.email}</span>
               </Link>
               <button
                 onClick={logout}
@@ -146,17 +230,22 @@ export default function Profile() {
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center space-x-4">
                 <Image src={avatar} alt={displayName} width={64} height={64} sizes="64px" className="rounded-full border-2 border-blue-200 object-cover" />
-                <div>
+                <div className="flex-1">
                   <h2 className="text-xl font-bold text-gray-900">{displayName}</h2>
-                  <p className="text-gray-500 text-sm">{user.email}</p>
+                  {(user as any).bio && (
+                    <p className="text-gray-600 text-sm mt-1">{(user as any).bio}</p>
+                  )}
                   <span className={`inline-flex items-center px-2 py-1 mt-2 rounded text-xs font-semibold bg-blue-100 text-blue-700`}>
                     {badge?.label || 'Ücretsiz'} Üyelik
                   </span>
                 </div>
               </div>
-              <Link href="/profile" className="mt-4 inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-100 transition">
+              <button 
+                onClick={() => setIsEditModalOpen(true)}
+                className="mt-4 inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-100 transition"
+              >
                 <FaUserEdit className="mr-2" /> Profili Düzenle
-              </Link>
+              </button>
             </div>
 
             {/* İstatistikler */}
@@ -256,6 +345,127 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {/* Profile Edit Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-bold text-gray-900">Profili Düzenle</h2>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition"
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Profile Photo */}
+              <div className="text-center">
+                <div className="relative inline-block">
+                  <Image
+                    src={previewUrl}
+                    alt="Profile Preview"
+                    width={96}
+                    height={96}
+                    className="rounded-full border-4 border-blue-100 object-cover"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 bg-blue-600 text-white rounded-full p-2 shadow-lg hover:bg-blue-700 transition"
+                  >
+                    <FaCamera className="w-3 h-3" />
+                  </button>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoSelect}
+                  className="hidden"
+                />
+                <p className="text-sm text-gray-500 mt-2">
+                  Profil fotoğrafını değiştirmek için kameraya tıklayın
+                </p>
+              </div>
+
+              {/* Name Field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  İsim
+                </label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="İsminizi girin"
+                />
+              </div>
+
+              {/* Bio Field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Hakkında
+                </label>
+                <textarea
+                  value={editForm.bio}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Kendiniz hakkında kısa bir açıklama yazın"
+                />
+              </div>
+
+              {/* Email Field (Read-only) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  E-posta Adresi
+                </label>
+                <input
+                  type="email"
+                  value={user?.email || ''}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  E-posta adresi değiştirilemez
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end space-x-3 p-6 border-t bg-gray-50 rounded-b-xl">
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Kaydediliyor...
+                  </>
+                ) : (
+                  <>
+                    <FaSave className="mr-2" />
+                    Kaydet
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="bg-white border-t mt-8">
