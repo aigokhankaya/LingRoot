@@ -973,7 +973,7 @@ const Welcome: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!isAuthenticated || !user) {
+  if (!isAuthenticated || !user) {
       router.replace('/');
     }
   }, [isAuthenticated, user]);
@@ -2046,12 +2046,12 @@ const Welcome: React.FC = () => {
                                 </div>
                                 <h4 className="font-medium text-green-600">Senkronize Oynatıcı</h4>
                                 <div className="flex items-center gap-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    {(item.input_type || 'unknown').toUpperCase()}
-                                  </Badge>
-                                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                    {item.level || 'N/A'}
-                                  </Badge>
+                                <Badge variant="outline" className="text-xs">
+                                  {(item.input_type || 'unknown').toUpperCase()}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                  {item.level || 'N/A'}
+                                </Badge>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
@@ -2062,26 +2062,26 @@ const Welcome: React.FC = () => {
                                     day: 'numeric',
                                     hour: '2-digit',
                                     minute: '2-digit'
-                                                                    })}
+                                  })}
                                 </span>
-                              </div>
-                            </div>
+                          </div>
+                        </div>
 
                             {/* Gelişmiş Senkronize Oynatıcı - Direkt göster */}
                             <div className="mt-2">
-                              <OutputSection 
-                                audioResult={{
+                            <OutputSection 
+                              audioResult={{
                                   message: item.adapted_text || item.input || 'Metin mevcut değil',
-                                  mp3_url: item.mp3_url,
-                                  vtt_url: item.mp3_url.replace('.mp3', '.vtt'), // Assume VTT exists
+                                mp3_url: item.mp3_url,
+                                vtt_url: item.mp3_url.replace('.mp3', '.vtt'), // Assume VTT exists
                                   level: item.level || 'A1',
-                                  timepoints: [], // Will be loaded from VTT
+                                timepoints: [], // Will be loaded from VTT
                                   words: (item.adapted_text || item.input || 'Metin mevcut değil').split(/\s+/).filter(word => word.length > 0),
                                   original_turkish: item.input || 'Orijinal metin mevcut değil',
-                                  speaking_rate: 1.0
-                                }}
-                                isLoggedIn={isAuthenticated}
-                              />
+                                speaking_rate: 1.0
+                              }}
+                              isLoggedIn={isAuthenticated}
+                            />
                             </div>
                           </div>
                         </div>

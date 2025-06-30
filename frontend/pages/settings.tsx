@@ -14,11 +14,11 @@ import {
   CardDescription,
 } from "../src/components/ui/card";
 import { Badge } from "../src/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "../src/components/ui/separator";
+import { ScrollArea } from "../src/components/ui/scroll-area";
+import { RadioGroup, RadioGroupItem } from "../src/components/ui/radio-group";
+import { Label } from "../src/components/ui/label";
+import { Alert, AlertDescription } from "../src/components/ui/alert";
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
@@ -304,11 +304,9 @@ const Settings: React.FC = () => {
               </Alert>
             )}
 
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
             {/* Profile Information */}
-            <TabsContent
-              value="profil"
-              className={activeTab === "profil" ? "block" : "hidden"}
-            >
+            <TabsContent value="profil">
               <Card className="border-none shadow-md mb-6">
                 <CardHeader className="pb-2">
                   <CardTitle>Profil Bilgileri</CardTitle>
@@ -1362,6 +1360,7 @@ const Settings: React.FC = () => {
                 </CardContent>
               </Card>
             </TabsContent>
+            </Tabs>
 
             {/* Save Changes Button */}
             <div className="flex justify-end mt-6">
