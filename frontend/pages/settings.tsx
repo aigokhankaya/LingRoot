@@ -5,7 +5,7 @@ import { Button } from "../src/components/ui/button";
 import { Input } from "../src/components/ui/input";
 import { Textarea } from "../src/components/ui/textarea";
 import { Switch } from "../src/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../src/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "../src/components/ui/tabs";
 import {
   Card,
   CardContent,
@@ -305,9 +305,8 @@ const Settings: React.FC = () => {
             )}
 
             {/* Profile Information */}
-            <TabsContent
-              value="profil"
-              className={activeTab === "profil" ? "block" : "hidden"}
+            <div
+              className={`${activeTab === "profil" ? "block" : "hidden"}`}
             >
               <Card className="border-none shadow-md mb-6">
                 <CardHeader className="pb-2">
@@ -466,12 +465,11 @@ const Settings: React.FC = () => {
                   </p>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </div>
 
             {/* Notification Preferences */}
-            <TabsContent
-              value="bildirimler"
-              className={activeTab === "bildirimler" ? "block" : "hidden"}
+            <div
+              className={`${activeTab === "bildirimler" ? "block" : "hidden"}`}
             >
               <Card className="border-none shadow-md">
                 <CardHeader>
@@ -625,12 +623,11 @@ const Settings: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </div>
 
             {/* Privacy Settings */}
-            <TabsContent
-              value="gizlilik"
-              className={activeTab === "gizlilik" ? "block" : "hidden"}
+            <div
+              className={`${activeTab === "gizlilik" ? "block" : "hidden"}`}
             >
               <Card className="border-none shadow-md mb-6">
                 <CardHeader>
@@ -850,12 +847,11 @@ const Settings: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </div>
 
             {/* Payment Information */}
-            <TabsContent
-              value="odeme"
-              className={activeTab === "odeme" ? "block" : "hidden"}
+            <div
+              className={`${activeTab === "odeme" ? "block" : "hidden"}`}
             >
               <Card className="border-none shadow-md mb-6">
                 <CardHeader>
@@ -1030,12 +1026,11 @@ const Settings: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </div>
 
             {/* Subscription Plan */}
-            <TabsContent
-              value="abonelik"
-              className={activeTab === "abonelik" ? "block" : "hidden"}
+            <div
+              className={`${activeTab === "abonelik" ? "block" : "hidden"}`}
             >
               <Card className="border-none shadow-md mb-6">
                 <CardHeader>
@@ -1245,12 +1240,11 @@ const Settings: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </div>
 
             {/* Account Management */}
-            <TabsContent
-              value="hesap"
-              className={activeTab === "hesap" ? "block" : "hidden"}
+            <div
+              className={`${activeTab === "hesap" ? "block" : "hidden"}`}
             >
               <Card className="border-none shadow-md mb-6">
                 <CardHeader>
@@ -1361,7 +1355,7 @@ const Settings: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </div>
 
             {/* Save Changes Button */}
             <div className="flex justify-end mt-6">
