@@ -154,6 +154,10 @@ const Welcome: React.FC = () => {
   const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
   const [chatInitialized, setChatInitialized] = useState<boolean>(false);
   
+  // Hoşgeldin popup state'i
+  const [showWelcomePopup, setShowWelcomePopup] = useState<boolean>(false);
+  const [isNewUser, setIsNewUser] = useState<boolean>(false);
+  
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
     { id: 'text', name: 'Metin', icon: 'fas fa-file-alt' },
@@ -417,6 +421,32 @@ const Welcome: React.FC = () => {
     // Ses listesini her zaman yükle (authentication gerekmez)
     fetchAvailableVoices();
   }, [isAuthenticated]);
+
+  // Yeni kullanıcı kontrolü ve hoşgeldin popup'ı
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      // URL'den new-user parametresini kontrol et
+      const urlParams = new URLSearchParams(window.location.search);
+      const isNewUserParam = urlParams.get('new-user') === 'true';
+      
+      // Veya kullanıcının oluşturulma tarihini kontrol et (son 5 dakika içinde oluşturulmuşsa yeni sayılır)
+      const now = new Date().getTime();
+      const userCreatedAt = user.created_at ? new Date(user.created_at).getTime() : 0;
+      const fiveMinutesAgo = now - (5 * 60 * 1000);
+      const isRecentUser = userCreatedAt > fiveMinutesAgo;
+      
+      if (isNewUserParam || isRecentUser) {
+        setIsNewUser(true);
+        setShowWelcomePopup(true);
+        
+        // URL'den new-user parametresini temizle
+        if (isNewUserParam) {
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+        }
+      }
+    }
+  }, [isAuthenticated, user]);
 
   // Aksan türü ve duygu tonu değiştiğinde sesleri filtrele
   useEffect(() => {
@@ -886,7 +916,7 @@ const Welcome: React.FC = () => {
       const response = await fetch('/api/chat/initial', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('lingroot_token')}`,
           'Content-Type': 'application/json',
         },
       });
@@ -922,7 +952,7 @@ const Welcome: React.FC = () => {
       const response = await fetch('/api/chat/message', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('lingroot_token')}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -2115,6 +2145,77 @@ const Welcome: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Hoşgeldin Popup */}
+      {showWelcomePopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+            <div className="text-center">
+              {/* İkon */}
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 mb-4">
+                <i className="fas fa-star text-white text-2xl"></i>
+              </div>
+              
+              {/* Başlık */}
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                🎉 Hoş Geldiniz!
+              </h3>
+              
+              {/* Kullanıcı adı */}
+              <p className="text-lg text-gray-600 mb-4">
+                Merhaba <span className="font-semibold text-blue-600">{user?.name || 'Yeni Üye'}</span>!
+              </p>
+              
+              {/* Açıklama */}
+              <div className="text-gray-600 mb-6 space-y-2">
+                <p className="text-sm">
+                  🚀 LingRoot'a katıldığınız için çok mutluyuz!
+                </p>
+                <p className="text-sm">
+                  ✨ Artık favori içeriklerinizi dinleyerek İngilizce öğrenmeye başlayabilirsiniz.
+                </p>
+              </div>
+              
+              {/* Özellikler */}
+              <div className="bg-blue-50 rounded-lg p-4 mb-6">
+                <h4 className="font-semibold text-blue-800 mb-2">Neler yapabilirsiniz?</h4>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li className="flex items-center">
+                    <i className="fas fa-check-circle text-green-500 mr-2"></i>
+                    Metin ve YouTube içeriklerini ses dosyasına dönüştürün
+                  </li>
+                  <li className="flex items-center">
+                    <i className="fas fa-check-circle text-green-500 mr-2"></i>
+                    Seviyenize uygun adaptasyonlar alın
+                  </li>
+                  <li className="flex items-center">
+                    <i className="fas fa-check-circle text-green-500 mr-2"></i>
+                    Kelime kelime senkronizasyonla öğrenin
+                  </li>
+                </ul>
+              </div>
+              
+              {/* Butonlar */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  onClick={() => setShowWelcomePopup(false)}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                >
+                  <i className="fas fa-rocket mr-2"></i>
+                  Hemen Başlayalım!
+                </Button>
+                <Button
+                  onClick={() => setShowWelcomePopup(false)}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Daha Sonra
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

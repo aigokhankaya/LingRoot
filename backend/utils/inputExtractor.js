@@ -144,6 +144,7 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
     logger.info(`Extracting text for input type: ${inputType}`);
     switch (inputType) {
         case "text":
+        case "chat":  // Chat'den gelen metinleri text gibi işle
             if (typeof inputData === "string") {
                 logger.info("Received plain text input. Passing directly to cleaning step.");
                 return inputData;

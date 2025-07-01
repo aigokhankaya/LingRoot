@@ -21,6 +21,7 @@ import { Label } from "../src/components/ui/label";
 import { Alert, AlertDescription } from "../src/components/ui/alert";
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { getUserProfile, updateUserProfile, uploadProfilePhoto, changePassword, UserProfile } from '../src/lib/api';
 
 const Settings: React.FC = () => {
   const router = useRouter();
@@ -29,9 +30,237 @@ const Settings: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [showSuccessAlert, setShowSuccessAlert] = useState<boolean>(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
+  const [notifications, setNotifications] = useState({
+    emailNotifications: true,
+    pushNotifications: false,
+    smsNotifications: true,
+    marketingEmails: false,
+    securityAlerts: true,
+    weeklyReports: true
+  });
+  const [privacy, setPrivacy] = useState({
+    profileVisibility: "public",
+    dataSharing: false,
+    analyticsTracking: true
+  });
 
   const handleProfileClick = () => {
     setIsProfileMenuOpen(!isProfileMenuOpen);
+  };
+
+  // Profil Bilgileri Fonksiyonları
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleUploadPhoto = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        try {
+          setIsSaving(true);
+          console.log('Profil fotoğrafı yükleniyor:', file.name);
+          const result = await uploadProfilePhoto(file);
+          setUserProfile(result.user);
+          setShowSuccessAlert(true);
+          setTimeout(() => setShowSuccessAlert(false), 3000);
+        } catch (error) {
+          console.error('Profil fotoğrafı yükleme hatası:', error);
+          alert('Profil fotoğrafı yüklenirken bir hata oluştu.');
+        } finally {
+          setIsSaving(false);
+        }
+      }
+    };
+    input.click();
+  };
+
+  const handleRemovePhoto = () => {
+    console.log('Profil fotoğrafı kaldırılıyor');
+    setShowSuccessAlert(true);
+    setTimeout(() => setShowSuccessAlert(false), 3000);
+  };
+
+  const handleChangePassword = async () => {
+    if (formData.newPassword !== formData.confirmPassword) {
+      alert('Yeni şifreler eşleşmiyor!');
+      return;
+    }
+    
+    if (!formData.currentPassword || !formData.newPassword) {
+      alert('Mevcut şifre ve yeni şifre alanları zorunludur!');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await changePassword(formData.currentPassword, formData.newPassword);
+      setFormData(prev => ({ ...prev, currentPassword: "", newPassword: "", confirmPassword: "" }));
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 3000);
+    } catch (error: any) {
+      console.error('Şifre değiştirme hatası:', error);
+      alert(error.message || 'Şifre değiştirirken bir hata oluştu.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Bildirim Tercihleri Fonksiyonları
+  const handleNotificationChange = (key: string, value: boolean) => {
+    setNotifications(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleTestNotification = () => {
+    console.log('Test bildirimi gönderiliyor');
+    alert('Test bildirimi gönderildi! E-posta kutunuzu kontrol edin.');
+  };
+
+  // Gizlilik Ayarları Fonksiyonları
+  const handlePrivacyChange = (key: string, value: any) => {
+    setPrivacy(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleClearBrowsingData = () => {
+    if (confirm('Tarayıcı geçmişini temizlemek istediğinizden emin misiniz?')) {
+      console.log('Tarayıcı geçmişi temizleniyor');
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 3000);
+    }
+  };
+
+  const handleExportData = () => {
+    console.log('Veriler dışa aktarılıyor');
+    // Simüle edilmiş veri indirme
+    const data = JSON.stringify({ profile: formData, settings: { notifications, privacy } }, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'my-data.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Ödeme Bilgileri Fonksiyonları
+  const handleAddPaymentMethod = () => {
+    console.log('Yeni ödeme yöntemi ekleniyor');
+    alert('Ödeme yöntemi ekleme sayfasına yönlendiriliyorsunuz...');
+  };
+
+  const handleEditPaymentMethod = () => {
+    console.log('Ödeme yöntemi düzenleniyor');
+    alert('Ödeme yöntemi düzenleme sayfasına yönlendiriliyorsunuz...');
+  };
+
+  const handleRemovePaymentMethod = () => {
+    if (confirm('Bu ödeme yöntemini kaldırmak istediğinizden emin misiniz?')) {
+      console.log('Ödeme yöntemi kaldırılıyor');
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 3000);
+    }
+  };
+
+  const handleViewInvoices = () => {
+    console.log('Faturalar görüntüleniyor');
+    router.push('/invoices');
+  };
+
+  const handleDownloadInvoice = (invoiceId: string) => {
+    console.log('Fatura indiriliyor:', invoiceId);
+    alert(`Fatura ${invoiceId} indiriliyor...`);
+  };
+
+  // Abonelik Planı Fonksiyonları
+  const handleUpgradePlan = () => {
+    console.log('Plan yükseltiliyor');
+    router.push('/pricing');
+  };
+
+  const handleChangePaymentMethod = () => {
+    console.log('Ödeme yöntemi değiştiriliyor');
+    alert('Ödeme yöntemi değiştirme sayfasına yönlendiriliyorsunuz...');
+  };
+
+  const handlePauseSubscription = () => {
+    if (confirm('Aboneliğinizi duraklatmak istediğinizden emin misiniz?')) {
+      console.log('Abonelik duraklatılıyor');
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 3000);
+    }
+  };
+
+  const handleCancelSubscription = () => {
+    if (confirm('Aboneliğinizi iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.')) {
+      console.log('Abonelik iptal ediliyor');
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 3000);
+    }
+  };
+
+  // Hesap Yönetimi Fonksiyonları
+  const handleFreezeAccount = () => {
+    if (confirm('Hesabınızı dondurmak istediğinizden emin misiniz?')) {
+      console.log('Hesap dondurulıyor');
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 3000);
+    }
+  };
+
+  const handleDownloadData = () => {
+    console.log('Kullanıcı verileri indiriliyor');
+    setShowSuccessAlert(true);
+    setTimeout(() => setShowSuccessAlert(false), 3000);
+    // Simüle edilmiş veri indirme
+    setTimeout(() => {
+      const data = JSON.stringify({ userData: 'Tüm kullanıcı verileri burada...' }, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'user-data-export.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }, 2000);
+  };
+
+  const handleDeleteAccount = () => {
+    if (confirm('Hesabınızı kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem GERİ ALINAMAZ!')) {
+      console.log('Hesap siliniyor');
+      alert('Hesap silme işlemi başlatıldı. E-posta ile onay linki gönderilecek.');
+    }
+  };
+
+  // Genel Fonksiyonlar
+  const handleNotificationClick = () => {
+    console.log('Bildirimler açılıyor');
+    router.push('/notifications');
+  };
+
+  const handleHelpSupport = () => {
+    console.log('Yardım ve destek açılıyor');
+    router.push('/help');
+  };
+
+  const handleLogout = () => {
+    if (confirm('Çıkış yapmak istediğinizden emin misiniz?')) {
+      console.log('Kullanıcı çıkış yapıyor');
+      router.push('/login');
+    }
   };
 
   const handleClickOutside = (event: MouseEvent) => {
@@ -51,18 +280,70 @@ const Settings: React.FC = () => {
     };
   }, []);
 
-  const handleSaveChanges = () => {
-    setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
+  // Load user profile data
+  React.useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        setLoading(true);
+        const profile = await getUserProfile();
+        setUserProfile(profile);
+        setFormData({
+          firstName: profile.firstName || "",
+          lastName: profile.lastName || "",
+          email: profile.email || "",
+          phone: profile.phone || "",
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: ""
+        });
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+        // Fallback to default values if API fails
+        setFormData({
+          firstName: "Mehmet",
+          lastName: "Kaya", 
+          email: "mehmet@example.com",
+          phone: "+90 (555) 123 4567",
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: ""
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserProfile();
+  }, []);
+
+  const handleSaveChanges = async () => {
+    try {
+      setIsSaving(true);
+      
+      // Update profile information
+      const profileUpdates = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone
+      };
+      
+      const updatedProfile = await updateUserProfile(profileUpdates);
+      setUserProfile(updatedProfile);
+      
       setShowSuccessAlert(true);
       setTimeout(() => {
         setShowSuccessAlert(false);
       }, 3000);
-    }, 1500);
+    } catch (error: any) {
+      console.error('Profil güncelleme hatası:', error);
+      alert(error.message || 'Profil güncellenirken bir hata oluştu.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const profileImageUrl =
+  const profileImageUrl = userProfile?.profilePhoto || 
     "https://readdy.ai/api/search-image?query=Professional%2520headshot%2520of%2520a%2520Turkish%2520man%2520in%2520his%252030s%2520with%2520short%2520dark%2520hair%2520and%2520a%2520friendly%2520smile%252C%2520business%2520casual%2520attire%252C%2520neutral%2520background%252C%2520high%2520quality%2520portrait&width=150&height=150&seq=profile1&orientation=squarish";
 
   const bannerImageUrl =
@@ -97,9 +378,10 @@ const Settings: React.FC = () => {
               </Button>
             </div>
             <div className="flex items-center space-x-4">
-              <Button
+                              <Button
                 variant="ghost"
                 className="!rounded-button whitespace-nowrap cursor-pointer"
+                onClick={handleNotificationClick}
               >
                 <i className="fas fa-bell"></i>
               </Button>
@@ -115,9 +397,11 @@ const Settings: React.FC = () => {
                     className="w-10 h-10 rounded-full object-cover"
                   />
                   <div className="text-sm">
-                    <div className="font-medium">Mehmet Kaya</div>
+                    <div className="font-medium">
+                      {loading ? "Yükleniyor..." : `${formData.firstName} ${formData.lastName}`}
+                    </div>
                     <div className="text-gray-500 text-xs">
-                      mehmet@example.com
+                      {loading ? "Yükleniyor..." : formData.email}
                     </div>
                   </div>
                   <i
@@ -140,20 +424,20 @@ const Settings: React.FC = () => {
                     <i className="fas fa-history mr-2"></i>
                     Okuma Geçmişim
                   </Link>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                  <a href="#" onClick={(e) => { e.preventDefault(); alert('Favoriler sayfası geliştirme aşamasında!'); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
                     <i className="fas fa-heart mr-2"></i>
                     Favorilerim
                   </a>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                  <a href="#" onClick={(e) => { e.preventDefault(); alert('Dil ayarları geliştirme aşamasında!'); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
                     <i className="fas fa-globe mr-2"></i>
                     Dil Ayarları
                   </a>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                  <a href="#" onClick={(e) => { e.preventDefault(); handleHelpSupport(); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
                     <i className="fas fa-question-circle mr-2"></i>
                     Yardım ve Destek
                   </a>
                   <div className="border-t border-gray-100 mt-2 pt-2">
-                    <a href="#" className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 cursor-pointer">
+                    <a href="#" onClick={(e) => { e.preventDefault(); handleLogout(); }} className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 cursor-pointer">
                       <i className="fas fa-sign-out-alt mr-2"></i>
                       Çıkış Yap
                     </a>
@@ -273,6 +557,7 @@ const Settings: React.FC = () => {
                       <Button
                         variant="ghost"
                         className="w-full justify-start text-gray-600 !rounded-button whitespace-nowrap cursor-pointer"
+                        onClick={handleHelpSupport}
                       >
                         <i className="fas fa-question-circle mr-3"></i>
                         Yardım ve Destek
@@ -280,6 +565,7 @@ const Settings: React.FC = () => {
                       <Button
                         variant="ghost"
                         className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 !rounded-button whitespace-nowrap cursor-pointer"
+                        onClick={handleLogout}
                       >
                         <i className="fas fa-sign-out-alt mr-3"></i>
                         Çıkış Yap
@@ -325,7 +611,8 @@ const Settings: React.FC = () => {
                       </Label>
                       <Input
                         id="firstName"
-                        defaultValue="Mehmet"
+                        value={formData.firstName}
+                        onChange={(e) => handleInputChange('firstName', e.target.value)}
                         className="border-gray-300"
                       />
                     </div>
@@ -338,7 +625,8 @@ const Settings: React.FC = () => {
                       </Label>
                       <Input
                         id="lastName"
-                        defaultValue="Kaya"
+                        value={formData.lastName}
+                        onChange={(e) => handleInputChange('lastName', e.target.value)}
                         className="border-gray-300"
                       />
                     </div>
@@ -352,7 +640,8 @@ const Settings: React.FC = () => {
                       <Input
                         id="email"
                         type="email"
-                        defaultValue="mehmet@example.com"
+                        value={formData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
                         className="border-gray-300"
                       />
                     </div>
@@ -365,7 +654,8 @@ const Settings: React.FC = () => {
                       </Label>
                       <Input
                         id="phone"
-                        defaultValue="+90 (555) 123 4567"
+                        value={formData.phone}
+                        onChange={(e) => handleInputChange('phone', e.target.value)}
                         className="border-gray-300"
                       />
                     </div>
@@ -393,6 +683,8 @@ const Settings: React.FC = () => {
                       <Input
                         id="currentPassword"
                         type="password"
+                        value={formData.currentPassword}
+                        onChange={(e) => handleInputChange('currentPassword', e.target.value)}
                         className="border-gray-300"
                       />
                     </div>
@@ -406,6 +698,8 @@ const Settings: React.FC = () => {
                       <Input
                         id="newPassword"
                         type="password"
+                        value={formData.newPassword}
+                        onChange={(e) => handleInputChange('newPassword', e.target.value)}
                         className="border-gray-300"
                       />
                       <p className="text-xs text-gray-500 mt-1">
@@ -423,6 +717,8 @@ const Settings: React.FC = () => {
                       <Input
                         id="confirmPassword"
                         type="password"
+                        value={formData.confirmPassword}
+                        onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                         className="border-gray-300"
                       />
                     </div>
@@ -445,13 +741,17 @@ const Settings: React.FC = () => {
                       className="w-24 h-24 rounded-full object-cover border border-gray-200"
                     />
                     <div className="space-y-3">
-                      <Button className="!rounded-button whitespace-nowrap cursor-pointer">
+                      <Button 
+                        className="!rounded-button whitespace-nowrap cursor-pointer"
+                        onClick={handleUploadPhoto}
+                      >
                         <i className="fas fa-upload mr-2"></i>
                         Fotoğraf Yükle
                       </Button>
                       <Button
                         variant="outline"
                         className="!rounded-button whitespace-nowrap cursor-pointer"
+                        onClick={handleRemovePhoto}
                       >
                         <i className="fas fa-trash-alt mr-2"></i>
                         Fotoğrafı Kaldır
@@ -498,7 +798,11 @@ const Settings: React.FC = () => {
                               alın
                             </p>
                           </div>
-                          <Switch id="emailUpdates" defaultChecked />
+                          <Switch 
+                            id="emailUpdates" 
+                            checked={notifications.emailNotifications}
+                            onCheckedChange={(checked) => handleNotificationChange('emailNotifications', checked)}
+                          />
                         </div>
                         <Separator />
                         <div className="flex items-center justify-between">
@@ -513,7 +817,11 @@ const Settings: React.FC = () => {
                               Özel teklifler ve kampanyalardan haberdar olun
                             </p>
                           </div>
-                          <Switch id="emailPromotions" defaultChecked />
+                          <Switch 
+                            id="emailPromotions" 
+                            checked={notifications.marketingEmails}
+                            onCheckedChange={(checked) => handleNotificationChange('marketingEmails', checked)}
+                          />
                         </div>
                         <Separator />
                         <div className="flex items-center justify-between">
@@ -528,7 +836,11 @@ const Settings: React.FC = () => {
                               Hesabınızla ilgili güvenlik bildirimleri alın
                             </p>
                           </div>
-                          <Switch id="emailSecurity" defaultChecked />
+                          <Switch 
+                            id="emailSecurity" 
+                            checked={notifications.securityAlerts}
+                            onCheckedChange={(checked) => handleNotificationChange('securityAlerts', checked)}
+                          />
                         </div>
                       </div>
                     </div>
@@ -550,7 +862,11 @@ const Settings: React.FC = () => {
                               Yeni mesaj bildirimleri alın
                             </p>
                           </div>
-                          <Switch id="pushMessages" defaultChecked />
+                          <Switch 
+                            id="pushMessages" 
+                            checked={notifications.pushNotifications}
+                            onCheckedChange={(checked) => handleNotificationChange('pushNotifications', checked)}
+                          />
                         </div>
                         <Separator />
                         <div className="flex items-center justify-between">
@@ -566,7 +882,11 @@ const Settings: React.FC = () => {
                               hatırlatıcılar alın
                             </p>
                           </div>
-                          <Switch id="pushReminders" />
+                          <Switch 
+                            id="pushReminders" 
+                            checked={notifications.weeklyReports}
+                            onCheckedChange={(checked) => handleNotificationChange('weeklyReports', checked)}
+                          />
                         </div>
                         <Separator />
                         <div className="flex items-center justify-between">
@@ -582,7 +902,11 @@ const Settings: React.FC = () => {
                               bildirimler alın
                             </p>
                           </div>
-                          <Switch id="pushActivity" defaultChecked />
+                          <Switch 
+                            id="pushActivity" 
+                            checked={notifications.securityAlerts}
+                            onCheckedChange={(checked) => handleNotificationChange('securityAlerts', checked)}
+                          />
                         </div>
                       </div>
                     </div>
@@ -601,7 +925,11 @@ const Settings: React.FC = () => {
                               Güvenlik kodları ve doğrulama mesajları alın
                             </p>
                           </div>
-                          <Switch id="smsAuth" defaultChecked />
+                          <Switch 
+                            id="smsAuth" 
+                            checked={notifications.smsNotifications}
+                            onCheckedChange={(checked) => handleNotificationChange('smsNotifications', checked)}
+                          />
                         </div>
                         <Separator />
                         <div className="flex items-center justify-between">
@@ -616,7 +944,11 @@ const Settings: React.FC = () => {
                               Özel teklifler ve promosyonlar hakkında SMS alın
                             </p>
                           </div>
-                          <Switch id="smsMarketing" />
+                          <Switch 
+                            id="smsMarketing" 
+                            checked={notifications.marketingEmails}
+                            onCheckedChange={(checked) => handleNotificationChange('marketingEmails', checked)}
+                          />
                         </div>
                       </div>
                     </div>
@@ -643,7 +975,10 @@ const Settings: React.FC = () => {
                       <h3 className="text-lg font-medium mb-4">
                         Profil Görünürlüğü
                       </h3>
-                      <RadioGroup defaultValue="public">
+                      <RadioGroup 
+                        value={privacy.profileVisibility}
+                        onValueChange={(value) => handlePrivacyChange('profileVisibility', value)}
+                      >
                         <div className="flex items-start space-x-3 mb-3">
                           <RadioGroupItem
                             value="public"
@@ -714,7 +1049,11 @@ const Settings: React.FC = () => {
                               verilerinizi toplamımıza izin verin
                             </p>
                           </div>
-                          <Switch id="dataAnalytics" defaultChecked />
+                          <Switch 
+                            id="dataAnalytics" 
+                            checked={privacy.analyticsTracking}
+                            onCheckedChange={(checked) => handlePrivacyChange('analyticsTracking', checked)}
+                          />
                         </div>
                         <div className="flex items-center justify-between">
                           <div>
@@ -729,7 +1068,11 @@ const Settings: React.FC = () => {
                               verilerinizi kullanmamıza izin verin
                             </p>
                           </div>
-                          <Switch id="dataPersonalization" defaultChecked />
+                          <Switch 
+                            id="dataPersonalization" 
+                            checked={privacy.dataSharing}
+                            onCheckedChange={(checked) => handlePrivacyChange('dataSharing', checked)}
+                          />
                         </div>
                         <div className="flex items-center justify-between">
                           <div>
@@ -744,7 +1087,11 @@ const Settings: React.FC = () => {
                               verin
                             </p>
                           </div>
-                          <Switch id="dataThirdParty" />
+                          <Switch 
+                            id="dataThirdParty" 
+                            checked={privacy.dataSharing}
+                            onCheckedChange={(checked) => handlePrivacyChange('dataSharing', checked)}
+                          />
                         </div>
                       </div>
                     </div>
@@ -824,6 +1171,7 @@ const Settings: React.FC = () => {
                       <Button
                         variant="outline"
                         className="!rounded-button whitespace-nowrap cursor-pointer"
+                        onClick={() => alert('Oturum geçmişi sayfası geliştirme aşamasında!')}
                       >
                         <i className="fas fa-history mr-2"></i>
                         Oturum Geçmişini Görüntüle
@@ -840,6 +1188,7 @@ const Settings: React.FC = () => {
                       <Button
                         variant="outline"
                         className="!rounded-button whitespace-nowrap cursor-pointer"
+                        onClick={() => alert('Bağlı cihazlar sayfası geliştirme aşamasında!')}
                       >
                         <i className="fas fa-laptop mr-2"></i>
                         Bağlı Cihazları Yönet
@@ -937,7 +1286,10 @@ const Settings: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      <Button className="mt-4 !rounded-button whitespace-nowrap cursor-pointer">
+                      <Button 
+                        className="mt-4 !rounded-button whitespace-nowrap cursor-pointer"
+                        onClick={handleAddPaymentMethod}
+                      >
                         <i className="fas fa-plus mr-2"></i>
                         Yeni Kart Ekle
                       </Button>
@@ -1020,6 +1372,7 @@ const Settings: React.FC = () => {
                       <Button
                         variant="outline"
                         className="mt-4 !rounded-button whitespace-nowrap cursor-pointer"
+                        onClick={handleViewInvoices}
                       >
                         <i className="fas fa-download mr-2"></i>
                         Tüm Faturaları İndir

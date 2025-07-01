@@ -59,10 +59,12 @@ exports.register = async (req, res) => {
       return res.status(400).json({ success: false, message: "Geçersiz e-posta formatı" });
     }
 
-    // Validate phone number format (simple validation, can be enhanced)
-    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-    if (!phoneRegex.test(phoneNumber)) {
-      return res.status(400).json({ success: false, message: "Geçersiz telefon numarası formatı" });
+    // Validate phone number format - daha esnek format
+    // Önce telefon numarasını temizle (sadece rakam ve + işareti kalsın)
+    const cleanedPhone = phoneNumber.replace(/[\s\(\)\-\.]/g, '');
+    const phoneRegex = /^\+?[1-9]\d{7,14}$/;
+    if (!phoneRegex.test(cleanedPhone)) {
+      return res.status(400).json({ success: false, message: "Geçersiz telefon numarası formatı. Örnek: +90 555 123 45 67" });
     }
 
     // Validate password length
@@ -82,11 +84,11 @@ exports.register = async (req, res) => {
       return res.status(400).json({ success: false, message: "Bu e-posta adresi zaten kullanılıyor" });
     }
 
-    // Check if phone number already exists
+    // Check if phone number already exists (temizlenmiş format ile kontrol et)
     const { data: existingPhone, error: phoneFetchError } = await supabase
       .from('users')
       .select("id")
-      .eq("phonenumber", phoneNumber)
+      .eq("phonenumber", cleanedPhone)
       .maybeSingle();
     if (phoneFetchError) logger.error('[REGISTER] Error fetching phone for register:', phoneFetchError);
 
@@ -103,7 +105,7 @@ exports.register = async (req, res) => {
           firstname: firstName,
           lastname: lastName,
           email,
-          phonenumber: phoneNumber,
+          phonenumber: cleanedPhone, // Temizlenmiş telefon numarasını kaydet
           password: hashedPassword,
           role: "user",
           isverified: false,
@@ -234,7 +236,9 @@ exports.login = async (req, res) => {
     if (email) {
       query = query.eq("email", email);
     } else {
-      query = query.eq("phonenumber", phoneNumber);
+      // Telefon numarasını temizle
+      const cleanedPhone = phoneNumber.replace(/[\s\(\)\-\.]/g, '');
+      query = query.eq("phonenumber", cleanedPhone);
     }
 
     const { data: user, error } = await query.single();
@@ -372,6 +376,7 @@ exports.googleLogin = async (req, res) => {
     }
 
     let user;
+    let isNewUser = false;
     
     if (existingUser) {
       // Mevcut kullanıcı - Google bilgilerini güncelle
@@ -394,6 +399,7 @@ exports.googleLogin = async (req, res) => {
       user = updatedUser;
     } else {
       // Yeni kullanıcı oluştur
+      isNewUser = true;
       const newUserData = {
         firstname: given_name || name?.split(' ')[0] || 'Google',
         lastname: family_name || name?.split(' ').slice(1).join(' ') || 'User',
@@ -442,11 +448,12 @@ exports.googleLogin = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Google ile giriş başarılı",
+      message: isNewUser ? "Google ile kayıt başarılı" : "Google ile giriş başarılı",
       data: {
         user,
         token,
-        refreshToken
+        refreshToken,
+        isNewUser
       }
     });
 
@@ -596,10 +603,12 @@ exports.smsLogin = async (req, res) => {
       return res.status(400).json({ success: false, message: "Telefon numarası gerekli" });
     }
 
-    // Validate phone number format
-    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-    if (!phoneRegex.test(phoneNumber)) {
-      return res.status(400).json({ success: false, message: "Geçersiz telefon numarası formatı" });
+    // Validate phone number format - daha esnek format
+    // Önce telefon numarasını temizle (sadece rakam ve + işareti kalsın)
+    const cleanedPhone = phoneNumber.replace(/[\s\(\)\-\.]/g, '');
+    const phoneRegex = /^\+?[1-9]\d{7,14}$/;
+    if (!phoneRegex.test(cleanedPhone)) {
+      return res.status(400).json({ success: false, message: "Geçersiz telefon numarası formatı. Örnek: +90 555 123 45 67" });
     }
 
     // Check if user exists with this phone number

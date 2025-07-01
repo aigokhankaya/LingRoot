@@ -158,83 +158,6 @@ const processTtsRequest = async (req, res) => {
     let tempFilePath = null;
     let detectedLang = 'en';
 
-    // Check if mock TTS mode is enabled from parameters table
-    try {
-        const { data: paramData, error: paramError } = await supabase
-            .from('parameters')
-            .select('value')
-            .eq('key', 'mock_tts_enabled')
-            .single();
-
-        const mockTtsEnabled = paramData?.value === 'true' || paramData?.value === true;
-
-        if (mockTtsEnabled) {
-            logger.info(`[${requestId}] Mock TTS mode enabled - returning mock TTS response with realistic timing`);
-            
-            // Mock English text based on input type
-            let mockEnglishText = "This is a sample English text for testing purposes with multiple words to demonstrate the word-level highlighting feature.";
-            
-            // For mock mode, use realistic speaking rate calculation
-            const mockSpeakingRate = speakingRate || 1.0;
-            const mockWords = mockEnglishText.split(/\s+/).filter(word => word.length > 0);
-            const mockDuration = (mockWords.length / (150 * mockSpeakingRate)) * 60; // 150 WPM base
-            
-            // Create realistic word timings
-            const mockWordTimings = mockWords.map((word, index) => ({
-                word: word,
-                startTime: (index / mockWords.length) * mockDuration,
-                endTime: ((index + 1) / mockWords.length) * mockDuration,
-                markName: `mock_word_${index}`
-            }));
-            
-            // For mock mode, return external mock audio URL
-            const mockMp3Url = "https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3";
-            
-            // Create mock VTT file with real timings
-            const mockVttContent = createWordLevelVTTFromTimings(mockWordTimings, mockDuration);
-            const mockVttId = `mock_vtt_${Date.now()}`;
-            tempVttFiles.set(mockVttId, {
-                content: mockVttContent,
-                createdAt: new Date(),
-                text: mockEnglishText,
-                duration: mockDuration,
-                wordTimings: mockWordTimings,
-                speakingRate: mockSpeakingRate,
-                isRealTiming: false,
-                isMock: true
-            });
-            const mockVttUrl = `/api/tts/vtt/${mockVttId}`;
-            
-            // Create mock timepoints
-            const mockTimepoints = mockWordTimings.map(w => ({
-                timeSeconds: w.startTime,
-                endTimeSeconds: w.endTime,
-                word: w.word
-            }));
-            
-            return res.status(200).json({
-                success: true,
-                message: mockEnglishText,
-                mp3_url: mockMp3Url,
-                vtt_url: mockVttUrl,
-                level: level,
-                timepoints: mockTimepoints,
-                words: mockWords,
-                original_turkish: req.body.input || "Bu test modunda örnek bir Türkçe metindir.",
-                // Mock ek bilgileri
-                real_duration: mockDuration,
-                speaking_rate: mockSpeakingRate,
-                word_timings_count: mockWordTimings.length,
-                audio_segments: 1,
-                is_real_timing: false,
-                is_mock: true
-            });
-        }
-    } catch (paramError) {
-        logger.warn(`[${requestId}] Could not check mock_tts_enabled parameter: ${paramError.message}`);
-        // Continue with normal processing if parameter check fails
-    }
-
     try {
         // --- Input Parsing ---
         logRequestStep(requestId, 'input:parse', { body: req.body });
@@ -274,6 +197,83 @@ const processTtsRequest = async (req, res) => {
         if (!inputType || (inputType !== "file" && !inputData) || (inputType === "file" && !file)) {
             logger.error(`[${requestId}] Missing required input parameters. inputType=${inputType}, inputData=${inputData}, file=${file?.originalname}`);
             return res.status(400).json({ success: false, message: "Missing required input parameters (type, input/file, level)" });
+        }
+
+        // Check if mock TTS mode is enabled from parameters table
+        try {
+            const { data: paramData, error: paramError } = await supabase
+                .from('parameters')
+                .select('value')
+                .eq('key', 'mock_tts_enabled')
+                .single();
+
+            const mockTtsEnabled = paramData?.value === 'true' || paramData?.value === true;
+
+            if (mockTtsEnabled) {
+                logger.info(`[${requestId}] Mock TTS mode enabled - returning mock TTS response with realistic timing`);
+                
+                // Mock English text based on input type
+                let mockEnglishText = "This is a sample English text for testing purposes with multiple words to demonstrate the word-level highlighting feature.";
+                
+                // For mock mode, use realistic speaking rate calculation
+                const mockSpeakingRate = speakingRate || 1.0;
+                const mockWords = mockEnglishText.split(/\s+/).filter(word => word.length > 0);
+                const mockDuration = (mockWords.length / (150 * mockSpeakingRate)) * 60; // 150 WPM base
+                
+                // Create realistic word timings
+                const mockWordTimings = mockWords.map((word, index) => ({
+                    word: word,
+                    startTime: (index / mockWords.length) * mockDuration,
+                    endTime: ((index + 1) / mockWords.length) * mockDuration,
+                    markName: `mock_word_${index}`
+                }));
+                
+                // For mock mode, return external mock audio URL
+                const mockMp3Url = "https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3";
+                
+                // Create mock VTT file with real timings
+                const mockVttContent = createWordLevelVTTFromTimings(mockWordTimings, mockDuration);
+                const mockVttId = `mock_vtt_${Date.now()}`;
+                tempVttFiles.set(mockVttId, {
+                    content: mockVttContent,
+                    createdAt: new Date(),
+                    text: mockEnglishText,
+                    duration: mockDuration,
+                    wordTimings: mockWordTimings,
+                    speakingRate: mockSpeakingRate,
+                    isRealTiming: false,
+                    isMock: true
+                });
+                const mockVttUrl = `/api/tts/vtt/${mockVttId}`;
+                
+                // Create mock timepoints
+                const mockTimepoints = mockWordTimings.map(w => ({
+                    timeSeconds: w.startTime,
+                    endTimeSeconds: w.endTime,
+                    word: w.word
+                }));
+                
+                return res.status(200).json({
+                    success: true,
+                    message: mockEnglishText,
+                    mp3_url: mockMp3Url,
+                    vtt_url: mockVttUrl,
+                    level: level,
+                    timepoints: mockTimepoints,
+                    words: mockWords,
+                    original_turkish: req.body.input || "Bu test modunda örnek bir Türkçe metindir.",
+                    // Mock ek bilgileri
+                    real_duration: mockDuration,
+                    speaking_rate: mockSpeakingRate,
+                    word_timings_count: mockWordTimings.length,
+                    audio_segments: 1,
+                    is_real_timing: false,
+                    is_mock: true
+                });
+            }
+        } catch (paramError) {
+            logger.warn(`[${requestId}] Could not check mock_tts_enabled parameter: ${paramError.message}`);
+            // Continue with normal processing if parameter check fails
         }
 
         // --- Step 1: Extract Text ---
