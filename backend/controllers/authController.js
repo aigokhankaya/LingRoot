@@ -570,11 +570,174 @@ exports.logout = async (req, res) => {
 };
 
 exports.forgotPassword = async (req, res) => {
-  return res.status(501).json({ success: false, message: "Şifre sıfırlama fonksiyonu henüz hazır değil" });
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: "E-posta adresi gerekli" });
+    }
+
+    // Email format kontrolü
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ success: false, message: "Geçersiz e-posta formatı" });
+    }
+
+    // Kullanıcıyı bul
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select("id, firstname, email")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (fetchError) {
+      logger.error('[FORGOT_PASSWORD] Error fetching user:', fetchError);
+      return res.status(500).json({ success: false, message: "Veritabanı hatası" });
+    }
+
+    if (!user) {
+      // Güvenlik için kullanıcı bulunamasa bile başarılı mesaj döndür
+      return res.status(200).json({ 
+        success: true, 
+        message: "Eğer bu e-posta adresiyle kayıtlı bir hesap varsa, şifre sıfırlama bağlantısı gönderilecektir" 
+      });
+    }
+
+    // Reset token oluştur (6 basamaklı random string + timestamp)
+    const resetToken = require('crypto').randomBytes(32).toString('hex');
+    const resetExpires = new Date(Date.now() + 3600000); // 1 saat sonra
+
+    // Reset token'ı veritabanına kaydet
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        resetPasswordToken: resetToken,
+        resetPasswordExpires: resetExpires.toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", user.id);
+
+    if (updateError) {
+      logger.error('[FORGOT_PASSWORD] Error saving reset token:', updateError);
+      return res.status(500).json({ success: false, message: "Şifre sıfırlama talebi kaydedilemedi" });
+    }
+
+    // E-posta gönder
+    try {
+      const { sendPasswordResetEmail } = require('../utils/emailService');
+      await sendPasswordResetEmail(user.email, user.firstname, resetToken);
+      
+      return res.status(200).json({ 
+        success: true, 
+        message: "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi" 
+      });
+    } catch (emailError) {
+      logger.error('[FORGOT_PASSWORD] Error sending email:', emailError);
+      
+      // E-posta gönderilemezse token'ı temizle
+      await supabase
+        .from('users')
+        .update({
+          resetPasswordToken: null,
+          resetPasswordExpires: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", user.id);
+
+      return res.status(500).json({ 
+        success: false, 
+        message: "E-posta gönderilemedi. Lütfen daha sonra tekrar deneyin" 
+      });
+    }
+
+  } catch (error) {
+    logger.error("Forgot password error", error);
+    return res.status(500).json({ success: false, message: "Sunucu hatası" });
+  }
 };
 
 exports.resetPassword = async (req, res) => {
-  return res.status(501).json({ success: false, message: "Şifre sıfırlama fonksiyonu henüz hazır değil" });
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: "Token ve yeni şifre gerekli" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "Yeni şifre en az 6 karakter olmalıdır" });
+    }
+
+    // Token ile kullanıcıyı bul ve token'ın geçerliliğini kontrol et
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select("id, email, firstname, resetPasswordToken, resetPasswordExpires")
+      .eq("resetPasswordToken", token)
+      .maybeSingle();
+
+    if (fetchError) {
+      logger.error('[RESET_PASSWORD] Error fetching user:', fetchError);
+      return res.status(500).json({ success: false, message: "Veritabanı hatası" });
+    }
+
+    if (!user) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Geçersiz veya süresi dolmuş şifre sıfırlama bağlantısı" 
+      });
+    }
+
+    // Token süresini kontrol et
+    const now = new Date();
+    const expiresAt = new Date(user.resetPasswordExpires);
+    
+    if (now > expiresAt) {
+      // Süresi dolmuş token'ı temizle
+      await supabase
+        .from('users')
+        .update({
+          resetPasswordToken: null,
+          resetPasswordExpires: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", user.id);
+
+      return res.status(400).json({ 
+        success: false, 
+        message: "Şifre sıfırlama bağlantısının süresi dolmuş. Lütfen yeni bir talep oluşturun" 
+      });
+    }
+
+    // Yeni şifreyi hashle
+    const hashedPassword = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
+
+    // Şifreyi güncelle ve reset token'ı temizle
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", user.id);
+
+    if (updateError) {
+      logger.error('[RESET_PASSWORD] Error updating password:', updateError);
+      return res.status(500).json({ success: false, message: "Şifre güncellenemedi" });
+    }
+
+    logger.info(`Password reset successful for user ${user.email}`);
+
+    return res.status(200).json({ 
+      success: true, 
+      message: "Şifreniz başarıyla değiştirildi. Artık yeni şifrenizle giriş yapabilirsiniz" 
+    });
+
+  } catch (error) {
+    logger.error("Reset password error", error);
+    return res.status(500).json({ success: false, message: "Sunucu hatası" });
+  }
 };
 
 exports.verifyEmail = async (req, res) => {

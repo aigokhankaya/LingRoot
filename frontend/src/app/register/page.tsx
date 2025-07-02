@@ -116,23 +116,23 @@ export default function RegisterPage() {
       
       // Geçici olarak Google Auth'u test et
       try {
-        // Google Auth modülünü dinamik olarak import et
-        console.log('📦 Google Auth modülü yükleniyor...');
-        const { initializeGoogleAuth, signInWithGoogle } = await import('../../lib/googleAuth');
-        
-        // Google Auth'u başlat
-        console.log('🔧 Google Auth başlatılıyor...');
-        await initializeGoogleAuth();
-        
-        // Google Sign-In'i tetikle
-        console.log('🎯 Google Sign-In tetikleniyor...');
-        const { credential } = await signInWithGoogle();
-        
-        // useAuth hook'undan loginWithGoogle fonksiyonunu kullan
-        console.log('🔐 Backend ile kimlik doğrulama yapılıyor...');
-        const result = await loginWithGoogle(credential);
-        
-        if (result.success) {
+      // Google Auth modülünü dinamik olarak import et
+      console.log('📦 Google Auth modülü yükleniyor...');
+      const { initializeGoogleAuth, signInWithGoogle } = await import('../../lib/googleAuth');
+      
+      // Google Auth'u başlat
+      console.log('🔧 Google Auth başlatılıyor...');
+      await initializeGoogleAuth();
+      
+      // Google Sign-In'i tetikle
+      console.log('🎯 Google Sign-In tetikleniyor...');
+      const { credential } = await signInWithGoogle();
+      
+      // useAuth hook'undan loginWithGoogle fonksiyonunu kullan
+      console.log('🔐 Backend ile kimlik doğrulama yapılıyor...');
+      const result = await loginWithGoogle(credential);
+      
+      if (result.success) {
           // Backend response'ından yeni kullanıcı bilgisini kontrol et
           const isNewUser = result.data?.isNewUser || false;
           console.log('✅ Google ile işlem başarılı, isNewUser:', isNewUser);
@@ -144,11 +144,11 @@ export default function RegisterPage() {
           } else {
             // Mevcut kullanıcıysa dashboard'a yönlendir
             console.log('👤 Mevcut kullanıcı, dashboard\'a yönlendiriliyor...');
-            router.push('/dashboard');
+        router.push('/dashboard');
           }
-        } else {
-          console.error('❌ Backend kimlik doğrulama hatası:', result.message);
-          setError(result.message || 'Google ile giriş yaparken bir hata oluştu.');
+      } else {
+        console.error('❌ Backend kimlik doğrulama hatası:', result.message);
+        setError(result.message || 'Google ile giriş yaparken bir hata oluştu.');
         }
       } catch (googleError: any) {
         console.error('❌ Google Auth hatası:', googleError);

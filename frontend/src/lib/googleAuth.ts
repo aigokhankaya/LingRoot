@@ -127,7 +127,7 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
           
           // One Tap başarısız olduğunda kullanıcıya bilgi ver
           const message = 'Google One Tap kullanılamıyor. Lütfen "Google ile Kaydol" butonuna tekrar tıklayın.';
-          clearTimeout(timeoutId);
+              clearTimeout(timeoutId);
           reject(new Error(message));
           
         } else if (notification.getDismissedReason) {
