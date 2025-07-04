@@ -727,7 +727,7 @@ const Welcome: React.FC = () => {
     }
   };
 
-  // YouTube transkript çekme fonksiyonu (YouTubeToTranscript.com ile)
+  // YouTube transkript çekme fonksiyonu (aiprojeleri.online API ile)
   const extractYouTubeToTranscript = async () => {
     if (!youtubeUrl.trim()) {
       setTranscriptError('Lütfen geçerli bir YouTube URL\'si girin.');
@@ -747,57 +747,97 @@ const Welcome: React.FC = () => {
     setTranscriptCost(null);
 
     try {
-      console.log('🔍 [YOUTUBE TO TRANSCRIPT] Extracting transcript for URL:', youtubeUrl);
+      console.log('🔍 [AI PROJELERI TRANSCRIPT] Extracting transcript for URL:', youtubeUrl);
+      console.log('🔍 [AI PROJELERI TRANSCRIPT] Request body:', JSON.stringify({
+        url: youtubeUrl,
+        model: "large"
+      }));
       
-      // Backend API'mizin endpointine istek gönder
-      const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-        ? 'http://localhost:5001/api/content/youtube-transcript'
-        : '/api/content/youtube-transcript';
-
-      const response = await fetch(apiUrl, {
+      // Next.js API proxy route'unu kullan (CORS sorununu çözer)
+      const response = await fetch('/api/youtube-transcript', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({
-          youtubeUrl: youtubeUrl
+          url: youtubeUrl,
+          model: "large"
         }),
       });
 
+      console.log('🔍 [AI PROJELERI TRANSCRIPT] Response status:', response.status);
+      console.log('🔍 [AI PROJELERI TRANSCRIPT] Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `API Hatası: ${response.status}`);
+        let errorText;
+        try {
+          const errorData = await response.json();
+          errorText = errorData.error || errorData.message || `HTTP ${response.status}`;
+          console.log('🔍 [AI PROJELERI TRANSCRIPT] Error response data:', errorData);
+        } catch (e) {
+          errorText = await response.text();
+          console.log('🔍 [AI PROJELERI TRANSCRIPT] Error response text:', errorText);
+        }
+        throw new Error(`API Hatası: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
+      console.log('🔍 [AI PROJELERI TRANSCRIPT] Parsed response:', result);
       
-      if (result.success) {
-        console.log('✅ [YOUTUBE TO TRANSCRIPT] Transcript extracted successfully:', result);
+      // Check if we have transcript regardless of success field
+      if (result.transcript && result.transcript.trim()) {
+        // Demo transcript kontrolü - eğer demo içerik varsa hata ver
+        if (result.transcript.includes('Bu bir demo transkript') || 
+            result.transcript.includes('demo transcript') ||
+            result.transcript.includes('demo content') ||
+            result.transcript.includes('Bu bir demo')) {
+          console.error('🔍 [AI PROJELERI TRANSCRIPT] Demo transcript detected in frontend!');
+          throw new Error('Demo transcript alındı - gerçek API yanıtı gerekli');
+        }
         
-        // Mock result object for compatibility with existing UI
-        const mockResult = {
-          success: true,
-          videoId: result.videoId,
-          title: result.title,
-          transcript: result.transcript,
-          language: result.language,
-          source: result.source,
-          extractedAt: result.extractedAt,
-          statistics: result.statistics
+        console.log('✅ [AI PROJELERI TRANSCRIPT] Transcript extracted successfully');
+        console.log('✅ [AI PROJELERI TRANSCRIPT] Transcript length:', result.transcript.length);
+        console.log('✅ [AI PROJELERI TRANSCRIPT] Transcript preview:', result.transcript.substring(0, 100) + '...');
+        
+        // Ensure success field exists for UI compatibility
+        const processedResult = {
+          ...result,
+          success: true // Force success to true if we have valid transcript
         };
         
-        setTranscriptResult(mockResult);
+        console.log('✅ [AI PROJELERI TRANSCRIPT] Setting transcript result:', processedResult);
+        setTranscriptResult(processedResult);
         setTextInput(result.transcript);
         
         // Başarı bildirimi
         setTranscriptError(null);
+        console.log('✅ [AI PROJELERI TRANSCRIPT] All states updated successfully');
       } else {
-        throw new Error(result.error || 'Transkripsiyon başarısız');
+        console.error('🔍 [AI PROJELERI TRANSCRIPT] No transcript found in response:', result);
+        console.error('🔍 [AI PROJELERI TRANSCRIPT] Response keys:', Object.keys(result));
+        console.error('🔍 [AI PROJELERI TRANSCRIPT] Success field:', result.success);
+        console.error('🔍 [AI PROJELERI TRANSCRIPT] Transcript field:', result.transcript);
+        throw new Error(result.error || 'Transkripsiyon başarısız - transcript bulunamadı veya boş');
       }
       
     } catch (error: any) {
-      console.error('🔍 [YOUTUBE TO TRANSCRIPT] Error:', error);
-      setTranscriptError(error.message || 'YouTube transkripsiyon hatası oluştu');
+      console.error('🔍 [AI PROJELERI TRANSCRIPT] Full error object:', error);
+      console.error('🔍 [AI PROJELERI TRANSCRIPT] Error name:', error.name);
+      console.error('🔍 [AI PROJELERI TRANSCRIPT] Error message:', error.message);
+      console.error('🔍 [AI PROJELERI TRANSCRIPT] Error stack:', error.stack);
+      
+      let errorMessage = 'YouTube transkripsiyon hatası oluştu';
+      
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        errorMessage = 'Ağ bağlantısı hatası - CORS veya bağlantı sorunu olabilir';
+      } else if (error.message.includes('Demo transcript')) {
+        errorMessage = 'Demo transcript alındı - gerçek API yanıtı gerekli';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setTranscriptError(errorMessage);
       setTranscriptResult(null);
       setTranscriptCost(null);
     } finally {
@@ -1134,6 +1174,38 @@ const Welcome: React.FC = () => {
   };
 
   const heroImageUrl = 'https://readdy.ai/api/search-image?query=Modern%20language%20learning%20concept%20with%20digital%20technology%2C%20AI%20assistant%20helping%20with%20English%20lessons%2C%20abstract%20blue%20gradient%20background%20with%20subtle%20tech%20elements%2C%20professional%20educational%20atmosphere&width=1200&height=600&seq=hero1&orientation=landscape';
+
+  // Youtube transcript için yeni state (en üstte bir kez tanımlanacak)
+  const [youtubeTranscript, setYoutubeTranscript] = useState('');
+  const [youtubeLoading, setYoutubeLoading] = useState(false);
+  const [youtubeError, setYoutubeError] = useState('');
+
+  // Youtube transcript çekme fonksiyonu (notta belirtildiği gibi)
+  const fetchYoutubeTranscript = async () => {
+    setYoutubeLoading(true);
+    setYoutubeError('');
+    setYoutubeTranscript('');
+    try {
+      const response = await fetch('https://api.aiprojeleri.online/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: youtubeUrl, model: 'tiny' }) // model artık 'tiny'
+      });
+      if (!response.ok) {
+        throw new Error('API hatası: ' + response.status);
+      }
+      const data = await response.json();
+      if (!data.full_text) {
+        throw new Error('Transcript bulunamadı.');
+      }
+      setYoutubeTranscript(data.full_text);
+      setYoutubeError('');
+    } catch (err: any) {
+      setYoutubeError(err.message || 'Bilinmeyen hata');
+    } finally {
+      setYoutubeLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -1734,383 +1806,34 @@ const Welcome: React.FC = () => {
                     {/* YouTube sekmesi */}
                     {contentType === 'youtube' && (
                       <div className="space-y-4">
-                        {/* YouTube Whisper API Durum Kartı */}
-                        <div className={`p-4 rounded-lg border ${
-                          isWhisperApiAvailable 
-                            ? 'bg-green-50 border-green-200' 
-                            : 'bg-red-50 border-red-200'
-                        }`}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center">
-                              <div className={`w-3 h-3 rounded-full mr-3 ${
-                                isWhisperApiAvailable ? 'bg-green-500' : 'bg-red-500'
-                              }`}></div>
-                              <span className={`font-medium ${
-                                isWhisperApiAvailable ? 'text-green-800' : 'text-red-800'
-                              }`}>
-                                YouTube Whisper API
-                              </span>
-                            </div>
-                            <span className={`text-sm ${
-                              isWhisperApiAvailable ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              {isWhisperApiAvailable ? 'Çevrimiçi & Hazır' : 'Çevrimdışı'}
-                            </span>
-                          </div>
-                          {!isWhisperApiAvailable && (
-                            <p className="text-red-600 text-sm mt-2">
-                              Local API çalışmıyor. Terminal'de: cd whisper-youtube-api && node server.js
-                            </p>
-                          )}
+                        <label className="block text-sm font-medium text-gray-700 mb-2">YouTube Video URL'si:</label>
+                        <div className="flex gap-3">
+                          <input
+                            type="url"
+                            value={youtubeUrl}
+                            onChange={e => setYoutubeUrl(e.target.value)}
+                            placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                            disabled={youtubeLoading}
+                          />
+                          <Button
+                            type="button"
+                            onClick={fetchYoutubeTranscript}
+                            className={`px-6 py-3 !rounded-button whitespace-nowrap ${youtubeLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'}`}
+                            disabled={youtubeLoading}
+                          >
+                            {youtubeLoading ? 'İşleniyor...' : 'Transcript Çek'}
+                          </Button>
                         </div>
-
-                        {/* Maliyet Uyarısı Kartı */}
-                        {costWarning && (
-                          <div className={`p-4 rounded-lg border ${
-                            costWarning.isVeryLong 
-                              ? 'bg-red-50 border-red-200' 
-                              : costWarning.isLong 
-                                ? 'bg-yellow-50 border-yellow-200'
-                                : 'bg-green-50 border-green-200'
-                          }`}>
-                            <div className="flex items-start">
-                              <div className={`flex-shrink-0 w-5 h-5 rounded-full mt-0.5 mr-3 ${
-                                costWarning.isVeryLong 
-                                  ? 'bg-red-500' 
-                                  : costWarning.isLong 
-                                    ? 'bg-yellow-500'
-                                    : 'bg-green-500'
-                              }`}>
-                                <i className={`fas text-white text-xs flex items-center justify-center w-full h-full ${
-                                  costWarning.isVeryLong 
-                                    ? 'fa-times' 
-                                    : costWarning.isLong 
-                                      ? 'fa-exclamation'
-                                      : 'fa-check'
-                                }`}></i>
-                              </div>
-                              <div className="flex-1">
-                                <h4 className={`font-medium mb-2 ${
-                                  costWarning.isVeryLong 
-                                    ? 'text-red-800' 
-                                    : costWarning.isLong 
-                                      ? 'text-yellow-800'
-                                      : 'text-green-800'
-                                }`}>
-                                  {costWarning.isVeryLong 
-                                    ? '❌ Video Çok Uzun' 
-                                    : costWarning.isLong 
-                                      ? '⚠️ Uzun Video Uyarısı'
-                                      : '✅ Video Uygun'}
-                                </h4>
-                                <div className="space-y-1 text-sm">
-                                  <div><strong>Başlık:</strong> {costWarning.title}</div>
-                                  <div><strong>Süre:</strong> {costWarning.duration}</div>
-                                  <div className="flex items-center justify-between">
-                                    <strong>Tahmini Maliyet:</strong>
-                                    <div className="space-x-2">
-                                      <span className="bg-blue-100 px-2 py-1 rounded text-blue-700 text-xs">
-                                        ${costWarning.estimatedCostUSD}
-                                      </span>
-                                      <span className="bg-orange-100 px-2 py-1 rounded text-orange-700 text-xs">
-                                        ₺{costWarning.estimatedCostTRY}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                                {costWarning.isVeryLong && (
-                                  <p className="text-red-600 text-sm mt-2">
-                                    Bu video 15 dakikadan uzun olduğu için işlenemez. Daha kısa bir video deneyin.
-                                  </p>
-                                )}
-                                {costWarning.isLong && !costWarning.isVeryLong && (
-                                  <p className="text-yellow-600 text-sm mt-2">
-                                    Bu video 5 dakikadan uzun. İşlem devam edebilir ancak maliyet yükselecek.
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            YouTube Video URL'si:
-                          </label>
-                          <div className="flex gap-3">
-                            <div className="flex-1">
-                              <input
-                                type="url"
-                                value={youtubeUrl}
-                                onChange={(e) => {
-                                  const newUrl = e.target.value;
-                                  setYoutubeUrl(newUrl);
-                                  setTranscriptError(null); // Hata mesajını temizle
-                                  setTranscriptResult(null); // Önceki sonuçları temizle
-                                  setTranscriptCost(null);
-                                  setCostWarning(null); // Maliyet uyarısını temizle
-                                  
-                                  // URL geçerliyse video bilgilerini kontrol et
-                                  if (newUrl.includes('youtube.com') || newUrl.includes('youtu.be')) {
-                                    setTimeout(() => checkVideoInfo(newUrl), 1000); // 1 saniye bekle
-                                  }
-                                }}
-                                placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-                                className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
-                                disabled={isExtractingTranscript}
-                              />
-                              {transcriptError && (
-                                <p className="text-red-600 text-sm mt-1">
-                                  <i className="fas fa-exclamation-circle mr-1"></i>
-                                  {transcriptError}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex flex-col gap-2">
-                              <Button 
-                                type="button"
-                                onClick={extractYouTubeTranscript}
-                                className={`px-6 py-3 !rounded-button whitespace-nowrap ${
-                                  isWhisperApiAvailable && !isExtractingTranscript
-                                    ? 'bg-red-600 hover:bg-red-700 text-white cursor-pointer'
-                                    : 'bg-gray-400 cursor-not-allowed text-gray-600'
-                                }`}
-                                disabled={!isWhisperApiAvailable || isExtractingTranscript}
-                              >
-                                {isExtractingTranscript ? (
-                                  <>
-                                    <i className="fas fa-spinner fa-spin mr-2"></i>
-                                    İşleniyor...
-                                  </>
-                                ) : (
-                                  <>
-                                    <i className="fab fa-youtube mr-2"></i>
-                                    {isWhisperApiAvailable ? 'Whisper API' : 'API Kapalı'}
-                                  </>
-                                )}
-                              </Button>
-                              
-                              <Button 
-                                type="button"
-                                onClick={extractYouTubeToTranscript}
-                                className={`px-6 py-3 !rounded-button whitespace-nowrap ${
-                                  !isExtractingTranscript
-                                    ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
-                                    : 'bg-gray-400 cursor-not-allowed text-gray-600'
-                                }`}
-                                disabled={isExtractingTranscript}
-                              >
-                                {isExtractingTranscript ? (
-                                  <>
-                                    <i className="fas fa-spinner fa-spin mr-2"></i>
-                                    İşleniyor...
-                                  </>
-                                ) : (
-                                  <>
-                                    <i className="fas fa-download mr-2"></i>
-                                    Ücretsiz Transkript
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Transkripsiyon Sonuçları - Maliyet ve Video Bilgileri */}
-                        {transcriptResult && transcriptCost && (
-                          <div className="bg-green-50 p-4 rounded-lg border border-green-200 space-y-4">
-                            <h4 className="font-medium text-green-800 mb-3 flex items-center">
-                              <i className="fas fa-check-circle mr-2"></i>
-                              Transkripsiyon Başarıyla Tamamlandı
-                            </h4>
-                            
-                            {/* Video Bilgileri ve Maliyet - Grid Layout */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {/* Video Bilgileri */}
-                              <div className="bg-white p-3 rounded border border-green-100">
-                                <h5 className="font-medium text-green-700 text-sm mb-2 flex items-center">
-                                  <i className="fas fa-video mr-2"></i>
-                                  Video Bilgileri
-                                </h5>
-                                <div className="space-y-1 text-xs">
-                                  <div><strong>Başlık:</strong> {transcriptResult.title}</div>
-                                  <div><strong>Süre:</strong> {transcriptResult.duration?.formatted || 'Bilinmiyor'}</div>
-                                  <div><strong>Dil:</strong> {transcriptResult.language?.toUpperCase() || 'Auto'}</div>
-                                  <div><strong>Video ID:</strong> {transcriptResult.videoId}</div>
-                                </div>
-                              </div>
-
-                              {/* Maliyet Bilgileri */}
-                              <div className="bg-white p-3 rounded border border-green-100">
-                                <h5 className="font-medium text-green-700 text-sm mb-2 flex items-center">
-                                  <i className="fas fa-dollar-sign mr-2"></i>
-                                  Maliyet Hesaplama
-                                </h5>
-                                <div className="space-y-1 text-xs">
-                                  <div><strong>Süre:</strong> {transcriptCost.durationMinutes} dakika</div>
-                                  <div><strong>Fiyat/Dakika:</strong> ${transcriptCost.pricePerMinute}</div>
-                                  <div className="flex justify-between">
-                                    <strong>Toplam:</strong>
-                                    <div className="space-x-2">
-                                      <span className="bg-blue-100 px-2 py-1 rounded text-blue-700">
-                                        {transcriptCost.currency?.USD || `$${transcriptCost.totalCostUSD}`}
-                                      </span>
-                                      <span className="bg-orange-100 px-2 py-1 rounded text-orange-700">
-                                        {transcriptCost.currency?.TRY || `₺${transcriptCost.totalCostTRY}`}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* İstatistikler */}
-                            {transcriptResult.statistics && (
-                              <div className="bg-white p-3 rounded border border-green-100">
-                                <h5 className="font-medium text-green-700 text-sm mb-2 flex items-center">
-                                  <i className="fas fa-chart-bar mr-2"></i>
-                                  Transkripsiyon İstatistikleri
-                                </h5>
-                                <div className="grid grid-cols-3 gap-4 text-xs">
-                                  <div className="text-center">
-                                    <div className="font-medium text-gray-700">{transcriptResult.statistics.wordCount}</div>
-                                    <div className="text-gray-500">Kelime</div>
-                                  </div>
-                                  <div className="text-center">
-                                    <div className="font-medium text-gray-700">{transcriptResult.statistics.characterCount}</div>
-                                    <div className="text-gray-500">Karakter</div>
-                                  </div>
-                                  <div className="text-center">
-                                    <div className="font-medium text-gray-700">{transcriptResult.statistics.segmentCount}</div>
-                                    <div className="text-gray-500">Segment</div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* YouTube bilgi kartları - API durumuna göre göster */}
-                        {!transcriptResult && (
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                            {/* URL Formatları */}
-                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                              <h4 className="font-medium text-blue-800 mb-3 flex items-center">
-                                <i className="fas fa-link mr-2"></i>
-                                Desteklenen URL Formatları
-                              </h4>
-                              <ul className="space-y-2 text-sm">
-                                <li className="flex items-start">
-                                  <span className="text-blue-600 mr-2">•</span>
-                                  <code className="bg-white px-2 py-1 rounded text-xs">https://www.youtube.com/watch?v=VIDEO_ID</code>
-                                </li>
-                                <li className="flex items-start">
-                                  <span className="text-blue-600 mr-2">•</span>
-                                  <code className="bg-white px-2 py-1 rounded text-xs">https://youtu.be/VIDEO_ID</code>
-                                </li>
-                                <li className="flex items-start">
-                                  <span className="text-blue-600 mr-2">•</span>
-                                  <code className="bg-white px-2 py-1 rounded text-xs">https://www.youtube.com/embed/VIDEO_ID</code>
-                                </li>
-                              </ul>
-                            </div>
-
-                            {/* Whisper API Bilgileri */}
-                            <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                              <h4 className="font-medium text-purple-800 mb-3 flex items-center">
-                                <i className="fas fa-microphone mr-2"></i>
-                                Whisper API Özellikleri
-                              </h4>
-                              <ul className="space-y-1 text-sm text-purple-700">
-                                <li className="flex items-center">
-                                  <i className="fas fa-check text-purple-600 mr-2 text-xs"></i>
-                                  OpenAI Whisper ile yüksek doğruluk
-                                </li>
-                                <li className="flex items-center">
-                                  <i className="fas fa-check text-purple-600 mr-2 text-xs"></i>
-                                  50+ dil otomatik algılama
-                                </li>
-                                <li className="flex items-center">
-                                  <i className="fas fa-check text-purple-600 mr-2 text-xs"></i>
-                                  Gerçek zamanlı maliyet hesaplama
-                                </li>
-                                <li className="flex items-center">
-                                  <i className="fas fa-check text-purple-600 mr-2 text-xs"></i>
-                                  Maksimum 15 dakika video limiti
-                                </li>
-                              </ul>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Kullanım Talimatları - Sadece API çevrimdışıysa göster */}
-                        {!isWhisperApiAvailable && (
-                          <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 mb-4">
-                            <h4 className="font-medium text-yellow-800 mb-3 flex items-center">
-                              <i className="fas fa-info-circle mr-2"></i>
-                              API Kurulum Talimatları
-                            </h4>
-                            <div className="space-y-2 text-sm text-yellow-700">
-                              <p><strong>1.</strong> Terminal açın ve proje klasörüne gidin</p>
-                                                              <p><strong>2.</strong> <code className="bg-yellow-100 px-2 py-1 rounded">cd whisper-youtube-api</code></p>
-                              <p><strong>3.</strong> <code className="bg-yellow-100 px-2 py-1 rounded">$env:OPENAI_API_KEY="your-key"</code></p>
-                              <p><strong>4.</strong> <code className="bg-yellow-100 px-2 py-1 rounded">node server.js</code></p>
-                              <p className="text-yellow-600 text-xs mt-2">
-                                API çalıştıktan sonra bu sayfa otomatik olarak güncellenecektir.
-                              </p>
-                            </div>
-                          </div>
-                        )}
-
-                        
-
-
-
-                        {/* Çekilen transkript için textarea */}
-                        {textInput && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center justify-between">
-                              <span>
-                                {transcriptResult ? 'Whisper Transkripti:' : 'Metin:'}
-                              </span>
-                              {transcriptResult && (
-                                <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                                  <i className="fas fa-microphone mr-1"></i>
-                                  OpenAI Whisper
-                                </span>
-                              )}
-                            </label>
-                            <div className="relative">
-                              <textarea
-                                value={textInput}
-                                onChange={(e) => setTextInput(e.target.value)}
-                                className={`w-full min-h-[200px] p-4 border rounded-lg resize-none ${
-                                  transcriptResult 
-                                    ? 'border-green-300 focus:border-green-500 focus:ring-green-500 bg-green-50/30'
-                                    : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
-                                }`}
-                                placeholder={transcriptResult 
-                                  ? "Whisper AI ile çıkarılan transkript - düzenleyebilirsiniz..."
-                                  : "İngilizce'ye çevirmek veya ses oluşturmak istediğiniz metni buraya girin..."
-                                }
-                              />
-                              <div className="absolute top-2 right-2 space-x-2">
-                                <span className="bg-white px-2 py-1 rounded text-xs text-gray-500">
-                                  {textInput.split(' ').length} kelime
-                                </span>
-                                {transcriptResult && (
-                                  <span className="bg-green-100 px-2 py-1 rounded text-xs text-green-600">
-                                    {transcriptResult.language?.toUpperCase() || 'AUTO'}
-                                  </span>
-                                )}
-                              </div>
-                              {transcriptResult && (
-                                <div className="absolute bottom-2 right-2 text-xs text-green-600">
-                                  <i className="fas fa-check-circle mr-1"></i>
-                                  AI Transcription
-                                </div>
-                              )}
-                            </div>
+                        {youtubeError && <p className="text-red-600 text-sm mt-1">{youtubeError}</p>}
+                        {youtubeTranscript && (
+                          <div className="mt-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Transcript:</label>
+                            <textarea
+                              value={youtubeTranscript}
+                              onChange={e => setYoutubeTranscript(e.target.value)}
+                              className="w-full min-h-[150px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                            />
                           </div>
                         )}
                       </div>

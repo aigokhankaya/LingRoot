@@ -34,8 +34,8 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
 
     // Timeout için timer
     const timeoutId = setTimeout(() => {
-      reject(new Error('Google giriş zaman aşımına uğradı. Lütfen tekrar deneyin.'));
-    }, 30000); // 30 saniye timeout
+      reject(new Error('Google giriş zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edin ve tekrar deneyin.'));
+    }, 60000); // 60 saniye timeout
 
     // Global callback fonksiyonu
     window.googleSignInCallback = (response: any) => {
@@ -58,9 +58,15 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
     // Google Sign-In butonunu programatik olarak tetikle
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     
+    console.log('Google Client ID kontrolü:', {
+      exists: !!clientId,
+      length: clientId?.length || 0,
+      isDefault: clientId === '1234567890-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com'
+    });
+    
     if (!clientId || clientId === '1234567890-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com') {
       clearTimeout(timeoutId);
-      reject(new Error('Google Client ID yapılandırılmamış. Lütfen .env dosyasında NEXT_PUBLIC_GOOGLE_CLIENT_ID değerini ayarlayın.'));
+      reject(new Error('Google Client ID yapılandırılmamış. Lütfen .env.local dosyasında NEXT_PUBLIC_GOOGLE_CLIENT_ID değerini ayarlayın.'));
       return;
     }
 
@@ -69,7 +75,10 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
       callback: window.googleSignInCallback,
       auto_select: false,
       cancel_on_tap_outside: true,
-      use_fedcm_for_prompt: false
+      use_fedcm_for_prompt: false,
+      // Brave browser uyumluluğu için ek ayarlar
+      ux_mode: 'popup',
+      context: 'signin'
     });
 
     // One Tap prompt'ını göster

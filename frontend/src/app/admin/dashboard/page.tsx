@@ -40,6 +40,7 @@ const App: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const router = useRouter();
+  const [openMenuUserId, setOpenMenuUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -530,10 +531,31 @@ const App: React.FC = () => {
                           </TableCell>
                           <TableCell>{user.registrationDate}</TableCell>
                           <TableCell>{user.lastLogin}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button" onClick={(e) => { e.stopPropagation(); }}>
+                          <TableCell className="text-right relative">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 !rounded-button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuUserId(openMenuUserId === user.id ? null : user.id);
+                              }}
+                            >
                               <i className="fas fa-ellipsis-v text-gray-500"></i>
                             </Button>
+                            {openMenuUserId === user.id && (
+                              <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow z-10">
+                                <button
+                                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                                  onClick={() => {
+                                    setOpenMenuUserId(null);
+                                    router.push(`/admin/user-audios/${user.id}`);
+                                  }}
+                                >
+                                  Ses Dosyalarını Yönet/Sil
+                                </button>
+                              </div>
+                            )}
                           </TableCell>
                         </TableRow>
                         ))
@@ -870,114 +892,56 @@ const App: React.FC = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          <TableRow>
-                            <TableCell>
-                              <Checkbox id="select-content-1" />
-                            </TableCell>
-                            <TableCell>
-                              <div className="font-medium">Günlük Konuşma Kalıpları</div>
-                              <div className="text-sm text-gray-500">Oluşturulma: 15.05.2025</div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Podcast</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">A1</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Ücretsiz</Badge>
-                            </TableCell>
-                            <TableCell>1,245</TableCell>
-                            <TableCell>
-                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Yayında</Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button">
-                                <i className="fas fa-ellipsis-v text-gray-500"></i>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell>
-                              <Checkbox id="select-content-2" />
-                            </TableCell>
-                            <TableCell>
-                              <div className="font-medium">İş Görüşmesi Teknikleri</div>
-                              <div className="text-sm text-gray-500">Oluşturulma: 02.06.2025</div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">Video</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">B2</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-100">Premium</Badge>
-                            </TableCell>
-                            <TableCell>876</TableCell>
-                            <TableCell>
-                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Yayında</Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button">
-                                <i className="fas fa-ellipsis-v text-gray-500"></i>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell>
-                              <Checkbox id="select-content-3" />
-                            </TableCell>
-                            <TableCell>
-                              <div className="font-medium">Akademik Yazı Teknikleri</div>
-                              <div className="text-sm text-gray-500">Oluşturulma: 28.05.2025</div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-teal-100 text-teal-800 hover:bg-teal-100">Makale</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-red-100 text-red-800 hover:bg-red-100">C1</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">Pro</Badge>
-                            </TableCell>
-                            <TableCell>542</TableCell>
-                            <TableCell>
-                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Yayında</Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button">
-                                <i className="fas fa-ellipsis-v text-gray-500"></i>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell>
-                              <Checkbox id="select-content-4" />
-                            </TableCell>
-                            <TableCell>
-                              <div className="font-medium">Deyimler ve Atasözleri</div>
-                              <div className="text-sm text-gray-500">Oluşturulma: 10.05.2025</div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">Quiz</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">B1</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-100">Premium</Badge>
-                            </TableCell>
-                            <TableCell>1,128</TableCell>
-                            <TableCell>
-                              <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Taslak</Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button">
-                                <i className="fas fa-ellipsis-v text-gray-500"></i>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
+                          {users.map(user => (
+                            <TableRow key={user.id}>
+                              <TableCell>
+                                <Checkbox id={`select-content-${user.id}`} />
+                              </TableCell>
+                              <TableCell>
+                                <div className="font-medium">{user.name}</div>
+                                <div className="text-sm text-gray-500">{user.email}</div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Podcast</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-green-100 text-green-800 hover:bg-green-100">A1</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Ücretsiz</Badge>
+                              </TableCell>
+                              <TableCell>1,245</TableCell>
+                              <TableCell>
+                                <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Yayında</Badge>
+                              </TableCell>
+                              <TableCell className="text-right relative">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 !rounded-button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuUserId(openMenuUserId === user.id ? null : user.id);
+                                  }}
+                                >
+                                  <i className="fas fa-ellipsis-v text-gray-500"></i>
+                                </Button>
+                                {openMenuUserId === user.id && (
+                                  <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow z-10">
+                                    <button
+                                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                                      onClick={() => {
+                                        setOpenMenuUserId(null);
+                                        router.push(`/admin/user-audios/${user.id}`);
+                                      }}
+                                    >
+                                      Ses Dosyalarını Yönet/Sil
+                                    </button>
+                                  </div>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
                         </TableBody>
                       </Table>
                     </div>
