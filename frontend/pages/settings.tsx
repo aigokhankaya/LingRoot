@@ -1,11 +1,9 @@
-'use client';
-
 import React, { useState } from "react";
 import { Button } from "../src/components/ui/button";
 import { Input } from "../src/components/ui/input";
 import { Textarea } from "../src/components/ui/textarea";
 import { Switch } from "../src/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger } from "../src/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../src/components/ui/tabs";
 import {
   Card,
   CardContent,
@@ -378,7 +376,7 @@ const Settings: React.FC = () => {
               </Button>
             </div>
             <div className="flex items-center space-x-4">
-                              <Button
+              <Button
                 variant="ghost"
                 className="!rounded-button whitespace-nowrap cursor-pointer"
                 onClick={handleNotificationClick}
@@ -592,13 +590,7 @@ const Settings: React.FC = () => {
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
             {/* Profile Information */}
-<<<<<<< HEAD
             <TabsContent value="profil">
-=======
-            <div
-              className={`${activeTab === "profil" ? "block" : "hidden"}`}
-            >
->>>>>>> 2d445a9ea69232713910c0f1a84088ab0a5be0d6
               <Card className="border-none shadow-md mb-6">
                 <CardHeader className="pb-2">
                   <CardTitle>Profil Bilgileri</CardTitle>
@@ -770,12 +762,10 @@ const Settings: React.FC = () => {
                   </p>
                 </CardContent>
               </Card>
-            </div>
+            </TabsContent>
 
             {/* Notification Preferences */}
-            <div
-              className={`${activeTab === "bildirimler" ? "block" : "hidden"}`}
-            >
+            <TabsContent value="bildirimler">
               <Card className="border-none shadow-md">
                 <CardHeader>
                   <CardTitle>Bildirim Tercihleri</CardTitle>
@@ -960,12 +950,10 @@ const Settings: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </TabsContent>
 
             {/* Privacy Settings */}
-            <div
-              className={`${activeTab === "gizlilik" ? "block" : "hidden"}`}
-            >
+            <TabsContent value="gizlilik">
               <Card className="border-none shadow-md mb-6">
                 <CardHeader>
                   <CardTitle>Gizlilik Ayarları</CardTitle>
@@ -1201,12 +1189,10 @@ const Settings: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </TabsContent>
 
             {/* Payment Information */}
-            <div
-              className={`${activeTab === "odeme" ? "block" : "hidden"}`}
-            >
+            <TabsContent value="odeme">
               <Card className="border-none shadow-md mb-6">
                 <CardHeader>
                   <CardTitle>Ödeme Bilgileri</CardTitle>
@@ -1384,12 +1370,10 @@ const Settings: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </TabsContent>
 
             {/* Subscription Plan */}
-            <div
-              className={`${activeTab === "abonelik" ? "block" : "hidden"}`}
-            >
+            <TabsContent value="abonelik">
               <Card className="border-none shadow-md mb-6">
                 <CardHeader>
                   <CardTitle>Abonelik Planı</CardTitle>
@@ -1598,12 +1582,10 @@ const Settings: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </TabsContent>
 
             {/* Account Management */}
-            <div
-              className={`${activeTab === "hesap" ? "block" : "hidden"}`}
-            >
+            <TabsContent value="hesap">
               <Card className="border-none shadow-md mb-6">
                 <CardHeader>
                   <CardTitle>Hesap Yönetimi</CardTitle>
@@ -1713,12 +1695,8 @@ const Settings: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-<<<<<<< HEAD
             </TabsContent>
             </Tabs>
-=======
-            </div>
->>>>>>> 2d445a9ea69232713910c0f1a84088ab0a5be0d6
 
             {/* Save Changes Button */}
             <div className="flex justify-end mt-6">

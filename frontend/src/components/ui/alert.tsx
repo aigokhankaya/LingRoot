@@ -1,36 +1,5 @@
-<<<<<<< HEAD
 "use client"
 
-import * as React from "react"
-
-import { cn } from "@/lib/utils"
-
-interface AlertProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: "default" | "destructive"
-}
-
-const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
-  ({ className, variant = "default", ...props }, ref) => {
-    const variantClasses = {
-      default: "bg-background text-foreground border-border",
-      destructive: "border-red-500/50 text-red-600 dark:border-red-500 bg-red-50"
-    }
-
-    return (
-      <div
-        ref={ref}
-        role="alert"
-        className={cn(
-          "relative w-full rounded-lg border p-4",
-          variantClasses[variant],
-          className
-        )}
-        {...props}
-      />
-    )
-  }
-)
-=======
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -63,7 +32,6 @@ const Alert = React.forwardRef<
     {...props}
   />
 ))
->>>>>>> 2d445a9ea69232713910c0f1a84088ab0a5be0d6
 Alert.displayName = "Alert"
 
 const AlertTitle = React.forwardRef<
