@@ -1,0 +1,49 @@
+{
+  "name": "youtube-whisper-api",
+  "version": "2.0.0",
+  "description": "YouTube ses indirip yerel Whisper ile transcript çıkaran local API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test.js",
+    "test-simple": "node simple-test.js",
+    "install-whisper": "pip install openai-whisper",
+    "install-requirements": "pip install -r requirements.txt",
+    "install-full": "npm run install-whisper && npm install"
+  },
+  "keywords": [
+    "youtube",
+    "whisper",
+    "transcript",
+    "audio",
+    "speech-to-text",
+    "local",
+    "offline",
+    "free"
+  ],
+  "author": "LingRoot Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1",
+    "axios": "^1.6.0",
+    "uuid": "^9.0.1",
+    "fs-extra": "^11.1.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourorg/youtube-whisper-api"
+  },
+  "bugs": {
+    "url": "https://github.com/yourorg/youtube-whisper-api/issues"
+  },
+  "homepage": "https://github.com/yourorg/youtube-whisper-api#readme"
+} 
