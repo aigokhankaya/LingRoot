@@ -9,6 +9,8 @@ interface User {
   email: string;
   role: string;
   membershipStatus: 'free' | 'premium' | 'enterprise';
+  name?: string;
+  created_at?: string;
 }
 
 interface AuthContextType {
@@ -19,7 +21,7 @@ interface AuthContextType {
   loginWithPhone: (phoneNumber: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
   smsLogin: (phoneNumber: string) => Promise<{ success: boolean; message?: string; userId?: string }>;
   verifySmsLogin: (userId: string, verificationCode: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
-  loginWithGoogle: (credential: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
+  loginWithGoogle: (credential: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string; data?: any }>;
   logout: () => void;
   register: (firstName: string, lastName: string, email: string, phoneNumber: string, password: string) => Promise<{ success: boolean; message?: string }>;
 }
@@ -67,6 +69,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
             email: userData.email,
             role: userData.role || 'user',
             membershipStatus: userData.membershipStatus || 'free',
+            name: userData.name || `${userData.firstname || ''} ${userData.lastname || ''}`.trim() || userData.email,
+            created_at: userData.created_at,
           };
           
           console.log('[AUTH] Oturum doğrulandı:', loadedUser);
@@ -185,6 +189,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           email: rawUser.email,
           role: rawUser.role || 'user',
           membershipStatus: rawUser.membershipStatus || 'free',
+          name: rawUser.name || `${rawUser.firstname || ''} ${rawUser.lastname || ''}`.trim() || rawUser.email,
+          created_at: rawUser.created_at,
         };
         setUser(user);
         setIsAuthenticated(true);
@@ -296,7 +302,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     }
   };
 
-  const loginWithGoogle = async (credential: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
+  const loginWithGoogle = async (credential: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string; data?: any }> => {
     try {
       console.log('[AUTH] loginWithGoogle() called');
       
@@ -324,6 +330,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           email: rawUser.email,
           role: rawUser.role || 'user',
           membershipStatus: rawUser.membershipStatus || 'free',
+          name: rawUser.name || `${rawUser.firstname || ''} ${rawUser.lastname || ''}`.trim() || rawUser.email,
+          created_at: rawUser.created_at,
         };
         setUser(user);
         setIsAuthenticated(true);
@@ -339,7 +347,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           console.log('[AUTH] Google token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
         }
         
-        return { success: true };
+        return { success: true, data: data.data };
       } else {
         setUser(null);
         setIsAuthenticated(false);
@@ -384,6 +392,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           email: rawUser.email,
           role: rawUser.role || 'user',
           membershipStatus: rawUser.membershipStatus || rawUser.membership_status || 'free',
+          name: rawUser.name || `${rawUser.firstname || ''} ${rawUser.lastname || ''}`.trim() || rawUser.email,
+          created_at: rawUser.created_at,
         };
         setUser(user);
         setIsAuthenticated(true);
@@ -477,6 +487,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           email: rawUser.email,
           role: rawUser.role || 'user',
           membershipStatus: rawUser.membershipStatus || rawUser.membership_status || 'free',
+          name: rawUser.name || `${rawUser.firstname || ''} ${rawUser.lastname || ''}`.trim() || rawUser.email,
+          created_at: rawUser.created_at,
         };
         setUser(user);
         setIsAuthenticated(true);

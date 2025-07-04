@@ -790,32 +790,84 @@ export const addWordWithTranslation = async (
   translationError?: boolean;
 }> => {
   try {
-    const url = process.env.NODE_ENV === 'development' 
-      ? 'http://localhost:5001/api/vocabulary/add-with-translation'
-      : '/api/vocabulary/add-with-translation';
-    
-    const headers = createHeaders('application/json');
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      headers,
-      body: JSON.stringify({
-        word,
-        context,
-        level,
-        originalSentence
-      }),
+    const response = await apiRequest<{
+      data: VocabularyWord;
+      message: string;
+      isExisting: boolean;
+      translationError?: boolean;
+    }>('POST', 'vocabulary/add-with-translation', {
+      word,
+      context,
+      level,
+      original_sentence: originalSentence
     });
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-    }
-    
-    return response.json();
-  } catch (error) {
+    return response;
+  } catch (error: any) {
     console.error('Error adding word with translation:', error);
+    throw error;
+  }
+};
+
+// User Profile API Functions
+export interface UserProfile {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  profilePhoto?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const getUserProfile = async (): Promise<UserProfile> => {
+  try {
+    const response = await apiRequest<{ user: UserProfile }>('GET', 'user/profile');
+    return response.user;
+  } catch (error: any) {
+    console.error('Error fetching user profile:', error);
+    throw error;
+  }
+};
+
+export const updateUserProfile = async (profileData: Partial<UserProfile>): Promise<UserProfile> => {
+  try {
+    const response = await apiRequest<{ user: UserProfile }>('PUT', 'user/profile', profileData);
+    return response.user;
+  } catch (error: any) {
+    console.error('Error updating user profile:', error);
+    throw error;
+  }
+};
+
+export const uploadProfilePhoto = async (file: File): Promise<{ user: UserProfile; message: string }> => {
+  try {
+    const formData = new FormData();
+    formData.append('profilePhoto', file);
+    
+    const response = await api.put('/api/user/profile', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('Error uploading profile photo:', error);
+    throw error;
+  }
+};
+
+export const changePassword = async (currentPassword: string, newPassword: string): Promise<{ message: string }> => {
+  try {
+    const response = await apiRequest<{ message: string }>('PUT', 'auth/change-password', {
+      currentPassword,
+      newPassword
+    });
+    return response;
+  } catch (error: any) {
+    console.error('Error changing password:', error);
     throw error;
   }
 };

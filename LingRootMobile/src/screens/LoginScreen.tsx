@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -32,6 +33,28 @@ const LoginScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleForgotPassword = () => {
+    Alert.alert(
+      'Şifremi Unuttum',
+      'Şifrenizi sıfırlamak için web tarayıcısında şifre sıfırlama sayfasına yönlendirileceksiniz.',
+      [
+        {
+          text: 'İptal',
+          style: 'cancel',
+        },
+        {
+          text: 'Devam Et',
+          onPress: () => {
+            const url = 'https://lingroot.com/forgot-password';
+            Linking.openURL(url).catch(() => {
+              Alert.alert('Hata', 'Web sayfası açılamadı. Lütfen tarayıcınızdan https://lingroot.com/forgot-password adresini ziyaret edin.');
+            });
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -75,7 +98,7 @@ const LoginScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.linkButton}>
+          <TouchableOpacity style={styles.linkButton} onPress={handleForgotPassword}>
             <Text style={styles.linkText}>Şifremi Unuttum</Text>
           </TouchableOpacity>
 

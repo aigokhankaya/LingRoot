@@ -132,7 +132,7 @@ export const requestPasswordReset = async (email: string): Promise<ApiResponse> 
   try {
     const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
       method: 'POST',
-      headers: createHeaders(),
+      headers: createHeaders('application/json'),
       body: JSON.stringify({ email })
     });
     
@@ -153,7 +153,7 @@ export const resetPassword = async (token: string, newPassword: string): Promise
   try {
     const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
       method: 'POST',
-      headers: createHeaders(),
+      headers: createHeaders('application/json'),
       body: JSON.stringify({
         token,
         newPassword

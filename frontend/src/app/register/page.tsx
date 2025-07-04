@@ -15,7 +15,8 @@ export default function RegisterPage() {
   const { register, loginWithGoogle } = useAuth();
   
   const [formData, setFormData] = useState({
-    username: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phoneNumber: '',
     password: '',
@@ -73,7 +74,7 @@ export default function RegisterPage() {
     setError(null);
     
     // Validate form data
-    if (!formData.username || !formData.email || !formData.phoneNumber || !formData.password || !formData.confirmPassword) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phoneNumber || !formData.password || !formData.confirmPassword) {
       setError('Lütfen tüm alanları doldurun.');
       return;
     }
@@ -92,10 +93,10 @@ export default function RegisterPage() {
 
     try {
       // Backend'e kayıt isteği gönder - register fonksiyonu (firstName, lastName, email, phoneNumber, password) parametreleri alıyor
-      const result = await register(formData.username, '', formData.email, formData.phoneNumber, formData.password);
+      const result = await register(formData.firstName, formData.lastName, formData.email, formData.phoneNumber, formData.password);
       if (result.success) {
-        // Başarılı kayıt sonrası dashboard'a yönlendir
-        router.push('/dashboard');
+        // Başarılı kayıt sonrası welcome sayfasına new-user parametresi ile yönlendir
+        router.push('/welcome?new-user=true');
       } else {
         setError(result.message || 'Kayıt olurken bir hata oluştu.');
       }
@@ -113,6 +114,8 @@ export default function RegisterPage() {
       
       console.log('🚀 Google ile kayıt/giriş işlemi başlatılıyor...');
       
+      // Geçici olarak Google Auth'u test et
+      try {
       // Google Auth modülünü dinamik olarak import et
       console.log('📦 Google Auth modülü yükleniyor...');
       const { initializeGoogleAuth, signInWithGoogle } = await import('../../lib/googleAuth');
@@ -130,34 +133,46 @@ export default function RegisterPage() {
       const result = await loginWithGoogle(credential);
       
       if (result.success) {
-        // Başarılı giriş sonrası dashboard'a yönlendir
-        console.log('✅ Google ile giriş başarılı, dashboard\'a yönlendiriliyor...');
+          // Backend response'ından yeni kullanıcı bilgisini kontrol et
+          const isNewUser = result.data?.isNewUser || false;
+          console.log('✅ Google ile işlem başarılı, isNewUser:', isNewUser);
+          
+          if (isNewUser) {
+            // Yeni kullanıcıysa welcome sayfasına new-user parametresi ile yönlendir
+            console.log('🆕 Yeni kullanıcı tespit edildi, welcome sayfasına yönlendiriliyor...');
+            router.push('/welcome?new-user=true');
+          } else {
+            // Mevcut kullanıcıysa dashboard'a yönlendir
+            console.log('👤 Mevcut kullanıcı, dashboard\'a yönlendiriliyor...');
         router.push('/dashboard');
+          }
       } else {
         console.error('❌ Backend kimlik doğrulama hatası:', result.message);
         setError(result.message || 'Google ile giriş yaparken bir hata oluştu.');
+        }
+      } catch (googleError: any) {
+        console.error('❌ Google Auth hatası:', googleError);
+        
+        // Google Auth özel hata durumlarını kontrol et
+        if (googleError.message.includes('Client ID') || googleError.message.includes('client application')) {
+          setError('Google giriş servisi geçici olarak kullanılamıyor. Lütfen normal kayıt formunu kullanın veya daha sonra tekrar deneyin.');
+        } else if (googleError.message.includes('Services') || googleError.message.includes('yüklenmedi')) {
+          setError('Google servisleri yüklenemedi. İnternet bağlantınızı kontrol edin ve sayfayı yenileyin.');
+        } else if (googleError.message.includes('iptal') || googleError.message.includes('cancelled')) {
+          setError('Google girişi iptal edildi.');
+        } else {
+          setError('Google ile giriş yaparken bir hata oluştu. Lütfen normal kayıt formunu kullanın.');
+        }
+        
+        throw googleError; // Re-throw to handle in outer catch
       }
     } catch (err: any) {
       console.error('❌ Google kayıt hatası:', err);
       
-      // Kullanıcı dostu hata mesajları
-      let userErrorMessage = 'Google ile kayıt olurken bir hata oluştu.';
-      
-      if (err.message.includes('popup') || err.message.includes('pencere')) {
-        userErrorMessage = 'Google giriş penceresi açılamadı veya kapatıldı. Lütfen popup engelleyiciyi kontrol edin ve tekrar deneyin.';
-      } else if (err.message.includes('cancelled') || err.message.includes('iptal')) {
-        userErrorMessage = 'Google girişi iptal edildi.';
-      } else if (err.message.includes('timeout') || err.message.includes('zaman aşımı')) {
-        userErrorMessage = 'Google giriş zaman aşımına uğradı. Lütfen tekrar deneyin.';
-      } else if (err.message.includes('yapılandırılmamış') || err.message.includes('Client ID')) {
-        userErrorMessage = 'Google giriş servisi geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin.';
-      } else if (err.message.includes('yüklenmedi') || err.message.includes('Services')) {
-        userErrorMessage = 'Google servisleri yüklenemedi. İnternet bağlantınızı kontrol edin ve sayfayı yenileyin.';
-      } else if (err.message.includes('Failed to fetch') || err.message.includes('bağlanılamadı')) {
-        userErrorMessage = 'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin ve tekrar deneyin.';
+      // Genel hata mesajları (önceden tanımlanmış)
+      if (!error) { // Eğer yukarıda özel bir hata mesajı set edilmediyse
+        setError('Google ile kayıt yaparken bir hata oluştu. Lütfen formu doldurarak normal kayıt işlemini tamamlayın.');
       }
-      
-      setError(userErrorMessage);
     } finally {
       setLoading(false);
     }
@@ -210,13 +225,27 @@ export default function RegisterPage() {
                   )}
                   
                   <div className="space-y-2">
-                    <Label htmlFor="username">Kullanıcı Adı</Label>
+                    <Label htmlFor="firstName">Adı</Label>
                     <Input
-                      id="username"
-                      name="username"
+                      id="firstName"
+                      name="firstName"
                       type="text"
-                      placeholder="kullaniciadi"
-                      value={formData.username}
+                      placeholder="Adınız"
+                      value={formData.firstName}
+                      onChange={handleChange}
+                      className="border-gray-300 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Soyadı</Label>
+                    <Input
+                      id="lastName"
+                      name="lastName"
+                      type="text"
+                      placeholder="Soyadınız"
+                      value={formData.lastName}
                       onChange={handleChange}
                       className="border-gray-300 focus:border-blue-500"
                       required

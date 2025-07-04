@@ -38,32 +38,39 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
     // Google nesnesi mevcut mu kontrol et
     if (!window.google) {
       console.error('❌ Google Identity Services yüklenmedi');
-      reject(new Error('Google Identity Services yüklenmedi'));
+      reject(new Error('Google Identity Services yüklenmedi. Lütfen internet bağlantınızı kontrol edin ve sayfayı yenileyin.'));
       return;
     }
 
     // Client ID kontrolü - Gerçek Google OAuth için
     let clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     
-    // Eğer environment'ta client ID yoksa, default değeri kullan
+    // Eğer environment'ta client ID yoksa, geçerli bir client ID kullan
     if (!clientId) {
-      clientId = '67246709123-ij5od5ta3toboer63hrcopkfld65241a.apps.googleusercontent.com';
-      console.log('🔧 Environment\'ta client ID bulunamadı, default kullanılıyor');
+      // Development için geçici client ID (production'da environment'tan alınmalı)
+      clientId = '67246709123-1j5od5ta3toboer63hrcopkfld65241a.apps.googleusercontent.com';
+      console.log('🔧 Environment\'ta client ID bulunamadı, fallback kullanılıyor');
     }
     
     console.log('🔄 Google Sign-In başlatılıyor...');
-    console.log('📋 İstemci ID:', clientId.substring(0, 15) + '...');
+    console.log('📋 İstemci ID:', clientId.substring(0, 20) + '...');
 
     // Timeout için timer
     const timeoutId = setTimeout(() => {
       console.warn('⏰ Google giriş zaman aşımına uğradı');
-      reject(new Error('Google giriş zaman aşımına uğradı. Lütfen tekrar deneyin.'));
-    }, 30000); // 30 saniye timeout
+      reject(new Error('Google giriş zaman aşımına uğradı. Lütfen popup\'ı kapatıp tekrar deneyin.'));
+    }, 60000); // 60 saniye timeout (artırıldı)
 
     // Global callback fonksiyonu
     window.googleSignInCallback = (response: any) => {
       clearTimeout(timeoutId);
       console.log('📨 Google callback çağrıldı:', response);
+      
+      // Popup pencerelerini temizle
+      const tempButton = document.getElementById('temp-google-signin-button');
+      if (tempButton && tempButton.parentNode) {
+        tempButton.parentNode.removeChild(tempButton);
+      }
       
       if (response.credential) {
         console.log('✅ Google JWT Credential alındı:', {
@@ -89,22 +96,26 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
         });
       } else {
         console.error('❌ Google giriş başarısız:', response);
-        reject(new Error('Google giriş başarısız'));
+        reject(new Error('Google giriş başarısız: ' + (response.error || 'Kullanıcı girişi iptal etti')));
       }
     };
 
     try {
       // Google Sign-In'i başlat
       console.log('🔧 Google accounts.id.initialize çağrılıyor...');
-      window.google.accounts.id.initialize({
+      
+      // Önce basit konfigürasyon deneyelim
+      const initConfig = {
         client_id: clientId,
         callback: window.googleSignInCallback,
         auto_select: false,
         cancel_on_tap_outside: true,
-        use_fedcm_for_prompt: false, // Şimdilik false yapıyoruz, daha kararlı
-        context: 'signin',
+        context: 'signup',
         ux_mode: 'popup'
-      });
+      };
+      
+      console.log('🎯 Google init config:', initConfig);
+      window.google.accounts.id.initialize(initConfig);
 
       // One Tap prompt'ını göster
       console.log('🎯 Google One Tap prompt gösteriliyor...');
@@ -112,70 +123,13 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
         console.log('📢 Google prompt notification:', notification);
         
         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          console.log('⚠️ One Tap gösterilemedi, sign-in button ile deneniyor...');
+          console.log('⚠️ One Tap gösterilemedi, manuel giriş gerekiyor...');
           
-          // One Tap çalışmıyorsa, sign-in button render et
-          try {
-            console.log('🔧 Google Sign-In button render ediliyor...');
-            
-            // Geçici bir container oluştur
-            const buttonContainer = document.createElement('div');
-            buttonContainer.id = 'temp-google-signin-button';
-            buttonContainer.style.position = 'fixed';
-            buttonContainer.style.top = '50%';
-            buttonContainer.style.left = '50%';
-            buttonContainer.style.transform = 'translate(-50%, -50%)';
-            buttonContainer.style.zIndex = '10000';
-            buttonContainer.style.backgroundColor = 'white';
-            buttonContainer.style.padding = '20px';
-            buttonContainer.style.borderRadius = '8px';
-            buttonContainer.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-            
-            // Kapatma butonu ekle
-            const closeButton = document.createElement('div');
-            closeButton.innerHTML = '×';
-            closeButton.style.position = 'absolute';
-            closeButton.style.top = '5px';
-            closeButton.style.right = '10px';
-            closeButton.style.cursor = 'pointer';
-            closeButton.style.fontSize = '20px';
-            closeButton.style.color = '#666';
-            closeButton.onclick = () => {
+          // One Tap başarısız olduğunda kullanıcıya bilgi ver
+          const message = 'Google One Tap kullanılamıyor. Lütfen "Google ile Kaydol" butonuna tekrar tıklayın.';
               clearTimeout(timeoutId);
-              if (buttonContainer.parentNode) {
-                buttonContainer.parentNode.removeChild(buttonContainer);
-              }
-              reject(new Error('Google giriş iptal edildi'));
-            };
-            
-            buttonContainer.appendChild(closeButton);
-            document.body.appendChild(buttonContainer);
-            
-            // Google button render et
-            window.google.accounts.id.renderButton(buttonContainer, {
-              theme: 'outline',
-              size: 'large',
-              type: 'standard',
-              shape: 'rectangular',
-              text: 'signin_with',
-              logo_alignment: 'left',
-              width: 250
-            });
-            
-            // 10 saniye sonra otomatik kapat
-            setTimeout(() => {
-              if (buttonContainer.parentNode) {
-                buttonContainer.parentNode.removeChild(buttonContainer);
-                clearTimeout(timeoutId);
-                reject(new Error('Google giriş zaman aşımına uğradı'));
-              }
-            }, 10000);
-            
-          } catch (error: any) {
-            clearTimeout(timeoutId);
-            console.error('❌ Google Sign-In button oluşturulamadı:', error);
-            reject(new Error('Google Sign-In alternatif yöntemi başarısız: ' + (error?.message || 'Bilinmeyen hata')));
-          }
+          reject(new Error(message));
+          
         } else if (notification.getDismissedReason) {
           // Kullanıcı One Tap'i iptal etti
           const reason = notification.getDismissedReason();
@@ -183,10 +137,11 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
           
           if (reason === 'credential_returned') {
             // Credential döndürüldü, callback'te handle edilecek
+            console.log('✅ Credential döndürüldü, callback bekleniyor...');
             return;
           } else {
             clearTimeout(timeoutId);
-            reject(new Error('Google giriş iptal edildi'));
+            reject(new Error('Google girişi iptal edildi: ' + reason));
           }
         }
       });

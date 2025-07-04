@@ -182,7 +182,7 @@ async function mergeAudioSegments(audioSegments, outputFilePath) {
                         }
                     } catch (fallbackError) {
                         logger.error(`❌ Fallback concatenation failed: ${fallbackError.message}`);
-                        reject(err);
+                    reject(err);
                     }
                 });
         });
