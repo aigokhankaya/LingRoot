@@ -26,7 +26,6 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 
 
 import { getApiUrl } from "../src/lib/api";
-import { initializeGoogleAuth, signInWithGoogle, decodeGoogleCredential } from "../src/lib/googleAuth";
 import dynamic from 'next/dynamic';
 // import Lottie from "lottie-react"; // Kaldırılacak
 import learnAnimation from "../public/animations/language-learn.json";
@@ -36,9 +35,10 @@ const Lottie = dynamic(() => import('lottie-react'), {
   loading: () => <div className="w-full max-w-3xl mx-auto h-[300px] bg-gray-100 animate-pulse rounded-lg"></div>
 });
 
-// Footer import'ı
 
+// Footer import'ı
 import Footer from '../src/components/Footer';
+
 
 const App: React.FC = () => {
     // --- YENİ TASARIMDAN GELEN STATE'LER ---
@@ -138,37 +138,38 @@ const App: React.FC = () => {
         setError(null);
         
         try {
-            console.log('🔄 Google giriş başlatılıyor...');
+            console.log('🚀 Google giriş başlatılıyor...');
             
-            // Google Client ID kontrolü
-            const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-            if (!clientId || clientId === 'your-google-client-id-here.apps.googleusercontent.com') {
-                throw new Error('Google Client ID yapılandırılmamış. Lütfen .env.local dosyasında NEXT_PUBLIC_GOOGLE_CLIENT_ID değerini ayarlayın.');
-            }
+            // Google Auth modülünü dinamik olarak import et
+            console.log('📦 Google Auth modülü yükleniyor...');
+            const { initializeGoogleAuth, signInWithGoogle } = await import('../src/lib/googleAuth');
             
+
             // Google Auth'u başlat.
             console.log('🔄 Google Auth başlatılıyor...');
+
             await initializeGoogleAuth();
             
             // Google Sign-In'i tetikle
-            console.log('🔄 Google Sign-In tetikleniyor...');
+            console.log('🎯 Google Sign-In tetikleniyor...');
             const { credential } = await signInWithGoogle();
             console.log('✅ Google credential alındı');
             
-            // Backend'e gönder
-            console.log('🔄 Backend\'e gönderiliyor...');
+            // useAuth hook'undan loginWithGoogle fonksiyonunu kullan
+            console.log('🔐 Backend ile kimlik doğrulama yapılıyor...');
             const result = await loginWithGoogle(credential, loginForm.rememberMe);
             
             if (result.success) {
-                console.log('✅ Google giriş başarılı');
+                console.log('✅ Google giriş başarılı, dashboard\'a yönlendiriliyor...');
                 setIsLoginOpen(false);
-                router.push('/welcome');
+                router.push('/dashboard');
             } else {
                 console.error('❌ Backend giriş hatası:', result.message);
                 setError(result.message || 'Google ile giriş başarısız.');
             }
         } catch (err: any) {
             console.error('❌ Google login error:', err);
+
             setError(err.message || 'Google ile giriş sırasında bir hata oluştu.');
                // Kullanıcı dostu hata mesajları
 
@@ -205,6 +206,7 @@ const App: React.FC = () => {
                
    
                setError(userErrorMessage);
+
         } finally {
             setLoading(false);
         }
@@ -412,206 +414,7 @@ const App: React.FC = () => {
 
   return (
         <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-            {/* Navigation */}
-            <nav className="bg-white shadow-sm py-3 sticky top-0 z-50">
-                <div className="container mx-auto px-8 flex justify-between items-center">
-                    <div className="flex items-center space-x-2">
-                        <i className="fas fa-language text-blue-600 text-xl md:text-2xl"></i>
-                        <span className="text-lg md:text-xl font-bold text-blue-600">LingRoot</span>
-                    </div>
-                    
-                    {/* Desktop Navigation */}
-                    <div className="hidden md:flex items-center space-x-6">
-                        <a href="#nasil-calisir" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.howItWorks}</a>
-                        <a href="#ozellikler" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.features}</a>
-                        <a href="#yorumlar" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.testimonials}</a>
-                        <a href="#blog" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.blog}</a>
-                    </div>
-                    
-                    {/* Desktop Buttons */}
-                    <div className="hidden md:flex items-center space-x-4">
-                        <Button variant="ghost" className="!rounded-button whitespace-nowrap" onClick={() => setLanguage(language === 'tr' ? 'en' : 'tr')}>
-                            {language === 'tr' ? 'EN' : 'TR'}
-                        </Button>
-                        
-                        {/* GİRİŞ YAP MODALI */}
-                        <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline" className="!rounded-button whitespace-nowrap">{t.nav.login}</Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-md">
-                                <DialogHeader>
-                                    <DialogTitle className="text-2xl font-bold text-center mb-2">{t.login.title}</DialogTitle>
-                                    <DialogDescription className="text-center">{t.login.description}</DialogDescription>
-                                </DialogHeader>
-                                <form onSubmit={handleLoginSubmit} className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="email">{t.login.emailLabel}</Label>
-                                        <Input id="email" name="email" type="email" placeholder={t.login.emailPlaceholder} value={loginForm.email} onChange={handleLoginChange} required />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="password">{t.login.passwordLabel}</Label>
-                                        <Input id="password" name="password" type="password" value={loginForm.password} onChange={handleLoginChange} required />
-                                    </div>
-                                    
-                                    {/* Beni Hatırla Checkbox */}
-                                    <div className="flex items-center space-x-2">
-                                        <input
-                                            id="rememberMe"
-                                            name="rememberMe"
-                                            type="checkbox"
-                                            checked={loginForm.rememberMe}
-                                            onChange={handleLoginChange}
-                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                        />
-                                        <Label htmlFor="rememberMe" className="text-sm font-medium text-gray-700 cursor-pointer">
-                                            Beni hatırla (30 gün)
-                                        </Label>
-                                    </div>
-                                    
-                                    {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-                                    <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white !rounded-button" disabled={loading}>
-                                        {loading ? t.login.loadingButton : t.login.loginButton}
-                                    </Button>
-                                    
-                                    {/* Ayırıcı */}
-                                    <div className="relative">
-                                        <div className="absolute inset-0 flex items-center">
-                                            <span className="w-full border-t border-gray-300" />
-                                        </div>
-                                        <div className="relative flex justify-center text-xs uppercase">
-                                            <span className="bg-white px-2 text-gray-500">veya</span>
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Google Login Butonu */}
-                                    <Button 
-                                        type="button" 
-                                        variant="outline" 
-                                        className="w-full !rounded-button border-gray-300 hover:bg-gray-50" 
-                                        onClick={handleGoogleLogin}
-                                        disabled={loading}
-                                    >
-                                        <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                                        </svg>
-                                        Google ile Giriş Yap
-                                    </Button>
-                                </form>
-                            </DialogContent>
-                        </Dialog>
-
-                        {/* KAYIT OL BUTONU */}
-                        <a href="/register">
-                            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button whitespace-nowrap">{t.nav.signup}</Button>
-                        </a>
-                    </div>
-          
-                    {/* Mobile Menu Button */}
-                    <div className="md:hidden flex items-center space-x-2">
-                        <Button variant="ghost" className="p-2 text-xs" onClick={() => setLanguage(language === 'tr' ? 'en' : 'tr')}>
-                            {language === 'tr' ? 'EN' : 'TR'}
-                        </Button>
-                        <Button 
-                            variant="ghost" 
-                            className="p-2" 
-                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                        >
-                            <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'} text-xl`}></i>
-                        </Button>
-                    </div>
-                </div>
-                
-                {/* Mobile Menu */}
-                {isMobileMenuOpen && (
-                    <div className="md:hidden bg-white border-t border-gray-200 mobile-menu">
-                        <div className="container mx-auto px-4 py-4 space-y-4">
-                            <a href="#nasil-calisir" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.howItWorks}</a>
-                            <a href="#ozellikler" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.features}</a>
-                            <a href="#yorumlar" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.testimonials}</a>
-                            <a href="#blog" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.blog}</a>
-                            
-                            <div className="pt-4 border-t border-gray-200 space-y-3">
-                                <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="outline" className="w-full !rounded-button" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.login}</Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="sm:max-w-md">
-                                        <DialogHeader>
-                                            <DialogTitle className="text-2xl font-bold text-center mb-2">{t.login.title}</DialogTitle>
-                                            <DialogDescription className="text-center">{t.login.description}</DialogDescription>
-                                        </DialogHeader>
-                                        <form onSubmit={handleLoginSubmit} className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="mobile-email">{t.login.emailLabel}</Label>
-                                                <Input id="mobile-email" name="email" type="email" placeholder={t.login.emailPlaceholder} value={loginForm.email} onChange={handleLoginChange} required />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="mobile-password">{t.login.passwordLabel}</Label>
-                                                <Input id="mobile-password" name="password" type="password" value={loginForm.password} onChange={handleLoginChange} required />
-                                            </div>
-                                            
-                                            {/* Beni Hatırla Checkbox - Mobile */}
-                                            <div className="flex items-center space-x-2">
-                                                <input
-                                                    id="mobile-rememberMe"
-                                                    name="rememberMe"
-                                                    type="checkbox"
-                                                    checked={loginForm.rememberMe}
-                                                    onChange={handleLoginChange}
-                                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                                />
-                                                <Label htmlFor="mobile-rememberMe" className="text-sm font-medium text-gray-700 cursor-pointer">
-                                                    Beni hatırla (30 gün)
-                                                </Label>
-                                            </div>
-                                            
-                                            {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-                                            <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white !rounded-button" disabled={loading}>
-                                                {loading ? t.login.loadingButton : t.login.loginButton}
-                                            </Button>
-                                            
-                                            {/* Ayırıcı - Mobile */}
-                                            <div className="relative">
-                                                <div className="absolute inset-0 flex items-center">
-                                                    <span className="w-full border-t border-gray-300" />
-                                                </div>
-                                                <div className="relative flex justify-center text-xs uppercase">
-                                                    <span className="bg-white px-2 text-gray-500">veya</span>
-                                                </div>
-                                            </div>
-                                            
-                                            {/* Google Login Butonu - Mobile */}
-                                            <Button 
-                                                type="button" 
-                                                variant="outline" 
-                                                className="w-full !rounded-button border-gray-300 hover:bg-gray-50" 
-                                                onClick={handleGoogleLogin}
-                                                disabled={loading}
-                                            >
-                                                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                                                </svg>
-                                                Google ile Giriş Yap
-                                            </Button>
-                                        </form>
-                                    </DialogContent>
-                                </Dialog>
-                                
-                                <a href="/register" onClick={() => setIsMobileMenuOpen(false)}>
-                                    <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button">{t.nav.signup}</Button>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </nav>
+            <StandardHeader />
             
             {/* Hero Section */}
             <section className="relative overflow-hidden min-h-[700px] hero-section">
@@ -738,6 +541,7 @@ const App: React.FC = () => {
                         <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.howItWorks.title}</h2>
                         <p className="text-xl text-gray-600 max-w-3xl mx-auto">{t.howItWorks.description}</p>
                     </div>
+
                     <div className="grid md:grid-cols-3 gap-8">
                         {t.howItWorks.steps.map((step, index) => (
                             <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col how-it-works-card">
@@ -945,94 +749,11 @@ const App: React.FC = () => {
                                 <i className="fas fa-rocket mr-2"></i> {t.cta.button}
                             </Button>
                         </a>
-                        <div className="mt-8 flex justify-center items-center space-x-6">
-                            {t.cta.benefits.map((benefit, index) => (
-                                <div key={index} className="flex items-center">
-                                    <i 
-                                        className="fas fa-check-circle mr-2" 
-                                        style={{ color: '#22c55e' }}
-                                    ></i>
-                                    <span className="text-gray-600">{benefit}</span>
-                                </div>
-                            ))}
-                        </div>
+
                     </div>
                 </div>
             </section>
-            {/* Footer */}
-            <footer className="bg-gray-900 text-white py-12">
-                <div className="container mx-auto px-4">
-                    <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
-                        <div>
-                            <div className="flex items-center space-x-2 mb-6">
-                                <i className="fas fa-language text-blue-400 text-3xl"></i>
-                                <span className="text-2xl font-bold">LingRoot</span>
-                            </div>
-                            <p className="text-gray-400 mb-4">
-                                {t.footer.slogan}
-                            </p>
-                            <div className="flex space-x-4">
-                                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
-                                    <i className="fab fa-facebook-f text-xl"></i>
-                                </a>
-                                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
-                                    <i className="fab fa-twitter text-xl"></i>
-                                </a>
-                                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
-                                    <i className="fab fa-instagram text-xl"></i>
-                                </a>
-                                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
-                                    <i className="fab fa-youtube text-xl"></i>
-                                </a>
-                            </div>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-bold mb-4">{t.footer.quickLinks.title}</h3>
-                            <ul className="space-y-2">
-                                {t.footer.quickLinks.links.map((link, index) => (
-                                    <li key={index}><a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{link}</a></li>
-                                ))}
-                            </ul>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-bold mb-4">{t.footer.legal.title}</h3>
-                            <ul className="space-y-2">
-                                {t.footer.legal.links.map((link, index) => (
-                                    <li key={index}><a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{link}</a></li>
-                                ))}
-                            </ul>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-bold mb-4">{t.footer.contact.title}</h3>
-                            <ul className="space-y-2">
-                                <li className="flex items-center">
-                                    <i className="fas fa-envelope mr-2 text-gray-400"></i>
-                                    <a href={`mailto:${t.footer.contact.email}`} className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{t.footer.contact.email}</a>
-                                </li>
-                                <li className="flex items-center">
-                                    <i className="fas fa-phone-alt mr-2 text-gray-400"></i>
-                                    <a href={`tel:${t.footer.contact.phone}`} className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{t.footer.contact.phone}</a>
-                                </li>
-                                <li className="flex items-start mt-4">
-                                    <i className="fas fa-map-marker-alt mr-2 mt-1 text-gray-400"></i>
-                                    <span className="text-gray-400">{t.footer.contact.address}</span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
-                        <p className="text-gray-400 text-sm mb-4 md:mb-0">
-                            &copy; {new Date().getFullYear()} LingRoot. {t.footer.copyright}
-                        </p>
-                        <div className="flex space-x-4">
-                            <i className="fab fa-cc-visa text-2xl text-gray-400"></i>
-                            <i className="fab fa-cc-mastercard text-2xl text-gray-400"></i>
-                            <i className="fab fa-cc-paypal text-2xl text-gray-400"></i>
-                            <i className="fab fa-apple-pay text-2xl text-gray-400"></i>
-                        </div>
-                    </div>
-                </div>
-            </footer>
+            <Footer />
         </div>
     );
 };

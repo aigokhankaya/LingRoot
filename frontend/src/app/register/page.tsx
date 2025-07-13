@@ -12,11 +12,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   
   const [formData, setFormData] = useState({
-    username: '',
+    firstName: '',
+    lastName: '',
     email: '',
+    phoneNumber: '',
     password: '',
     confirmPassword: '',
     acceptTerms: false
@@ -30,6 +32,39 @@ export default function RegisterPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Telefon numarası formatlaması için yardımcı fonksiyon
+  const formatPhoneNumber = (value: string) => {
+    // Sadece rakamları al
+    const cleaned = value.replace(/\D/g, '');
+    
+    // Eğer 90 ile başlıyorsa +90 ekle
+    if (cleaned.startsWith('90') && cleaned.length <= 12) {
+      const formatted = cleaned.replace(/^90(\d{3})(\d{3})(\d{2})(\d{2})$/, '+90 ($1) $2 $3 $4');
+      return formatted !== cleaned ? formatted : `+90 ${cleaned.slice(2)}`;
+    }
+    
+    // Eğer 5 ile başlıyorsa +90 ekle
+    if (cleaned.startsWith('5') && cleaned.length <= 10) {
+      if (cleaned.length === 10) {
+        return cleaned.replace(/^(\d{3})(\d{3})(\d{2})(\d{2})$/, '+90 ($1) $2 $3 $4');
+      }
+      return `+90 ${cleaned}`;
+    }
+    
+    // Eğer + ile başlıyorsa olduğu gibi bırak
+    if (value.startsWith('+')) {
+      return value;
+    }
+    
+    return value;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    const formattedValue = formatPhoneNumber(value);
+    setFormData(prev => ({ ...prev, phoneNumber: formattedValue }));
+  };
+
   const handleCheckboxChange = (checked: boolean) => {
     setFormData(prev => ({ ...prev, acceptTerms: checked }));
   };
@@ -39,7 +74,7 @@ export default function RegisterPage() {
     setError(null);
     
     // Validate form data
-    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phoneNumber || !formData.password || !formData.confirmPassword) {
       setError('Lütfen tüm alanları doldurun.');
       return;
     }
@@ -57,11 +92,11 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Backend'e kayıt isteği gönder
-      const result = await register(formData.username, '', formData.email, '', formData.password);
+      // Backend'e kayıt isteği gönder - register fonksiyonu (firstName, lastName, email, phoneNumber, password) parametreleri alıyor
+      const result = await register(formData.firstName, formData.lastName, formData.email, formData.phoneNumber, formData.password);
       if (result.success) {
-        // Başarılı kayıt sonrası dashboard'a yönlendir
-        router.push('/dashboard');
+        // Başarılı kayıt sonrası welcome sayfasına new-user parametresi ile yönlendir
+        router.push('/welcome?new-user=true');
       } else {
         setError(result.message || 'Kayıt olurken bir hata oluştu.');
       }
@@ -72,9 +107,75 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGoogleRegister = () => {
-    // Google OAuth implementasyonu
-    console.log('Google ile kayıt ol');
+  const handleGoogleRegister = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('🚀 Google ile kayıt/giriş işlemi başlatılıyor...');
+      
+      // Geçici olarak Google Auth'u test et
+      try {
+      // Google Auth modülünü dinamik olarak import et
+      console.log('📦 Google Auth modülü yükleniyor...');
+      const { initializeGoogleAuth, signInWithGoogle } = await import('../../lib/googleAuth');
+      
+      // Google Auth'u başlat
+      console.log('🔧 Google Auth başlatılıyor...');
+      await initializeGoogleAuth();
+      
+      // Google Sign-In'i tetikle
+      console.log('🎯 Google Sign-In tetikleniyor...');
+      const { credential } = await signInWithGoogle();
+      
+      // useAuth hook'undan loginWithGoogle fonksiyonunu kullan
+      console.log('🔐 Backend ile kimlik doğrulama yapılıyor...');
+      const result = await loginWithGoogle(credential);
+      
+      if (result.success) {
+          // Backend response'ından yeni kullanıcı bilgisini kontrol et
+          const isNewUser = result.data?.isNewUser || false;
+          console.log('✅ Google ile işlem başarılı, isNewUser:', isNewUser);
+          
+          if (isNewUser) {
+            // Yeni kullanıcıysa welcome sayfasına new-user parametresi ile yönlendir
+            console.log('🆕 Yeni kullanıcı tespit edildi, welcome sayfasına yönlendiriliyor...');
+            router.push('/welcome?new-user=true');
+          } else {
+            // Mevcut kullanıcıysa dashboard'a yönlendir
+            console.log('👤 Mevcut kullanıcı, dashboard\'a yönlendiriliyor...');
+        router.push('/dashboard');
+          }
+      } else {
+        console.error('❌ Backend kimlik doğrulama hatası:', result.message);
+        setError(result.message || 'Google ile giriş yaparken bir hata oluştu.');
+        }
+      } catch (googleError: any) {
+        console.error('❌ Google Auth hatası:', googleError);
+        
+        // Google Auth özel hata durumlarını kontrol et
+        if (googleError.message.includes('Client ID') || googleError.message.includes('client application')) {
+          setError('Google giriş servisi geçici olarak kullanılamıyor. Lütfen normal kayıt formunu kullanın veya daha sonra tekrar deneyin.');
+        } else if (googleError.message.includes('Services') || googleError.message.includes('yüklenmedi')) {
+          setError('Google servisleri yüklenemedi. İnternet bağlantınızı kontrol edin ve sayfayı yenileyin.');
+        } else if (googleError.message.includes('iptal') || googleError.message.includes('cancelled')) {
+          setError('Google girişi iptal edildi.');
+        } else {
+          setError('Google ile giriş yaparken bir hata oluştu. Lütfen normal kayıt formunu kullanın.');
+        }
+        
+        throw googleError; // Re-throw to handle in outer catch
+      }
+    } catch (err: any) {
+      console.error('❌ Google kayıt hatası:', err);
+      
+      // Genel hata mesajları (önceden tanımlanmış)
+      if (!error) { // Eğer yukarıda özel bir hata mesajı set edilmediyse
+        setError('Google ile kayıt yaparken bir hata oluştu. Lütfen formu doldurarak normal kayıt işlemini tamamlayın.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFacebookRegister = () => {
@@ -93,10 +194,10 @@ export default function RegisterPage() {
       <nav className="bg-white shadow-sm py-4 sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            <a href="/" className="flex items-center">
-              <i className="fas fa-language text-blue-600 text-3xl"></i>
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">LingRoot</span>
-            </a>
+                          <a href="/" className="flex items-center space-x-3">
+                <img src="/logo.svg" alt="LingRoot Logo" className="w-10 h-10" />
+                <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent tracking-tight">LingRoot</span>
+              </a>
           </div>
           <div className="flex items-center space-x-4">
             <a href="/" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer">
@@ -113,7 +214,7 @@ export default function RegisterPage() {
             {/* Form Column */}
             <div className="lg:w-7/12 bg-white rounded-xl shadow-xl p-8 mx-auto">
               <div className="max-w-md mx-auto">
-                <h1 className="text-3xl font-bold mb-2 text-gray-900">LingRoot'a Hoş Geldiniz</h1>
+                <h1 className="text-3xl font-bold mb-2 text-gray-900"><span className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent font-extrabold">LingRoot</span>'a Hoş Geldiniz</h1>
                 <p className="text-gray-600 mb-8">Sevdiğiniz içeriklerle İngilizce öğrenme yolculuğunuza başlamak için hemen kaydolun.</p>
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -124,13 +225,27 @@ export default function RegisterPage() {
                   )}
                   
                   <div className="space-y-2">
-                    <Label htmlFor="username">Kullanıcı Adı</Label>
+                    <Label htmlFor="firstName">Adı</Label>
                     <Input
-                      id="username"
-                      name="username"
+                      id="firstName"
+                      name="firstName"
                       type="text"
-                      placeholder="kullaniciadi"
-                      value={formData.username}
+                      placeholder="Adınız"
+                      value={formData.firstName}
+                      onChange={handleChange}
+                      className="border-gray-300 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Soyadı</Label>
+                    <Input
+                      id="lastName"
+                      name="lastName"
+                      type="text"
+                      placeholder="Soyadınız"
+                      value={formData.lastName}
                       onChange={handleChange}
                       className="border-gray-300 focus:border-blue-500"
                       required
@@ -146,6 +261,20 @@ export default function RegisterPage() {
                       placeholder="ornek@email.com"
                       value={formData.email}
                       onChange={handleChange}
+                      className="border-gray-300 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="phoneNumber">Telefon Numarası</Label>
+                    <Input
+                      id="phoneNumber"
+                      name="phoneNumber"
+                      type="tel"
+                      placeholder="+90 (5xx) xxx xx xx"
+                      value={formData.phoneNumber}
+                      onChange={handlePhoneChange}
                       className="border-gray-300 focus:border-blue-500"
                       required
                     />
@@ -187,7 +316,7 @@ export default function RegisterPage() {
                       onChange={(e) => handleCheckboxChange(e.target.checked)}
                       className="mt-1"
                     />
-                    <Label htmlFor="terms" className="text-sm text-gray-600 font-normal">
+                    <Label htmlFor="terms" className="text-sm text-gray-600 font-normal leading-relaxed">
                       <span>LingRoot'un </span>
                       <a href="/terms" className="text-blue-600 hover:underline cursor-pointer">Kullanım Şartları</a>
                       <span> ve </span>
@@ -198,10 +327,17 @@ export default function RegisterPage() {
                   
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-6"
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 font-semibold text-base"
                     disabled={!formData.acceptTerms || loading}
                   >
-                    {loading ? 'Hesap Oluşturuluyor...' : 'Ücretsiz Hesap Oluştur'}
+                    {loading ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Hesap Oluşturuluyor...
+                      </div>
+                    ) : (
+                      'Ücretsiz Hesap Oluştur'
+                    )}
                   </Button>
                 </form>
                 
@@ -215,24 +351,41 @@ export default function RegisterPage() {
                 <div className="space-y-3">
                   <Button 
                     variant="outline" 
-                    className="w-full py-6 border-gray-300 hover:bg-gray-50"
+                    className="w-full py-3 border-gray-300 hover:bg-gray-50 font-medium"
                     onClick={handleGoogleRegister}
+                    disabled={loading}
                   >
-                    <i className="fab fa-google mr-2 text-red-500"></i> Google ile Kaydol
+                    {loading ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2"></div>
+                        Google ile bağlanılıyor...
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center">
+                        <i className="fab fa-google mr-2 text-red-500"></i> 
+                        Google ile Kaydol
+                      </div>
+                    )}
                   </Button>
                   <Button 
                     variant="outline" 
-                    className="w-full py-6 border-gray-300 hover:bg-gray-50"
+                    className="w-full py-3 border-gray-300 hover:bg-gray-50 font-medium"
                     onClick={handleFacebookRegister}
                   >
-                    <i className="fab fa-facebook mr-2 text-blue-600"></i> Facebook ile Kaydol
+                    <div className="flex items-center justify-center">
+                      <i className="fab fa-facebook mr-2 text-blue-600"></i> 
+                      Facebook ile Kaydol
+                    </div>
                   </Button>
                   <Button 
                     variant="outline" 
-                    className="w-full py-6 border-gray-300 hover:bg-gray-50"
+                    className="w-full py-3 border-gray-300 hover:bg-gray-50 font-medium"
                     onClick={handleAppleRegister}
                   >
-                    <i className="fab fa-apple mr-2"></i> Apple ile Kaydol
+                    <div className="flex items-center justify-center">
+                      <i className="fab fa-apple mr-2"></i> 
+                      Apple ile Kaydol
+                    </div>
                   </Button>
                 </div>
                 
@@ -389,10 +542,10 @@ export default function RegisterPage() {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center space-x-2 mb-6">
-                <i className="fas fa-language text-blue-400 text-3xl"></i>
-                <span className="text-2xl font-bold">LingRoot</span>
-              </div>
+                              <div className="flex items-center space-x-3 mb-6">
+                  <img src="/logo.svg" alt="LingRoot Logo" className="w-12 h-12" />
+                  <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent tracking-tight">LingRoot</span>
+                </div>
               <p className="text-gray-400 mb-4">
                 "Your routines turn into English."
               </p>

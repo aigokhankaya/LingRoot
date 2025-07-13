@@ -158,6 +158,47 @@ const processTtsRequest = async (req, res) => {
     let tempFilePath = null;
     let detectedLang = 'en';
 
+    try {
+        // --- Input Parsing ---
+        logRequestStep(requestId, 'input:parse', { body: req.body });
+        logStep({
+            requestId,
+            stepName: 'tts:input:parse',
+            stepSequence: stepSequence++,
+            serviceName: 'Express',
+            endpoint: '/api/tts/process',
+            inputData: req.body
+        });
+        let inputData, inputType, level, speakingRate, file;
+
+        if (req.is("multipart/form-data")) {
+            logger.info(`[${requestId}] Processing multipart/form-data request.`);
+            inputData = req.body.input;
+            inputType = req.body.type;
+            level = req.body.level || "A1";
+            speakingRate = parseFloat(req.body.speakingRate || (level === "A1" ? "0.8" : "1.0"));
+            file = req.file;
+            logger.info(`[${requestId}] FormData details: type=${inputType}, level=${level}, rate=${speakingRate}, file=${file?.originalname}`);
+        } else if (req.is("application/json")) {
+            logger.info(`[${requestId}] Processing application/json request.`);
+            inputData = req.body.input;
+            inputType = req.body.type || "text";
+            level = req.body.level || "A1";
+            speakingRate = parseFloat(req.body.speakingRate || (level === "A1" ? "0.8" : "1.0"));
+            file = undefined;
+            logger.info(`[${requestId}] JSON details: type=${inputType}, level=${level}, rate=${speakingRate}`);
+        } else {
+            const contentType = req.get("Content-Type");
+            logger.error(`[${requestId}] Unsupported Content-Type: ${contentType}`);
+            return res.status(415).json({ success: false, message: `Unsupported Content-Type: ${contentType}` });
+        }
+
+        // Validate essential parameters
+        if (!inputType || (inputType !== "file" && !inputData) || (inputType === "file" && !file)) {
+            logger.error(`[${requestId}] Missing required input parameters. inputType=${inputType}, inputData=${inputData}, file=${file?.originalname}`);
+            return res.status(400).json({ success: false, message: "Missing required input parameters (type, input/file, level)" });
+        }
+
     // Check if mock TTS mode is enabled from parameters table
     try {
         const { data: paramData, error: paramError } = await supabase
@@ -233,47 +274,6 @@ const processTtsRequest = async (req, res) => {
     } catch (paramError) {
         logger.warn(`[${requestId}] Could not check mock_tts_enabled parameter: ${paramError.message}`);
         // Continue with normal processing if parameter check fails
-    }
-
-    try {
-        // --- Input Parsing ---
-        logRequestStep(requestId, 'input:parse', { body: req.body });
-        logStep({
-            requestId,
-            stepName: 'tts:input:parse',
-            stepSequence: stepSequence++,
-            serviceName: 'Express',
-            endpoint: '/api/tts/process',
-            inputData: req.body
-        });
-        let inputData, inputType, level, speakingRate, file;
-
-        if (req.is("multipart/form-data")) {
-            logger.info(`[${requestId}] Processing multipart/form-data request.`);
-            inputData = req.body.input;
-            inputType = req.body.type;
-            level = req.body.level || "A1";
-            speakingRate = parseFloat(req.body.speakingRate || (level === "A1" ? "0.8" : "1.0"));
-            file = req.file;
-            logger.info(`[${requestId}] FormData details: type=${inputType}, level=${level}, rate=${speakingRate}, file=${file?.originalname}`);
-        } else if (req.is("application/json")) {
-            logger.info(`[${requestId}] Processing application/json request.`);
-            inputData = req.body.input;
-            inputType = req.body.type || "text";
-            level = req.body.level || "A1";
-            speakingRate = parseFloat(req.body.speakingRate || (level === "A1" ? "0.8" : "1.0"));
-            file = undefined;
-            logger.info(`[${requestId}] JSON details: type=${inputType}, level=${level}, rate=${speakingRate}`);
-        } else {
-            const contentType = req.get("Content-Type");
-            logger.error(`[${requestId}] Unsupported Content-Type: ${contentType}`);
-            return res.status(415).json({ success: false, message: `Unsupported Content-Type: ${contentType}` });
-        }
-
-        // Validate essential parameters
-        if (!inputType || (inputType !== "file" && !inputData) || (inputType === "file" && !file)) {
-            logger.error(`[${requestId}] Missing required input parameters. inputType=${inputType}, inputData=${inputData}, file=${file?.originalname}`);
-            return res.status(400).json({ success: false, message: "Missing required input parameters (type, input/file, level)" });
         }
 
         // --- Step 1: Extract Text ---
@@ -753,10 +753,24 @@ const processTtsRequest = async (req, res) => {
         logger.info(`[${requestId}] Merging ${audioSegments.length} audio segments...`);
         
         const audioBuffers = audioSegments.map(segment => segment.audioContent);
-        const mergedAudioBuffer = await mergeAudioSegmentsToBuffer(audioBuffers);
+        let mergedAudioBuffer = await mergeAudioSegmentsToBuffer(audioBuffers);
         
         if (!mergedAudioBuffer) {
-            throw new Error('Audio merging failed');
+            logger.error(`[${requestId}] Audio merging failed - attempting simple concatenation`);
+            // Fallback: simple concatenation without FFmpeg
+            const totalLength = audioBuffers.reduce((acc, buffer) => acc + buffer.length, 0);
+            const combinedBuffer = Buffer.alloc(totalLength);
+            let offset = 0;
+            for (const buffer of audioBuffers) {
+                buffer.copy(combinedBuffer, offset);
+                offset += buffer.length;
+            }
+            if (combinedBuffer.length > 0) {
+                logger.info(`[${requestId}] Simple concatenation successful - Size: ${combinedBuffer.length} bytes`);
+                mergedAudioBuffer = combinedBuffer;
+            } else {
+                throw new Error('Audio merging failed completely');
+            }
         }
 
         const mergedAudioBase64 = mergedAudioBuffer.toString('base64');

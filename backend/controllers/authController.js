@@ -1,10 +1,12 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { createClient } = require("@supabase/supabase-js");
+const axios = require('axios');
 require("dotenv").config();
 const logger = require("../utils/logger");
 const { logStep } = require('../utils/stepLogger');
 const { v4: uuidv4 } = require('uuid');
+const { sendWelcomeEmail, testEmailConnection } = require("../utils/emailService");
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
@@ -57,10 +59,12 @@ exports.register = async (req, res) => {
       return res.status(400).json({ success: false, message: "Geçersiz e-posta formatı" });
     }
 
-    // Validate phone number format (simple validation, can be enhanced)
-    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-    if (!phoneRegex.test(phoneNumber)) {
-      return res.status(400).json({ success: false, message: "Geçersiz telefon numarası formatı" });
+    // Validate phone number format - daha esnek format
+    // Önce telefon numarasını temizle (sadece rakam ve + işareti kalsın)
+    const cleanedPhone = phoneNumber.replace(/[\s\(\)\-\.]/g, '');
+    const phoneRegex = /^\+?[1-9]\d{7,14}$/;
+    if (!phoneRegex.test(cleanedPhone)) {
+      return res.status(400).json({ success: false, message: "Geçersiz telefon numarası formatı. Örnek: +90 555 123 45 67" });
     }
 
     // Validate password length
@@ -80,11 +84,11 @@ exports.register = async (req, res) => {
       return res.status(400).json({ success: false, message: "Bu e-posta adresi zaten kullanılıyor" });
     }
 
-    // Check if phone number already exists
+    // Check if phone number already exists (temizlenmiş format ile kontrol et)
     const { data: existingPhone, error: phoneFetchError } = await supabase
       .from('users')
       .select("id")
-      .eq("phonenumber", phoneNumber)
+      .eq("phonenumber", cleanedPhone)
       .maybeSingle();
     if (phoneFetchError) logger.error('[REGISTER] Error fetching phone for register:', phoneFetchError);
 
@@ -101,7 +105,7 @@ exports.register = async (req, res) => {
           firstname: firstName,
           lastname: lastName,
           email,
-          phonenumber: phoneNumber,
+          phonenumber: cleanedPhone, // Temizlenmiş telefon numarasını kaydet
           password: hashedPassword,
           role: "user",
           isverified: false,
@@ -122,6 +126,15 @@ exports.register = async (req, res) => {
 
     const token = generateToken(newUser[0].id, newUser[0].email, newUser[0].role, false);
     const refreshToken = generateRefreshToken(newUser[0].id);
+
+    // Hoşgeldin maili gönder (async olarak, hata olursa da kayıt işlemini etkilemesin)
+    try {
+      await sendWelcomeEmail(newUser[0].email, newUser[0].firstname);
+      logger.info(`[REGISTER] ✅ Hoşgeldin maili gönderildi: ${newUser[0].email}`);
+    } catch (emailError) {
+      logger.error(`[REGISTER] ❌ Hoşgeldin maili gönderilemedi: ${newUser[0].email}`, emailError);
+      // Mail hatası kayıt işlemini etkilemesin, sadece logla
+    }
 
     logStep({
       requestId,
@@ -166,9 +179,15 @@ exports.login = async (req, res) => {
   try {
     logger.info('[LOGIN] req.body:', req.body);
     console.log("[LOGIN] Gelen istek verisi:", req.body); // Bunu ekle
-    const { email, password, rememberMe } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Lütfen e-posta ve şifre girin" });
+    const { email, phoneNumber, password, rememberMe } = req.body;
+
+    // Check if logging in with email or phone
+    if (!password) {
+      return res.status(400).json({ success: false, message: "Lütfen şifre girin" });
+    }
+
+    if (!email && !phoneNumber) {
+      return res.status(400).json({ success: false, message: "Lütfen e-posta veya telefon numarası girin" });
     }
 
     // Check if mock auth mode is enabled from parameters table
@@ -182,11 +201,11 @@ exports.login = async (req, res) => {
       const mockAuthEnabled = paramData?.value === 'true' || paramData?.value === true;
 
       if (mockAuthEnabled) {
-        logger.info('[LOGIN] Mock auth mode enabled - allowing mock login for:', email);
+        logger.info('[LOGIN] Mock auth mode enabled - allowing mock login for:', email || phoneNumber);
         
         const mockUser = {
           id: 'dev-user-123',
-          email: email,
+          email: email || `${phoneNumber}@mockuser.com`,
           name: 'Development User',
           role: 'user',
           membership_status: 'premium',
@@ -212,16 +231,22 @@ exports.login = async (req, res) => {
       // Continue with normal authentication if parameter check fails
     }
 
-    const { data: user, error } = await supabase
-      .from('users')
-      .select("*")
-      .eq("email", email)
-      .single();
+    // Build query for email or phone
+    let query = supabase.from('users').select("*");
+    if (email) {
+      query = query.eq("email", email);
+    } else {
+      // Telefon numarasını temizle
+      const cleanedPhone = phoneNumber.replace(/[\s\(\)\-\.]/g, '');
+      query = query.eq("phonenumber", cleanedPhone);
+    }
+
+    const { data: user, error } = await query.single();
     if (error) logger.error('[LOGIN] Error fetching user:', error);
 
     if (error || !user || !(await bcrypt.compare(password, user.password))) {
-      logger.warn('[LOGIN] Invalid credentials for email:', email);
-      return res.status(401).json({ success: false, message: "Geçersiz e-posta veya şifre" });
+      logger.warn('[LOGIN] Invalid credentials for:', email || phoneNumber);
+      return res.status(401).json({ success: false, message: "Geçersiz giriş bilgileri" });
     }
 
     const token = generateToken(user.id, user.email, user.role, rememberMe);
@@ -288,49 +313,49 @@ exports.googleLogin = async (req, res) => {
     // Google credential'ı decode et
     let googleUser;
     
+    // Google credential'ı decode et - her zaman gerçek credential
     // Credential'ın tipini belirle (JWT vs Access Token)
     // JWT'ler 3 bölümden oluşur: header.payload.signature
     const parts = credential.split('.');
     const isJWT = parts.length === 3;
     
-    console.log('[GOOGLE_LOGIN] Credential analizi:');
+    console.log('[GOOGLE_LOGIN] Gerçek Google credential analizi:');
     console.log('- Uzunluk:', credential.length);
     console.log('- Bölüm sayısı:', parts.length);
     console.log('- İlk 50 karakter:', credential.substring(0, 50));
     console.log('- JWT olarak algılandı:', isJWT);
     
-    try {
-      if (isJWT) {
-        // JWT token decode et (One Tap durumu)
-        console.log('[GOOGLE_LOGIN] JWT credential decode ediliyor...');
-        const base64Url = credential.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        googleUser = JSON.parse(jsonPayload);
-        console.log('[GOOGLE_LOGIN] JWT decode başarılı:', { email: googleUser.email, name: googleUser.name });
-      } else {
-        // Access token ile Google API'den kullanıcı bilgilerini al (OAuth popup durumu)
-        console.log('[GOOGLE_LOGIN] Access token ile kullanıcı bilgileri alınıyor...');
-        const axios = require('axios');
-        
-        const response = await axios.get(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${credential}`);
-        googleUser = response.data;
-        
-        // JWT formatına uygun hale getir
-        googleUser.sub = googleUser.id;
-        googleUser.given_name = googleUser.given_name || googleUser.name?.split(' ')[0];
-        googleUser.family_name = googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ');
-        
-        console.log('[GOOGLE_LOGIN] Access token ile kullanıcı bilgileri başarılı:', { email: googleUser.email, name: googleUser.name });
+      try {
+        if (isJWT) {
+          // JWT token decode et (One Tap durumu)
+          console.log('[GOOGLE_LOGIN] JWT credential decode ediliyor...');
+          const base64Url = credential.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          googleUser = JSON.parse(jsonPayload);
+          console.log('[GOOGLE_LOGIN] JWT decode başarılı:', { email: googleUser.email, name: googleUser.name });
+        } else {
+          // Access token ile Google API'den kullanıcı bilgilerini al (OAuth popup durumu)
+          console.log('[GOOGLE_LOGIN] Access token ile kullanıcı bilgileri alınıyor...');
+          
+          const response = await axios.get(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${credential}`);
+          googleUser = response.data;
+          
+          // JWT formatına uygun hale getir
+          googleUser.sub = googleUser.id;
+          googleUser.given_name = googleUser.given_name || googleUser.name?.split(' ')[0];
+          googleUser.family_name = googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ');
+          
+          console.log('[GOOGLE_LOGIN] Access token ile kullanıcı bilgileri başarılı:', { email: googleUser.email, name: googleUser.name });
+        }
+      } catch (decodeError) {
+        logger.error('[GOOGLE_LOGIN] Credential decode hatası:', decodeError);
+        console.log('[GOOGLE_LOGIN] Credential tipi:', isJWT ? 'JWT' : 'Access Token');
+        console.log('[GOOGLE_LOGIN] Credential uzunluğu:', credential.length);
+        return res.status(400).json({ success: false, message: "Geçersiz Google credential" });
       }
-    } catch (decodeError) {
-      logger.error('[GOOGLE_LOGIN] Credential decode hatası:', decodeError);
-      console.log('[GOOGLE_LOGIN] Credential tipi:', isJWT ? 'JWT' : 'Access Token');
-      console.log('[GOOGLE_LOGIN] Credential uzunluğu:', credential.length);
-      return res.status(400).json({ success: false, message: "Geçersiz Google credential" });
-    }
 
     const { email, name, given_name, family_name, picture } = googleUser;
     
@@ -351,6 +376,7 @@ exports.googleLogin = async (req, res) => {
     }
 
     let user;
+    let isNewUser = false;
     
     if (existingUser) {
       // Mevcut kullanıcı - Google bilgilerini güncelle
@@ -373,6 +399,7 @@ exports.googleLogin = async (req, res) => {
       user = updatedUser;
     } else {
       // Yeni kullanıcı oluştur
+      isNewUser = true;
       const newUserData = {
         firstname: given_name || name?.split(' ')[0] || 'Google',
         lastname: family_name || name?.split(' ').slice(1).join(' ') || 'User',
@@ -400,6 +427,14 @@ exports.googleLogin = async (req, res) => {
       }
 
       user = createdUser;
+      
+      // Yeni Google kullanıcısına hoşgeldin maili gönder
+      try {
+        await sendWelcomeEmail(user.email, user.firstname);
+        logger.info(`[GOOGLE_LOGIN] ✅ Yeni kullanıcıya hoşgeldin maili gönderildi: ${user.email}`);
+      } catch (emailError) {
+        logger.error(`[GOOGLE_LOGIN] ❌ Hoşgeldin maili gönderilemedi: ${user.email}`, emailError);
+      }
     }
 
     // JWT token oluştur
@@ -413,11 +448,12 @@ exports.googleLogin = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Google ile giriş başarılı",
+      message: isNewUser ? "Google ile kayıt başarılı" : "Google ile giriş başarılı",
       data: {
         user,
         token,
-        refreshToken
+        refreshToken,
+        isNewUser
       }
     });
 
@@ -534,15 +570,408 @@ exports.logout = async (req, res) => {
 };
 
 exports.forgotPassword = async (req, res) => {
-  return res.status(501).json({ success: false, message: "Şifre sıfırlama fonksiyonu henüz hazır değil" });
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: "E-posta adresi gerekli" });
+    }
+
+    // Email format kontrolü
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ success: false, message: "Geçersiz e-posta formatı" });
+    }
+
+    // Kullanıcıyı bul
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select("id, firstname, email")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (fetchError) {
+      logger.error('[FORGOT_PASSWORD] Error fetching user:', fetchError);
+      return res.status(500).json({ success: false, message: "Veritabanı hatası" });
+    }
+
+    if (!user) {
+      // Güvenlik için kullanıcı bulunamasa bile başarılı mesaj döndür
+      return res.status(200).json({ 
+        success: true, 
+        message: "Eğer bu e-posta adresiyle kayıtlı bir hesap varsa, şifre sıfırlama bağlantısı gönderilecektir" 
+      });
+    }
+
+    // Reset token oluştur (6 basamaklı random string + timestamp)
+    const resetToken = require('crypto').randomBytes(32).toString('hex');
+    const resetExpires = new Date(Date.now() + 3600000); // 1 saat sonra
+
+    // Reset token'ı veritabanına kaydet
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        resetPasswordToken: resetToken,
+        resetPasswordExpires: resetExpires.toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", user.id);
+
+    if (updateError) {
+      logger.error('[FORGOT_PASSWORD] Error saving reset token:', updateError);
+      return res.status(500).json({ success: false, message: "Şifre sıfırlama talebi kaydedilemedi" });
+    }
+
+    // E-posta gönder
+    try {
+      const { sendPasswordResetEmail } = require('../utils/emailService');
+      await sendPasswordResetEmail(user.email, user.firstname, resetToken);
+      
+      return res.status(200).json({ 
+        success: true, 
+        message: "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi" 
+      });
+    } catch (emailError) {
+      logger.error('[FORGOT_PASSWORD] Error sending email:', emailError);
+      
+      // E-posta gönderilemezse token'ı temizle
+      await supabase
+        .from('users')
+        .update({
+          resetPasswordToken: null,
+          resetPasswordExpires: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", user.id);
+
+      return res.status(500).json({ 
+        success: false, 
+        message: "E-posta gönderilemedi. Lütfen daha sonra tekrar deneyin" 
+      });
+    }
+
+  } catch (error) {
+    logger.error("Forgot password error", error);
+    return res.status(500).json({ success: false, message: "Sunucu hatası" });
+  }
 };
 
 exports.resetPassword = async (req, res) => {
-  return res.status(501).json({ success: false, message: "Şifre sıfırlama fonksiyonu henüz hazır değil" });
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: "Token ve yeni şifre gerekli" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "Yeni şifre en az 6 karakter olmalıdır" });
+    }
+
+    // Token ile kullanıcıyı bul ve token'ın geçerliliğini kontrol et
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select("id, email, firstname, resetPasswordToken, resetPasswordExpires")
+      .eq("resetPasswordToken", token)
+      .maybeSingle();
+
+    if (fetchError) {
+      logger.error('[RESET_PASSWORD] Error fetching user:', fetchError);
+      return res.status(500).json({ success: false, message: "Veritabanı hatası" });
+    }
+
+    if (!user) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Geçersiz veya süresi dolmuş şifre sıfırlama bağlantısı" 
+      });
+    }
+
+    // Token süresini kontrol et
+    const now = new Date();
+    const expiresAt = new Date(user.resetPasswordExpires);
+    
+    if (now > expiresAt) {
+      // Süresi dolmuş token'ı temizle
+      await supabase
+        .from('users')
+        .update({
+          resetPasswordToken: null,
+          resetPasswordExpires: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", user.id);
+
+      return res.status(400).json({ 
+        success: false, 
+        message: "Şifre sıfırlama bağlantısının süresi dolmuş. Lütfen yeni bir talep oluşturun" 
+      });
+    }
+
+    // Yeni şifreyi hashle
+    const hashedPassword = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
+
+    // Şifreyi güncelle ve reset token'ı temizle
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", user.id);
+
+    if (updateError) {
+      logger.error('[RESET_PASSWORD] Error updating password:', updateError);
+      return res.status(500).json({ success: false, message: "Şifre güncellenemedi" });
+    }
+
+    logger.info(`Password reset successful for user ${user.email}`);
+
+    return res.status(200).json({ 
+      success: true, 
+      message: "Şifreniz başarıyla değiştirildi. Artık yeni şifrenizle giriş yapabilirsiniz" 
+    });
+
+  } catch (error) {
+    logger.error("Reset password error", error);
+    return res.status(500).json({ success: false, message: "Sunucu hatası" });
+  }
 };
 
 exports.verifyEmail = async (req, res) => {
   return res.status(501).json({ success: false, message: "E-posta doğrulama fonksiyonu henüz hazır değil" });
 };
 
-// Duplicate function removed - using the main googleLogin function above
+// SMS Login - Send verification code to phone number
+exports.smsLogin = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+  
+  try {
+    logger.info(`[SMS_LOGIN] req.body:`, req.body);
+    logStep({
+      requestId,
+      stepName: 'auth:sms-login:start',
+      stepSequence: stepSequence++,
+      serviceName: 'Express',
+      endpoint: '/auth/sms-login',
+      inputData: req.body
+    });
+
+    const { phoneNumber } = req.body;
+
+    if (!phoneNumber) {
+      return res.status(400).json({ success: false, message: "Telefon numarası gerekli" });
+    }
+
+    // Validate phone number format - daha esnek format
+    // Önce telefon numarasını temizle (sadece rakam ve + işareti kalsın)
+    const cleanedPhone = phoneNumber.replace(/[\s\(\)\-\.]/g, '');
+    const phoneRegex = /^\+?[1-9]\d{7,14}$/;
+    if (!phoneRegex.test(cleanedPhone)) {
+      return res.status(400).json({ success: false, message: "Geçersiz telefon numarası formatı. Örnek: +90 555 123 45 67" });
+    }
+
+    // Check if user exists with this phone number
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select("id, firstname, lastname, email, phonenumber")
+      .eq("phonenumber", phoneNumber)
+      .maybeSingle();
+
+    if (fetchError) {
+      logger.error('[SMS_LOGIN] Error fetching user:', fetchError);
+      return res.status(500).json({ success: false, message: "Veritabanı hatası" });
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Bu telefon numarası ile kayıtlı kullanıcı bulunamadı" });
+    }
+
+    // Generate 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Update user with verification code
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        verificationtoken: verificationCode,
+        verificationexpires: verificationExpires.toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", user.id);
+
+    if (updateError) {
+      logger.error('[SMS_LOGIN] Error updating verification code:', updateError);
+      return res.status(500).json({ success: false, message: "Doğrulama kodu oluşturulamadı" });
+    }
+
+    // Send SMS (mock for now)
+    try {
+      await sendSMS(phoneNumber, `LingRoot doğrulama kodunuz: ${verificationCode}. Kod 10 dakika geçerlidir.`);
+      logger.info(`[SMS_LOGIN] Verification code sent to: ${phoneNumber}`);
+    } catch (smsError) {
+      logger.error(`[SMS_LOGIN] Failed to send SMS to ${phoneNumber}:`, smsError);
+      // Continue anyway for development, in production you might want to return error
+      logger.warn(`[SMS_LOGIN] SMS failed but continuing for development purposes`);
+    }
+
+    logStep({
+      requestId,
+      stepName: 'auth:sms-login:success',
+      stepSequence: stepSequence++,
+      status: 'success',
+      outputData: { userId: user.id, phoneNumber }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Doğrulama kodu gönderildi",
+      data: {
+        userId: user.id,
+        message: `${phoneNumber} numarasına doğrulama kodu gönderildi`
+      }
+    });
+
+  } catch (error) {
+    logStep({
+      requestId,
+      stepName: 'auth:sms-login:error',
+      stepSequence: stepSequence++,
+      status: 'failure',
+      error
+    });
+    logger.error("SMS login error", error);
+    return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
+  }
+};
+
+// Verify SMS code and complete login
+exports.verifySmsLogin = async (req, res) => {
+  const requestId = uuidv4();
+  let stepSequence = 1;
+
+  try {
+    logger.info(`[VERIFY_SMS] req.body:`, req.body);
+    logStep({
+      requestId,
+      stepName: 'auth:verify-sms:start',
+      stepSequence: stepSequence++,
+      serviceName: 'Express',
+      endpoint: '/auth/verify-sms',
+      inputData: req.body
+    });
+
+    const { userId, verificationCode, rememberMe } = req.body;
+
+    if (!userId || !verificationCode) {
+      return res.status(400).json({ success: false, message: "Kullanıcı ID ve doğrulama kodu gerekli" });
+    }
+
+    // Get user and check verification code
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    if (fetchError || !user) {
+      logger.error('[VERIFY_SMS] Error fetching user:', fetchError);
+      return res.status(404).json({ success: false, message: "Kullanıcı bulunamadı" });
+    }
+
+    // Check if verification code matches and is not expired
+    if (!user.verificationtoken || user.verificationtoken !== verificationCode) {
+      logger.warn(`[VERIFY_SMS] Invalid verification code for user ${userId}`);
+      return res.status(400).json({ success: false, message: "Geçersiz doğrulama kodu" });
+    }
+
+    if (!user.verificationexpires || new Date() > new Date(user.verificationexpires)) {
+      logger.warn(`[VERIFY_SMS] Expired verification code for user ${userId}`);
+      return res.status(400).json({ success: false, message: "Doğrulama kodu süresi dolmuş. Yeni kod talep edin." });
+    }
+
+    // Clear verification code and mark as verified
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        verificationtoken: null,
+        verificationexpires: null,
+        isverified: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", userId);
+
+    if (updateError) {
+      logger.error('[VERIFY_SMS] Error clearing verification code:', updateError);
+      return res.status(500).json({ success: false, message: "Giriş tamamlanamadı" });
+    }
+
+    // Generate tokens
+    const token = generateToken(user.id, user.email, user.role, rememberMe);
+    const refreshToken = generateRefreshToken(user.id);
+
+    // Remove sensitive data
+    delete user.password;
+    delete user.verificationtoken;
+    delete user.resetPasswordToken;
+
+    logStep({
+      requestId,
+      stepName: 'auth:verify-sms:success',
+      stepSequence: stepSequence++,
+      status: 'success',
+      outputData: { userId: user.id }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "SMS doğrulama başarılı, giriş yapıldı",
+      data: {
+        user,
+        token,
+        refreshToken
+      }
+    });
+
+  } catch (error) {
+    logStep({
+      requestId,
+      stepName: 'auth:verify-sms:error',
+      stepSequence: stepSequence++,
+      status: 'failure',
+      error
+    });
+    logger.error("SMS verification error", error);
+    return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
+  }
+};
+
+// Mock SMS sending function (replace with real SMS service)
+async function sendSMS(phoneNumber, message) {
+  // For development, just log the SMS
+  logger.info(`[SMS] MOCK SMS to ${phoneNumber}: ${message}`);
+  
+  // In production, integrate with a real SMS provider like:
+  // - Twilio
+  // - Nexmo/Vonage  
+  // - Turkish SMS providers (Netgsm, İleti Merkezi, etc.)
+  
+  // Example Twilio integration (commented out):
+  /*
+  const twilio = require('twilio');
+  const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+  
+  await client.messages.create({
+    body: message,
+    from: process.env.TWILIO_PHONE_NUMBER,
+    to: phoneNumber
+  });
+  */
+  
+  // For now, just simulate success
+  return Promise.resolve();
+}
