@@ -36,11 +36,9 @@ const Lottie = dynamic(() => import('lottie-react'), {
   loading: () => <div className="w-full max-w-3xl mx-auto h-[300px] bg-gray-100 animate-pulse rounded-lg"></div>
 });
 
-// Footer ve StandardHeader import'ları
+// Footer import'ı
 
 import Footer from '../src/components/Footer';
-
-import StandardHeader from '../src/components/common/StandardHeader';
 
 const App: React.FC = () => {
     // --- YENİ TASARIMDAN GELEN STATE'LER ---
