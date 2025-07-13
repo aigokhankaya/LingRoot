@@ -99,21 +99,21 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
               
               if (response.access_token) {
                 // Access token ile kullanıcı bilgilerini al
-                                  fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${response.access_token}`)
-                    .then(res => {
-                      if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                      }
-                      return res.json();
-                    })
-                    .then(userInfo => {
-                      console.log('✅ Google User info:', userInfo);
-                      console.log('🔑 Sending access token to backend:', response.access_token.substring(0, 20) + '...');
-                      resolve({
-                        credential: response.access_token,
-                        clientId: clientId
-                      });
-                    })
+                fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${response.access_token}`)
+                  .then(res => {
+                    if (!res.ok) {
+                      throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.json();
+                  })
+                  .then(userInfo => {
+                    console.log('✅ Google User info:', userInfo);
+                    console.log('🔑 Sending access token to backend:', response.access_token.substring(0, 20) + '...');
+                    resolve({
+                      credential: response.access_token,
+                      clientId: clientId
+                    });
+                  })
                   .catch(err => {
                     console.error('Kullanıcı bilgileri alınamadı:', err);
                     reject(new Error('Kullanıcı bilgileri alınamadı: ' + err.message));
