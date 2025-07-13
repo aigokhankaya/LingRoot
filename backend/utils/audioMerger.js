@@ -3,6 +3,55 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const logger = require("./logger"); // Winston logger
+const { exec } = require('child_process');
+
+/**
+ * Check if FFmpeg is available in the system
+ */
+async function isFFmpegAvailable() {
+    return new Promise((resolve) => {
+        const cmd = process.platform === 'win32' ? 'where ffmpeg' : 'which ffmpeg';
+        exec(cmd, (error) => {
+            resolve(!error);
+        });
+    });
+}
+
+/**
+ * Simple audio concatenation fallback (without re-encoding)
+ * This works for MP3 files from the same source/format
+ */
+function simpleAudioConcat(audioBuffers) {
+    if (!audioBuffers || audioBuffers.length === 0) {
+        return null;
+    }
+    
+    if (audioBuffers.length === 1) {
+        return audioBuffers[0];
+    }
+    
+    logger.info(`🔄 Using simple concatenation for ${audioBuffers.length} audio segments`);
+    
+    try {
+        // Calculate total length
+        const totalLength = audioBuffers.reduce((acc, buffer) => acc + buffer.length, 0);
+        
+        // Create combined buffer
+        const combinedBuffer = Buffer.alloc(totalLength);
+        let offset = 0;
+        
+        for (const buffer of audioBuffers) {
+            buffer.copy(combinedBuffer, offset);
+            offset += buffer.length;
+        }
+        
+        logger.info(`✅ Simple concatenation complete - Size: ${combinedBuffer.length} bytes`);
+        return combinedBuffer;
+    } catch (error) {
+        logger.error(`❌ Simple concatenation failed: ${error.message}`);
+        return null;
+    }
+}
 
 /**
  * Merges multiple MP3 audio segments (Buffers) into a single MP3 file using ffmpeg.
@@ -17,6 +66,30 @@ async function mergeAudioSegments(audioSegments, outputFilePath) {
     }
 
     logger.info(`🔊 Starting merge of ${audioSegments.length} segments to: ${outputFilePath}`);
+
+    // Check if FFmpeg is available
+    const ffmpegAvailable = await isFFmpegAvailable();
+    
+    if (!ffmpegAvailable) {
+        logger.warn("⚠️ FFmpeg not found, using simple concatenation fallback");
+        try {
+            const mergedBuffer = simpleAudioConcat(audioSegments);
+            if (mergedBuffer) {
+                // Ensure output directory exists
+                const outputDir = path.dirname(outputFilePath);
+                if (!fs.existsSync(outputDir)) {
+                    fs.mkdirSync(outputDir, { recursive: true });
+                    logger.info(`📁 Output directory created: ${outputDir}`);
+                }
+                fs.writeFileSync(outputFilePath, mergedBuffer);
+                logger.info(`✅ Simple concatenation saved to: ${outputFilePath}`);
+                return true;
+            }
+        } catch (error) {
+            logger.error(`❌ Simple concatenation failed: ${error.message}`);
+        }
+        return false;
+    }
 
     let tempDir;
     try {
@@ -95,12 +168,43 @@ async function mergeAudioSegments(audioSegments, outputFilePath) {
                             logger.error(`❌ Failed to delete output: ${unlinkErr.message}`);
                         }
                     }
+                    
+                    // Try simple concatenation as fallback
+                    logger.warn("⚠️ FFmpeg failed, attempting simple concatenation fallback");
+                    try {
+                        const mergedBuffer = simpleAudioConcat(audioSegments);
+                        if (mergedBuffer) {
+                            fs.writeFileSync(outputFilePath, mergedBuffer);
+                            logger.info(`✅ Fallback concatenation saved to: ${outputFilePath}`);
+                            resolve(true);
+                        } else {
+                            reject(err);
+                        }
+                    } catch (fallbackError) {
+                        logger.error(`❌ Fallback concatenation failed: ${fallbackError.message}`);
                     reject(err);
+                    }
                 });
         });
 
     } catch (e) {
         logger.error(`❌ Unexpected error in mergeAudioSegments: ${e.message}`, { e });
+        // Try simple concatenation as final fallback
+        logger.warn("⚠️ Trying simple concatenation as final fallback");
+        try {
+            const mergedBuffer = simpleAudioConcat(audioSegments);
+            if (mergedBuffer) {
+                const outputDir = path.dirname(outputFilePath);
+                if (!fs.existsSync(outputDir)) {
+                    fs.mkdirSync(outputDir, { recursive: true });
+                }
+                fs.writeFileSync(outputFilePath, mergedBuffer);
+                logger.info(`✅ Final fallback concatenation saved to: ${outputFilePath}`);
+                return true;
+            }
+        } catch (fallbackError) {
+            logger.error(`❌ Final fallback failed: ${fallbackError.message}`);
+        }
         return false;
     } finally {
         // Cleanup temp directory
@@ -134,13 +238,21 @@ async function mergeAudioSegmentsToBuffer(audioSegments) {
 
     logger.info(`🔊 Starting merge of ${audioSegments.length} segments to Buffer`);
 
+    // Check if FFmpeg is available
+    const ffmpegAvailable = await isFFmpegAvailable();
+    
+    if (!ffmpegAvailable) {
+        logger.warn("⚠️ FFmpeg not found, using simple concatenation fallback");
+        return simpleAudioConcat(audioSegments);
+    }
+
     let tempDir;
     try {
         tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "lingroot-audio-"));
         logger.debug(`🗂️ Created temp dir: ${tempDir}`);
     } catch (err) {
         logger.error("❌ Temp dir creation failed:", err);
-        return null;
+        return simpleAudioConcat(audioSegments);
     }
 
     const tempFilePaths = [];
@@ -178,7 +290,7 @@ async function mergeAudioSegmentsToBuffer(audioSegments) {
         logger.debug(`📄 FFmpeg list file created: ${listFilePath}`);
 
         // Run FFmpeg to merge files with proper encoding
-        const success = await new Promise((resolve, reject) => {
+        const result = await new Promise((resolve, reject) => {
             ffmpeg()
                 .input(listFilePath)
                 .inputOptions(["-f concat", "-safe 0"])
@@ -193,32 +305,36 @@ async function mergeAudioSegmentsToBuffer(audioSegments) {
                 .on("start", (cmd) => logger.debug(`▶️ FFmpeg started: ${cmd}`))
                 .on("end", () => {
                     logger.info(`🎉 Merge complete: ${outputFilePath}`);
-                    resolve(true);
+                    // Read the merged file as Buffer and return it
+                    try {
+                        if (fs.existsSync(outputFilePath)) {
+                            const mergedBuffer = fs.readFileSync(outputFilePath);
+                            logger.info(`✅ Merged audio buffer created - Size: ${mergedBuffer.length} bytes`);
+                            resolve(mergedBuffer);
+                        } else {
+                            logger.error("❌ Merged output file not found");
+                            resolve(null);
+                        }
+                    } catch (readError) {
+                        logger.error(`❌ Error reading merged file: ${readError.message}`);
+                        resolve(null);
+                    }
                 })
                 .on("error", (err) => {
                     logger.error(`❌ FFmpeg error: ${err.message}`, { err });
-                    reject(err);
+                    // If FFmpeg fails, try simple concatenation as fallback
+                    logger.warn("⚠️ FFmpeg failed, attempting simple concatenation fallback");
+                    const fallbackResult = simpleAudioConcat(audioSegments);
+                    resolve(fallbackResult);
                 });
         });
 
-        if (!success) {
-            logger.error("❌ FFmpeg merge failed");
-            return null;
-        }
-
-        // Read the merged file as Buffer
-        if (fs.existsSync(outputFilePath)) {
-            const mergedBuffer = fs.readFileSync(outputFilePath);
-            logger.info(`✅ Merged audio buffer created - Size: ${mergedBuffer.length} bytes`);
-            return mergedBuffer;
-        } else {
-            logger.error("❌ Merged output file not found");
-            return null;
-        }
+        return result;
 
     } catch (e) {
         logger.error(`❌ Unexpected error in mergeAudioSegmentsToBuffer: ${e.message}`, { e });
-        return null;
+        logger.warn("⚠️ Trying simple concatenation as final fallback");
+        return simpleAudioConcat(audioSegments);
     } finally {
         // Cleanup temp directory
         try {
@@ -232,4 +348,9 @@ async function mergeAudioSegmentsToBuffer(audioSegments) {
     }
 }
 
-module.exports = { mergeAudioSegments, mergeAudioSegmentsToBuffer };
+module.exports = { 
+    mergeAudioSegments, 
+    mergeAudioSegmentsToBuffer,
+    isFFmpegAvailable,
+    simpleAudioConcat
+};

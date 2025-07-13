@@ -12,6 +12,7 @@ import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
 import OutputSection from '../src/components/OutputSection';
 import Footer from '../src/components/Footer';
+import StandardHeader from '../src/components/common/StandardHeader';
 import { Button } from "../src/components/ui/button";
 import { Input } from "../src/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../src/components/ui/tabs";
@@ -158,6 +159,16 @@ const Welcome: React.FC = () => {
   // Content history expanded view state
   const [expandedHistoryItem, setExpandedHistoryItem] = useState<string | null>(null);
   
+  // Chat state'leri
+  const [chatMessages, setChatMessages] = useState<Array<{role: string, content: string}>>([]);
+  const [chatInput, setChatInput] = useState<string>('');
+  const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
+  const [chatInitialized, setChatInitialized] = useState<boolean>(false);
+  
+  // Hoşgeldin popup state'i
+  const [showWelcomePopup, setShowWelcomePopup] = useState<boolean>(false);
+  const [isNewUser, setIsNewUser] = useState<boolean>(false);
+  
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
     { id: 'text', name: 'Metin', icon: 'fas fa-file-alt' },
@@ -170,6 +181,7 @@ const Welcome: React.FC = () => {
     { id: 'book', name: 'Kitap', icon: 'fas fa-book' },
     { id: 'custom', name: 'Öneriler', icon: 'fas fa-plus' },
     { id: 'hashtag', name: 'Etiket', icon: 'fas fa-hashtag' },
+    { id: 'chat', name: 'Chat', icon: 'fas fa-comments' },
   ];
   
   const levelOptions = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -422,6 +434,32 @@ const Welcome: React.FC = () => {
     // YouTube Whisper API durumunu kontrol et
     checkYouTubeWhisperApi();
   }, [isAuthenticated]);
+
+  // Yeni kullanıcı kontrolü ve hoşgeldin popup'ı
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      // URL'den new-user parametresini kontrol et
+      const urlParams = new URLSearchParams(window.location.search);
+      const isNewUserParam = urlParams.get('new-user') === 'true';
+      
+      // Veya kullanıcının oluşturulma tarihini kontrol et (son 5 dakika içinde oluşturulmuşsa yeni sayılır)
+      const now = new Date().getTime();
+      const userCreatedAt = user.created_at ? new Date(user.created_at).getTime() : 0;
+      const fiveMinutesAgo = now - (5 * 60 * 1000);
+      const isRecentUser = userCreatedAt > fiveMinutesAgo;
+      
+      if (isNewUserParam || isRecentUser) {
+        setIsNewUser(true);
+        setShowWelcomePopup(true);
+        
+        // URL'den new-user parametresini temizle
+        if (isNewUserParam) {
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+        }
+      }
+    }
+  }, [isAuthenticated, user]);
 
   // Aksan türü ve duygu tonu değiştiğinde sesleri filtrele
   useEffect(() => {
@@ -917,28 +955,46 @@ const Welcome: React.FC = () => {
       // "subject" (Konu) ve "topic" (Hobi) type'ları için özel işlem
       if (inputData.type === 'subject' || inputData.type === 'topic') {
         const typeLabel = inputData.type === 'subject' ? 'Subject (Konu)' : 'Topic (Hobi)';
-        console.log(`${typeLabel} type detected, rewriting to narration...`);
+        console.log(`${typeLabel} type detected, attempting to rewrite to narration...`);
         
-        // Metni anlatım formatına dönüştür
-        const narrationResult = await rewriteToNarration(
-          inputData.text || inputData.input || '', 
-          inputData.level
-        );
-        
-        if (narrationResult.success && narrationResult.data.narration_text) {
-          // Dönüştürülmüş metni kullan ve type'ı text olarak değiştir
+        try {
+          // Metni anlatım formatına dönüştür
+          const narrationResult = await rewriteToNarration(
+            inputData.text || inputData.input || '', 
+            inputData.level
+          );
+          
+          if (narrationResult.success && narrationResult.data.narration_text) {
+            // Dönüştürülmüş metni kullan ve type'ı text olarak değiştir
+            processInput = {
+              ...processInput,
+              type: 'text',
+              input: narrationResult.data.narration_text
+            };
+            
+            console.log(`${typeLabel} text rewritten to narration format:`, {
+              originalLength: (inputData.text || inputData.input || '').length,
+              narrationLength: narrationResult.data.narration_text.length
+            });
+          } else {
+            console.warn('Narration rewrite failed, proceeding with original text as text type');
+            // Başarısız olursa orijinal metni text olarak işle
+            processInput = {
+              ...processInput,
+              type: 'text',
+              input: inputData.text || inputData.input || ''
+            };
+          }
+        } catch (narrationError: any) {
+          console.error(`${typeLabel} narration rewrite error:`, narrationError);
+          console.log('Proceeding with original text as text type...');
+          
+          // Hata durumunda orijinal metni text olarak işle
           processInput = {
             ...processInput,
             type: 'text',
-            input: narrationResult.data.narration_text
+            input: inputData.text || inputData.input || ''
           };
-          
-          console.log(`${typeLabel} text rewritten to narration format:`, {
-            originalLength: (inputData.text || inputData.input || '').length,
-            narrationLength: narrationResult.data.narration_text.length
-          });
-        } else {
-          throw new Error('Metin anlatım formatına dönüştürülemedi.');
         }
       }
 
@@ -1124,41 +1180,108 @@ const Welcome: React.FC = () => {
     await handleSubmit(inputData);
   };
 
-  if (user === undefined) {
-    return (
-      <main className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </main>
-    );
-  }
+  // Chat fonksiyonları
+  const initializeChat = async () => {
+    if (chatInitialized) return;
+    
+    try {
+      const response = await fetch('/api/chat/initial', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('lingroot_token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-  // Auth loading durumunda loading göster
-  if (authLoading) {
-    return (
-      <main className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Yükleniyor...</p>
-        </div>
-      </main>
-    );
-  }
+      if (response.ok) {
+        const data = await response.json();
+        setChatMessages(data.data.conversationHistory);
+        setChatInitialized(true);
+      }
+    } catch (error) {
+      console.error('Chat initialization error:', error);
+      // Fallback mesaj
+      setChatMessages([{
+        role: 'assistant',
+        content: 'Merhaba! 👋 Bugün ne dinlemek istersin? İlgi alanlarını, hobilerini veya merak ettiğin konuları söyle, sana özel İngilizce içerikler önereyim. Hangi konuda bir şeyler dinlemek istiyorsun?'
+      }]);
+      setChatInitialized(true);
+    }
+  };
 
-  // Auth tamamlandıktan sonra user kontrolü
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || isChatLoading) return;
+
+    const userMessage = chatInput.trim();
+    setChatInput('');
+    setIsChatLoading(true);
+
+    // Kullanıcı mesajını hemen ekle
+    const newMessages = [...chatMessages, { role: 'user', content: userMessage }];
+    setChatMessages(newMessages);
+
+    try {
+      const response = await fetch('/api/chat/message', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('lingroot_token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          conversationHistory: chatMessages
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setChatMessages(data.data.conversationHistory);
+      } else {
+        // Hata durumunda fallback cevap
+        setChatMessages([...newMessages, {
+          role: 'assistant',
+          content: 'Üzgünüm, şu anda bir sorun yaşıyorum. Lütfen tekrar deneyin.'
+        }]);
+      }
+    } catch (error) {
+      console.error('Chat message error:', error);
+      // Hata durumunda fallback cevap
+      setChatMessages([...newMessages, {
+        role: 'assistant',
+        content: 'Üzgünüm, şu anda bir sorun yaşıyorum. Lütfen tekrar deneyin.'
+      }]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const handleChatKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  };
+
+  // Chat seçildiğinde initialize et
+  React.useEffect(() => {
+    if (contentType === 'chat') {
+      initializeChat();
+    }
+  }, [contentType]);
+
+  // Chat'den metin seçme fonksiyonu
+  const selectTextFromChat = (text: string) => {
+    setTextInput(text);
+  };
+
+  useEffect(() => {
   if (!isAuthenticated || !user) {
-    return (
-      <main className="min-h-screen flex items-center justify-center text-xl text-gray-500">
-        <div className="text-center">
-          <p className="mb-4">Oturum açmanız gerekiyor.</p>
-          <button 
-            onClick={() => router.push('/login')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md"
-          >
-            Giriş Yap
-          </button>
-        </div>
-      </main>
-    );
+      router.replace('/');
+    }
+  }, [isAuthenticated, user]);
+
+  if (!isAuthenticated || !user) {
+    return null;
   }
 
   const displayName = (user as any).name || user.email;
@@ -1360,8 +1483,22 @@ const Welcome: React.FC = () => {
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-lg font-medium text-gray-700">İçerik Girişi</h3>
                   <div className="flex space-x-2">
-                    <Button variant="outline" size="sm" className="!rounded-button whitespace-nowrap cursor-pointer">
-                      <i className="fas fa-cog mr-2"></i> Ayarlar
+                    <Button 
+                      onClick={handleGenerate}
+                      disabled={isLoading}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm flex items-center space-x-2 !rounded-button whitespace-nowrap cursor-pointer"
+                    >
+                      {isLoading ? (
+                        <>
+                          <i className="fas fa-circle-notch fa-spin"></i>
+                          <span>Oluşturuluyor...</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-volume-up"></i>
+                          <span>Ses Oluştur</span>
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -1530,6 +1667,130 @@ const Welcome: React.FC = () => {
                             <i className="fas fa-edit text-xl"></i>
                           </button>
                         </div>
+                      </div>
+                    )}
+
+                    {/* Chat sekmesi */}
+                    {contentType === 'chat' && (
+                      <div className="space-y-4">
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+                          <div className="flex items-center mb-2">
+                            <i className="fas fa-robot text-blue-600 mr-2"></i>
+                            <h3 className="text-lg font-medium text-blue-800">AI Chat Asistanı</h3>
+                          </div>
+                          <p className="text-sm text-blue-700">
+                            Yapay zeka asistanımla sohbet ederek size özel İngilizce içerik önerileri alın. 
+                            İlgi alanlarınızı, seviyenizi ve bugün ne dinlemek istediğinizi söyleyin!
+                          </p>
+                        </div>
+
+                        {/* Chat Mesajları */}
+                        <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+                          <div className="h-96 overflow-y-auto p-4 space-y-3">
+                            {chatMessages.map((message, index) => (
+                              <div
+                                key={index}
+                                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                              >
+                                <div
+                                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                                    message.role === 'user'
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}
+                                >
+                                  <div className="flex items-start space-x-2">
+                                    {message.role === 'assistant' && (
+                                      <i className="fas fa-robot text-blue-600 mt-1 flex-shrink-0"></i>
+                                    )}
+                                    <div className="text-sm whitespace-pre-wrap">
+                                      {message.content}
+                                      {message.role === 'assistant' && message.content.length > 50 && (
+                                        <div className="mt-2 pt-2 border-t border-gray-200">
+                                          <Button
+                                            onClick={() => selectTextFromChat(message.content)}
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-xs !rounded-button whitespace-nowrap cursor-pointer"
+                                          >
+                                            <i className="fas fa-arrow-right mr-1"></i>
+                                            Bu Metni Seç
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                            
+                            {isChatLoading && (
+                              <div className="flex justify-start">
+                                <div className="max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-gray-100">
+                                  <div className="flex items-center space-x-2">
+                                    <i className="fas fa-robot text-blue-600"></i>
+                                    <div className="flex space-x-1">
+                                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Chat Input */}
+                          <div className="border-t border-gray-200 p-4">
+                            <div className="flex space-x-3">
+                              <input
+                                type="text"
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                onKeyPress={handleChatKeyPress}
+                                placeholder="Mesajınızı yazın..."
+                                className="flex-1 p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                                disabled={isChatLoading}
+                              />
+                              <Button
+                                onClick={sendChatMessage}
+                                disabled={!chatInput.trim() || isChatLoading}
+                                className={`px-4 py-3 !rounded-button whitespace-nowrap ${
+                                  chatInput.trim() && !isChatLoading
+                                    ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
+                                    : 'bg-gray-400 cursor-not-allowed'
+                                }`}
+                              >
+                                {isChatLoading ? (
+                                  <i className="fas fa-circle-notch fa-spin"></i>
+                                ) : (
+                                  <i className="fas fa-paper-plane"></i>
+                                )}
+                              </Button>
+                            </div>
+                            <div className="mt-2 text-xs text-gray-500">
+                              <i className="fas fa-info-circle mr-1"></i>
+                              Enter tuşuna basarak mesaj gönderebilirsiniz
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Chat'den metin seçimi için özel alan */}
+                        {textInput && (
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <div className="flex items-center mb-2">
+                              <i className="fas fa-check-circle text-green-600 mr-2"></i>
+                              <h4 className="font-medium text-green-800">Seçilen İçerik</h4>
+                            </div>
+                            <div className="text-sm text-green-700 bg-white p-3 rounded border border-green-200 max-h-32 overflow-y-auto">
+                              {textInput}
+                            </div>
+                            <div className="mt-3 text-xs text-green-600">
+                              <i className="fas fa-arrow-down mr-1"></i>
+                              Bu içerik ses dönüşümü için hazır. Aşağıdaki ayarları yapıp "Ses Oluştur" butonuna tıklayın.
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                     
@@ -1901,95 +2162,64 @@ const Welcome: React.FC = () => {
                     ))}
                   </div>
 
-                  {/* Cinsiyet ve Aksan Filtreleri */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div>
-                      <h4 className="text-md font-medium text-gray-600 mb-2">Cinsiyet</h4>
-                      <div className="grid grid-cols-3 gap-2">
-                        {genderOptions.map((gender) => (
-                          <Button
-                            key={gender.value}
-                            onClick={() => setSelectedGender(gender.value)}
-                            variant={selectedGender === gender.value ? "default" : "outline"}
-                            size="sm"
-                            className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                              selectedGender === gender.value ? 'bg-blue-600' : ''
-                            }`}
-                          >
-                            {gender.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h4 className="text-md font-medium text-gray-600 mb-2">Aksan</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {accentVoiceOptions.map((accent) => (
-                          <Button
-                            key={accent.value}
-                            onClick={() => setSelectedAccent(accent.value)}
-                            variant={selectedAccent === accent.value ? "default" : "outline"}
-                            size="sm"
-                            className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                              selectedAccent === accent.value ? 'bg-blue-600' : ''
-                            }`}
-                          >
-                            {accent.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Sağ Kolon - Ses Kategorisi */}
                 <div>
                   <h3 className="text-lg font-medium text-gray-700 mb-3">Ses Kategorisi</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-                    {voiceCategories.map((category) => (
-                      <Button
-                        key={category.value}
-                        onClick={() => {
-                          setSelectedVoiceCategory(category.value);
-                          // Kategori değiştiğinde ilk sesi seç
-                          const categoryVoices = detailedVoices[category.value as keyof typeof detailedVoices];
-                          if (categoryVoices && categoryVoices.length > 0) {
-                            setVoiceType(categoryVoices[0].id);
-                          }
-                        }}
-                        variant={selectedVoiceCategory === category.value ? "default" : "outline"}
-                        className={`!rounded-button cursor-pointer h-auto flex flex-col items-center justify-center p-2 text-center transition-all duration-200 ${
-                          selectedVoiceCategory === category.value ? 'bg-blue-600' : ''
-                        }`}
+                  <div className="mb-6">
+                    <select 
+                      value={selectedVoiceCategory} 
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setSelectedVoiceCategory(value);
+                        // Kategori değiştiğinde ilk sesi seç
+                        const categoryVoices = detailedVoices[value as keyof typeof detailedVoices];
+                        if (categoryVoices && categoryVoices.length > 0) {
+                          setVoiceType(categoryVoices[0].id);
+                        }
+                      }}
+                      className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {voiceCategories.map((category) => (
+                        <option key={category.value} value={category.value}>
+                          {category.label} ({category.badge})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Cinsiyet ve Aksan Filtreleri */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <h4 className="text-md font-medium text-gray-600 mb-2">Cinsiyet</h4>
+                      <select 
+                        value={selectedGender} 
+                        onChange={(e) => setSelectedGender(e.target.value)}
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {/* İkon ve Label */}
-                        <div className="flex items-center justify-center space-x-1 mb-1 min-h-[24px]">
-                          <i className={`${category.icon} text-xs`}></i>
-                          <span className="font-medium text-xs leading-none">{category.label}</span>
-                        </div>
-                        
-                        {/* Badge */}
-                        <Badge 
-                          variant="outline" 
-                          className={`text-xs px-1.5 py-0.5 mb-1 ${
-                            category.badge === 'Ücretsiz' ? 'bg-green-100 text-green-700 border-green-200' :
-                            category.badge === 'Premium' ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                            category.badge === 'Gold' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                            category.badge === 'Platinium' ? 'bg-gray-100 text-gray-700 border-gray-200' : ''
-                          }`}
-                        >
-                          {category.badge}
-                        </Badge>
-                        
-                        {/* SSML Support */}
-                        {category.ssmlSupport && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full leading-none">
-                            SSML
-                          </span>
-                        )}
-                      </Button>
-                    ))}
+                        {genderOptions.map((gender) => (
+                          <option key={gender.value} value={gender.value}>
+                            {gender.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <h4 className="text-md font-medium text-gray-600 mb-2">Aksan</h4>
+                      <select 
+                        value={selectedAccent} 
+                        onChange={(e) => setSelectedAccent(e.target.value)}
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {accentVoiceOptions.map((accent) => (
+                          <option key={accent.value} value={accent.value}>
+                            {accent.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2038,24 +2268,21 @@ const Welcome: React.FC = () => {
                 </div>
               </div>
 
-              {/* DUYGU TONU - Geçici olarak gizlendi */}
-              {/*
-              <h3 className="text-lg font-medium text-gray-700 mb-3">Duygu Tonu</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
-                {emotionOptions.map((emotion) => (
-                  <Button
-                    key={emotion.value}
-                    onClick={() => setEmotionType(emotion.value)}
-                    variant={emotionType === emotion.value ? "default" : "outline"}
-                    className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                      emotionType === emotion.value ? 'bg-blue-600' : ''
-                    }`}
-                  >
-                    {emotion.label}
-                  </Button>
-                ))}
+              {/* DUYGU TONU */}
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-700 mb-3">Duygu Tonu</h3>
+                <select 
+                  value={emotionType} 
+                  onChange={(e) => setEmotionType(e.target.value)}
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {emotionOptions.map((emotion) => (
+                    <option key={emotion.value} value={emotion.value}>
+                      {emotion.label}
+                    </option>
+                  ))}
+                </select>
               </div>
-              */}
               
               {/* ÇIKTI FORMATı - Geçici olarak gizlendi */}
               {/*
@@ -2076,6 +2303,29 @@ const Welcome: React.FC = () => {
               </div>
               */}
               
+              {/* SES OLUŞTUR BUTONU - Ana işlem butonu olarak en üst kısımda */}
+              <div className="mb-6">
+                <div className="flex justify-center">
+                  <Button
+                    onClick={handleGenerate}
+                    disabled={isLoading}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg flex items-center space-x-2 !rounded-button whitespace-nowrap cursor-pointer w-full max-w-md"
+                  >
+                    {isLoading ? (
+                      <>
+                        <i className="fas fa-circle-notch fa-spin"></i>
+                        <span>Ses Oluşturuluyor...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-volume-up"></i>
+                        <span>Ses Oluştur</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
               <div className="mt-4">
                 <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
                   <div className="flex items-center justify-between mb-4">
@@ -2097,26 +2347,6 @@ const Welcome: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-
-          <div className="flex justify-center mt-8">
-            <Button
-              onClick={handleGenerate}
-              disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg flex items-center space-x-2 !rounded-button whitespace-nowrap cursor-pointer"
-            >
-              {isLoading ? (
-                <>
-                  <i className="fas fa-circle-notch fa-spin"></i>
-                  <span>Ses Oluşturuluyor...</span>
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-volume-up"></i>
-                  <span>Ses Oluştur</span>
-                </>
-              )}
-            </Button>
-          </div>
 
           {/* Output Section */}
           {audioResult && (
@@ -2176,21 +2406,25 @@ const Welcome: React.FC = () => {
                     {(showAllHistory ? contentHistory : contentHistory.slice(0, 5)).map((item) => (
                       <div key={item.id} className="bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
                         {/* Compact Header - Always Visible */}
-                        <div 
-                          className="p-4 cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => {
-                            setExpandedHistoryItem(expandedHistoryItem === item.id ? null : item.id);
-                          }}
-                        >
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
+                        <div className="p-4">
+                          <div className="flex flex-col gap-4">
+                            {/* Başlık ve Bilgiler */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-bold">
+                                  <i className="fas fa-music text-sm"></i>
+                                </div>
+                                <h4 className="font-medium text-green-600">Senkronize Oynatıcı</h4>
+                                <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-xs">
                                   {(item.input_type || 'unknown').toUpperCase()}
                                 </Badge>
                                 <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                                   {item.level || 'N/A'}
                                 </Badge>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
                                 <span className="text-xs text-gray-500">
                                   {new Date(item.created_at).toLocaleDateString('tr-TR', {
                                     year: 'numeric',
@@ -2200,88 +2434,27 @@ const Welcome: React.FC = () => {
                                     minute: '2-digit'
                                   })}
                                 </span>
-                              </div>
-                              <div className="mb-3">
-                                <h4 className="font-medium text-gray-800 mb-1">İngilizce Metin (Seviyenize Uyarlanmış):</h4>
-                                <p className="text-sm text-gray-600 line-clamp-2">
-                                  {item.adapted_text || item.input}
-                                </p>
-                                {item.adapted_text && (
-                                  <details className="mt-2">
-                                    <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
-                                      Orijinal Türkçe metni göster
-                                    </summary>
-                                    <p className="text-xs text-gray-500 mt-1 p-2 bg-gray-100 rounded">
-                                      {item.input}
-                                    </p>
-                                  </details>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="text-xs text-gray-500">
-                                {expandedHistoryItem === item.id ? 'Daralt' : 'Oynatıcıyı Aç'}
-                              </div>
-                              <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
-                            </div>
                           </div>
                         </div>
 
-                        {/* Expanded Player View - Toggleable */}
-                        {expandedHistoryItem === item.id && (
-                          <div className="border-t border-gray-200 bg-white p-6">
-                            <div className="flex items-center mb-4">
-                              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-bold mr-3">
-                                <i className="fas fa-play text-sm"></i>
-                              </div>
-                              <h3 className="text-lg font-semibold text-green-600">Senkronize Oynatıcı</h3>
-                            </div>
-                            
-                            {/* Use OutputSection component for full functionality */}
+                            {/* Gelişmiş Senkronize Oynatıcı - Direkt göster */}
+                            <div className="mt-2">
                             <OutputSection 
                               audioResult={{
-                                message: item.adapted_text || item.input,
+                                  message: item.adapted_text || item.input || 'Metin mevcut değil',
                                 mp3_url: item.mp3_url,
                                 vtt_url: item.mp3_url.replace('.mp3', '.vtt'), // Assume VTT exists
-                                level: item.level,
+                                  level: item.level || 'A1',
                                 timepoints: [], // Will be loaded from VTT
-                                words: (item.adapted_text || item.input).split(/\s+/).filter(word => word.length > 0),
-                                original_turkish: item.input,
+                                  words: (item.adapted_text || item.input || 'Metin mevcut değil').split(/\s+/).filter(word => word.length > 0),
+                                  original_turkish: item.input || 'Orijinal metin mevcut değil',
                                 speaking_rate: 1.0
                               }}
                               isLoggedIn={isAuthenticated}
                             />
-
-                            {/* Quick actions */}
-                            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="!rounded-button whitespace-nowrap cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  window.open(convertToPlayableUrl(item.mp3_url), '_blank');
-                                }}
-                              >
-                                <i className="fas fa-external-link-alt mr-2"></i>
-                                Yeni Sekmede Aç
-                              </Button>
-                              
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="!rounded-button whitespace-nowrap cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedHistoryItem(null);
-                                }}
-                              >
-                                <i className="fas fa-times mr-2"></i>
-                                Kapat
-                              </Button>
                             </div>
                           </div>
-                        )}
+                        </div>
                       </div>
                     ))}
                     
@@ -2312,6 +2485,77 @@ const Welcome: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Hoşgeldin Popup */}
+      {showWelcomePopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+            <div className="text-center">
+              {/* İkon */}
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 mb-4">
+                <i className="fas fa-star text-white text-2xl"></i>
+              </div>
+              
+              {/* Başlık */}
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                🎉 Hoş Geldiniz!
+              </h3>
+              
+              {/* Kullanıcı adı */}
+              <p className="text-lg text-gray-600 mb-4">
+                Merhaba <span className="font-semibold text-blue-600">{user?.name || 'Yeni Üye'}</span>!
+              </p>
+              
+              {/* Açıklama */}
+              <div className="text-gray-600 mb-6 space-y-2">
+                <p className="text-sm">
+                  🚀 LingRoot'a katıldığınız için çok mutluyuz!
+                </p>
+                <p className="text-sm">
+                  ✨ Artık favori içeriklerinizi dinleyerek İngilizce öğrenmeye başlayabilirsiniz.
+                </p>
+              </div>
+              
+              {/* Özellikler */}
+              <div className="bg-blue-50 rounded-lg p-4 mb-6">
+                <h4 className="font-semibold text-blue-800 mb-2">Neler yapabilirsiniz?</h4>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li className="flex items-center">
+                    <i className="fas fa-check-circle text-green-500 mr-2"></i>
+                    Metin ve YouTube içeriklerini ses dosyasına dönüştürün
+                  </li>
+                  <li className="flex items-center">
+                    <i className="fas fa-check-circle text-green-500 mr-2"></i>
+                    Seviyenize uygun adaptasyonlar alın
+                  </li>
+                  <li className="flex items-center">
+                    <i className="fas fa-check-circle text-green-500 mr-2"></i>
+                    Kelime kelime senkronizasyonla öğrenin
+                  </li>
+                </ul>
+              </div>
+              
+              {/* Butonlar */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  onClick={() => setShowWelcomePopup(false)}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                >
+                  <i className="fas fa-rocket mr-2"></i>
+                  Hemen Başlayalım!
+                </Button>
+                <Button
+                  onClick={() => setShowWelcomePopup(false)}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Daha Sonra
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

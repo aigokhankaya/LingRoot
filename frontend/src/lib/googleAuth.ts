@@ -1,4 +1,4 @@
-// Google OAuth utility functions
+// Google OAuth utility functions with FedCM support
 declare global {
   interface Window {
     google: any;
@@ -10,48 +10,94 @@ export const initializeGoogleAuth = (): Promise<boolean> => {
   return new Promise((resolve, reject) => {
     // Google Identity Services script'ini yükle
     if (document.getElementById('google-identity-script')) {
+      console.log('✅ Google Identity script zaten yüklü');
       resolve(true);
       return;
     }
 
+    console.log('🔄 Google Identity script yükleniyor...');
     const script = document.createElement('script');
     script.id = 'google-identity-script';
     script.src = 'https://accounts.google.com/gsi/client';
     script.async = true;
     script.defer = true;
-    script.onload = () => resolve(true);
-    script.onerror = () => reject(new Error('Google Identity Services yüklenemedi'));
+    script.onload = () => {
+      console.log('✅ Google Identity script başarıyla yüklendi');
+      resolve(true);
+    };
+    script.onerror = (error) => {
+      console.error('❌ Google Identity Services yüklenemedi:', error);
+      reject(new Error('Google Identity Services yüklenemedi'));
+    };
     document.head.appendChild(script);
   });
 };
 
 export const signInWithGoogle = (): Promise<{ credential: string; clientId: string }> => {
   return new Promise((resolve, reject) => {
+    // Google nesnesi mevcut mu kontrol et
     if (!window.google) {
-      reject(new Error('Google Identity Services yüklenmedi'));
+      console.error('❌ Google Identity Services yüklenmedi');
+      reject(new Error('Google Identity Services yüklenmedi. Lütfen internet bağlantınızı kontrol edin ve sayfayı yenileyin.'));
       return;
     }
 
+    // Client ID kontrolü - Gerçek Google OAuth için
+    let clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    
+    // Eğer environment'ta client ID yoksa, geçerli bir client ID kullan
+    if (!clientId) {
+      // Development için geçici client ID (production'da environment'tan alınmalı)
+      clientId = '67246709123-1j5od5ta3toboer63hrcopkfld65241a.apps.googleusercontent.com';
+      console.log('🔧 Environment\'ta client ID bulunamadı, fallback kullanılıyor');
+    }
+    
+    console.log('🔄 Google Sign-In başlatılıyor...');
+    console.log('📋 İstemci ID:', clientId.substring(0, 20) + '...');
+
     // Timeout için timer
     const timeoutId = setTimeout(() => {
+
       reject(new Error('Google giriş zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edin ve tekrar deneyin.'));
     }, 60000); // 60 saniye timeout
+
 
     // Global callback fonksiyonu
     window.googleSignInCallback = (response: any) => {
       clearTimeout(timeoutId);
+      console.log('📨 Google callback çağrıldı:', response);
+      
+      // Popup pencerelerini temizle
+      const tempButton = document.getElementById('temp-google-signin-button');
+      if (tempButton && tempButton.parentNode) {
+        tempButton.parentNode.removeChild(tempButton);
+      }
+      
       if (response.credential) {
-        console.log('🎯 One Tap JWT Credential alındı:', {
+        console.log('✅ Google JWT Credential alındı:', {
           uzunluk: response.credential.length,
-          ilk50: response.credential.substring(0, 50),
-          bolumSayisi: response.credential.split('.').length
+          ilk50: response.credential.substring(0, 50)
         });
+        
+        // Credential'ı decode ederek kullanıcı bilgilerini görelim
+        try {
+          const decoded = decodeGoogleCredential(response.credential);
+          console.log('👤 Google kullanıcı bilgileri:', {
+            email: decoded?.email,
+            name: decoded?.name,
+            verified: decoded?.email_verified
+          });
+        } catch (e) {
+          console.log('ℹ️ Credential decode edilemedi, backend\'te işlenecek');
+        }
+        
         resolve({
           credential: response.credential,
-          clientId: response.clientId || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''
+          clientId: response.clientId || clientId
         });
       } else {
-        reject(new Error('Google giriş başarısız'));
+        console.error('❌ Google giriş başarısız:', response);
+        reject(new Error('Google giriş başarısız: ' + (response.error || 'Kullanıcı girişi iptal etti')));
       }
     };
 
@@ -84,68 +130,43 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
     // One Tap prompt'ını göster
     window.google.accounts.id.prompt((notification: any) => {
       console.log('Google prompt notification:', notification);
-      
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        console.log('One Tap gösterilemedi, OAuth popup açılıyor...');
+
+      console.log('🎯 Google init config:', initConfig);
+      window.google.accounts.id.initialize(initConfig);
+
+      // One Tap prompt'ını göster
+      console.log('🎯 Google One Tap prompt gösteriliyor...');
+      window.google.accounts.id.prompt((notification: any) => {
+        console.log('📢 Google prompt notification:', notification);
         
-        // One Tap gösterilemezse normal popup'ı aç
-        try {
-          const tokenClient = window.google.accounts.oauth2.initTokenClient({
-            client_id: clientId,
-            scope: 'email profile',
-            callback: (response: any) => {
-              clearTimeout(timeoutId);
-              console.log('OAuth response:', response);
-              
-              if (response.access_token) {
-                // Access token ile kullanıcı bilgilerini al
-                                  fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${response.access_token}`)
-                    .then(res => {
-                      if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                      }
-                      return res.json();
-                    })
-                    .then(userInfo => {
-                      console.log('✅ Google User info:', userInfo);
-                      console.log('🔑 Sending access token to backend:', response.access_token.substring(0, 20) + '...');
-                      resolve({
-                        credential: response.access_token,
-                        clientId: clientId
-                      });
-                    })
-                  .catch(err => {
-                    console.error('Kullanıcı bilgileri alınamadı:', err);
-                    reject(new Error('Kullanıcı bilgileri alınamadı: ' + err.message));
-                  });
-              } else if (response.error) {
-                reject(new Error('Google OAuth hatası: ' + response.error));
-              } else {
-                reject(new Error('Google OAuth başarısız - token alınamadı'));
-              }
-            }
-          });
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          console.log('⚠️ One Tap gösterilemedi, manuel giriş gerekiyor...');
           
-          tokenClient.requestAccessToken();
-        } catch (error: any) {
-          clearTimeout(timeoutId);
-          console.error('OAuth client oluşturulamadı:', error);
-          reject(new Error('OAuth client oluşturulamadı: ' + (error?.message || 'Bilinmeyen hata')));
+          // One Tap başarısız olduğunda kullanıcıya bilgi ver
+          const message = 'Google One Tap kullanılamıyor. Lütfen "Google ile Kaydol" butonuna tekrar tıklayın.';
+              clearTimeout(timeoutId);
+          reject(new Error(message));
+          
+        } else if (notification.getDismissedReason) {
+          // Kullanıcı One Tap'i iptal etti
+          const reason = notification.getDismissedReason();
+          console.log('⚠️ One Tap iptal edildi:', reason);
+          
+          if (reason === 'credential_returned') {
+            // Credential döndürüldü, callback'te handle edilecek
+            console.log('✅ Credential döndürüldü, callback bekleniyor...');
+            return;
+          } else {
+            clearTimeout(timeoutId);
+            reject(new Error('Google girişi iptal edildi: ' + reason));
+          }
         }
-      } else if (notification.getDismissedReason) {
-        // Kullanıcı One Tap'i iptal etti
-        const reason = notification.getDismissedReason();
-        console.log('One Tap iptal edildi:', reason);
-        
-        if (reason === 'credential_returned') {
-          // Credential döndürüldü, callback'te handle edilecek
-          return;
-        } else {
-          clearTimeout(timeoutId);
-          reject(new Error('Google giriş iptal edildi'));
-        }
-      }
-    });
+      });
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      console.error('❌ Google Sign-In başlatma hatası:', error);
+      reject(new Error('Google Sign-In başlatılamadı: ' + (error?.message || 'Bilinmeyen hata')));
+    }
   });
 };
 
