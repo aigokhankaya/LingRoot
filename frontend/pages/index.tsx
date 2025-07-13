@@ -36,8 +36,9 @@ const Lottie = dynamic(() => import('lottie-react'), {
 });
 
 
-// Footer import'ı
+// Footer ve Header import'ı
 import Footer from '../src/components/Footer';
+import Header from '../src/components/common/Header';
 
 
 const App: React.FC = () => {
@@ -142,7 +143,7 @@ const App: React.FC = () => {
             
             // Google Auth modülünü dinamik olarak import et
             console.log('📦 Google Auth modülü yükleniyor...');
-            const { initializeGoogleAuth, signInWithGoogle } = await import('../src/lib/googleAuth');
+            const { initializeGoogleAuth, signInWithGoogle } = await import('@/lib/googleAuth');
             
 
             // Google Auth'u başlat.
@@ -414,7 +415,7 @@ const App: React.FC = () => {
 
   return (
         <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-            <StandardHeader />
+            <Header />
             
             {/* Hero Section */}
             <section className="relative overflow-hidden min-h-[700px] hero-section">
