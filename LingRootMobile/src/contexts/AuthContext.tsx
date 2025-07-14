@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContextType, User } from '../types';
 import { authService } from '../services/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -51,21 +52,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuthState = async () => {
     try {
-      const authUser = await authService.getCurrentUser();
-      if (authUser) {
-        const appUser: User = {
-          id: authUser.id,
-          email: authUser.email!,
-          full_name: authUser.user_metadata?.full_name,
-          avatar_url: authUser.user_metadata?.avatar_url,
-          membership_level: authUser.user_metadata?.membership_level || 'free',
-          created_at: authUser.created_at,
-          updated_at: authUser.updated_at || authUser.created_at,
-        };
-        setUser(appUser);
+      // Check if we have a stored token first
+      const token = await AsyncStorage.getItem('auth_token');
+      const storedUser = await AsyncStorage.getItem('user_data');
+      
+      if (token && storedUser) {
+        console.log('🔧 [AUTH DEBUG] Found stored token and user data');
+        
+        // Validate token by making a test API call
+        try {
+          const API_BASE_URL = 'http://192.168.1.4:5001'; // development
+          const response = await fetch(`${API_BASE_URL}/api/health`, {
+            method: 'GET',
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+          });
+          
+          if (response.ok) {
+            console.log('🔧 [AUTH DEBUG] Token is valid');
+            const appUser: User = JSON.parse(storedUser);
+            setUser(appUser);
+          } else {
+            console.log('🔧 [AUTH DEBUG] Token is invalid or expired, clearing data');
+            await AsyncStorage.removeItem('auth_token');
+            await AsyncStorage.removeItem('user_data');
+            setUser(null);
+          }
+        } catch (validateError) {
+          console.error('Token validation error:', validateError);
+          // Clear potentially invalid token
+          await AsyncStorage.removeItem('auth_token');
+          await AsyncStorage.removeItem('user_data');
+          setUser(null);
+        }
+      } else {
+        console.log('🔧 [AUTH DEBUG] No stored token or user data found');
+        setUser(null);
       }
     } catch (error) {
       console.error('Auth state check error:', error);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -77,8 +105,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('🔧 [AUTH DEBUG] signIn attempt via Backend API:', { email });
       
       // Web uygulaması gibi backend API'sini kullan
-      const API_BASE_URL = 'https://lingloops-backend.onrender.com'; // production
-      // const API_BASE_URL = 'http://localhost:5001'; // development
+      const API_BASE_URL = 'http://192.168.1.4:5001'; // development
       
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
@@ -108,6 +135,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           created_at: backendUser.created_at,
           updated_at: backendUser.updated_at,
         };
+        
+        // Store token and user data in AsyncStorage
+        if (data.data.token) {
+          await AsyncStorage.setItem('auth_token', data.data.token);
+          await AsyncStorage.setItem('user_data', JSON.stringify(appUser));
+          console.log('🔧 [AUTH DEBUG] Token and user data stored in AsyncStorage');
+        }
+        
         setUser(appUser);
         setIsLoading(false);
         console.log('🔧 [AUTH DEBUG] Login successful, user set:', appUser);
@@ -136,7 +171,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = async () => {
     setIsLoading(true);
     try {
+      // Clear AsyncStorage
+      await AsyncStorage.removeItem('auth_token');
+      await AsyncStorage.removeItem('user_data');
+      console.log('🔧 [AUTH DEBUG] Token and user data cleared from AsyncStorage');
+      
       await authService.signOut();
+      setUser(null);
       // User state will be updated via onAuthStateChange
     } catch (error) {
       setIsLoading(false);

@@ -4,10 +4,7 @@ const {
   getAllParameters,
   getParameter,
   updateParameter,
-  deleteParameter,
-  toggleMockTts,
-  toggleMockContentSave,
-  toggleMockAuth
+  deleteParameter
 } = require('../controllers/parameterController');
 
 // Get all parameters
@@ -22,9 +19,6 @@ router.put('/:key', updateParameter);
 // Delete parameter
 router.delete('/:key', deleteParameter);
 
-// Toggle mock modes
-router.post('/toggle-mock-tts', toggleMockTts);
-router.post('/toggle-mock-content-save', toggleMockContentSave);
-router.post('/toggle-mock-auth', toggleMockAuth);
+// Note: Mock modes removed - all operations use real data
 
 module.exports = router; 

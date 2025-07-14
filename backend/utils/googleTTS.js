@@ -16,11 +16,36 @@ try {
 }
 
 /**
- * Metni SSML formatına çevirir ve her kelime için timing mark'ı ekler
- * @param {string} text - Çevrilecek metin
- * @returns {string} SSML formatlı metin
+ * Metni noktalama işaretlerinden temizler ve sadece kelimeleri döndürür
+ * @param {string} text - Temizlenecek metin
+ * @returns {Object} Temizlenmiş kelimeler ve orijinal kelimeler
  */
-function generateSSMLWithTimingMarks(text) {
+function cleanTextForTiming(text) {
+  // Orijinal kelimeleri sakla (noktalama ile)
+  const originalWords = text.split(/\s+/).filter(word => word.length > 0);
+  
+  // Noktalama işaretlerini temizle - sadece harf ve sayıları bırak
+  const cleanWords = originalWords.map(word => {
+    return word.replace(/[^\w]/g, '').trim();
+  }).filter(word => word.length > 0);
+  
+  return {
+    originalWords,
+    cleanWords,
+    mapping: originalWords.map((original, index) => ({
+      original,
+      clean: original.replace(/[^\w]/g, '').trim(),
+      index
+    })).filter(item => item.clean.length > 0)
+  };
+}
+
+/**
+ * Metni SSML formatına çevirir ve her temiz kelime için tek timing mark ekler
+ * @param {string} text - Çevrilecek metin
+ * @returns {Object} SSML metin ve kelime mapping bilgisi
+ */
+function generateSSMLWithOptimizedMarks(text) {
   // SSML için özel karakterleri escape et
   const escapeSSML = (str) => {
     return str
@@ -31,31 +56,45 @@ function generateSSMLWithTimingMarks(text) {
       .replace(/'/g, '&apos;');
   };
   
-  const words = text.split(/\s+/).filter(word => word.length > 0);
+  const { originalWords, cleanWords, mapping } = cleanTextForTiming(text);
   
   let ssml = '<speak>';
+  let cleanWordIndex = 0;
   
-  words.forEach((word, index) => {
-    // Her kelimeden önce mark ekle
-    ssml += `<mark name="word_${index}"/>`;
+  // Orijinal kelimeler üzerinde dolaş ama sadece temiz kelimeler için mark ekle
+  originalWords.forEach((originalWord, originalIndex) => {
+    const cleanWord = originalWord.replace(/[^\w]/g, '').trim();
     
-    // Kelimeyi escape ederek ekle
-    ssml += escapeSSML(word);
+    if (cleanWord.length > 0) {
+      // Temiz kelime için mark ekle
+      ssml += `<mark name="word_${cleanWordIndex}"/>`;
+      cleanWordIndex++;
+    }
     
-    // Son kelime değilse boşluk ekle
-    if (index < words.length - 1) {
+    // Orijinal kelimeyi (noktalama ile birlikte) ekle
+    ssml += escapeSSML(originalWord);
+    
+    // Kelimeler arası boşluk (son kelime değilse)
+    if (originalIndex < originalWords.length - 1) {
       ssml += ' ';
     }
   });
   
-  // Son kelimeden sonra da mark ekle
-  ssml += `<mark name="word_${words.length}"/></speak>`;
+  ssml += '</speak>';
   
-  return ssml;
+  console.log(`🎯 SSML Generated: ${cleanWords.length} clean words, ${originalWords.length} original words`);
+  console.log(`📝 Clean words: ${cleanWords.slice(0, 10).join(', ')}${cleanWords.length > 10 ? '...' : ''}`);
+  
+  return {
+    ssml,
+    cleanWords,
+    originalWords,
+    mapping
+  };
 }
 
 /**
- * Google TTS ile metin sentezler - timing marks ile
+ * Google TTS ile metin sentezler - optimized timing marks ile
  * @param {Object} options - TTS seçenekleri
  * @param {string} options.text - Sentezlenecek metin
  * @param {string} options.voiceName - Ses adı 
@@ -68,9 +107,9 @@ async function synthesizeWithGoogle(options) {
     throw new Error('Google TTS client not initialized');
   }
 
-  const { text, voiceName = 'en-US-Standard-C', languageCode = 'en-US', speakingRate = 1.0 } = options;
+  const { text, voiceName = 'en-US-Standard-C', languageCode = 'en-US', speakingRate = 1.0, ssmlGender = 'NEUTRAL' } = options;
   
-  logger.info(`Google TTS synthesis starting - Voice: ${voiceName}, Rate: ${speakingRate}x, Length: ${text.length} chars`);
+  logger.info(`🎯 Google TTS synthesis - Voice: ${voiceName}, Rate: ${speakingRate}x, Length: ${text.length} chars`);
   
   try {
     // Bazı sesler SSML desteklemez (Journey, Chirp, Studio gibi)
@@ -82,23 +121,40 @@ async function synthesizeWithGoogle(options) {
       throw new Error('SSML not supported for this voice');
     }
     
-    // SSML ile timing marks ekle
-    const ssmlText = generateSSMLWithTimingMarks(text);
-    logger.debug('Generated SSML:', ssmlText.substring(0, 200) + '...');
+    // Optimized SSML ile timing marks ekle
+    const ssmlData = generateSSMLWithOptimizedMarks(text);
+    logger.debug('🎯 Generated optimized SSML:', ssmlData.ssml.substring(0, 200) + '...');
     
+    // Gender neutral sorunu önlemek için akıllı gender seçimi
+    let smartGender = ssmlGender;
+    if (!smartGender || smartGender === 'NEUTRAL') {
+      // Voice adından gender tahmin et
+      if (voiceName.includes('-A') || voiceName.includes('-C') || voiceName.includes('-E') || 
+          voiceName.includes('-F') || voiceName.includes('-H') || voiceName.includes('Female')) {
+        smartGender = 'FEMALE';
+      } else {
+        smartGender = 'MALE';
+      }
+      logger.info(`🎯 Auto-selected gender: ${smartGender} for voice: ${voiceName}`);
+    }
+    
+    // TTS request configuration - kesin senkronizasyon için optimize edildi
     const request = {
-      input: { ssml: ssmlText },
+      input: { ssml: ssmlData.ssml },
       voice: { 
-        languageCode, 
-        name: voiceName 
+        languageCode: languageCode || 'en-US',
+        name: voiceName || 'en-US-Standard-C',
+        ssmlGender: smartGender
       },
       audioConfig: { 
         audioEncoding: 'MP3',
-        speakingRate: speakingRate,
-        sampleRateHertz: 24000,
-        effectsProfileId: ['headphone-class-device'] // Daha iyi ses kalitesi
+        speakingRate: speakingRate || 1.0,
+        pitch: 0.0,
+        volumeGainDb: 0.0,
+        sampleRateHertz: 24000, // Yeterli kalite için 24kHz
+        effectsProfileId: ['telephony-class-application']
       },
-      // Timing bilgilerini de iste
+      // Timing mark'larını etkinleştir
       enableTimePointing: ['SSML_MARK']
     };
 
@@ -106,128 +162,187 @@ async function synthesizeWithGoogle(options) {
     
     // Timing bilgilerini parse et
     const timingMarks = response.timepoints || [];
-    const words = text.split(/\s+/).filter(word => word.length > 0);
     
-    // Her kelime için timing bilgisi oluştur
+    // Kelime timing'lerini hesapla - temiz kelimelerle
     const wordTimings = [];
-    for (let i = 0; i < words.length; i++) {
-      const currentMark = timingMarks.find(mark => mark.markName === `word_${i}`);
-      const nextMark = timingMarks.find(mark => mark.markName === `word_${i + 1}`);
+    
+    for (let i = 0; i < ssmlData.cleanWords.length; i++) {
+      const markName = `word_${i}`;
+      const startMark = timingMarks.find(mark => mark.markName === markName);
       
-      if (currentMark) {
-        const startTime = currentMark.timeSeconds || (i * speakingRate);
-        const endTime = nextMark ? nextMark.timeSeconds : (startTime + (words[i].length * 0.1));
+      if (startMark) {
+        let endTime;
+        
+        // Sonraki kelime var mı kontrol et
+        const nextMarkName = `word_${i + 1}`;
+        const nextMark = timingMarks.find(mark => mark.markName === nextMarkName);
+        
+        if (nextMark) {
+          endTime = nextMark.timeSeconds;
+        } else {
+          // Son kelime için ortalama kelime süresini kullan
+          const avgWordDuration = 0.5 / speakingRate; // 500ms base duration
+          endTime = startMark.timeSeconds + avgWordDuration;
+        }
+        
+        // Minimum kelime süresi garantisi
+        const minWordDuration = 0.1 / speakingRate; // 100ms minimum
+        if (endTime - startMark.timeSeconds < minWordDuration) {
+          endTime = startMark.timeSeconds + minWordDuration;
+        }
         
         wordTimings.push({
-          word: words[i],
-          startTime: startTime,
-          endTime: endTime,
-          markName: `word_${i}`
+          word: ssmlData.cleanWords[i],
+          timeSeconds: startMark.timeSeconds,
+          endTimeSeconds: endTime,
+          markName: markName,
+          hasDirectTiming: true
         });
+        
+        // İlk 5 kelime için detaylı log
+        if (i < 5) {
+          logger.info(`🎯 Word ${i}: "${ssmlData.cleanWords[i]}" | ${startMark.timeSeconds.toFixed(3)}s - ${endTime.toFixed(3)}s`);
+        }
+      } else {
+        // Fallback timing hesaplama
+        const totalEstimatedDuration = ssmlData.cleanWords.length * (0.5 / speakingRate);
+        const startTime = (i / ssmlData.cleanWords.length) * totalEstimatedDuration;
+        const endTime = ((i + 1) / ssmlData.cleanWords.length) * totalEstimatedDuration;
+        
+        wordTimings.push({
+          word: ssmlData.cleanWords[i],
+          timeSeconds: startTime,
+          endTimeSeconds: endTime,
+          markName: markName,
+          hasDirectTiming: false
+        });
+        
+        if (i < 5) {
+          logger.warn(`🎯 FALLBACK Word ${i}: "${ssmlData.cleanWords[i]}" | ${startTime.toFixed(3)}s - ${endTime.toFixed(3)}s`);
+        }
       }
     }
     
-    // Toplam süreyi hesapla
+    // Total duration hesaplama
     const totalDuration = wordTimings.length > 0 
-      ? Math.max(...wordTimings.map(w => w.endTime))
-      : (words.length * speakingRate * 0.5); // Fallback hesaplama
+      ? Math.max(...wordTimings.map(w => w.endTimeSeconds))
+      : (ssmlData.cleanWords.length * (0.5 / speakingRate));
     
-    logger.info(`Google TTS synthesis completed - Duration: ${totalDuration.toFixed(1)}s, Word timings: ${wordTimings.length}, Audio size: ${response.audioContent.length} bytes`);
+    // Timing kalitesi analizi
+    const timingQuality = {
+      totalWords: ssmlData.cleanWords.length,
+      markedWords: wordTimings.filter(w => w.hasDirectTiming).length,
+      fallbackWords: wordTimings.filter(w => !w.hasDirectTiming).length,
+      totalMarks: timingMarks.length,
+      expectedMarks: ssmlData.cleanWords.length,
+      markAccuracy: (timingMarks.length / ssmlData.cleanWords.length) * 100,
+      avgWordDuration: wordTimings.reduce((sum, w) => sum + (w.endTimeSeconds - w.timeSeconds), 0) / wordTimings.length
+    };
+    
+    logger.info(`🎯 Google TTS synthesis completed:
+      - Duration: ${totalDuration.toFixed(3)}s
+      - Clean words: ${ssmlData.cleanWords.length}
+      - Marked words: ${timingQuality.markedWords}/${timingQuality.totalWords} (${timingQuality.markAccuracy.toFixed(1)}%)
+      - Audio size: ${response.audioContent.length} bytes
+      - Average word duration: ${(timingQuality.avgWordDuration * 1000).toFixed(0)}ms`);
     
     return {
       audioContent: response.audioContent,
       wordTimings: wordTimings,
+      cleanWords: ssmlData.cleanWords,
+      originalWords: ssmlData.originalWords,
+      wordMapping: ssmlData.mapping,
       totalDuration: totalDuration,
       speakingRate: speakingRate,
       ssmlMarks: timingMarks,
+      timingQuality: timingQuality,
       success: true
     };
     
   } catch (error) {
-    logger.error('Google TTS synthesis failed:', error.message);
+    logger.error(`Google TTS synthesis failed: ${error.message}`);
     
-    // Fallback - SSML olmadan dene
-    try {
-      logger.info('Attempting fallback synthesis without SSML...');
+    // SSML, Gender neutral veya diğer voice compatibility hatalarında fallback dene
+    if (error.message.includes('SSML') || 
+        error.message.includes('mark') || 
+        error.message.includes('Gender neutral') ||
+        error.message.includes('not supported') ||
+        error.message.includes('INVALID_ARGUMENT')) {
       
-      const fallbackRequest = {
-        input: { text: text },
-        voice: { 
-          languageCode, 
-          name: voiceName 
-        },
-        audioConfig: { 
-          audioEncoding: 'MP3',
-          speakingRate: speakingRate,
-          sampleRateHertz: 24000
-        }
-      };
-
-      const [fallbackResponse] = await ttsClient.synthesizeSpeech(fallbackRequest);
+      logger.info('Retrying with fallback configuration (plain text + compatible gender)...');
       
-      // Gelişmiş timing hesaplaması - kelime uzunluğuna göre
-      const words = text.split(/\s+/).filter(word => word.length > 0);
-      
-      // Kelime uzunluklarına göre ağırlıklı timing
-      const totalCharacters = words.reduce((sum, word) => sum + word.length, 0);
-      const baseWPM = 150; // Words per minute
-      const adjustedWPM = baseWPM * speakingRate;
-      const estimatedDuration = (words.length / adjustedWPM) * 60;
-      
-      let currentTime = 0;
-      const simpleWordTimings = words.map((word, index) => {
-        const wordWeight = word.length / totalCharacters;
-        const wordDuration = estimatedDuration * wordWeight * words.length / words.length;
-        const minWordDuration = 0.1; // Minimum 100ms per word
-        const actualWordDuration = Math.max(wordDuration, minWordDuration);
+      try {
+        const { cleanWords } = cleanTextForTiming(text);
+        const plainText = cleanWords.join(' ');
         
-        const startTime = currentTime;
-        const endTime = currentTime + actualWordDuration;
-        currentTime = endTime;
+        // Gender neutral sorunu için fallback gender seç
+        let fallbackGender = ssmlGender;
+        if (error.message.includes('Gender neutral') || fallbackGender === 'NEUTRAL') {
+          // Voice adından gender tahmin et
+          if (voiceName.includes('-A') || voiceName.includes('-C') || voiceName.includes('-E') || 
+              voiceName.includes('-F') || voiceName.includes('-H') || voiceName.includes('Female')) {
+            fallbackGender = 'FEMALE';
+          } else {
+            fallbackGender = 'MALE';
+          }
+          logger.info(`🔄 Using fallback gender: ${fallbackGender} for voice: ${voiceName}`);
+        }
+        
+        const request = {
+          input: { text: plainText },
+          voice: { 
+            languageCode: languageCode || 'en-US',
+            name: voiceName || 'en-US-Standard-C',
+            ssmlGender: fallbackGender
+          },
+          audioConfig: { 
+            audioEncoding: 'MP3',
+            speakingRate: speakingRate || 1.0,
+            pitch: 0.0,
+            volumeGainDb: 0.0,
+            sampleRateHertz: 24000
+          }
+        };
+
+        const [response] = await ttsClient.synthesizeSpeech(request);
+        
+        // Fallback timing - eşit dağıtım
+        const estimatedDuration = cleanWords.length * (0.5 / speakingRate);
+        const wordTimings = cleanWords.map((word, index) => ({
+          word: word,
+          timeSeconds: (index / cleanWords.length) * estimatedDuration,
+          endTimeSeconds: ((index + 1) / cleanWords.length) * estimatedDuration,
+          markName: `word_${index}`,
+          hasDirectTiming: false
+        }));
+        
+        logger.info(`🎯 Fallback TTS completed with ${cleanWords.length} words, estimated duration: ${estimatedDuration.toFixed(3)}s`);
         
         return {
-          word: word,
-          startTime: startTime,
-          endTime: endTime,
-          markName: `word_${index}`
+          audioContent: response.audioContent,
+          wordTimings: wordTimings,
+          cleanWords: cleanWords,
+          originalWords: text.split(/\s+/).filter(word => word.length > 0),
+          totalDuration: estimatedDuration,
+          speakingRate: speakingRate,
+          fallbackUsed: true,
+          success: true
         };
-      });
-      
-      // Son kelimeyi toplam süreye göre ayarla
-      if (simpleWordTimings.length > 0) {
-        const lastWord = simpleWordTimings[simpleWordTimings.length - 1];
-        const actualTotalDuration = lastWord.endTime;
-        const scaleFactor = estimatedDuration / actualTotalDuration;
         
-        simpleWordTimings.forEach(timing => {
-          timing.startTime *= scaleFactor;
-          timing.endTime *= scaleFactor;
-        });
+      } catch (fallbackError) {
+        logger.error(`Fallback TTS also failed: ${fallbackError.message}`);
+        throw fallbackError;
       }
-      
-      logger.info(`Fallback synthesis completed - Estimated duration: ${estimatedDuration.toFixed(1)}s`);
-      
-      return {
-        audioContent: fallbackResponse.audioContent,
-        wordTimings: simpleWordTimings,
-        totalDuration: estimatedDuration,
-        speakingRate: speakingRate,
-        ssmlMarks: [],
-        success: true,
-        isFallback: true
-      };
-      
-    } catch (fallbackError) {
-      logger.error('Fallback synthesis also failed:', fallbackError.message);
-      throw new Error(`Google TTS failed: ${error.message}, Fallback: ${fallbackError.message}`);
+    } else {
+      throw error;
     }
   }
 }
 
 /**
- * Google TTS destekli sesleri getirir
+ * Google TTS destekli sesleri getirir - SSML desteği bilgisi ile
  * @param {string} [languageCode] - opsiyonel, sadece belirli bir dil için
- * @returns {Promise<Array>} Array of voice objects
+ * @returns {Promise<Array>} Array of voice objects with SSML support info
  */
 async function listGoogleVoices(languageCode = 'en-US') {
   if (!ttsClient) {
@@ -241,13 +356,70 @@ async function listGoogleVoices(languageCode = 'en-US') {
       languageCode: languageCode
     });
 
-    const voices = result.voices.map(voice => ({
-      name: voice.name,
-      languageCode: voice.languageCodes[0],
-      gender: voice.ssmlGender
-    }));
+    // SSML desteklemeyen sesler listesi
+    const ssmlUnsupportedVoices = ['Journey', 'Chirp', 'Studio'];
 
-    logger.info(`Retrieved ${voices.length} voices for ${languageCode}`);
+    const voices = result.voices.map(voice => {
+      // SSML desteği kontrolü
+      const ssmlSupport = !ssmlUnsupportedVoices.some(unsupported => voice.name.includes(unsupported));
+      
+      // Kategorileri belirle
+      let package, emotion, accent;
+      
+      // Paket belirleme
+      if (voice.name.includes('Journey')) {
+        package = 'Premium';
+        emotion = 'Natural';
+      } else if (voice.name.includes('Chirp')) {
+        package = 'Gold';
+        emotion = 'Advanced';
+      } else if (voice.name.includes('Studio')) {
+        package = 'Platinum';
+        emotion = 'Professional';
+      } else if (voice.name.includes('Wavenet')) {
+        package = 'Premium';
+        emotion = 'Natural';
+      } else if (voice.name.includes('Neural2')) {
+        package = 'Premium';
+        emotion = 'Advanced';
+      } else if (voice.name.includes('Standard')) {
+        package = 'Basic';
+        emotion = 'Standard';
+      } else {
+        package = 'Basic';
+        emotion = 'Standard';
+      }
+      
+      // Accent belirleme (dil kodundan)
+      const langParts = voice.languageCodes[0].split('-');
+      if (langParts.length > 1) {
+        accent = langParts[1].toUpperCase();
+      } else {
+        accent = 'GENERIC';
+      }
+
+      return {
+        name: voice.name,
+        displayName: voice.name.replace(/^[a-z]{2}-[A-Z]{2}-/, ''),
+        languageCode: voice.languageCodes[0],
+        languageCodes: voice.languageCodes,
+        gender: voice.ssmlGender,
+        ssmlGender: voice.ssmlGender,
+        ssmlSupport: ssmlSupport,
+        package: package,
+        emotion: emotion,
+        accent: accent,
+        naturalSampleRateHertz: voice.naturalSampleRateHertz
+      };
+    });
+
+    const ssmlSupportedCount = voices.filter(v => v.ssmlSupport).length;
+    const ssmlUnsupportedCount = voices.filter(v => !v.ssmlSupport).length;
+
+    logger.info(`Retrieved ${voices.length} voices for ${languageCode}:`);
+    logger.info(`- SSML supported: ${ssmlSupportedCount}`);
+    logger.info(`- SSML unsupported: ${ssmlUnsupportedCount}`);
+    
     return voices;
     
   } catch (error) {
@@ -259,5 +431,5 @@ async function listGoogleVoices(languageCode = 'en-US') {
 module.exports = {
   synthesizeWithGoogle,
   listGoogleVoices,
-  generateSSMLWithTimingMarks
+  generateSSMLWithOptimizedMarks
 }; 

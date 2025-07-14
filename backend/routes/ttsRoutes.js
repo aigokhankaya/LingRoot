@@ -77,32 +77,7 @@ router.get("/vtt/:vttId", (req, res, next) => {
   getVttFile(req, res, next);
 });
 
-// Mock audio file for development and fallback
-router.get("/mock-audio.mp3", (req, res) => {
-  // Serve a simple audio file or redirect to a public audio URL
-  // Using a text-to-speech sample that sounds more realistic
-  const mockAudioUrl = "https://file-examples.com/storage/fe68c1b7b1b2e0c2b5b7e8b/2017/11/file_example_MP3_700KB.mp3";
-  res.redirect(mockAudioUrl);
-});
-
-// Mock VTT file for development
-router.get("/mock-subtitles.vtt", (req, res) => {
-  if (process.env.NODE_ENV !== 'development') {
-    return res.status(404).json({ error: "Not found" });
-  }
-  
-  res.setHeader('Content-Type', 'text/vtt');
-  res.send(`WEBVTT
-
-00:00.000 --> 00:02.000
-This is a sample subtitle
-
-00:02.000 --> 00:04.000
-for development purposes
-
-00:04.000 --> 00:06.000
-showing synchronized text`);
-});
+// Note: Mock endpoints removed - all audio/VTT files should be served from real storage
 
 // Other TTS Utility Endpoints
 router.post("/translateToEnglish", translateToEnglish);
@@ -128,5 +103,158 @@ router.get("/voices/filtered", getFilteredVoices);
 
 // Test endpoint to check available voices from Google TTS API
 router.get("/test-voices", testVoices);
+
+// SSML destekli sesler test endpoint'i
+router.get('/test-ssml-voices', async (req, res) => {
+  try {
+    console.log('🎯 SSML VOICES TEST - Request received');
+    
+    const { languageCode = 'en-US' } = req.query;
+    
+    console.log(`🎯 Testing SSML-compatible voices for language: ${languageCode}`);
+    
+    // Tüm sesler ve SSML destekli olanları al
+    const { listGoogleVoices } = require('../utils/googleTTS');
+    const allVoices = await listGoogleVoices(languageCode);
+    
+    // SSML destekli olanları filtrele
+    const ssmlSupportedVoices = allVoices.filter(voice => voice.ssmlSupport === true);
+    const ssmlUnsupportedVoices = allVoices.filter(voice => voice.ssmlSupport === false);
+    
+    console.log(`🎯 SSML VOICES TEST Results:
+      - Total voices: ${allVoices.length}
+      - SSML supported: ${ssmlSupportedVoices.length}
+      - SSML unsupported: ${ssmlUnsupportedVoices.length}`);
+    
+    // İlk 5 destekli ses örneği
+    const sampleSupportedVoices = ssmlSupportedVoices.slice(0, 5);
+    const sampleUnsupportedVoices = ssmlUnsupportedVoices.slice(0, 5);
+    
+    res.json({
+      success: true,
+      languageCode,
+      stats: {
+        total: allVoices.length,
+        ssmlSupported: ssmlSupportedVoices.length,
+        ssmlUnsupported: ssmlUnsupportedVoices.length,
+        supportedPercentage: ((ssmlSupportedVoices.length / allVoices.length) * 100).toFixed(1)
+      },
+      sampleSupportedVoices,
+      sampleUnsupportedVoices,
+      allSupportedVoices: ssmlSupportedVoices.map(v => v.name),
+      allUnsupportedVoices: ssmlUnsupportedVoices.map(v => v.name)
+    });
+    
+  } catch (error) {
+    console.error('🎯 SSML VOICES TEST failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'SSML voices test failed',
+      details: error.message
+    });
+  }
+});
+
+// Ultra hassas Google TTS test endpoint'i
+router.post('/test-ultra-precision', async (req, res) => {
+  try {
+    console.log('🎯 ULTRA HASSAS TTS TEST - Request received');
+    
+    const { text, voice, speakingRate, languageCode } = req.body;
+    
+    // Validation
+    if (!text || text.trim().length === 0) {
+      return res.status(400).json({ 
+        error: 'Text is required' 
+      });
+    }
+    
+    if (text.length > 1000) {
+      return res.status(400).json({ 
+        error: 'Text too long (max 1000 characters for test)' 
+      });
+    }
+    
+    console.log(`🎯 Testing ultra precise TTS with:
+      - Text: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"
+      - Voice: ${voice || 'en-US-Standard-C'}
+      - Speaking Rate: ${speakingRate || 1.0}x
+      - Language: ${languageCode || 'en-US'}`);
+    
+    // Google TTS ile ultra hassas timing test
+    const { synthesizeWithGoogle } = require('../utils/googleTTS');
+    
+    const startTime = Date.now();
+    const result = await synthesizeWithGoogle({
+      text: text,
+      voiceName: voice || 'en-US-Standard-C',
+      languageCode: languageCode || 'en-US',
+      speakingRate: speakingRate || 1.0
+    });
+    
+    const processingTime = Date.now() - startTime;
+    
+    console.log(`🎯 ULTRA HASSAS TTS TEST completed in ${processingTime}ms`);
+    
+    // Timing analizi
+    const timingAnalysis = {
+      totalWords: result.wordTimings.length,
+      totalDuration: result.totalDuration,
+      avgWordDuration: result.timingQuality.avgWordDuration,
+      precisionLevel: result.timingQuality.markedWords / result.timingQuality.totalWords,
+      timingMarks: result.timingQuality.totalMarks,
+      sampleRate: '48kHz',
+      processingTime: processingTime
+    };
+    
+    // Response gönder
+    res.json({
+      success: true,
+      message: 'Ultra hassas TTS test completed successfully',
+      audioUrl: null, // Test için audio upload yapmıyoruz
+      audioSize: result.audioContent.length,
+      wordTimings: result.wordTimings,
+      timingAnalysis: timingAnalysis,
+      timingQuality: result.timingQuality,
+      sampleWordTimings: result.wordTimings.slice(0, 10), // İlk 10 kelime
+      metadata: {
+        voice: voice || 'en-US-Standard-C',
+        speakingRate: speakingRate || 1.0,
+        languageCode: languageCode || 'en-US',
+        totalDuration: result.totalDuration,
+        fallbackUsed: result.fallbackUsed || false,
+        ultraPrecisionEnabled: true
+      }
+    });
+    
+  } catch (error) {
+    console.error('🎯 ULTRA HASSAS TTS TEST failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Ultra hassas TTS test failed',
+      details: error.message
+    });
+  }
+});
+
+// Test endpoint for SSML filter debug
+router.get('/test-client', (req, res) => {
+  try {
+    const { listGoogleVoices } = require('../utils/googleTTS');
+    res.json({ 
+      message: 'Google TTS client test',
+      hasClient: !!listGoogleVoices,
+      env: {
+        hasProjectId: !!process.env.GOOGLE_CLOUD_PROJECT_ID,
+        hasCredentials: !!process.env.GOOGLE_APPLICATION_CREDENTIALS
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'Google TTS client test failed',
+      error: error.message 
+    });
+  }
+});
 
 module.exports = router;

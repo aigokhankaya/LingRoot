@@ -592,7 +592,7 @@ const App: React.FC = () => {
                         <h1 className="text-6xl font-bold mb-6 text-black leading-tight hero-title">
                             {t.hero.title}<span className="text-blue-600">{t.hero.titleHighlight}</span>
                         </h1>
-                        <p className="text-xl text-black mb-10 leading-relaxed hero-description">
+                        <p className="text-black mb-10 leading-relaxed hero-description" style={{ fontSize: '22px !important', lineHeight: '1.6' }}>
                             {t.hero.description}
                         </p>
                         <div className="flex gap-4 hero-buttons">
@@ -616,7 +616,7 @@ const App: React.FC = () => {
                                     </DialogHeader>
                                     <div className="relative aspect-video w-full overflow-hidden rounded-lg">
                                         <iframe
-                                            src="https://www.youtube.com/embed/demo-video-id"
+                                            src="https://www.youtube.com/embed/fn1OKImuTsE"
                                             className="absolute inset-0 h-full w-full"
                                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                             allowFullScreen>
@@ -633,7 +633,7 @@ const App: React.FC = () => {
                 <div className="container mx-auto px-8">
                     <div className="text-center mb-16">
                         <h2 className="text-4xl font-bold mb-4 text-gray-900 demo-title">{t.demo.title}</h2>
-                        <p className="text-xl text-gray-600 max-w-3xl mx-auto demo-description" >
+                        <p className="text-lg md:text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto demo-description" >
                             Ekstra zaman ayırmana gerek yok. Zaten yaptığın aktiviteler sırasında İngilizce öğren.
                         </p>
                     </div>
@@ -681,11 +681,11 @@ const App: React.FC = () => {
                                     </Button>
                                 </a>
                             </div>
-                            <div className="relative overflow-hidden">
-                                <div className="relative aspect-video w-full h-full">
+                            <div className="relative overflow-hidden flex justify-center items-center p-1">
+                                <div className="relative aspect-video w-full max-w-2xl">
                                     <iframe
-                                        src="https://www.youtube.com/embed/demo-video-id"
-                                        className="absolute inset-0 h-full w-full"
+                                        src="https://www.youtube.com/embed/fn1OKImuTsE"
+                                        className="absolute inset-0 h-full w-full rounded-lg shadow-lg"
                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                         allowFullScreen>
                                     </iframe>
@@ -700,17 +700,7 @@ const App: React.FC = () => {
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-16">
                         <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.howItWorks.title}</h2>
-                        <p className="text-xl text-gray-600 max-w-3xl mx-auto">{t.howItWorks.description}</p>
-                    </div>
-                    <div className="mb-16">
-                        <div className="relative aspect-video w-full overflow-hidden rounded-lg shadow-lg mb-6">
-                            <iframe
-                                src="https://www.youtube.com/embed/demo-video-id"
-                                className="absolute inset-0 h-full w-full"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen>
-                            </iframe>
-                        </div>
+                        <p className="text-lg md:text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto">{t.howItWorks.description}</p>
                     </div>
                     <div className="grid md:grid-cols-3 gap-8">
                         {t.howItWorks.steps.map((step, index) => (
@@ -741,7 +731,7 @@ const App: React.FC = () => {
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-16">
                         <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.routine.title}</h2>
-                        <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12 routine-description">
+                        <p className="text-lg md:text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto mb-12 routine-description">
                             {t.routine.description}
                         </p>
                     </div>
@@ -779,7 +769,7 @@ const App: React.FC = () => {
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-16">
                         <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.features.title}</h2>
-                        <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-4">
+                        <p className="text-lg md:text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto mb-4">
                             {t.features.description}
                         </p>
                     </div>
@@ -812,7 +802,7 @@ const App: React.FC = () => {
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-16">
                         <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.testimonials.title}</h2>
-                        <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12">
+                        <p className="text-lg md:text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto mb-12">
                             {t.testimonials.description}
                         </p>
                     </div>
@@ -911,7 +901,7 @@ const App: React.FC = () => {
                         <h2 className="text-4xl font-bold mb-6 text-gray-900">
                             {t.cta.title}
                         </h2>
-                        <p className="text-xl text-gray-600 mb-8">
+                        <p className="text-lg md:text-xl lg:text-2xl text-gray-600 mb-8">
                             {t.cta.description}
                         </p>
                         <a href="/register">

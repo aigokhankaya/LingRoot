@@ -29,16 +29,36 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
   const { user } = useAuth();
   const [currentAudioUrl, setCurrentAudioUrl] = useState<string>('');
 
+  // DEBUG: OutputSection'da timepoints kontrolü
+  useEffect(() => {
+    if (audioResult) {
+      console.log('🔍 [OUTPUT DEBUG] AudioResult received:', {
+        hasTimepoints: !!audioResult.timepoints,
+        timepointsLength: audioResult.timepoints?.length || 0,
+        timepointsType: typeof audioResult.timepoints,
+        isArray: Array.isArray(audioResult.timepoints),
+        firstTimepoint: audioResult.timepoints?.[0],
+        hasWords: !!audioResult.words,
+        wordsLength: audioResult.words?.length || 0
+      });
+    }
+  }, [audioResult]);
+
   const convertToPlayableUrl = (url: string): string => {
     if (!url) return '';
     
     console.log("🔄 Converting URL:", url);
     
     try {
-      // TTS audio URL'leri için /api prefix'i ekle
+      // TTS audio URL'leri için /api prefix'i ekle (sadece başında /api yoksa)
       if (url.startsWith('/tts/')) {
         url = `/api${url}`;
         console.log("✅ Added /api prefix to TTS URL:", url);
+      }
+      
+      // Eğer URL zaten /api ile başlıyorsa, ek prefix ekleme
+      if (url.startsWith('/api/')) {
+        console.log("✅ URL already has /api prefix:", url);
       }
       
       // API yolu kontrolü

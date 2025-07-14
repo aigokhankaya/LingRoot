@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,35 +7,120 @@ import {
   StyleSheet,
   SafeAreaView,
   TextInput,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, CEFRLevel } from '../types';
+import { apiService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import AudioPlayer from '../components/AudioPlayer';
 
 const LibraryScreen: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel | 'all'>('all');
-
-  // Örnek veri - gerçek uygulamada API'den gelecek
-  const [audioTracks] = useState<AudioTrack[]>([
-    {
-      id: '1',
-      title: 'İngilizce Hikaye - Başlangıç',
-      url: 'https://example.com/audio1.mp3',
-      level: 'A1',
-      duration: 180,
-      created_at: '2024-01-15T10:00:00Z',
-    },
-    {
-      id: '2',
-      title: 'Business English Conversation',
-      url: 'https://example.com/audio2.mp3',
-      level: 'B2',
-      duration: 245,
-      created_at: '2024-01-14T15:30:00Z',
-    },
-  ]);
+  const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedTrack, setSelectedTrack] = useState<AudioTrack | null>(null);
+  const [playerVisible, setPlayerVisible] = useState(false);
+  const { user } = useAuth();
 
   const levels: (CEFRLevel | 'all')[] = ['all', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+
+  // Fetch audio history from API
+  const fetchAudioHistory = async (showLoading = true) => {
+    if (!user?.id) {
+      console.warn('User not authenticated');
+      setLoading(false);
+      setAudioTracks([]);
+      return;
+    }
+
+    try {
+      if (showLoading) {
+        setLoading(true);
+      }
+      
+      console.log('🔍 Fetching audio history for user:', user.id);
+      
+      const response = await apiService.getUserAudioHistory(user.id);
+      
+      if (response.success && response.data) {
+        console.log('✅ Audio history fetched:', response.data.length, 'tracks');
+        
+        // Backend verilerini AudioTrack tipine dönüştür
+        const tracks: AudioTrack[] = response.data.map((item: any) => {
+          const track = {
+            id: item.id,
+            title: item.adapted_text || item.translated_text || item.input || 'Başlıksız',
+            url: item.mp3_url || item.url || '',
+            level: item.level || 'B1',
+            duration: item.duration || 30, // Varsayılan 30 saniye
+            created_at: item.created_at,
+            input_type: item.input_type,
+            translated_text: item.translated_text,
+            adapted_text: item.adapted_text,
+            original_turkish: item.input,
+            mp3_url: item.mp3_url,
+            timepoints: item.timepoints || [], // Backend'den gelen gerçek timepoints
+            words: item.words || [], // Backend'den gelen gerçek words
+          };
+          
+          console.log('🎵 [LIBRARY] Track mapped:', {
+            id: track.id,
+            title: track.title.substring(0, 50) + '...',
+            url: track.url,
+            hasTranslatedText: !!track.translated_text,
+            hasAdaptedText: !!track.adapted_text,
+            hasTimepoints: !!track.timepoints && track.timepoints.length > 0,
+            hasWords: !!track.words && track.words.length > 0,
+            timepointsCount: track.timepoints?.length || 0,
+            wordsCount: track.words?.length || 0
+          });
+          
+          return track;
+        });
+        
+        setAudioTracks(tracks);
+      } else {
+        console.warn('❌ Failed to fetch audio history:', response.message);
+        setAudioTracks([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching audio history:', error);
+      
+      // Check if it's a token expiration error
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage === 'Token expired' || errorMessage.includes('Unauthorized')) {
+        Alert.alert(
+          'Oturum Süresi Doldu', 
+          'Lütfen tekrar giriş yapınız.',
+          [
+            { text: 'Tamam', onPress: () => console.log('User needs to login again') }
+          ]
+        );
+      } else {
+        Alert.alert('Hata', 'Ses geçmişi yüklenirken hata oluştu');
+      }
+      
+      setAudioTracks([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Refresh handler
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchAudioHistory(false);
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    fetchAudioHistory();
+  }, [user?.id]);
 
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -61,11 +146,30 @@ const LibraryScreen: React.FC = () => {
     return matchesSearch && matchesLevel;
   });
 
+  const handlePlayTrack = (track: AudioTrack) => {
+    console.log('🎵 [LIBRARY] Playing track:', {
+      id: track.id,
+      title: track.title.substring(0, 50) + '...',
+      url: track.url,
+      hasUrl: !!track.url,
+      urlLength: track.url?.length || 0,
+      hasTranslatedText: !!track.translated_text,
+      hasAdaptedText: !!track.adapted_text
+    });
+    setSelectedTrack(track);
+    setPlayerVisible(true);
+  };
+
+  const handleClosePlayer = () => {
+    setPlayerVisible(false);
+    setSelectedTrack(null);
+  };
+
   const renderAudioTrack = ({ item }: { item: AudioTrack }) => (
-    <TouchableOpacity style={styles.trackCard}>
+    <TouchableOpacity style={styles.trackCard} onPress={() => handlePlayTrack(item)}>
       <View style={styles.trackInfo}>
         <View style={styles.trackHeader}>
-          <Text style={styles.trackTitle}>{item.title}</Text>
+          <Text style={styles.trackTitle} numberOfLines={2}>{item.title}</Text>
           <View style={[styles.levelBadge, { backgroundColor: getLevelColor(item.level) }]}>
             <Text style={styles.levelText}>{item.level}</Text>
           </View>
@@ -78,19 +182,60 @@ const LibraryScreen: React.FC = () => {
             {new Date(item.created_at).toLocaleDateString('tr-TR')}
           </Text>
         </View>
+        {item.input_type && (
+          <View style={styles.inputTypeContainer}>
+            <Text style={styles.inputType}>{item.input_type}</Text>
+          </View>
+        )}
       </View>
-      <TouchableOpacity style={styles.playButton}>
+      <TouchableOpacity style={styles.playButton} onPress={() => handlePlayTrack(item)}>
         <Icon name="play-arrow" size={24} color="#007AFF" />
       </TouchableOpacity>
     </TouchableOpacity>
   );
 
+  // Loading state
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Ses kütüphanesi yükleniyor...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Not authenticated state
+  if (!user?.id) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.emptyState}>
+          <Icon name="account-circle" size={64} color="#ccc" />
+          <Text style={styles.emptyTitle}>Giriş Yapılmadı</Text>
+          <Text style={styles.emptyDescription}>
+            Ses kütüphanenizi görmek için giriş yapmanız gerekiyor.
+          </Text>
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={() => {
+              // You might want to navigate to login screen here
+              console.log('Navigate to login');
+            }}
+          >
+            <Text style={styles.retryButtonText}>Giriş Yap</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Ses Kütüphanesi</Text>
-        <TouchableOpacity style={styles.filterButton}>
-          <Icon name="filter-list" size={24} color="#007AFF" />
+        <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
+          <Icon name="refresh" size={24} color="#007AFF" />
         </TouchableOpacity>
       </View>
 
@@ -140,15 +285,36 @@ const LibraryScreen: React.FC = () => {
           renderItem={renderAudioTrack}
           contentContainerStyle={styles.tracksList}
           showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
         />
       ) : (
         <View style={styles.emptyState}>
           <Icon name="library-music" size={64} color="#ccc" />
-          <Text style={styles.emptyTitle}>Henüz ses dosyası yok</Text>
-          <Text style={styles.emptyDescription}>
-            İlk ses dosyanızı oluşturmak için "Oluştur" sekmesini kullanın
+          <Text style={styles.emptyTitle}>
+            {audioTracks.length === 0 ? 'Henüz ses dosyası yok' : 'Arama sonucu bulunamadı'}
           </Text>
+          <Text style={styles.emptyDescription}>
+            {audioTracks.length === 0 
+              ? 'İlk ses dosyanızı oluşturmak için "Oluştur" sekmesini kullanın'
+              : 'Farklı arama terimleri veya filtreler deneyin'
+            }
+          </Text>
+          <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+            <Text style={styles.retryButtonText}>Yenile</Text>
+          </TouchableOpacity>
         </View>
+      )}
+
+      {/* Audio Player Modal */}
+      {selectedTrack && (
+        <AudioPlayer
+          track={selectedTrack}
+          visible={playerVisible}
+          onClose={handleClosePlayer}
+          timepoints={selectedTrack.timepoints || []}
+          words={selectedTrack.words || []}
+        />
       )}
     </SafeAreaView>
   );
@@ -158,6 +324,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
   },
   header: {
     flexDirection: 'row',
@@ -173,7 +349,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  filterButton: {
+  refreshButton: {
     padding: 8,
   },
   searchContainer: {
@@ -241,7 +417,7 @@ const styles = StyleSheet.create({
   trackHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
   trackTitle: {
@@ -257,8 +433,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   levelText: {
-    color: 'white',
     fontSize: 12,
+    color: 'white',
     fontWeight: 'bold',
   },
   trackMeta: {
@@ -271,12 +447,19 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   date: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 12,
+    color: '#999',
+  },
+  inputTypeContainer: {
+    marginTop: 4,
+  },
+  inputType: {
+    fontSize: 12,
+    color: '#007AFF',
+    fontWeight: '500',
   },
   playButton: {
     padding: 8,
-    marginLeft: 12,
   },
   emptyState: {
     flex: 1,
@@ -285,17 +468,29 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#333',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 20,
+    marginBottom: 10,
   },
   emptyDescription: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

@@ -313,6 +313,19 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
             credentials: 'include'
         });
         const apiResponse = await response.json();
+        
+        // Debug: Log what we received from backend
+        console.log('🔍 [API DEBUG] Backend response keys:', Object.keys(apiResponse));
+        console.log('🔍 [API DEBUG] Timepoints in response:', apiResponse.timepoints?.length || 0);
+        console.log('🔍 [API DEBUG] Words in response:', apiResponse.words?.length || 0);
+        console.log('🔍 [API DEBUG] First 3 timepoints:', apiResponse.timepoints?.slice(0, 3));
+        console.log('🔍 [API DEBUG] First 3 words:', apiResponse.words?.slice(0, 3));
+        
+        // YENI: Timepoints detaylarını kontrol et
+        console.log('🔍 [API DEBUG] Timepoints type:', typeof apiResponse.timepoints);
+        console.log('🔍 [API DEBUG] Timepoints structure:', apiResponse.timepoints?.slice(0, 2));
+        console.log('🔍 [API DEBUG] Are timepoints array?', Array.isArray(apiResponse.timepoints));
+        
         return {
             message: apiResponse.message || "",
             mp3_url: apiResponse.mp3_url || "",

@@ -114,7 +114,7 @@ export default function SyncedTextPlayer({
   const [isAudioLoaded, setIsAudioLoaded] = useState(false);
   const [userInteractions, setUserInteractions] = useState<Array<{wordIndex: number, timestamp: number}>>([]);
   const [isAdaptiveMode, setIsAdaptiveMode] = useState(true);
-  const [timingMethod, setTimingMethod] = useState<'VTT' | 'Backend' | 'Adaptive' | 'Linear'>('VTT');
+  const [timingMethod, setTimingMethod] = useState<'VTT' | 'Backend' | 'Adaptive' | 'Linear'>('Backend');
   const [playbackRate, setPlaybackRate] = useState<number>(1.0); // 0.5x ile 2.0x arası hız kontrolü
   const [highlightType, setHighlightType] = useState<'word' | 'sentence'>('word'); // Vurgulama türü
   const [timingOffset, setTimingOffset] = useState<number>(0); // Metin vurgusu timing offset (saniye)
@@ -203,7 +203,17 @@ export default function SyncedTextPlayer({
     }
   }, [playbackRate, isAudioLoaded]);
 
-  // Adaptive timing hesaplama fonksiyonu (konuşma hızını dikkate alır)
+  // Optimized timing hesaplama fonksiyonu - backend'ten gelen timing'leri kullanır
+  const calculateOptimizedTimestamps = (timepoints: Timepoint[]): WordTimestamp[] => {
+    // Backend'ten gelen timepoints'ler zaten optimize edilmiş - direkt kullan
+    return timepoints.map((tp, index) => ({
+      word: tp.word || words[index] || `word_${index}`,
+      startTime: tp.timeSeconds || 0,
+      endTime: tp.endTimeSeconds || (tp.timeSeconds + 0.5)
+    }));
+  };
+
+  // Adaptive timing hesaplama fonksiyonu (fallback için - konuşma hızını dikkate alır)
   const calculateAdaptiveTimestamps = (baseDuration: number, userHints: Array<{wordIndex: number, timestamp: number}>) => {
     const textWords = originalText.split(/\s+/).filter(word => word.length > 0);
     
@@ -265,34 +275,26 @@ export default function SyncedTextPlayer({
   useEffect(() => {
     if (!isAudioLoaded || !originalText) return;
     
+    // DEBUG: Timepoints kontrolü
+    console.log('🔍 [SYNCED PLAYER] useEffect triggered:', {
+      hasTimepoints: !!timepoints,
+      timepointsLength: timepoints?.length || 0,
+      timepointsType: typeof timepoints,
+      isArray: Array.isArray(timepoints),
+      firstTimepoint: timepoints?.[0],
+      isAudioLoaded,
+      hasOriginalText: !!originalText
+    });
+    
     const textWords = originalText.split(/\s+/).filter(word => word.length > 0);
     let calculatedTimestamps: WordTimestamp[] = [];
     let activeMethod = 'Linear';
     
-    // Öncelik sırası: Backend Real Timepoints → VTT → Adaptive → Linear
+    // Öncelik sırası: Backend Optimized Timepoints → VTT → Adaptive → Linear
     if (timepoints && timepoints.length > 0) {
-      // Backend'den gelen gerçek timepoints (EN YÜKSEK ÖNCELİK)
-      // Bu timing'ler zaten konuşma hızına göre hesaplanmış
-      calculatedTimestamps = textWords.map((word, index) => {
-        const timepoint = timepoints[index];
-        const nextTimepoint = timepoints[index + 1];
-        
-        // Backend timepoints'leri DOĞRUDAN kullan (speaking rate zaten uygulanmış)
-        const startTime = timepoint ? timepoint.timeSeconds : 
-          (index / textWords.length) * audioDuration;
-        
-        // Eğer backend'den endTime geliyorsa onu kullan, yoksa tahmin et
-        const endTime = timepoint?.endTimeSeconds !== undefined 
-          ? timepoint.endTimeSeconds
-          : (nextTimepoint ? nextTimepoint.timeSeconds : 
-              (index < textWords.length - 1 ? ((index + 1) / textWords.length) * audioDuration : audioDuration));
-        
-        return { 
-          word, 
-          startTime, 
-          endTime 
-        };
-      });
+      // Backend'den gelen optimized timepoints (EN YÜKSEK ÖNCELİK)
+      // Bu timing'ler SSML mark'ları ile optimize edilmiş ve noktalama temizliği yapılmış
+      calculatedTimestamps = calculateOptimizedTimestamps(timepoints);
       activeMethod = 'Backend';
     } else if (vttCues.length > 0) {
       // VTT tabanlı timing (ikinci öncelik)
@@ -378,7 +380,7 @@ export default function SyncedTextPlayer({
     // Backend timepoints için ek debug bilgisi
     if (activeMethod === 'Backend' && timepoints && timepoints.length > 0) {
       const hasEndTimes = timepoints.some(tp => tp.endTimeSeconds !== undefined);
-      console.log(`🔍 Backend timepoints have endTime: ${hasEndTimes}`);
+      console.log(`🔍 Backend timepoints have endTimeSeconds: ${hasEndTimes}`);
       if (hasEndTimes) {
         console.log(`⏱️ Sample timing: "${timepoints[0]?.word}" ${timepoints[0]?.timeSeconds}s-${timepoints[0]?.endTimeSeconds}s`);
       }
@@ -397,60 +399,34 @@ export default function SyncedTextPlayer({
       const currentTime = rawCurrentTime + timingOffset; // Timing offset uygula
       setCurrentTime(rawCurrentTime); // UI için raw time kullan
       
-      // Çok hassas kelime tracking - backend timepoints için optimize edilmiş
+      // BİREBİR EXACT kelime tracking - Backend timepoints için TAM EŞLEŞME
       let foundWordIndex = -1;
       
-              // Backend timepoints varsa çok hassas eşleşme kullan
-        if (timingMethod === 'Backend') {
-          // ULTRA HASSAS SENKRONIZASYON - Birebir timing için
-          // Hiç tolerans kullanmadan tam eşleşme
-          
-          // 1. TAM ZAMANLAMA KONTROLÜ - Kelimenin tam zamanı içinde mi?
-          for (let i = 0; i < wordTimestamps.length; i++) {
-            const timestamp = wordTimestamps[i];
-            
-            // Kelime tam zamanı içinde mi kontrol et - hiç tolerans yok
-            if (currentTime >= timestamp.startTime && currentTime <= timestamp.endTime) {
-              foundWordIndex = i;
-              break;
-            }
+      // Backend timepoints varsa TAM BİREBİR EŞLEŞME - HİÇ TOLERANCE YOK
+      if (timingMethod === 'Backend' && timepoints && timepoints.length > 0) {
+        // TAM BİREBİR SENKRONIZASYON - Sadece exact timing'leri kullan
+        for (let i = 0; i < wordTimestamps.length; i++) {
+          const timestamp = wordTimestamps[i];
+          if (timestamp && 
+              currentTime >= timestamp.startTime && 
+              currentTime < timestamp.endTime) {
+            foundWordIndex = i;
+            break;
           }
-          
-          // Tam eşleşme yoksa, EN YAKINI değil, EN UYGUN ZAMANI bul
-          if (foundWordIndex === -1) {
-            // Çok küçük toleransla sadece çok yakın olanları kabul et
-            const ultraPreciseTolerance = 0.01; // Sadece 10ms tolerans - çok hassas
-            
-            for (let i = 0; i < wordTimestamps.length; i++) {
-              const timestamp = wordTimestamps[i];
-              
-              // Kelimenin başlangıcına çok yakınsa (10ms içinde)
-              if (Math.abs(currentTime - timestamp.startTime) <= ultraPreciseTolerance) {
-                foundWordIndex = i;
-                break;
-              }
-            }
+        }
+        
+        // DEBUG LOG - sadece kelime değişiminde
+        if (foundWordIndex !== currentWordIndex && foundWordIndex !== -1) {
+          const timestamp = wordTimestamps[foundWordIndex];
+          if (timestamp) {
+            console.log(`🎯 BİREBİR TIMING: Word ${foundWordIndex + 1} "${timestamp.word}" | Time: ${currentTime.toFixed(3)}s | Range: ${timestamp.startTime.toFixed(3)}s-${timestamp.endTime.toFixed(3)}s | Offset: ${timingOffset.toFixed(3)}s | Match: ✅`);
           }
-          
-          // Hala bulunamadıysa, gelecek kelimeyi kontrol et (ses biraz önde olabilir)
-          if (foundWordIndex === -1) {
-            const futureCheckTolerance = 0.05; // 50ms gelecek kontrolü
-            
-            for (let i = 0; i < wordTimestamps.length; i++) {
-              const timestamp = wordTimestamps[i];
-              
-              // Gelecek kelime çok yakınsa ve mevcut time biraz ilerideyse
-              if (currentTime > timestamp.startTime - futureCheckTolerance && 
-                  currentTime < timestamp.startTime + futureCheckTolerance) {
-                foundWordIndex = i;
-                break;
-              }
-            }
-          }
+        }
+        
       } else {
         // Diğer timing methodları için normal tolerance
-        const baseTolerance = 0.15; // 150ms base tolerance
-        const tolerance = baseTolerance / Math.max(speakingRate, 0.5); // Minimum 0.5x rate
+        const baseTolerance = 0.2; // 200ms tolerance - daha esnek
+        const tolerance = baseTolerance / Math.max(speakingRate, 0.5);
         
         for (let i = 0; i < wordTimestamps.length; i++) {
           const timestamp = wordTimestamps[i];
@@ -474,61 +450,64 @@ export default function SyncedTextPlayer({
             }
           }
           
-          const maxDistance = 1.0 / Math.max(speakingRate, 0.5);
+          const maxDistance = 0.8 / Math.max(speakingRate, 0.5); // Esnek mesafe
           if (closestDistance <= maxDistance) {
             foundWordIndex = closestIndex;
           }
         }
       }
       
-      // AGRESIF GÜNCELLEME - Kelime atlamamak için
+      // KARARLI GÜNCELLEME - Sık değişim önleme
       if (foundWordIndex !== -1) {
-        // HEMEN güncelle - hiç bekleme
-        setCurrentWordIndex(foundWordIndex);
+        // Kelime değişim kararlılığı kontrolü
+        const shouldUpdate = currentWordIndex === -1 || // İlk kelime
+          foundWordIndex !== currentWordIndex || // Gerçek değişim
+          Math.abs(foundWordIndex - currentWordIndex) === 1; // Komşu kelime (doğal geçiş)
         
-        // Debug bilgisi - ULTRA HASSAS SENKRONIZASYON tracking  
-        if (process.env.NODE_ENV === 'development') {
-          const timestamp = wordTimestamps[foundWordIndex];
-          const actualOffset = currentTime - timestamp.startTime;
-          const wordDuration = timestamp.endTime - timestamp.startTime;
-          const wordProgress = (currentTime - timestamp.startTime) / wordDuration;
+        if (shouldUpdate) {
+          // Debug: Sadece önemli değişimleri logla
+          if (foundWordIndex !== currentWordIndex) {
+            const timestamp = wordTimestamps[foundWordIndex];
+            const timingInfo = timestamp ? 
+              `${timestamp.startTime.toFixed(3)}s-${timestamp.endTime.toFixed(3)}s` : 'N/A';
+            console.log(`🎵 ESNEK GEÇIŞ: ${currentWordIndex} → ${foundWordIndex} | Time: ${currentTime.toFixed(3)}s | Range: ${timingInfo}`);
+          }
           
-          // Ultra hassas senkronizasyon kriterleri
-          const isExactMatch = currentTime >= timestamp.startTime && currentTime <= timestamp.endTime;
-          const offsetMs = Math.abs(actualOffset) * 1000; // milisaniye cinsinden
-          
-          const syncStatus = isExactMatch ? '🎯 EXACT MATCH' : 
-                            offsetMs <= 10 ? '🟢 Ultra Precise (<10ms)' : 
-                            offsetMs <= 25 ? '🟡 Very Good (<25ms)' : 
-                            offsetMs <= 50 ? '🟠 Acceptable (<50ms)' : '🔴 Off Sync (>50ms)';
-          
-          const rangeIcon = isExactMatch ? '✅' : '❌';
-          const progressIcon = wordProgress >= 0 && wordProgress <= 1 ? '📍' : '📌';
-          
-          console.log(`${rangeIcon} ${progressIcon} Word ${foundWordIndex}: "${timestamp?.word}" | Raw Time: ${rawCurrentTime.toFixed(3)}s | Adjusted Time: ${currentTime.toFixed(3)}s | Range: ${timestamp?.startTime.toFixed(3)}s-${timestamp?.endTime.toFixed(3)}s | ${syncStatus} | Timing Offset: ${timingOffset > 0 ? '+' : ''}${(timingOffset * 1000).toFixed(0)}ms | Actual Offset: ${actualOffset > 0 ? '+' : ''}${actualOffset.toFixed(3)}s (${offsetMs.toFixed(1)}ms) | Progress: ${(wordProgress * 100).toFixed(1)}% | Rate: ${playbackRate}x`);
+          setCurrentWordIndex(foundWordIndex);
         }
       } else {
-        // Kelime bulunamadıysa VURGULAMAYı ÇıKAR - tam senkron için
-        // Sadece tam eşleşme olduğunda vurgula, yoksa hiç vurgulama
-        if (currentWordIndex !== -1) {
-          setCurrentWordIndex(-1); // Vurgulamayı kaldır
+        // Hiç eşleşme yoksa - kararlılık için mevcut konumu koru (hemen sıfırlama)
+        // Sadece çok uzakta kalındığında sıfırla
+        if (currentWordIndex !== -1 && wordTimestamps[currentWordIndex]) {
+          const currentTimestamp = wordTimestamps[currentWordIndex];
+          const distanceFromCurrent = Math.abs(currentTime - 
+            (currentTimestamp.startTime + currentTimestamp.endTime) / 2);
+          
+          // Çok uzakta kalındıysa sıfırla
+          if (distanceFromCurrent > 1.0) { // 1 saniyeden fazla uzakta
+            setCurrentWordIndex(-1);
+          }
+          // Yakınsa mevcut konumu koru (kararlılık)
         }
       }
       
-      // CÜMLE VURGULAMASI - Hangi cümlede olduğumuzu bul
+      // CÜMLE VURGULAMASI - Aynı esnek prensiple
       if (highlightType === 'sentence' && sentenceTimestamps.length > 0) {
         let foundSentenceIndex = -1;
         
-        // Aktif cümleyi bul
+        // Esnek cümle eşleşmesi
+        const sentenceTolerance = 0.3; // 300ms tolerance
+        
         for (let i = 0; i < sentenceTimestamps.length; i++) {
           const sentence = sentenceTimestamps[i];
-          if (currentTime >= sentence.startTime && currentTime <= sentence.endTime) {
+          if (currentTime >= sentence.startTime - sentenceTolerance && 
+              currentTime <= sentence.endTime + sentenceTolerance) {
             foundSentenceIndex = i;
             break;
           }
         }
         
-        // Bulunamadıysa en yakın cümleyi bul
+        // En yakın cümleyi bul
         if (foundSentenceIndex === -1) {
           let closestIndex = -1;
           let closestDistance = Infinity;
@@ -546,8 +525,7 @@ export default function SyncedTextPlayer({
             }
           }
           
-          // Geniş toleransla kabul et
-          if (closestDistance <= 0.2) {
+          if (closestDistance <= 0.5) { // 500ms esnek tolerance
             foundSentenceIndex = closestIndex;
           }
         }
@@ -574,13 +552,15 @@ export default function SyncedTextPlayer({
       setCurrentWordIndex(-1);
     };
 
-    // ULTRA HIGH FREQUENCY UPDATE - 240 FPS equivalent
-    // Birebir senkronizasyon için çok yüksek frekans güncelleme
+    // Update frequency - birebir eşleşme için optimize edildi
+    const updateInterval = timingMethod === 'Backend' ? 
+      (1000 / 240) :  // 240 FPS - birebir eşleşme için maksimum hassasiyet
+      (1000 / 120);   // 120 FPS - diğer methodlar için
+    
     let lastUpdateTime = 0;
-    const targetInterval = 1000 / 240; // 240 FPS = ~4.17ms interval
     
     const updateLoop = (currentAnimationTime: number) => {
-      if (currentAnimationTime - lastUpdateTime >= targetInterval) {
+      if (currentAnimationTime - lastUpdateTime >= updateInterval) {
         if (audio && !audio.paused) {
           handleTimeUpdate();
         }
@@ -600,7 +580,7 @@ export default function SyncedTextPlayer({
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [currentWordIndex, wordTimestamps, vttCues, currentCueIndex, autoHighlight, highlightType, sentenceTimestamps, playbackRate]);
+  }, [currentWordIndex, wordTimestamps, vttCues, currentCueIndex, autoHighlight, highlightType, sentenceTimestamps, playbackRate, timingMethod, timingOffset, timepoints]);
 
   const handleWordClick = (wordIndex: number, startTime: number) => {
     const audio = audioRef.current;
@@ -675,7 +655,13 @@ export default function SyncedTextPlayer({
               }`}
               onClick={() => timestamp && handleWordClick(index, timestamp.startTime)}
               onContextMenu={(e) => handleWordRightClick(e, word, index)}
-              title={timestamp ? `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s - ${timestamp.endTime.toFixed(2)}s` : 'Timing bilgisi yok'}
+              title={timestamp && 
+                     typeof timestamp.startTime === 'number' && 
+                     typeof timestamp.endTime === 'number' && 
+                     !isNaN(timestamp.startTime) && 
+                     !isNaN(timestamp.endTime) 
+                ? `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s - ${timestamp.endTime.toFixed(2)}s` 
+                : 'Timing bilgisi yok'}
               style={{
                 // SABİT BOYUTLAR - Layout shift'i önlemek için
                 minHeight: '1.8rem',
@@ -1458,49 +1444,16 @@ export default function SyncedTextPlayer({
         </div>
       </div>
       
-      {/* Debug Info */}
+      {/* Debug Info - Simplified */}
       {process.env.NODE_ENV === 'development' && (
         <div className="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-600">
-          <div>Audio URL: {audioUrl}</div>
-          <div>Audio Loaded: {isAudioLoaded ? '✅' : '❌'} | Duration: {audioDuration.toFixed(2)}s | Current Time: {currentTime.toFixed(2)}s | Word Index: {currentWordIndex}</div>
-          <div>Speaking Rate: {speakingRate}x | Timing Method: {timingMethod} | Words: {wordTimestamps.length} | VTT Cues: {vttCues.length}</div>
-          <div>Timepoints: {timepoints?.length || 0} | User Interactions: {userInteractions.length}</div>
+          <div>Audio: {isAudioLoaded ? '✅' : '❌'} | Duration: {audioDuration.toFixed(2)}s | Current: {currentTime.toFixed(2)}s | Word: {currentWordIndex}</div>
+          <div>Method: {timingMethod} | Rate: {speakingRate}x | Offset: {(timingOffset * 1000).toFixed(0)}ms | Words: {wordTimestamps.length}</div>
           {currentWordIndex >= 0 && wordTimestamps[currentWordIndex] && (
-            <div className="mt-2 p-2 bg-yellow-100 rounded">
-              <div className="flex items-center justify-between">
-                <div>
-                  <strong>Current Word:</strong> "{wordTimestamps[currentWordIndex].word}" | 
-                  <strong> Expected:</strong> {wordTimestamps[currentWordIndex].startTime.toFixed(2)}s-{wordTimestamps[currentWordIndex].endTime.toFixed(2)}s | 
-                  <strong> Actual:</strong> {currentTime.toFixed(2)}s
-                </div>
-                <div className="flex items-center space-x-2">
-                  {(() => {
-                    const offset = currentTime - wordTimestamps[currentWordIndex].startTime;
-                    const absOffset = Math.abs(offset);
-                    let status = '✅';
-                    let statusText = 'Perfect';
-                    let statusColor = 'text-green-600';
-                    
-                    if (absOffset > 0.2) {
-                      status = '❌';
-                      statusText = 'Off';
-                      statusColor = 'text-red-600';
-                    } else if (absOffset > 0.1) {
-                      status = '⚠️';
-                      statusText = 'Close';
-                      statusColor = 'text-yellow-600';
-                    }
-                    
-                    return (
-                      <div className={`flex items-center space-x-1 ${statusColor}`}>
-                        <span>{status}</span>
-                        <span className="font-medium">{statusText}</span>
-                        <span className="text-xs">({offset > 0 ? '+' : ''}{offset.toFixed(2)}s)</span>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
+            <div className="mt-1 p-1 bg-yellow-100 rounded">
+              Word: "{wordTimestamps[currentWordIndex].word}" | 
+              Expected: {wordTimestamps[currentWordIndex].startTime.toFixed(2)}s-{wordTimestamps[currentWordIndex].endTime.toFixed(2)}s | 
+              Offset: {(currentTime - wordTimestamps[currentWordIndex].startTime).toFixed(3)}s
             </div>
           )}
         </div>

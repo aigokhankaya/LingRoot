@@ -692,9 +692,11 @@ const processTtsRequest = async (req, res) => {
             }
         });
 
-        // Her chunk için sentez yap - timing bilgileriyle
+        // Her chunk için sentez yap - optimized timing bilgileriyle
         const audioSegments = [];
         const allWordTimings = [];
+        const allCleanWords = [];
+        const allOriginalWords = [];
         let cumulativeTimeOffset = 0;
 
         for (let i = 0; i < finalChunks.length; i++) {
@@ -721,21 +723,30 @@ const processTtsRequest = async (req, res) => {
                     wordCount: ttsResult.wordTimings.length
                 });
 
-                // Word timing'leri birleştir - offset ile
+                // Clean ve original words'leri topla
+                if (ttsResult.cleanWords) {
+                    allCleanWords.push(...ttsResult.cleanWords);
+                }
+                if (ttsResult.originalWords) {
+                    allOriginalWords.push(...ttsResult.originalWords);
+                }
+
+                // Word timing'leri birleştir - optimized format ile offset
                 ttsResult.wordTimings.forEach(wordTiming => {
                     allWordTimings.push({
                         word: wordTiming.word,
-                        startTime: wordTiming.startTime + cumulativeTimeOffset,
-                        endTime: wordTiming.endTime + cumulativeTimeOffset,
+                        timeSeconds: wordTiming.timeSeconds + cumulativeTimeOffset,
+                        endTimeSeconds: wordTiming.endTimeSeconds + cumulativeTimeOffset,
                         chunkIndex: i,
-                        originalMarkName: wordTiming.markName
+                        originalMarkName: wordTiming.markName,
+                        hasDirectTiming: wordTiming.hasDirectTiming
                     });
                 });
 
                 // Bir sonraki chunk için offset'i güncelle
                 cumulativeTimeOffset += ttsResult.totalDuration;
 
-                logger.info(`[${requestId}] Chunk ${i + 1} completed - Duration: ${ttsResult.totalDuration.toFixed(1)}s, Words: ${ttsResult.wordTimings.length}, Fallback: ${ttsResult.isFallback ? 'Yes' : 'No'}`);
+                logger.info(`[${requestId}] Chunk ${i + 1} completed - Duration: ${ttsResult.totalDuration.toFixed(1)}s, Clean words: ${ttsResult.cleanWords?.length || 0}, Fallback: ${ttsResult.fallbackUsed ? 'Yes' : 'No'}`);
 
             } catch (chunkError) {
                 logger.error(`[${requestId}] Chunk ${i + 1} synthesis failed:`, chunkError.message);
@@ -764,28 +775,35 @@ const processTtsRequest = async (req, res) => {
 
         logger.info(`[${requestId}] Audio merged successfully - Final size: ${mergedAudioBuffer.length} bytes, ID: ${uniqueId}`);
 
-        // --- Step 8: Create VTT with Real Timings ---
-        logger.info(`[${requestId}] Creating VTT with real word timings...`);
+        // --- Step 8: Create VTT with Optimized Timings ---
+        logger.info(`[${requestId}] Creating VTT with optimized word timings...`);
         
-        // Gerçek timing'lerle VTT oluştur
-        const vttContent = createWordLevelVTTFromTimings(allWordTimings, totalRealDuration);
+        // Kullanıcıya gösterilecek temiz text oluştur (noktalama olmadan)
+        const cleanTextForDisplay = allCleanWords.join(' ');
+        
+        // Optimized timing'lerle VTT oluştur
+        const vttContent = createWordLevelVTTFromOptimizedTimings(allWordTimings, allCleanWords, allOriginalWords);
         const vttUniqueId = `vtt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
         // VTT dosyasını temp olarak sakla
         tempVttFiles.set(vttUniqueId, {
             content: vttContent,
             createdAt: new Date(),
-            text: adaptedText,
+            text: cleanTextForDisplay, // Temiz text sakla
+            originalText: adaptedText, // Original text de sakla
             duration: totalRealDuration,
             words: totalWords,
             wordTimings: allWordTimings,
+            cleanWords: allCleanWords,
+            originalWords: allOriginalWords,
             speakingRate: speakingRate,
-            isRealTiming: true
+            isRealTiming: true,
+            isOptimized: true
         });
         
         const vttUrl = `/api/tts/vtt/${vttUniqueId}`;
         
-        logger.info(`[${requestId}] VTT created with real timings - ID: ${vttUniqueId}, Duration: ${totalRealDuration.toFixed(1)}s, Words: ${totalWords}`);
+        logger.info(`[${requestId}] Optimized VTT created - ID: ${vttUniqueId}, Duration: ${totalRealDuration.toFixed(1)}s, Clean words: ${allCleanWords.length}, Original words: ${allOriginalWords.length}`);
 
         // --- Step 9: Upload to Supabase (optional) ---
         let mp3Url = null;
@@ -812,18 +830,20 @@ const processTtsRequest = async (req, res) => {
         logger.info(`[${requestId}] 🔄 tempAudioFiles size after: ${tempAudioFiles.size}`);
 
         // --- Step 10: Return Success Response ---
-        logger.info(`[${requestId}] Processing complete with real timings.`);
+        logger.info(`[${requestId}] Processing complete with optimized timings.`);
 
         // Use Supabase URL if available, otherwise use API endpoint URL
         const finalMp3Url = mp3Url || `/api/tts/audio/${uniqueId}`;
         
-        // Kelime listesi ve timepoints gerçek timing'lerden (startTime ve endTime ile)
-        const words = allWordTimings.map(w => w.word);
-        const timepoints = allWordTimings.map(w => ({
-            timeSeconds: w.startTime,
-            endTimeSeconds: w.endTime,
-            word: w.word
-        }));
+        // Kullanıcıya temiz kelimeler göster, ama timing'ler kesin olsun
+        const words = allCleanWords; // Temiz kelimeler (noktalama olmadan)
+        const timepoints = createOptimizedTimepoints(allWordTimings); // Optimized timepoints
+        
+        // DEBUG: Timepoints kontrolü
+        logger.info(`🔍 FINAL TIMEPOINTS DEBUG - Total words: ${words.length}, Timepoints: ${timepoints.length}`);
+        logger.info(`🔍 First 5 timepoints:`, timepoints.slice(0, 5));
+        logger.info(`🔍 All word timings count: ${allWordTimings.length}`);
+        logger.info(`🔍 Sample word timing:`, allWordTimings[0]);
         
         logStep({
             requestId,
@@ -837,7 +857,8 @@ const processTtsRequest = async (req, res) => {
                 words_count: totalWords,
                 real_duration: totalRealDuration,
                 speaking_rate: speakingRate,
-                chunks_processed: audioSegments.length
+                chunks_processed: audioSegments.length,
+                timepoints_count: timepoints.length
             }
         });
         
@@ -870,6 +891,68 @@ const processTtsRequest = async (req, res) => {
             }
         }
 
+        // Genel TTS istekleri için contenthistory tablosuna kaydet
+        try {
+            logger.info(`[${requestId}] 💾 Saving to contenthistory table...`);
+            
+            // Get user ID from JWT token
+            const authHeader = req.headers.authorization;
+            logger.info(`[${requestId}] 🔑 Auth header present: ${!!authHeader}`);
+            let userId = null;
+            
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                const token = authHeader.substring(7);
+                logger.info(`[${requestId}] 🎫 Token extracted: ${token.substring(0, 20)}...`);
+                const jwt = require('jsonwebtoken');
+                try {
+                    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                    userId = decoded.id;
+                    logger.info(`[${requestId}] 👤 User ID from token: ${userId}`);
+                } catch (jwtError) {
+                    logger.warn(`[${requestId}] ❌ Could not decode JWT token: ${jwtError.message}`);
+                }
+            } else {
+                logger.warn(`[${requestId}] ❌ No valid auth header found`);
+            }
+            
+            if (userId) {
+                const insertData = {
+                    user_id: userId,
+                    level: level || 'B1',
+                    mp3_url: finalMp3Url,
+                    input: originalTurkishText || req.body.input || '',
+                    translated_text: translationResult || '',
+                    adapted_text: adaptedText || '',
+                    input_type: req.body.type || 'text',
+                    created_at: new Date().toISOString(),
+                    words: words && words.length > 0 ? JSON.stringify(words) : null,
+                    timepoints: timepoints && timepoints.length > 0 ? JSON.stringify(timepoints) : null
+                };
+                
+                logger.info(`[${requestId}] 📋 Insert data:`, JSON.stringify(insertData, null, 2));
+                
+                const { data, error } = await supabase
+                    .from('contenthistory')
+                    .insert(insertData)
+                    .select();
+                
+                if (error) {
+                    logger.error(`[${requestId}] 🚨 Supabase insert error:`, error);
+                    throw error;
+                }
+                
+                logger.info(`[${requestId}] ✅ Audio saved to contenthistory table: ${data[0]?.id}`);
+                logger.info(`[${requestId}] 📊 Saved data:`, JSON.stringify(data[0], null, 2));
+            } else {
+                logger.warn(`[${requestId}] ⚠️ No user ID found, skipping contenthistory save`);
+                logger.warn(`[${requestId}] 🔍 Auth header: ${authHeader ? 'present' : 'missing'}`);
+            }
+        } catch (dbError) {
+            logger.error(`[${requestId}] ❌ Error saving to contenthistory table: ${dbError.message}`);
+            logger.error(`[${requestId}] 📋 Error details:`, dbError);
+            // Don't fail the request if database save fails
+        }
+
         // Debug: Çeviri ve adaptasyon sonuçlarını logla
         console.log('🔍 [TTS RESPONSE DEBUG]', {
             translationResult: translationResult ? translationResult.substring(0, 100) + '...' : 'EMPTY',
@@ -883,47 +966,39 @@ const processTtsRequest = async (req, res) => {
 
         const responseData = {
             success: true,
-            message: adaptedText,
+            message: cleanTextForDisplay, // Kullanıcıya temiz text göster (noktalama olmadan)
+            originalMessage: adaptedText, // Original adapted text de gönder (reference için)
             level: level,
             input_language: detectedLang,
             mp3_url: finalMp3Url,
-            words: words,
-            timepoints: timepoints,
+            words: words, // Temiz kelimeler (allCleanWords)
+            timepoints: timepoints, // Optimized timing'ler
             vtt_url: vttUrl,
             original_turkish: originalTurkishText || undefined,
             // Ek bilgiler
             real_duration: totalRealDuration,
             speaking_rate: speakingRate,
             word_timings_count: allWordTimings.length,
+            clean_words_count: allCleanWords.length,
+            original_words_count: allOriginalWords.length,
             audio_segments: audioSegments.length,
             is_real_timing: true,
+            is_optimized: true,
             // Çeviri ve adaptasyon sonuçları (database kayıt için)
             translated_text: translationResult || '',
             adapted_text: adaptedText,
-            // Frontend için camelCase versiyonları da ekle (TEST VALUES)
-            translatedText: translationResult || 'TEST_EMPTY_TRANSLATION',
-            adaptedText: adaptedText || 'TEST_EMPTY_ADAPTED'
+            // Frontend için camelCase versiyonları da ekle
+            translatedText: translationResult || '',
+            adaptedText: adaptedText || '',
+            cleanText: cleanTextForDisplay // Temiz text ayrı field olarak da gönder
         };
-
-        // Final response debug log
-        console.log('📤 [RESPONSE DATA]', {
-            success: responseData.success,
-            hasMessage: !!responseData.message,
-            // Snake case versions
-            hasTranslatedText_snake: !!responseData.translated_text,
-            hasAdaptedText_snake: !!responseData.adapted_text,
-            // Camel case versions  
-            hasTranslatedText_camel: !!responseData.translatedText,
-            hasAdaptedText_camel: !!responseData.adaptedText,
-            // Lengths
-            translatedTextLength_snake: responseData.translated_text ? responseData.translated_text.length : 0,
-            adaptedTextLength_snake: responseData.adapted_text ? responseData.adapted_text.length : 0,
-            translatedTextLength_camel: responseData.translatedText ? responseData.translatedText.length : 0,
-            adaptedTextLength_camel: responseData.adaptedText ? responseData.adaptedText.length : 0,
-            // All field names in response
-            responseKeys: Object.keys(responseData)
-        });
-
+        
+        // DEBUG: Final response'u kontrol et
+        logger.info(`🔍 RESPONSE DEBUG - Timepoints in response: ${responseData.timepoints?.length || 0}`);
+        logger.info(`🔍 Response timepoints sample:`, responseData.timepoints?.slice(0, 3));
+        logger.info(`🔍 Words in response: ${responseData.words?.length || 0}`);
+        logger.info(`🔍 Response fields:`, Object.keys(responseData));
+        
         return res.status(200).json(responseData);
 
     } catch (error) {
@@ -972,10 +1047,11 @@ const getAudioFile = async (req, res) => {
                 .single();
 
             if (contentError || !contentData?.mp3_url) {
-                logger.warn(`❌ Audio file not found in database: ${audioId}. Serving mock audio.`);
-                const mockAudioUrl = "https://file-examples.com/storage/fe68c1b7b1b2e0c2b5b7e8b/2017/11/file_example_MP3_700KB.mp3";
-                logger.info(`🔄 Redirecting to mock audio: ${mockAudioUrl}`);
-                return res.redirect(mockAudioUrl);
+                logger.warn(`❌ Audio file not found in database: ${audioId}`);
+                return res.status(404).json({
+                    success: false,
+                    message: 'Audio file not found'
+                });
             }
 
             // If mp3_url is a Supabase Storage URL, redirect to it
@@ -989,9 +1065,10 @@ const getAudioFile = async (req, res) => {
             }
         } catch (error) {
             logger.error(`❌ Error checking Supabase Storage: ${error.message}`);
-            const mockAudioUrl = "https://file-examples.com/storage/fe68c1b7b1b2e0c2b5b7e8b/2017/11/file_example_MP3_700KB.mp3";
-            logger.info(`🔄 Redirecting to mock audio: ${mockAudioUrl}`);
-            return res.redirect(mockAudioUrl);
+            return res.status(500).json({
+                success: false,
+                message: 'Error retrieving audio file'
+            });
         }
     }
     
@@ -1218,132 +1295,82 @@ const translateToEnglish = async (req, res) => {
   const listVoices = async (req, res) => {
     const ttsProvider = await getTtsProvider();
     if (ttsProvider === 'google') {
-      // Google TTS voices with pricing categories, accent types, and emotion tones
-      const googleVoices = [
-        // Standard voices (Basic) - US
-        { gender: 'male', name: 'en-US-Standard-A', category: 'Standard', package: 'Basic', description: 'Standard Erkek A', accent: 'american', emotion: 'neutral' },
-        { gender: 'male', name: 'en-US-Standard-B', category: 'Standard', package: 'Basic', description: 'Standard Erkek B', accent: 'american', emotion: 'neutral' },
-        { gender: 'female', name: 'en-US-Standard-C', category: 'Standard', package: 'Basic', description: 'Standard Kadın C', accent: 'american', emotion: 'neutral' },
-        { gender: 'male', name: 'en-US-Standard-D', category: 'Standard', package: 'Basic', description: 'Standard Erkek D', accent: 'american', emotion: 'neutral' },
-        { gender: 'female', name: 'en-US-Standard-E', category: 'Standard', package: 'Basic', description: 'Standard Kadın E', accent: 'american', emotion: 'neutral' },
-        { gender: 'female', name: 'en-US-Standard-F', category: 'Standard', package: 'Basic', description: 'Standard Kadın F', accent: 'american', emotion: 'neutral' },
-        { gender: 'female', name: 'en-US-Standard-G', category: 'Standard', package: 'Basic', description: 'Standard Kadın G', accent: 'american', emotion: 'neutral' },
-        { gender: 'female', name: 'en-US-Standard-H', category: 'Standard', package: 'Basic', description: 'Standard Kadın H', accent: 'american', emotion: 'neutral' },
-        { gender: 'male', name: 'en-US-Standard-I', category: 'Standard', package: 'Basic', description: 'Standard Erkek I', accent: 'american', emotion: 'neutral' },
-        { gender: 'male', name: 'en-US-Standard-J', category: 'Standard', package: 'Basic', description: 'Standard Erkek J', accent: 'american', emotion: 'neutral' },
+      try {
+        const { languageCode = 'en-US' } = req.query;
         
-        // Standard voices (Basic) - British
-        { gender: 'female', name: 'en-GB-Standard-A', category: 'Standard', package: 'Basic', description: 'İngiliz Standard Kadın A', accent: 'british', emotion: 'neutral' },
-        { gender: 'male', name: 'en-GB-Standard-B', category: 'Standard', package: 'Basic', description: 'İngiliz Standard Erkek B', accent: 'british', emotion: 'neutral' },
-        { gender: 'female', name: 'en-GB-Standard-C', category: 'Standard', package: 'Basic', description: 'İngiliz Standard Kadın C', accent: 'british', emotion: 'neutral' },
-        { gender: 'male', name: 'en-GB-Standard-D', category: 'Standard', package: 'Basic', description: 'İngiliz Standard Erkek D', accent: 'british', emotion: 'neutral' },
+        logger.info(`🎯 [VOICE LIST] Fetching voices from Google API for language: ${languageCode}`);
         
-        // Standard voices (Basic) - Australian
-        { gender: 'female', name: 'en-AU-Standard-A', category: 'Standard', package: 'Basic', description: 'Avustralya Standard Kadın A', accent: 'australian', emotion: 'neutral' },
-        { gender: 'male', name: 'en-AU-Standard-B', category: 'Standard', package: 'Basic', description: 'Avustralya Standard Erkek B', accent: 'australian', emotion: 'neutral' },
-        { gender: 'female', name: 'en-AU-Standard-C', category: 'Standard', package: 'Basic', description: 'Avustralya Standard Kadın C', accent: 'australian', emotion: 'neutral' },
-        { gender: 'male', name: 'en-AU-Standard-D', category: 'Standard', package: 'Basic', description: 'Avustralya Standard Erkek D', accent: 'australian', emotion: 'neutral' },
+        // Gerçek Google API'den sesleri al
+        const googleVoices = await listGoogleVoices(languageCode);
         
-        // WaveNet voices (Premium) - CORRECTED GENDERS with varied accents and emotions
-        { gender: 'male', name: 'en-US-Wavenet-A', category: 'WaveNet', package: 'Premium', description: 'WaveNet Erkek', accent: 'american', emotion: 'professional' },
-        { gender: 'male', name: 'en-US-Wavenet-B', category: 'WaveNet', package: 'Premium', description: 'WaveNet Erkek 2', accent: 'american', emotion: 'neutral' },
-        { gender: 'female', name: 'en-US-Wavenet-C', category: 'WaveNet', package: 'Premium', description: 'WaveNet Kadın', accent: 'american', emotion: 'friendly' },
-        { gender: 'male', name: 'en-US-Wavenet-D', category: 'WaveNet', package: 'Premium', description: 'WaveNet Erkek 3', accent: 'american', emotion: 'serious' },
-        { gender: 'female', name: 'en-US-Wavenet-E', category: 'WaveNet', package: 'Premium', description: 'WaveNet Kadın 2', accent: 'american', emotion: 'calm' },
-        { gender: 'female', name: 'en-US-Wavenet-F', category: 'WaveNet', package: 'Premium', description: 'WaveNet Kadın 3', accent: 'american', emotion: 'cheerful' },
-        { gender: 'female', name: 'en-US-Wavenet-G', category: 'WaveNet', package: 'Premium', description: 'WaveNet Kadın 4', accent: 'american', emotion: 'neutral' },
-        { gender: 'female', name: 'en-US-Wavenet-H', category: 'WaveNet', package: 'Premium', description: 'WaveNet Kadın 5', accent: 'american', emotion: 'excited' },
-        { gender: 'male', name: 'en-US-Wavenet-I', category: 'WaveNet', package: 'Premium', description: 'WaveNet Erkek 4', accent: 'american', emotion: 'calm' },
-        { gender: 'male', name: 'en-US-Wavenet-J', category: 'WaveNet', package: 'Premium', description: 'WaveNet Erkek 5', accent: 'american', emotion: 'professional' },
+        // SSML desteği istatistikleri
+        const ssmlSupportedCount = googleVoices.filter(voice => voice.ssmlSupport).length;
+        const ssmlUnsupportedCount = googleVoices.filter(voice => !voice.ssmlSupport).length;
         
-        // Neural2 voices (Premium) - US
-        { gender: 'male', name: 'en-US-Neural2-A', category: 'Neural2', package: 'Premium', description: 'Neural2 Erkek', accent: 'american', emotion: 'neutral' },
-        { gender: 'female', name: 'en-US-Neural2-C', category: 'Neural2', package: 'Premium', description: 'Neural2 Kadın', accent: 'american', emotion: 'friendly' },
-        { gender: 'male', name: 'en-US-Neural2-D', category: 'Neural2', package: 'Premium', description: 'Neural2 Erkek 2', accent: 'american', emotion: 'professional' },
-        { gender: 'female', name: 'en-US-Neural2-E', category: 'Neural2', package: 'Premium', description: 'Neural2 Kadın 2', accent: 'american', emotion: 'cheerful' },
-        { gender: 'female', name: 'en-US-Neural2-F', category: 'Neural2', package: 'Premium', description: 'Neural2 Kadın 3', accent: 'american', emotion: 'calm' },
-        { gender: 'female', name: 'en-US-Neural2-G', category: 'Neural2', package: 'Premium', description: 'Neural2 Kadın 4', accent: 'american', emotion: 'excited' },
-        { gender: 'female', name: 'en-US-Neural2-H', category: 'Neural2', package: 'Premium', description: 'Neural2 Kadın 5', accent: 'american', emotion: 'serious' },
-        { gender: 'male', name: 'en-US-Neural2-I', category: 'Neural2', package: 'Premium', description: 'Neural2 Erkek 3', accent: 'american', emotion: 'calm' },
-        { gender: 'male', name: 'en-US-Neural2-J', category: 'Neural2', package: 'Premium', description: 'Neural2 Erkek 4', accent: 'american', emotion: 'friendly' },
+        // Ses kategorilerini sayla
+        const categoryStats = {
+          Basic: googleVoices.filter(voice => voice.package === 'Basic').length,
+          Premium: googleVoices.filter(voice => voice.package === 'Premium').length,
+          Gold: googleVoices.filter(voice => voice.package === 'Gold').length,
+          Platinum: googleVoices.filter(voice => voice.package === 'Platinum').length
+        };
         
-        // Neural2 voices (Premium) - British
-        { gender: 'male', name: 'en-GB-Neural2-B', category: 'Neural2', package: 'Premium', description: 'İngiliz Neural2 Erkek', accent: 'british', emotion: 'professional' },
-        { gender: 'female', name: 'en-GB-Neural2-C', category: 'Neural2', package: 'Premium', description: 'İngiliz Neural2 Kadın', accent: 'british', emotion: 'friendly' },
+        // Paket önceliğine göre sırala
+        const packagePriority = { 'Basic': 1, 'Premium': 2, 'Gold': 3, 'Platinum': 4 };
+        googleVoices.sort((a, b) => {
+          if (packagePriority[a.package] !== packagePriority[b.package]) {
+            return packagePriority[a.package] - packagePriority[b.package];
+          }
+          return a.name.localeCompare(b.name);
+        });
         
-        // Neural2 voices (Premium) - Australian  
-        { gender: 'female', name: 'en-AU-Neural2-A', category: 'Neural2', package: 'Premium', description: 'Avustralya Neural2 Kadın', accent: 'australian', emotion: 'friendly' },
-        { gender: 'female', name: 'en-AU-Neural2-C', category: 'Neural2', package: 'Premium', description: 'Avustralya Neural2 Kadın 2', accent: 'australian', emotion: 'cheerful' },
-        { gender: 'male', name: 'en-AU-Neural2-D', category: 'Neural2', package: 'Premium', description: 'Avustralya Neural2 Erkek', accent: 'australian', emotion: 'calm' },
+        logger.info(`🎯 [VOICE LIST] Retrieved ${googleVoices.length} voices:`);
+        logger.info(`🎯 [VOICE LIST] SSML supported: ${ssmlSupportedCount}, unsupported: ${ssmlUnsupportedCount}`);
+        logger.info(`🎯 [VOICE LIST] Categories:`, categoryStats);
         
-        // Chirp HD voices (Gold) - Old generation with premium characteristics
-        { gender: 'male', name: 'en-US-Chirp-HD-D', category: 'Chirp HD', package: 'Gold', description: 'Chirp HD Erkek', accent: 'american', emotion: 'professional' },
-        { gender: 'female', name: 'en-US-Chirp-HD-F', category: 'Chirp HD', package: 'Gold', description: 'Chirp HD Kadın', accent: 'american', emotion: 'friendly' },
-        { gender: 'female', name: 'en-US-Chirp-HD-O', category: 'Chirp HD', package: 'Gold', description: 'Chirp HD Kadın 2', accent: 'american', emotion: 'cheerful' },
+        return res.json({ 
+          provider: 'google', 
+          voices: googleVoices,
+          stats: {
+            total: googleVoices.length,
+            ssmlSupported: ssmlSupportedCount,
+            ssmlUnsupported: ssmlUnsupportedCount,
+            categories: categoryStats
+          }
+        });
         
-        // Chirp 3 HD voices (Gold) - New generation with star names and premium characteristics
-        { gender: 'female', name: 'en-US-Chirp3-HD-Achernar', category: 'Chirp 3 HD', package: 'Gold', description: 'Chirp 3 HD Kadın (Achernar)', accent: 'american', emotion: 'professional' },
-        { gender: 'male', name: 'en-US-Chirp3-HD-Achird', category: 'Chirp 3 HD', package: 'Gold', description: 'Chirp 3 HD Erkek (Achird)', accent: 'american', emotion: 'serious' },
-        { gender: 'female', name: 'en-US-Chirp3-HD-Aoede', category: 'Chirp 3 HD', package: 'Gold', description: 'Chirp 3 HD Kadın (Aoede)', accent: 'american', emotion: 'cheerful' },
-        { gender: 'female', name: 'en-US-Chirp3-HD-Despina', category: 'Chirp 3 HD', package: 'Gold', description: 'Chirp 3 HD Kadın (Despina)', accent: 'american', emotion: 'calm' },
-        { gender: 'male', name: 'en-US-Chirp3-HD-Charon', category: 'Chirp 3 HD', package: 'Gold', description: 'Chirp 3 HD Erkek (Charon)', accent: 'american', emotion: 'friendly' },
+      } catch (error) {
+        logger.error(`🎯 [VOICE LIST] Error fetching voices: ${error.message}`);
         
-        // Studio voices (Platin) - Premium studio quality
-        { gender: 'male', name: 'en-US-Studio-M', category: 'Studio', package: 'Platin', description: 'Studio Erkek M', accent: 'american', emotion: 'professional' },
-        { gender: 'female', name: 'en-US-Studio-O', category: 'Studio', package: 'Platin', description: 'Studio Kadın O', accent: 'american', emotion: 'professional' },
-        { gender: 'male', name: 'en-US-Studio-Q', category: 'Studio', package: 'Platin', description: 'Studio Erkek Q', accent: 'american', emotion: 'professional' },
-        { gender: 'male', name: 'en-GB-Studio-B', category: 'Studio', package: 'Platin', description: 'İngiliz Studio Erkek', accent: 'british', emotion: 'professional' },
-        { gender: 'female', name: 'en-GB-Studio-C', category: 'Studio', package: 'Platin', description: 'İngiliz Studio Kadın', accent: 'british', emotion: 'professional' },
+        // Fallback: static voice list with SSML support
+        const fallbackVoices = [
+          { name: 'en-US-Standard-C', displayName: 'US English Female (Standard)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
+          { name: 'en-US-Standard-D', displayName: 'US English Male (Standard)', gender: 'MALE', languageCode: 'en-US', accent: 'US', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
+          { name: 'en-US-Wavenet-F', displayName: 'US English Female (Wavenet)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-US-Wavenet-A', displayName: 'US English Male (Wavenet)', gender: 'MALE', languageCode: 'en-US', accent: 'US', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Standard-A', displayName: 'UK English Female (Standard)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
+          { name: 'en-GB-Standard-B', displayName: 'UK English Male (Standard)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
+          { name: 'en-GB-Wavenet-B', displayName: 'UK English Male (Wavenet)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Wavenet-C', displayName: 'UK English Female (Wavenet)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Natural', ssmlSupport: true, package: 'Premium' }
+        ];
         
-        // Journey voices (Chirp 3D - Gold) - Advanced 3D audio technology
-        { gender: 'female', name: 'en-US-Journey-D', category: 'Chirp 3D', package: 'Gold', description: 'Journey Kadın D', accent: 'american', emotion: 'natural' },
-        { gender: 'male', name: 'en-US-Journey-O', category: 'Chirp 3D', package: 'Gold', description: 'Journey Erkek O', accent: 'american', emotion: 'natural' },
-        { gender: 'female', name: 'en-GB-Journey-F', category: 'Chirp 3D', package: 'Gold', description: 'İngiliz Journey Kadın', accent: 'british', emotion: 'natural' },
-        { gender: 'male', name: 'en-GB-Journey-M', category: 'Chirp 3D', package: 'Gold', description: 'İngiliz Journey Erkek', accent: 'british', emotion: 'natural' },
+        const ssmlSupportedCount = fallbackVoices.filter(voice => voice.ssmlSupport).length;
+        const ssmlUnsupportedCount = fallbackVoices.filter(voice => !voice.ssmlSupport).length;
         
-        // News voices (Premium) with news-specific characteristics
-        { gender: 'female', name: 'en-US-News-K', category: 'News', package: 'Premium', description: 'Haber Kadın Sesi', accent: 'american', emotion: 'professional' },
-        { gender: 'female', name: 'en-US-News-L', category: 'News', package: 'Premium', description: 'Haber Kadın Sesi 2', accent: 'american', emotion: 'serious' },
-        { gender: 'male', name: 'en-US-News-N', category: 'News', package: 'Premium', description: 'Haber Erkek Sesi', accent: 'american', emotion: 'professional' },
+        logger.info(`🎯 [VOICE LIST] Using fallback voice list with ${fallbackVoices.length} voices (Google API unavailable)`);
+        logger.info(`🎯 [VOICE LIST] Fallback SSML supported: ${ssmlSupportedCount}, unsupported: ${ssmlUnsupportedCount}`);
         
-        // Polyglot voices (Premium) with international characteristics
-        { gender: 'male', name: 'en-US-Polyglot-1', category: 'Polyglot', package: 'Premium', description: 'Çok Dilli Erkek', accent: 'international', emotion: 'neutral' },
-        
-        // British accent voices (REAL Google TTS voices)
-        { gender: 'female', name: 'en-GB-Wavenet-A', category: 'WaveNet', package: 'Premium', description: 'İngiliz Aksanlı Kadın', accent: 'british', emotion: 'professional' },
-        { gender: 'male', name: 'en-GB-Wavenet-B', category: 'WaveNet', package: 'Premium', description: 'İngiliz Aksanlı Erkek', accent: 'british', emotion: 'professional' },
-        { gender: 'female', name: 'en-GB-Wavenet-C', category: 'WaveNet', package: 'Premium', description: 'İngiliz Aksanlı Kadın 2', accent: 'british', emotion: 'friendly' },
-        { gender: 'male', name: 'en-GB-Wavenet-D', category: 'WaveNet', package: 'Premium', description: 'İngiliz Aksanlı Erkek 2', accent: 'british', emotion: 'calm' },
-        
-        // Australian accent voices (REAL Google TTS voices)
-        { gender: 'female', name: 'en-AU-Wavenet-A', category: 'WaveNet', package: 'Premium', description: 'Avustralya Aksanlı Kadın', accent: 'australian', emotion: 'cheerful' },
-        { gender: 'male', name: 'en-AU-Wavenet-B', category: 'WaveNet', package: 'Premium', description: 'Avustralya Aksanlı Erkek', accent: 'australian', emotion: 'friendly' },
-        { gender: 'female', name: 'en-AU-Wavenet-C', category: 'WaveNet', package: 'Premium', description: 'Avustralya Aksanlı Kadın 2', accent: 'australian', emotion: 'neutral' },
-        { gender: 'male', name: 'en-AU-Wavenet-D', category: 'WaveNet', package: 'Premium', description: 'Avustralya Aksanlı Erkek 2', accent: 'australian', emotion: 'calm' },
-        
-        // Canadian accent voices (REAL Google TTS voices)
-        { gender: 'female', name: 'en-CA-Wavenet-A', category: 'WaveNet', package: 'Premium', description: 'Kanada Aksanlı Kadın', accent: 'canadian', emotion: 'friendly' },
-        { gender: 'male', name: 'en-CA-Wavenet-B', category: 'WaveNet', package: 'Premium', description: 'Kanada Aksanlı Erkek', accent: 'canadian', emotion: 'calm' },
-        { gender: 'female', name: 'en-CA-Wavenet-C', category: 'WaveNet', package: 'Premium', description: 'Kanada Aksanlı Kadın 2', accent: 'canadian', emotion: 'professional' },
-        { gender: 'male', name: 'en-CA-Wavenet-D', category: 'WaveNet', package: 'Premium', description: 'Kanada Aksanlı Erkek 2', accent: 'canadian', emotion: 'neutral' },
-        
-        // Indian accent voices (REAL Google TTS voices)
-        { gender: 'female', name: 'en-IN-Wavenet-A', category: 'WaveNet', package: 'Premium', description: 'Hint Aksanlı Kadın', accent: 'indian', emotion: 'professional' },
-        { gender: 'male', name: 'en-IN-Wavenet-B', category: 'WaveNet', package: 'Premium', description: 'Hint Aksanlı Erkek', accent: 'indian', emotion: 'professional' },
-        { gender: 'female', name: 'en-IN-Wavenet-C', category: 'WaveNet', package: 'Premium', description: 'Hint Aksanlı Kadın 2', accent: 'indian', emotion: 'friendly' },
-        { gender: 'male', name: 'en-IN-Wavenet-D', category: 'WaveNet', package: 'Premium', description: 'Hint Aksanlı Erkek 2', accent: 'indian', emotion: 'calm' },
-      ];
-      
-      // Sort voices by package priority then by name
-      const packagePriority = { 'Basic': 1, 'Premium': 2, 'Gold': 3, 'Platin': 4 };
-      googleVoices.sort((a, b) => {
-        if (packagePriority[a.package] !== packagePriority[b.package]) {
-          return packagePriority[a.package] - packagePriority[b.package];
-        }
-        return a.name.localeCompare(b.name);
-      });
-      
-      return res.json({ provider: 'google', voices: googleVoices });
+        return res.json({ 
+          provider: 'google', 
+          voices: fallbackVoices,
+          fallback: true,
+          stats: {
+            total: fallbackVoices.length,
+            ssmlSupported: ssmlSupportedCount,
+            ssmlUnsupported: ssmlUnsupportedCount
+          }
+        });
+      }
     } else {
       logger.error(`Unsupported TTS provider: ${ttsProvider}`);
       return res.status(500).json({ success: false, message: `Unsupported TTS provider: ${ttsProvider}` });
@@ -1353,7 +1380,7 @@ const translateToEnglish = async (req, res) => {
   // Filtrelenmiş ses listesi endpointi
   const getFilteredVoices = async (req, res) => {
     try {
-      const { accent, emotion, gender } = req.query;
+      const { accent, emotion, gender, ssmlSupport } = req.query;
       
       // Önce tüm sesleri al
       const mockReq = {};
@@ -1361,8 +1388,28 @@ const translateToEnglish = async (req, res) => {
         json: (data) => data
       };
       
-      const allVoicesResponse = await listVoices(mockReq, mockRes);
-      const allVoices = allVoicesResponse.voices;
+      let allVoicesResponse;
+      let allVoices;
+      
+      try {
+        allVoicesResponse = await listVoices(mockReq, mockRes);
+        allVoices = allVoicesResponse.voices;
+      } catch (voiceError) {
+        logger.error(`Error fetching voices from Google API: ${voiceError.message}`);
+        
+        // Fallback: hardcoded voice list with SSML support info
+        allVoices = [
+          { name: 'en-US-Standard-C', gender: 'FEMALE', accent: 'US', emotion: 'Standard', ssmlSupport: false },
+          { name: 'en-US-Standard-D', gender: 'MALE', accent: 'US', emotion: 'Standard', ssmlSupport: false },
+          { name: 'en-US-Wavenet-F', gender: 'FEMALE', accent: 'US', emotion: 'Natural', ssmlSupport: true },
+          { name: 'en-US-Wavenet-A', gender: 'MALE', accent: 'US', emotion: 'Natural', ssmlSupport: true },
+          { name: 'en-GB-Standard-A', gender: 'FEMALE', accent: 'GB', emotion: 'Standard', ssmlSupport: false },
+          { name: 'en-GB-Standard-B', gender: 'MALE', accent: 'GB', emotion: 'Standard', ssmlSupport: false },
+          { name: 'en-GB-Wavenet-B', gender: 'MALE', accent: 'GB', emotion: 'Natural', ssmlSupport: true },
+          { name: 'en-GB-Wavenet-C', gender: 'FEMALE', accent: 'GB', emotion: 'Natural', ssmlSupport: true }
+        ];
+        logger.info('🎯 [VOICE FILTER] Using fallback voice list');
+      }
       
       // Filtreleme uygula
       let filteredVoices = allVoices;
@@ -1379,15 +1426,33 @@ const translateToEnglish = async (req, res) => {
         filteredVoices = filteredVoices.filter(voice => voice.gender === gender);
       }
       
-      logger.info(`🎯 [VOICE FILTER] Applied filters - accent: ${accent}, emotion: ${emotion}, gender: ${gender}`);
+      // SSML desteği filtresi
+      if (ssmlSupport === 'true') {
+        filteredVoices = filteredVoices.filter(voice => voice.ssmlSupport === true);
+        logger.info(`🎯 [VOICE FILTER] SSML Support filter applied - only SSML-compatible voices`);
+      } else if (ssmlSupport === 'false') {
+        filteredVoices = filteredVoices.filter(voice => voice.ssmlSupport === false);
+        logger.info(`🎯 [VOICE FILTER] SSML Support filter applied - only non-SSML voices`);
+      }
+      
+      logger.info(`🎯 [VOICE FILTER] Applied filters - accent: ${accent}, emotion: ${emotion}, gender: ${gender}, ssmlSupport: ${ssmlSupport}`);
       logger.info(`🎯 [VOICE FILTER] Filtered voices count: ${filteredVoices.length} / ${allVoices.length}`);
+      
+      // SSML destekli/desteksiz sesler sayısını hesapla
+      const ssmlSupportedCount = filteredVoices.filter(voice => voice.ssmlSupport === true).length;
+      const ssmlUnsupportedCount = filteredVoices.filter(voice => voice.ssmlSupport === false).length;
       
       return res.json({ 
         provider: 'google', 
         voices: filteredVoices,
-        filters: { accent, emotion, gender },
+        filters: { accent, emotion, gender, ssmlSupport },
         totalCount: allVoices.length,
-        filteredCount: filteredVoices.length
+        filteredCount: filteredVoices.length,
+        ssmlStats: {
+          supported: ssmlSupportedCount,
+          unsupported: ssmlUnsupportedCount,
+          total: filteredVoices.length
+        }
       });
       
     } catch (error) {
@@ -1432,6 +1497,41 @@ const translateToEnglish = async (req, res) => {
         error: error.message
       });
     }
+  };
+  
+  // Helper function to create word-level VTT file from optimized timings
+  const createWordLevelVTTFromOptimizedTimings = (wordTimings, cleanWords, originalWords) => {
+    let vttContent = 'WEBVTT\n\n';
+    
+    // Format time as MM:SS.mmm
+    const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        const millisecs = Math.floor((seconds % 1) * 1000);
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${millisecs.toString().padStart(3, '0')}`;
+    };
+    
+    // Her temiz kelime için VTT cue oluştur
+    wordTimings.forEach((timing, index) => {
+        // Timing'de endTimeSeconds kullan
+        const startTime = timing.timeSeconds || timing.startTime || 0;
+        const endTime = timing.endTimeSeconds || timing.endTime || (startTime + 0.5);
+        
+        vttContent += `${formatTime(startTime)} --> ${formatTime(endTime)}\n`;
+        vttContent += `${timing.word}\n\n`;
+    });
+    
+    return vttContent;
+  };
+  
+  // Helper function to create optimized timepoints for frontend
+  const createOptimizedTimepoints = (wordTimings) => {
+    return wordTimings.map((timing, index) => ({
+        timeSeconds: timing.timeSeconds || timing.startTime || 0,
+        endTimeSeconds: timing.endTimeSeconds || timing.endTime || (timing.timeSeconds + 0.5),
+        word: timing.word,
+        index: index
+    }));
   };
   
   module.exports = {
