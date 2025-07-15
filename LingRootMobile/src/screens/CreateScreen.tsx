@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   FlatList,
+  Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -82,7 +83,42 @@ const CreateScreen: React.FC = () => {
       if (voices.length > 0) {
         console.log('🎯 [VOICE DEBUG] Available voices loaded:', voices.length);
         console.log('🎯 [VOICE DEBUG] First voice:', voices[0]);
-        setAvailableVoices(voices);
+        
+        // Voice category'lerini otomatik olarak belirle
+        const processedVoices = voices.map((voice: any) => {
+          let category = voice.category;
+          
+          // Eğer category yoksa, voice name'den belirle
+          if (!category) {
+            const voiceName = voice.name || voice.id || '';
+            
+            if (voiceName.includes('Chirp') || voiceName.includes('chirp')) {
+              category = 'chirp3d';
+            } else if (voiceName.includes('Studio')) {
+              category = 'studio';
+            } else if (voiceName.includes('Neural2') || voiceName.includes('neural2')) {
+              category = 'neural2';
+            } else if (voiceName.includes('Wavenet') || voiceName.includes('wavenet')) {
+              category = 'wavenet';
+            } else {
+              category = 'standard';
+            }
+          }
+          
+          return {
+            ...voice,
+            category: category,
+            // Eğer accent yoksa varsayılan olarak american
+            accent: voice.accent || 'american',
+            // Eğer gender yoksa varsayılan olarak female
+            gender: voice.gender || 'female'
+          };
+        });
+        
+        console.log('🎯 [VOICE DEBUG] Processed voices with categories:', processedVoices.length);
+        console.log('🎯 [VOICE DEBUG] Sample processed voice:', processedVoices[0]);
+        
+        setAvailableVoices(processedVoices);
       } else {
         console.error('🎯 [VOICE DEBUG] No voices found in response:', response);
       }
@@ -94,13 +130,42 @@ const CreateScreen: React.FC = () => {
   };
 
   // Fetch filtered voices
-  const fetchFilteredVoices = async (accent?: string, gender?: string) => {
+  const fetchFilteredVoices = async (accent?: string, gender?: string, category?: string) => {
     setLoadingVoices(true);
     try {
-      const response = await apiService.getFilteredVoices(accent, gender);
+      const response = await apiService.getFilteredVoices(accent, gender, undefined, category);
       if (response.success && response.data) {
-        setAvailableVoices(response.data);
-        console.log('✅ Loaded filtered voices:', response.data.length);
+        // Voice category'lerini otomatik olarak belirle
+        const processedVoices = response.data.map((voice: any) => {
+          let category = voice.category;
+          
+          // Eğer category yoksa, voice name'den belirle
+          if (!category) {
+            const voiceName = voice.name || voice.id || '';
+            
+            if (voiceName.includes('Chirp') || voiceName.includes('chirp')) {
+              category = 'chirp3d';
+            } else if (voiceName.includes('Studio')) {
+              category = 'studio';
+            } else if (voiceName.includes('Neural2') || voiceName.includes('neural2')) {
+              category = 'neural2';
+            } else if (voiceName.includes('Wavenet') || voiceName.includes('wavenet')) {
+              category = 'wavenet';
+            } else {
+              category = 'standard';
+            }
+          }
+          
+          return {
+            ...voice,
+            category: category,
+            accent: voice.accent || 'american',
+            gender: voice.gender || 'female'
+          };
+        });
+        
+        setAvailableVoices(processedVoices);
+        console.log('✅ Loaded filtered voices with categories:', processedVoices.length);
       }
     } catch (error) {
       console.error('❌ Error loading filtered voices:', error);
@@ -110,21 +175,13 @@ const CreateScreen: React.FC = () => {
   };
 
   const getFilteredVoicesByCategory = () => {
-    const filtered = availableVoices.filter(voice => {
-      const categoryMatch = voice.category === selectedVoiceCategory;
-      const accentMatch = selectedAccent === 'all' || voice.accent === selectedAccent;
-      const genderMatch = selectedGender === 'all' || voice.gender === selectedGender;
-      
-      console.log('🎯 [FILTER DEBUG] Voice:', voice.name, 'Category:', voice.category, 'Selected:', selectedVoiceCategory, 'Match:', categoryMatch);
-      
-      return categoryMatch && accentMatch && genderMatch;
-    });
-    
-    console.log('🎯 [FILTER DEBUG] Total voices:', availableVoices.length);
-    console.log('🎯 [FILTER DEBUG] Filtered voices:', filtered.length);
+    // Backend'den gelen sesler zaten filtrelenmiş olur, direkt kullan
+    console.log('🎯 [FILTER DEBUG] Using backend filtered voices:', availableVoices.length);
     console.log('🎯 [FILTER DEBUG] Selected category:', selectedVoiceCategory);
+    console.log('🎯 [FILTER DEBUG] Selected gender:', selectedGender);
     
-    return filtered;
+    // Backend'den gelen sesleri direkt döndür (zaten filtrelenmiş)
+    return availableVoices;
   };
 
   // Load voices on component mount
@@ -134,12 +191,18 @@ const CreateScreen: React.FC = () => {
 
   // Update filtered voices when filters change
   useEffect(() => {
-    if (selectedAccent !== 'all' || selectedGender !== 'all') {
+    // Eğer kategori seçiliyse ve accent/gender filtresi de varsa, backend'den filtrele
+    if (selectedVoiceCategory !== 'standard' && (selectedAccent !== 'all' || selectedGender !== 'all')) {
+      // Hem kategori hem de accent/gender filtresi varsa backend'den filtrele
+      fetchFilteredVoices(selectedAccent, selectedGender, selectedVoiceCategory);
+    } else if (selectedAccent !== 'all' || selectedGender !== 'all') {
+      // Sadece accent/gender filtresi varsa backend'den filtrele
       fetchFilteredVoices(selectedAccent, selectedGender);
     } else {
+      // Hiç filtre yoksa veya sadece kategori filtresi varsa tüm sesleri getir
       fetchAvailableVoices();
     }
-  }, [selectedAccent, selectedGender]);
+  }, [selectedAccent, selectedGender, selectedVoiceCategory]);
 
   const handleCreateAudio = async () => {
     if (!inputText.trim() && !selectedFile) {
@@ -496,11 +559,10 @@ const CreateScreen: React.FC = () => {
               {loadingVoices ? (
                 <ActivityIndicator size="large" color="#007AFF" style={styles.voiceLoader} />
               ) : (
-                <FlatList
-                  data={getFilteredVoicesByCategory()}
-                  keyExtractor={(item) => item.name}
-                  renderItem={({ item }) => (
+                <ScrollView style={styles.voiceList}>
+                  {getFilteredVoicesByCategory().map((item) => (
                     <TouchableOpacity
+                      key={item.name}
                       style={[
                         styles.voiceItem,
                         selectedVoice === item.name && styles.voiceItemActive,
@@ -526,9 +588,8 @@ const CreateScreen: React.FC = () => {
                         <Icon name="check" size={20} color="#007AFF" />
                       )}
                     </TouchableOpacity>
-                  )}
-                  style={styles.voiceList}
-                />
+                  ))}
+                </ScrollView>
               )}
             </View>
           </View>
@@ -871,19 +932,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1000,
   },
   voiceModalContent: {
     backgroundColor: 'white',
     borderRadius: 16,
     padding: 20,
     width: '90%',
-    maxHeight: '80%',
+    maxHeight: '70%',
   },
   voiceModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
   voiceModalTitle: {
     fontSize: 18,

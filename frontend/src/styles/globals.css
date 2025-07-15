@@ -63,4 +63,33 @@
   .page-container {
     @apply max-w-screen-lg mx-auto flex flex-col justify-start;
   }
+
+  /* Screen reader only utility class for accessibility */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Word synchronization specific styles */
+  .word-sync-container {
+    contain: layout style;
+    will-change: auto;
+  }
+
+  .word-sync-word {
+    will-change: transform, background-color;
+    transition: all 75ms ease-in-out;
+    transform-origin: center;
+  }
+
+  .word-sync-word.active {
+    will-change: transform, background-color, box-shadow;
+  }
 }

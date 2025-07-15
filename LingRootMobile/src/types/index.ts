@@ -109,6 +109,7 @@ export type RootStackParamList = {
   Register: undefined;
   Profile: undefined;
   Settings: undefined;
+  Vocabulary: undefined;
 };
 
 export type MainTabParamList = {
@@ -117,6 +118,7 @@ export type MainTabParamList = {
   Create: undefined;
   Suggestions: undefined;
   Profile: undefined;
+  Vocabulary: undefined;
 };
 
 // API Response Types

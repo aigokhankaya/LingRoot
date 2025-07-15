@@ -37,6 +37,7 @@ interface ContentTypeOption {
 }
 
 interface AudioResult {
+  success?: boolean;
   message: string;
   mp3_url: string;
   vtt_url: string;
@@ -139,7 +140,6 @@ const Welcome: React.FC = () => {
   const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('standard');
   const [selectedGender, setSelectedGender] = useState<string>('all');
   const [selectedAccent, setSelectedAccent] = useState<string>('all');
-  const [ssmlFilter, setSsmlFilter] = useState<string>('all'); // all, true, false
   
   // Kitap arama ve seçim state'leri
   const [bookSearchQuery, setBookSearchQuery] = useState<string>('');
@@ -269,46 +269,27 @@ const Welcome: React.FC = () => {
     { value: 'australian', label: 'Avustralya' }
   ];
 
-  const ssmlOptions = [
-    { value: 'all', label: 'Tümü' },
-    { value: 'true', label: 'SSML Destekler' },
-    { value: 'false', label: 'SSML Desteklemez' }
-  ];
+
 
   // Filtrelenmiş sesler için yardımcı fonksiyon
   const getFilteredVoices = () => {
-    // Backend'den gelen sesleri kullan, yoksa hardcoded ses verilerini kullan
-    let voicesToFilter = [];
-    
+    // Backend'den gelen sesler zaten filtrelenmiş olarak gelir
+    // Bu fonksiyon sadece backend'den gelen sesleri gösterir
     if (availableVoices.length > 0) {
-      // Backend voices var ise onları kullan
-      voicesToFilter = availableVoices;
+      console.log('🔍 Backend\'den filtrelenmiş sesler:', availableVoices.length);
+      return availableVoices;
     } else {
-      // Yoksa hardcoded verileri kullan
+      // Fallback: backend çalışmıyorsa hardcoded sesler (sadece geliştirme için)
+      console.log('🔍 Fallback - hardcoded sesler kullanılıyor');
       const categoryVoices = detailedVoices[selectedVoiceCategory as keyof typeof detailedVoices] || [];
-      voicesToFilter = categoryVoices;
+      
+      return categoryVoices.filter(voice => {
+        const genderMatch = selectedGender === 'all' || voice.gender === selectedGender;
+        const accentMatch = selectedAccent === 'all' || voice.accent === selectedAccent;
+        
+        return genderMatch && accentMatch;
+      });
     }
-    
-    return voicesToFilter.filter(voice => {
-      // Gender filtreleme
-      const genderMatch = selectedGender === 'all' || voice.gender === selectedGender;
-      
-      // Accent filtreleme (backend'de accent yerine accent.code var olabilir)
-      const voiceAccent = voice.accent || voice.languageCode || '';
-      const accentMatch = selectedAccent === 'all' || 
-        voiceAccent.includes(selectedAccent) ||
-        voice.accent === selectedAccent;
-      
-      // SSML filtreleme
-      const ssmlMatch = ssmlFilter === 'all' || 
-        (ssmlFilter === 'true' && voice.ssmlSupport === true) ||
-        (ssmlFilter === 'false' && voice.ssmlSupport === false);
-      
-      // Category filtreleme (backend verileri için)
-      const categoryMatch = !voice.category || voice.category === selectedVoiceCategory;
-      
-      return genderMatch && accentMatch && ssmlMatch && categoryMatch;
-    });
   };
 
   // URL conversion fonksiyonu
@@ -396,10 +377,10 @@ const Welcome: React.FC = () => {
   };
 
   // Filtrelenmiş sesleri çeken fonksiyon
-  const fetchFilteredVoices = async (accent?: string, emotion?: string, gender?: string, ssmlSupport?: string) => {
+  const fetchFilteredVoices = async (accent?: string, emotion?: string, gender?: string, category?: string) => {
     setLoadingVoices(true);
     try {
-      console.log('🎯 Filtrelenmiş sesler çekiliyor...', { accent, emotion, gender, ssmlSupport });
+      console.log('🎯 Filtrelenmiş sesler çekiliyor...', { accent, emotion, gender, category });
       
       // API endpoint'ini belirle
       const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
@@ -411,7 +392,7 @@ const Welcome: React.FC = () => {
       if (accent && accent !== 'all') params.append('accent', accent);
       if (emotion && emotion !== 'all') params.append('emotion', emotion);
       if (gender && gender !== 'all') params.append('gender', gender);
-      if (ssmlSupport && ssmlSupport !== 'all') params.append('ssmlSupport', ssmlSupport);
+      if (category && category !== 'all') params.append('category', category);
       
       const apiUrl = `${baseUrl}?${params.toString()}`;
       console.log('🔗 Filter API URL:', apiUrl);
@@ -455,21 +436,21 @@ const Welcome: React.FC = () => {
 
   // Filtreler değiştiğinde sesleri yeniden çek
   useEffect(() => {
-    const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || ssmlFilter !== 'all' || emotionType !== 'all';
+    const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || emotionType !== 'all' || selectedVoiceCategory !== 'standard';
     
     if (hasActiveFilters) {
       console.log('🎯 Filtre değişti, sesler yeniden çekiliyor...', { 
         selectedAccent, 
         selectedGender, 
-        ssmlFilter, 
-        emotionType 
+        emotionType,
+        selectedVoiceCategory
       });
-      fetchFilteredVoices(selectedAccent, emotionType, selectedGender, ssmlFilter);
+      fetchFilteredVoices(selectedAccent, emotionType, selectedGender, selectedVoiceCategory);
     } else {
       console.log('🔄 Tüm filtreler kaldırıldı, tüm sesler çekiliyor...');
       fetchAvailableVoices();
     }
-  }, [selectedAccent, selectedGender, ssmlFilter, emotionType]);
+  }, [selectedAccent, selectedGender, emotionType, selectedVoiceCategory]);
 
   // Content history'yi çeken fonksiyon
   const fetchContentHistory = async () => {
@@ -726,7 +707,19 @@ const Welcome: React.FC = () => {
         }
       }
 
+      console.log('🔄 [DEBUG] About to call processTts with:', processInput);
       const result = await processTts(processInput);
+      console.log('✅ [DEBUG] processTts completed with result:', result);
+      
+      // CRITICAL DEBUG: Check why setAudioResult is not called
+      console.log('🚨 [CRITICAL DEBUG] Validation checks:', {
+        hasResult: !!result,
+        resultType: typeof result,
+        hasMP3Url: !!result?.mp3_url,
+        mp3UrlValue: result?.mp3_url,
+        mp3UrlType: typeof result?.mp3_url,
+        conditionResult: !!(result && result.mp3_url)
+      });
       
       // Debug: TTS sonucunu logla
       console.log('🔍 [FRONTEND DEBUG] Full TTS Result:', result);
@@ -760,7 +753,14 @@ const Welcome: React.FC = () => {
           wordsLength: result.words?.length || 0
         });
         
+        console.log('🚀 [DEBUG] About to call setAudioResult with:', {
+          mp3_url: result.mp3_url,
+          timepoints_length: result.timepoints?.length,
+          words_length: result.words?.length
+        });
+        
         setAudioResult({
+          success: true,
           message: result.message || t('audio_generated_success'),
           mp3_url: result.mp3_url,
           vtt_url: result.vtt_url,
@@ -772,7 +772,7 @@ const Welcome: React.FC = () => {
         });
         
         // DEBUG: setAudioResult sonrası kontrol
-        console.log('🔍 [WELCOME DEBUG] After setAudioResult called');
+        console.log('✅ [DEBUG] setAudioResult called successfully');
         
         // Input değerini belirle - kitap bölümü için chapter title kullan
         let input = processInput.input || inputData.input || inputData.text;
@@ -1672,31 +1672,9 @@ const Welcome: React.FC = () => {
                   </div>
 
                   {/* SSML Desteği Filtresi */}
-                  <div className="mb-6">
-                    <h4 className="text-md font-medium text-gray-600 mb-2">
-                      <i className="fas fa-code mr-2"></i>
-                      SSML Desteği
-                    </h4>
-                    <div className="grid grid-cols-3 gap-2">
-                      {ssmlOptions.map((option) => (
-                        <Button
-                          key={option.value}
-                          onClick={() => setSsmlFilter(option.value)}
-                          variant={ssmlFilter === option.value ? "default" : "outline"}
-                          size="sm"
-                          className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                            ssmlFilter === option.value ? 'bg-blue-600' : ''
-                          }`}
-                        >
-                          {option.label}
-                        </Button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      <i className="fas fa-info-circle mr-1"></i>
-                      SSML destekleyen sesler daha gelişmiş kelime senkronizasyonu sağlar
-                    </p>
-                  </div>
+
+
+
                 </div>
 
                 {/* Sağ Kolon - Ses Kategorisi */}
@@ -1755,14 +1733,14 @@ const Welcome: React.FC = () => {
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-md font-medium text-gray-600">Mevcut Sesler</h4>
                   {/* Aktif Filtre Göstergesi */}
-                  {(selectedAccent !== 'all' || selectedGender !== 'all' || ssmlFilter !== 'all') && (
+                  {(selectedAccent !== 'all' || selectedGender !== 'all' || selectedVoiceCategory !== 'standard') && (
                     <div className="flex items-center space-x-2 text-xs">
                       <i className="fas fa-filter text-blue-600"></i>
                       <span className="text-blue-600 font-medium">
                         Filtre aktif:
+                        {selectedVoiceCategory !== 'standard' && ` ${selectedVoiceCategory.charAt(0).toUpperCase() + selectedVoiceCategory.slice(1)}`}
                         {selectedAccent !== 'all' && ` ${selectedAccent}`}
                         {selectedGender !== 'all' && ` ${selectedGender}`}
-                        {ssmlFilter !== 'all' && ` ${ssmlFilter === 'true' ? 'SSML' : 'No-SSML'}`}
                       </span>
                     </div>
                   )}
@@ -1965,6 +1943,14 @@ const Welcome: React.FC = () => {
                         <div 
                           className="p-4 cursor-pointer hover:bg-gray-100 transition-colors"
                           onClick={() => {
+                            console.log('🎯 [HISTORY DEBUG] Item clicked:', {
+                              itemId: item.id,
+                              currentExpanded: expandedHistoryItem,
+                              willBeExpanded: expandedHistoryItem === item.id ? null : item.id,
+                              mp3_url: item.mp3_url,
+                              hasTimepoints: !!item.timepoints,
+                              timepointsLength: item.timepoints?.length || 0
+                            });
                             setExpandedHistoryItem(expandedHistoryItem === item.id ? null : item.id);
                           }}
                         >
@@ -2016,16 +2002,11 @@ const Welcome: React.FC = () => {
                         {/* Expanded Player View - Toggleable */}
                         {expandedHistoryItem === item.id && (
                           <div className="border-t border-gray-200 bg-white p-6">
-                            <div className="flex items-center mb-4">
-                              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-bold mr-3">
-                                <i className="fas fa-play text-sm"></i>
-                              </div>
-                              <h3 className="text-lg font-semibold text-green-600">Senkronize Oynatıcı</h3>
-                            </div>
+                            {/* GİZLENDİ - Senkronize Oynatıcı başlığı ve debug console.log */}
                             
                             {/* Use OutputSection component for full functionality */}
-                            <OutputSection 
-                              audioResult={{
+                            {(() => {
+                              const audioResult = {
                                 message: item.adapted_text || item.input,
                                 mp3_url: item.mp3_url,
                                 vtt_url: item.mp3_url.replace('.mp3', '.vtt'), // Assume VTT exists
@@ -2034,9 +2015,25 @@ const Welcome: React.FC = () => {
                                 words: item.words || (item.adapted_text || item.input).split(/\s+/).filter(word => word.length > 0),
                                 original_turkish: item.input,
                                 speaking_rate: 1.0
-                              }}
+                              };
+                              
+                              console.log('🔍 [OUTPUT DEBUG] About to pass to OutputSection:', {
+                                hasMessage: !!audioResult.message,
+                                hasMp3Url: !!audioResult.mp3_url,
+                                messageLength: audioResult.message?.length || 0,
+                                timepointsLength: audioResult.timepoints?.length || 0,
+                                wordsLength: audioResult.words?.length || 0,
+                                mp3_url: audioResult.mp3_url,
+                                firstFewWords: audioResult.words?.slice(0, 5)
+                              });
+                              
+                              return (
+                                <OutputSection 
+                                  audioResult={audioResult}
                               isLoggedIn={isAuthenticated}
                             />
+                              );
+                            })()}
 
                             {/* Quick actions */}
                             <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">

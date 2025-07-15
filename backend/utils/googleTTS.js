@@ -94,6 +94,142 @@ function generateSSMLWithOptimizedMarks(text) {
 }
 
 /**
+ * Google TTS destekli sesleri getirir - SSML desteği bilgisi ile
+ * @param {string} [languageCode] - opsiyonel, sadece belirli bir dil için
+ * @returns {Promise<Array>} Array of voice objects with SSML support info
+ */
+async function listGoogleVoices(languageCode = 'en-US') {
+  if (!ttsClient) {
+    throw new Error('Google TTS client not initialized');
+  }
+
+  try {
+    logger.info(`Fetching Google TTS voices for language: ${languageCode}`);
+    
+    const [result] = await ttsClient.listVoices({
+      languageCode: languageCode
+    });
+
+    // SSML desteklemeyen sesler listesi
+    const ssmlUnsupportedVoices = ['Journey', 'Chirp', 'Studio'];
+
+    const voices = result.voices.map(voice => {
+      // SSML desteği kontrolü
+      const ssmlSupport = !ssmlUnsupportedVoices.some(unsupported => voice.name.includes(unsupported));
+      
+      // Kategorileri belirle
+      let package, emotion, accent;
+      
+      // Paket belirleme
+      if (voice.name.includes('Journey')) {
+        package = 'Premium';
+        emotion = 'Natural';
+      } else if (voice.name.includes('Chirp')) {
+        package = 'Gold';
+        emotion = 'Advanced';
+      } else if (voice.name.includes('Studio')) {
+        package = 'Platinum';
+        emotion = 'Professional';
+      } else if (voice.name.includes('Wavenet')) {
+        package = 'Premium';
+        emotion = 'Natural';
+      } else if (voice.name.includes('Neural2')) {
+        package = 'Premium';
+        emotion = 'Advanced';
+      } else if (voice.name.includes('Standard')) {
+        package = 'Basic';
+        emotion = 'Standard';
+      } else {
+        package = 'Basic';
+        emotion = 'Standard';
+      }
+      
+      // Accent belirleme (dil kodundan)
+      accent = 'GENERIC';
+      if (voice.languageCodes && voice.languageCodes.length > 0) {
+        const langParts = voice.languageCodes[0].split('-');
+        if (langParts.length > 1) {
+          accent = langParts[1].toUpperCase();
+        }
+      }
+
+      return {
+        name: voice.name,
+        displayName: voice.name.replace(/^[a-z]{2}-[A-Z]{2}-/, ''),
+        languageCode: voice.languageCodes && voice.languageCodes.length > 0 ? voice.languageCodes[0] : 'en-US',
+        languageCodes: voice.languageCodes || ['en-US'],
+        gender: voice.ssmlGender,
+        ssmlGender: voice.ssmlGender,
+        ssmlSupport: ssmlSupport,
+        package: package,
+        emotion: emotion,
+        accent: accent,
+        naturalSampleRateHertz: voice.naturalSampleRateHertz
+      };
+    });
+
+    const ssmlSupportedCount = voices.filter(v => v.ssmlSupport).length;
+    const ssmlUnsupportedCount = voices.filter(v => !v.ssmlSupport).length;
+
+    logger.info(`Retrieved ${voices.length} voices for ${languageCode}:`);
+    logger.info(`- SSML supported: ${ssmlSupportedCount}`);
+    logger.info(`- SSML unsupported: ${ssmlUnsupportedCount}`);
+    
+    return voices;
+    
+  } catch (error) {
+    logger.error(`Failed to list Google TTS voices: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Belirli bir voice'ın gerçek gender'ını Google TTS API'den getirir
+ * @param {string} voiceName - Ses adı (örn: en-GB-Neural2-C)
+ * @returns {Promise<string>} Voice'ın gerçek gender'ı (MALE/FEMALE/NEUTRAL)
+ */
+async function getVoiceGender(voiceName) {
+  try {
+    // Voice adından language code'u çıkar
+    const languageCode = voiceName.split('-').slice(0, 2).join('-');
+    logger.info(`🔍 [GENDER DETECTION] Looking for ${voiceName} in language: ${languageCode}`);
+    
+    // O dil için tüm sesleri getir
+    const voices = await listGoogleVoices(languageCode);
+    logger.info(`🔍 [GENDER DETECTION] Retrieved ${voices.length} voices for ${languageCode}`);
+    
+    // İstenen voice'ı bul
+    const voice = voices.find(v => v.name === voiceName);
+    
+    if (voice && voice.ssmlGender) {
+      logger.info(`🎯 [GENDER DETECTION] Found real gender for ${voiceName}: ${voice.ssmlGender}`);
+      return voice.ssmlGender;
+    } else {
+      // Chirp sesler için özel debug
+      if (voiceName.includes('Chirp') || voiceName.includes('Journey')) {
+        logger.warn(`🔴 [CHIRP DEBUG] Voice ${voiceName} not found in Google API`);
+        
+        // Chirp seslerini listele
+        const chirpVoices = voices.filter(v => v.name.includes('Chirp') || v.name.includes('Journey'));
+        logger.warn(`🔴 [CHIRP DEBUG] Available Chirp voices: ${chirpVoices.map(v => v.name).join(', ')}`);
+        
+        // Exact match kontrol
+        const exactMatch = voices.find(v => v.name === voiceName);
+        if (exactMatch) {
+          logger.warn(`🔴 [CHIRP DEBUG] Found voice but gender missing: ${JSON.stringify(exactMatch)}`);
+        }
+      }
+      
+      logger.warn(`🔴 Voice ${voiceName} not found in Google API, using NEUTRAL`);
+      return 'NEUTRAL';
+    }
+  } catch (error) {
+    logger.error(`🔴 Error getting voice gender for ${voiceName}: ${error.message}`);
+    return 'NEUTRAL';
+  }
+}
+
+/**
  * Google TTS ile metin sentezler - optimized timing marks ile
  * @param {Object} options - TTS seçenekleri
  * @param {string} options.text - Sentezlenecek metin
@@ -125,17 +261,11 @@ async function synthesizeWithGoogle(options) {
     const ssmlData = generateSSMLWithOptimizedMarks(text);
     logger.debug('🎯 Generated optimized SSML:', ssmlData.ssml.substring(0, 200) + '...');
     
-    // Gender neutral sorunu önlemek için akıllı gender seçimi
-    let smartGender = ssmlGender;
-    if (!smartGender || smartGender === 'NEUTRAL') {
-      // Voice adından gender tahmin et
-      if (voiceName.includes('-A') || voiceName.includes('-C') || voiceName.includes('-E') || 
-          voiceName.includes('-F') || voiceName.includes('-H') || voiceName.includes('Female')) {
-        smartGender = 'FEMALE';
-      } else {
-        smartGender = 'MALE';
-      }
-      logger.info(`🎯 Auto-selected gender: ${smartGender} for voice: ${voiceName}`);
+    // 🔥 ÖNEMLİ: Google TTS API'den gerçek voice gender'ını al
+    let correctGender = ssmlGender;
+    if (!correctGender || correctGender === 'NEUTRAL') {
+      correctGender = await getVoiceGender(voiceName);
+      logger.info(`🎯 Using real gender from Google API: ${correctGender} for voice: ${voiceName}`);
     }
     
     // TTS request configuration - kesin senkronizasyon için optimize edildi
@@ -144,7 +274,7 @@ async function synthesizeWithGoogle(options) {
       voice: { 
         languageCode: languageCode || 'en-US',
         name: voiceName || 'en-US-Standard-C',
-        ssmlGender: smartGender
+        ssmlGender: correctGender
       },
       audioConfig: { 
         audioEncoding: 'MP3',
@@ -158,7 +288,9 @@ async function synthesizeWithGoogle(options) {
       enableTimePointing: ['SSML_MARK']
     };
 
-    const [response] = await ttsClient.synthesizeSpeech(request);
+
+
+            const [response] = await ttsClient.synthesizeSpeech(request);
     
     // Timing bilgilerini parse et
     const timingMarks = response.timepoints || [];
@@ -254,6 +386,9 @@ async function synthesizeWithGoogle(options) {
       wordMapping: ssmlData.mapping,
       totalDuration: totalDuration,
       speakingRate: speakingRate,
+      voiceName: voiceName,
+      actualGender: correctGender, // Gerçek kullanılan gender'ı döndür
+      timingMethod: 'Google TTS Timepoints',
       ssmlMarks: timingMarks,
       timingQuality: timingQuality,
       success: true
@@ -275,18 +410,17 @@ async function synthesizeWithGoogle(options) {
         const { cleanWords } = cleanTextForTiming(text);
         const plainText = cleanWords.join(' ');
         
-        // Gender neutral sorunu için fallback gender seç
-        let fallbackGender = ssmlGender;
-        if (error.message.includes('Gender neutral') || fallbackGender === 'NEUTRAL') {
-          // Voice adından gender tahmin et
-          if (voiceName.includes('-A') || voiceName.includes('-C') || voiceName.includes('-E') || 
-              voiceName.includes('-F') || voiceName.includes('-H') || voiceName.includes('Female')) {
-            fallbackGender = 'FEMALE';
-          } else {
-            fallbackGender = 'MALE';
-          }
-          logger.info(`🔄 Using fallback gender: ${fallbackGender} for voice: ${voiceName}`);
+        // 🔥 ÖNEMLİ: Fallback'te de gerçek gender'ı kullan  
+        logger.info(`🔄 [CHIRP FALLBACK] Getting gender for voice: ${voiceName}`);
+        let fallbackGender = await getVoiceGender(voiceName);
+        logger.info(`🔄 [CHIRP FALLBACK] getVoiceGender returned: ${fallbackGender}`);
+        
+        if (!fallbackGender || fallbackGender === 'NEUTRAL') {
+          logger.warn(`🔄 [CHIRP FALLBACK] Gender was ${fallbackGender}, using default FEMALE`);
+          fallbackGender = 'FEMALE'; // Varsayılan olarak FEMALE kullan
         }
+        
+        logger.info(`🔄 [CHIRP FALLBACK] Final gender for ${voiceName}: ${fallbackGender}`);
         
         const request = {
           input: { text: plainText },
@@ -304,6 +438,8 @@ async function synthesizeWithGoogle(options) {
           }
         };
 
+
+
         const [response] = await ttsClient.synthesizeSpeech(request);
         
         // Fallback timing - eşit dağıtım
@@ -316,7 +452,7 @@ async function synthesizeWithGoogle(options) {
           hasDirectTiming: false
         }));
         
-        logger.info(`🎯 Fallback TTS completed with ${cleanWords.length} words, estimated duration: ${estimatedDuration.toFixed(3)}s`);
+        logger.info(`🔄 Fallback Success - Voice: ${voiceName}, Gender: ${fallbackGender}, Audio size: ${response.audioContent.length} bytes`);
         
         return {
           audioContent: response.audioContent,
@@ -325,6 +461,9 @@ async function synthesizeWithGoogle(options) {
           originalWords: text.split(/\s+/).filter(word => word.length > 0),
           totalDuration: estimatedDuration,
           speakingRate: speakingRate,
+          voiceName: voiceName,
+          actualGender: fallbackGender, // Gerçek kullanılan gender'ı döndür
+          timingMethod: 'Fallback Linear',
           fallbackUsed: true,
           success: true
         };
@@ -339,97 +478,9 @@ async function synthesizeWithGoogle(options) {
   }
 }
 
-/**
- * Google TTS destekli sesleri getirir - SSML desteği bilgisi ile
- * @param {string} [languageCode] - opsiyonel, sadece belirli bir dil için
- * @returns {Promise<Array>} Array of voice objects with SSML support info
- */
-async function listGoogleVoices(languageCode = 'en-US') {
-  if (!ttsClient) {
-    throw new Error('Google TTS client not initialized');
-  }
-
-  try {
-    logger.info(`Fetching Google TTS voices for language: ${languageCode}`);
-    
-    const [result] = await ttsClient.listVoices({
-      languageCode: languageCode
-    });
-
-    // SSML desteklemeyen sesler listesi
-    const ssmlUnsupportedVoices = ['Journey', 'Chirp', 'Studio'];
-
-    const voices = result.voices.map(voice => {
-      // SSML desteği kontrolü
-      const ssmlSupport = !ssmlUnsupportedVoices.some(unsupported => voice.name.includes(unsupported));
-      
-      // Kategorileri belirle
-      let package, emotion, accent;
-      
-      // Paket belirleme
-      if (voice.name.includes('Journey')) {
-        package = 'Premium';
-        emotion = 'Natural';
-      } else if (voice.name.includes('Chirp')) {
-        package = 'Gold';
-        emotion = 'Advanced';
-      } else if (voice.name.includes('Studio')) {
-        package = 'Platinum';
-        emotion = 'Professional';
-      } else if (voice.name.includes('Wavenet')) {
-        package = 'Premium';
-        emotion = 'Natural';
-      } else if (voice.name.includes('Neural2')) {
-        package = 'Premium';
-        emotion = 'Advanced';
-      } else if (voice.name.includes('Standard')) {
-        package = 'Basic';
-        emotion = 'Standard';
-      } else {
-        package = 'Basic';
-        emotion = 'Standard';
-      }
-      
-      // Accent belirleme (dil kodundan)
-      const langParts = voice.languageCodes[0].split('-');
-      if (langParts.length > 1) {
-        accent = langParts[1].toUpperCase();
-      } else {
-        accent = 'GENERIC';
-      }
-
-      return {
-        name: voice.name,
-        displayName: voice.name.replace(/^[a-z]{2}-[A-Z]{2}-/, ''),
-        languageCode: voice.languageCodes[0],
-        languageCodes: voice.languageCodes,
-        gender: voice.ssmlGender,
-        ssmlGender: voice.ssmlGender,
-        ssmlSupport: ssmlSupport,
-        package: package,
-        emotion: emotion,
-        accent: accent,
-        naturalSampleRateHertz: voice.naturalSampleRateHertz
-      };
-    });
-
-    const ssmlSupportedCount = voices.filter(v => v.ssmlSupport).length;
-    const ssmlUnsupportedCount = voices.filter(v => !v.ssmlSupport).length;
-
-    logger.info(`Retrieved ${voices.length} voices for ${languageCode}:`);
-    logger.info(`- SSML supported: ${ssmlSupportedCount}`);
-    logger.info(`- SSML unsupported: ${ssmlUnsupportedCount}`);
-    
-    return voices;
-    
-  } catch (error) {
-    logger.error(`Failed to list Google TTS voices: ${error.message}`);
-    throw error;
-  }
-}
-
 module.exports = {
   synthesizeWithGoogle,
   listGoogleVoices,
+  getVoiceGender,
   generateSSMLWithOptimizedMarks
 }; 

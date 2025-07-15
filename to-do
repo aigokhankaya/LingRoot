@@ -1,1 +1,1 @@
--Kelime vurguları geriden geliyor.
+-Kelime vurguları geriden geliyor. Senkron yok yine.  SSML ile mark kullanımı yöntemini kullanarak kesin bir çözüm üret. Ama çıktıyı verdiğin metinde mark kısımları olmasın. Kullanıcı burada düz metin görmeli. Ayrıca noktalama işaretleride senkronu bozabilir. Bunu da göz önüğnde bulundur.

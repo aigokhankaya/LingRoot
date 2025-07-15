@@ -42,6 +42,14 @@ const HomeScreen: React.FC = () => {
     },
     {
       id: 3,
+      title: 'Kelime Listem',
+      description: 'Öğrendiğin kelimeleri görüntüle',
+      icon: 'book',
+      color: '#9C27B0',
+      screenName: 'Vocabulary',
+    },
+    {
+      id: 4,
       title: 'Konu Önerileri',
       description: 'AI ile konu önerileri al',
       icon: 'lightbulb',
@@ -49,7 +57,7 @@ const HomeScreen: React.FC = () => {
       screenName: 'Suggestions',
     },
     {
-      id: 4,
+      id: 5,
       title: 'Ses Kütüphanesi',
       description: 'Oluşturduğun sesleri dinle',
       icon: 'library-music',

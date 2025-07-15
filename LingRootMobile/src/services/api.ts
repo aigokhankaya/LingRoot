@@ -149,12 +149,13 @@ export const apiService = {
   },
 
   // Filtrelenmiş sesleri getirme
-  async getFilteredVoices(accent?: string, gender?: string, emotion?: string): Promise<APIResponse> {
+  async getFilteredVoices(accent?: string, gender?: string, emotion?: string, category?: string): Promise<APIResponse> {
     try {
       const params = new URLSearchParams();
       if (accent) params.append('accent', accent);
       if (gender) params.append('gender', gender);
       if (emotion) params.append('emotion', emotion);
+      if (category) params.append('category', category);
       
       const response = await apiClient.get<APIResponse>(`/api/tts/voices/filter?${params.toString()}`);
       return response.data;
@@ -162,4 +163,80 @@ export const apiService = {
       throw new Error(error.response?.data?.message || 'Filtrelenmiş sesler yüklenemedi');
     }
   },
+}; 
+
+// Vocabulary API functions
+export interface VocabularyWord {
+  id?: number;
+  word: string;
+  original_word?: string;
+  definition?: string;
+  example_sentence?: string;
+  example_sentence_turkish?: string;
+  notes?: string;
+  level?: string;
+  is_learned?: boolean;
+  original_sentence?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export const getVocabulary = async (): Promise<VocabularyWord[]> => {
+  try {
+    console.log('🔧 [API DEBUG] Fetching vocabulary...');
+    const response = await apiClient.get('/api/vocabulary');
+    console.log('🔧 [API DEBUG] Vocabulary response:', response.data);
+    return response.data.success ? response.data.data : [];
+  } catch (error) {
+    console.error('Error fetching vocabulary:', error);
+    throw error;
+  }
+};
+
+export const addWordToVocabulary = async (
+  word: string, 
+  definition?: string, 
+  sentence?: string, 
+  level?: string
+): Promise<VocabularyWord> => {
+  try {
+    console.log('🔧 [API DEBUG] Adding word to vocabulary:', { word, definition, sentence, level });
+    const response = await apiClient.post('/api/vocabulary/add', {
+      word,
+      definition,
+      example_sentence: sentence,
+      level: level?.toUpperCase(),
+    });
+    console.log('🔧 [API DEBUG] Add word response:', response.data);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error adding word to vocabulary:', error);
+    throw error;
+  }
+};
+
+export const deleteWordFromVocabulary = async (wordId: number): Promise<void> => {
+  try {
+    console.log('🔧 [API DEBUG] Deleting word from vocabulary:', wordId);
+    const response = await apiClient.delete(`/api/vocabulary/${wordId}`);
+    console.log('🔧 [API DEBUG] Delete word response:', response.data);
+  } catch (error) {
+    console.error('Error deleting word from vocabulary:', error);
+    throw error;
+  }
+};
+
+export const updateWordInVocabulary = async (
+  wordId: number, 
+  updates: Partial<VocabularyWord>
+): Promise<VocabularyWord> => {
+  try {
+    console.log('🔧 [API DEBUG] Updating word in vocabulary:', wordId, updates);
+    const response = await apiClient.put(`/api/vocabulary/${wordId}`, updates);
+    console.log('🔧 [API DEBUG] Update word response:', response.data);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error updating word in vocabulary:', error);
+    throw error;
+  }
 }; 

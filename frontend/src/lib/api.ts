@@ -154,6 +154,7 @@ export interface ProcessInputData {
 }
 
 export interface TtsResponseData {
+    success?: boolean;
     message: string;
     mp3_url: string;
     level: string;
@@ -299,23 +300,47 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
         if (input && type !== "file") {
             formData.append("input", input);
         }
-        if (type === "file" && file) {
+        if (file) {
             formData.append("file", file);
         }
+
         body = formData;
     }
 
     try {
+        console.log('🚀 [TTS API] Request starting...', { url, type, level });
+        
         const response = await fetch(url, {
             method: "POST",
             headers: headers,
             body: body,
             credentials: 'include'
         });
+        
+        console.log('📊 [TTS API] Response received:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok,
+            headers: Object.fromEntries(response.headers.entries())
+        });
+        
+        // CRITICAL: Check response status BEFORE parsing JSON
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ [TTS API] Error response:', {
+                status: response.status,
+                statusText: response.statusText,
+                body: errorText
+            });
+            throw new Error(`TTS API failed: ${response.status} ${response.statusText} - ${errorText}`);
+        }
+        
         const apiResponse = await response.json();
         
         // Debug: Log what we received from backend
         console.log('🔍 [API DEBUG] Backend response keys:', Object.keys(apiResponse));
+        console.log('🔍 [API DEBUG] Success status in response:', apiResponse.success);
+        console.log('🔍 [API DEBUG] Has mp3_url:', !!apiResponse.mp3_url);
         console.log('🔍 [API DEBUG] Timepoints in response:', apiResponse.timepoints?.length || 0);
         console.log('🔍 [API DEBUG] Words in response:', apiResponse.words?.length || 0);
         console.log('🔍 [API DEBUG] First 3 timepoints:', apiResponse.timepoints?.slice(0, 3));

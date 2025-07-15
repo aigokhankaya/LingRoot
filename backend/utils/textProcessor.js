@@ -252,10 +252,131 @@ function preChunkTextByByteLimit(text, byteLimit = 4500) {
     return parts;
 }
 
+/**
+ * Special chunking function for Chirp voices (Journey, Chirp HD, etc.)
+ * These voices have a strict 900 byte limit per sentence
+ * @param {string} text The text to chunk
+ * @param {number} maxBytes Maximum bytes per chunk (default: 600 for safety)
+ * @returns {string[]} Array of small chunks suitable for Chirp voices
+ */
+function chunkTextForChirpVoices(text, maxBytes = 600) {
+    logger.info(`🎙️ [CHIRP CHUNKING] Input text length: ${text?.length} chars, ${Buffer.byteLength(text || "", "utf-8")} bytes`);
+    
+    if (!text) return [];
+
+    const chunks = [];
+    const sentences = text.split(/(?<=[.!?])\s+/); // Split by sentences
+    
+    let currentChunk = "";
+    let currentBytes = 0;
+
+    for (const sentence of sentences) {
+        const trimmed = sentence.trim();
+        if (!trimmed) continue;
+
+        const sentenceBytes = Buffer.byteLength(trimmed, "utf-8");
+        
+        // If a single sentence is too long, split it by words
+        if (sentenceBytes > maxBytes) {
+            logger.warn(`🚨 [CHIRP CHUNKING] Long sentence (${sentenceBytes} bytes), splitting by words`);
+            
+            // Save current chunk if exists
+            if (currentChunk) {
+                chunks.push(currentChunk.trim());
+                currentChunk = "";
+                currentBytes = 0;
+            }
+            
+            // Split the long sentence by words
+            const words = trimmed.split(/\s+/);
+            let tempChunk = "";
+            let tempBytes = 0;
+
+            for (const word of words) {
+                const wordBytes = Buffer.byteLength(word, "utf-8");
+                const spaceBytes = tempChunk ? 1 : 0;
+
+                if (tempBytes + wordBytes + spaceBytes > maxBytes) {
+                    if (tempChunk) {
+                        chunks.push(tempChunk.trim());
+                    }
+                    tempChunk = word;
+                    tempBytes = wordBytes;
+                } else {
+                    tempChunk += (tempChunk ? " " : "") + word;
+                    tempBytes += wordBytes + spaceBytes;
+                }
+            }
+
+            if (tempChunk) {
+                chunks.push(tempChunk.trim());
+            }
+            
+        } else {
+            // Check if adding this sentence would exceed the limit
+            const spaceBytes = currentChunk ? 1 : 0;
+            
+            if (currentBytes + sentenceBytes + spaceBytes > maxBytes) {
+                // Save current chunk and start new one
+                if (currentChunk) {
+                    chunks.push(currentChunk.trim());
+                }
+                currentChunk = trimmed;
+                currentBytes = sentenceBytes;
+            } else {
+                // Add sentence to current chunk
+                currentChunk += (currentChunk ? " " : "") + trimmed;
+                currentBytes += sentenceBytes + spaceBytes;
+            }
+        }
+    }
+
+    // Add final chunk if exists
+    if (currentChunk) {
+        chunks.push(currentChunk.trim());
+    }
+
+    // Final safety check - ensure no chunk exceeds 900 bytes
+    const safeChunks = [];
+    for (const [i, chunk] of chunks.entries()) {
+        const chunkBytes = Buffer.byteLength(chunk, "utf-8");
+        if (chunkBytes > 900) {
+            logger.error(`🚨 [CHIRP CHUNKING] Chunk ${i + 1} still exceeds 900 bytes (${chunkBytes}), force splitting`);
+            // Force split by characters as last resort
+            let remaining = chunk;
+            while (remaining.length > 0) {
+                let safeLength = 500; // Very conservative
+                while (safeLength > 0 && Buffer.byteLength(remaining.substring(0, safeLength), "utf-8") > 850) {
+                    safeLength -= 10;
+                }
+                safeChunks.push(remaining.substring(0, safeLength).trim());
+                remaining = remaining.substring(safeLength).trim();
+            }
+        } else {
+            safeChunks.push(chunk);
+        }
+    }
+
+    logger.info(`🎙️ [CHIRP CHUNKING] Result: ${safeChunks.length} chunks (max ${Math.max(...safeChunks.map(c => Buffer.byteLength(c, "utf-8")))} bytes)`);
+    return safeChunks;
+}
+
+/**
+ * Checks if a voice is a Chirp voice that needs special handling
+ * @param {string} voiceName Voice name to check
+ * @returns {boolean} True if it's a Chirp voice
+ */
+function isChirpVoice(voiceName) {
+    const chirpKeywords = ['Journey', 'Chirp', 'Chirp-HD', 'Chirp3-HD'];
+    return chirpKeywords.some(keyword => voiceName.includes(keyword));
+}
+
 module.exports = {
     cleanText: cleanTextForTTS,
     chunkText,
     chunkTextByCharLimit,
-    preChunkTextByByteLimit
+    preChunkTextByByteLimit,
+    chunkTextForChirpVoices,
+    isChirpVoice
 };
 

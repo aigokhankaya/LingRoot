@@ -5,9 +5,9 @@ const fs = require("fs");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../utils/logger"); // Import Winston logger
 const { extractTextFromInput, generateTopicText, generateEnglishNarrationForTopic, translateToEnglishWithOpenAI } = require("../utils/inputExtractor");
-const { cleanText, chunkText, chunkTextByCharLimit, preChunkTextByByteLimit } = require("../utils/textProcessor");
+const { cleanText, chunkText, chunkTextByCharLimit, preChunkTextByByteLimit, chunkTextForChirpVoices, isChirpVoice } = require("../utils/textProcessor");
 const { adaptToCEFR: adaptToCEFRFunc } = require("../utils/cefrAdapter");
-const { synthesizeWithGoogle, listGoogleVoices } = require("../utils/googleTTS");
+const { synthesizeWithGoogle, listGoogleVoices, getVoiceGender } = require("../utils/googleTTS");
 const { mergeAudioSegments, mergeAudioSegmentsToBuffer } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
 const tmp = require("tmp");
@@ -449,25 +449,7 @@ const processTtsRequest = async (req, res) => {
         // --- Step 4: (Opsiyonel) CEFR adaptasyonu burada yapılacaksa, her preTtsChunk için yapılabilir ---
         // ...
 
-        // --- Step 5: Her chunk için tekrar chunkText (TTS öncesi) ---
-        let finalChunks = [];
-        for (let i = 0; i < initialChunks.length; i++) {
-            // Polly için güvenli sınır: 1000 karakter
-            let pollyChunks = chunkTextByCharLimit(initialChunks[i], 1000);
-            pollyChunks = pollyChunks.map((chunk, i) => {
-                if (chunk.length > 1000) {
-                    logger.warn(`[Polly chunk] [${i}] length exceeds safe limit: ${chunk.length}, truncating to 1000.`);
-                    return chunk.substring(0, 1000);
-                }
-                return chunk;
-            });
-            pollyChunks.forEach((chunk, i) => {
-                logger.info(`[Polly chunk] [${i}] length: ${chunk.length}`);
-            });
-            finalChunks = finalChunks.concat(pollyChunks);
-        }
-        // Polly'ye gönderme işlemi burada finalChunks ile devam edecek
-        // Get voice from request with validation against our API voices
+        // --- Get and validate voice BEFORE chunking ---
         let selectedVoice = req.body.voice || 'en-US-Neural2-D';
         
         // Get all available voices from our voices API
@@ -490,20 +472,26 @@ const processTtsRequest = async (req, res) => {
             'en-US-Neural2-A', 'en-US-Neural2-C', 'en-US-Neural2-D', 'en-US-Neural2-E', 'en-US-Neural2-F',
             'en-US-Neural2-G', 'en-US-Neural2-H', 'en-US-Neural2-I', 'en-US-Neural2-J',
             // Neural2 voices (Premium) - British
-            'en-GB-Neural2-B', 'en-GB-Neural2-C',
+            'en-GB-Neural2-A', 'en-GB-Neural2-B', 'en-GB-Neural2-C', 'en-GB-Neural2-D', 
+            'en-GB-Neural2-F', 'en-GB-Neural2-N', 'en-GB-Neural2-O',
             // Neural2 voices (Premium) - Australian  
             'en-AU-Neural2-A', 'en-AU-Neural2-C', 'en-AU-Neural2-D',
             // Chirp HD voices (Gold)
             'en-US-Chirp-HD-D', 'en-US-Chirp-HD-F', 'en-US-Chirp-HD-O',
             // Chirp 3 HD voices (Gold)  
-            'en-US-Chirp3-HD-Achernar', 'en-US-Chirp3-HD-Achird', 'en-US-Chirp3-HD-Aoede', 
+            'en-US-Chirp3-HD-Achernar', 'en-US-Chirp3-HD-Achird', 'en-US-Chirp3-HD-Aoede',
             'en-US-Chirp3-HD-Despina', 'en-US-Chirp3-HD-Charon',
             // Studio voices (Platin)
             'en-US-Studio-M', 'en-US-Studio-O', 'en-US-Studio-Q',
             'en-GB-Studio-B', 'en-GB-Studio-C',
-            // Journey voices (Chirp 3D - Gold)
-            'en-US-Journey-D', 'en-US-Journey-O',
-            'en-GB-Journey-F', 'en-GB-Journey-M',
+                      // Chirp HD voices (Gold) - British
+          'en-GB-Chirp-HD-D', 'en-GB-Chirp-HD-F', 'en-GB-Chirp-HD-O',
+          // Chirp 3 HD voices (Gold) - British
+          'en-GB-Chirp3-HD-Achernar', 'en-GB-Chirp3-HD-Achird', 'en-GB-Chirp3-HD-Algenib',
+          'en-GB-Chirp3-HD-Algieba', 'en-GB-Chirp3-HD-Alnilam', 'en-GB-Chirp3-HD-Aoede',
+          // Journey voices (Chirp 3D - Gold)
+          'en-US-Journey-D', 'en-US-Journey-O',
+          'en-GB-Journey-F', 'en-GB-Journey-M',
             // News voices (Premium)
             'en-US-News-K', 'en-US-News-L', 'en-US-News-N',
             // Polyglot voices (Premium)
@@ -518,6 +506,49 @@ const processTtsRequest = async (req, res) => {
         } else {
             console.log(`🎙️ [TTS CONTROLLER] USING SELECTED VOICE: ${selectedVoice}`);
             logger.info(`[${requestId}] 🎙️ Using selected voice: ${selectedVoice}`);
+        }
+
+        // --- Step 5: Her chunk için tekrar chunkText (TTS öncesi) ---
+        let finalChunks = [];
+        
+        // Check if selected voice is a Chirp voice that needs special handling
+        const isChirpSelected = isChirpVoice(selectedVoice);
+        
+        if (isChirpSelected) {
+            logger.info(`[${requestId}] 🎙️ CHIRP VOICE DETECTED: ${selectedVoice} - Using special 900-byte chunking`);
+        }
+        
+        for (let i = 0; i < initialChunks.length; i++) {
+            let chunks;
+            
+            if (isChirpSelected) {
+                // Chirp voices: Use special chunking with 600-byte limit for safety
+                chunks = chunkTextForChirpVoices(initialChunks[i], 600);
+                logger.info(`[${requestId}] 🎙️ [CHIRP CHUNK ${i + 1}] Generated ${chunks.length} chirp-safe chunks`);
+            } else {
+                // Regular voices: Use normal chunking with 1000 character limit
+                chunks = chunkTextByCharLimit(initialChunks[i], 1000);
+                chunks = chunks.map((chunk, j) => {
+                    if (chunk.length > 1000) {
+                        logger.warn(`[Regular chunk] [${i}.${j}] length exceeds safe limit: ${chunk.length}, truncating to 1000.`);
+                        return chunk.substring(0, 1000);
+                    }
+                    return chunk;
+                });
+                logger.info(`[${requestId}] [Regular chunk ${i + 1}] Generated ${chunks.length} standard chunks`);
+            }
+            
+            chunks.forEach((chunk, j) => {
+                const chunkBytes = Buffer.byteLength(chunk, "utf-8");
+                logger.info(`[${isChirpSelected ? 'CHIRP' : 'Regular'} chunk] [${i}.${j}] length: ${chunk.length} chars, ${chunkBytes} bytes`);
+                
+                // Final safety check for Chirp voices
+                if (isChirpSelected && chunkBytes > 900) {
+                    logger.error(`🚨 [CHIRP SAFETY] Chunk [${i}.${j}] exceeds 900 bytes (${chunkBytes})! This should not happen.`);
+                }
+            });
+            
+            finalChunks = finalChunks.concat(chunks);
         }
         
         // Dynamically determine language code based on voice name
@@ -713,6 +744,12 @@ const processTtsRequest = async (req, res) => {
 
                 if (!ttsResult.success || !ttsResult.audioContent) {
                     throw new Error('TTS synthesis failed');
+                }
+
+                // 🎯 Voice ve gender bilgilerini log'la
+                logger.info(`[${requestId}] 🎙️ TTS Chunk ${i + 1} Success - Voice: ${ttsResult.voiceName || selectedVoice}, Gender: ${ttsResult.actualGender || 'unknown'}, Method: ${ttsResult.timingMethod || 'unknown'}`);
+                if (ttsResult.actualGender) {
+                    console.log(`🎙️ [VOICE DEBUG] Chunk ${i + 1} - Expected Voice: ${selectedVoice} -> Actual Gender: ${ttsResult.actualGender}`);
                 }
 
                 // Audio segment'ini sakla
@@ -1342,16 +1379,53 @@ const translateToEnglish = async (req, res) => {
       } catch (error) {
         logger.error(`🎯 [VOICE LIST] Error fetching voices: ${error.message}`);
         
-        // Fallback: static voice list with SSML support
+        // Fallback: static voice list with SSML support - more categories
         const fallbackVoices = [
+          // Standard voices (Basic package)
           { name: 'en-US-Standard-C', displayName: 'US English Female (Standard)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
           { name: 'en-US-Standard-D', displayName: 'US English Male (Standard)', gender: 'MALE', languageCode: 'en-US', accent: 'US', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
-          { name: 'en-US-Wavenet-F', displayName: 'US English Female (Wavenet)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-US-Wavenet-A', displayName: 'US English Male (Wavenet)', gender: 'MALE', languageCode: 'en-US', accent: 'US', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
           { name: 'en-GB-Standard-A', displayName: 'UK English Female (Standard)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
           { name: 'en-GB-Standard-B', displayName: 'UK English Male (Standard)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
+          
+          // Wavenet voices (Premium package)
+          { name: 'en-US-Wavenet-F', displayName: 'US English Female (Wavenet)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-US-Wavenet-A', displayName: 'US English Male (Wavenet)', gender: 'MALE', languageCode: 'en-US', accent: 'US', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
           { name: 'en-GB-Wavenet-B', displayName: 'UK English Male (Wavenet)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Wavenet-C', displayName: 'UK English Female (Wavenet)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Natural', ssmlSupport: true, package: 'Premium' }
+          { name: 'en-GB-Wavenet-C', displayName: 'UK English Female (Wavenet)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
+          
+          // Neural2 voices (Premium package)
+          { name: 'en-US-Neural2-H', displayName: 'US English Female (Neural2)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-US-Neural2-J', displayName: 'US English Male (Neural2)', gender: 'MALE', languageCode: 'en-US', accent: 'US', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          
+          // British Neural2 voices (Premium package)
+          { name: 'en-GB-Neural2-A', displayName: 'UK English Female (Neural2)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Neural2-B', displayName: 'UK English Male (Neural2)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Neural2-C', displayName: 'UK English Female (Neural2)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Neural2-D', displayName: 'UK English Male (Neural2)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Neural2-F', displayName: 'UK English Female (Neural2)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Neural2-N', displayName: 'UK English Female (Neural2)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Neural2-O', displayName: 'UK English Male (Neural2)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          
+          // Studio voices (Platinum package)
+          { name: 'en-US-Studio-Q', displayName: 'US English Female (Studio)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
+          { name: 'en-GB-Studio-C', displayName: 'UK English Female (Studio)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
+          
+          // Chirp HD voices (Gold package) - British
+          { name: 'en-GB-Chirp-HD-D', displayName: 'UK English Male (Chirp HD)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Chirp-HD-F', displayName: 'UK English Female (Chirp HD)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Chirp-HD-O', displayName: 'UK English Female (Chirp HD)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          
+          // Chirp 3 HD voices (Gold package) - British
+          { name: 'en-GB-Chirp3-HD-Achernar', displayName: 'UK English Female (Chirp 3 HD)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Chirp3-HD-Achird', displayName: 'UK English Male (Chirp 3 HD)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Chirp3-HD-Algenib', displayName: 'UK English Male (Chirp 3 HD)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Chirp3-HD-Algieba', displayName: 'UK English Male (Chirp 3 HD)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Chirp3-HD-Alnilam', displayName: 'UK English Male (Chirp 3 HD)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Chirp3-HD-Aoede', displayName: 'UK English Female (Chirp 3 HD)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          
+          // Journey/Chirp voices (Gold package)
+          { name: 'en-US-Journey-D', displayName: 'US English Female (Journey)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Journey-F', displayName: 'UK English Female (Journey)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' }
         ];
         
         const ssmlSupportedCount = fallbackVoices.filter(voice => voice.ssmlSupport).length;
@@ -1380,7 +1454,7 @@ const translateToEnglish = async (req, res) => {
   // Filtrelenmiş ses listesi endpointi
   const getFilteredVoices = async (req, res) => {
     try {
-      const { accent, emotion, gender, ssmlSupport } = req.query;
+      const { accent, emotion, gender, category } = req.query;
       
       // Önce tüm sesleri al
       const mockReq = {};
@@ -1399,60 +1473,193 @@ const translateToEnglish = async (req, res) => {
         
         // Fallback: hardcoded voice list with SSML support info
         allVoices = [
-          { name: 'en-US-Standard-C', gender: 'FEMALE', accent: 'US', emotion: 'Standard', ssmlSupport: false },
-          { name: 'en-US-Standard-D', gender: 'MALE', accent: 'US', emotion: 'Standard', ssmlSupport: false },
-          { name: 'en-US-Wavenet-F', gender: 'FEMALE', accent: 'US', emotion: 'Natural', ssmlSupport: true },
-          { name: 'en-US-Wavenet-A', gender: 'MALE', accent: 'US', emotion: 'Natural', ssmlSupport: true },
-          { name: 'en-GB-Standard-A', gender: 'FEMALE', accent: 'GB', emotion: 'Standard', ssmlSupport: false },
-          { name: 'en-GB-Standard-B', gender: 'MALE', accent: 'GB', emotion: 'Standard', ssmlSupport: false },
-          { name: 'en-GB-Wavenet-B', gender: 'MALE', accent: 'GB', emotion: 'Natural', ssmlSupport: true },
-          { name: 'en-GB-Wavenet-C', gender: 'FEMALE', accent: 'GB', emotion: 'Natural', ssmlSupport: true }
+          { name: 'en-US-Standard-C', gender: 'FEMALE', accent: 'US', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
+          { name: 'en-US-Standard-D', gender: 'MALE', accent: 'US', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
+          { name: 'en-US-Wavenet-F', gender: 'FEMALE', accent: 'US', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-US-Wavenet-A', gender: 'MALE', accent: 'US', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Standard-A', gender: 'FEMALE', accent: 'GB', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
+          { name: 'en-GB-Standard-B', gender: 'MALE', accent: 'GB', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
+          { name: 'en-GB-Wavenet-B', gender: 'MALE', accent: 'GB', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Wavenet-C', gender: 'FEMALE', accent: 'GB', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
+          
+          // British Neural2 voices (Premium package)
+          { name: 'en-GB-Neural2-A', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Neural2-B', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Neural2-C', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Neural2-D', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Neural2-F', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Neural2-N', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          { name: 'en-GB-Neural2-O', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
+          
+          // British Chirp HD voices (Gold package)
+          { name: 'en-GB-Chirp-HD-D', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Chirp-HD-F', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Chirp-HD-O', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          
+          // British Chirp 3 HD voices (Gold package)
+          { name: 'en-GB-Chirp3-HD-Achernar', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Chirp3-HD-Achird', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Chirp3-HD-Algenib', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Chirp3-HD-Algieba', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Chirp3-HD-Alnilam', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          { name: 'en-GB-Chirp3-HD-Aoede', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
+          
+          // Studio voices (Platinum package)
+          { name: 'en-US-Studio-M', gender: 'MALE', accent: 'US', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
+          { name: 'en-US-Studio-O', gender: 'FEMALE', accent: 'US', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
+          { name: 'en-US-Studio-Q', gender: 'MALE', accent: 'US', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
+          { name: 'en-GB-Studio-B', gender: 'MALE', accent: 'GB', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
+          { name: 'en-GB-Studio-C', gender: 'FEMALE', accent: 'GB', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' }
         ];
         logger.info('🎯 [VOICE FILTER] Using fallback voice list');
       }
       
+      // 🔍 DEBUG: İlk durumu logla
+      logger.info(`🎯 [VOICE FILTER DEBUG] Starting with ${allVoices.length} total voices`);
+      logger.info(`🎯 [VOICE FILTER DEBUG] Incoming filters:`, { accent, emotion, gender, category });
+      
+      // İlk birkaç voice'ın özelliklerini logla
+      if (allVoices.length > 0) {
+        const sampleVoice = allVoices[0];
+        logger.info(`🎯 [VOICE FILTER DEBUG] Sample voice structure:`, {
+          name: sampleVoice.name,
+          gender: sampleVoice.gender,
+          accent: sampleVoice.accent,
+          package: sampleVoice.package,
+          ssmlSupport: sampleVoice.ssmlSupport
+        });
+      }
+      
       // Filtreleme uygula
       let filteredVoices = allVoices;
+      logger.info(`🎯 [VOICE FILTER DEBUG] Step 0 - Initial: ${filteredVoices.length} voices`);
       
+      // 🔧 Frontend-Backend mapping düzeltmeleri
       if (accent && accent !== 'all') {
-        filteredVoices = filteredVoices.filter(voice => voice.accent === accent);
+        // Frontend'den gelen accent'leri backend accent'leriyle eşleştir
+        let backendAccent = accent;
+        switch (accent.toLowerCase()) {
+          case 'british':
+            backendAccent = 'GB';
+            break;
+          case 'american':
+            backendAccent = 'US';
+            break;
+          case 'australian':
+            backendAccent = 'AU';
+            break;
+          case 'canadian':
+            backendAccent = 'CA';
+            break;
+          case 'indian':
+            backendAccent = 'IN';
+            break;
+        }
+        
+        filteredVoices = filteredVoices.filter(voice => voice.accent === backendAccent);
+        logger.info(`🎯 [VOICE FILTER] Accent filter applied - ${accent} (mapped to ${backendAccent})`);
+        logger.info(`🎯 [VOICE FILTER DEBUG] Step 1 - After accent filter: ${filteredVoices.length} voices`);
       }
       
       if (emotion && emotion !== 'all') {
         filteredVoices = filteredVoices.filter(voice => voice.emotion === emotion);
+        logger.info(`🎯 [VOICE FILTER] Emotion filter applied - ${emotion}`);
+        logger.info(`🎯 [VOICE FILTER DEBUG] Step 2 - After emotion filter: ${filteredVoices.length} voices`);
       }
       
+      // 🔧 Gender mapping düzeltmesi
       if (gender && gender !== 'all') {
-        filteredVoices = filteredVoices.filter(voice => voice.gender === gender);
+        // Frontend'den gelen gender'ları backend gender'larıyla eşleştir
+        let backendGender = gender.toUpperCase(); // "female" -> "FEMALE", "male" -> "MALE"
+        
+        filteredVoices = filteredVoices.filter(voice => voice.gender === backendGender);
+        logger.info(`🎯 [VOICE FILTER] Gender filter applied - ${gender} (mapped to ${backendGender})`);
+        logger.info(`🎯 [VOICE FILTER DEBUG] Step 3 - After gender filter: ${filteredVoices.length} voices`);
       }
       
-      // SSML desteği filtresi
-      if (ssmlSupport === 'true') {
-        filteredVoices = filteredVoices.filter(voice => voice.ssmlSupport === true);
-        logger.info(`🎯 [VOICE FILTER] SSML Support filter applied - only SSML-compatible voices`);
-      } else if (ssmlSupport === 'false') {
-        filteredVoices = filteredVoices.filter(voice => voice.ssmlSupport === false);
-        logger.info(`🎯 [VOICE FILTER] SSML Support filter applied - only non-SSML voices`);
+      // SSML filtresi kaldırıldı - kullanıcılar için gereksiz karmaşıklık
+      logger.info(`🎯 [VOICE FILTER] SSML filter REMOVED - no longer filtering by SSML support`);
+      logger.info(`🎯 [VOICE FILTER DEBUG] Step 4 - SSML filter disabled: ${filteredVoices.length} voices`);
+      
+      // 🔧 Kategori filtresi (sadece seçilen kategori için kontrol)
+      if (category && category !== 'all') {
+        filteredVoices = filteredVoices.filter(voice => {
+          let matches = false;
+          
+          // Her kategori için ayrı ayrı kontrol et (yanlış pozitif sonuçları önle)
+          switch (category) {
+            case 'standard':
+              matches = voice.name.includes('Standard') || voice.package === 'Basic';
+              break;
+            case 'wavenet':
+              matches = voice.name.includes('Wavenet');
+              break;
+            case 'neural2':
+              matches = voice.name.includes('Neural2');
+              break;
+            case 'studio':
+              matches = voice.name.includes('Studio') || voice.package === 'Platinum';
+              break;
+            case 'chirp3d':
+              matches = voice.name.includes('Journey') || voice.name.includes('Chirp') || voice.package === 'Gold';
+              break;
+            default:
+              matches = false;
+          }
+          
+          if (matches) {
+            logger.debug(`🎯 [CATEGORY MATCH] ${voice.name} matches ${category} category`);
+          }
+          
+          return matches;
+        });
+        logger.info(`🎯 [VOICE FILTER] Category filter applied - ${category} category`);
+        logger.info(`🎯 [VOICE FILTER DEBUG] Step 5 - After category filter: ${filteredVoices.length} voices`);
       }
       
-      logger.info(`🎯 [VOICE FILTER] Applied filters - accent: ${accent}, emotion: ${emotion}, gender: ${gender}, ssmlSupport: ${ssmlSupport}`);
+      // 🔍 FINAL DEBUG: Detaylı sonuç analizi
+      logger.info(`🎯 [VOICE FILTER] Applied filters - accent: ${accent}, emotion: ${emotion}, gender: ${gender}, category: ${category}`);
       logger.info(`🎯 [VOICE FILTER] Filtered voices count: ${filteredVoices.length} / ${allVoices.length}`);
       
-      // SSML destekli/desteksiz sesler sayısını hesapla
-      const ssmlSupportedCount = filteredVoices.filter(voice => voice.ssmlSupport === true).length;
-      const ssmlUnsupportedCount = filteredVoices.filter(voice => voice.ssmlSupport === false).length;
+      // Eğer hiç voice kalmamışsa, mevcut olanları göster
+      if (filteredVoices.length === 0 && allVoices.length > 0) {
+        logger.warn(`🔴 [VOICE FILTER] NO VOICES FOUND! Available voice properties:`);
+        
+        const uniqueAccents = [...new Set(allVoices.map(v => v.accent))];
+        const uniqueGenders = [...new Set(allVoices.map(v => v.gender))];
+        const uniqueCategories = [...new Set(allVoices.map(v => v.package))];
+        
+        logger.warn(`🔴 Available accents: ${uniqueAccents.join(', ')}`);
+        logger.warn(`🔴 Available genders: ${uniqueGenders.join(', ')}`);
+        logger.warn(`🔴 Available packages: ${uniqueCategories.join(', ')}`);
+        
+        // Neural2 voice'ları özellikle kontrol et
+        const neural2Voices = allVoices.filter(v => v.name.includes('Neural2'));
+        logger.warn(`🔴 Neural2 voices available: ${neural2Voices.length}`);
+        neural2Voices.slice(0, 3).forEach(voice => {
+          logger.warn(`🔴 Neural2 sample: ${voice.name} - Gender: ${voice.gender}, Accent: ${voice.accent}, Package: ${voice.package}`);
+        });
+        
+        // Chirp voice'ları özellikle kontrol et
+        const chirpVoices = allVoices.filter(v => v.name.includes('Chirp') || v.name.includes('Journey'));
+        logger.warn(`🔴 Chirp/Journey voices available: ${chirpVoices.length}`);
+        chirpVoices.slice(0, 3).forEach(voice => {
+          logger.warn(`🔴 Chirp sample: ${voice.name} - Gender: ${voice.gender}, Accent: ${voice.accent}, Package: ${voice.package}`);
+        });
+      } else if (filteredVoices.length > 0) {
+        // Başarılı filtreleme durumunda örnek göster
+        logger.info(`🎯 [VOICE FILTER SUCCESS] Sample filtered voices:`);
+        filteredVoices.slice(0, 3).forEach(voice => {
+          logger.info(`🎯 Filtered voice: ${voice.name} - Gender: ${voice.gender}, Accent: ${voice.accent}, Package: ${voice.package}`);
+        });
+      }
       
       return res.json({ 
         provider: 'google', 
         voices: filteredVoices,
-        filters: { accent, emotion, gender, ssmlSupport },
+        filters: { accent, emotion, gender, category },
         totalCount: allVoices.length,
-        filteredCount: filteredVoices.length,
-        ssmlStats: {
-          supported: ssmlSupportedCount,
-          unsupported: ssmlUnsupportedCount,
-          total: filteredVoices.length
-        }
+        filteredCount: filteredVoices.length
       });
       
     } catch (error) {

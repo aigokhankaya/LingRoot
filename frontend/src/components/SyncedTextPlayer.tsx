@@ -116,7 +116,7 @@ export default function SyncedTextPlayer({
   const [isAdaptiveMode, setIsAdaptiveMode] = useState(true);
   const [timingMethod, setTimingMethod] = useState<'VTT' | 'Backend' | 'Adaptive' | 'Linear'>('Backend');
   const [playbackRate, setPlaybackRate] = useState<number>(1.0); // 0.5x ile 2.0x arası hız kontrolü
-  const [highlightType, setHighlightType] = useState<'word' | 'sentence'>('word'); // Vurgulama türü
+  const [highlightType, setHighlightType] = useState<'word' | 'sentence'>('sentence'); // Vurgulama türü - default cümle
   const [timingOffset, setTimingOffset] = useState<number>(0); // Metin vurgusu timing offset (saniye)
   const [contextMenu, setContextMenu] = useState<ContextMenu>({ show: false, x: 0, y: 0, word: '', wordIndex: -1 });
   const [isAddingWord, setIsAddingWord] = useState(false);
@@ -657,10 +657,8 @@ export default function SyncedTextPlayer({
               onContextMenu={(e) => handleWordRightClick(e, word, index)}
               title={timestamp && 
                      typeof timestamp.startTime === 'number' && 
-                     typeof timestamp.endTime === 'number' && 
-                     !isNaN(timestamp.startTime) && 
-                     !isNaN(timestamp.endTime) 
-                ? `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s - ${timestamp.endTime.toFixed(2)}s` 
+                     !isNaN(timestamp.startTime) 
+                ? `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s` 
                 : 'Timing bilgisi yok'}
               style={{
                 // SABİT BOYUTLAR - Layout shift'i önlemek için
@@ -702,20 +700,30 @@ export default function SyncedTextPlayer({
   const renderHighlightedSentences = () => {
     if (sentenceTimestamps.length === 0) return null;
     
+    // Genel kelime index'ini hesapla (tüm metindeki kelime sırası için)
+    const getWordIndexInText = (sentenceIndex: number, wordIndexInSentence: number) => {
+      let totalWords = 0;
+      for (let i = 0; i < sentenceIndex; i++) {
+        const sentenceWords = sentenceTimestamps[i].sentence.split(/\s+/).filter(word => word.length > 0);
+        totalWords += sentenceWords.length;
+      }
+      return totalWords + wordIndexInSentence;
+    };
+    
     return (
-      <div className="text-lg leading-relaxed" style={{ lineHeight: '1.8rem' }}>
+      <div className="text-lg leading-relaxed" style={{ lineHeight: '1.8rem' }} onClick={hideContextMenu}>
         {sentenceTimestamps.map((sentenceData, index) => {
           const isCurrentSentence = index === currentSentenceIndex;
+          const words = sentenceData.sentence.split(/\s+/).filter(word => word.length > 0);
           
           return (
             <span
               key={index}
-              className={`inline-block mx-1 my-1 cursor-pointer transition-all duration-[25ms] hover:text-blue-600 font-normal ${
+              className={`inline-block mx-1 my-1 transition-all duration-[25ms] font-normal ${
                 isCurrentSentence 
                   ? 'bg-blue-200 text-blue-900 px-2 py-1 rounded-lg shadow-lg border-2 border-blue-400' 
                   : 'text-gray-800 px-1 py-1 hover:bg-gray-100 rounded'
               }`}
-              onClick={() => handleSentenceClick(index, sentenceData.startTime)}
               title={`Cümle ${index + 1}: ${sentenceData.startTime.toFixed(2)}s - ${sentenceData.endTime.toFixed(2)}s`}
               style={{
                 // SABİT YÜKSEKLİK - her cümle aynı yükseklikte (azaltıldı)
@@ -729,7 +737,24 @@ export default function SyncedTextPlayer({
                 wordBreak: 'break-word'
               }}
             >
-              {sentenceData.sentence.trim()}.
+              {words.map((word, wordIndex) => {
+                const globalWordIndex = getWordIndexInText(index, wordIndex);
+                return (
+                  <span
+                    key={`${index}-${wordIndex}`}
+                    className="cursor-pointer hover:bg-yellow-200 rounded px-1 transition-colors duration-150"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSentenceClick(index, sentenceData.startTime);
+                    }}
+                    onContextMenu={(e) => handleWordRightClick(e, word, globalWordIndex)}
+                    title={`Kelime: ${word} (Cümle ${index + 1})`}
+                  >
+                    {word}{wordIndex < words.length - 1 ? ' ' : ''}
+                  </span>
+                );
+              })}
+              .
             </span>
           );
         })}
@@ -988,34 +1013,21 @@ export default function SyncedTextPlayer({
       )}
 
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-6">
-        {/* Header with level and speaking rate */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-            <i className="fas fa-headphones mr-3 text-blue-600"></i>
-            📖 Synchronized Text
-          </h2>
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            {level && (
-              <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full">
-                Seviye: {level}
+        {/* Header with level and speaking rate - Sadece Hız ve Seviye bilgisi kalacak */}
+        {(level || speakingRate) && (
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              {level && (
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full">
+                  Seviye: {level}
+                </span>
+              )}
+              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full">
+                Hız: {playbackRate}x
               </span>
-            )}
-            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full">
-              TTS Hız: {speakingRate}x
-            </span>
-            <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full">
-              Oynatma: {playbackRate}x
-            </span>
-            <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
-              {timingMethod} Mode
-            </span>
-            {userInteractions.length > 0 && (
-              <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded">
-                {userInteractions.length} hints
-              </span>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Playback Speed Controls */}
         <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
@@ -1256,47 +1268,8 @@ export default function SyncedTextPlayer({
            </div>
         </div>
 
-        {/* Highlight Type Controls */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
-            <i className="fas fa-highlighter mr-2 text-purple-600"></i>
-            Vurgulama Türü
-          </h3>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setHighlightType('word')}
-              className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium flex items-center space-x-2 ${
-                highlightType === 'word'
-                  ? 'bg-purple-600 text-white shadow-lg transform scale-105'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-purple-50 hover:border-purple-300'
-              }`}
-              title="Kelimeleri tek tek vurgula"
-            >
-              <i className="fas fa-font text-sm"></i>
-              <span>Kelime</span>
-            </button>
-            
-            <button
-              onClick={() => setHighlightType('sentence')}
-              className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium flex items-center space-x-2 ${
-                highlightType === 'sentence'
-                  ? 'bg-purple-600 text-white shadow-lg transform scale-105'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-purple-50 hover:border-purple-300'
-              }`}
-              title="Cümleleri vurgula"
-            >
-              <i className="fas fa-paragraph text-sm"></i>
-              <span>Cümle</span>
-            </button>
-          </div>
-          <div className="mt-3 text-sm text-gray-600 flex items-center">
-            <i className="fas fa-info-circle mr-2"></i>
-            <span>
-              {highlightType === 'word' && 'Kelimeler tek tek vurgulanır - detaylı takip için ideal'}
-              {highlightType === 'sentence' && 'Cümleler bütün olarak vurgulanır - genel anlama odaklanma için ideal'}
-            </span>
-          </div>
-        </div>
+        {/* Highlight Type Controls - GİZLENDİ */}
+        {/* GIZLENDI - Vurgulama türü default cümle olacak bu yüzden ekrandaki "Vurgulama türü" alanını frontend de gizle */}
 
         {/* Original Turkish Text */}
         {originalTurkish && (
@@ -1389,75 +1362,14 @@ export default function SyncedTextPlayer({
           )}
         </div>
 
-      {/* Download Section */}
-      {downloadUrls && (
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <a
-                href={downloadUrls.mp3}
-                download
-                className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                <i className="fas fa-download mr-2"></i>
-                MP3 İndir
-              </a>
-              {downloadUrls.vtt && (
-                <a
-                  href={downloadUrls.vtt}
-                  download
-                  className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                >
-                  <i className="fas fa-closed-captioning mr-2"></i>
-                  VTT İndir
-                </a>
-              )}
-            </div>
-            
-            {stats && (
-              <div className="text-sm text-gray-500">
-                {stats.wordsCount && (
-                  <span>{stats.wordsCount} kelime • </span>
-                )}
-                {stats.timepointsCount && (
-                  <span>{stats.timepointsCount} timing point</span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Download Section - GİZLENDİ */}
+      {/* GIZLENDI - MP3 indir ve VTT indir linklerini de gizle */}
 
-      {/* Info Box */}
-      <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <div className="flex items-start">
-          <i className="fas fa-info-circle text-yellow-600 mt-1 mr-3"></i>
-          <div className="text-sm text-yellow-800">
-            <p className="font-medium mb-1">💡 Nasıl Kullanılır:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>Audio oynatmak için play butonuna basın</li>
-              <li>Kelimeler otomatik olarak vurgulanacak</li>
-              <li>Kelimeye tıklayarak o bölümü dinleyebilirsiniz</li>
-              <li>Adaptive mod siz tıkladıkça öğrenir ve zamanlamayı iyileştirir</li>
-            </ul>
-          </div>
-        </div>
-      </div>
+      {/* Info Box - GİZLENDİ */}
+      {/* GIZLENDI - "Yeni Senkronizasyon Mimarisi" başlıklı alanı kaldır */}
       
-      {/* Debug Info - Simplified */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-600">
-          <div>Audio: {isAudioLoaded ? '✅' : '❌'} | Duration: {audioDuration.toFixed(2)}s | Current: {currentTime.toFixed(2)}s | Word: {currentWordIndex}</div>
-          <div>Method: {timingMethod} | Rate: {speakingRate}x | Offset: {(timingOffset * 1000).toFixed(0)}ms | Words: {wordTimestamps.length}</div>
-          {currentWordIndex >= 0 && wordTimestamps[currentWordIndex] && (
-            <div className="mt-1 p-1 bg-yellow-100 rounded">
-              Word: "{wordTimestamps[currentWordIndex].word}" | 
-              Expected: {wordTimestamps[currentWordIndex].startTime.toFixed(2)}s-{wordTimestamps[currentWordIndex].endTime.toFixed(2)}s | 
-              Offset: {(currentTime - wordTimestamps[currentWordIndex].startTime).toFixed(3)}s
-            </div>
-          )}
-        </div>
-      )}
+      {/* Debug Info - GİZLENDİ */}
+      {/* GIZLENDI - div class="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-600" olan alanı kaldır */}
       </div>
     </div>
   );

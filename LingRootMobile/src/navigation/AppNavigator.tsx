@@ -16,6 +16,7 @@ import LibraryScreen from '../screens/LibraryScreen';
 import CreateScreen from '../screens/CreateScreen';
 import SuggestionsScreen from '../screens/SuggestionsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import VocabularyScreen from '../screens/VocabularyScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -109,7 +110,10 @@ const AppNavigator = () => {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
-          <Stack.Screen name="Main" component={MainTabs} />
+          <>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen name="Vocabulary" component={VocabularyScreen} />
+          </>
         ) : (
           <Stack.Screen name="Auth" component={AuthStack} />
         )}
