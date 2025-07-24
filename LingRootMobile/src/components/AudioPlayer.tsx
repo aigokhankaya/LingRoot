@@ -13,6 +13,8 @@ import {
 import { Audio } from 'expo-av';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, Timepoint } from '../types';
+import { useAudioContext } from '../contexts/AudioContext';
+import { addWordToVocabulary, addWordWithTranslation } from '../services/api';
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -31,16 +33,20 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   timepoints = [],
   words = [],
 }) => {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const { setCurrentTrack, setIsPlaying, isPlaying, currentTrack, sound, setSound, stopAllAudio } = useAudioContext();
   const [isLoading, setIsLoading] = useState(false);
   const [duration, setDuration] = useState(0);
   const [position, setPosition] = useState(0);
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(-1);
+  const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set()); // Seçilen kelimeler
   const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('sentence'); // Default cümle yapıldı
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  // Use refs to track the latest values for highlighting
+  const durationRef = useRef(0);
+  const isLoadedRef = useRef(false);
   
   const scrollViewRef = useRef<ScrollView>(null);
   const wordRefs = useRef<Map<number, any>>(new Map());
@@ -58,6 +64,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const wordsArray = words.length > 0 ? words : textToHighlight.split(' ');
     const sentences = textToHighlight.split(/[.!?]+/).filter(s => s.trim().length > 0);
 
+    console.log('📝 [TEXT PARSING]', {
+      trackId: track.id,
+      textSource: track.adapted_text ? 'adapted_text' : (track.translated_text ? 'translated_text' : 'title'),
+      textLength: textToHighlight.length,
+      wordsCount: wordsArray.length,
+      sentencesCount: sentences.length,
+      firstSentence: sentences[0]?.substring(0, 50) + '...'
+    });
+
     return {
       textToHighlight,
       wordsArray,
@@ -66,6 +81,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }, [track.adapted_text, track.translated_text, track.title, words]);
 
   const { textToHighlight, wordsArray, sentences } = textData;
+
+  // Log text data when component mounts or track changes
+  useEffect(() => {
+    console.log('📝 [TEXT DATA] Component updated:', {
+      trackId: track.id,
+      hasAdaptedText: !!track.adapted_text,
+      hasTranslatedText: !!track.translated_text,
+      textLength: textToHighlight.length,
+      sentencesCount: sentences.length,
+      wordsCount: wordsArray.length
+    });
+  }, [track.id, textToHighlight, sentences.length, wordsArray.length]);
 
   // Debug: Log initial data - GİZLENDİ
   // GIZLENDİ - Debug console.log mesajları
@@ -79,25 +106,59 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Initialize audio
   useEffect(() => {
     if (visible) {
-      loadAudio();
+      // Only load audio if it's not the current track or no sound is loaded
+      if (!sound || currentTrack?.id !== track.id) {
+        loadAudio();
+      } else {
+        console.log('🔊 [AUDIO EFFECT] Using existing audio instance for track:', track.id);
+        // Get current status from existing sound
+        if (sound) {
+          sound.getStatusAsync().then((status) => {
+            if (status.isLoaded) {
+              const statusAny = status as any;
+              const actualDuration = statusAny.durationMillis || track.duration * 1000;
+              const actualPosition = statusAny.positionMillis || 0;
+              
+              console.log('🔊 [EXISTING AUDIO] Setting states:', {
+                duration: actualDuration,
+                position: actualPosition,
+                isPlaying: statusAny.isPlaying
+              });
+              
+              setDuration(actualDuration);
+              setPosition(actualPosition);
+              setIsLoaded(true);
+              
+              // Update refs as well
+              durationRef.current = actualDuration;
+              isLoadedRef.current = true;
+            }
+          });
+        }
+      }
     } else {
-      // Reset states when modal closes
+      // Reset states when modal closes but DON'T unload audio
       setIsLoaded(false);
       setDuration(0);
       setPosition(0);
-      setIsPlaying(false);
       setCurrentWordIndex(-1);
       setCurrentSentenceIndex(-1);
+      setSelectedWords(new Set()); // Seçilen kelimeleri temizle
+      
+      // Reset refs as well
+      durationRef.current = 0;
+      isLoadedRef.current = false;
+      
+      console.log('🔊 [AUDIO EFFECT] Modal closed, keeping audio instance');
     }
+    
     return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
+      // Cleanup interval but keep audio running globally
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [visible, track.url]);
+  }, [visible, track.url, track.id]);
 
   const loadAudio = async () => {
     try {
@@ -105,6 +166,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setIsLoaded(false);
       setDuration(0);
       setPosition(0);
+      
+      console.log('🔊 [LOAD AUDIO] Starting for track:', track.id);
+      
+      // Stop any existing audio first
+      await stopAllAudio();
       
       // Set audio mode
       await Audio.setAudioModeAsync({
@@ -114,18 +180,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         shouldDuckAndroid: true,
         playThroughEarpieceAndroid: false,
       });
-      
-      // Unload previous sound
-      if (sound) {
-        await sound.unloadAsync();
-      }
 
+      console.log('🔊 [LOAD AUDIO] Creating new sound for:', track.url);
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: track.url },
         { shouldPlay: false }
       );
 
       setSound(newSound);
+      console.log('🔊 [LOAD AUDIO] Sound created and set globally');
 
       // Set up status update listener first
       newSound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
@@ -142,6 +205,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         
         setDuration(finalDuration);
         setIsLoaded(true);
+        
+        // Update refs as well
+        durationRef.current = finalDuration;
+        isLoadedRef.current = true;
+        
+        console.log('🔊 [LOAD AUDIO] Audio loaded successfully, duration:', finalDuration);
         
         // Force a status update to ensure everything is synced
         setTimeout(async () => {
@@ -164,14 +233,41 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const onPlaybackStatusUpdate = (status: any) => {
     if (status.isLoaded) {
+      console.log('🔊 [PLAYBACK STATUS]', {
+        isPlaying: status.isPlaying,
+        position: status.positionMillis,
+        duration: status.durationMillis,
+        didJustFinish: status.didJustFinish,
+        trackId: track.id
+      });
+      
       setPosition(status.positionMillis || 0);
+      
+      // Update global playing state based on actual audio status
       setIsPlaying(status.isPlaying);
       
-      // Update duration ONLY if not already set (prevent excessive state updates)
+      // Update global current track - only set when playing, clear when finished
+      if (status.isPlaying) {
+        setCurrentTrack(track);
+      } else if (status.didJustFinish) {
+        // Only clear when audio actually finished, not when paused
+        setCurrentTrack(null);
+      }
+      
+      // Update duration and isLoaded state from actual audio status
       const statusAny = status as any;
-      if (statusAny.durationMillis && duration === 0) {
-        setDuration(statusAny.durationMillis);
-        setIsLoaded(true);
+      if (statusAny.durationMillis) {
+        const actualDuration = statusAny.durationMillis;
+        if (duration !== actualDuration) {
+          setDuration(actualDuration);
+          durationRef.current = actualDuration;
+          console.log('🔊 [DURATION UPDATE] Duration set to:', actualDuration);
+        }
+        if (!isLoaded) {
+          setIsLoaded(true);
+          isLoadedRef.current = true;
+          console.log('🔊 [LOADED UPDATE] Audio marked as loaded');
+        }
       }
       
       if (status.isPlaying) {
@@ -182,12 +278,20 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   };
 
   const updateHighlighting = (currentTimeInSeconds: number) => {
-    const totalDurationSeconds = duration / 1000;
+    // Use refs for the most up-to-date values
+    const currentDuration = durationRef.current;
+    const currentIsLoaded = isLoadedRef.current;
     
     // Skip if audio is not yet loaded
-    if (!isLoaded || duration <= 0) {
+    if (!currentIsLoaded || currentDuration <= 0) {
+      console.log('🔤 [HIGHLIGHT] Skipping - audio not loaded or duration zero', {
+        isLoaded: currentIsLoaded,
+        duration: currentDuration
+      });
       return;
     }
+    
+    console.log('🔤 [HIGHLIGHT] Mode:', highlightMode, 'Time:', currentTimeInSeconds, 'Duration:', currentDuration);
     
     if (highlightMode === 'word') {
       updateWordHighlighting(currentTimeInSeconds);
@@ -228,13 +332,24 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }, [timepoints, duration, wordsArray, currentWordIndex]);
 
   const updateSentenceHighlighting = (currentTime: number) => {
-    const totalDuration = duration / 1000;
+    const totalDuration = durationRef.current / 1000;
     const progress = totalDuration > 0 ? currentTime / totalDuration : 0;
     const newSentenceIndex = Math.floor(progress * sentences.length);
     const boundedIndex = Math.min(Math.max(0, newSentenceIndex), sentences.length - 1);
     
+    console.log('🔤 [SENTENCE HIGHLIGHT]', {
+      currentTime,
+      totalDuration,
+      progress,
+      newSentenceIndex,
+      boundedIndex,
+      currentSentenceIndex,
+      sentencesLength: sentences.length
+    });
+    
     if (boundedIndex !== currentSentenceIndex && boundedIndex >= 0) {
       setCurrentSentenceIndex(boundedIndex);
+      console.log('🔤 [SENTENCE HIGHLIGHT] Updated to sentence:', boundedIndex);
     }
   };
 
@@ -258,16 +373,49 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }, []);
 
   const handlePlayPause = async () => {
-    if (!sound) return;
+    if (!sound) {
+      console.log('🔊 [PLAY/PAUSE] No sound object');
+      return;
+    }
+
+    console.log('🔊 [PLAY/PAUSE] Current state:', {
+      isPlaying,
+      soundLoaded: !!sound,
+      trackId: track.id
+    });
 
     try {
-      if (isPlaying) {
+      // Get actual sound status before making decision
+      const currentStatus = await sound.getStatusAsync();
+      console.log('🔊 [PLAY/PAUSE] Actual sound status:', {
+        isLoaded: currentStatus.isLoaded,
+        isPlaying: (currentStatus as any).isPlaying
+      });
+
+      if ((currentStatus as any).isPlaying) {
+        console.log('🔊 [PLAY/PAUSE] Attempting to pause...');
         await sound.pauseAsync();
+        console.log('🔊 [PLAY/PAUSE] Pause command sent');
       } else {
+        console.log('🔊 [PLAY/PAUSE] Attempting to play...');
         await sound.playAsync();
+        console.log('🔊 [PLAY/PAUSE] Play command sent');
       }
+      
+      // Wait a bit and verify the status change
+      setTimeout(async () => {
+        try {
+          const verifyStatus = await sound.getStatusAsync();
+          console.log('🔊 [PLAY/PAUSE] Verified status:', {
+            isPlaying: (verifyStatus as any).isPlaying
+          });
+        } catch (verifyError) {
+          console.error('🔊 [PLAY/PAUSE] Verify error:', verifyError);
+        }
+      }, 100);
+      
     } catch (error) {
-      console.error('Error playing/pausing audio:', error);
+      console.error('🔊 [PLAY/PAUSE ERROR]', error);
       Alert.alert('Hata', 'Ses oynatılırken hata oluştu');
     }
   };
@@ -338,9 +486,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }, []);
 
   const handleAddWordToVocabulary = useCallback(async (word: string, wordIndex: number) => {
+    const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
+    
     try {
       // Create context from surrounding words or text
       let context = '';
+      let originalSentence = '';
       
       if (wordsArray.length > 0 && wordIndex >= 0 && wordIndex < wordsArray.length) {
         const startIndex = Math.max(0, wordIndex - 5);
@@ -350,34 +501,76 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       } else {
         // Fallback: use text around the word
         const textToSearch = textToHighlight.toLowerCase();
-        const wordPos = textToSearch.indexOf(word.toLowerCase());
+        const wordPos = textToSearch.indexOf(cleanWord.toLowerCase());
         if (wordPos >= 0) {
           const start = Math.max(0, wordPos - 50);
           const end = Math.min(textToHighlight.length, wordPos + 50);
           context = textToHighlight.substring(start, end);
         } else {
-          context = `The word "${word}" appears in an English text.`;
+          context = `The word "${cleanWord}" appears in an English text.`;
         }
       }
 
       // Find original sentence
       const sentences = textToHighlight.split(/[.!?;]+/).map(s => s.trim()).filter(s => s.length > 5);
-      const originalSentence = sentences.find(sentence => 
-        sentence.toLowerCase().includes(word.toLowerCase())
-      ) || '';
+      originalSentence = sentences.find(sentence => 
+        sentence.toLowerCase().includes(cleanWord.toLowerCase())
+      ) || context;
 
-      // For mobile, we'll show a simple success message
-      // In a real implementation, you'd call an API to add the word
-      Alert.alert(
-        'Başarılı!',
-        `"${word}" kelimesi kelime listenize eklendi!\n\nBağlam: ${context.substring(0, 100)}...`,
-        [{ text: 'Tamam' }]
+      console.log('📝 [VOCABULARY] Adding word:', {
+        word: cleanWord,
+        context: context.substring(0, 100),
+        sentence: originalSentence,
+        level: track.level
+      });
+
+      // Call the real API with translation (like web version)
+      const result = await addWordWithTranslation(
+        cleanWord,
+        context, // Context for AI translation
+        track.level,
+        originalSentence
       );
+
+      // Add word to selected words set for UI feedback
+      setSelectedWords(prev => new Set([...prev, cleanWord.toLowerCase()]));
+
+      // Show detailed success message like web version
+      if (result.isExisting) {
+        Alert.alert(
+          'Bilgi!',
+          `"${cleanWord}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${result.data.definition || 'Belirtilmemiş'}\nÖrnek: ${result.data.example_sentence || 'Belirtilmemiş'}`,
+          [{ text: 'Tamam' }]
+        );
+      } else if (result.translationError) {
+        Alert.alert(
+          'Uyarı!',
+          `"${cleanWord}" kelimesi eklendi ancak çeviri yapılamadı. Anlamı manuel olarak ekleyebilirsiniz.`,
+          [{ text: 'Tamam' }]
+        );
+      } else {
+        Alert.alert(
+          'Başarılı!',
+          `"${cleanWord}" kelimesi başarıyla eklendi!\n\nAnlam: ${result.data.definition}\nÖrnek Cümle: ${result.data.example_sentence}\nSeviye: ${result.data.level}`,
+          [{ text: 'Tamam' }]
+        );
+      }
       
-    } catch (error) {
-      Alert.alert('Hata', 'Kelime eklenirken bir hata oluştu.');
+    } catch (error: any) {
+      console.error('📝 [VOCABULARY ERROR]', error);
+      if (error.message?.includes('zaten listede mevcut')) {
+        Alert.alert(
+          'Bilgi',
+          `"${cleanWord}" kelimesi zaten kelime listenizdedir.`
+        );
+      } else {
+        Alert.alert(
+          'Hata', 
+          `Kelime eklenirken bir hata oluştu: ${error.message || 'Lütfen internet bağlantınızı kontrol edin.'}`
+        );
+      }
     }
-  }, [wordsArray, textToHighlight]);
+  }, [wordsArray, textToHighlight, track.level]);
 
   const formatTime = (milliseconds: number) => {
     const totalSeconds = Math.floor(milliseconds / 1000);
@@ -406,6 +599,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               }
             }}
             onPress={() => handleWordPress(index)}
+            onLongPress={() => handleWordLongPress(word, index)}
             style={[
               styles.wordContainer,
               index === currentWordIndex && styles.highlightedWord
@@ -423,22 +617,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         ))}
       </View>
     );
-  }, [wordsArray, currentWordIndex, handleWordPress]);
+  }, [wordsArray, currentWordIndex, handleWordPress, handleWordLongPress]);
 
   const renderSentenceHighlighting = () => {
-    // Genel kelime index'ini hesapla (tüm metindeki kelime sırası için)
-    const getWordIndexInText = (sentenceIndex: number, wordIndexInSentence: number) => {
-      let totalWords = 0;
-      for (let i = 0; i < sentenceIndex; i++) {
-        const sentenceWords = sentences[i].split(/\s+/).filter(word => word.length > 0);
-        totalWords += sentenceWords.length;
-      }
-      return totalWords + wordIndexInSentence;
-    };
-
     return (
       <View style={styles.textContainer}>
         {sentences.map((sentence, sentenceIndex) => {
+          const isHighlighted = sentenceIndex === currentSentenceIndex;
           const words = sentence.split(/\s+/).filter(word => word.length > 0);
           
           return (
@@ -446,23 +631,29 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               key={sentenceIndex}
               style={[
                 styles.sentenceContainer,
-                sentenceIndex === currentSentenceIndex && styles.highlightedSentence
+                isHighlighted && styles.highlightedSentence
               ]}
             >
               <View style={styles.sentenceWordsContainer}>
                 {words.map((word, wordIndex) => {
-                  const globalWordIndex = getWordIndexInText(sentenceIndex, wordIndex);
+                  const cleanWord = word.replace(/[.,!?;:]/g, '').toLowerCase();
+                  const isWordSelected = selectedWords.has(cleanWord);
+                  
                   return (
                     <TouchableOpacity
                       key={`${sentenceIndex}-${wordIndex}`}
-                      style={styles.wordInSentence}
-                      onLongPress={() => handleWordLongPress(word, globalWordIndex)}
+                      style={[
+                        styles.wordInSentence,
+                        isWordSelected && styles.selectedWord
+                      ]}
+                      onLongPress={() => handleWordLongPress(word, wordIndex)}
                       delayLongPress={500}
                     >
                       <Text 
                         style={[
                           styles.sentence,
-                          sentenceIndex === currentSentenceIndex && styles.highlightedSentenceText
+                          isHighlighted && styles.highlightedSentenceText,
+                          isWordSelected && styles.selectedWordText
                         ]}
                       >
                         {word}{wordIndex < words.length - 1 ? ' ' : ''}
@@ -473,7 +664,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 <Text 
                   style={[
                     styles.sentence,
-                    sentenceIndex === currentSentenceIndex && styles.highlightedSentenceText
+                    isHighlighted && styles.highlightedSentenceText
                   ]}
                 >
                   .
@@ -688,6 +879,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     padding: 8,
     borderRadius: 6,
+    minHeight: 40, // Sabit yükseklik
+    backgroundColor: 'transparent', // Default transparent background
   },
   highlightedSentence: {
     backgroundColor: '#007AFF20',
@@ -707,9 +900,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   wordInSentence: {
+    margin: 1, // Adjust as needed for spacing between words
+  },
+  selectedWord: {
+    backgroundColor: '#FFD700', // Sarı arka plan
+    borderRadius: 4,
     paddingHorizontal: 2,
     paddingVertical: 1,
-    borderRadius: 3,
+  },
+  selectedWordText: {
+    color: '#333',
+    fontWeight: '600',
   },
   controlsContainer: {
     backgroundColor: '#fff',

@@ -3,7 +3,7 @@ import { TTSRequest, TTSResponse, APIResponse } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Backend URL'i environment variables'dan alacağız
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.4:5001';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.7:5001';
 
 // Debug: API URL'sini kontrol et
 console.log('🔧 [API DEBUG]');
@@ -71,6 +71,30 @@ apiClient.interceptors.response.use(
 );
 
 export const apiService = {
+  // Network connectivity check
+  async checkConnectivity(): Promise<boolean> {
+    try {
+      console.log('🔧 [API DEBUG] Testing connectivity to:', API_BASE_URL);
+      
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const response = await fetch(`${API_BASE_URL}/healthz`, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      const isConnected = response.ok;
+      console.log('🔧 [API DEBUG] Connectivity test result:', isConnected);
+      return isConnected;
+    } catch (error: any) {
+      console.error('🔧 [API DEBUG] Connectivity test failed:', error.message);
+      return false;
+    }
+  },
+
   // Text-to-Speech API
   async processTextToSpeech(request: TTSRequest): Promise<TTSResponse> {
     try {
@@ -211,6 +235,34 @@ export const addWordToVocabulary = async (
     return response.data.data;
   } catch (error) {
     console.error('Error adding word to vocabulary:', error);
+    throw error;
+  }
+};
+
+// Kelime çevirisi ile birlikte ekleme (Web tarafındaki gibi)
+export const addWordWithTranslation = async (
+  word: string, 
+  context: string, 
+  level?: string,
+  originalSentence?: string
+): Promise<{
+  data: VocabularyWord;
+  message: string;
+  isExisting: boolean;
+  translationError?: boolean;
+}> => {
+  try {
+    console.log('🔧 [API DEBUG] Adding word with translation:', { word, context, level, originalSentence });
+    const response = await apiClient.post('/api/vocabulary/add-with-translation', {
+      word,
+      context,
+      level,
+      originalSentence
+    });
+    console.log('🔧 [API DEBUG] Add word with translation response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error adding word with translation:', error);
     throw error;
   }
 };

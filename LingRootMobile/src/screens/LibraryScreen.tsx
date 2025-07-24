@@ -14,9 +14,11 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, CEFRLevel } from '../types';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useAudioContext } from '../contexts/AudioContext';
 import AudioPlayer from '../components/AudioPlayer';
 
 const LibraryScreen: React.FC = () => {
+  const { isTrackPlaying, currentTrack, isPlaying } = useAudioContext();
   const [searchText, setSearchText] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel | 'all'>('all');
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
@@ -154,8 +156,11 @@ const LibraryScreen: React.FC = () => {
       hasUrl: !!track.url,
       urlLength: track.url?.length || 0,
       hasTranslatedText: !!track.translated_text,
-      hasAdaptedText: !!track.adapted_text
+      hasAdaptedText: !!track.adapted_text,
+      isCurrentlyPlaying: isTrackPlaying(track.id)
     });
+    
+    // Her durumda modal'ı aç
     setSelectedTrack(track);
     setPlayerVisible(true);
   };
@@ -165,34 +170,62 @@ const LibraryScreen: React.FC = () => {
     setSelectedTrack(null);
   };
 
-  const renderAudioTrack = ({ item }: { item: AudioTrack }) => (
-    <TouchableOpacity style={styles.trackCard} onPress={() => handlePlayTrack(item)}>
-      <View style={styles.trackInfo}>
-        <View style={styles.trackHeader}>
-          <Text style={styles.trackTitle} numberOfLines={2}>{item.title}</Text>
-          <View style={[styles.levelBadge, { backgroundColor: getLevelColor(item.level) }]}>
-            <Text style={styles.levelText}>{item.level}</Text>
+  const renderAudioTrack = ({ item }: { item: AudioTrack }) => {
+    const isCurrentlyPlaying = isTrackPlaying(item.id);
+    
+    // Debug log sadece durumu değişen track'ler için
+    if (isCurrentlyPlaying) {
+      console.log('🎵 [LIBRARY RENDER] Currently playing:', {
+        trackId: item.id,
+        title: item.title.substring(0, 30) + '...',
+      });
+    }
+    
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.trackCard,
+          isCurrentlyPlaying && styles.trackCardPlaying
+        ]} 
+        onPress={() => handlePlayTrack(item)}
+      >
+        <View style={styles.trackInfo}>
+          <View style={styles.trackHeader}>
+            <Text style={styles.trackTitle} numberOfLines={2}>{item.title}</Text>
+            <View style={[styles.levelBadge, { backgroundColor: getLevelColor(item.level) }]}>
+              <Text style={styles.levelText}>{item.level}</Text>
+            </View>
           </View>
-        </View>
-        <View style={styles.trackMeta}>
-          <Text style={styles.duration}>
-            <Icon name="access-time" size={14} color="#666" /> {formatDuration(item.duration)}
-          </Text>
-          <Text style={styles.date}>
-            {new Date(item.created_at).toLocaleDateString('tr-TR')}
-          </Text>
-        </View>
-        {item.input_type && (
-          <View style={styles.inputTypeContainer}>
-            <Text style={styles.inputType}>{item.input_type}</Text>
+          <View style={styles.trackMeta}>
+            <Text style={styles.duration}>
+              <Icon name="access-time" size={14} color="#666" /> {formatDuration(item.duration)}
+            </Text>
+            <Text style={styles.date}>
+              {new Date(item.created_at).toLocaleDateString('tr-TR')}
+            </Text>
           </View>
-        )}
-      </View>
-      <TouchableOpacity style={styles.playButton} onPress={() => handlePlayTrack(item)}>
-        <Icon name="play-arrow" size={24} color="#007AFF" />
+          {item.input_type && (
+            <View style={styles.inputTypeContainer}>
+              <Text style={styles.inputType}>{item.input_type}</Text>
+            </View>
+          )}
+        </View>
+        <TouchableOpacity 
+          style={[
+            styles.playButton,
+            isCurrentlyPlaying && styles.playButtonPlaying
+          ]} 
+          onPress={() => handlePlayTrack(item)}
+        >
+          {isCurrentlyPlaying ? (
+            <Icon name="pause" size={24} color={isCurrentlyPlaying ? "#FFFFFF" : "#007AFF"} />
+          ) : (
+            <Icon name="play-arrow" size={24} color="#007AFF" />
+          )}
+        </TouchableOpacity>
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   // Loading state
   if (loading) {
@@ -411,6 +444,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  trackCardPlaying: {
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    backgroundColor: '#F0F8FF',
+  },
   trackInfo: {
     flex: 1,
   },
@@ -460,6 +498,10 @@ const styles = StyleSheet.create({
   },
   playButton: {
     padding: 8,
+  },
+  playButtonPlaying: {
+    backgroundColor: '#007AFF',
+    borderRadius: 12,
   },
   emptyState: {
     flex: 1,

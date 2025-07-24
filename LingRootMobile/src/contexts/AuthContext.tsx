@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContextType, User } from '../types';
 import { authService } from '../services/supabase';
+import { apiService } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -61,8 +62,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Validate token by making a test API call
         try {
-          const API_BASE_URL = 'http://192.168.1.4:5001'; // development
-          const response = await fetch(`${API_BASE_URL}/api/health`, {
+          const API_BASE_URL = 'http://192.168.1.7:5001'; // development
+          const response = await fetch(`${API_BASE_URL}/healthz`, {
             method: 'GET',
             headers: { 
               'Authorization': `Bearer ${token}`,
@@ -104,8 +105,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('🔧 [AUTH DEBUG] signIn attempt via Backend API:', { email });
       
+      // First check network connectivity
+      const isConnected = await apiService.checkConnectivity();
+      if (!isConnected) {
+        throw new Error('Backend serveri ile bağlantı kurulamıyor. Lütfen internet bağlantınızı kontrol edin.');
+      }
+      
       // Web uygulaması gibi backend API'sini kullan
-      const API_BASE_URL = 'http://192.168.1.4:5001'; // development
+      const API_BASE_URL = 'http://192.168.1.7:5001'; // development
       
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
