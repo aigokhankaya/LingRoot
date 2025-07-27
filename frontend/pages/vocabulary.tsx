@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { getVocabulary, deleteWordFromVocabulary, updateWordInVocabulary, addWordToVocabulary, VocabularyWord, getReminderSettings, saveReminderSettings, ReminderSettings } from '../src/lib/api';
+import { getVocabulary, deleteWordFromVocabulary, updateWordInVocabulary, addWordToVocabulary, VocabularyWord } from '../src/lib/api';
 import { Button } from "../src/components/ui/button";
 import { Input } from "../src/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "../src/components/ui/card";
 import { Label } from "../src/components/ui/label";
 import { Badge } from "../src/components/ui/badge";
 import { Progress } from "../src/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../src/components/ui/dialog";
+// import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../src/components/ui/dialog";
 
 export function VocabularyTabContent({ user }: { user: any }) {
   // State variables
@@ -32,45 +32,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
     example: ""
   });
 
-  // Reminder settings state
-  const [reminderSettings, setReminderSettings] = useState<ReminderSettings>({
-    wordsPerDay: 5,
-    startTime: "09:00",
-    endTime: "18:00",
-    isEnabled: true
-  });
-  const [isReminderSettingsOpen, setIsReminderSettingsOpen] = useState(false);
-
-  // Load reminder settings on component mount
-  useEffect(() => {
-    if (user) {
-      loadReminderSettings();
-    }
-  }, [user]);
-
-  const loadReminderSettings = async () => {
-    try {
-      const settings = await getReminderSettings();
-      setReminderSettings(settings);
-      console.log('✅ [WEB] Loaded reminder settings:', settings);
-    } catch (error) {
-      console.error('❌ [WEB] Error loading reminder settings:', error);
-    }
-  };
-
-  // Save reminder settings
-  const handleSaveReminderSettings = async () => {
-    try {
-      await saveReminderSettings(reminderSettings);
-      setIsReminderSettingsOpen(false);
-      
-      // Show success message
-      alert('✅ Hatırlatma ayarları başarıyla kaydedildi!\n\nMobil uygulamada yeni ayarlar aktif olacak.');
-    } catch (error) {
-      console.error('❌ [WEB] Error saving reminder settings:', error);
-      alert('❌ Ayarlar kaydedilirken hata oluştu: ' + (error instanceof Error ? error.message : 'Bilinmeyen hata'));
-    }
-  };
+  // Reminder settings will be implemented later
 
   // Word lists configuration
   const wordLists = {
@@ -655,119 +617,14 @@ export function VocabularyTabContent({ user }: { user: any }) {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <Dialog open={isReminderSettingsOpen} onOpenChange={setIsReminderSettingsOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start">
-                      <i className="fas fa-sync-alt mr-2 text-purple-600"></i>
-                      Kelime Tekrarı
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="text-xl font-semibold text-gray-800">
-                        <i className="fas fa-sync-alt mr-2 text-purple-600"></i>
-                        Kelime Hatırlatma Ayarları
-                      </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-6 py-4">
-                      {/* Words per day setting */}
-                      <div className="space-y-2">
-                        <Label htmlFor="wordsPerDay" className="text-sm font-medium text-gray-700">
-                          Günde kaç kelime hatırlatılsın?
-                        </Label>
-                        <select
-                          value={reminderSettings.wordsPerDay.toString()}
-                          onChange={(e) => setReminderSettings(prev => ({
-                            ...prev,
-                            wordsPerDay: parseInt(e.target.value)
-                          }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        >
-                          <option value="1">1 kelime</option>
-                          <option value="3">3 kelime</option>
-                          <option value="5">5 kelime</option>
-                          <option value="7">7 kelime</option>
-                          <option value="10">10 kelime</option>
-                          <option value="15">15 kelime</option>
-                          <option value="20">20 kelime</option>
-                        </select>
-                      </div>
-
-                      {/* Time range setting */}
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium text-gray-700">
-                          Bildirim yapılacak saat aralığı
-                        </Label>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="startTime" className="text-xs text-gray-600">
-                              Başlangıç Saati
-                            </Label>
-                            <Input
-                              id="startTime"
-                              type="time"
-                              value={reminderSettings.startTime}
-                              onChange={(e) => setReminderSettings(prev => ({
-                                ...prev,
-                                startTime: e.target.value
-                              }))}
-                              className="w-full"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="endTime" className="text-xs text-gray-600">
-                              Bitiş Saati
-                            </Label>
-                            <Input
-                              id="endTime"
-                              type="time"
-                              value={reminderSettings.endTime}
-                              onChange={(e) => setReminderSettings(prev => ({
-                                ...prev,
-                                endTime: e.target.value
-                              }))}
-                              className="w-full"
-                            />
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2">
-                          <i className="fas fa-info-circle mr-1"></i>
-                          Seçilen saat aralığında eşit aralıklarla hatırlatmalar yapılacaktır.
-                        </p>
-                      </div>
-
-                      {/* Info box */}
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <div className="flex">
-                          <i className="fas fa-mobile-alt text-blue-600 mr-2 mt-0.5"></i>
-                          <div>
-                            <h4 className="text-sm font-medium text-blue-800">Mobil Bildirimler</h4>
-                            <p className="text-xs text-blue-600 mt-1">
-                              Bu ayarlar mobil uygulamada bildirim zamanlarını belirler. Web versiyonunda bildirim bulunmaz.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="flex justify-end space-x-3 pt-4">
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsReminderSettingsOpen(false)}
-                        >
-                          İptal
-                        </Button>
-                        <Button
-                          onClick={handleSaveReminderSettings}
-                          className="bg-purple-600 hover:bg-purple-700"
-                        >
-                          <i className="fas fa-save mr-2"></i>
-                          Ayarları Kaydet
-                        </Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => alert('Hatırlatma ayarları geçici olarak devre dışı - yakında aktif olacak')}
+                >
+                  <i className="fas fa-sync-alt mr-2 text-purple-600"></i>
+                  Kelime Tekrarı
+                </Button>
                 <Button variant="outline" className="w-full justify-start">
                   <i className="fas fa-microphone mr-2 text-blue-600"></i>
                   Telaffuz Pratiği
@@ -801,4 +658,9 @@ export function VocabularyTabContent({ user }: { user: any }) {
       </div>
     </div>
   );
+}
+
+// Default export for Next.js pages
+export default function VocabularyPage() {
+  return <VocabularyTabContent user={{}} />;
 }
