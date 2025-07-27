@@ -872,8 +872,9 @@ export const getReminderSettings = async (): Promise<ReminderSettings> => {
     console.log('🔍 [FRONTEND] Getting reminder settings from:', fullUrl);
     console.log('🔍 [FRONTEND] Environment:', process.env.NODE_ENV);
     console.log('🔍 [FRONTEND] API Base URL:', getApiBaseUrl());
+    console.log('🔍 [FRONTEND] Axios baseURL:', api.defaults.baseURL);
     
-    const response = await api.get('/api/reminder-settings');
+    const response = await api.get('/reminder-settings'); // REMOVED /api/ prefix
     console.log('✅ [FRONTEND] Reminder settings response:', response.data);
     return response.data.data;
   } catch (error: any) {
@@ -900,7 +901,7 @@ export const saveReminderSettings = async (settings: ReminderSettings): Promise<
   try {
     console.log('💾 [DEBUG] Saving reminder settings to:', getApiBaseUrl() + '/api/reminder-settings');
     console.log('📤 [DEBUG] Settings being saved:', settings);
-    const response = await api.post('/api/reminder-settings', settings);
+    const response = await api.post('/reminder-settings', settings); // REMOVED /api/ prefix
     console.log('✅ [DEBUG] Save response:', response.data);
   } catch (error) {
     console.error('❌ [DEBUG] Error saving reminder settings:', error);
