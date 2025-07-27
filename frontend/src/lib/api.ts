@@ -868,10 +868,13 @@ export interface ReminderSettings {
 
 export const getReminderSettings = async (): Promise<ReminderSettings> => {
   try {
+    console.log('🔍 [DEBUG] Getting reminder settings from:', getApiBaseUrl() + '/api/reminder-settings');
     const response = await api.get('/api/reminder-settings');
+    console.log('✅ [DEBUG] Reminder settings response:', response.data);
     return response.data.data;
   } catch (error) {
-    console.error('Error getting reminder settings:', error);
+    console.error('❌ [DEBUG] Error getting reminder settings:', error);
+    console.log('🔄 [DEBUG] Returning default settings due to error');
     // Return default settings if API fails
     return {
       wordsPerDay: 5,
@@ -884,9 +887,12 @@ export const getReminderSettings = async (): Promise<ReminderSettings> => {
 
 export const saveReminderSettings = async (settings: ReminderSettings): Promise<void> => {
   try {
-    await api.post('/api/reminder-settings', settings);
+    console.log('💾 [DEBUG] Saving reminder settings to:', getApiBaseUrl() + '/api/reminder-settings');
+    console.log('📤 [DEBUG] Settings being saved:', settings);
+    const response = await api.post('/api/reminder-settings', settings);
+    console.log('✅ [DEBUG] Save response:', response.data);
   } catch (error) {
-    console.error('Error saving reminder settings:', error);
+    console.error('❌ [DEBUG] Error saving reminder settings:', error);
     throw new Error('Ayarlar kaydedilemedi');
   }
 };

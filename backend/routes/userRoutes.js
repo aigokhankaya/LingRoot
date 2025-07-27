@@ -108,7 +108,9 @@ router.post('/user-interests', authenticate, updateUserInterests);
 // Reminder Settings endpoints
 router.get('/reminder-settings', authenticate, async (req, res) => {
   try {
-    logger.info(`Getting reminder settings for user: ${req.user.id}`);
+    logger.info(`🔍 [DEBUG] Getting reminder settings for user: ${req.user.id}`);
+    logger.info(`🔍 [DEBUG] Supabase URL: ${process.env.SUPABASE_URL}`);
+    logger.info(`🔍 [DEBUG] Environment: ${process.env.NODE_ENV}`);
     
     const defaultSettings = {
       wordsPerDay: 5,
