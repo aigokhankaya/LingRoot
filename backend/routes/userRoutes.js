@@ -105,6 +105,11 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
 router.get('/user-interests', authenticate, getUserInterests);
 router.post('/user-interests', authenticate, updateUserInterests);
 
+// Test endpoint for debugging
+router.get('/test-reminder', (req, res) => {
+  res.json({ success: true, message: 'Reminder test endpoint works!' });
+});
+
 // Reminder Settings endpoints
 router.get('/reminder-settings', authenticate, async (req, res) => {
   try {

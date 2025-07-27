@@ -868,13 +868,24 @@ export interface ReminderSettings {
 
 export const getReminderSettings = async (): Promise<ReminderSettings> => {
   try {
-    console.log('🔍 [DEBUG] Getting reminder settings from:', getApiBaseUrl() + '/api/reminder-settings');
+    const fullUrl = getApiBaseUrl() + '/api/reminder-settings';
+    console.log('🔍 [FRONTEND] Getting reminder settings from:', fullUrl);
+    console.log('🔍 [FRONTEND] Environment:', process.env.NODE_ENV);
+    console.log('🔍 [FRONTEND] API Base URL:', getApiBaseUrl());
+    
     const response = await api.get('/api/reminder-settings');
-    console.log('✅ [DEBUG] Reminder settings response:', response.data);
+    console.log('✅ [FRONTEND] Reminder settings response:', response.data);
     return response.data.data;
-  } catch (error) {
-    console.error('❌ [DEBUG] Error getting reminder settings:', error);
-    console.log('🔄 [DEBUG] Returning default settings due to error');
+  } catch (error: any) {
+    console.error('❌ [FRONTEND] Error getting reminder settings:', error);
+    console.log('❌ [FRONTEND] Error details:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      url: error.config?.url,
+      method: error.config?.method
+    });
+    console.log('🔄 [FRONTEND] Returning default settings due to error');
     // Return default settings if API fails
     return {
       wordsPerDay: 5,
