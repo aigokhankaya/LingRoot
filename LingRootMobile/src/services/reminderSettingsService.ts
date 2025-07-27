@@ -1,0 +1,148 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export interface ReminderSettings {
+  wordsPerDay: number;
+  startTime: string; // HH:MM format
+  endTime: string;   // HH:MM format
+  isEnabled: boolean;
+}
+
+const STORAGE_KEY = 'reminder_settings';
+
+const defaultSettings: ReminderSettings = {
+  wordsPerDay: 5,
+  startTime: '09:00',
+  endTime: '18:00',
+  isEnabled: true,
+};
+
+export class ReminderSettingsService {
+  /**
+   * Get reminder settings from storage
+   */
+  static async getSettings(): Promise<ReminderSettings> {
+    try {
+      const storedSettings = await AsyncStorage.getItem(STORAGE_KEY);
+      if (storedSettings) {
+        return { ...defaultSettings, ...JSON.parse(storedSettings) };
+      }
+      return defaultSettings;
+    } catch (error) {
+      console.error('🔧 [REMINDER_SETTINGS] Error getting settings:', error);
+      return defaultSettings;
+    }
+  }
+
+  /**
+   * Save reminder settings to storage
+   */
+  static async saveSettings(settings: ReminderSettings): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      console.log('🔧 [REMINDER_SETTINGS] Settings saved:', settings);
+    } catch (error) {
+      console.error('🔧 [REMINDER_SETTINGS] Error saving settings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate notification intervals based on settings
+   */
+  static calculateNotificationTimes(
+    settings: ReminderSettings,
+    unlearnedWordsCount: number
+  ): Date[] {
+    const notifications: Date[] = [];
+    
+    if (!settings.isEnabled || unlearnedWordsCount === 0) {
+      return notifications;
+    }
+
+    // Parse start and end times
+    const [startHour, startMinute] = settings.startTime.split(':').map(Number);
+    const [endHour, endMinute] = settings.endTime.split(':').map(Number);
+
+    // Create today's start and end times
+    const now = new Date();
+    const startTime = new Date(now);
+    startTime.setHours(startHour, startMinute, 0, 0);
+    
+    const endTime = new Date(now);
+    endTime.setHours(endHour, endMinute, 0, 0);
+
+    // If end time is before start time, it means next day
+    if (endTime <= startTime) {
+      endTime.setDate(endTime.getDate() + 1);
+    }
+
+    // Calculate total duration in minutes
+    const totalDurationMs = endTime.getTime() - startTime.getTime();
+    const totalDurationMinutes = totalDurationMs / (1000 * 60);
+
+    // Calculate how many words to remind based on available and desired
+    const wordsToRemind = Math.min(settings.wordsPerDay, unlearnedWordsCount);
+    
+    if (wordsToRemind <= 0) {
+      return notifications;
+    }
+
+    // Calculate interval between notifications
+    const intervalMinutes = totalDurationMinutes / wordsToRemind;
+
+    console.log('🔧 [REMINDER_CALC] Calculation details:', {
+      startTime: settings.startTime,
+      endTime: settings.endTime,
+      totalDurationMinutes,
+      wordsToRemind,
+      intervalMinutes,
+      unlearnedWordsCount
+    });
+
+    // Generate notification times
+    for (let i = 0; i < wordsToRemind; i++) {
+      const notificationTime = new Date(startTime.getTime() + (i * intervalMinutes * 60 * 1000));
+      
+      // Only add future notifications
+      if (notificationTime > now) {
+        notifications.push(notificationTime);
+      }
+    }
+
+    return notifications;
+  }
+
+  /**
+   * Format time for display
+   */
+  static formatTime(time: string): string {
+    const [hours, minutes] = time.split(':');
+    return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+  }
+
+  /**
+   * Calculate time difference in readable format
+   */
+  static getTimeDifference(startTime: string, endTime: string): string {
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+
+    let totalMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+    
+    // Handle next day scenario
+    if (totalMinutes < 0) {
+      totalMinutes += 24 * 60; // Add 24 hours
+    }
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    if (hours === 0) {
+      return `${minutes} dakika`;
+    } else if (minutes === 0) {
+      return `${hours} saat`;
+    } else {
+      return `${hours} saat ${minutes} dakika`;
+    }
+  }
+} 

@@ -3,6 +3,7 @@ import { AuthContextType, User } from '../types';
 import { authService } from '../services/supabase';
 import { apiService } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NotificationService from '../services/notificationService';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -27,7 +28,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     checkAuthState();
 
     // Listen for auth changes - web projesindeki gibi basitleştirildi
-    const { data: { subscription } } = authService.onAuthStateChange((authUser) => {
+    const { data: { subscription } } = authService.onAuthStateChange(async (authUser) => {
       if (authUser) {
         // Transform Supabase user to our User type
         const appUser: User = {
@@ -40,8 +41,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           updated_at: authUser.updated_at || authUser.created_at,
         };
         setUser(appUser);
+        
+        // Start notification reminders after user login
+        try {
+          console.log('📱 [AUTH] User logged in, starting vocabulary reminders...');
+          await NotificationService.setupPeriodicVocabularyNotifications();
+        } catch (error) {
+          console.error('📱 [AUTH] Failed to start notifications:', error);
+        }
       } else {
         setUser(null);
+        
+        // Stop notifications when user logs out
+        try {
+          console.log('📱 [AUTH] User logged out, stopping vocabulary reminders...');
+          await NotificationService.stopVocabularyReminders();
+        } catch (error) {
+          console.error('📱 [AUTH] Failed to stop notifications:', error);
+        }
       }
       setIsLoading(false);
     });
@@ -75,6 +92,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.log('🔧 [AUTH DEBUG] Token is valid');
             const appUser: User = JSON.parse(storedUser);
             setUser(appUser);
+            
+            // Start notification reminders for stored user
+            try {
+              console.log('📱 [AUTH] Stored user validated, starting vocabulary reminders...');
+              await NotificationService.setupPeriodicVocabularyNotifications();
+            } catch (error) {
+              console.error('📱 [AUTH] Failed to start notifications for stored user:', error);
+            }
           } else {
             console.log('🔧 [AUTH DEBUG] Token is invalid or expired, clearing data');
             await AsyncStorage.removeItem('auth_token');

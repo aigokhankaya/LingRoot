@@ -9,6 +9,8 @@ LingRoot'un React Native ile geliştirilmiş mobil uygulaması. Expo Framework k
 - 📱 **Çapraz Platform**: Android ve iOS desteği
 - 🔐 **Güvenli Authentication**: Supabase tabanlı kullanıcı yönetimi
 - 📚 **Ses Kütüphanesi**: Oluşturulan sesleri organize eder
+- 🔔 **Akıllı Bildirimler**: 5 dakikada bir kelime hatırlatmaları
+- 📖 **Kelime Yönetimi**: Öğrenilmemiş kelimelerin otomatik takibi
 - 🎨 **Modern UI/UX**: React Native ile native görünüm
 
 ## Teknoloji Yığını
@@ -48,6 +50,47 @@ LingRoot'un React Native ile geliştirilmiş mobil uygulaması. Expo Framework k
    ```bash
    npm start
    ```
+
+## 🔔 Bildirim Sistemi
+
+LingRoot Mobile, öğrenilmemiş kelimeleri hatırlatmak için akıllı bir bildirim sistemi içerir.
+
+### Nasıl Çalışır
+
+1. **Otomatik Başlatma**: Kullanıcı giriş yaptığında bildirimler otomatik başlar
+2. **5 Dakika Aralıklar**: Her 5 dakikada bir öğrenilmemiş kelime hatırlatması
+3. **Rastgele Seçim**: Kelime listesinden rastgele öğrenilmemiş kelime seçilir
+4. **Akıllı Navigasyon**: Bildirime tıklandığında kelimeler sayfasında ilgili kelime açılır
+
+### Bildirim İçeriği
+
+```
+📚 Vocabulary Reminder
+example: örnek, misal
+```
+
+### Kullanım
+
+1. **İlk Kurulum**: Uygulama ilk açıldığında bildirim izni istenir
+2. **Kelime Ekleme**: Vocabulary sekmesinden kelimeler ekleyin
+3. **Otomatik Hatırlatma**: Sistem otomatik olarak kelimeleri hatırlatır
+4. **Test**: Profil > "Test Bildirimi" ile test edebilirsiniz
+5. **Durum Kontrolü**: Profil > "Bildirim Durumu" ile sistem durumunu kontrol edin
+
+### Sorun Giderme
+
+**Bildirim Gelmiyor:**
+- Cihaz ayarlarından bildirim izinlerini kontrol edin
+- "Bildirim Durumu" ile sistem durumunu kontrol edin
+- Oturum süresinin dolmadığından emin olun
+
+**Authentication Hatası:**
+- Çıkış yapıp tekrar giriş yapın
+- Internet bağlantınızı kontrol edin
+
+**Kelime Bulunamadı:**
+- Vocabulary sekmesinden kelime ekleyin
+- Mevcut kelimelerin "öğrenilmemiş" olduğundan emin olun
 
 4. **Uygulamayı çalıştırın:**
    - **Android**: `npm run android` veya Expo Go uygulaması ile QR kod tarayın

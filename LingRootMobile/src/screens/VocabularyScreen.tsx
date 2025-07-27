@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -20,12 +20,17 @@ import {
   addWordToVocabulary, 
   deleteWordFromVocabulary, 
   updateWordInVocabulary,
-  VocabularyWord 
+  VocabularyWord,
+  getReminderSettings,
+  saveReminderSettings,
+  ReminderSettings 
 } from '../services/api';
+import { ReminderSettingsService } from '../services/reminderSettingsService';
+import NotificationService from '../services/notificationService';
 
 const { width } = Dimensions.get('window');
 
-export default function VocabularyScreen({ navigation }: any) {
+export default function VocabularyScreen({ navigation, route }: any) {
   const { user } = useAuth();
   const [vocabulary, setVocabulary] = useState<VocabularyWord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,6 +39,9 @@ export default function VocabularyScreen({ navigation }: any) {
   const [activeLevel, setActiveLevel] = useState('all');
   const [learnedFilter, setLearnedFilter] = useState('all');
   const [expandedWordId, setExpandedWordId] = useState<number | null>(null);
+  const flatListRef = useRef<FlatList>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const wordRefs = useRef<Map<number, View>>(new Map());
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [newWord, setNewWord] = useState({
     word: '',
@@ -41,6 +49,13 @@ export default function VocabularyScreen({ navigation }: any) {
     level: 'a1',
     example: ''
   });
+  const [reminderSettings, setReminderSettings] = useState({
+    wordsPerDay: 5,
+    startTime: '09:00',
+    endTime: '18:00',
+    isEnabled: true
+  });
+  const [isReminderModalVisible, setIsReminderModalVisible] = useState(false);
 
   // CEFR Seviyeleri Konfigürasyonu
   const wordLevels = {
@@ -52,12 +67,127 @@ export default function VocabularyScreen({ navigation }: any) {
     c2: { title: 'C2 - Ustalık', color: '#EF4444', bgColor: '#FEF2F2' },
   };
 
-  // Load vocabulary on component mount
+  // Load vocabulary and settings on component mount
   useEffect(() => {
     if (user) {
       loadVocabulary();
+      loadReminderSettings();
     }
   }, [user]);
+
+  // Handle notification navigation - expand specific word if wordId is provided
+  useEffect(() => {
+    const wordId = route?.params?.wordId;
+    if (wordId && vocabulary.length > 0) {
+      console.log('📱 [VOCABULARY] Opening word from notification:', wordId);
+      
+      // Find word by ID (convert string to number if needed)
+      const targetWordId = parseInt(wordId, 10);
+      const targetWord = vocabulary.find(word => word.id === targetWordId);
+      
+      if (targetWord) {
+        console.log('📱 [VOCABULARY] Found target word:', targetWord.word);
+        setExpandedWordId(targetWordId);
+        
+        // Clear the search term to ensure the word is visible
+        setSearchTerm('');
+        setActiveLevel('all');
+        setLearnedFilter('all');
+        
+        // Scroll to the word after a short delay to allow render
+        setTimeout(() => {
+          scrollToWord(targetWordId);
+          console.log('📱 [VOCABULARY] Word expanded and scrolled to:', targetWord.word);
+          
+          // Clear the route params to prevent re-triggering
+          navigation.setParams({ wordId: undefined });
+        }, 800); // Increased delay to ensure smooth rendering
+      } else {
+        console.log('📱 [VOCABULARY] Word not found with ID:', wordId);
+      }
+    }
+  }, [route?.params?.wordId, vocabulary]);
+
+  // Function to scroll to specific word
+  const scrollToWord = (wordId: number) => {
+    if (!scrollViewRef.current) {
+      console.log('📱 [SCROLL] ScrollView ref not available');
+      return;
+    }
+
+    // Try to use the word ref for accurate positioning
+    const wordRef = wordRefs.current.get(wordId);
+    
+    if (wordRef) {
+      console.log('📱 [SCROLL] Using word ref to measure position');
+      
+      wordRef.measureLayout(
+        scrollViewRef.current as any,
+        (x, y, width, height) => {
+          console.log('📱 [SCROLL] Word position measured:', { x, y, width, height });
+          
+          // Scroll to position with some offset from top
+          const offset = Math.max(0, y - 100); // 100px from top
+          
+          scrollViewRef.current?.scrollTo({
+            y: offset,
+            animated: true,
+          });
+          
+          console.log('📱 [SCROLL] Scrolled to measured offset:', offset);
+        },
+        () => {
+          console.log('📱 [SCROLL] Measure failed, using fallback calculation');
+          scrollToWordFallback(wordId);
+        }
+      );
+    } else {
+      console.log('📱 [SCROLL] Word ref not found, using fallback calculation');
+      scrollToWordFallback(wordId);
+    }
+  };
+
+  // Fallback scroll function with calculations
+  const scrollToWordFallback = (wordId: number) => {
+    // Get current filtered words
+    let filtered = [...vocabulary];
+
+    if (searchTerm) {
+      filtered = filtered.filter(word =>
+        word.word?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        word.definition?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (activeLevel !== 'all') {
+      filtered = filtered.filter(word => (word.level || '').toLowerCase() === activeLevel);
+    }
+
+    if (learnedFilter !== 'all') {
+      const isLearned = learnedFilter === 'learned';
+      filtered = filtered.filter(word => Boolean(word.is_learned) === isLearned);
+    }
+
+    const wordIndex = filtered.findIndex(word => word.id === wordId);
+    
+    if (wordIndex !== -1) {
+      console.log('📱 [SCROLL] Fallback scrolling to word index:', wordIndex, 'out of', filtered.length);
+      
+      // More aggressive calculation - scroll closer to end for later items
+      const estimatedWordHeight = 120;
+      const headerOffset = 400; // Generous header space
+      const targetOffset = headerOffset + (wordIndex * estimatedWordHeight);
+      
+      scrollViewRef.current?.scrollTo({
+        y: targetOffset,
+        animated: true,
+      });
+      
+      console.log('📱 [SCROLL] Fallback scrolled to offset:', targetOffset);
+    } else {
+      console.log('📱 [SCROLL] Word not found in filtered list');
+    }
+  };
 
   const loadVocabulary = async () => {
     try {
@@ -70,6 +200,51 @@ export default function VocabularyScreen({ navigation }: any) {
       setError('Kelimeler yüklenirken hata oluştu: ' + error.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadReminderSettings = async () => {
+    try {
+      // Try to get from API first, fallback to local storage
+      let settings;
+      try {
+        settings = await getReminderSettings();
+        console.log('📱 [SETTINGS] Loaded from API:', settings);
+        // Save to local storage for offline access
+        await ReminderSettingsService.saveSettings(settings);
+      } catch (apiError) {
+        console.log('📱 [SETTINGS] API failed, using local storage:', apiError);
+        settings = await ReminderSettingsService.getSettings();
+      }
+      
+      setReminderSettings(settings);
+      console.log('📱 [SETTINGS] Final loaded settings:', settings);
+    } catch (error) {
+      console.error('📱 [SETTINGS] Error loading settings:', error);
+    }
+  };
+
+  const handleSaveReminderSettings = async () => {
+    try {
+      // Save to both API and local storage
+      try {
+        await saveReminderSettings(reminderSettings);
+        console.log('📱 [SETTINGS] Saved to API successfully');
+      } catch (apiError) {
+        console.log('📱 [SETTINGS] API save failed, saving locally only:', apiError);
+      }
+      
+      // Always save to local storage as backup
+      await ReminderSettingsService.saveSettings(reminderSettings);
+      
+      // Restart smart notifications with new settings
+      await NotificationService.setupSmartVocabularyNotifications();
+      
+      setIsReminderModalVisible(false);
+      Alert.alert('✅ Başarılı!', 'Hatırlatma ayarları kaydedildi ve bildirimler yeniden programlandı.');
+    } catch (error) {
+      console.error('📱 [SETTINGS] Error saving settings:', error);
+      Alert.alert('❌ Hata', 'Ayarlar kaydedilirken bir hata oluştu.');
     }
   };
 
@@ -251,10 +426,27 @@ export default function VocabularyScreen({ navigation }: any) {
     const isExpanded = expandedWordId === item.id;
 
     return (
-      <View style={[styles.wordCard, { borderColor: levelData.color }]}>
+      <View 
+        ref={(ref) => {
+          if (ref && item.id) {
+            wordRefs.current.set(item.id, ref);
+          }
+        }}
+        style={[styles.wordCard, { borderColor: levelData.color }]}
+      >
         <TouchableOpacity
           style={[styles.wordHeader, isExpanded && { backgroundColor: levelData.bgColor }]}
-          onPress={() => setExpandedWordId(isExpanded ? null : item.id!)}
+          onPress={() => {
+            if (isExpanded) {
+              setExpandedWordId(null);
+            } else {
+              setExpandedWordId(item.id!);
+              // Scroll to the word after expansion
+              setTimeout(() => {
+                scrollToWord(item.id!);
+              }, 300);
+            }
+          }}
         >
           <View style={styles.wordHeaderLeft}>
             <TouchableOpacity
@@ -331,7 +523,7 @@ export default function VocabularyScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollViewRef} style={styles.content} showsVerticalScrollIndicator={false}>
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#3B82F6" />
@@ -426,6 +618,7 @@ export default function VocabularyScreen({ navigation }: any) {
               
               {filteredWords.length > 0 ? (
                 <FlatList
+                  ref={flatListRef}
                   data={filteredWords}
                   renderItem={renderWord}
                   keyExtractor={(item) => item.id?.toString() || Math.random().toString()}

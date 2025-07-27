@@ -858,3 +858,36 @@ export const addWordWithTranslation = async (
   }
 };
 
+// Reminder Settings API
+export interface ReminderSettings {
+  wordsPerDay: number;
+  startTime: string;
+  endTime: string;
+  isEnabled: boolean;
+}
+
+export const getReminderSettings = async (): Promise<ReminderSettings> => {
+  try {
+    const response = await api.get('/api/reminder-settings');
+    return response.data.data;
+  } catch (error) {
+    console.error('Error getting reminder settings:', error);
+    // Return default settings if API fails
+    return {
+      wordsPerDay: 5,
+      startTime: '09:00',
+      endTime: '18:00',
+      isEnabled: true
+    };
+  }
+};
+
+export const saveReminderSettings = async (settings: ReminderSettings): Promise<void> => {
+  try {
+    await api.post('/api/reminder-settings', settings);
+  } catch (error) {
+    console.error('Error saving reminder settings:', error);
+    throw new Error('Ayarlar kaydedilemedi');
+  }
+};
+

@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect, useRef } from 'react';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, View } from 'react-native';
@@ -7,6 +7,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 
 import { useAuth } from '../contexts/AuthContext';
 import { RootStackParamList, MainTabParamList } from '../types';
+import NotificationService from '../services/notificationService';
 
 // Screens
 import LoginScreen from '../screens/LoginScreen';
@@ -101,13 +102,33 @@ const MainTabs = () => {
 
 const AppNavigator = () => {
   const { user, isLoading } = useAuth();
+  const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+
+  useEffect(() => {
+    if (user && navigationRef.current) {
+      // Setup notification response handler
+      const subscription = NotificationService.setupNotificationResponseHandler((wordId: string) => {
+        console.log('📱 [NAVIGATION] Navigating to vocabulary with wordId:', wordId);
+        
+        // Navigate to vocabulary screen with specific word ID
+        navigationRef.current?.navigate('Vocabulary', { wordId });
+      });
+
+      // Return cleanup function
+      return () => {
+        if (subscription) {
+          subscription.remove();
+        }
+      };
+    }
+  }, [user]);
 
   if (isLoading) {
     return <LoadingScreen />;
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>

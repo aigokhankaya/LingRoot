@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../contexts/AuthContext';
+import NotificationService from '../services/notificationService';
 
 const ProfileScreen: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -35,12 +36,81 @@ const ProfileScreen: React.FC = () => {
     );
   };
 
+  const handleTestNotification = async () => {
+    try {
+      console.log('📱 [TEST] Testing vocabulary notification...');
+      
+      // Get notification service status
+      const status = await NotificationService.getStatus();
+      console.log('📱 [TEST] Notification status:', status);
+      
+      if (!status.hasPermission) {
+        Alert.alert('Bildirimler Kapalı', 'Bildirimler için izin gereklidir. Lütfen ayarlardan bildirim izinlerini açınız.');
+        return;
+      }
+      
+      // Get a random word and schedule notification
+      const randomWord = await NotificationService.getRandomUnlearnedWord();
+      
+      if (randomWord) {
+        await NotificationService.scheduleVocabularyNotification(randomWord);
+        Alert.alert('Test Bildirimi', `"${randomWord.word}" kelimesi için test bildirimi gönderildi!`);
+      } else {
+        Alert.alert(
+          'Kelime Bulunamadı', 
+          'Öğrenilmemiş kelime bulunamadı. Bu durum şu nedenlerden kaynaklanabilir:\n\n• Kelime listeniz boş\n• Tüm kelimeler öğrenilmiş olarak işaretli\n• Oturum süresi dolmuş (lütfen tekrar giriş yapın)'
+        );
+      }
+    } catch (error: any) {
+      console.error('📱 [TEST] Test notification failed:', error);
+      let errorMessage = 'Test bildirimi gönderilemedi.';
+      
+      if (error?.response?.status === 401) {
+        errorMessage = 'Oturum süresi dolmuş. Lütfen çıkış yapıp tekrar giriş yapın.';
+      }
+      
+      Alert.alert('Hata', errorMessage);
+    }
+  };
+
+  const handleNotificationStatus = async () => {
+    try {
+      const status = await NotificationService.getStatus();
+      const statusText = `
+Bildirim Durumu:
+• Başlatılmış: ${status.isInitialized ? 'Evet' : 'Hayır'}
+• İzin Verilmiş: ${status.hasPermission ? 'Evet' : 'Hayır'}
+• Zamanlanmış Bildirim: ${status.scheduledCount} adet
+
+${!status.hasPermission ? '\n⚠️ Bildirim izni gereklidir' : ''}
+${!status.isInitialized ? '\n⚠️ Servis başlatılmamış' : ''}
+      `.trim();
+      
+      Alert.alert('Bildirim Durumu', statusText);
+    } catch (error) {
+      Alert.alert('Hata', 'Bildirim durumu alınamadı.');
+    }
+  };
+
+  const handleQuickDebug = async () => {
+    try {
+      // Restart smart notifications immediately
+      await NotificationService.setupSmartVocabularyNotifications();
+      Alert.alert('🔧 Debug Tamamlandı', 'Akıllı bildirimler yeniden başlatıldı!\n\nProfil → Bildirim Durumu ile kontrol edin.');
+    } catch (error: any) {
+      Alert.alert('Hata', 'Debug işlemi başarısız: ' + (error.message || 'Bilinmeyen hata'));
+    }
+  };
+
   const menuItems = [
     { id: 1, title: 'Hesap Ayarları', icon: 'settings', action: () => {} },
     { id: 2, title: 'Ses Geçmişi', icon: 'history', action: () => {} },
     { id: 3, title: 'Üyelik', icon: 'card-membership', action: () => {} },
-    { id: 4, title: 'Yardım', icon: 'help', action: () => {} },
-    { id: 5, title: 'Hakkında', icon: 'info', action: () => {} },
+    { id: 4, title: 'Test Bildirimi', icon: 'notifications', action: handleTestNotification },
+    { id: 5, title: 'Bildirim Durumu', icon: 'notifications-active', action: handleNotificationStatus },
+    { id: 8, title: '🔧 Hızlı Debug', icon: 'bug-report', action: handleQuickDebug },
+    { id: 6, title: 'Yardım', icon: 'help', action: () => {} },
+    { id: 7, title: 'Hakkında', icon: 'info', action: () => {} },
   ];
 
   return (

@@ -105,4 +105,110 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
 router.get('/user-interests', authenticate, getUserInterests);
 router.post('/user-interests', authenticate, updateUserInterests);
 
+// Reminder Settings endpoints
+router.get('/reminder-settings', authenticate, async (req, res) => {
+  try {
+    logger.info(`Getting reminder settings for user: ${req.user.id}`);
+    
+    const defaultSettings = {
+      wordsPerDay: 5,
+      startTime: '09:00',
+      endTime: '18:00',
+      isEnabled: true
+    };
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('reminder_settings')
+      .eq('id', req.user.id)
+      .single();
+
+    if (error) {
+      logger.error('Supabase error getting reminder settings:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Veritabanı hatası: ' + error.message
+      });
+    }
+
+    let reminderSettings = defaultSettings;
+    if (data?.reminder_settings) {
+      try {
+        reminderSettings = typeof data.reminder_settings === 'string' 
+          ? JSON.parse(data.reminder_settings) 
+          : data.reminder_settings;
+        logger.info('✅ Loaded settings from database:', reminderSettings);
+      } catch (parseError) {
+        logger.error('Error parsing reminder settings JSON:', parseError);
+        // Use defaults if JSON parsing fails
+      }
+    } else {
+      logger.info('✅ No saved settings found, using defaults');
+    }
+    
+    res.json({
+      success: true,
+      data: reminderSettings
+    });
+  } catch (error) {
+    logger.error('Error getting reminder settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Hatırlatma ayarları alınamadı'
+    });
+  }
+});
+
+router.post('/reminder-settings', authenticate, async (req, res) => {
+  try {
+    logger.info(`Saving reminder settings for user: ${req.user.id}`, req.body);
+    
+    const { wordsPerDay, startTime, endTime, isEnabled } = req.body;
+
+    // Validate input
+    if (!wordsPerDay || !startTime || !endTime || typeof isEnabled !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'Geçersiz ayar verileri'
+      });
+    }
+
+    const reminderSettings = {
+      wordsPerDay: parseInt(wordsPerDay),
+      startTime,
+      endTime,
+      isEnabled
+    };
+
+    logger.info('💾 Processed settings:', reminderSettings);
+
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ reminder_settings: reminderSettings })
+      .eq('id', req.user.id);
+
+    if (updateError) {
+      logger.error('❌ Database save failed:', updateError);
+      return res.status(500).json({
+        success: false,
+        message: 'Veritabanı hatası: ' + updateError.message
+      });
+    }
+
+    logger.info('✅ Settings saved to database successfully');
+
+    res.json({
+      success: true,
+      message: 'Hatırlatma ayarları başarıyla kaydedildi',
+      data: reminderSettings
+    });
+  } catch (error) {
+    logger.error('Error saving reminder settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Hatırlatma ayarları kaydedilemedi'
+    });
+  }
+});
+
 module.exports = router;
