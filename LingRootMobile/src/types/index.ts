@@ -22,8 +22,8 @@ export type MembershipLevel = 'free' | 'premium' | 'pro';
 
 // Text-to-Speech Types
 export interface TTSRequest {
-  input: string;
   type: 'text' | 'file';
+  input: string;
   level: CEFRLevel;
   sesHizi: number;
   voiceName?: string;

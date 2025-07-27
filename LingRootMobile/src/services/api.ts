@@ -12,7 +12,7 @@ console.log('API_BASE_URL:', API_BASE_URL);
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // 30 saniye timeout
+  timeout: 120000, // 2 dakika timeout (PDF işleme için)
   headers: {
     'Content-Type': 'application/json',
   },
@@ -44,7 +44,12 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    console.error('API Error:', error.response?.data || error.message);
+    console.error('🚨 [API ERROR] Error message:', error.message);
+    console.error('🚨 [API ERROR] Status:', error.response?.status);
+    console.error('🚨 [API ERROR] Status text:', error.response?.statusText);
+    console.error('🚨 [API ERROR] Response data:', error.response?.data);
+    console.error('🚨 [API ERROR] Request URL:', error.config?.url);
+    console.error('🚨 [API ERROR] Request method:', error.config?.method);
     
     // Token expired handling
     if (error.response?.status === 401 || 
@@ -112,6 +117,7 @@ export const apiService = {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 300000, // 5 dakika timeout (dosya işleme uzun sürebilir)
       });
       return response.data;
     } catch (error: any) {

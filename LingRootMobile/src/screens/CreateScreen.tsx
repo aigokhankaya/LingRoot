@@ -225,9 +225,26 @@ const CreateScreen: React.FC = () => {
           type: selectedFile.mimeType,
           name: selectedFile.name,
         } as any);
+        
+        // Required parameters that backend expects
+        formData.append('type', 'file');
+        formData.append('input', selectedFile.name); // File name as input
         formData.append('level', selectedLevel);
         formData.append('sesHizi', speechRate.toString());
         formData.append('voiceName', selectedVoice);
+        
+        console.log('📦 [FILE DEBUG] FormData parameters:', {
+          type: 'file',
+          input: selectedFile.name,
+          level: selectedLevel,
+          sesHizi: speechRate.toString(),
+          voiceName: selectedVoice,
+          fileName: selectedFile.name,
+          fileUri: selectedFile.uri,
+          fileMimeType: selectedFile.mimeType
+        });
+
+        console.log('📦 [FILE DEBUG] Calling processFileToSpeech...');
         
         const response = await apiService.processFileToSpeech(formData);
         
@@ -251,12 +268,20 @@ const CreateScreen: React.FC = () => {
       } else {
         // Text processing
         request = {
-          input: inputText,
           type: 'text',
+          input: inputText,
           level: selectedLevel,
           sesHizi: speechRate,
           voiceName: selectedVoice,
         };
+
+        console.log('📝 [TEXT DEBUG] Request parameters:', {
+          type: 'text',
+          input: inputText.substring(0, 50) + (inputText.length > 50 ? '...' : ''),
+          level: selectedLevel,
+          sesHizi: speechRate,
+          voiceName: selectedVoice
+        });
 
         console.log('🎯 [TTS DEBUG] Sending request:', request);
         console.log('🎯 [TTS DEBUG] Selected voice:', selectedVoice);
@@ -606,7 +631,7 @@ const CreateScreen: React.FC = () => {
             <Icon name="volume-up" size={24} color="white" />
           )}
           <Text style={styles.createButtonText}>
-            {isLoading ? 'Oluşturuluyor...' : 'Ses Oluştur'}
+                                {isLoading ? (selectedFile ? 'Dosya İşleniyor... (Bu birkaç dakika sürebilir)' : 'Oluşturuluyor...') : 'Ses Oluştur'}
           </Text>
         </TouchableOpacity>
       </ScrollView>
