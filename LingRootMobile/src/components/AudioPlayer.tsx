@@ -47,7 +47,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Use refs to track the latest values for highlighting
   const durationRef = useRef(0);
   const isLoadedRef = useRef(false);
-  
   const scrollViewRef = useRef<ScrollView>(null);
   const wordRefs = useRef<Map<number, any>>(new Map());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -171,7 +170,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       
       // Stop any existing audio first
       await stopAllAudio();
-      
       // Set audio mode
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
@@ -195,14 +193,27 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
       // Get audio status and force duration update
       const status = await newSound.getStatusAsync();
+      console.log('🎵 [LOAD AUDIO STATUS]', {
+        isLoaded: status.isLoaded,
+        durationMillis: (status as any).durationMillis,
+        trackDuration: track.duration,
+        trackDurationMs: track.duration * 1000
+      });
+
       if (status.isLoaded) {
         const statusAny = status as any;
-        
+
         // Use audio duration if available, fallback to track duration estimate
         const audioDuration = statusAny.durationMillis;
         const trackDurationMs = track.duration * 1000; // track.duration is in seconds
         const finalDuration = audioDuration || trackDurationMs;
-        
+
+        console.log('🎵 [SETTING DURATION]', {
+          audioDuration,
+          trackDurationMs,
+          finalDuration
+        });
+
         setDuration(finalDuration);
         setIsLoaded(true);
         
@@ -211,13 +222,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         isLoadedRef.current = true;
         
         console.log('🔊 [LOAD AUDIO] Audio loaded successfully, duration:', finalDuration);
-        
         // Force a status update to ensure everything is synced
         setTimeout(async () => {
           const latestStatus = await newSound.getStatusAsync();
           const latestStatusAny = latestStatus as any;
-          
+
           if (latestStatus.isLoaded && latestStatusAny.durationMillis && latestStatusAny.durationMillis !== finalDuration) {
+            console.log('🎵 [UPDATING DURATION]', latestStatusAny.durationMillis);
             setDuration(latestStatusAny.durationMillis);
           }
         }, 100);
@@ -269,9 +280,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           console.log('🔊 [LOADED UPDATE] Audio marked as loaded');
         }
       }
-      
+
       if (status.isPlaying) {
         const currentTimeInSeconds = status.positionMillis / 1000;
+        console.log('🎵 [PLAYBACK UPDATE]', {
+          currentTime: currentTimeInSeconds.toFixed(2),
+          duration: (duration / 1000).toFixed(2),
+          statusDuration: statusAny.durationMillis ? (statusAny.durationMillis / 1000).toFixed(2) : 'N/A',
+          isLoaded,
+          position: status.positionMillis
+        });
+        // Pass the actual duration from status instead of relying on state
         updateHighlighting(currentTimeInSeconds);
       }
     }
@@ -292,17 +311,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
     
     console.log('🔤 [HIGHLIGHT] Mode:', highlightMode, 'Time:', currentTimeInSeconds, 'Duration:', currentDuration);
-    
     if (highlightMode === 'word') {
       updateWordHighlighting(currentTimeInSeconds);
     } else {
+      console.log('📝 [CALLING SENTENCE HIGHLIGHTING]');
       updateSentenceHighlighting(currentTimeInSeconds);
     }
   };
 
   const updateWordHighlighting = useCallback((currentTime: number) => {
     let newWordIndex = -1;
-    
+
     if (timepoints.length > 0) {
       // Find the word that should be highlighted at the current time
       // We want the latest timepoint that has started but not ended
@@ -346,8 +365,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       currentSentenceIndex,
       sentencesLength: sentences.length
     });
-    
     if (boundedIndex !== currentSentenceIndex && boundedIndex >= 0) {
+      console.log('✅ [SENTENCE CHANGE]', `${currentSentenceIndex} → ${boundedIndex}`);
       setCurrentSentenceIndex(boundedIndex);
       console.log('🔤 [SENTENCE HIGHLIGHT] Updated to sentence:', boundedIndex);
     }
@@ -355,7 +374,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const scrollToWord = useCallback((wordIndex: number) => {
     const wordRef = wordRefs.current.get(wordIndex);
-    
+
     if (wordRef && scrollViewRef.current) {
       wordRef.measureLayout(
         scrollViewRef.current,
@@ -437,9 +456,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const currentIndex = speeds.indexOf(playbackRate);
     const nextIndex = (currentIndex + 1) % speeds.length;
     const newSpeed = speeds[nextIndex];
-    
+
     setPlaybackRate(newSpeed);
-    
+
     if (sound) {
       try {
         await sound.setRateAsync(newSpeed, true);
@@ -467,7 +486,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const handleWordLongPress = useCallback((word: string, wordIndex: number) => {
     const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
-    
+
     Alert.alert(
       'Kelime Seçimi',
       `"${cleanWord}" kelimesini kelime listenize eklemek istiyor musunuz?`,
@@ -492,7 +511,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       // Create context from surrounding words or text
       let context = '';
       let originalSentence = '';
-      
       if (wordsArray.length > 0 && wordIndex >= 0 && wordIndex < wordsArray.length) {
         const startIndex = Math.max(0, wordIndex - 5);
         const endIndex = Math.min(wordsArray.length, wordIndex + 6);
@@ -605,7 +623,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               index === currentWordIndex && styles.highlightedWord
             ]}
           >
-            <Text 
+            <Text
               style={[
                 styles.word,
                 index === currentWordIndex && styles.highlightedWordText
@@ -620,19 +638,32 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }, [wordsArray, currentWordIndex, handleWordPress, handleWordLongPress]);
 
   const renderSentenceHighlighting = () => {
+    // Cümleye tıklandığında o cümlenin başına atla
+    const handleSentencePress = (sentenceIndex: number) => {
+      const totalDuration = duration / 1000;
+      if (totalDuration > 0) {
+        const sentenceProgress = sentenceIndex / sentences.length;
+        const targetTime = sentenceProgress * totalDuration;
+        const positionMs = targetTime * 1000;
+        handleSeek(positionMs);
+      }
+    };
     return (
       <View style={styles.textContainer}>
         {sentences.map((sentence, sentenceIndex) => {
           const isHighlighted = sentenceIndex === currentSentenceIndex;
           const words = sentence.split(/\s+/).filter(word => word.length > 0);
-          
+          const isCurrentSentence = sentenceIndex === currentSentenceIndex;
+
           return (
-            <View
+            <TouchableOpacity
               key={sentenceIndex}
               style={[
                 styles.sentenceContainer,
-                isHighlighted && styles.highlightedSentence
+                isCurrentSentence && styles.highlightedSentence
               ]}
+              onPress={() => handleSentencePress(sentenceIndex)}
+              activeOpacity={0.7}
             >
               <View style={styles.sentenceWordsContainer}>
                 {words.map((word, wordIndex) => {
@@ -648,11 +679,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                       ]}
                       onLongPress={() => handleWordLongPress(word, wordIndex)}
                       delayLongPress={500}
+                      activeOpacity={0.8}
                     >
-                      <Text 
+                      <Text
                         style={[
                           styles.sentence,
-                          isHighlighted && styles.highlightedSentenceText,
+                          isCurrentSentence && styles.highlightedSentenceText,
                           isWordSelected && styles.selectedWordText
                         ]}
                       >
@@ -661,16 +693,25 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     </TouchableOpacity>
                   );
                 })}
-                <Text 
+                <Text
                   style={[
                     styles.sentence,
-                    isHighlighted && styles.highlightedSentenceText
+                    isCurrentSentence && styles.highlightedSentenceText
                   ]}
                 >
                   .
                 </Text>
               </View>
-            </View>
+              {/* Cümle numarası göstergesi */}
+              <View style={styles.sentenceIndicator}>
+                <Text style={[
+                  styles.sentenceNumber,
+                  isCurrentSentence && styles.sentenceNumberActive
+                ]}>
+                  {sentenceIndex + 1}
+                </Text>
+              </View>
+            </TouchableOpacity>
           );
         })}
       </View>
@@ -701,7 +742,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </View>
 
         {/* Text Display */}
-        <ScrollView 
+        <ScrollView
           ref={scrollViewRef}
           style={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
@@ -756,7 +797,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           <View style={styles.progressContainer}>
             <Text style={styles.timeText}>{formatTime(position)}</Text>
             <View style={styles.progressBar}>
-              <View 
+              <View
                 style={[
                   styles.progressFill,
                   { width: `${progressPercentage}%` }
@@ -783,23 +824,39 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               {isLoading ? (
                 <Icon name="hourglass-empty" size={32} color="#007AFF" />
               ) : (
-                <Icon 
-                  name={isPlaying ? "pause" : "play-arrow"} 
-                  size={32} 
-                  color="#007AFF" 
+                <Icon
+                  name={isPlaying ? "pause" : "play-arrow"}
+                  size={32}
+                  color="#007AFF"
                 />
               )}
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.infoButton}
-              onPress={() => Alert.alert('Bilgi', `Kelime sayısı: ${wordsArray.length}\nSüre: ${formatTime(duration)}`)}
+              onPress={() => Alert.alert('Bilgi', `Kelime sayısı: ${wordsArray.length}\nSüre: ${formatTime(duration)}\nCümle sayısı: ${sentences.length}\nAktif cümle: ${currentSentenceIndex + 1}`)}
             >
               <Icon name="info" size={24} color="#666" />
             </TouchableOpacity>
 
-            {/* Manual Test Button - GİZLENDİ */}
-            {/* GIZLENDI - Debug butonu kaldırıldı */}
+            {/* Test Button - Cümle vurgusu test etmek için */}
+            <TouchableOpacity
+              style={styles.testButton}
+              onPress={() => {
+                const nextIndex = (currentSentenceIndex + 1) % sentences.length;
+                setCurrentSentenceIndex(nextIndex);
+                console.log('🧪 [TEST] Manuel cümle değişimi:', nextIndex);
+                Alert.alert('Debug Info', 
+                  `Aktif Cümle: ${nextIndex + 1}/${sentences.length}\n` +
+                  `Süre: ${formatTime(duration)}\n` +
+                  `Pozisyon: ${formatTime(position)}\n` +
+                  `Yüklü: ${isLoaded ? 'Evet' : 'Hayır'}\n` +
+                  `Oynatılıyor: ${isPlaying ? 'Evet' : 'Hayır'}`
+                );
+              }}
+            >
+              <Icon name="bug-report" size={20} color="#ff6b35" />
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -876,14 +933,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sentenceContainer: {
-    marginBottom: 8,
-    padding: 8,
-    borderRadius: 6,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    position: 'relative',
     minHeight: 40, // Sabit yükseklik
-    backgroundColor: 'transparent', // Default transparent background
   },
   highlightedSentence: {
-    backgroundColor: '#007AFF20',
+    backgroundColor: '#007AFF40',
+    borderColor: '#007AFF',
+    borderWidth: 3,
+    shadowColor: '#007AFF',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 8,
+    transform: [{ scale: 1.02 }],
   },
   sentence: {
     fontSize: 16,
@@ -1001,6 +1071,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#333',
     textAlign: 'center',
+  },
+  sentenceIndicator: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#007AFF',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sentenceNumber: {
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  sentenceNumberActive: {
+    backgroundColor: '#fff',
+    color: '#007AFF',
+  },
+  testButton: {
+    padding: 8,
+    backgroundColor: '#ff6b35',
+    borderRadius: 16,
   },
 });
 
