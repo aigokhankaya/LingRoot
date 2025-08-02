@@ -1,14 +1,15 @@
 import axios from 'axios';
 import { TTSRequest, TTSResponse, APIResponse } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-// Backend URL'i environment variables'dan alacağız
+// Backend URL'i expo constants'tan alacağız
 // Production API URL'si kullanılıyor
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com/api';
+const API_BASE_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com/api';
 
 // Debug: API URL'sini kontrol et
 console.log('🔧 [API DEBUG]');
-console.log('EXPO_PUBLIC_API_URL:', process.env.EXPO_PUBLIC_API_URL);
+console.log('Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL:', Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL);
 console.log('API_BASE_URL:', API_BASE_URL);
 
 const apiClient = axios.create({
