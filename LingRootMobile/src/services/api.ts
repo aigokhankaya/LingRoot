@@ -3,7 +3,8 @@ import { TTSRequest, TTSResponse, APIResponse } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Backend URL'i environment variables'dan alacağız
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.7:5001';
+// Production API URL'si kullanılıyor
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com/api';
 
 // Debug: API URL'sini kontrol et
 console.log('🔧 [API DEBUG]');

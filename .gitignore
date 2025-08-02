@@ -55,3 +55,35 @@ backend/logs/requests/
 
 # Exceptions
 !public/animations/language-learn.json
+
+# Large files and build artifacts
+*.zip
+*.tar.gz
+*.apk
+*.aab
+*.hprof
+
+# Android build files
+LingRootMobile/android/app/build/
+LingRootMobile/android/build/
+LingRootMobile/android/.gradle/
+LingRootMobile/android/local.properties
+LingRootMobile/android/*.zip
+LingRootMobile/android/*.tar.gz
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Node modules and build artifacts
+LingRootMobile/node_modules/
+LingRootMobile/android/app/.cxx/
+LingRootMobile/android/.gradle/
+LingRootMobile/android/app/build/
+LingRootMobile/android/build/
+
+# Large build files
+*.so
+*.a
+*.o
