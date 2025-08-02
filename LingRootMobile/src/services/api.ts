@@ -5,12 +5,16 @@ import Constants from 'expo-constants';
 
 // Backend URL'i expo constants'tan alacağız
 // Production API URL'si kullanılıyor
-const API_BASE_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com/api';
+// Geçici olarak hardcode ediyoruz
+const API_BASE_URL = 'https://lingloops-backend.onrender.com/api';
 
 // Debug: API URL'sini kontrol et
-console.log('🔧 [API DEBUG]');
-console.log('Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL:', Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL);
-console.log('API_BASE_URL:', API_BASE_URL);
+console.log('🔧 [API DEBUG] ==================');
+console.log('🔧 [API DEBUG] Constants.expoConfig:', Constants.expoConfig);
+console.log('🔧 [API DEBUG] Constants.expoConfig?.extra:', Constants.expoConfig?.extra);
+console.log('🔧 [API DEBUG] EXPO_PUBLIC_API_URL:', Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL);
+console.log('🔧 [API DEBUG] Final API_BASE_URL:', API_BASE_URL);
+console.log('🔧 [API DEBUG] ==================');
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -81,23 +85,56 @@ export const apiService = {
   // Network connectivity check
   async checkConnectivity(): Promise<boolean> {
     try {
+      console.log('🔧 [API DEBUG] ==================');
       console.log('🔧 [API DEBUG] Testing connectivity to:', API_BASE_URL);
+      console.log('🔧 [API DEBUG] Full health check URL:', `${API_BASE_URL}/health`);
       
       // Create abort controller for timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => {
+        console.log('🔧 [API DEBUG] Request timeout after 5 seconds');
+        controller.abort();
+      }, 5000);
       
       const response = await fetch(`${API_BASE_URL}/health`, {
         method: 'GET',
         signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
       
       clearTimeout(timeoutId);
-      const isConnected = response.ok;
-      console.log('🔧 [API DEBUG] Connectivity test result:', isConnected);
-      return isConnected;
+      
+      console.log('🔧 [API DEBUG] Response status:', response.status);
+      console.log('🔧 [API DEBUG] Response ok:', response.ok);
+      console.log('🔧 [API DEBUG] Response headers:', response.headers);
+      
+      if (response.ok) {
+        const responseText = await response.text();
+        console.log('🔧 [API DEBUG] Response body:', responseText);
+        console.log('🔧 [API DEBUG] ✅ Backend connection successful!');
+        return true;
+      } else {
+        console.log('🔧 [API DEBUG] ❌ Backend returned error status:', response.status);
+        return false;
+      }
     } catch (error: any) {
-      console.error('🔧 [API DEBUG] Connectivity test failed:', error.message);
+      console.error('🔧 [API DEBUG] ❌ Connectivity test failed!');
+      console.error('🔧 [API DEBUG] Error type:', error.name);
+      console.error('🔧 [API DEBUG] Error message:', error.message);
+      console.error('🔧 [API DEBUG] Error code:', error.code);
+      
+      // Provide specific error messages for common issues
+      if (error.name === 'AbortError') {
+        console.error('🔧 [API DEBUG] Request was aborted due to timeout');
+      } else if (error.message.includes('Network request failed')) {
+        console.error('🔧 [API DEBUG] Network request failed - check internet connection');
+      } else if (error.message.includes('fetch')) {
+        console.error('🔧 [API DEBUG] Fetch API error - possible CORS or network issue');
+      }
+      
+      console.log('🔧 [API DEBUG] ==================');
       return false;
     }
   },
