@@ -5,8 +5,8 @@ import Constants from 'expo-constants';
 
 // Backend URL'i expo constants'tan alacağız
 // Production API URL'si kullanılıyor
-// Geçici olarak hardcode ediyoruz
-const API_BASE_URL = 'https://lingloops-backend.onrender.com/api';
+// Web projesiyle aynı yapı: base URL + /api/ endpoint
+const API_BASE_URL = 'https://lingloops-backend.onrender.com';
 
 // Debug: API URL'sini kontrol et
 console.log('🔧 [API DEBUG] ==================');
@@ -96,7 +96,7 @@ export const apiService = {
         controller.abort();
       }, 5000);
       
-      const response = await fetch(`${API_BASE_URL}/health`, {
+      const response = await fetch(`${API_BASE_URL}/api/health`, {
         method: 'GET',
         signal: controller.signal,
         headers: {

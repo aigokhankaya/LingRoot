@@ -80,8 +80,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Validate token by making a test API call
         try {
-          const API_BASE_URL = 'https://lingloops-backend.onrender.com/api';
-          const response = await fetch(`${API_BASE_URL}/health`, {
+          const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+          const response = await fetch(`${API_BASE_URL}/api/health`, {
             method: 'GET',
             headers: { 
               'Authorization': `Bearer ${token}`,
@@ -138,9 +138,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       // Web uygulaması gibi backend API'sini kullan
-      const API_BASE_URL = 'https://lingloops-backend.onrender.com/api';
+      const API_BASE_URL = 'https://lingloops-backend.onrender.com';
       
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
