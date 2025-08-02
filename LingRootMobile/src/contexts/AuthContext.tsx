@@ -81,15 +81,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Validate token by making a test API call
         try {
           const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+          console.log('🔧 [AUTH DEBUG] Token validation başlatılıyor...');
+          console.log('🔧 [AUTH DEBUG] API_BASE_URL:', API_BASE_URL);
+          console.log('🔧 [AUTH DEBUG] Full URL:', `${API_BASE_URL}/api/health`);
+          
           const response = await fetch(`${API_BASE_URL}/api/health`, {
             method: 'GET',
             headers: { 
               'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'User-Agent': 'LingRootMobile/1.0',
             },
+            mode: 'cors',
+            credentials: 'omit',
           });
           
+          console.log('🔧 [AUTH DEBUG] Response status:', response.status);
+          console.log('🔧 [AUTH DEBUG] Response ok:', response.ok);
+          console.log('🔧 [AUTH DEBUG] Response statusText:', response.statusText);
+          
           if (response.ok) {
+            const responseText = await response.text();
+            console.log('🔧 [AUTH DEBUG] Response body:', responseText);
             console.log('🔧 [AUTH DEBUG] Token is valid');
             const appUser: User = JSON.parse(storedUser);
             setUser(appUser);
@@ -102,13 +116,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               console.error('📱 [AUTH] Failed to start notifications for stored user:', error);
             }
           } else {
+            const errorText = await response.text();
+            console.log('🔧 [AUTH DEBUG] Error response text:', errorText);
             console.log('🔧 [AUTH DEBUG] Token is invalid or expired, clearing data');
             await AsyncStorage.removeItem('auth_token');
             await AsyncStorage.removeItem('user_data');
             setUser(null);
           }
-        } catch (validateError) {
-          console.error('Token validation error:', validateError);
+        } catch (validateError: any) {
+          console.log('🔧 [AUTH DEBUG] Token validation error:', validateError);
+          console.log('🔧 [AUTH DEBUG] Error message:', validateError.message);
+          console.log('🔧 [AUTH DEBUG] Error type:', validateError.constructor.name);
           // Clear potentially invalid token
           await AsyncStorage.removeItem('auth_token');
           await AsyncStorage.removeItem('user_data');
@@ -139,14 +157,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Web uygulaması gibi backend API'sini kullan
       const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+      console.log('🔧 [AUTH DEBUG] Login request başlatılıyor...');
+      console.log('🔧 [AUTH DEBUG] API_BASE_URL:', API_BASE_URL);
+      console.log('🔧 [AUTH DEBUG] Full login URL:', `${API_BASE_URL}/api/auth/login`);
       
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'LingRootMobile/1.0',
+        },
+        mode: 'cors',
+        credentials: 'omit',
         body: JSON.stringify({ email, password }),
       });
       
+      console.log('🔧 [AUTH DEBUG] Response received!');
       console.log('🔧 [AUTH DEBUG] Backend API response status:', response.status);
+      console.log('🔧 [AUTH DEBUG] Response ok:', response.ok);
+      console.log('🔧 [AUTH DEBUG] Response statusText:', response.statusText);
       
       if (!response.ok) {
         const errorData = await response.json();

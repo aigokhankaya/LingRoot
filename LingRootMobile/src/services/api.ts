@@ -87,43 +87,59 @@ export const apiService = {
     try {
       console.log('🔧 [API DEBUG] ==================');
       console.log('🔧 [API DEBUG] Testing connectivity to:', API_BASE_URL);
-      console.log('🔧 [API DEBUG] Full health check URL:', `${API_BASE_URL}/health`);
+      console.log('🔧 [API DEBUG] Full health check URL:', `${API_BASE_URL}/api/health`);
+      console.log('🔧 [API DEBUG] User Agent:', navigator.userAgent);
+      console.log('🔧 [API DEBUG] Online status:', navigator.onLine);
+      console.log('🔧 [API DEBUG] Platform:', navigator.platform);
       
       // Create abort controller for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.log('🔧 [API DEBUG] Request timeout after 5 seconds');
+        console.log('🔧 [API DEBUG] Request timeout after 10 seconds');
         controller.abort();
-      }, 5000);
+      }, 10000);
       
+      console.log('🔧 [API DEBUG] Fetch request başlatılıyor...');
       const response = await fetch(`${API_BASE_URL}/api/health`, {
         method: 'GET',
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'LingRootMobile/1.0',
         },
+        mode: 'cors',
+        credentials: 'omit',
       });
       
       clearTimeout(timeoutId);
       
+      console.log('🔧 [API DEBUG] Response received!');
       console.log('🔧 [API DEBUG] Response status:', response.status);
       console.log('🔧 [API DEBUG] Response ok:', response.ok);
-      console.log('🔧 [API DEBUG] Response headers:', response.headers);
+      console.log('🔧 [API DEBUG] Response statusText:', response.statusText);
+      console.log('🔧 [API DEBUG] Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (response.ok) {
         const responseText = await response.text();
         console.log('🔧 [API DEBUG] Response body:', responseText);
         console.log('🔧 [API DEBUG] ✅ Backend connection successful!');
+        console.log('🔧 [API DEBUG] ==================');
         return true;
       } else {
+        const errorText = await response.text();
+        console.log('🔧 [API DEBUG] Error response text:', errorText);
         console.log('🔧 [API DEBUG] ❌ Backend returned error status:', response.status);
+        console.log('🔧 [API DEBUG] ==================');
         return false;
       }
     } catch (error: any) {
+      console.log('🔧 [API DEBUG] ==================');
       console.error('🔧 [API DEBUG] ❌ Connectivity test failed!');
       console.error('🔧 [API DEBUG] Error type:', error.name);
       console.error('🔧 [API DEBUG] Error message:', error.message);
       console.error('🔧 [API DEBUG] Error code:', error.code);
+      console.error('🔧 [API DEBUG] Error stack:', error.stack);
       
       // Provide specific error messages for common issues
       if (error.name === 'AbortError') {
@@ -132,6 +148,8 @@ export const apiService = {
         console.error('🔧 [API DEBUG] Network request failed - check internet connection');
       } else if (error.message.includes('fetch')) {
         console.error('🔧 [API DEBUG] Fetch API error - possible CORS or network issue');
+      } else if (error.message.includes('TypeError')) {
+        console.error('🔧 [API DEBUG] TypeError - possible network or URL issue');
       }
       
       console.log('🔧 [API DEBUG] ==================');
