@@ -998,8 +998,74 @@ const Welcome: React.FC = () => {
   }, [contentType]);
 
   // Chat'den metin seçme fonksiyonu
-  const selectTextFromChat = (text: string) => {
-    setTextInput(text);
+  const selectTextFromChat = async (text: string) => {
+    // Chat metinini temizle - sadece konu bilgisini al
+    const cleanedText = cleanChatText(text);
+    setTextInput(cleanedText);
+    setContentType('subject'); // Konu sekmesine geç
+    
+    // Kısa bir gecikme ile ses oluşturma sürecini başlat
+    setTimeout(async () => {
+      if (cleanedText.trim()) {
+        const inputData: InputData = {
+          type: 'subject',
+          text: cleanedText,
+          level: englishLevel,
+          SesHızı: speakingRate,
+          voice: voiceType,
+        };
+        await handleSubmit(inputData);
+      }
+    }, 800);
+  };
+
+  // Chat metinini temizleme fonksiyonu
+  const cleanChatText = (text: string): string => {
+    // Sohbet ifadelerini kaldır
+    const chatPhrases = [
+      /^(merhaba|selam|tabii|harika|güzel|tamamdır|anladım|tabii ki|elbette)[!.]?\s*/gi,
+      /\s*(ister misin|nasıl|ne dersin|sence|bence|size|sana|senin)\s*[?!.]?\s*/gi,
+      /\s*(öner[ei]rim|hazırla[ya]bilirim|oluştur[au]bilirim|yap[ai]bilirim)\s*[?!.]?\s*/gi,
+      /\s*(bu konuda|hakkında|ilgili|dair)\s+.*?(ister misin|nasıl|ne dersin)[?!.]?\s*/gi,
+      /[😊🏛️💡🎯📚🔍✨🚀👋🤔💫🌟📖]/g, // Emojileri kaldır
+      /\s*[?!.]+\s*$/g, // Sondaki soru işaretleri ve ünlem işaretlerini kaldır
+      /^\s*-\s*/gm, // Başındaki tireleri kaldır
+      /\s+/g, // Birden fazla boşluğu tek boşluk yap
+    ];
+
+    let cleanedText = text;
+    
+    // Her regex'i uygula
+    chatPhrases.forEach(phrase => {
+      cleanedText = cleanedText.replace(phrase, ' ');
+    });
+
+    // Özel temizlik: "Bu konuda sana özel bir içerik oluşturmamı ister misin?" gibi ifadeleri kaldır
+    cleanedText = cleanedText.replace(/(bu konuda|hakkında).*?(ister misin|nasıl|ne dersin|hazırla[ya]bilirim|oluştur[au]bilirim).*?[?!.]?\s*/gi, '');
+    
+    // Tırnak içindeki konu başlıklarını koru, diğer sohbet kısımlarını kaldır
+    const topicMatch = cleanedText.match(/"([^"]+)"/);
+    if (topicMatch) {
+      // Tırnak içindeki konu başlığını al
+      const topicTitle = topicMatch[1];
+      // Konu başlığından önce ve sonra açıklayıcı metin varsa onları da al
+      const beforeTopic = cleanedText.substring(0, topicMatch.index || 0).trim();
+      const afterTopic = cleanedText.substring((topicMatch.index || 0) + topicMatch[0].length).trim();
+      
+      // Konu başlığı ile birlikte mantıklı bir açıklama oluştur
+      const contextBefore = beforeTopic.replace(/(tabii ki|harika|güzel|tamamdır)/gi, '').trim();
+      const contextAfter = afterTopic.replace(/(hakkında|ilgili|dair).*$/gi, '').trim();
+      
+      cleanedText = `${contextBefore} ${topicTitle} ${contextAfter}`.trim();
+    }
+    
+    // Son temizlik
+    cleanedText = cleanedText
+      .replace(/\s{2,}/g, ' ') // Birden fazla boşluğu tek boşluk yap
+      .replace(/^\s+|\s+$/g, '') // Başındaki ve sonundaki boşlukları kaldır
+      .replace(/^[.,!?]+|[.,!?]+$/g, ''); // Başındaki ve sonundaki noktalama işaretlerini kaldır
+
+    return cleanedText || text; // Eğer temizlik sonucu boş kalırsa orijinal metni döndür
   };
 
   useEffect(() => {
@@ -1409,8 +1475,8 @@ const Welcome: React.FC = () => {
                                             variant="outline"
                                             className="text-xs !rounded-button whitespace-nowrap cursor-pointer"
                                           >
-                                            <i className="fas fa-arrow-right mr-1"></i>
-                                            Bu Metni Seç
+                                            <i className="fas fa-volume-up mr-1"></i>
+                                            Bu Metni Seç → Ses Oluştur
                                           </Button>
                                         </div>
                                       )}
