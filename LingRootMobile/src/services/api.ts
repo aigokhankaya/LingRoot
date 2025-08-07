@@ -18,7 +18,7 @@ console.log('🔧 [API DEBUG] ==================');
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 120000, // 2 dakika timeout (PDF işleme için)
+  timeout: 180000, // 3 dakika timeout (Render.com cold start için)
   headers: {
     'Content-Type': 'application/json',
   },
@@ -95,9 +95,9 @@ export const apiService = {
       // Create abort controller for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.log('🔧 [API DEBUG] Request timeout after 10 seconds');
+        console.log('🔧 [API DEBUG] Request timeout after 60 seconds');
         controller.abort();
-      }, 10000);
+      }, 60000);
       
       console.log('🔧 [API DEBUG] Fetch request başlatılıyor...');
       const response = await fetch(`${API_BASE_URL}/api/health`, {

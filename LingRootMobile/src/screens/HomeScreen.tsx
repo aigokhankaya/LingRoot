@@ -113,14 +113,7 @@ const HomeScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.welcomeText}>
-            Merhaba, {user?.full_name || user?.email?.split('@')[0] || 'Kullanıcı'}!
-          </Text>
-          <Text style={styles.subtitle}>
-            AI destekli dil öğrenme deneyimine başlayın
-          </Text>
-        </View>
+
 
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
@@ -212,23 +205,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  header: {
-    padding: 20,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    lineHeight: 22,
-  },
+
   statsContainer: {
     flexDirection: 'row',
     padding: 20,

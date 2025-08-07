@@ -22,11 +22,7 @@ export default function App() {
         const initialized = await NotificationService.initialize();
         
         if (initialized) {
-          console.log('📱 [APP] Notification service initialized, will start reminders after user login...');
-          
-          // Get initial status
-          const status = await NotificationService.getStatus();
-          console.log('📱 [APP] Notification status:', status);
+          console.log('📱 [APP] Notification service initialized successfully');
         } else {
           console.log('📱 [APP] Notification service not initialized');
         }

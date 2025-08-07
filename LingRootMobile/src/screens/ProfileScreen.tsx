@@ -117,16 +117,8 @@ ${!status.isInitialized ? '\n⚠️ Servis başlatılmamış' : ''}
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>
         <View style={styles.header}>
-          <View style={styles.avatar}>
-            <Icon name="person" size={40} color="#007AFF" />
-          </View>
           <Text style={styles.name}>{user?.full_name || 'Kullanıcı'}</Text>
           <Text style={styles.email}>{user?.email}</Text>
-          <View style={styles.membershipBadge}>
-            <Text style={styles.membershipText}>
-              {user?.membership_level?.toUpperCase() || 'FREE'}
-            </Text>
-          </View>
         </View>
 
         <View style={styles.menu}>
@@ -167,15 +159,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
+
   name: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -186,17 +170,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     marginBottom: 10,
-  },
-  membershipBadge: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  membershipText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
   menu: {
     backgroundColor: 'white',
