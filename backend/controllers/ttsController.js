@@ -1620,6 +1620,40 @@ const translateToEnglish = async (req, res) => {
         logger.info(`🎯 [VOICE FILTER DEBUG] Step 5 - After category filter: ${filteredVoices.length} voices`);
       }
       
+      // 🔧 If Studio + Male combos are missing from Google API, inject known voices
+      if ((category === 'studio') && (gender && gender !== 'all') && (accent && accent !== 'all')) {
+        const desiredGender = gender.toUpperCase();
+        const desiredAccent = (accent || '').toUpperCase() === 'BRITISH' ? 'GB' :
+                               (accent || '').toUpperCase() === 'AMERICAN' ? 'US' : (accent || '').toUpperCase();
+
+        // Known Studio voices by accent/gender
+        const studioVoiceMap = {
+          'US:MALE':   { name: 'en-US-Studio-M', displayName: 'US English Male (Studio)', languageCode: 'en-US', accent: 'US' },
+          'US:FEMALE': { name: 'en-US-Studio-Q', displayName: 'US English Female (Studio)', languageCode: 'en-US', accent: 'US' },
+          'GB:MALE':   { name: 'en-GB-Studio-B', displayName: 'UK English Male (Studio)', languageCode: 'en-GB', accent: 'GB' },
+          'GB:FEMALE': { name: 'en-GB-Studio-C', displayName: 'UK English Female (Studio)', languageCode: 'en-GB', accent: 'GB' },
+        };
+
+        const key = `${desiredAccent}:${desiredGender}`;
+        if (filteredVoices.length === 0 && studioVoiceMap[key]) {
+          // Only inject if not already present in allVoices
+          const existsInAll = allVoices.some(v => v.name === studioVoiceMap[key].name);
+          if (!existsInAll) {
+            filteredVoices.push({
+              name: studioVoiceMap[key].name,
+              displayName: studioVoiceMap[key].displayName,
+              gender: desiredGender,
+              languageCode: studioVoiceMap[key].languageCode,
+              accent: studioVoiceMap[key].accent,
+              emotion: 'Professional',
+              ssmlSupport: false,
+              package: 'Platinum'
+            });
+            logger.warn(`🎯 [VOICE FILTER INJECT] Injected Studio voice: ${studioVoiceMap[key].name} for ${key}`);
+          }
+        }
+      }
+
       // 🔍 FINAL DEBUG: Detaylı sonuç analizi
       logger.info(`🎯 [VOICE FILTER] Applied filters - accent: ${accent}, emotion: ${emotion}, gender: ${gender}, category: ${category}`);
       logger.info(`🎯 [VOICE FILTER] Filtered voices count: ${filteredVoices.length} / ${allVoices.length}`);
