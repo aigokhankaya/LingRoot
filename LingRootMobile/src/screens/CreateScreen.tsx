@@ -326,6 +326,10 @@ const CreateScreen: React.FC = () => {
         formData.append('type', 'file');
         formData.append('input', selectedFile.name); // File name as input
         formData.append('level', selectedLevel);
+        // Backend controller 'speakingRate' ve 'voice' alanlarını okuyor
+        formData.append('speakingRate', speechRate.toString());
+        formData.append('voice', selectedVoice);
+        // Eski alanları da geriye dönük uyumluluk için gönderelim
         formData.append('sesHizi', speechRate.toString());
         formData.append('voiceName', selectedVoice);
         formData.append('gender', selectedGender);
@@ -369,6 +373,10 @@ const CreateScreen: React.FC = () => {
           type: 'text',
           input: inputText,
           level: selectedLevel,
+          // Backend 'voice' ve 'speakingRate' bekliyor
+          speakingRate: speechRate,
+          voice: selectedVoice,
+          // Geriye dönük
           sesHizi: speechRate,
           voiceName: selectedVoice,
           gender: selectedGender as any,
@@ -660,7 +668,21 @@ const CreateScreen: React.FC = () => {
           {/* Voice Selection Button */}
           <TouchableOpacity
             style={styles.voiceSelectionButton}
-            onPress={() => setShowVoiceSelection(true)}
+            onPress={async () => {
+              // Modal açılmadan önce web'deki gibi mevcut filtrelerle backend'den tazele
+              try {
+                if (hasActiveFilters) {
+                  console.log('🎯 [FILTER DEBUG] Opening modal → refreshing filtered voices...');
+                  await fetchFilteredVoices(selectedAccent, selectedGender, selectedVoiceCategory);
+                } else {
+                  console.log('🎯 [FILTER DEBUG] Opening modal → refreshing all voices...');
+                  await fetchAvailableVoices();
+                }
+              } catch (e) {
+                console.warn('⚠️ [FILTER DEBUG] Pre-open refresh failed:', e);
+              }
+              setShowVoiceSelection(true);
+            }}
           >
             <Icon name="record-voice-over" size={24} color="#007AFF" />
             <View style={styles.voiceSelectionInfo}>

@@ -25,7 +25,10 @@ export interface TTSRequest {
   type: 'text' | 'file';
   input: string;
   level: CEFRLevel;
-  sesHizi: number;
+  // Keep backward compatibility fields, but backend expects 'voice' and 'speakingRate'
+  sesHizi?: number;
+  speakingRate?: number;
+  voice?: string;
   voiceName?: string;
   gender?: 'male' | 'female' | 'neutral';
   accent?: 'american' | 'british' | 'australian' | 'canadian' | 'indian' | 'international' | 'all';
