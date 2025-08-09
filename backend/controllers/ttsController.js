@@ -1407,7 +1407,10 @@ const translateToEnglish = async (req, res) => {
           { name: 'en-GB-Neural2-O', displayName: 'UK English Male (Neural2)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
           
           // Studio voices (Platinum package)
+          { name: 'en-US-Studio-M', displayName: 'US English Male (Studio)', gender: 'MALE', languageCode: 'en-US', accent: 'US', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
+          { name: 'en-US-Studio-O', displayName: 'US English Female (Studio)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
           { name: 'en-US-Studio-Q', displayName: 'US English Female (Studio)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
+          { name: 'en-GB-Studio-B', displayName: 'UK English Male (Studio)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
           { name: 'en-GB-Studio-C', displayName: 'UK English Female (Studio)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
           
           // Chirp HD voices (Gold package) - British
