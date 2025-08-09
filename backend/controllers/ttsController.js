@@ -1459,8 +1459,18 @@ const translateToEnglish = async (req, res) => {
     try {
       const { accent, emotion, gender, category } = req.query;
       
-      // Önce tüm sesleri al
-      const mockReq = {};
+      // Önce tüm sesleri al (accent'e göre doğru dil kodunu seç)
+      let languageCode = 'en-US';
+      if (accent && accent !== 'all') {
+        const a = String(accent).toLowerCase();
+        if (a === 'british') languageCode = 'en-GB';
+        else if (a === 'american') languageCode = 'en-US';
+        else if (a === 'australian') languageCode = 'en-AU';
+        else if (a === 'canadian') languageCode = 'en-CA';
+        else if (a === 'indian') languageCode = 'en-IN';
+      }
+
+      const mockReq = { query: { languageCode } };
       const mockRes = {
         json: (data) => data
       };
@@ -1624,7 +1634,10 @@ const translateToEnglish = async (req, res) => {
       if ((category === 'studio') && (gender && gender !== 'all') && (accent && accent !== 'all')) {
         const desiredGender = gender.toUpperCase();
         const desiredAccent = (accent || '').toUpperCase() === 'BRITISH' ? 'GB' :
-                               (accent || '').toUpperCase() === 'AMERICAN' ? 'US' : (accent || '').toUpperCase();
+                               (accent || '').toUpperCase() === 'AMERICAN' ? 'US' :
+                               (accent || '').toUpperCase() === 'AUSTRALIAN' ? 'AU' :
+                               (accent || '').toUpperCase() === 'CANADIAN' ? 'CA' :
+                               (accent || '').toUpperCase() === 'INDIAN' ? 'IN' : (accent || '').toUpperCase();
 
         // Known Studio voices by accent/gender
         const studioVoiceMap = {
@@ -1651,6 +1664,34 @@ const translateToEnglish = async (req, res) => {
             });
             logger.warn(`🎯 [VOICE FILTER INJECT] Injected Studio voice: ${studioVoiceMap[key].name} for ${key}`);
           }
+        }
+      }
+
+      // 🔧 Wavenet + Australian / Canadian / Indian için Google API eksik dönerse fallback ekle
+      if ((category === 'wavenet') && (accent && accent !== 'all')) {
+        const desiredAccent = (accent || '').toLowerCase();
+        const desiredGender = (gender && gender !== 'all') ? gender.toUpperCase() : null;
+        const wavenetMap = {
+          'australian:MALE':   'en-AU-Wavenet-D',
+          'australian:FEMALE': 'en-AU-Wavenet-A',
+          'canadian:MALE':     'en-CA-Wavenet-D',
+          'canadian:FEMALE':   'en-CA-Wavenet-A',
+          'indian:MALE':       'en-IN-Wavenet-D',
+          'indian:FEMALE':     'en-IN-Wavenet-A',
+        };
+        const key = `${desiredAccent}:${desiredGender || 'FEMALE'}`;
+        if (filteredVoices.length === 0 && wavenetMap[key]) {
+          filteredVoices.push({
+            name: wavenetMap[key],
+            displayName: wavenetMap[key].split('-').slice(-1)[0],
+            gender: desiredGender || 'FEMALE',
+            languageCode: desiredAccent === 'australian' ? 'en-AU' : desiredAccent === 'canadian' ? 'en-CA' : 'en-IN',
+            accent: desiredAccent === 'australian' ? 'AU' : desiredAccent === 'canadian' ? 'CA' : 'IN',
+            emotion: 'Natural',
+            ssmlSupport: true,
+            package: 'Premium'
+          });
+          logger.warn(`🎯 [VOICE FILTER INJECT] Injected Wavenet voice fallback for ${key}`);
         }
       }
 

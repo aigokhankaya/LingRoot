@@ -190,6 +190,27 @@ const CreateScreen: React.FC = () => {
 
       if (Array.isArray(voices) && voices.length >= 0) {
         console.log('🎯 [FILTER DEBUG] Voices array length:', voices.length);
+        // Studio + Male fallback (backend deploy beklenirken geçici çözüm)
+        if (voices.length === 0 && (category === 'studio') && (gender === 'male')) {
+          const fallbackName = accent === 'british' ? 'en-GB-Studio-B' : accent === 'american' ? 'en-US-Studio-M' : undefined;
+          if (fallbackName) {
+            const fallback = [{
+              name: fallbackName,
+              category: 'studio',
+              accent: accent,
+              gender: 'male',
+              displayName: fallbackName.includes('GB') ? 'UK English Male (Studio)' : 'US English Male (Studio)',
+              ssmlSupport: false,
+              package: 'Platinum',
+              languageCode: fallbackName.includes('GB') ? 'en-GB' : 'en-US'
+            }];
+            console.warn('🎯 [FILTER DEBUG] Injecting frontend fallback for Studio+Male:', fallbackName);
+            setAvailableVoices(fallback as any);
+            setSelectedVoice(fallbackName);
+            setLoadingVoices(false);
+            return;
+          }
+        }
         // Voice alanlarını normalize et (name, category, accent, gender)
         const processedVoices = voices.map((voice: any) => {
           const name = voice.name || voice.voiceName || voice.id || voice.code;
