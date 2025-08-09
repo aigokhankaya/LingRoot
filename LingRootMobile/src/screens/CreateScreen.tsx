@@ -211,6 +211,32 @@ const CreateScreen: React.FC = () => {
             return;
           }
         }
+
+        // Wavenet + AU/CA/IN fallback (backend deploy beklenirken geçici çözüm)
+        if (voices.length === 0 && (category === 'wavenet') && (accent === 'australian' || accent === 'canadian' || accent === 'indian')) {
+          const map: Record<string, { male: string; female: string; lang: string } > = {
+            australian: { male: 'en-AU-Wavenet-D', female: 'en-AU-Wavenet-A', lang: 'en-AU' },
+            canadian:   { male: 'en-CA-Wavenet-D', female: 'en-CA-Wavenet-A', lang: 'en-CA' },
+            indian:     { male: 'en-IN-Wavenet-D', female: 'en-IN-Wavenet-A', lang: 'en-IN' },
+          };
+          const cfg = map[accent];
+          const chosen = (gender === 'male') ? cfg.male : cfg.female;
+          const fallback = [{
+            name: chosen,
+            category: 'wavenet',
+            accent: accent,
+            gender: gender || 'female',
+            displayName: chosen.split('-').slice(-1)[0],
+            ssmlSupport: true,
+            package: 'Premium',
+            languageCode: cfg.lang,
+          }];
+          console.warn('🎯 [FILTER DEBUG] Injecting frontend fallback for Wavenet:', chosen);
+          setAvailableVoices(fallback as any);
+          setSelectedVoice(chosen);
+          setLoadingVoices(false);
+          return;
+        }
         // Voice alanlarını normalize et (name, category, accent, gender)
         const processedVoices = voices.map((voice: any) => {
           const name = voice.name || voice.voiceName || voice.id || voice.code;

@@ -403,14 +403,37 @@ const Welcome: React.FC = () => {
       console.log('🎯 Filtered Voices API response:', data);
       
       if (data.voices && Array.isArray(data.voices)) {
-        setAvailableVoices(data.voices);
-        console.log(`✅ Filtrelenmiş sesler set edildi: ${data.filteredCount}/${data.totalCount} voice`);
+        let voices = data.voices as any[];
+
+        // Web tarafı fallback: Wavenet + AU/CA/IN boş gelirse bir ses enjekte et
+        if (voices.length === 0 && category === 'wavenet' && accent && ['australian','canadian','indian'].includes(accent)) {
+          const map: Record<string, { male: string; female: string; lang: string } > = {
+            australian: { male: 'en-AU-Wavenet-D', female: 'en-AU-Wavenet-A', lang: 'en-AU' },
+            canadian:   { male: 'en-CA-Wavenet-D', female: 'en-CA-Wavenet-A', lang: 'en-CA' },
+            indian:     { male: 'en-IN-Wavenet-D', female: 'en-IN-Wavenet-A', lang: 'en-IN' },
+          };
+          const cfg = map[accent];
+          const chosen = (gender === 'male') ? cfg.male : (gender === 'female') ? cfg.female : cfg.female;
+          voices = [{
+            name: chosen,
+            displayName: chosen.split('-').slice(-1)[0],
+            gender: (gender && gender !== 'all') ? gender.toUpperCase() : 'FEMALE',
+            languageCode: cfg.lang,
+            accent: cfg.lang.split('-')[1],
+            emotion: 'Natural',
+            ssmlSupport: true,
+            package: 'Premium'
+          }];
+          console.warn('🎯 [WEB FALLBACK] Injected Wavenet fallback:', chosen);
+        }
+
+        setAvailableVoices(voices);
+        console.log(`✅ Filtrelenmiş sesler set edildi: ${voices.length}/${data.totalCount} voice`);
         
-        // Mevcut seçili ses filtrelenmiş listede yoksa, ilk sesi seç
-        const currentVoiceExists = data.voices.some((voice: any) => voice.name === voiceType);
-        if (!currentVoiceExists && data.voices.length > 0) {
-          setVoiceType(data.voices[0].name);
-          console.log('🔄 Yeni varsayılan ses seçildi:', data.voices[0].name);
+        const currentVoiceExists = voices.some((voice: any) => voice.name === voiceType);
+        if (!currentVoiceExists && voices.length > 0) {
+          setVoiceType(voices[0].name);
+          console.log('🔄 Yeni varsayılan ses seçildi:', voices[0].name);
         }
       } else {
         console.log('❌ API response voices array değil, boş array set ediliyor');
