@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { 
   getVocabulary, 
   addWordToVocabulary, 
@@ -32,6 +33,7 @@ const { width } = Dimensions.get('window');
 
 export default function VocabularyScreen({ navigation, route }: any) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [vocabulary, setVocabulary] = useState<VocabularyWord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -197,7 +199,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
       setVocabulary(words);
     } catch (error: any) {
       console.error('Error loading vocabulary:', error);
-      setError('Kelimeler yüklenirken hata oluştu: ' + error.message);
+      setError(t('vocabulary.error') + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -241,10 +243,10 @@ export default function VocabularyScreen({ navigation, route }: any) {
       await NotificationService.setupSmartVocabularyNotifications();
       
       setIsReminderModalVisible(false);
-      Alert.alert('✅ Başarılı!', 'Hatırlatma ayarları kaydedildi ve bildirimler yeniden programlandı.');
+      Alert.alert('✅ ' + t('vocabulary.success'), t('vocabulary.reminderSuccess'));
     } catch (error) {
       console.error('📱 [SETTINGS] Error saving settings:', error);
-      Alert.alert('❌ Hata', 'Ayarlar kaydedilirken bir hata oluştu.');
+      Alert.alert('❌ ' + t('notifications.error'), t('vocabulary.reminderError'));
     }
   };
 
@@ -517,7 +519,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Kelime Listeleri</Text>
+        <Text style={styles.headerTitle}>{t('vocabulary.headerTitle')}</Text>
         <TouchableOpacity onPress={() => setIsAddModalVisible(true)}>
           <Ionicons name="add" size={24} color="#3B82F6" />
         </TouchableOpacity>
@@ -527,32 +529,32 @@ export default function VocabularyScreen({ navigation, route }: any) {
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#3B82F6" />
-            <Text style={styles.loadingText}>Kelimeler yükleniyor...</Text>
+            <Text style={styles.loadingText}>{t('vocabulary.loading')}</Text>
           </View>
         ) : error ? (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity onPress={loadVocabulary} style={styles.retryButton}>
-              <Text style={styles.retryButtonText}>Tekrar Dene</Text>
+              <Text style={styles.retryButtonText}>{t('vocabulary.retry')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
             {/* İstatistikler */}
             <View style={styles.statsContainer}>
-              <Text style={styles.sectionTitle}>İstatistikler</Text>
+              <Text style={styles.sectionTitle}>{t('vocabulary.statistics')}</Text>
               <View style={styles.statsGrid}>
                 <View style={styles.statCard}>
                   <Text style={styles.statNumber}>{stats.total}</Text>
-                  <Text style={styles.statLabel}>Toplam Kelime</Text>
+                  <Text style={styles.statLabel}>{t('vocabulary.totalWords')}</Text>
                 </View>
                 <View style={styles.statCard}>
                   <Text style={[styles.statNumber, { color: '#10B981' }]}>{stats.learned}</Text>
-                  <Text style={styles.statLabel}>Öğrenildi</Text>
+                  <Text style={styles.statLabel}>{t('vocabulary.learned')}</Text>
                 </View>
                 <View style={styles.statCard}>
                   <Text style={[styles.statNumber, { color: '#F59E0B' }]}>{stats.notLearned}</Text>
-                  <Text style={styles.statLabel}>Öğrenilmemiş</Text>
+                  <Text style={styles.statLabel}>{t('vocabulary.notLearned')}</Text>
                 </View>
               </View>
             </View>

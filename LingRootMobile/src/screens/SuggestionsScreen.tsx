@@ -14,8 +14,10 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { CEFRLevel } from '../types';
 import { apiService } from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const SuggestionsScreen: React.FC = () => {
+  const { t } = useLanguage();
   const [topic, setTopic] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>('B1');
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -25,17 +27,17 @@ const SuggestionsScreen: React.FC = () => {
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   const levelDescriptions = {
-    A1: 'Başlangıç - Temel kelimeler ve ifadeler',
-    A2: 'Temel - Günlük konuşma seviyesi',
-    B1: 'Orta - İş ve eğitim konuları',
-    B2: 'Orta-İleri - Karmaşık metinler',
-    C1: 'İleri - Akıcı ve etkili kullanım',
-    C2: 'Uzman - Ana dil seviyesi',
-  };
+    A1: t('suggestions.cefrDescriptions.A1'),
+    A2: t('suggestions.cefrDescriptions.A2'),
+    B1: t('suggestions.cefrDescriptions.B1'),
+    B2: t('suggestions.cefrDescriptions.B2'),
+    C1: t('suggestions.cefrDescriptions.C1'),
+    C2: t('suggestions.cefrDescriptions.C2'),
+  } as const;
 
   const handleGetSuggestions = async () => {
     if (!topic.trim()) {
-      Alert.alert('Hata', 'Lütfen bir konu girin');
+      Alert.alert(t('common.error'), t('suggestions.alerts.pleaseEnterTopic'));
       return;
     }
 
@@ -45,13 +47,13 @@ const SuggestionsScreen: React.FC = () => {
       if (response.success) {
         setSuggestions(response.suggestions || []);
         if (response.suggestions && response.suggestions.length === 0) {
-          Alert.alert('Bilgi', 'Bu konu için öneri bulunamadı');
+          Alert.alert(t('common.info'), t('suggestions.alerts.noSuggestions'));
         }
       } else {
-        Alert.alert('Hata', response.message || 'Öneriler alınamadı');
+        Alert.alert(t('common.error'), response.message || t('suggestions.alerts.fetchFailed'));
       }
     } catch (error: any) {
-      Alert.alert('Hata', error.message || 'Bir hata oluştu');
+      Alert.alert(t('common.error'), error.message || t('common.unexpectedError'));
     } finally {
       setIsLoading(false);
     }
@@ -61,15 +63,15 @@ const SuggestionsScreen: React.FC = () => {
     setSelectedSuggestion(suggestion);
     // Burada seçilen öneriyi başka bir ekrana gönderebiliriz
     Alert.alert(
-      'Öneri Seçildi',
-      'Bu öneriyi kullanarak ses oluşturmak ister misiniz?',
+      t('suggestions.select.title'),
+      t('suggestions.select.message'),
       [
-        { text: 'İptal', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Evet',
+          text: t('common.yes'),
           onPress: () => {
             // Create ekranına geçiş yapılabilir
-            Alert.alert('Bilgi', 'Create ekranına yönlendirileceksiniz...');
+            Alert.alert(t('common.info'), t('suggestions.select.navigateInfo'));
           },
         },
       ]
@@ -93,17 +95,17 @@ const SuggestionsScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Konu Önerileri</Text>
+          <Text style={styles.title}>{t('suggestions.title')}</Text>
           <Text style={styles.subtitle}>
-            AI ile kişiselleştirilmiş konu önerileri alın
+            {t('suggestions.subtitle')}
           </Text>
         </View>
 
         <View style={styles.inputSection}>
-          <Text style={styles.sectionTitle}>Konu</Text>
+          <Text style={styles.sectionTitle}>{t('suggestions.input.title')}</Text>
           <TextInput
             style={styles.textInput}
-            placeholder="İlgilendiğiniz konuyu yazın (örn: seyahat, teknoloji, spor)"
+            placeholder={t('suggestions.input.placeholder')}
             value={topic}
             onChangeText={setTopic}
             multiline={false}
@@ -111,7 +113,7 @@ const SuggestionsScreen: React.FC = () => {
         </View>
 
         <View style={styles.levelSection}>
-          <Text style={styles.sectionTitle}>CEFR Seviyesi</Text>
+          <Text style={styles.sectionTitle}>{t('suggestions.cefr.title')}</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -153,14 +155,14 @@ const SuggestionsScreen: React.FC = () => {
             <Icon name="lightbulb" size={24} color="white" />
           )}
           <Text style={styles.buttonText}>
-            {isLoading ? 'Öneriler Hazırlanıyor...' : 'Öneriler Al'}
+            {isLoading ? t('suggestions.buttons.loading') : t('suggestions.buttons.getSuggestions')}
           </Text>
         </TouchableOpacity>
 
         {suggestions.length > 0 && (
           <View style={styles.suggestionsSection}>
             <Text style={styles.sectionTitle}>
-              Öneriler ({suggestions.length} adet)
+              {t('suggestions.results.title', { count: suggestions.length })}
             </Text>
             <FlatList
               data={suggestions}
@@ -175,9 +177,9 @@ const SuggestionsScreen: React.FC = () => {
         {suggestions.length === 0 && !isLoading && (
           <View style={styles.emptyState}>
             <Icon name="lightbulb-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyTitle}>Henüz öneri yok</Text>
+            <Text style={styles.emptyTitle}>{t('suggestions.empty.title')}</Text>
             <Text style={styles.emptyDescription}>
-              Bir konu girin ve seviyenizi seçin, size özel öneriler hazırlayalım
+              {t('suggestions.empty.description')}
             </Text>
           </View>
         )}

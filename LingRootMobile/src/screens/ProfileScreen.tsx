@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,33 +7,42 @@ import {
   SafeAreaView,
   ScrollView,
   Alert,
+  Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import NotificationService from '../services/notificationService';
 
 const ProfileScreen: React.FC = () => {
   const { user, signOut } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
 
   const handleSignOut = async () => {
     Alert.alert(
-      'Çıkış Yap',
-      'Hesabınızdan çıkış yapmak istediğinize emin misiniz?',
+      t('profile.signOut'),
+      t('profile.signOutConfirm'),
       [
-        { text: 'İptal', style: 'cancel' },
+        { text: t('profile.cancel'), style: 'cancel' },
         {
-          text: 'Çıkış Yap',
+          text: t('profile.signOut'),
           style: 'destructive',
           onPress: async () => {
             try {
               await signOut();
             } catch (error: any) {
-              Alert.alert('Hata', error.message || 'Çıkış yapılamadı');
+              Alert.alert(t('notifications.error'), error.message || t('notifications.signOutFailed'));
             }
           },
         },
       ]
     );
+  };
+
+  const handleLanguageSelect = async (selectedLanguage: 'tr' | 'en') => {
+    await setLanguage(selectedLanguage);
+    setLanguageModalVisible(false);
   };
 
   const handleTestNotification = async () => {
@@ -45,7 +54,7 @@ const ProfileScreen: React.FC = () => {
       console.log('📱 [TEST] Notification status:', status);
       
       if (!status.hasPermission) {
-        Alert.alert('Bildirimler Kapalı', 'Bildirimler için izin gereklidir. Lütfen ayarlardan bildirim izinlerini açınız.');
+        Alert.alert(t('notifications.disabled'), t('notifications.permissionRequired'));
         return;
       }
       
@@ -54,41 +63,43 @@ const ProfileScreen: React.FC = () => {
       
       if (randomWord) {
         await NotificationService.scheduleVocabularyNotification(randomWord);
-        Alert.alert('Test Bildirimi', `"${randomWord.word}" kelimesi için test bildirimi gönderildi!`);
+        Alert.alert(t('notifications.testSent'), `"${randomWord.word}" ${t('notifications.testSentMessage')}`);
       } else {
         Alert.alert(
-          'Kelime Bulunamadı', 
-          'Öğrenilmemiş kelime bulunamadı. Bu durum şu nedenlerden kaynaklanabilir:\n\n• Kelime listeniz boş\n• Tüm kelimeler öğrenilmiş olarak işaretli\n• Oturum süresi dolmuş (lütfen tekrar giriş yapın)'
+          t('notifications.noWordsFound'), 
+          t('notifications.noWordsFoundMessage')
         );
       }
     } catch (error: any) {
       console.error('📱 [TEST] Test notification failed:', error);
-      let errorMessage = 'Test bildirimi gönderilemedi.';
+      let errorMessage = t('notifications.testFailed');
       
       if (error?.response?.status === 401) {
-        errorMessage = 'Oturum süresi dolmuş. Lütfen çıkış yapıp tekrar giriş yapın.';
+        errorMessage = t('notifications.sessionExpired');
       }
       
-      Alert.alert('Hata', errorMessage);
+      Alert.alert(t('notifications.error'), errorMessage);
     }
   };
 
   const handleNotificationStatus = async () => {
     try {
       const status = await NotificationService.getStatus();
+      const yesText = language === 'tr' ? 'Evet' : 'Yes';
+      const noText = language === 'tr' ? 'Hayır' : 'No';
       const statusText = `
-Bildirim Durumu:
-• Başlatılmış: ${status.isInitialized ? 'Evet' : 'Hayır'}
-• İzin Verilmiş: ${status.hasPermission ? 'Evet' : 'Hayır'}
-• Zamanlanmış Bildirim: ${status.scheduledCount} adet
+${language === 'tr' ? 'Bildirim Durumu:' : 'Notification Status:'}
+• ${language === 'tr' ? 'Başlatılmış:' : 'Initialized:'} ${status.isInitialized ? yesText : noText}
+• ${language === 'tr' ? 'İzin Verilmiş:' : 'Permission Granted:'} ${status.hasPermission ? yesText : noText}
+• ${language === 'tr' ? 'Zamanlanmış Bildirim:' : 'Scheduled Notifications:'} ${status.scheduledCount} ${language === 'tr' ? 'adet' : 'items'}
 
-${!status.hasPermission ? '\n⚠️ Bildirim izni gereklidir' : ''}
-${!status.isInitialized ? '\n⚠️ Servis başlatılmamış' : ''}
+${!status.hasPermission ? `\n⚠️ ${language === 'tr' ? 'Bildirim izni gereklidir' : 'Notification permission required'}` : ''}
+${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmamış' : 'Service not initialized'}` : ''}
       `.trim();
       
-      Alert.alert('Bildirim Durumu', statusText);
+      Alert.alert(t('notifications.testSent').replace('Test ', ''), statusText);
     } catch (error) {
-      Alert.alert('Hata', 'Bildirim durumu alınamadı.');
+      Alert.alert(t('notifications.error'), t('notifications.statusError'));
     }
   };
 
@@ -96,28 +107,29 @@ ${!status.isInitialized ? '\n⚠️ Servis başlatılmamış' : ''}
     try {
       // Restart smart notifications immediately
       await NotificationService.setupSmartVocabularyNotifications();
-      Alert.alert('🔧 Debug Tamamlandı', 'Akıllı bildirimler yeniden başlatıldı!\n\nProfil → Bildirim Durumu ile kontrol edin.');
+      Alert.alert(t('notifications.debugCompleted'), t('notifications.debugCompletedMessage'));
     } catch (error: any) {
-      Alert.alert('Hata', 'Debug işlemi başarısız: ' + (error.message || 'Bilinmeyen hata'));
+      Alert.alert(t('notifications.error'), t('notifications.debugFailed') + (error.message || t('notifications.unknownError')));
     }
   };
 
   const menuItems = [
-    { id: 1, title: 'Hesap Ayarları', icon: 'settings', action: () => {} },
-    { id: 2, title: 'Ses Geçmişi', icon: 'history', action: () => {} },
-    { id: 3, title: 'Üyelik', icon: 'card-membership', action: () => {} },
-    { id: 4, title: 'Test Bildirimi', icon: 'notifications', action: handleTestNotification },
-    { id: 5, title: 'Bildirim Durumu', icon: 'notifications-active', action: handleNotificationStatus },
-    { id: 8, title: '🔧 Hızlı Debug', icon: 'bug-report', action: handleQuickDebug },
-    { id: 6, title: 'Yardım', icon: 'help', action: () => {} },
-    { id: 7, title: 'Hakkında', icon: 'info', action: () => {} },
+    { id: 1, title: t('profile.accountSettings'), icon: 'settings', action: () => {} },
+    { id: 1.5, title: t('profile.language'), icon: 'language', action: () => setLanguageModalVisible(true) },
+    { id: 2, title: t('profile.audioHistory'), icon: 'history', action: () => {} },
+    { id: 3, title: t('profile.membership'), icon: 'card-membership', action: () => {} },
+    { id: 4, title: t('profile.testNotification'), icon: 'notifications', action: handleTestNotification },
+    { id: 5, title: t('profile.notificationStatus'), icon: 'notifications-active', action: handleNotificationStatus },
+    { id: 8, title: t('profile.quickDebug'), icon: 'bug-report', action: handleQuickDebug },
+    { id: 6, title: t('profile.help'), icon: 'help', action: () => {} },
+    { id: 7, title: t('profile.about'), icon: 'info', action: () => {} },
   ];
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.name}>{user?.full_name || 'Kullanıcı'}</Text>
+          <Text style={styles.name}>{user?.full_name || t('profile.user')}</Text>
           <Text style={styles.email}>{user?.email}</Text>
         </View>
 
@@ -137,9 +149,67 @@ ${!status.isInitialized ? '\n⚠️ Servis başlatılmamış' : ''}
 
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
           <Icon name="logout" size={24} color="#FF3B30" />
-          <Text style={styles.signOutText}>Çıkış Yap</Text>
+          <Text style={styles.signOutText}>{t('profile.signOut')}</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Language Selection Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={languageModalVisible}
+        onRequestClose={() => setLanguageModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('profile.language')}</Text>
+              <TouchableOpacity 
+                onPress={() => setLanguageModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <Icon name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity
+              style={[
+                styles.languageOption,
+                language === 'tr' && styles.selectedLanguage
+              ]}
+              onPress={() => handleLanguageSelect('tr')}
+            >
+              <Text style={[
+                styles.languageText,
+                language === 'tr' && styles.selectedLanguageText
+              ]}>
+                {t('languages.turkish')}
+              </Text>
+              {language === 'tr' && (
+                <Icon name="check" size={20} color="#007AFF" />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.languageOption,
+                language === 'en' && styles.selectedLanguage
+              ]}
+              onPress={() => handleLanguageSelect('en')}
+            >
+              <Text style={[
+                styles.languageText,
+                language === 'en' && styles.selectedLanguageText
+              ]}>
+                {t('languages.english')}
+              </Text>
+              {language === 'en' && (
+                <Icon name="check" size={20} color="#007AFF" />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -206,6 +276,54 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 16,
     color: '#FF3B30',
+    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    margin: 20,
+    minWidth: 300,
+    maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  languageOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  selectedLanguage: {
+    backgroundColor: '#f0f8ff',
+  },
+  languageText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  selectedLanguageText: {
+    color: '#007AFF',
     fontWeight: '500',
   },
 });

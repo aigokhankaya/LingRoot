@@ -16,6 +16,13 @@ console.log('🔧 [API DEBUG] EXPO_PUBLIC_API_URL:', Constants.expoConfig?.extra
 console.log('🔧 [API DEBUG] Final API_BASE_URL:', API_BASE_URL);
 console.log('🔧 [API DEBUG] ==================');
 
+// Global unauthorized handler to notify app on 401/expired token
+let unauthorizedHandler: (() => void) | null = null;
+
+export const setUnauthorizedHandler = (handler: () => void) => {
+  unauthorizedHandler = handler;
+};
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 180000, // 3 dakika timeout (Render.com cold start için)
@@ -72,8 +79,15 @@ apiClient.interceptors.response.use(
         console.error('Error clearing auth data:', clearError);
       }
       
-      // You might want to redirect to login here or emit an event
-      // For now, just log the expiration
+      // Notify app to update auth state (navigate to login)
+      try {
+        if (unauthorizedHandler) {
+          unauthorizedHandler();
+        }
+      } catch (notifyError) {
+        console.error('Error notifying unauthorized handler:', notifyError);
+      }
+
       console.log('🔧 [API DEBUG] User needs to login again');
     }
     
@@ -239,12 +253,16 @@ export const apiService = {
   async getFilteredVoices(accent?: string, gender?: string, emotion?: string, category?: string): Promise<APIResponse> {
     try {
       const params = new URLSearchParams();
-      if (accent) params.append('accent', accent);
-      if (gender) params.append('gender', gender);
-      if (emotion) params.append('emotion', emotion);
-      if (category) params.append('category', category);
-      
-      const response = await apiClient.get<APIResponse>(`/api/tts/voices/filter?${params.toString()}`);
+      // "all" değerlerini göndermeyelim; backend'de bunlar filtre olarak algılanmamalı
+      if (accent && accent !== 'all') params.append('accent', accent);
+      if (gender && gender !== 'all') params.append('gender', gender);
+      if (emotion && emotion !== 'all') params.append('emotion', emotion);
+      if (category && category !== 'all') params.append('category', category);
+
+      const url = `/api/tts/voices/filter?${params.toString()}`;
+      console.log('🎯 [VOICE FILTER DEBUG] Requesting:', url);
+      const response = await apiClient.get(url);
+      console.log('🎯 [VOICE FILTER DEBUG] Response keys:', Object.keys(response.data || {}));
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Filtrelenmiş sesler yüklenemedi');

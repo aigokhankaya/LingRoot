@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContextType, User } from '../types';
 import { authService } from '../services/supabase';
-import { apiService } from '../services/api';
+import { apiService, setUnauthorizedHandler } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationService from '../services/notificationService';
 import Constants from 'expo-constants';
@@ -62,6 +62,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
       setIsLoading(false);
+    });
+
+    // Setup global unauthorized handler (401)
+    setUnauthorizedHandler(async () => {
+      try {
+        await AsyncStorage.removeItem('auth_token');
+        await AsyncStorage.removeItem('user_data');
+      } catch {}
+      setUser(null);
     });
 
     return () => {

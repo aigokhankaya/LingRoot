@@ -6,6 +6,7 @@ import { ActivityIndicator, View } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { RootStackParamList, MainTabParamList } from '../types';
 import NotificationService from '../services/notificationService';
 
@@ -38,6 +39,8 @@ const AuthStack = () => {
 };
 
 const MainTabs = () => {
+  const { t } = useLanguage();
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -68,33 +71,55 @@ const MainTabs = () => {
         },
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: 'gray',
-        headerShown: false,
+        headerShown: true,
+        headerStyle: {
+          backgroundColor: '#007AFF',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
       })}
     >
       <Tab.Screen 
         name="Home" 
         component={HomeScreen}
-        options={{ tabBarLabel: 'Ana Sayfa' }}
+        options={{ 
+          tabBarLabel: t('home.title'),
+          headerTitle: t('home.title')
+        }}
       />
       <Tab.Screen 
         name="Library" 
         component={LibraryScreen}
-        options={{ tabBarLabel: 'Kütüphane' }}
+        options={{ 
+          tabBarLabel: t('library.title'),
+          headerTitle: t('library.title')
+        }}
       />
       <Tab.Screen 
         name="Create" 
         component={CreateScreen}
-        options={{ tabBarLabel: 'Oluştur' }}
+        options={{ 
+          tabBarLabel: t('create.title'),
+          headerTitle: t('create.title')
+        }}
       />
       <Tab.Screen 
         name="Suggestions" 
         component={SuggestionsScreen}
-        options={{ tabBarLabel: 'Öneriler' }}
+        options={{ 
+          tabBarLabel: t('suggestions.title'),
+          headerTitle: t('suggestions.title')
+        }}
       />
       <Tab.Screen 
         name="Profile" 
         component={ProfileScreen}
-        options={{ tabBarLabel: 'Profil' }}
+        options={{ 
+          tabBarLabel: t('profile.title'),
+          headerTitle: t('profile.title')
+        }}
       />
     </Tab.Navigator>
   );
@@ -133,7 +158,21 @@ const AppNavigator = () => {
         {user ? (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
-            <Stack.Screen name="Vocabulary" component={VocabularyScreen} />
+            <Stack.Screen 
+              name="Vocabulary" 
+              component={VocabularyScreen}
+              options={{
+                headerShown: true,
+                headerStyle: {
+                  backgroundColor: '#007AFF',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+                headerTitle: 'Vocabulary', // This will be updated by the component
+              }}
+            />
           </>
         ) : (
           <Stack.Screen name="Auth" component={AuthStack} />

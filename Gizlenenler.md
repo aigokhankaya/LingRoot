@@ -163,6 +163,16 @@ Bu dosya, LingRoot projede gizlenen UI elementlerini ve fonksiyonlarını kaydet
 
 ## 🔄 Geri Yükleme İçin Notlar
 
+### 14. Mobil "Cümle" Butonu (Sentence Mode Button)
+**Dosya:** `LingRootMobile/src/components/AudioPlayer.tsx`
+
+**Gizlenen Öğe:**
+- Alt kontrol panelindeki "Cümle" butonu tamamen gizlendi (iOS ve Android)
+- Vurgulama modu kullanıcıya gösterilmiyor; dahili olarak varsayılan `highlightMode: 'sentence'` kullanılmaya devam ediyor
+
+**Konum:** Controls bölümü, `modeToggle` alanı
+**Sebep:** Arayüzü sadeleştirmek ve gereksiz butonları kaldırmak
+
 ### Frontend Komponenlerinde Geri Yükleme Adımları:
 
 1. **Kelime Butonunu Geri Yüklemek:**

@@ -755,40 +755,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
         {/* Controls */}
         <View style={styles.controlsContainer}>
-          {/* Mode Toggle - Sadece Cümle butonu kalacak */}
-          <View style={styles.modeToggle}>
-            {/* Kelime butonu - GİZLENDİ */}
-            {/*
-            <TouchableOpacity
-              style={[
-                styles.modeButton,
-                highlightMode === 'word' && styles.modeButtonActive
-              ]}
-              onPress={() => setHighlightMode('word')}
-            >
-              <Text style={[
-                styles.modeButtonText,
-                highlightMode === 'word' && styles.modeButtonTextActive
-              ]}>
-                Kelime
-              </Text>
-            </TouchableOpacity>
-            */}
-            <TouchableOpacity
-              style={[
-                styles.modeButton,
-                highlightMode === 'sentence' && styles.modeButtonActive
-              ]}
-              onPress={() => setHighlightMode('sentence')}
-            >
-              <Text style={[
-                styles.modeButtonText,
-                highlightMode === 'sentence' && styles.modeButtonTextActive
-              ]}>
-                Cümle
-              </Text>
-            </TouchableOpacity>
-          </View>
+          {/* Mode Toggle - GİZLENDİ: 'Cümle' butonu gizlendi */}
 
           {/* Debug Button - GİZLENDİ */}
           {/* GIZLENDI - Debug butonu kaldırıldı */}

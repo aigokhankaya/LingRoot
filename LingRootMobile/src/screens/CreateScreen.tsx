@@ -15,9 +15,11 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as DocumentPicker from 'expo-document-picker';
 import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 import { apiService } from '../services/api';
 
 const CreateScreen: React.FC = () => {
+  const { t } = useLanguage();
   const [inputText, setInputText] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>('B1');
   const [speechRate, setSpeechRate] = useState(1.0);
@@ -32,41 +34,67 @@ const CreateScreen: React.FC = () => {
   const [availableVoices, setAvailableVoices] = useState<Voice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
   const [showVoiceSelection, setShowVoiceSelection] = useState<boolean>(false);
+  const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || selectedVoiceCategory !== 'standard';
 
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   const levelDescriptions = {
-    A1: 'Başlangıç - Temel kelimeler ve ifadeler',
-    A2: 'Temel - Günlük konuşma seviyesi',
-    B1: 'Orta - İş ve eğitim konuları',
-    B2: 'Orta-İleri - Karmaşık metinler',
-    C1: 'İleri - Akıcı ve etkili kullanım',
-    C2: 'Uzman - Ana dil seviyesi',
+    A1: t('create.cefrDescriptions.A1'),
+    A2: t('create.cefrDescriptions.A2'),
+    B1: t('create.cefrDescriptions.B1'),
+    B2: t('create.cefrDescriptions.B2'),
+    C1: t('create.cefrDescriptions.C1'),
+    C2: t('create.cefrDescriptions.C2'),
+  } as const;
+
+  // Accent normalization helper: maps codes like GB/US and languageCode (en-GB, en-US)
+  // to our UI accents: british, american, australian, canadian, indian
+  const normalizeAccentValue = (accent?: string, languageCode?: string): string => {
+    const a = (accent || '').toLowerCase();
+    const lc = (languageCode || '').toLowerCase();
+    if (a === 'british' || a === 'american' || a === 'australian' || a === 'canadian' || a === 'indian') return a;
+    if (a === 'gb' || a === 'uk') return 'british';
+    if (a === 'us' || a === 'usa') return 'american';
+    if (a === 'au' || a === 'aus' || a === 'au_english') return 'australian';
+    if (a === 'ca' || a === 'can') return 'canadian';
+    if (a === 'in' || a === 'ind') return 'indian';
+    if (lc.includes('-gb')) return 'british';
+    if (lc.includes('-us')) return 'american';
+    if (lc.includes('-au')) return 'australian';
+    if (lc.includes('-ca')) return 'canadian';
+    if (lc.includes('-in')) return 'indian';
+    return 'american';
+  };
+
+  // Backend kategori paramını doğrudan kullan (backend 'neural2', 'wavenet', 'studio', 'chirp3d' bekliyor)
+  const mapCategoryForBackend = (category?: string): string | undefined => {
+    if (!category || category === 'standard') return undefined;
+    return category;
   };
 
   // Voice categories
   const voiceCategories: VoiceCategory[] = [
-    { value: 'standard', label: 'Standart', icon: 'volume-up', badge: 'Ücretsiz' },
-    { value: 'wavenet', label: 'WaveNet', icon: 'star', badge: 'Premium' },
-    { value: 'neural2', label: 'Neural2', icon: 'psychology', badge: 'Premium' },
-    { value: 'studio', label: 'Studio', icon: 'workspace-premium', badge: 'Platinium' },
-    { value: 'chirp3d', label: 'Chirp 3D', icon: 'diamond', badge: 'Gold' },
+    { value: 'standard', label: t('create.voice.categories.standard'), icon: 'volume-up', badge: t('create.voice.badge.free') },
+    { value: 'wavenet', label: t('create.voice.categories.wavenet'), icon: 'star', badge: t('create.voice.badge.premium') },
+    { value: 'neural2', label: t('create.voice.categories.neural2'), icon: 'psychology', badge: t('create.voice.badge.premium') },
+    { value: 'studio', label: t('create.voice.categories.studio'), icon: 'workspace-premium', badge: t('create.voice.badge.platinum') },
+    { value: 'chirp3d', label: t('create.voice.categories.chirp3d'), icon: 'diamond', badge: t('create.voice.badge.gold') },
   ];
 
   // Voice filters
   const accentOptions = [
-    { value: 'all', label: 'Tümü' },
-    { value: 'american', label: 'Amerikan' },
-    { value: 'british', label: 'İngiliz' },
-    { value: 'australian', label: 'Avustralya' },
-    { value: 'canadian', label: 'Kanada' },
-    { value: 'indian', label: 'Hint' },
+    { value: 'all', label: t('create.voice.filters.all') },
+    { value: 'american', label: t('create.voice.accents.american') },
+    { value: 'british', label: t('create.voice.accents.british') },
+    { value: 'australian', label: t('create.voice.accents.australian') },
+    { value: 'canadian', label: t('create.voice.accents.canadian') },
+    { value: 'indian', label: t('create.voice.accents.indian') },
   ];
 
   const genderOptions = [
-    { value: 'all', label: 'Tümü' },
-    { value: 'male', label: 'Erkek' },
-    { value: 'female', label: 'Kadın' },
+    { value: 'all', label: t('create.voice.filters.all') },
+    { value: 'male', label: t('create.voice.genders.male') },
+    { value: 'female', label: t('create.voice.genders.female') },
   ];
 
   // Fetch available voices
@@ -84,41 +112,55 @@ const CreateScreen: React.FC = () => {
         console.log('🎯 [VOICE DEBUG] Available voices loaded:', voices.length);
         console.log('🎯 [VOICE DEBUG] First voice:', voices[0]);
         
-        // Voice category'lerini otomatik olarak belirle
+        // Voice alanlarını normalize et (name, category, accent, gender)
         const processedVoices = voices.map((voice: any) => {
-          let category = voice.category;
-          
-          // Eğer category yoksa, voice name'den belirle
+          const name = voice.name || voice.voiceName || voice.id || voice.code;
+
+          // Kategori
+          let category = voice.category || voice.type || voice.voiceType;
           if (!category) {
-            const voiceName = voice.name || voice.id || '';
-            
-            if (voiceName.includes('Chirp') || voiceName.includes('chirp')) {
+            const voiceName = name || '';
+            if (voiceName.includes('Chirp') || voiceName.toLowerCase().includes('chirp')) {
               category = 'chirp3d';
             } else if (voiceName.includes('Studio')) {
               category = 'studio';
-            } else if (voiceName.includes('Neural2') || voiceName.includes('neural2')) {
+            } else if (voiceName.toLowerCase().includes('neural2')) {
               category = 'neural2';
-            } else if (voiceName.includes('Wavenet') || voiceName.includes('wavenet')) {
+            } else if (voiceName.toLowerCase().includes('wavenet')) {
               category = 'wavenet';
             } else {
               category = 'standard';
             }
           }
-          
+
+          // Aksan
+          const languageCode = voice.languageCode || voice.locale || voice.lang || '';
+          const normalizedAccent = normalizeAccentValue(voice.accent, languageCode);
+
+          // Cinsiyet
+          const rawGender = voice.gender || voice.ssmlGender || voice.ssml_gender || voice.voiceGender;
+          const normalizedGender = (rawGender || '').toString().toLowerCase();
+
           return {
             ...voice,
-            category: category,
-            // Eğer accent yoksa varsayılan olarak american
-            accent: voice.accent || 'american',
-            // Eğer gender yoksa varsayılan olarak female
-            gender: voice.gender || 'female'
+            name,
+            category,
+            accent: normalizedAccent,
+            gender: normalizedGender,
           };
         });
         
         console.log('🎯 [VOICE DEBUG] Processed voices with categories:', processedVoices.length);
         console.log('🎯 [VOICE DEBUG] Sample processed voice:', processedVoices[0]);
         
+        // Web tarafıyla birebir: Backend zaten filtreleyip gönderiyor → UI tarafında tekrar filtreleme yok
         setAvailableVoices(processedVoices);
+        setSelectedVoice((prev) => {
+          const source = processedVoices;
+          if (source.some(v => v.name === prev)) return prev;
+          const preferred = source.find(v => (selectedGender === 'all') || v.gender === selectedGender);
+          return preferred?.name || source[0]?.name || prev;
+        });
       } else {
         console.error('🎯 [VOICE DEBUG] No voices found in response:', response);
       }
@@ -133,38 +175,76 @@ const CreateScreen: React.FC = () => {
   const fetchFilteredVoices = async (accent?: string, gender?: string, category?: string) => {
     setLoadingVoices(true);
     try {
-      const response = await apiService.getFilteredVoices(accent, gender, undefined, category);
-      if (response.success && response.data) {
-        // Voice category'lerini otomatik olarak belirle
-        const processedVoices = response.data.map((voice: any) => {
-          let category = voice.category;
-          
-          // Eğer category yoksa, voice name'den belirle
+      const backendCategory = mapCategoryForBackend(category);
+      console.log('🎯 [FILTER DEBUG] Backend request params -> accent:', accent, 'gender:', gender, 'category:', backendCategory);
+      const response = await apiService.getFilteredVoices(accent, gender, undefined, backendCategory);
+      console.log('🎯 [FILTER DEBUG] Raw filtered response:', response);
+
+      // Response şekli: { provider, voices, ... } veya { success, data } olabilir
+      const apiResponse: any = response as any;
+      const voices: any[] =
+        apiResponse?.voices ||
+        apiResponse?.data?.voices ||
+        (Array.isArray(apiResponse?.data) ? apiResponse.data : []) ||
+        [];
+
+      if (Array.isArray(voices) && voices.length >= 0) {
+        console.log('🎯 [FILTER DEBUG] Voices array length:', voices.length);
+        // Voice alanlarını normalize et (name, category, accent, gender)
+        const processedVoices = voices.map((voice: any) => {
+          const name = voice.name || voice.voiceName || voice.id || voice.code;
+
+          // Kategori
+          let category = voice.category || voice.type || voice.voiceType;
           if (!category) {
-            const voiceName = voice.name || voice.id || '';
-            
-            if (voiceName.includes('Chirp') || voiceName.includes('chirp')) {
+            const voiceName = name || '';
+            if (voiceName.includes('Chirp') || voiceName.toLowerCase().includes('chirp')) {
               category = 'chirp3d';
             } else if (voiceName.includes('Studio')) {
               category = 'studio';
-            } else if (voiceName.includes('Neural2') || voiceName.includes('neural2')) {
+            } else if (voiceName.toLowerCase().includes('neural2')) {
               category = 'neural2';
-            } else if (voiceName.includes('Wavenet') || voiceName.includes('wavenet')) {
+            } else if (voiceName.toLowerCase().includes('wavenet')) {
               category = 'wavenet';
             } else {
               category = 'standard';
             }
           }
-          
+
+          // Aksan
+          const languageCode = voice.languageCode || voice.locale || voice.lang || '';
+          let normalizedAccent = (voice.accent || '').toString().toLowerCase();
+          if (!normalizedAccent) {
+            const lc = languageCode.toLowerCase();
+            if (lc.includes('-gb')) normalizedAccent = 'british';
+            else if (lc.includes('-us')) normalizedAccent = 'american';
+            else if (lc.includes('-au')) normalizedAccent = 'australian';
+            else if (lc.includes('-ca')) normalizedAccent = 'canadian';
+            else if (lc.includes('-in')) normalizedAccent = 'indian';
+            else normalizedAccent = 'american';
+          }
+
+          // Cinsiyet
+          const rawGender = voice.gender || voice.ssmlGender || voice.ssml_gender || voice.voiceGender;
+          const normalizedGender = (rawGender || '').toString().toLowerCase();
+
           return {
             ...voice,
-            category: category,
-            accent: voice.accent || 'american',
-            gender: voice.gender || 'female'
+            name,
+            category,
+            accent: normalizedAccent,
+            gender: normalizedGender,
           };
         });
         
         setAvailableVoices(processedVoices);
+        // Keep current selection if still valid; otherwise pick the first from filtered list
+        setSelectedVoice((prev) => {
+          if (processedVoices.some(v => v.name === prev)) return prev;
+          // Prefer a voice that matches selected gender when available
+          const preferred = processedVoices.find(v => (selectedGender === 'all') || v.gender === selectedGender);
+          return preferred?.name || processedVoices[0]?.name || prev;
+        });
         console.log('✅ Loaded filtered voices with categories:', processedVoices.length);
       }
     } catch (error) {
@@ -174,14 +254,30 @@ const CreateScreen: React.FC = () => {
     }
   };
 
+  const filterVoices = (
+    voices: Voice[],
+    category: string,
+    gender: string,
+    accent: string
+  ) => {
+    return voices
+      .filter(v => category === 'standard' || v.category === category)
+      .filter(v => gender === 'all' || v.gender === gender)
+      .filter(v => accent === 'all' || v.accent === accent);
+  };
+
   const getFilteredVoicesByCategory = () => {
-    // Backend'den gelen sesler zaten filtrelenmiş olur, direkt kullan
-    console.log('🎯 [FILTER DEBUG] Using backend filtered voices:', availableVoices.length);
-    console.log('🎯 [FILTER DEBUG] Selected category:', selectedVoiceCategory);
-    console.log('🎯 [FILTER DEBUG] Selected gender:', selectedGender);
-    
-    // Backend'den gelen sesleri direkt döndür (zaten filtrelenmiş)
-    return availableVoices;
+    console.log('🎯 [FILTER DEBUG] Using backend/available voices:', availableVoices.length);
+    console.log('🎯 [FILTER DEBUG] Selected filters -> category:', selectedVoiceCategory, 'gender:', selectedGender, 'accent:', selectedAccent);
+    // Web'de olduğu gibi: filtre aktifse backend zaten filtrelenmiş listyi gönderiyor → doğrudan göster
+    if (hasActiveFilters) {
+      console.log('🎯 [FILTER DEBUG] Backend-filtered mode active. Returning availableVoices directly:', availableVoices.length);
+      return availableVoices;
+    }
+    // Filtre yoksa local kategori/gender/aksan filtresi uygula
+    const result = filterVoices(availableVoices, selectedVoiceCategory, selectedGender, selectedAccent);
+    console.log('🎯 [FILTER DEBUG] UI filtered voices count:', result.length);
+    return result;
   };
 
   // Load voices on component mount
@@ -206,7 +302,7 @@ const CreateScreen: React.FC = () => {
 
   const handleCreateAudio = async () => {
     if (!inputText.trim() && !selectedFile) {
-      Alert.alert('Hata', 'Lütfen metin girin veya dosya seçin');
+      Alert.alert(t('common.error'), t('create.alerts.enterTextOrFile'));
       return;
     }
 
@@ -232,6 +328,8 @@ const CreateScreen: React.FC = () => {
         formData.append('level', selectedLevel);
         formData.append('sesHizi', speechRate.toString());
         formData.append('voiceName', selectedVoice);
+        formData.append('gender', selectedGender);
+        formData.append('accent', selectedAccent);
         
         console.log('📦 [FILE DEBUG] FormData parameters:', {
           type: 'file',
@@ -250,11 +348,11 @@ const CreateScreen: React.FC = () => {
         
         if (response.success) {
           Alert.alert(
-            'Başarılı!',
-            'Dosya başarıyla işlendi ve ses oluşturuldu. Kütüphane sekmesinden dinleyebilirsiniz.',
+            t('common.success'),
+            t('create.alerts.fileProcessed'),
             [
               {
-                text: 'Tamam',
+                text: t('common.ok'),
                 onPress: () => {
                   setInputText('');
                   setSelectedFile(null);
@@ -263,7 +361,7 @@ const CreateScreen: React.FC = () => {
             ]
           );
         } else {
-          Alert.alert('Hata', response.message || 'Dosya işlenemedi');
+          Alert.alert(t('common.error'), response.message || t('create.alerts.fileProcessFailed'));
         }
       } else {
         // Text processing
@@ -273,6 +371,8 @@ const CreateScreen: React.FC = () => {
           level: selectedLevel,
           sesHizi: speechRate,
           voiceName: selectedVoice,
+          gender: selectedGender as any,
+          accent: selectedAccent as any,
         };
 
         console.log('📝 [TEXT DEBUG] Request parameters:', {
@@ -297,11 +397,11 @@ const CreateScreen: React.FC = () => {
         if (response.success) {
           console.log('🎯 [TTS DEBUG] Showing success alert...');
           Alert.alert(
-            'Başarılı!',
-            'Ses dosyası başarıyla oluşturuldu. Kütüphane sekmesinden dinleyebilirsiniz.',
+            t('common.success'),
+            t('create.alerts.audioCreated'),
             [
               {
-                text: 'Tamam',
+                text: t('common.ok'),
                 onPress: () => {
                   console.log('🎯 [TTS DEBUG] Alert dismissed, clearing input...');
                   setInputText('');
@@ -311,11 +411,11 @@ const CreateScreen: React.FC = () => {
           );
         } else {
           console.log('🎯 [TTS DEBUG] Response success is false, showing error...');
-          Alert.alert('Hata', response.message || 'Ses oluşturulamadı');
+          Alert.alert(t('common.error'), response.message || t('create.alerts.audioCreateFailed'));
         }
       }
     } catch (error: any) {
-      Alert.alert('Hata', error.message || 'Bir hata oluştu');
+      Alert.alert(t('common.error'), error.message || t('common.unexpectedError'));
     } finally {
       setIsLoading(false);
     }
@@ -338,50 +438,50 @@ const CreateScreen: React.FC = () => {
         setInputText(''); // Clear text input when file is selected
         
         Alert.alert(
-          'Dosya Seçildi',
-          `"${file.name}" dosyası seçildi. Ses oluşturmak için "Ses Oluştur" butonuna tıklayın.`
+          t('create.alerts.fileSelectedTitle'),
+          t('create.alerts.fileSelectedMessage', { fileName: file.name })
         );
         
         console.log('✅ File selected:', file.name, file.mimeType);
       }
     } catch (error: any) {
       console.error('❌ File picker error:', error);
-      Alert.alert('Hata', 'Dosya seçilirken hata oluştu');
+      Alert.alert(t('common.error'), t('create.alerts.filePickError'));
     }
   };
 
   const clearSelectedFile = () => {
     setSelectedFile(null);
-    Alert.alert('Bilgi', 'Seçilen dosya kaldırıldı');
+    Alert.alert(t('common.info'), t('create.alerts.fileCleared'));
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Yeni Ses Oluştur</Text>
+          <Text style={styles.title}>{t('create.title')}</Text>
           <Text style={styles.subtitle}>
-            Metni AI ile CEFR seviyesine uyarla ve sese dönüştür
+            {t('create.subtitle')}
           </Text>
         </View>
 
         <View style={styles.inputSection}>
-          <Text style={styles.sectionTitle}>Metin Girişi</Text>
+          <Text style={styles.sectionTitle}>{t('create.input.title')}</Text>
           <TextInput
             style={[styles.textInput, selectedFile && styles.textInputDisabled]}
-            placeholder={selectedFile ? "Dosya seçildi - metin girişi devre dışı" : "Dönüştürmek istediğiniz metni buraya yazın..."}
+            placeholder={selectedFile ? t('create.input.placeholderDisabled') : t('create.input.placeholder')}
             value={inputText}
             onChangeText={setInputText}
             multiline
             textAlignVertical="top"
             editable={!selectedFile}
           />
-          {!selectedFile && <Text style={styles.charCount}>{inputText.length} karakter</Text>}
+          {!selectedFile && <Text style={styles.charCount}>{t('create.input.charCount', { count: inputText.length })}</Text>}
         </View>
 
         <View style={styles.divider}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>veya</Text>
+          <Text style={styles.dividerText}>{t('common.or')}</Text>
           <View style={styles.dividerLine} />
         </View>
 
@@ -403,12 +503,12 @@ const CreateScreen: React.FC = () => {
         ) : (
           <TouchableOpacity style={styles.fileButton} onPress={handleFileUpload}>
             <Icon name="upload-file" size={24} color="#007AFF" />
-            <Text style={styles.fileButtonText}>Dosya Yükle (PDF, Word)</Text>
+            <Text style={styles.fileButtonText}>{t('create.file.uploadButton')}</Text>
           </TouchableOpacity>
         )}
 
         <View style={styles.settingsSection}>
-          <Text style={styles.sectionTitle}>CEFR Seviyesi</Text>
+          <Text style={styles.sectionTitle}>{t('create.cefr.title')}</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -434,13 +534,11 @@ const CreateScreen: React.FC = () => {
               </TouchableOpacity>
             ))}
           </ScrollView>
-          <Text style={styles.levelDescription}>
-            {levelDescriptions[selectedLevel]}
-          </Text>
+          <Text style={styles.levelDescription}>{levelDescriptions[selectedLevel]}</Text>
         </View>
 
         <View style={styles.settingsSection}>
-          <Text style={styles.sectionTitle}>Konuşma Hızı</Text>
+          <Text style={styles.sectionTitle}>{t('create.speed.title')}</Text>
           <View style={styles.speedContainer}>
             <TouchableOpacity
               style={styles.speedButton}
@@ -457,15 +555,15 @@ const CreateScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
           <View style={styles.speedLabels}>
-            <Text style={styles.speedLabel}>Yavaş</Text>
-            <Text style={styles.speedLabel}>Normal</Text>
-            <Text style={styles.speedLabel}>Hızlı</Text>
+            <Text style={styles.speedLabel}>{t('create.speed.slow')}</Text>
+            <Text style={styles.speedLabel}>{t('create.speed.normal')}</Text>
+            <Text style={styles.speedLabel}>{t('create.speed.fast')}</Text>
           </View>
         </View>
 
         {/* Voice Selection Section */}
         <View style={styles.settingsSection}>
-          <Text style={styles.sectionTitle}>Ses Seçimi</Text>
+          <Text style={styles.sectionTitle}>{t('create.voice.title')}</Text>
           
           {/* Voice Categories */}
           <View style={styles.voiceCategoryContainer}>
@@ -478,11 +576,18 @@ const CreateScreen: React.FC = () => {
                     selectedVoiceCategory === category.value && styles.voiceCategoryButtonActive,
                   ]}
                   onPress={() => {
-                    setSelectedVoiceCategory(category.value);
+                    const newCategory = category.value;
+                    setSelectedVoiceCategory(newCategory);
                     // Reset voice selection when category changes
-                    const filteredVoices = getFilteredVoicesByCategory();
+                    const filteredVoices = filterVoices(
+                      availableVoices,
+                      newCategory,
+                      selectedGender,
+                      selectedAccent
+                    );
                     if (filteredVoices.length > 0) {
-                      setSelectedVoice(filteredVoices[0].name);
+                      const preferred = filteredVoices.find(v => (selectedGender === 'all') || v.gender === selectedGender);
+                      setSelectedVoice(preferred?.name || filteredVoices[0].name);
                     }
                   }}
                 >
@@ -505,7 +610,7 @@ const CreateScreen: React.FC = () => {
           <View style={styles.voiceFiltersContainer}>
             <View style={styles.filterRow}>
               <View style={styles.filterGroup}>
-                <Text style={styles.filterLabel}>Aksan</Text>
+                <Text style={styles.filterLabel}>{t('create.voice.filters.accent')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {accentOptions.map((accent) => (
                     <TouchableOpacity
@@ -528,7 +633,7 @@ const CreateScreen: React.FC = () => {
               </View>
               
               <View style={styles.filterGroup}>
-                <Text style={styles.filterLabel}>Cinsiyet</Text>
+                <Text style={styles.filterLabel}>{t('create.voice.filters.gender')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {genderOptions.map((gender) => (
                     <TouchableOpacity
@@ -560,10 +665,10 @@ const CreateScreen: React.FC = () => {
             <Icon name="record-voice-over" size={24} color="#007AFF" />
             <View style={styles.voiceSelectionInfo}>
               <Text style={styles.voiceSelectionText}>
-                {selectedVoice || 'Ses seçin'}
+                {selectedVoice || t('create.voice.selectPrompt')}
               </Text>
               <Text style={styles.voiceSelectionSubtext}>
-                {getFilteredVoicesByCategory().find(v => v.name === selectedVoice)?.description || 'Dokunarak ses seçin'}
+                {getFilteredVoicesByCategory().find(v => v.name === selectedVoice)?.description || t('create.voice.selectHint')}
               </Text>
             </View>
             <Icon name="arrow-forward-ios" size={16} color="#007AFF" />
@@ -575,7 +680,7 @@ const CreateScreen: React.FC = () => {
           <View style={styles.voiceModal}>
             <View style={styles.voiceModalContent}>
               <View style={styles.voiceModalHeader}>
-                <Text style={styles.voiceModalTitle}>Ses Seçin</Text>
+                <Text style={styles.voiceModalTitle}>{t('create.voice.modal.title')}</Text>
                 <TouchableOpacity onPress={() => setShowVoiceSelection(false)}>
                   <Icon name="close" size={24} color="#666" />
                 </TouchableOpacity>
@@ -599,14 +704,16 @@ const CreateScreen: React.FC = () => {
                     >
                       <View style={styles.voiceItemInfo}>
                         <Text style={styles.voiceItemName}>{item.name}</Text>
-                        <Text style={styles.voiceItemDescription}>
-                          {item.accent === 'american' ? 'Amerikan' : 
-                           item.accent === 'british' ? 'İngiliz' : 
-                           item.accent === 'australian' ? 'Avustralya' : item.accent} • {' '}
-                          {item.gender === 'male' ? 'Erkek' : 'Kadın'}
-                        </Text>
+                <Text style={styles.voiceItemDescription}>
+                  {(item.accent === 'american' && t('create.voice.accents.american')) ||
+                   (item.accent === 'british' && t('create.voice.accents.british')) ||
+                   (item.accent === 'australian' && t('create.voice.accents.australian')) ||
+                   (item.accent === 'canadian' && t('create.voice.accents.canadian')) ||
+                   (item.accent === 'indian' && t('create.voice.accents.indian')) || item.accent}
+                  {` • ${item.gender === 'male' ? t('create.voice.genders.male') : t('create.voice.genders.female')}`}
+                </Text>
                         {item.ssmlSupport && (
-                          <Text style={styles.voiceItemSSML}>SSML Destekli</Text>
+                          <Text style={styles.voiceItemSSML}>{t('create.voice.modal.ssmlSupported')}</Text>
                         )}
                       </View>
                       {selectedVoice === item.name && (
@@ -631,7 +738,7 @@ const CreateScreen: React.FC = () => {
             <Icon name="volume-up" size={24} color="white" />
           )}
           <Text style={styles.createButtonText}>
-                                {isLoading ? (selectedFile ? 'Dosya İşleniyor... (Bu birkaç dakika sürebilir)' : 'Oluşturuluyor...') : 'Ses Oluştur'}
+            {isLoading ? (selectedFile ? t('create.buttons.processingFile') : t('create.buttons.processing')) : t('create.buttons.createAudio')}
           </Text>
         </TouchableOpacity>
       </ScrollView>

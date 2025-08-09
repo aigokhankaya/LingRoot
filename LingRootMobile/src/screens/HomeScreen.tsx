@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiService } from '../services/api';
@@ -16,6 +17,7 @@ import { AudioTrack } from '../types';
 
 const HomeScreen: React.FC = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const navigation = useNavigation();
   const [stats, setStats] = useState({
     audioCount: 0,
@@ -26,40 +28,40 @@ const HomeScreen: React.FC = () => {
   const features = [
     {
       id: 1,
-      title: 'Metin → Ses',
-      description: 'Metni sese dönüştür',
+      title: t('home.textToSpeech'),
+      description: t('home.textToSpeechDesc'),
       icon: 'text-fields',
       color: '#007AFF',
       screenName: 'Create',
     },
     {
       id: 2,
-      title: 'Dosya Yükle',
-      description: 'PDF/Word dosyalarını işle',
+      title: t('home.uploadFile'),
+      description: t('home.uploadFileDesc'),
       icon: 'upload-file',
       color: '#34C759',
       screenName: 'Create',
     },
     {
       id: 3,
-      title: 'Kelime Listem',
-      description: 'Öğrendiğin kelimeleri görüntüle',
+      title: t('home.vocabulary'),
+      description: t('home.vocabularyDesc'),
       icon: 'book',
       color: '#9C27B0',
       screenName: 'Vocabulary',
     },
     {
       id: 4,
-      title: 'Konu Önerileri',
-      description: 'AI ile konu önerileri al',
+      title: t('home.topicSuggestions'),
+      description: t('home.topicSuggestionsDesc'),
       icon: 'lightbulb',
       color: '#FF9500',
       screenName: 'Suggestions',
     },
     {
       id: 5,
-      title: 'Ses Kütüphanesi',
-      description: 'Oluşturduğun sesleri dinle',
+      title: t('home.audioLibrary'),
+      description: t('home.audioLibraryDesc'),
       icon: 'library-music',
       color: '#FF3B30',
       screenName: 'Library',
@@ -122,7 +124,7 @@ const HomeScreen: React.FC = () => {
             ) : (
               <>
                 <Text style={styles.statNumber}>{stats.audioCount}</Text>
-                <Text style={styles.statLabel}>Oluşturulan Ses</Text>
+                <Text style={styles.statLabel}>{t('home.audioCreated')}</Text>
               </>
             )}
           </View>
@@ -132,14 +134,14 @@ const HomeScreen: React.FC = () => {
             ) : (
               <>
                 <Text style={styles.statNumber}>{stats.totalDuration}</Text>
-                <Text style={styles.statLabel}>Dakika İçerik</Text>
+                <Text style={styles.statLabel}>{t('home.minutesContent')}</Text>
               </>
             )}
           </View>
         </View>
 
         <View style={styles.featuresContainer}>
-          <Text style={styles.sectionTitle}>Özellikler</Text>
+          <Text style={styles.sectionTitle}>{t('home.features')}</Text>
           <View style={styles.featuresGrid}>
             {features.map((feature) => (
               <TouchableOpacity
@@ -163,13 +165,13 @@ const HomeScreen: React.FC = () => {
         </View>
 
         <View style={styles.quickActions}>
-          <Text style={styles.sectionTitle}>Hızlı İşlemler</Text>
+          <Text style={styles.sectionTitle}>{t('home.quickActions')}</Text>
           <TouchableOpacity 
             style={styles.quickActionButton}
             onPress={() => navigation.navigate('Create' as never)}
           >
             <Icon name="add-circle" size={24} color="white" />
-            <Text style={styles.quickActionText}>Yeni Ses Oluştur</Text>
+            <Text style={styles.quickActionText}>{t('home.createNewAudio')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -177,7 +179,7 @@ const HomeScreen: React.FC = () => {
             onPress={() => navigation.navigate('Library' as never)}
           >
             <Icon name="library-music" size={24} color="#007AFF" />
-            <Text style={[styles.quickActionText, styles.secondaryText]}>Seslerimi Dinle</Text>
+            <Text style={[styles.quickActionText, styles.secondaryText]}>{t('home.listenToAudio')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -185,9 +187,9 @@ const HomeScreen: React.FC = () => {
           <View style={styles.tipCard}>
             <Icon name="tips-and-updates" size={24} color="#FF9500" />
             <View style={styles.tipContent}>
-              <Text style={styles.tipTitle}>İpucu</Text>
+              <Text style={styles.tipTitle}>{t('home.tip')}</Text>
               <Text style={styles.tipText}>
-                CEFR seviyenizi seçerek, metinlerin size uygun şekilde uyarlanmasını sağlayabilirsiniz.
+                {t('home.tipText')}
               </Text>
             </View>
           </View>

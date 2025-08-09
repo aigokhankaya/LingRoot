@@ -14,11 +14,13 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, CEFRLevel } from '../types';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useAudioContext } from '../contexts/AudioContext';
 import AudioPlayer from '../components/AudioPlayer';
 
 const LibraryScreen: React.FC = () => {
   const { isTrackPlaying, currentTrack, isPlaying } = useAudioContext();
+  const { t } = useLanguage();
   const [searchText, setSearchText] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel | 'all'>('all');
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
@@ -266,7 +268,6 @@ const LibraryScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Ses Kütüphanesi</Text>
         <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
           <Icon name="refresh" size={24} color="#007AFF" />
         </TouchableOpacity>
@@ -304,7 +305,7 @@ const LibraryScreen: React.FC = () => {
                   selectedLevel === item && styles.levelChipTextActive,
                 ]}
               >
-                {item === 'all' ? 'Tümü' : item}
+                {item === 'all' ? t('library.all') : item}
               </Text>
             </TouchableOpacity>
           )}

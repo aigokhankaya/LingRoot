@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { AudioProvider } from './src/contexts/AudioContext';
+import { LanguageProvider } from './src/contexts/LanguageContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import NotificationService from './src/services/notificationService';
 
@@ -35,11 +36,13 @@ export default function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <AudioProvider>
-        <AppNavigator />
-        <StatusBar style="auto" />
-      </AudioProvider>
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <AudioProvider>
+          <AppNavigator />
+          <StatusBar style="auto" />
+        </AudioProvider>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }

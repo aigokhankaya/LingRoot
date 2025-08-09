@@ -27,6 +27,8 @@ export interface TTSRequest {
   level: CEFRLevel;
   sesHizi: number;
   voiceName?: string;
+  gender?: 'male' | 'female' | 'neutral';
+  accent?: 'american' | 'british' | 'australian' | 'canadian' | 'indian' | 'international' | 'all';
 }
 
 export interface TTSResponse {
