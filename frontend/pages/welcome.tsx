@@ -1156,24 +1156,7 @@ const Welcome: React.FC = () => {
                     </div>
                   ))}
                 </div>
-                {voiceType && (
-                  <div className="mb-6">
-                    <Button
-                      onClick={async () => {
-                        try {
-                          const { saveDefaultVoice } = await import('../src/lib/api');
-                          await saveDefaultVoice(voiceType);
-                          alert('Varsayılan ses kaydedildi');
-                        } catch (e: any) {
-                          alert('Kaydedilemedi: ' + (e.message || 'Bilinmeyen hata'));
-                        }
-                      }}
-                      className="bg-green-600 hover:bg-green-700 text-white !rounded-button cursor-pointer"
-                    >
-                      Varsayılan Ses Seç
-                    </Button>
-                  </div>
-                )}
+                {/* Varsayılan Ses butonu bu bölümden kaldırıldı */}
               </div>
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
