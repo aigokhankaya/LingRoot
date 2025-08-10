@@ -121,6 +121,7 @@ const Welcome: React.FC = () => {
   const [englishLevel, setEnglishLevel] = useState<string>('a1');
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
   const [voiceType, setVoiceType] = useState<string>('en-US-Standard-C');
+  const [savedDefaultVoice, setSavedDefaultVoice] = useState<string | null>(null);
   const [accentType, setAccentType] = useState<string>('all');
   const [emotionType, setEmotionType] = useState<string>('all');
   const [outputFormat, setOutputFormat] = useState<string>('mp3');
@@ -432,8 +433,10 @@ const Welcome: React.FC = () => {
         
         const currentVoiceExists = voices.some((voice: any) => voice.name === voiceType);
         if (!currentVoiceExists && voices.length > 0) {
-          setVoiceType(voices[0].name);
-          console.log('🔄 Yeni varsayılan ses seçildi:', voices[0].name);
+          const preferred = savedDefaultVoice && voices.find((v: any) => (v.name || v.id) === savedDefaultVoice);
+          const next = preferred ? (preferred.name || preferred.id) : voices[0].name;
+          setVoiceType(next);
+          console.log('🔄 Yeni varsayılan ses seçildi:', next);
         }
       } else {
         console.log('❌ API response voices array değil, boş array set ediliyor');
@@ -455,6 +458,16 @@ const Welcome: React.FC = () => {
     }
     // Ses listesini her zaman yükle (authentication gerekmez)
     fetchAvailableVoices();
+    (async () => {
+      try {
+        const { getUserSettings } = await import('../src/lib/api');
+        const settings = await getUserSettings();
+        if (settings?.default_voice) {
+          setSavedDefaultVoice(settings.default_voice);
+          setVoiceType(settings.default_voice);
+        }
+      } catch {}
+    })();
   }, [isAuthenticated]);
 
   // Filtreler değiştiğinde sesleri yeniden çek

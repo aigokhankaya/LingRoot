@@ -327,9 +327,21 @@ const CreateScreen: React.FC = () => {
     return result;
   };
 
-  // Load voices on component mount
+  // Load voices and default voice on component mount
   useEffect(() => {
     fetchAvailableVoices();
+    // Load default voice from backend
+    (async () => {
+      try {
+        const settings = await apiService.getUserSettings();
+        if (settings?.default_voice) {
+          setSelectedVoice(settings.default_voice);
+          console.log('🎯 [DEFAULT VOICE] Loaded:', settings.default_voice);
+        }
+      } catch (e) {
+        console.log('Default voice could not be loaded');
+      }
+    })();
   }, []);
 
   // Update filtered voices when filters change
@@ -748,7 +760,7 @@ const CreateScreen: React.FC = () => {
               style={[styles.defaultVoiceButton, !selectedVoice && styles.createButtonDisabled]}
               onPress={async () => {
                 try {
-                  const response = await apiService.saveDefaultVoice(selectedVoice);
+                  const response = await saveDefaultVoiceSetting(selectedVoice);
                   Alert.alert(t('common.success'), t('Varsayılan ses kaydedildi'));
                 } catch (e: any) {
                   Alert.alert(t('common.error'), e.message || 'Kaydedilemedi');
