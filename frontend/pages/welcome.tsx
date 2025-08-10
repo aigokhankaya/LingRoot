@@ -1869,7 +1869,7 @@ const Welcome: React.FC = () => {
                       {getFilteredVoices().map((voice) => {
                         // Backend voices use 'name' as ID, hardcoded voices use 'id'
                         const voiceId = voice.name || voice.id;
-                        const voiceName = voice.displayName || voice.name;
+                        const voiceName = voice.displayName || (voice.name ? voice.name.replace(/^[a-z]{2}-[A-Z]{2}-/, '') : voice.id);
                         const isDefault = savedDefaultVoice && ((voice.name || voice.id) === savedDefaultVoice);
                         
                         return (
