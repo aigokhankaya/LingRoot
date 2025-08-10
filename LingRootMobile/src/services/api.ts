@@ -415,6 +415,13 @@ export const getUserSettings = async (): Promise<{ default_voice?: string; setti
     return response.data.data || {};
   } catch (error) {
     console.error('📱 [API] Error getting user settings:', error);
+    // Local fallback: read from AsyncStorage if backend route missing/unavailable
+    try {
+      const localDefaultVoice = await AsyncStorage.getItem('default_voice_local');
+      if (localDefaultVoice) {
+        return { default_voice: localDefaultVoice } as any;
+      }
+    } catch {}
     return {};
   }
 };
@@ -424,7 +431,12 @@ export const saveDefaultVoiceSetting = async (voice: string): Promise<void> => {
     await apiClient.post('/api/user-settings/default-voice', { voice });
     console.log('📱 [API] Default voice saved:', voice);
   } catch (error) {
-    console.error('📱 [API] Error saving default voice:', error);
-    throw new Error('Varsayılan ses kaydedilemedi');
+    console.error('📱 [API] Error saving default voice (will store locally):', error);
+    // Store locally so UX works even if backend route missing
+    try {
+      await AsyncStorage.setItem('default_voice_local', voice);
+      console.log('📱 [API] Default voice stored locally:', voice);
+    } catch {}
+    // Do not throw to allow UI to proceed
   }
 };

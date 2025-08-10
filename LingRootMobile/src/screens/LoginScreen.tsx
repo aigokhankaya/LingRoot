@@ -11,12 +11,14 @@ import {
   ScrollView,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 
 const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signIn } = useAuth();
+  const navigation = useNavigation();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -79,7 +81,7 @@ const LoginScreen: React.FC = () => {
             <Text style={styles.linkText}>Şifremi Unuttum</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.linkButton}>
+          <TouchableOpacity style={styles.linkButton} onPress={() => { try { (navigation as any)?.navigate?.('Register'); } catch {} }}>
             <Text style={styles.linkText}>Hesabın yok mu? Kayıt ol</Text>
           </TouchableOpacity>
         </View>

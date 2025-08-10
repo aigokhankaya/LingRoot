@@ -16,7 +16,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as DocumentPicker from 'expo-document-picker';
 import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
-import { apiService } from '../services/api';
+import { apiService, saveDefaultVoiceSetting, getUserSettings } from '../services/api';
 
 const CreateScreen: React.FC = () => {
   const { t } = useLanguage();
@@ -46,6 +46,25 @@ const CreateScreen: React.FC = () => {
     C1: t('create.cefrDescriptions.C1'),
     C2: t('create.cefrDescriptions.C2'),
   } as const;
+
+  // Derive filters (category, accent) from a voice name like "en-GB-Chirp3-HD-Achernar"
+  const deriveFiltersFromVoiceName = (voiceName?: string): { category: string; accent: string } => {
+    const name = (voiceName || '').toString();
+    // Category
+    let category = 'standard';
+    if (name.includes('Chirp') || name.toLowerCase().includes('chirp')) category = 'chirp3d';
+    else if (name.includes('Studio')) category = 'studio';
+    else if (name.toLowerCase().includes('neural2')) category = 'neural2';
+    else if (name.toLowerCase().includes('wavenet')) category = 'wavenet';
+    // Accent by language code
+    let accent = 'american';
+    if (name.includes('en-GB')) accent = 'british';
+    else if (name.includes('en-AU')) accent = 'australian';
+    else if (name.includes('en-CA')) accent = 'canadian';
+    else if (name.includes('en-IN')) accent = 'indian';
+    else if (name.includes('en-US')) accent = 'american';
+    return { category, accent };
+  };
 
   // Accent normalization helper: maps codes like GB/US and languageCode (en-GB, en-US)
   // to our UI accents: british, american, australian, canadian, indian
@@ -327,22 +346,42 @@ const CreateScreen: React.FC = () => {
     return result;
   };
 
-  // Load voices and default voice on component mount
+  // Load voices, then load default voice and apply matching filters so it appears selected
   useEffect(() => {
-    fetchAvailableVoices();
-    // Load default voice from backend
     (async () => {
       try {
-        const settings = await apiService.getUserSettings();
+        await fetchAvailableVoices();
+        const settings = await getUserSettings();
         if (settings?.default_voice) {
-          setSelectedVoice(settings.default_voice);
-          console.log('🎯 [DEFAULT VOICE] Loaded:', settings.default_voice);
+          const dv = settings.default_voice;
+          setSelectedVoice(dv);
+          const derived = deriveFiltersFromVoiceName(dv);
+          setSelectedVoiceCategory(derived.category);
+          setSelectedAccent(derived.accent);
+          setSelectedGender('all');
+          // Refresh list with filters to ensure default voice is included
+          await fetchFilteredVoices(derived.accent, 'all', derived.category);
+          // Ensure the selected voice remains selected after list refresh
+          setSelectedVoice(dv);
+          console.log('🎯 [DEFAULT VOICE] Applied with filters:', dv, derived);
         }
       } catch (e) {
-        console.log('Default voice could not be loaded');
+        console.log('Default voice could not be loaded/applied');
       }
     })();
   }, []);
+
+  // Keep selected voice at top whenever available voices change
+  useEffect(() => {
+    if (!selectedVoice || availableVoices.length === 0) return;
+    const index = availableVoices.findIndex(v => v.name === selectedVoice);
+    if (index > 0) {
+      const reordered = [availableVoices[index], ...availableVoices.filter((_, i) => i !== index)];
+      if (JSON.stringify(reordered.map(v => v.name)) !== JSON.stringify(availableVoices.map(v => v.name))) {
+        setAvailableVoices(reordered);
+      }
+    }
+  }, [availableVoices, selectedVoice]);
 
   // Update filtered voices when filters change
   useEffect(() => {

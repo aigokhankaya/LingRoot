@@ -2,30 +2,21 @@ import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
-// Expo Constants ile environment variables'ları dene
-console.log('🔧 [CONSTANTS DEBUG]');
-console.log('Constants.expoConfig?.extra:', Constants.expoConfig?.extra);
-console.log('Constants.executionEnvironment:', Constants.executionEnvironment);
+// Resolve public config from Expo extra first, then env
+const extra: any = (Constants.expoConfig?.extra || (Constants as any)?.manifest?.extra || {});
+const resolvedSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || extra.EXPO_PUBLIC_SUPABASE_URL;
+const resolvedSupabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || extra.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-// Supabase URL ve Anon Key'i environment variables'dan alacağız
-// Web projesindeki aynı yapılandırma kullanılıyor
+// Fail fast with clear log if missing
+if (!resolvedSupabaseUrl || !resolvedSupabaseAnonKey) {
+  console.error('🚨 [SUPABASE] Missing Supabase public config. Ensure EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are defined (in .env) and app restarted with cache cleared.');
+}
 
-// GEÇICI TEST: Hardcoded values - Düzeltilmiş API Key
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://ffqfcmmbeeieouoghrac.supabase.co';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmcWZjb21iZWVpZW91b2docmFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYwMDM1MzEsImV4cCI6MjA1MTU3OTUzMX0.HdA8GJF0o0kCmDJN2K6P8IH7FKtgEp8E2Ps9LX4N9Vw';
+const supabaseUrl = (resolvedSupabaseUrl || '').toString().trim();
+const supabaseAnonKey = (resolvedSupabaseAnonKey || '').toString().trim();
 
-console.log('🔧 [HARDCODED TEST]');
-console.log('supabaseUrl:', supabaseUrl);
-console.log('supabaseAnonKey length:', supabaseAnonKey.length);
-console.log('supabaseAnonKey starts with:', supabaseAnonKey.substring(0, 20));
-console.log('Using hardcoded values as fallback');
-
-// Debug: Environment variables'ları kontrol et
-console.log('🔧 [SUPABASE DEBUG]');
-console.log('EXPO_PUBLIC_SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL);
-console.log('EXPO_PUBLIC_SUPABASE_ANON_KEY:', process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET');
-console.log('supabaseUrl:', supabaseUrl);
-console.log('Using mock values:', supabaseUrl.includes('mock-project'));
+console.log('🔧 [SUPABASE INIT] URL present:', !!supabaseUrl, '| from env:', !!process.env.EXPO_PUBLIC_SUPABASE_URL, '| from extra:', !!extra.EXPO_PUBLIC_SUPABASE_URL);
+console.log('🔧 [SUPABASE INIT] Key present:', !!supabaseAnonKey, 'length:', supabaseAnonKey.length);
 
 // Supabase client oluştur - web projesindeki gibi basit yapılandırma
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

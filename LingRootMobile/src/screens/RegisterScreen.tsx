@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -11,37 +11,50 @@ import {
   ScrollView,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useNavigation } from '@react-navigation/native';
 
 const RegisterScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { signUp } = useAuth();
+  const { t } = useLanguage();
+  const navigation = useNavigation();
+
+  const emailRegex = useMemo(() => /\S+@\S+\.\S+/, []);
+  const isFormValid = useMemo(() => {
+    return (
+      fullName.trim().length >= 2 &&
+      emailRegex.test(email.trim()) &&
+      password.length >= 6 &&
+      confirmPassword.length >= 6 &&
+      password === confirmPassword &&
+      acceptTerms
+    );
+  }, [fullName, email, password, confirmPassword, acceptTerms, emailRegex]);
 
   const handleRegister = async () => {
-    if (!email || !password || !confirmPassword || !fullName) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Hata', 'Şifreler eşleşmiyor');
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert('Hata', 'Şifre en az 6 karakter olmalıdır');
-      return;
-    }
+    if (!fullName.trim()) return Alert.alert(t('common.error'), t('register.errors.fullNameRequired'));
+    if (!emailRegex.test(email.trim())) return Alert.alert(t('common.error'), t('register.errors.emailInvalid'));
+    if (password.length < 6) return Alert.alert(t('common.error'), t('register.errors.passwordShort'));
+    if (password !== confirmPassword) return Alert.alert(t('common.error'), t('register.errors.passwordMismatch'));
+    if (!acceptTerms) return Alert.alert(t('common.error'), t('register.errors.acceptTerms'));
 
     setIsLoading(true);
     try {
-      await signUp(email, password, fullName);
-      Alert.alert('Başarılı', 'Kayıt işlemi tamamlandı. E-postanızı kontrol edin.');
+      await signUp(email.trim(), password, fullName.trim());
+      Alert.alert(t('common.success'), t('register.success'));
+      // Optionally navigate to Login
+      try { (navigation as any)?.navigate?.('Login'); } catch {}
     } catch (error: any) {
-      Alert.alert('Kayıt Hatası', error.message || 'Kayıt başarısız');
+      Alert.alert(t('register.title'), error.message || t('register.errors.generic'));
     } finally {
       setIsLoading(false);
     }
@@ -54,14 +67,14 @@ const RegisterScreen: React.FC = () => {
     >
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Kayıt Ol</Text>
-          <Text style={styles.subtitle}>LingRoot'a katılın</Text>
+          <Text style={styles.title}>{t('register.title')}</Text>
+          <Text style={styles.subtitle}>{t('register.subtitle')}</Text>
         </View>
 
         <View style={styles.form}>
           <TextInput
             style={styles.input}
-            placeholder="Ad Soyad"
+            placeholder={t('register.fullName')}
             value={fullName}
             onChangeText={setFullName}
             autoCapitalize="words"
@@ -69,7 +82,7 @@ const RegisterScreen: React.FC = () => {
 
           <TextInput
             style={styles.input}
-            placeholder="E-posta"
+            placeholder={t('register.email')}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -77,36 +90,53 @@ const RegisterScreen: React.FC = () => {
             autoComplete="email"
           />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Şifre"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="password"
-          />
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[styles.input, styles.passwordInput]}
+              placeholder={t('register.password')}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoComplete="password"
+            />
+            <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(v => !v)}>
+              <Icon name={showPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
+            </TouchableOpacity>
+          </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Şifre Tekrar"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            autoComplete="password"
-          />
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[styles.input, styles.passwordInput]}
+              placeholder={t('register.confirmPassword')}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry={!showConfirmPassword}
+              autoComplete="password"
+            />
+            <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirmPassword(v => !v)}>
+              <Icon name={showConfirmPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={styles.termsRow} onPress={() => setAcceptTerms(v => !v)}>
+            <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
+              {acceptTerms && <Icon name="check" size={16} color="#fff" />}
+            </View>
+            <Text style={styles.termsText}>{t('register.termsText')}</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[styles.button, (isLoading || !isFormValid) && styles.buttonDisabled]}
             onPress={handleRegister}
-            disabled={isLoading}
+            disabled={isLoading || !isFormValid}
           >
             <Text style={styles.buttonText}>
-              {isLoading ? 'Kayıt Yapılıyor...' : 'Kayıt Ol'}
+              {isLoading ? t('register.registering') : t('register.cta')}
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.linkButton}>
-            <Text style={styles.linkText}>Zaten hesabın var mı? Giriş yap</Text>
+          <TouchableOpacity style={styles.linkButton} onPress={() => { try { (navigation as any)?.navigate?.('Login'); } catch {} }}>
+            <Text style={styles.linkText}>{t('register.haveAccount')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -150,6 +180,47 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
+  },
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+    marginRight: 8,
+  },
+  eyeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  checkboxChecked: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  termsText: {
+    flex: 1,
+    color: '#666',
+    fontSize: 14,
   },
   button: {
     backgroundColor: '#007AFF',
