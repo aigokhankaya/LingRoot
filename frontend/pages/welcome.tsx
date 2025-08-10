@@ -465,6 +465,22 @@ const Welcome: React.FC = () => {
         if (settings?.default_voice) {
           setSavedDefaultVoice(settings.default_voice);
           setVoiceType(settings.default_voice);
+          // Varsayılan sese göre filtreleri ayarla (liste o sesi içersin)
+          const name: string = settings.default_voice;
+          // Kategori
+          if (name.includes('Wavenet')) setSelectedVoiceCategory('wavenet');
+          else if (name.includes('Neural2')) setSelectedVoiceCategory('neural2');
+          else if (name.includes('Studio')) setSelectedVoiceCategory('studio');
+          else if (name.includes('Journey') || name.includes('Chirp')) setSelectedVoiceCategory('chirp3d');
+          else setSelectedVoiceCategory('standard');
+          // Aksan
+          if (name.includes('en-GB')) setSelectedAccent('british');
+          else if (name.includes('en-US')) setSelectedAccent('american');
+          else if (name.includes('en-AU')) setSelectedAccent('australian');
+          else if (name.includes('en-CA')) setSelectedAccent('canadian');
+          else if (name.includes('en-IN')) setSelectedAccent('indian');
+          // Cinsiyet: emin değilsek all bırak
+          // setSelectedGender('all');
         }
       } catch {}
     })();
