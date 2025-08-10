@@ -305,6 +305,18 @@ const Welcome: React.FC = () => {
     }
   };
 
+  // Seçili modelin kullanıcıya gösterilecek etiketini döndür
+  const getSelectedVoiceLabel = () => {
+    if (!voiceType) return '';
+    try {
+      const v: any = (availableVoices || []).find((x: any) => (x.name || x.id) === voiceType);
+      const label = v?.displayName || (v?.name ? v.name.replace(/^[a-z]{2}-[A-Z]{2}-/, '') : '') || voiceType.replace(/^[a-z]{2}-[A-Z]{2}-/, '');
+      return label;
+    } catch {
+      return '';
+    }
+  };
+
   // URL conversion fonksiyonu
   const convertToPlayableUrl = (url: string): string => {
     if (!url) return '';
@@ -1821,6 +1833,7 @@ const Welcome: React.FC = () => {
                         {selectedVoiceCategory !== 'standard' && ` ${selectedVoiceCategory.charAt(0).toUpperCase() + selectedVoiceCategory.slice(1)}`}
                         {selectedAccent !== 'all' && ` ${selectedAccent}`}
                         {selectedGender !== 'all' && ` ${selectedGender}`}
+                        {voiceType && ` • ${getSelectedVoiceLabel()}`}
                       </span>
                     </div>
                   )}
