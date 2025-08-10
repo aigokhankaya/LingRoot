@@ -442,6 +442,13 @@ const Welcome: React.FC = () => {
           // Liste yüklendi ve varsayılan listede varsa force seç
           const exists = voices.find((v: any) => (v.name || v.id) === savedDefaultVoice);
           if (exists) {
+            // Gender filtresini de varsayılan sese göre ayarla
+            if (exists.gender) {
+              const g = String(exists.gender).toLowerCase();
+              if (g === 'male' || g === 'female') {
+                setSelectedGender(g);
+              }
+            }
             setVoiceType(exists.name || exists.id);
             setDefaultApplied(true);
             console.log('✅ Varsayılan ses uygula (refresh sonrası):', exists.name || exists.id);
