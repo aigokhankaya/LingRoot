@@ -122,6 +122,7 @@ const Welcome: React.FC = () => {
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
   const [voiceType, setVoiceType] = useState<string>('en-US-Standard-C');
   const [savedDefaultVoice, setSavedDefaultVoice] = useState<string | null>(null);
+  const [defaultApplied, setDefaultApplied] = useState<boolean>(false);
   const [accentType, setAccentType] = useState<string>('all');
   const [emotionType, setEmotionType] = useState<string>('all');
   const [outputFormat, setOutputFormat] = useState<string>('mp3');
@@ -437,6 +438,14 @@ const Welcome: React.FC = () => {
           const next = preferred ? (preferred.name || preferred.id) : voices[0].name;
           setVoiceType(next);
           console.log('🔄 Yeni varsayılan ses seçildi:', next);
+        } else if (!defaultApplied && savedDefaultVoice) {
+          // Liste yüklendi ve varsayılan listede varsa force seç
+          const exists = voices.find((v: any) => (v.name || v.id) === savedDefaultVoice);
+          if (exists) {
+            setVoiceType(exists.name || exists.id);
+            setDefaultApplied(true);
+            console.log('✅ Varsayılan ses uygula (refresh sonrası):', exists.name || exists.id);
+          }
         }
       } else {
         console.log('❌ API response voices array değil, boş array set ediliyor');
@@ -480,7 +489,7 @@ const Welcome: React.FC = () => {
           else if (name.includes('en-CA')) setSelectedAccent('canadian');
           else if (name.includes('en-IN')) setSelectedAccent('indian');
           // Cinsiyet: emin değilsek all bırak
-          // setSelectedGender('all');
+          setDefaultApplied(false); // apply on next filtered list load
         }
       } catch {}
     })();
