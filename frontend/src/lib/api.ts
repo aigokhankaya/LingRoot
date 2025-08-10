@@ -460,6 +460,26 @@ export const getContentHistory = async (): Promise<ApiResponse> => {
   }
 };
 
+// User settings
+export const getUserSettings = async (): Promise<{ default_voice?: string; settings?: any }> => {
+  const url = getApiUrl('/user-settings');
+  const headers = createHeaders();
+  const res = await fetch(url, { headers, credentials: 'include' });
+  if (!res.ok) throw new Error('Kullanıcı ayarları alınamadı');
+  const json = await res.json();
+  return json.data || {};
+};
+
+export const saveDefaultVoice = async (voice: string): Promise<void> => {
+  const url = getApiUrl('/user-settings/default-voice');
+  const headers = createHeaders('application/json');
+  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ voice }), credentials: 'include' });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Varsayılan ses kaydedilemedi: ${txt}`);
+  }
+};
+
 // Detaylı konu önerileri için API isteği gönderen fonksiyon
 export const getTopicDetailSuggestions = async (topic: string, level: string): Promise<any> => {
   const apiUrl = `${getApiUrl("topic-detail/suggestions")}`;

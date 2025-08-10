@@ -115,7 +115,7 @@ const CreateScreen: React.FC = () => {
         // Voice alanlarını normalize et (name, category, accent, gender)
         const processedVoices = voices.map((voice: any) => {
           const name = voice.name || voice.voiceName || voice.id || voice.code;
-
+          
           // Kategori
           let category = voice.category || voice.type || voice.voiceType;
           if (!category) {
@@ -140,7 +140,7 @@ const CreateScreen: React.FC = () => {
           // Cinsiyet
           const rawGender = voice.gender || voice.ssmlGender || voice.ssml_gender || voice.voiceGender;
           const normalizedGender = (rawGender || '').toString().toLowerCase();
-
+          
           return {
             ...voice,
             name,
@@ -274,7 +274,7 @@ const CreateScreen: React.FC = () => {
           // Cinsiyet
           const rawGender = voice.gender || voice.ssmlGender || voice.ssml_gender || voice.voiceGender;
           const normalizedGender = (rawGender || '').toString().toLowerCase();
-
+          
           return {
             ...voice,
             name,
@@ -319,7 +319,7 @@ const CreateScreen: React.FC = () => {
     // Web'de olduğu gibi: filtre aktifse backend zaten filtrelenmiş listyi gönderiyor → doğrudan göster
     if (hasActiveFilters) {
       console.log('🎯 [FILTER DEBUG] Backend-filtered mode active. Returning availableVoices directly:', availableVoices.length);
-      return availableVoices;
+    return availableVoices;
     }
     // Filtre yoksa local kategori/gender/aksan filtresi uygula
     const result = filterVoices(availableVoices, selectedVoiceCategory, selectedGender, selectedAccent);
@@ -742,6 +742,23 @@ const CreateScreen: React.FC = () => {
             </View>
             <Icon name="arrow-forward-ios" size={16} color="#007AFF" />
           </TouchableOpacity>
+
+          {selectedVoice ? (
+            <TouchableOpacity
+              style={[styles.defaultVoiceButton, !selectedVoice && styles.createButtonDisabled]}
+              onPress={async () => {
+                try {
+                  const response = await apiService.saveDefaultVoice(selectedVoice);
+                  Alert.alert(t('common.success'), t('Varsayılan ses kaydedildi'));
+                } catch (e: any) {
+                  Alert.alert(t('common.error'), e.message || 'Kaydedilemedi');
+                }
+              }}
+              disabled={!selectedVoice}
+            >
+              <Text style={styles.defaultVoiceButtonText}>Varsayılan Ses Seç</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         {/* Voice Selection Modal */}
@@ -773,14 +790,14 @@ const CreateScreen: React.FC = () => {
                     >
                       <View style={styles.voiceItemInfo}>
                         <Text style={styles.voiceItemName}>{item.name}</Text>
-                <Text style={styles.voiceItemDescription}>
+                        <Text style={styles.voiceItemDescription}>
                   {(item.accent === 'american' && t('create.voice.accents.american')) ||
                    (item.accent === 'british' && t('create.voice.accents.british')) ||
                    (item.accent === 'australian' && t('create.voice.accents.australian')) ||
                    (item.accent === 'canadian' && t('create.voice.accents.canadian')) ||
                    (item.accent === 'indian' && t('create.voice.accents.indian')) || item.accent}
                   {` • ${item.gender === 'male' ? t('create.voice.genders.male') : t('create.voice.genders.female')}`}
-                </Text>
+                        </Text>
                         {item.ssmlSupport && (
                           <Text style={styles.voiceItemSSML}>{t('create.voice.modal.ssmlSupported')}</Text>
                         )}
@@ -980,6 +997,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  defaultVoiceButton: {
+    marginTop: 10,
+    backgroundColor: '#16a34a',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  defaultVoiceButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
   textInputDisabled: {
     backgroundColor: '#f8f8f8',

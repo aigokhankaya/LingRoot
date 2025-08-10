@@ -407,3 +407,24 @@ export const saveReminderSettings = async (settings: ReminderSettings): Promise<
     throw new Error('Ayarlar kaydedilemedi');
   }
 }; 
+
+// User settings API
+export const getUserSettings = async (): Promise<{ default_voice?: string; settings?: any }> => {
+  try {
+    const response = await apiClient.get('/api/user-settings');
+    return response.data.data || {};
+  } catch (error) {
+    console.error('📱 [API] Error getting user settings:', error);
+    return {};
+  }
+};
+
+export const saveDefaultVoiceSetting = async (voice: string): Promise<void> => {
+  try {
+    await apiClient.post('/api/user-settings/default-voice', { voice });
+    console.log('📱 [API] Default voice saved:', voice);
+  } catch (error) {
+    console.error('📱 [API] Error saving default voice:', error);
+    throw new Error('Varsayılan ses kaydedilemedi');
+  }
+};

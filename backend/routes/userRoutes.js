@@ -5,6 +5,53 @@ const { createClient } = require('@supabase/supabase-js');
 const logger = require('../utils/logger');
 
 const router = express.Router();
+// User settings: get default voice
+router.get('/user-settings', authenticate, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('default_voice, settings')
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (error && error.details !== 'The result contains 0 rows') {
+      logger.error('Error fetching user settings:', error);
+      return res.status(500).json({ success: false, message: 'Error fetching user settings' });
+    }
+
+    return res.json({ success: true, data: data || { default_voice: null, settings: {} } });
+  } catch (e) {
+    logger.error('Unexpected error fetching user settings:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// User settings: set default voice
+router.post('/user-settings/default-voice', authenticate, async (req, res) => {
+  try {
+    const { voice } = req.body;
+    if (!voice || typeof voice !== 'string') {
+      return res.status(400).json({ success: false, message: 'Geçersiz voice' });
+    }
+
+    // Upsert
+    const { data, error } = await supabase
+      .from('user_settings')
+      .upsert({ user_id: req.user.id, default_voice: voice }, { onConflict: 'user_id' })
+      .select('default_voice, settings')
+      .single();
+
+    if (error) {
+      logger.error('Error saving default voice:', error);
+      return res.status(500).json({ success: false, message: 'Default voice kaydedilemedi' });
+    }
+
+    return res.json({ success: true, data: data });
+  } catch (e) {
+    logger.error('Unexpected error saving default voice:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
 
 // Supabase client setup
 const supabaseUrl = process.env.SUPABASE_URL;
