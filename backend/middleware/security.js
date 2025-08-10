@@ -41,16 +41,8 @@ exports.configureSecurity = (app) => {
   
   app.use(cors(corsOptions));
   
-  // Rate limiting (disabled in production)
-  const isProd = process.env.NODE_ENV === 'production';
-  if (!isProd) {
-    const limiter = rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 100, // limit each IP to 100 requests per windowMs
-      message: 'Too many requests from this IP, please try again after 15 minutes'
-    });
-    app.use('/api', limiter);
-  }
+  // Rate limiting disabled for all environments per requirement
+  // If needed later, re-enable with env-based config
   
   // Data sanitization against XSS
   app.use(xss());
@@ -62,8 +54,4 @@ exports.configureSecurity = (app) => {
 /**
  * Configure auth routes rate limiting
  */
-exports.authLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour window
-  max: process.env.NODE_ENV === 'production' ? 0 : 10, // 0 = disabled in production
-  message: 'Too many authentication attempts, please try again after an hour'
-});
+exports.authLimiter = (req, res, next) => next();
