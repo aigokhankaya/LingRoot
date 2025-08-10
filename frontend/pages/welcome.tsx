@@ -454,11 +454,22 @@ const Welcome: React.FC = () => {
 
         setAvailableVoices(voices);
         console.log(`✅ Filtrelenmiş sesler set edildi: ${voices.length}/${data.totalCount} voice`);
-        
-        const currentVoiceExists = voices.some((voice: any) => voice.name === voiceType);
-        if (!currentVoiceExists && voices.length > 0) {
-          const preferred = savedDefaultVoice && voices.find((v: any) => (v.name || v.id) === savedDefaultVoice);
-          const next = preferred ? (preferred.name || preferred.id) : voices[0].name;
+
+        const normalizeGender = (g: any) => String(g || '').toLowerCase();
+        const currentVoice = voices.find((voice: any) => (voice.name || voice.id) === voiceType);
+        const currentVoiceExists = !!currentVoice;
+        const currentMatchesGender = selectedGender === 'all' || (currentVoice && normalizeGender(currentVoice.gender) === selectedGender);
+
+        if ((!currentVoiceExists || !currentMatchesGender) && voices.length > 0) {
+          // Önce cinsiyete göre uygun bir ses seç (male/female)
+          const preferredByGender = selectedGender !== 'all'
+            ? voices.find((v: any) => String(v.gender || '').toLowerCase() === selectedGender)
+            : null;
+          // Sonra kaydedilmiş varsayılan varsa onu kullan
+          const preferredByDefault = savedDefaultVoice && voices.find((v: any) => (v.name || v.id) === savedDefaultVoice);
+          const next = (preferredByGender && (preferredByGender.name || preferredByGender.id))
+            || (preferredByDefault && (preferredByDefault.name || preferredByDefault.id))
+            || (voices[0].name || voices[0].id);
           setVoiceType(next);
           console.log('🔄 Yeni varsayılan ses seçildi:', next);
         } else if (!defaultApplied && savedDefaultVoice) {

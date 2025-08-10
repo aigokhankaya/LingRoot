@@ -155,6 +155,22 @@ const processTtsRequest = async (req, res) => {
     const requestId = uuidv4();
     let stepSequence = 1;
     logger.info(`[${requestId}] Received TTS request.`);
+    // CRITICAL DEBUG: Log raw request essentials (sanitized)
+    try {
+      const logBody = {
+        type: req.body?.type,
+        level: req.body?.level,
+        speakingRate: req.body?.speakingRate || req.body?.SesHızı || req.body?.sesHizi,
+        voice: req.body?.voice || req.body?.voiceName,
+        gender: req.body?.gender,
+        accent: req.body?.accent,
+        hasFile: !!req.file,
+        inputPreview: (req.body?.input || '').toString().slice(0, 80)
+      };
+    logger.info(`[${requestId}] [INCOMING TTS PARAMS]`, logBody);
+    } catch (e) {
+      logger.warn(`[${requestId}] Could not log incoming params: ${e.message}`);
+    }
     let tempFilePath = null;
     let detectedLang = 'en';
 
@@ -450,63 +466,15 @@ const processTtsRequest = async (req, res) => {
         // ...
 
         // --- Get and validate voice BEFORE chunking ---
-        let selectedVoice = req.body.voice || 'en-US-Neural2-D';
+        const requestedVoice = req.body.voice || req.body.voiceName;
+        let selectedVoice = requestedVoice || 'en-US-Neural2-D';
+        logger.info(`[${requestId}] 🎯 Requested voice: ${requestedVoice || 'undefined'} | Initial selected: ${selectedVoice}`);
         
-        // Get all available voices from our voices API
-        const availableVoices = [
-            // Standard voices (Basic)
-            'en-US-Standard-A', 'en-US-Standard-B', 'en-US-Standard-C', 'en-US-Standard-D', 'en-US-Standard-E',
-            'en-US-Standard-F', 'en-US-Standard-G', 'en-US-Standard-H', 'en-US-Standard-I', 'en-US-Standard-J',
-            // WaveNet voices (Premium) - US
-            'en-US-Wavenet-A', 'en-US-Wavenet-B', 'en-US-Wavenet-C', 'en-US-Wavenet-D', 'en-US-Wavenet-E',
-            'en-US-Wavenet-F', 'en-US-Wavenet-G', 'en-US-Wavenet-H', 'en-US-Wavenet-I', 'en-US-Wavenet-J',
-            // WaveNet voices (Premium) - British
-            'en-GB-Wavenet-A', 'en-GB-Wavenet-B', 'en-GB-Wavenet-C', 'en-GB-Wavenet-D',
-            // WaveNet voices (Premium) - Australian
-            'en-AU-Wavenet-A', 'en-AU-Wavenet-B', 'en-AU-Wavenet-C', 'en-AU-Wavenet-D',
-            // WaveNet voices (Premium) - Canadian
-            'en-CA-Wavenet-A', 'en-CA-Wavenet-B', 'en-CA-Wavenet-C', 'en-CA-Wavenet-D',
-            // WaveNet voices (Premium) - Indian
-            'en-IN-Wavenet-A', 'en-IN-Wavenet-B', 'en-IN-Wavenet-C', 'en-IN-Wavenet-D',
-            // Neural2 voices (Premium) - US
-            'en-US-Neural2-A', 'en-US-Neural2-C', 'en-US-Neural2-D', 'en-US-Neural2-E', 'en-US-Neural2-F',
-            'en-US-Neural2-G', 'en-US-Neural2-H', 'en-US-Neural2-I', 'en-US-Neural2-J',
-            // Neural2 voices (Premium) - British
-            'en-GB-Neural2-A', 'en-GB-Neural2-B', 'en-GB-Neural2-C', 'en-GB-Neural2-D', 
-            'en-GB-Neural2-F', 'en-GB-Neural2-N', 'en-GB-Neural2-O',
-            // Neural2 voices (Premium) - Australian  
-            'en-AU-Neural2-A', 'en-AU-Neural2-C', 'en-AU-Neural2-D',
-            // Chirp HD voices (Gold)
-            'en-US-Chirp-HD-D', 'en-US-Chirp-HD-F', 'en-US-Chirp-HD-O',
-            // Chirp 3 HD voices (Gold)  
-            'en-US-Chirp3-HD-Achernar', 'en-US-Chirp3-HD-Achird', 'en-US-Chirp3-HD-Aoede',
-            'en-US-Chirp3-HD-Despina', 'en-US-Chirp3-HD-Charon',
-            // Studio voices (Platin)
-            'en-US-Studio-M', 'en-US-Studio-O', 'en-US-Studio-Q',
-            'en-GB-Studio-B', 'en-GB-Studio-C',
-                      // Chirp HD voices (Gold) - British
-          'en-GB-Chirp-HD-D', 'en-GB-Chirp-HD-F', 'en-GB-Chirp-HD-O',
-          // Chirp 3 HD voices (Gold) - British
-          'en-GB-Chirp3-HD-Achernar', 'en-GB-Chirp3-HD-Achird', 'en-GB-Chirp3-HD-Algenib',
-          'en-GB-Chirp3-HD-Algieba', 'en-GB-Chirp3-HD-Alnilam', 'en-GB-Chirp3-HD-Aoede',
-          // Journey voices (Chirp 3D - Gold)
-          'en-US-Journey-D', 'en-US-Journey-O',
-          'en-GB-Journey-F', 'en-GB-Journey-M',
-            // News voices (Premium)
-            'en-US-News-K', 'en-US-News-L', 'en-US-News-N',
-            // Polyglot voices (Premium)
-            'en-US-Polyglot-1'
-        ];
-        
-        // Validate selected voice
-        if (!availableVoices.includes(selectedVoice)) {
-            logger.warn(`[${requestId}] 🔴 UNSUPPORTED VOICE '${selectedVoice}' - Using fallback 'en-US-Neural2-D'`);
-            console.log(`🔴 [TTS CONTROLLER] UNSUPPORTED VOICE: ${selectedVoice} -> Fallback: en-US-Neural2-D`);
-            selectedVoice = 'en-US-Neural2-D';
-        } else {
-            console.log(`🎙️ [TTS CONTROLLER] USING SELECTED VOICE: ${selectedVoice}`);
-            logger.info(`[${requestId}] 🎙️ Using selected voice: ${selectedVoice}`);
-        }
+        // Trust client-selected voice and defer fallback to synthesis stage
+        logger.info(`[${requestId}] 🎙️ Using selected voice (no pre-validation): ${selectedVoice}`);
+
+        // Log gender/accent from request for mismatch diagnostics
+        logger.info(`[${requestId}] 🎯 Client filters -> gender: ${req.body?.gender || 'n/a'}, accent: ${req.body?.accent || 'n/a'}`);
 
         // --- Step 5: Her chunk için tekrar chunkText (TTS öncesi) ---
         let finalChunks = [];
@@ -1694,6 +1662,13 @@ const translateToEnglish = async (req, res) => {
           logger.warn(`🎯 [VOICE FILTER INJECT] Injected Wavenet voice fallback for ${key}`);
         }
       }
+
+      // Allowlist validation for selected voice (avoid false fallback)
+      const allowList = new Set([
+        'en-US-Chirp-HD-D','en-US-Chirp-HD-F','en-US-Chirp-HD-O',
+        'en-GB-Chirp-HD-D','en-GB-Chirp-HD-F','en-GB-Chirp-HD-O',
+        'en-AU-Chirp-HD-D','en-AU-Chirp-HD-F','en-AU-Chirp-HD-O'
+      ]);
 
       // 🔍 FINAL DEBUG: Detaylı sonuç analizi
       logger.info(`🎯 [VOICE FILTER] Applied filters - accent: ${accent}, emotion: ${emotion}, gender: ${gender}, category: ${category}`);

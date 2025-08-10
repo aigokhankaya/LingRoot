@@ -287,7 +287,9 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
 
     if (type === "text") {
         headers = createHeaders("application/json");
-        body = JSON.stringify({ input, type, level, SesHızı, voice, chapter_id });
+        const payload = { input, type, level, SesHızı, voice, chapter_id } as any;
+        console.log('🧭 [TTS PAYLOAD DEBUG] Prepared JSON payload:', payload);
+        body = JSON.stringify(payload);
     } else {
         headers = createHeaders();
         const formData = new FormData();
@@ -304,6 +306,11 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
             formData.append("file", file);
         }
 
+        console.log('🧭 [TTS PAYLOAD DEBUG] Prepared FormData payload:', {
+          level, type, SesHızı, voice, chapter_id,
+          inputPreview: (input || '').toString().slice(0, 80),
+          hasFile: !!file
+        });
         body = formData;
     }
 
