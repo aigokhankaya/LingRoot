@@ -8,7 +8,7 @@ type Language = 'tr' | 'en';
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => Promise<void>;
-  t: (key: string) => string;
+  t: (key: string, vars?: Record<string, string | number>) => string;
   isLoading: boolean;
 }
 
@@ -57,15 +57,21 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   };
 
   // Translation function
-  const t = (key: string): string => {
+  const t = (key: string, vars?: Record<string, string | number>): string => {
     const keys = key.split('.');
     let value: any = translations[language];
     
     for (const k of keys) {
       value = value?.[k];
     }
-    
-    return value || key; // Return key if translation not found
+    let str = (typeof value === 'string') ? value : key;
+    if (vars && typeof str === 'string') {
+      str = str.replace(/{{\s*(\w+)\s*}}/g, (match, p1) => {
+        const rep = vars[p1];
+        return (rep !== undefined && rep !== null) ? String(rep) : match;
+      });
+    }
+    return str;
   };
 
   const value: LanguageContextType = {
