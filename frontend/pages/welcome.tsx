@@ -279,6 +279,16 @@ const Welcome: React.FC = () => {
     // Bu fonksiyon sadece backend'den gelen sesleri gösterir
     if (availableVoices.length > 0) {
       console.log('🔍 Backend\'den filtrelenmiş sesler:', availableVoices.length);
+      // Varsayılan sesi listenin başına taşı
+      if (savedDefaultVoice) {
+        const voices = [...availableVoices];
+        const idx = voices.findIndex((v: any) => (v.name || v.id) === savedDefaultVoice);
+        if (idx > 0) {
+          const [item] = voices.splice(idx, 1);
+          voices.unshift(item);
+          return voices;
+        }
+      }
       return availableVoices;
     } else {
       // Fallback: backend çalışmıyorsa hardcoded sesler (sadece geliştirme için)
