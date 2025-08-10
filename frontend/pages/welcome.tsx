@@ -1828,13 +1828,19 @@ const Welcome: React.FC = () => {
                   <div className="max-h-40 overflow-y-auto pr-1">
                     {getFilteredVoices().length > 0 ? (
                       <div className="space-y-2">
-                        {getFilteredVoices().map((voice) => {
+                      {getFilteredVoices().map((voice) => {
                         // Backend voices use 'name' as ID, hardcoded voices use 'id'
                         const voiceId = voice.name || voice.id;
                         const voiceName = voice.displayName || voice.name;
+                        const isDefault = savedDefaultVoice && ((voice.name || voice.id) === savedDefaultVoice);
                         
                         return (
-                          <label key={voiceId} className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+                          <label
+                            key={voiceId}
+                            className={`flex items-center p-2 rounded cursor-pointer border transition-colors ${
+                              isDefault ? 'bg-green-50 border-green-300 ring-1 ring-green-300' : 'hover:bg-gray-50 border-transparent'
+                            }`}
+                          >
                             <input
                               type="radio"
                               name="voice"
@@ -1846,6 +1852,11 @@ const Welcome: React.FC = () => {
                             <div className="flex-1">
                               <div className="font-medium text-sm">
                                 {voiceName} <span className="text-gray-400 font-mono">[{voiceId}]</span>
+                                {isDefault && (
+                                  <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                    Varsayılan
+                                  </span>
+                                )}
                                 {voice.ssmlSupport && (
                                   <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
                                     SSML destekler
