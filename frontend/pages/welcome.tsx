@@ -279,26 +279,11 @@ const Welcome: React.FC = () => {
     // Bu fonksiyon sadece backend'den gelen sesleri gösterir
     if (availableVoices.length > 0) {
       console.log('🔍 Backend\'den filtrelenmiş sesler:', availableVoices.length);
-      // Varsayılan sesi listenin başına taşı
+      // Varsayılan sesi listenin başına taşı (listede varsa)
       if (savedDefaultVoice) {
         const voices = [...availableVoices];
         const idx = voices.findIndex((v: any) => (v.name || v.id) === savedDefaultVoice);
-        if (idx === -1) {
-          // Listede yoksa en üste YAPAY öğe olarak ekle (UI seçilebilir olsun)
-          const lang = savedDefaultVoice.split('-').slice(0, 2).join('-');
-          const accent = lang.split('-')[1]?.toUpperCase();
-          const display = savedDefaultVoice.split('-').slice(-1)[0];
-          voices.unshift({
-            name: savedDefaultVoice,
-            displayName: display,
-            languageCode: lang,
-            accent,
-            ssmlSupport: false,
-            package: 'Gold',
-            category: 'chirp3d',
-          });
-          return voices;
-        } else if (idx > 0) {
+        if (idx > 0) {
           const [item] = voices.splice(idx, 1);
           voices.unshift(item);
           return voices;
@@ -310,34 +295,12 @@ const Welcome: React.FC = () => {
       console.log('🔍 Fallback - hardcoded sesler kullanılıyor');
       const categoryVoices = detailedVoices[selectedVoiceCategory as keyof typeof detailedVoices] || [];
       
-      let filtered = categoryVoices.filter(voice => {
+      const filtered = categoryVoices.filter(voice => {
         const genderMatch = selectedGender === 'all' || voice.gender === selectedGender;
         const accentMatch = selectedAccent === 'all' || voice.accent === selectedAccent;
         
         return genderMatch && accentMatch;
       });
-
-      // Varsayılanı yoksa en üste ekle
-      if (savedDefaultVoice) {
-        const exists = filtered.some(v => (v.name || v.id) === savedDefaultVoice);
-        if (!exists) {
-          const lang = savedDefaultVoice.split('-').slice(0, 2).join('-');
-          const accent = lang.split('-')[1]?.toUpperCase();
-          const display = savedDefaultVoice.split('-').slice(-1)[0];
-          filtered = [
-            {
-              name: savedDefaultVoice,
-              displayName: display,
-              languageCode: lang,
-              accent,
-              ssmlSupport: false,
-              package: 'Gold',
-              category: 'chirp3d',
-            } as any,
-            ...filtered,
-          ];
-        }
-      }
       return filtered;
     }
   };
