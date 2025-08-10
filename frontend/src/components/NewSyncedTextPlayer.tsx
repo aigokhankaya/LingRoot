@@ -224,12 +224,12 @@ export default function NewSyncedTextPlayer({
               title={`Cümle ${sentenceIndex + 1}`}
               style={{
                 minHeight: '2rem',
-                display: 'inline-flex',
-                alignItems: 'center',
+                display: 'inline-block',
+                whiteSpace: 'normal',
                 verticalAlign: 'top',
                 boxShadow: isCurrentSentence ? '0 0 12px rgba(59, 130, 246, 0.6)' : 'none',
                 transform: 'none',
-                wordBreak: 'break-word'
+                wordBreak: 'normal'
               }}
             >
               {words.map((word, wordIndex) => {
@@ -237,7 +237,7 @@ export default function NewSyncedTextPlayer({
                 return (
                   <span
                     key={`${sentenceIndex}-${wordIndex}`}
-                    className="cursor-pointer hover:bg-yellow-200 rounded px-1 transition-colors duration-150"
+                    className="inline inline-block cursor-pointer hover:bg-yellow-200 rounded px-1 transition-colors duration-150"
                     onClick={(e) => {
                       e.stopPropagation();
                       // Cümleye tıklandığında o cümlenin başına atla
