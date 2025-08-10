@@ -67,17 +67,30 @@ export const authService = {
   },
 
   async signUp(email: string, password: string, fullName?: string) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
+    // Route signup through our backend to avoid direct Supabase Auth dependency on mobile
+    const extra: any = (Constants.expoConfig?.extra || (Constants as any)?.manifest?.extra || {});
+    const apiBaseUrl = (extra.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com') as string;
+    const [firstName, ...rest] = (fullName || '').trim().split(' ');
+    const lastName = rest.join(' ') || 'User';
+    // Generate a unique placeholder phone (E.164) to satisfy backend uniqueness
+    const phoneNumber = `+1${Math.floor(1000000000 + Math.random() * 9000000000)}`; // +1XXXXXXXXXX
+
+    console.log('🧪 [AUTH SIGNUP] Backend register call', { apiBaseUrl, firstName, lastName, hasPassword: !!password });
+
+    const res = await fetch(`${apiBaseUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ firstName: firstName || 'User', lastName, email, phoneNumber, password })
     });
-    if (error) throw error;
-    return data;
+
+    const body = await res.json().catch(() => ({}));
+    console.log('🧪 [AUTH SIGNUP] Backend response', { status: res.status, ok: res.ok, bodyKeys: Object.keys(body || {}) });
+
+    if (!res.ok) {
+      throw new Error(body?.message || 'Kayıt başarısız');
+    }
+
+    return body?.data || {};
   },
 
   async signOut() {

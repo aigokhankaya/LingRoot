@@ -13,7 +13,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 
 const RegisterScreen: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -50,9 +50,24 @@ const RegisterScreen: React.FC = () => {
     setIsLoading(true);
     try {
       await signUp(email.trim(), password, fullName.trim());
-      Alert.alert(t('common.success'), t('register.success'));
-      // Optionally navigate to Login
-      try { (navigation as any)?.navigate?.('Login'); } catch {}
+      setIsLoading(false);
+      const goToLogin = () => {
+        try { (navigation as any)?.replace?.('Login'); } catch {}
+        try { (navigation as any)?.navigate?.('Login'); } catch {}
+        try { (navigation as any)?.getParent?.()?.navigate?.('Auth', { screen: 'Login' }); } catch {}
+        try { (navigation as any)?.dispatch?.(CommonActions.reset({ index: 0, routes: [{ name: 'Auth' }] })); } catch {}
+        try { (navigation as any)?.goBack?.(); } catch {}
+      };
+      goToLogin();
+
+      // Also show confirmation (pressing OK will try navigate again)
+      Alert.alert(
+        t('common.success'),
+        t('register.success'),
+        [
+          { text: t('common.ok'), onPress: goToLogin }
+        ]
+      );
     } catch (error: any) {
       Alert.alert(t('register.title'), error.message || t('register.errors.generic'));
     } finally {
