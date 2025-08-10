@@ -1799,10 +1799,11 @@ const Welcome: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 mb-6">
-                  {getFilteredVoices().length > 0 ? (
-                    <div className="space-y-2">
-                      {getFilteredVoices().map((voice) => {
+                <div className="border border-gray-200 rounded-lg p-2 mb-6">
+                  <div className="max-h-40 overflow-y-auto pr-1">
+                    {getFilteredVoices().length > 0 ? (
+                      <div className="space-y-2">
+                        {getFilteredVoices().map((voice) => {
                         // Backend voices use 'name' as ID, hardcoded voices use 'id'
                         const voiceId = voice.name || voice.id;
                         const voiceName = voice.displayName || voice.name;
@@ -1846,11 +1847,30 @@ const Welcome: React.FC = () => {
                           </label>
                         );
                       })}
-                    </div>
-                  ) : (
-                    <div className="text-center text-gray-500 py-4">
-                      <i className="fas fa-info-circle mb-2"></i>
-                      <p>Seçilen filtrelere uygun ses bulunamadı.</p>
+                      </div>
+                    ) : (
+                      <div className="text-center text-gray-500 py-4">
+                        <i className="fas fa-info-circle mb-2"></i>
+                        <p>Seçilen filtrelere uygun ses bulunamadı.</p>
+                      </div>
+                    )}
+                  </div>
+                  {voiceType && (
+                    <div className="pt-2 mt-2 border-t text-right">
+                      <Button
+                        onClick={async () => {
+                          try {
+                            const { saveDefaultVoice } = await import('../src/lib/api');
+                            await saveDefaultVoice(voiceType);
+                            alert('Varsayılan ses kaydedildi');
+                          } catch (e: any) {
+                            alert('Kaydedilemedi: ' + (e.message || 'Bilinmeyen hata'));
+                          }
+                        }}
+                        className="bg-green-600 hover:bg-green-700 text-white !rounded-button cursor-pointer"
+                      >
+                        Varsayılan Ses Seç
+                      </Button>
                     </div>
                   )}
                 </div>
