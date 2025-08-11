@@ -59,31 +59,8 @@ const LibraryScreen: React.FC = () => {
         
         // Backend verilerini AudioTrack tipine dönüştür
         const tracks: AudioTrack[] = response.data.map((item: any) => {
-          // Derive duration from timepoints if available (works without backend deploy)
-          let parsedTimepoints: any[] = [];
-          try {
-            if (Array.isArray(item?.timepoints)) {
-              parsedTimepoints = item.timepoints as any[];
-            } else if (typeof item?.timepoints === 'string') {
-              parsedTimepoints = JSON.parse(item.timepoints);
-            }
-          } catch {}
-          let derivedDurationSec = typeof item?.duration === 'number' ? item.duration : 180;
-          if (parsedTimepoints.length > 0) {
-            try {
-              const maxEnd = Math.max(
-                ...parsedTimepoints.map((tp: any) => {
-                  const end = typeof tp?.endTimeSeconds === 'number' ? tp.endTimeSeconds : undefined;
-                  const mid = typeof tp?.timeSeconds === 'number' ? tp.timeSeconds : undefined;
-                  return end ?? mid ?? 0;
-                })
-              );
-              if (isFinite(maxEnd) && maxEnd > 0) {
-                derivedDurationSec = Math.round(maxEnd);
-              }
-            } catch {}
-          }
-
+          // Prefer backend-provided duration; fall back to 180 if missing
+          const derivedDurationSec = typeof item?.duration === 'number' ? item.duration : 180;
           const track = {
             id: item.id,
             title: item.adapted_text || item.translated_text || item.input || 'Başlıksız',
@@ -96,8 +73,8 @@ const LibraryScreen: React.FC = () => {
             adapted_text: item.adapted_text,
             original_turkish: item.input,
             mp3_url: item.mp3_url,
-            timepoints: parsedTimepoints, // Backend'den gelen gerçek timepoints (string ise parse edildi)
-            words: item.words || [], // Backend'den gelen gerçek words
+            timepoints: Array.isArray(item.timepoints) ? item.timepoints : [],
+            words: item.words || [],
           };
           
           console.log('🎵 [LIBRARY] Track mapped:', {

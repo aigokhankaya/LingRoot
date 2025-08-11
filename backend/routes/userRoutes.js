@@ -152,7 +152,7 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
         title: item.input ? item.input.substring(0, 100) + '...' : 'Untitled',
         url: item.mp3_url,
         level: item.level || 'A1',
-        duration: derivedDurationSec,
+        duration: derivedDurationSec, // include duration so Home can sum quickly
         created_at: item.created_at,
         input_type: item.input_type,
         translated_text: item.translated_text,

@@ -84,45 +84,13 @@ const HomeScreen: React.FC = () => {
       
       if (response.success && response.data) {
         const audioTracks = response.data as any[];
-        const audioCount = (response as any).total_count ?? audioTracks.length;
-        // Fallback: total_count yoksa ve 50'ye eşitse, tam listeyi çekip gerçek adedi hesapla
-        let finalCount = audioCount;
-        if (typeof (response as any).total_count !== 'number' && audioTracks.length === 50) {
-          try {
-            const full = await apiService.getFullContentHistory();
-            if (full?.success && Array.isArray(full.data)) {
-              finalCount = full.data.length;
-            }
-          } catch {}
-        }
-        // Derive duration from timepoints if available; fallback to item.duration or 180
-        const deriveDuration = (item: any): number => {
-          try {
-            let tps: any[] = [];
-            if (Array.isArray(item?.timepoints)) tps = item.timepoints;
-            else if (typeof item?.timepoints === 'string') tps = JSON.parse(item.timepoints);
-            if (tps.length > 0) {
-              const maxEnd = Math.max(
-                ...tps.map((tp: any) => {
-                  const end = typeof tp?.endTimeSeconds === 'number' ? tp.endTimeSeconds : undefined;
-                  const mid = typeof tp?.timeSeconds === 'number' ? tp.timeSeconds : undefined;
-                  return end ?? mid ?? 0;
-                })
-              );
-              if (isFinite(maxEnd) && maxEnd > 0) return Math.round(maxEnd);
-            }
-          } catch {}
-          return typeof item?.duration === 'number' ? item.duration : 180;
-        };
-        const totalDuration = audioTracks.reduce((sum: number, item: any) => sum + deriveDuration(item), 0);
+        const finalCount = (response as any).total_count ?? audioTracks.length;
+        // Fast: backend already provides per-item duration; avoid parsing timepoints on Home
+        const totalDuration = audioTracks.reduce((sum: number, item: any) => sum + (typeof item?.duration === 'number' ? item.duration : 0), 0);
         
         console.log('✅ User stats:', { audioCount, totalDuration });
         
-        setStats({
-          audioCount: finalCount,
-          totalDuration: Math.round(totalDuration / 60), // Convert to minutes
-          loading: false,
-        });
+        setStats({ audioCount: finalCount, totalDuration: Math.round(totalDuration / 60), loading: false });
       } else {
         console.warn('❌ Failed to fetch user stats:', response.message);
         setStats({ audioCount: 0, totalDuration: 0, loading: false });
