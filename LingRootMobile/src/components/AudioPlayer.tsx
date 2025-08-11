@@ -702,15 +702,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   .
                 </Text>
               </View>
-              {/* Cümle numarası göstergesi */}
-              <View style={styles.sentenceIndicator}>
-                <Text style={[
-                  styles.sentenceNumber,
-                  isCurrentSentence && styles.sentenceNumberActive
-                ]}>
-                  {sentenceIndex + 1}
-                </Text>
-              </View>
+              {/* Cümle numarası göstergesi kaldırıldı */}
             </TouchableOpacity>
           );
         })}
@@ -900,13 +892,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sentenceContainer: {
-    marginBottom: 12,
-    padding: 12,
+    marginBottom: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'transparent',
     position: 'relative',
-    minHeight: 40, // Sabit yükseklik
+    minHeight: 0,
   },
   highlightedSentence: {
     backgroundColor: '#007AFF40',
@@ -925,7 +918,7 @@ const styles = StyleSheet.create({
   sentence: {
     fontSize: 16,
     color: '#333',
-    lineHeight: 24,
+    lineHeight: 20,
   },
   highlightedSentenceText: {
     color: '#007AFF',
@@ -937,7 +930,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   wordInSentence: {
-    margin: 1, // Adjust as needed for spacing between words
+    marginHorizontal: 0,
+    marginVertical: 0,
   },
   selectedWord: {
     backgroundColor: '#FFD700', // Sarı arka plan
@@ -1039,26 +1033,7 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlign: 'center',
   },
-  sentenceIndicator: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: '#007AFF',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sentenceNumber: {
-    fontSize: 10,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  sentenceNumberActive: {
-    backgroundColor: '#fff',
-    color: '#007AFF',
-  },
+  // sentenceIndicator and number styles removed
   testButton: {
     padding: 8,
     backgroundColor: '#ff6b35',
