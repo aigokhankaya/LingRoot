@@ -120,21 +120,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log('🔧 [AUTH DEBUG] Response statusText:', response.statusText);
           
           if (response.ok) {
-            const responseText = await response.text();
-            console.log('🔧 [AUTH DEBUG] Response body:', responseText);
             console.log('🔧 [AUTH DEBUG] Token is valid');
             const appUser: User = JSON.parse(storedUser);
-            // Ensure full_name is not undefined when displaying profile
-            if (!appUser.full_name || (appUser.full_name as any)?.toString().trim().length === 0) {
-              // Try to rebuild from possible stored fields
-              const su: any = JSON.parse(storedUser);
-              const built = (
-                su.full_name || su.name ||
-                [su.firstName, su.lastName].filter(Boolean).join(' ') ||
-                [su.firstname, su.lastname].filter(Boolean).join(' ')
-              )?.toString().trim();
-              appUser.full_name = (built && built.length > 0) ? built : (appUser.email?.split('@')[0] || '');
-            }
+            // Try to refresh name from backend /auth/me
+            try {
+              const meRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+              });
+              if (meRes.ok) {
+                const meData = await meRes.json();
+                const su: any = meData?.user || {};
+                const built = (
+                  su.full_name || su.name ||
+                  [su.firstName, su.lastName].filter(Boolean).join(' ') ||
+                  [su.firstname, su.lastname].filter(Boolean).join(' ')
+                )?.toString().trim();
+                appUser.full_name = (built && built.length > 0) ? built : (appUser.full_name || appUser.email?.split('@')[0] || '');
+                await AsyncStorage.setItem('user_data', JSON.stringify(appUser));
+              } else {
+                if (!appUser.full_name || (appUser.full_name as any)?.toString().trim().length === 0) {
+                  const su: any = JSON.parse(storedUser);
+                  const built = (
+                    su.full_name || su.name ||
+                    [su.firstName, su.lastName].filter(Boolean).join(' ') ||
+                    [su.firstname, su.lastname].filter(Boolean).join(' ')
+                  )?.toString().trim();
+                  appUser.full_name = (built && built.length > 0) ? built : (appUser.email?.split('@')[0] || '');
+                }
+              }
+            } catch {}
             setUser(appUser);
             
             // Start notification reminders for stored user
