@@ -179,6 +179,32 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
   }
 });
 
+// Fast endpoint: get total audio count for a user (no data payload)
+router.get('/users/:userId/audio-count', authenticate, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (req.user.id !== userId) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    const { count, error } = await supabase
+      .from('contenthistory')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .not('mp3_url', 'is', null);
+
+    if (error) {
+      logger.error('Error counting audio items:', error);
+      return res.status(500).json({ success: false, message: 'Count query failed' });
+    }
+
+    return res.json({ success: true, count: count || 0 });
+  } catch (error) {
+    logger.error('Unexpected error in audio-count:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 router.get('/user-interests', authenticate, getUserInterests);
 router.post('/user-interests', authenticate, updateUserInterests);
 

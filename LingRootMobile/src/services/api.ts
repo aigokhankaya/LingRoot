@@ -216,6 +216,17 @@ export const apiService = {
     }
   },
 
+  // Fast count endpoint
+  async getUserAudioCount(userId: string): Promise<number> {
+    try {
+      const response = await apiClient.get(`/api/users/${userId}/audio-count`);
+      if (response.data?.success) return response.data.count || 0;
+      return 0;
+    } catch {
+      return 0;
+    }
+  },
+
   // Tüm içerik geçmişini getirme (limit yok) - sadece gerekirse kullanılmalı
   async getFullContentHistory(): Promise<APIResponse> {
     try {
