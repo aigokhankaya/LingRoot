@@ -194,6 +194,7 @@ exports.login = async (req, res) => {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
+        mockUser.full_name = mockUser.name;
         
         const token = generateToken(mockUser.id, mockUser.email, mockUser.role, rememberMe);
         const refreshToken = generateRefreshToken(mockUser.id);
@@ -225,6 +226,11 @@ exports.login = async (req, res) => {
       return res.status(401).json({ success: false, message: "Geçersiz e-posta veya şifre" });
     }
 
+    // Build a robust full_name on backend to simplify clients
+    const safeFirst = user.firstname || user.firstName || '';
+    const safeLast = user.lastname || user.lastName || '';
+    const safeFull = [safeFirst, safeLast].filter(Boolean).join(' ').trim();
+
     const token = generateToken(user.id, user.email, user.role, rememberMe);
     const refreshToken = generateRefreshToken(user.id);
 
@@ -232,6 +238,10 @@ exports.login = async (req, res) => {
     delete user.password;
     delete user.verificationToken;
     delete user.resetPasswordToken;
+
+     // Attach normalized name fields
+    user.full_name = safeFull;
+    user.name = safeFull;
 
     return res.status(200).json({
       success: true,
