@@ -31,13 +31,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Listen for auth changes - web projesindeki gibi basitleştirildi
     const { data: { subscription } } = authService.onAuthStateChange(async (authUser) => {
       if (authUser) {
+        // Build robust full name from Supabase user metadata
+        const umd = authUser.user_metadata || {};
+        const builtFullName = (
+          umd.full_name ||
+          umd.name ||
+          [umd.firstName, umd.lastName].filter(Boolean).join(' ') ||
+          [umd.firstname, umd.lastname].filter(Boolean).join(' ')
+        )?.toString().trim();
+
         // Transform Supabase user to our User type
         const appUser: User = {
           id: authUser.id,
           email: authUser.email!,
-          full_name: authUser.user_metadata?.full_name,
-          avatar_url: authUser.user_metadata?.avatar_url,
-          membership_level: authUser.user_metadata?.membership_level || 'free',
+          full_name: (builtFullName && builtFullName.length > 0) ? builtFullName : (authUser.email?.split('@')[0] || ''),
+          avatar_url: umd.avatar_url,
+          membership_level: umd.membership_level || 'free',
           created_at: authUser.created_at,
           updated_at: authUser.updated_at || authUser.created_at,
         };
@@ -116,8 +125,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.log('🔧 [AUTH DEBUG] Token is valid');
             const appUser: User = JSON.parse(storedUser);
             // Ensure full_name is not undefined when displaying profile
-            if (!appUser.full_name || appUser.full_name.trim().length === 0) {
-              appUser.full_name = appUser.email?.split('@')[0] || '';
+            if (!appUser.full_name || (appUser.full_name as any)?.toString().trim().length === 0) {
+              // Try to rebuild from possible stored fields
+              const su: any = JSON.parse(storedUser);
+              const built = (
+                su.full_name || su.name ||
+                [su.firstName, su.lastName].filter(Boolean).join(' ') ||
+                [su.firstname, su.lastname].filter(Boolean).join(' ')
+              )?.toString().trim();
+              appUser.full_name = (built && built.length > 0) ? built : (appUser.email?.split('@')[0] || '');
             }
             setUser(appUser);
             
