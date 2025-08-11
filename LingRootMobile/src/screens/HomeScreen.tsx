@@ -85,6 +85,16 @@ const HomeScreen: React.FC = () => {
       if (response.success && response.data) {
         const audioTracks = response.data as any[];
         const audioCount = (response as any).total_count ?? audioTracks.length;
+        // Fallback: total_count yoksa ve 50'ye eşitse, tam listeyi çekip gerçek adedi hesapla
+        let finalCount = audioCount;
+        if (typeof (response as any).total_count !== 'number' && audioTracks.length === 50) {
+          try {
+            const full = await apiService.getFullContentHistory();
+            if (full?.success && Array.isArray(full.data)) {
+              finalCount = full.data.length;
+            }
+          } catch {}
+        }
         // Derive duration from timepoints if available; fallback to item.duration or 180
         const deriveDuration = (item: any): number => {
           try {
@@ -109,7 +119,7 @@ const HomeScreen: React.FC = () => {
         console.log('✅ User stats:', { audioCount, totalDuration });
         
         setStats({
-          audioCount,
+          audioCount: finalCount,
           totalDuration: Math.round(totalDuration / 60), // Convert to minutes
           loading: false,
         });

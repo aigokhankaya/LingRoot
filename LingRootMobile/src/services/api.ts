@@ -216,6 +216,16 @@ export const apiService = {
     }
   },
 
+  // Tüm içerik geçmişini getirme (limit yok) - sadece gerekirse kullanılmalı
+  async getFullContentHistory(): Promise<APIResponse> {
+    try {
+      const response = await apiClient.get<APIResponse>(`/api/content/history`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'İçerik geçmişi alınamadı');
+    }
+  },
+
   // Health check
   async healthCheck(): Promise<APIResponse> {
     try {
