@@ -84,7 +84,7 @@ const HomeScreen: React.FC = () => {
       
       if (response.success && response.data) {
         const audioTracks = response.data as any[];
-        const audioCount = audioTracks.length;
+        const audioCount = (response as any).total_count ?? audioTracks.length;
         // Derive duration from timepoints if available; fallback to item.duration or 180
         const deriveDuration = (item: any): number => {
           try {

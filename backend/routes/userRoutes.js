@@ -73,7 +73,7 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
     
     logger.info(`Fetching audio history for user: ${userId}`);
     
-    // Fetch from contenthistory table
+    // Fetch from contenthistory table (limited list for display)
     const { data: audioHistory, error } = await supabase
       .from('contenthistory')
       .select(`
@@ -101,6 +101,16 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
       });
     }
     
+    // Also get total count of user's audio items (without limit)
+    const { count: totalCount, error: countError } = await supabase
+      .from('contenthistory')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .not('mp3_url', 'is', null);
+    if (countError) {
+      logger.warn('Count query error in audio-history:', countError);
+    }
+
     // Transform data to match mobile app expectations
     const transformedHistory = (audioHistory || []).map(item => {
       let words = [];
@@ -152,11 +162,12 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
       };
     });
     
-    logger.info(`Found ${transformedHistory.length} audio files for user: ${userId}`);
+    logger.info(`Found ${transformedHistory.length} audio files (limited) for user: ${userId}, totalCount: ${totalCount ?? 'unknown'}`);
     
     res.json({
       success: true,
-      data: transformedHistory
+      data: transformedHistory,
+      total_count: typeof totalCount === 'number' ? totalCount : transformedHistory.length
     });
     
   } catch (error) {
