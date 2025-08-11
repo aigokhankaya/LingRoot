@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiService } from '../services/api';
 import { AudioTrack } from '../types';
@@ -83,9 +83,28 @@ const HomeScreen: React.FC = () => {
       const response = await apiService.getUserAudioHistory(user.id);
       
       if (response.success && response.data) {
-        const audioTracks = response.data;
+        const audioTracks = response.data as any[];
         const audioCount = audioTracks.length;
-        const totalDuration = audioTracks.reduce((sum: number, track: AudioTrack) => sum + (track.duration || 0), 0);
+        // Derive duration from timepoints if available; fallback to item.duration or 180
+        const deriveDuration = (item: any): number => {
+          try {
+            let tps: any[] = [];
+            if (Array.isArray(item?.timepoints)) tps = item.timepoints;
+            else if (typeof item?.timepoints === 'string') tps = JSON.parse(item.timepoints);
+            if (tps.length > 0) {
+              const maxEnd = Math.max(
+                ...tps.map((tp: any) => {
+                  const end = typeof tp?.endTimeSeconds === 'number' ? tp.endTimeSeconds : undefined;
+                  const mid = typeof tp?.timeSeconds === 'number' ? tp.timeSeconds : undefined;
+                  return end ?? mid ?? 0;
+                })
+              );
+              if (isFinite(maxEnd) && maxEnd > 0) return Math.round(maxEnd);
+            }
+          } catch {}
+          return typeof item?.duration === 'number' ? item.duration : 180;
+        };
+        const totalDuration = audioTracks.reduce((sum: number, item: any) => sum + deriveDuration(item), 0);
         
         console.log('✅ User stats:', { audioCount, totalDuration });
         
@@ -108,6 +127,14 @@ const HomeScreen: React.FC = () => {
   useEffect(() => {
     fetchUserStats();
   }, [user?.id]);
+
+  // Refresh stats when Home gains focus (e.g., after creating new audio)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchUserStats();
+      return () => {};
+    }, [user?.id])
+  );
 
   const handleFeaturePress = (feature: any) => {
     console.log('🔄 Navigating to:', feature.screenName, feature.params ? `with params ${JSON.stringify(feature.params)}` : '');
