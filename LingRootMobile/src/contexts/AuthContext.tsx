@@ -115,6 +115,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.log('🔧 [AUTH DEBUG] Response body:', responseText);
             console.log('🔧 [AUTH DEBUG] Token is valid');
             const appUser: User = JSON.parse(storedUser);
+            // Ensure full_name is not undefined when displaying profile
+            if (!appUser.full_name || appUser.full_name.trim().length === 0) {
+              appUser.full_name = appUser.email?.split('@')[0] || '';
+            }
             setUser(appUser);
             
             // Start notification reminders for stored user
@@ -210,10 +214,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (data.success && data.data.user) {
         // Transform backend user to our User type
         const backendUser = data.data.user;
+        // Build full name robustly from various possible backend fields
+        const builtFullName = (
+          backendUser.name ||
+          backendUser.full_name ||
+          [backendUser.firstName, backendUser.lastName].filter(Boolean).join(' ') ||
+          [backendUser.firstname, backendUser.lastname].filter(Boolean).join(' ')
+        )?.toString().trim();
+
         const appUser: User = {
           id: backendUser.id,
           email: backendUser.email,
-          full_name: backendUser.name || `${backendUser.firstName} ${backendUser.lastName}`,
+          full_name: builtFullName && builtFullName.length > 0 ? builtFullName : (backendUser.email?.split('@')[0] || ''),
           avatar_url: backendUser.avatar_url,
           membership_level: backendUser.membership_status || 'free',
           created_at: backendUser.created_at,
