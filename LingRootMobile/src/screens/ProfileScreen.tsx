@@ -129,6 +129,9 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>
         <View style={styles.header}>
+          {!!user?.full_name && (
+            <Text style={styles.name}>{user.full_name}</Text>
+          )}
           {!!user?.email && <Text style={styles.emailBold}>{user.email}</Text>}
         </View>
 
@@ -230,10 +233,10 @@ const styles = StyleSheet.create({
   },
 
   name: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   email: {
     fontSize: 16,
@@ -241,10 +244,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   emailBold: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#333',
-    fontWeight: '700',
-    marginBottom: 6,
+    fontWeight: '600',
+    marginBottom: 0,
   },
   menu: {
     backgroundColor: 'white',
