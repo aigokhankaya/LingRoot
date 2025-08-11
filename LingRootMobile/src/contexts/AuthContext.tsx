@@ -127,19 +127,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           } else {
             const errorText = await response.text();
             console.log('🔧 [AUTH DEBUG] Error response text:', errorText);
-            console.log('🔧 [AUTH DEBUG] Token is invalid or expired, clearing data');
-            await AsyncStorage.removeItem('auth_token');
-            await AsyncStorage.removeItem('user_data');
-            setUser(null);
+            if (response.status === 401) {
+              console.log('🔧 [AUTH DEBUG] 401 received → clearing token');
+              await AsyncStorage.removeItem('auth_token');
+              await AsyncStorage.removeItem('user_data');
+              setUser(null);
+            } else {
+              console.log('🔧 [AUTH DEBUG] Non-auth error; preserving session');
+              try {
+                const appUser: User = JSON.parse(storedUser);
+                setUser(appUser);
+              } catch {}
+            }
           }
         } catch (validateError: any) {
           console.log('🔧 [AUTH DEBUG] Token validation error:', validateError);
           console.log('🔧 [AUTH DEBUG] Error message:', validateError.message);
           console.log('🔧 [AUTH DEBUG] Error type:', validateError.constructor.name);
-          // Clear potentially invalid token
-          await AsyncStorage.removeItem('auth_token');
-          await AsyncStorage.removeItem('user_data');
-          setUser(null);
+          // Network or validation error → preserve session locally
+          try {
+            const appUser: User = JSON.parse(storedUser);
+            setUser(appUser);
+          } catch {
+            // If parsing fails, do not clear token; just keep user null
+          }
         }
       } else {
         console.log('🔧 [AUTH DEBUG] No stored token or user data found');
@@ -179,7 +190,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
         mode: 'cors',
         credentials: 'omit',
-        body: JSON.stringify({ email, password }),
+        // Always request long-lived token on mobile
+        body: JSON.stringify({ email, password, rememberMe: true }),
       });
       
       console.log('🔧 [AUTH DEBUG] Response received!');

@@ -15,16 +15,32 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as DocumentPicker from 'expo-document-picker';
 import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter } from '../types';
+import { useRoute, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiService, saveDefaultVoiceSetting, getUserSettings } from '../services/api';
 
 const CreateScreen: React.FC = () => {
+  const route = useRoute<any>();
+  const navigation = useNavigation();
+  const [mode, setMode] = useState<'text' | 'file'>(route.params?.mode === 'file' ? 'file' : 'text');
   const { t } = useLanguage();
   const [inputText, setInputText] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>('B1');
   const [speechRate, setSpeechRate] = useState(1.0);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<any>(null);
+  // Keep mode in sync when screen gains focus (e.g., navigating from Home with different params)
+  useFocusEffect(
+    React.useCallback(() => {
+      const nextMode: 'text' | 'file' = route.params?.mode === 'file' ? 'file' : 'text';
+      setMode(nextMode);
+      if (nextMode === 'text') {
+        setSelectedFile(null);
+      } else {
+        setInputText('');
+      }
+    }, [route.params?.mode])
+  );
   
   // Voice selection states
   const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('standard');
@@ -174,10 +190,10 @@ const CreateScreen: React.FC = () => {
         
         // Web tarafıyla birebir: Backend zaten filtreleyip gönderiyor → UI tarafında tekrar filtreleme yok
         setAvailableVoices(processedVoices);
-        setSelectedVoice((prev) => {
+        setSelectedVoice((prev: string) => {
           const source = processedVoices;
-          if (source.some(v => v.name === prev)) return prev;
-          const preferred = source.find(v => (selectedGender === 'all') || v.gender === selectedGender);
+          if (source.some((v: any) => v.name === prev)) return prev;
+          const preferred = source.find((v: any) => (selectedGender === 'all') || v.gender === selectedGender);
           return preferred?.name || source[0]?.name || prev;
         });
       } else {
@@ -449,19 +465,10 @@ const CreateScreen: React.FC = () => {
         const response = await apiService.processFileToSpeech(formData);
         
         if (response.success) {
-          Alert.alert(
-            t('common.success'),
-            t('create.alerts.fileProcessed'),
-            [
-              {
-                text: t('common.ok'),
-                onPress: () => {
-                  setInputText('');
-                  setSelectedFile(null);
-                },
-              },
-            ]
-          );
+          // Success: directly navigate to Library and refresh there
+          setInputText('');
+          setSelectedFile(null);
+          navigation.navigate('Library' as never);
         } else {
           Alert.alert(t('common.error'), response.message || t('create.alerts.fileProcessFailed'));
         }
@@ -501,20 +508,9 @@ const CreateScreen: React.FC = () => {
         console.log('🎯 [TTS DEBUG] Response mp3_url:', response.mp3_url);
         
         if (response.success) {
-          console.log('🎯 [TTS DEBUG] Showing success alert...');
-          Alert.alert(
-            t('common.success'),
-            t('create.alerts.audioCreated'),
-            [
-              {
-                text: t('common.ok'),
-                onPress: () => {
-                  console.log('🎯 [TTS DEBUG] Alert dismissed, clearing input...');
-                  setInputText('');
-                },
-              },
-            ]
-          );
+          // Success: directly navigate to Library and refresh there
+          setInputText('');
+          navigation.navigate('Library' as never);
         } else {
           console.log('🎯 [TTS DEBUG] Response success is false, showing error...');
           Alert.alert(t('common.error'), response.message || t('create.alerts.audioCreateFailed'));
@@ -571,46 +567,46 @@ const CreateScreen: React.FC = () => {
           </Text>
         </View>
 
-        <View style={styles.inputSection}>
-          <Text style={styles.sectionTitle}>{t('create.input.title')}</Text>
-          <TextInput
-            style={[styles.textInput, selectedFile && styles.textInputDisabled]}
-            placeholder={selectedFile ? t('create.input.placeholderDisabled') : t('create.input.placeholder')}
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            textAlignVertical="top"
-            editable={!selectedFile}
-          />
-          {!selectedFile && <Text style={styles.charCount}>{t('create.input.charCount', { count: inputText.length })}</Text>}
-        </View>
-
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>{t('common.or')}</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {selectedFile ? (
-          <View style={styles.selectedFileContainer}>
-            <View style={styles.selectedFileInfo}>
-              <Icon name="insert-drive-file" size={24} color="#007AFF" />
-              <View style={styles.fileDetails}>
-                <Text style={styles.fileName}>{selectedFile.name}</Text>
-                <Text style={styles.fileSize}>
-                  {selectedFile.size ? `${Math.round(selectedFile.size / 1024)} KB` : 'Boyut bilinmiyor'}
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity style={styles.clearFileButton} onPress={clearSelectedFile}>
-              <Icon name="clear" size={20} color="#FF3B30" />
-            </TouchableOpacity>
+        {mode === 'text' && (
+          <View style={styles.inputSection}>
+            <Text style={styles.sectionTitle}>{t('create.input.title')}</Text>
+            <TextInput
+              style={[styles.textInput, selectedFile && styles.textInputDisabled]}
+              placeholder={selectedFile ? t('create.input.placeholderDisabled') : t('create.input.placeholder')}
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+              textAlignVertical="top"
+              editable={!selectedFile}
+            />
+            {!selectedFile && <Text style={styles.charCount}>{t('create.input.charCount', { count: inputText.length })}</Text>}
           </View>
-        ) : (
-          <TouchableOpacity style={styles.fileButton} onPress={handleFileUpload}>
-            <Icon name="upload-file" size={24} color="#007AFF" />
-            <Text style={styles.fileButtonText}>{t('create.file.uploadButton')}</Text>
-          </TouchableOpacity>
+        )}
+
+        {/* Divider hidden in single-mode screens */}
+
+        {mode === 'file' && (
+          selectedFile ? (
+            <View style={styles.selectedFileContainer}>
+              <View style={styles.selectedFileInfo}>
+                <Icon name="insert-drive-file" size={24} color="#007AFF" />
+                <View style={styles.fileDetails}>
+                  <Text style={styles.fileName}>{selectedFile.name}</Text>
+                  <Text style={styles.fileSize}>
+                    {selectedFile.size ? `${Math.round(selectedFile.size / 1024)} KB` : 'Boyut bilinmiyor'}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.clearFileButton} onPress={clearSelectedFile}>
+                <Icon name="clear" size={20} color="#FF3B30" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.fileButton} onPress={handleFileUpload}>
+              <Icon name="upload-file" size={24} color="#007AFF" />
+              <Text style={styles.fileButtonText}>{t('create.file.uploadButton')}</Text>
+            </TouchableOpacity>
+          )
         )}
 
         <View style={styles.settingsSection}>

@@ -13,6 +13,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, CEFRLevel } from '../types';
 import { apiService } from '../services/api';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAudioContext } from '../contexts/AudioContext';
@@ -55,19 +56,44 @@ const LibraryScreen: React.FC = () => {
         
         // Backend verilerini AudioTrack tipine dönüştür
         const tracks: AudioTrack[] = response.data.map((item: any) => {
+          // Derive duration from timepoints if available (works without backend deploy)
+          let parsedTimepoints: any[] = [];
+          try {
+            if (Array.isArray(item?.timepoints)) {
+              parsedTimepoints = item.timepoints as any[];
+            } else if (typeof item?.timepoints === 'string') {
+              parsedTimepoints = JSON.parse(item.timepoints);
+            }
+          } catch {}
+          let derivedDurationSec = typeof item?.duration === 'number' ? item.duration : 180;
+          if (parsedTimepoints.length > 0) {
+            try {
+              const maxEnd = Math.max(
+                ...parsedTimepoints.map((tp: any) => {
+                  const end = typeof tp?.endTimeSeconds === 'number' ? tp.endTimeSeconds : undefined;
+                  const mid = typeof tp?.timeSeconds === 'number' ? tp.timeSeconds : undefined;
+                  return end ?? mid ?? 0;
+                })
+              );
+              if (isFinite(maxEnd) && maxEnd > 0) {
+                derivedDurationSec = Math.round(maxEnd);
+              }
+            } catch {}
+          }
+
           const track = {
             id: item.id,
             title: item.adapted_text || item.translated_text || item.input || 'Başlıksız',
             url: item.mp3_url || item.url || '',
             level: item.level || 'B1',
-            duration: item.duration || 30, // Varsayılan 30 saniye
+            duration: derivedDurationSec,
             created_at: item.created_at,
             input_type: item.input_type,
             translated_text: item.translated_text,
             adapted_text: item.adapted_text,
             original_turkish: item.input,
             mp3_url: item.mp3_url,
-            timepoints: item.timepoints || [], // Backend'den gelen gerçek timepoints
+            timepoints: parsedTimepoints, // Backend'den gelen gerçek timepoints (string ise parse edildi)
             words: item.words || [], // Backend'den gelen gerçek words
           };
           
@@ -125,6 +151,14 @@ const LibraryScreen: React.FC = () => {
   useEffect(() => {
     fetchAudioHistory();
   }, [user?.id]);
+
+  // Auto-refresh when screen gains focus (e.g., after navigating from Create)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchAudioHistory(false);
+      return () => {};
+    }, [user?.id])
+  );
 
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);

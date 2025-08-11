@@ -104,6 +104,7 @@ const MainTabs = () => {
           tabBarLabel: t('create.title'),
           headerTitle: t('create.title')
         }}
+        initialParams={{ mode: 'text' }}
       />
       <Tab.Screen 
         name="Suggestions" 

@@ -11,17 +11,18 @@ const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-development";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+// Make tokens effectively non-expiring by default (very long lifetime)
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "3650d"; // ~10 years
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "lingroot-refresh-secret-key";
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "30d";
+const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "3650d"; // ~10 years
 
 logger.info('Supabase URL:', supabaseUrl);
 logger.info('Supabase Service Key exists:', !!supabaseKey);
 logger.info('JWT_SECRET exists:', !!JWT_SECRET);
 
-const generateToken = (id, email, role, rememberMe = false) => {
-  const expiresIn = rememberMe ? '30d' : '1h'; // Beni hatırla: 30 gün, Normal: 1 saat
-  return jwt.sign({ id, email, role }, JWT_SECRET, { expiresIn });
+// Always issue a long-lived token based on env config
+const generateToken = (id, email, role, _rememberMe = false) => {
+  return jwt.sign({ id, email, role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 };
 
 const generateRefreshToken = (id) =>

@@ -118,12 +118,31 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
         logger.warn(`Error parsing words/timepoints for item ${item.id}:`, parseError);
       }
 
+      // Derive duration from timepoints if available
+      let derivedDurationSec = 180; // fallback
+      try {
+        if (Array.isArray(timepoints) && timepoints.length > 0) {
+          const maxEnd = Math.max(
+            ...timepoints.map(tp => {
+              const end = typeof tp?.endTimeSeconds === 'number' ? tp.endTimeSeconds : undefined;
+              const mid = typeof tp?.timeSeconds === 'number' ? tp.timeSeconds : undefined;
+              return end ?? mid ?? 0;
+            })
+          );
+          if (isFinite(maxEnd) && maxEnd > 0) {
+            derivedDurationSec = Math.round(maxEnd);
+          }
+        }
+      } catch (e) {
+        logger.warn(`Duration derivation failed for item ${item.id}:`, e);
+      }
+
       return {
         id: item.id,
         title: item.input ? item.input.substring(0, 100) + '...' : 'Untitled',
         url: item.mp3_url,
         level: item.level || 'A1',
-        duration: 180, // Default duration, could be calculated if stored
+        duration: derivedDurationSec,
         created_at: item.created_at,
         input_type: item.input_type,
         translated_text: item.translated_text,

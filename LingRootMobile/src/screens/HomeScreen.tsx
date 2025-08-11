@@ -33,6 +33,7 @@ const HomeScreen: React.FC = () => {
       icon: 'text-fields',
       color: '#007AFF',
       screenName: 'Create',
+      params: { mode: 'text' as const },
     },
     {
       id: 2,
@@ -41,6 +42,7 @@ const HomeScreen: React.FC = () => {
       icon: 'upload-file',
       color: '#34C759',
       screenName: 'Create',
+      params: { mode: 'file' as const },
     },
     {
       id: 3,
@@ -108,8 +110,12 @@ const HomeScreen: React.FC = () => {
   }, [user?.id]);
 
   const handleFeaturePress = (feature: any) => {
-    console.log('🔄 Navigating to:', feature.screenName);
-    navigation.navigate(feature.screenName as never);
+    console.log('🔄 Navigating to:', feature.screenName, feature.params ? `with params ${JSON.stringify(feature.params)}` : '');
+    if (feature.params) {
+      navigation.navigate(feature.screenName as never, feature.params as never);
+    } else {
+      navigation.navigate(feature.screenName as never);
+    }
   };
 
   return (
@@ -168,7 +174,7 @@ const HomeScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>{t('home.quickActions')}</Text>
           <TouchableOpacity 
             style={styles.quickActionButton}
-            onPress={() => navigation.navigate('Create' as never)}
+            onPress={() => navigation.navigate('Create' as never, { mode: 'text' } as never)}
           >
             <Icon name="add-circle" size={24} color="white" />
             <Text style={styles.quickActionText}>{t('home.createNewAudio')}</Text>
