@@ -88,7 +88,7 @@ const HomeScreen: React.FC = () => {
         // Fast: backend already provides per-item duration; avoid parsing timepoints on Home
         const totalDuration = audioTracks.reduce((sum: number, item: any) => sum + (typeof item?.duration === 'number' ? item.duration : 0), 0);
         
-        console.log('✅ User stats:', { audioCount, totalDuration });
+        console.log('✅ User stats:', { audioCount: finalCount, totalDuration });
         
         setStats({ audioCount: finalCount, totalDuration: Math.round(totalDuration / 60), loading: false });
       } else {
