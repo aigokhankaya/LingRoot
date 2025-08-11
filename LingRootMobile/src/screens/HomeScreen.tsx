@@ -88,9 +88,18 @@ const HomeScreen: React.FC = () => {
       
       if (response.success && response.data) {
         const audioTracks = response.data as any[];
-        const finalCount = (typeof countOrNull === 'number' && countOrNull >= 0)
+        let finalCount = (typeof countOrNull === 'number' && countOrNull >= 0)
           ? countOrNull
           : ((response as any).total_count ?? audioTracks.length);
+        // If backend doesn't provide total_count and we hit the 50 item cap, fallback to full history length once
+        if (typeof (response as any).total_count !== 'number' && finalCount === 50) {
+          try {
+            const full = await apiService.getFullContentHistory();
+            if (full?.success && Array.isArray(full.data)) {
+              finalCount = full.data.length;
+            }
+          } catch {}
+        }
         // Fast: backend already provides per-item duration; avoid parsing timepoints on Home
         const totalDuration = audioTracks.reduce((sum: number, item: any) => sum + (typeof item?.duration === 'number' ? item.duration : 0), 0);
         
