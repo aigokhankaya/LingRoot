@@ -17,6 +17,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAudioContext } from '../contexts/AudioContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import AudioPlayer from '../components/AudioPlayer';
 
 const LibraryScreen: React.FC = () => {
@@ -29,6 +30,8 @@ const LibraryScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTrack, setSelectedTrack] = useState<AudioTrack | null>(null);
   const [playerVisible, setPlayerVisible] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const { user } = useAuth();
 
   const levels: (CEFRLevel | 'all')[] = ['all', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -141,6 +144,57 @@ const LibraryScreen: React.FC = () => {
     }
   };
 
+  // Favorites helpers
+  const favoritesKey = user?.id ? `favorites_${user.id}` : 'favorites_unknown_user';
+
+  const loadFavorites = async () => {
+    try {
+      if (!user?.id) return;
+      const stored = await AsyncStorage.getItem(favoritesKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) setFavoriteIds(parsed);
+      }
+    } catch (e) {
+      console.warn('Failed to load favorites', e);
+    }
+  };
+
+  const saveFavorites = async (ids: string[]) => {
+    try {
+      if (!user?.id) return;
+      await AsyncStorage.setItem(favoritesKey, JSON.stringify(ids));
+    } catch (e) {
+      console.warn('Failed to save favorites', e);
+    }
+  };
+
+  const isFavorite = (id: string) => favoriteIds.includes(id);
+
+  const toggleFavorite = async (track: AudioTrack) => {
+    const id = track.id;
+    const next = isFavorite(id)
+      ? favoriteIds.filter(fid => fid !== id)
+      : [...favoriteIds, id];
+    setFavoriteIds(next);
+    await saveFavorites(next);
+  };
+
+  const handleLongPress = (track: AudioTrack) => {
+    const currentlyFav = isFavorite(track.id);
+    Alert.alert(
+      currentlyFav ? 'Favoriler' : 'Favoriler',
+      currentlyFav ? 'Bu kaydı favorilerimden kaldırmak ister misiniz?' : 'Bu kaydı favorilerime eklemek ister misiniz?',
+      [
+        {
+          text: currentlyFav ? 'Favorilerimden Kaldır' : 'Favorilerime Ekle',
+          onPress: () => toggleFavorite(track),
+        },
+        { text: 'İptal', style: 'cancel' },
+      ]
+    );
+  };
+
   // Refresh handler
   const onRefresh = () => {
     setRefreshing(true);
@@ -150,6 +204,7 @@ const LibraryScreen: React.FC = () => {
   // Load data on component mount
   useEffect(() => {
     fetchAudioHistory();
+    loadFavorites();
   }, [user?.id]);
 
   // Auto-refresh when screen gains focus (e.g., after navigating from Create)
@@ -181,7 +236,8 @@ const LibraryScreen: React.FC = () => {
   const filteredTracks = audioTracks.filter((track) => {
     const matchesSearch = track.title.toLowerCase().includes(searchText.toLowerCase());
     const matchesLevel = selectedLevel === 'all' || track.level === selectedLevel;
-    return matchesSearch && matchesLevel;
+    const matchesFav = !showFavoritesOnly || isFavorite(track.id);
+    return matchesSearch && matchesLevel && matchesFav;
   });
 
   const handlePlayTrack = (track: AudioTrack) => {
@@ -224,12 +280,18 @@ const LibraryScreen: React.FC = () => {
           isCurrentlyPlaying && styles.trackCardPlaying
         ]} 
         onPress={() => handlePlayTrack(item)}
+        onLongPress={() => handleLongPress(item)}
       >
         <View style={styles.trackInfo}>
           <View style={styles.trackHeader}>
             <Text style={styles.trackTitle} numberOfLines={2}>{item.title}</Text>
-            <View style={[styles.levelBadge, { backgroundColor: getLevelColor(item.level) }]}>
-              <Text style={styles.levelText}>{item.level}</Text>
+            <View style={styles.headerRightGroup}>
+              <TouchableOpacity onPress={() => toggleFavorite(item)} style={styles.favoriteIconBtn}>
+                <Icon name={isFavorite(item.id) ? 'favorite' : 'favorite-border'} size={20} color={isFavorite(item.id) ? '#E91E63' : '#999'} />
+              </TouchableOpacity>
+              <View style={[styles.levelBadge, { backgroundColor: getLevelColor(item.level) }]}>
+                <Text style={styles.levelText}>{item.level}</Text>
+              </View>
             </View>
           </View>
           <View style={styles.trackMeta}>
@@ -304,6 +366,13 @@ const LibraryScreen: React.FC = () => {
       <View style={styles.header}>
         <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
           <Icon name="refresh" size={24} color="#007AFF" />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]} 
+          onPress={() => setShowFavoritesOnly(prev => !prev)}
+        >
+          <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#E91E63' : '#007AFF'} />
+          <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>Favorilerim</Text>
         </TouchableOpacity>
       </View>
 
@@ -420,6 +489,28 @@ const styles = StyleSheet.create({
   refreshButton: {
     padding: 8,
   },
+  favoritesToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    borderRadius: 20,
+  },
+  favoritesToggleActive: {
+    borderColor: '#E91E63',
+    backgroundColor: '#FFF0F5',
+  },
+  favoritesToggleText: {
+    marginLeft: 6,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  favoritesToggleTextActive: {
+    color: '#E91E63',
+  },
   searchContainer: {
     padding: 20,
     backgroundColor: 'white',
@@ -493,6 +584,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 8,
   },
+  headerRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   trackTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -504,6 +599,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+  },
+  favoriteIconBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    marginRight: 8,
   },
   levelText: {
     fontSize: 12,
