@@ -217,13 +217,14 @@ export const apiService = {
   },
 
   // Fast count endpoint
-  async getUserAudioCount(userId: string): Promise<number> {
+  async getUserAudioCount(userId: string): Promise<number | null> {
     try {
       const response = await apiClient.get(`/api/users/${userId}/audio-count`);
-      if (response.data?.success) return response.data.count || 0;
-      return 0;
-    } catch {
-      return 0;
+      if (response.data?.success) return typeof response.data.count === 'number' ? response.data.count : 0;
+      return null;
+    } catch (e) {
+      console.warn('getUserAudioCount failed:', e);
+      return null;
     }
   },
 

@@ -81,14 +81,16 @@ const HomeScreen: React.FC = () => {
       console.log('🔍 Fetching user stats for:', user.id);
       
       // Parallel: fetch count fast + limited history for duration sum
-      const [count, response] = await Promise.all([
+      const [countOrNull, response] = await Promise.all([
         apiService.getUserAudioCount(user.id),
         apiService.getUserAudioHistory(user.id),
       ]);
       
       if (response.success && response.data) {
         const audioTracks = response.data as any[];
-        const finalCount = typeof count === 'number' ? count : ((response as any).total_count ?? audioTracks.length);
+        const finalCount = (typeof countOrNull === 'number' && countOrNull >= 0)
+          ? countOrNull
+          : ((response as any).total_count ?? audioTracks.length);
         // Fast: backend already provides per-item duration; avoid parsing timepoints on Home
         const totalDuration = audioTracks.reduce((sum: number, item: any) => sum + (typeof item?.duration === 'number' ? item.duration : 0), 0);
         
