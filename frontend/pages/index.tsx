@@ -433,6 +433,10 @@ const App: React.FC = () => {
                                     </div>
                                     
                                     {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+                                    {/* Şifremi unuttum */}
+                                    <div className="flex justify-end">
+                                        <a href="/forgot-password" className="text-sm text-blue-600 hover:underline">Şifremi unuttum?</a>
+                                    </div>
                                     <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white !rounded-button" disabled={loading}>
                                         {loading ? t.login.loadingButton : t.login.loginButton}
                                     </Button>
