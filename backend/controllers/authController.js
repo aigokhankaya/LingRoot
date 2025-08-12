@@ -593,6 +593,9 @@ exports.forgotPassword = async (req, res) => {
       .eq('id', user.id);
     if (updErr) throw updErr;
 
+    // TEST LOG: Print reset code to backend logs for quick testing
+    logger.info(`[RESET-CODE] email=${email} code=${code} expires=${expiresAt}`);
+
     // Mail gönder (SMTP varsa), yoksa logla
     try {
       const { sendMail } = require('../utils/mailer');
