@@ -13,10 +13,8 @@ const ForgotPasswordScreen: React.FC = () => {
     setLoading(true);
     try {
       await apiService.forgotPassword(email.trim());
-      Alert.alert('Bilgi', 'Eğer e-posta kayıtlıysa bir kod gönderdik. Kodu girerek şifrenizi güncelleyebilirsiniz.', [
-        { text: 'Kodu Gir', onPress: () => (navigation as any)?.navigate?.('ResetPassword', { email: email.trim() }) },
-        { text: 'Tamam' },
-      ]);
+      // Başarılı isteğin ardından doğrudan ResetPassword ekranına git
+      (navigation as any)?.navigate?.('ResetPassword', { email: email.trim() });
     } catch (e: any) {
       Alert.alert('Hata', e.message || 'İstek başarısız');
     } finally {
