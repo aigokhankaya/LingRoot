@@ -1,16 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { getApiUrl, createHeaders } from '@/lib/api';
 
 export default function ResetPasswordPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // URL query'den email'i doldur
+  useEffect(() => {
+    const queryEmail = (router.query?.email as string) || '';
+    if (queryEmail && !email) {
+      setEmail(queryEmail);
+    }
+  }, [router.query]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

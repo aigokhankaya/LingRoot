@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { getApiUrl, createHeaders } from '@/lib/api';
 
@@ -9,6 +10,7 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +27,11 @@ export default function ForgotPasswordPage() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.message || 'İstek başarısız');
       setMessage('Eğer e-posta kayıtlıysa, 6 haneli kod gönderildi. Lütfen e-postanızı kontrol edin.');
+      // Başarılı ise reset-password ekranına yönlendir ve e-postayı taşı
+      try {
+        await new Promise((r) => setTimeout(r, 300));
+      } catch {}
+      router.push(`/reset-password?email=${encodeURIComponent(email.trim())}`);
     } catch (e: any) {
       setError(e.message || 'Bir hata oluştu');
     } finally {
