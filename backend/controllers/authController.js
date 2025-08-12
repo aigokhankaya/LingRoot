@@ -609,12 +609,12 @@ exports.resetPassword = async (req, res) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, reset_password_token, reset_password_expires, resetPasswordToken, resetPasswordExpires')
+      .select('id, reset_password_token, reset_password_expires')
       .eq('email', email)
       .maybeSingle();
     if (error) throw error;
-    const token = user?.reset_password_token || user?.resetPasswordToken;
-    const expires = user?.reset_password_expires || user?.resetPasswordExpires;
+    const token = user?.reset_password_token;
+    const expires = user?.reset_password_expires;
     if (!user || !token || !expires) {
       return res.status(400).json({ success: false, message: 'Geçersiz sıfırlama talebi' });
     }
@@ -632,9 +632,6 @@ exports.resetPassword = async (req, res) => {
         password: hashed, 
         reset_password_token: null,
         reset_password_expires: null,
-        // tolerate camelCase fields if they exist
-        resetPasswordToken: null,
-        resetPasswordExpires: null,
         updated_at: new Date().toISOString() 
       })
       .eq('id', user.id);
