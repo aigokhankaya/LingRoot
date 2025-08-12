@@ -71,7 +71,7 @@ const LibraryScreen: React.FC = () => {
             input_type: item.input_type,
             translated_text: item.translated_text,
             adapted_text: item.adapted_text,
-            original_turkish: item.input,
+            original_turkish: item.input || '',
             mp3_url: item.mp3_url,
             timepoints: Array.isArray(item.timepoints) ? item.timepoints : [],
             words: item.words || [],

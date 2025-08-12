@@ -216,6 +216,16 @@ export const apiService = {
     }
   },
 
+  // Tekil içerik kaydı (kullanıcının) - input/original metin için
+  async getUserContentById(id: string): Promise<APIResponse> {
+    try {
+      const response = await apiClient.get<APIResponse>(`/api/users/content/${id}`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'İçerik yüklenemedi');
+    }
+  },
+
   // Fast count endpoint
   async getUserAudioCount(userId: string): Promise<number | null> {
     try {

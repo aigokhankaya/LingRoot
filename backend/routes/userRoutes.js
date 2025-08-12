@@ -157,6 +157,7 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
         input_type: item.input_type,
         translated_text: item.translated_text,
         adapted_text: item.adapted_text,
+        input: item.input || '',
         words: words,
         timepoints: timepoints
       };
@@ -207,6 +208,34 @@ router.get('/users/:userId/audio-count', authenticate, async (req, res) => {
 
 router.get('/user-interests', authenticate, getUserInterests);
 router.post('/user-interests', authenticate, updateUserInterests);
+
+// Get single content record for the authenticated user
+// Note: use distinct path to avoid clashing with /api/content/* routes
+router.get('/users/content/:id', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from('contenthistory')
+      .select('id, user_id, input, input_type, level, mp3_url, translated_text, adapted_text, created_at, words, timepoints')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ success: false, message: 'Record not found' });
+    }
+
+    if (data.user_id !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    // Provide original text in a stable field name for mobile: original_turkish
+    const payload = { ...data, original_turkish: data.input };
+    return res.json({ success: true, data: payload });
+  } catch (e) {
+    logger.error('Error fetching user content by id:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
 
 // Test endpoint for debugging
 router.get('/test-reminder', (req, res) => {

@@ -75,3 +75,55 @@ export const updateUserSubscriptionAdmin = async (subscriptionId: string, update
     throw error;
   }
 };
+
+// Get a user's audio history (admin-only)
+export interface AdminAudioHistoryItem {
+  id: string;
+  user_id: string;
+  input: string;
+  input_type: string;
+  level: string;
+  mp3_url: string;
+  translated_text?: string;
+  adapted_text?: string;
+  created_at: string;
+  words?: string | any[];
+  timepoints?: string | any[];
+  words_count?: number | null;
+  timepoints_count?: number | null;
+  // cost fields
+  openai_prompt_tokens?: number;
+  openai_completion_tokens?: number;
+  openai_total_tokens?: number;
+  openai_cost_usd?: number;
+  tts_characters?: number;
+  tts_category?: 'Basic' | 'Premium' | 'Gold' | 'Platinum' | string;
+  tts_cost_usd?: number;
+  total_cost_usd?: number;
+}
+
+export interface AdminAudioHistoryResponse extends ApiResponse<AdminAudioHistoryItem[]> {
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
+}
+
+export const getUserAudioHistoryAdmin = async (
+  userId: string,
+  opts?: { page?: number; limit?: number; search?: string }
+): Promise<AdminAudioHistoryResponse> => {
+  const { page = 1, limit = 50, search = '' } = opts || {};
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (search) params.set('search', search);
+  const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/audio-history?${params.toString()}`, {
+    headers: createHeaders(),
+  });
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(err || 'Failed to fetch user audio history (admin)');
+  }
+  return response.json();
+};

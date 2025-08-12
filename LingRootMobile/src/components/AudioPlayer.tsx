@@ -50,6 +50,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const scrollViewRef = useRef<ScrollView>(null);
   const wordRefs = useRef<Map<number, any>>(new Map());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [showOriginal, setShowOriginal] = useState(false);
+  const [originalLoading, setOriginalLoading] = useState(false);
+  const [originalText, setOriginalText] = useState<string>(track.original_turkish || '');
+  useEffect(() => {
+    setOriginalText(track.original_turkish || '');
+  }, [track.id, track.original_turkish]);
 
   // Text parsing - Memoized to prevent unnecessary re-renders
   const textData = useMemo(() => {
@@ -733,15 +739,50 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           </View>
         </View>
 
-        {/* Text Display */}
+        {/* Swipeable pages: current EN on page 0, original TR on page 1 */}
         <ScrollView
-          ref={scrollViewRef}
-          style={styles.scrollContainer}
-          showsVerticalScrollIndicator={false}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={async (e) => {
+            const idx = Math.round((e.nativeEvent.contentOffset.x || 0) / screenWidth);
+            setPageIndex(idx);
+            if (idx === 1 && !originalText && !originalLoading) {
+              try {
+                setOriginalLoading(true);
+                const res = await apiService.getUserContentById(track.id);
+                if ((res as any)?.success && (res as any)?.data?.input) {
+                  setOriginalText((res as any).data.input);
+                }
+              } catch (err) {
+                console.warn('Failed to load original text', err);
+              } finally {
+                setOriginalLoading(false);
+              }
+            }
+          }}
+          style={{ flex: 1 }}
         >
-          <View style={styles.textWrapper}>
-            {/* GİZLENDİ - Section title kaldırıldı */}
-            {renderHighlightedText()}
+          <View style={{ width: screenWidth }}>
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.scrollContainer}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.textWrapper}>
+                {renderHighlightedText()}
+              </View>
+            </ScrollView>
+          </View>
+          <View style={{ width: screenWidth }}>
+            <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+              <Text style={styles.originalTitle}>Orijinal Türkçe Metin</Text>
+              {originalLoading ? (
+                <Text style={styles.originalText}>Yükleniyor...</Text>
+              ) : (
+                <Text style={styles.originalText}>{originalText || track.original_turkish || '—'}</Text>
+              )}
+            </ScrollView>
           </View>
         </ScrollView>
 
@@ -836,6 +877,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
+  linkText: {
+    color: '#2563EB',
+    textDecorationLine: 'underline',
+    fontSize: 13,
+    marginLeft: 8,
+  },
   closeButton: {
     marginRight: 12,
   },
@@ -844,6 +891,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
+  },
+  originalBox: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderTopWidth: 1,
+    borderColor: '#e0e0e0',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  originalTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 6,
+  },
+  originalText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#374151',
   },
   levelBadge: {
     backgroundColor: '#007AFF',

@@ -50,6 +50,10 @@ async function adaptToCEFR(text, level, requestLogger) {
     const { chunkText } = require('./textProcessor');
     const chunks = chunkText(text);
     let adaptedChunks = [];
+    // Track OpenAI usage across chunks
+    let promptTokensTotal = 0;
+    let completionTokensTotal = 0;
+    let totalTokensTotal = 0;
     for (let i = 0; i < chunks.length; i++) {
         const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, chunks[i]);
         logger.info({ promptName: promptFile, promptText: prompt }, 'adaptToCEFR: Kullanılan prompt');
@@ -67,6 +71,12 @@ async function adaptToCEFR(text, level, requestLogger) {
                 temperature: 0.6,
             });
             const adaptedText = completion.choices[0]?.message?.content?.trim();
+            // accumulate usage
+            if (completion.usage) {
+                promptTokensTotal += completion.usage.prompt_tokens || 0;
+                completionTokensTotal += completion.usage.completion_tokens || 0;
+                totalTokensTotal += completion.usage.total_tokens || 0;
+            }
             logger.info(`OpenAI CEFR raw response: ${adaptedText}`);
             if (
                 !adaptedText ||
@@ -88,7 +98,15 @@ async function adaptToCEFR(text, level, requestLogger) {
             adaptedChunks.push(chunks[i]);
         }
     }
-    return adaptedChunks.join('\n\n');
+    const merged = adaptedChunks.join('\n\n');
+    return {
+        text: merged,
+        usage: {
+            prompt_tokens: promptTokensTotal,
+            completion_tokens: completionTokensTotal,
+            total_tokens: totalTokensTotal,
+        }
+    };
 }
 
 module.exports = { adaptToCEFR };

@@ -17,6 +17,12 @@ router.get('/users/:id', adminController.getUserById);
 router.put('/users/:id', adminController.updateUser);
 router.delete('/users/:id', adminController.deleteUser);
 
+// User audio history (admin)
+router.get('/users/:id/audio-history', adminController.getUserAudioHistoryAdmin);
+
+// Optional: single content record fetch (for modal/details)
+router.get('/content/:id', adminController.getContentById);
+
 // Content management
 router.get('/content', adminController.getAllContent);
 router.delete('/content/:id', adminController.deleteContent);

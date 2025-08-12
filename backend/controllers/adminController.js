@@ -525,3 +525,116 @@ exports.setTtsProviderSetting = async (req, res) => {
   }
 };
 
+// Get audio (TTS) history for a specific user (ADMIN)
+exports.getUserAudioHistoryAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 50, search = '' } = req.query;
+
+    logger.info(`[ADMIN AUDIO] Fetching audio history for user: ${id} (page=${page}, limit=${limit}, search='${search}')`);
+
+    const rangeFrom = (parseInt(page) - 1) * parseInt(limit);
+    const rangeTo = rangeFrom + parseInt(limit) - 1;
+
+    let query = supabase
+      .from('contenthistory')
+      .select(
+        `id, user_id, input, input_type, level, mp3_url, translated_text, adapted_text, created_at, words, timepoints,
+         openai_prompt_tokens, openai_completion_tokens, openai_total_tokens, openai_cost_usd,
+         tts_characters, tts_category, tts_cost_usd, total_cost_usd`,
+        { count: 'exact' }
+      )
+      .eq('user_id', id)
+      .not('mp3_url', 'is', null);
+
+    if (search) {
+      query = query.or(`input.ilike.%${search}%,translated_text.ilike.%${search}%,adapted_text.ilike.%${search}%`);
+    }
+
+    query = query.order('created_at', { ascending: false }).range(rangeFrom, rangeTo);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      logger.error('[ADMIN AUDIO] Error fetching contenthistory:', error);
+      return res.status(500).json({ success: false, message: 'Error fetching user audio history' });
+    }
+
+    // Deduplicate primarily by mp3_url, fallback by id
+    const seenMp3 = new Set();
+    const seenId = new Set();
+    const unique = (data || []).filter((row) => {
+      if (!row) return false;
+      const key = row.mp3_url || row.id;
+      if (key && !seenMp3.has(key)) {
+        seenMp3.add(key);
+        if (row.id) seenId.add(row.id);
+        return true;
+      }
+      if (row.id && !seenId.has(row.id)) {
+        seenId.add(row.id);
+        return true;
+      }
+      return false;
+    });
+
+    // Derive counts to present in columns without heavy payload on client
+    const transformed = unique.map((row) => {
+      let wordsCount = null;
+      let timepointsCount = null;
+      try {
+        if (typeof row.words === 'string') {
+          const parsed = JSON.parse(row.words);
+          wordsCount = Array.isArray(parsed) ? parsed.length : null;
+        }
+      } catch {}
+      try {
+        if (typeof row.timepoints === 'string') {
+          const parsed = JSON.parse(row.timepoints);
+          timepointsCount = Array.isArray(parsed) ? parsed.length : null;
+        }
+      } catch {}
+      return {
+        ...row,
+        words_count: wordsCount,
+        timepoints_count: timepointsCount,
+      };
+    });
+
+    logger.info(`[ADMIN AUDIO] Found ${transformed.length} unique records (total=${count || transformed.length}) for user ${id}`);
+
+    return res.status(200).json({
+      success: true,
+      data: transformed,
+      pagination: {
+        total: count || transformed.length,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: count ? Math.ceil(count / parseInt(limit)) : 1,
+      },
+    });
+  } catch (error) {
+    logger.error('[ADMIN AUDIO] Server error while fetching user audio history:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Get single contenthistory record (ADMIN)
+exports.getContentById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from('contenthistory')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) {
+      return res.status(404).json({ success: false, message: 'Record not found' });
+    }
+    return res.json({ success: true, data });
+  } catch (e) {
+    logger.error('Error fetching content by id:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+

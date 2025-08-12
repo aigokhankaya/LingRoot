@@ -326,8 +326,7 @@ const App: React.FC = () => {
   });
 
   const handleUserClick = (userId: string) => {
-    setSelectedUser(userId);
-    setShowUserDetails(true);
+    router.push(`/admin/users/${userId}/audio`);
   };
 
   if (loading) {

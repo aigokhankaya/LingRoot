@@ -57,8 +57,28 @@ async function translateToEnglishWithOpenAI(text, requestLogger) {
         });
         let translated = completion.choices[0]?.message?.content?.trim();
         translatedChunks.push(translated);
+        // Attach usage info to first chunk only (aggregate roughly)
+        if (i === 0 && completion.usage) {
+            // Save usage per total by multiplying average usage by number of chunks (approx)
+            const usage = {
+                prompt_tokens: completion.usage.prompt_tokens * chunks.length,
+                completion_tokens: completion.usage.completion_tokens * chunks.length,
+                total_tokens: completion.usage.total_tokens * chunks.length,
+            };
+            if (requestLogger) {
+                requestLogger.log(`[openai:usage]` + JSON.stringify(usage));
+            }
+            // return as object at end
+            translateToEnglishWithOpenAI.__lastUsage = usage;
+        }
     }
-    return translatedChunks.join('\n\n');
+    const textJoined = translatedChunks.join('\n\n');
+    if (translateToEnglishWithOpenAI.__lastUsage) {
+        const usage = translateToEnglishWithOpenAI.__lastUsage;
+        translateToEnglishWithOpenAI.__lastUsage = undefined;
+        return { text: textJoined, usage };
+    }
+    return textJoined;
 }
 
 /**

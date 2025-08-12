@@ -367,8 +367,23 @@ const processTtsRequest = async (req, res) => {
         });
         let textToAdapt = cleanedText;
         let translationResult = '';
+        // Track OpenAI usage/cost
+        let openaiUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
         try {
-            translationResult = await translateToEnglishWithOpenAI(cleanedText);
+            // translateToEnglishWithOpenAI may return string; we enhance to capture usage via try/catch below
+            const trResult = await translateToEnglishWithOpenAI(cleanedText);
+            if (typeof trResult === 'object' && trResult !== null && trResult.text) {
+                translationResult = trResult.text;
+                if (trResult.usage) {
+                    openaiUsage = {
+                        prompt_tokens: trResult.usage.prompt_tokens || 0,
+                        completion_tokens: trResult.usage.completion_tokens || 0,
+                        total_tokens: trResult.usage.total_tokens || (trResult.usage.prompt_tokens || 0) + (trResult.usage.completion_tokens || 0)
+                    };
+                }
+            } else {
+                translationResult = String(trResult || '');
+            }
             if (!translationResult || translationResult.trim() === "") {
                 logger.error(`[${requestId}] Translation result is empty, chunkText will not be called.`);
                 logRequestStep(requestId, 'translate:error', { error: 'Translation result is empty.' });
@@ -412,7 +427,17 @@ const processTtsRequest = async (req, res) => {
 
         try {
             const adaptedResult = await adaptToCEFRFunc(textToAdapt, level);
-            textToAdapt = adaptedResult;
+            if (typeof adaptedResult === 'object' && adaptedResult !== null && adaptedResult.text) {
+                textToAdapt = adaptedResult.text;
+                // accumulate CEFR usage into openaiUsage as well
+                if (adaptedResult.usage) {
+                    openaiUsage.prompt_tokens = (openaiUsage.prompt_tokens || 0) + (adaptedResult.usage.prompt_tokens || 0);
+                    openaiUsage.completion_tokens = (openaiUsage.completion_tokens || 0) + (adaptedResult.usage.completion_tokens || 0);
+                    openaiUsage.total_tokens = (openaiUsage.total_tokens || 0) + (adaptedResult.usage.total_tokens || 0);
+                }
+            } else {
+                textToAdapt = adaptedResult;
+            }
             logger.info(`[${requestId}] CEFR adaptation successful.`);
             logRequestStep(requestId, 'adaptToCEFR:end', { adaptedResult });
             logStep({
@@ -677,6 +702,9 @@ const processTtsRequest = async (req, res) => {
         logger.info(`[${requestId}] 🔧 TTS Provider: ${ttsProvider} (Real Timing Mode)`);
 
         // --- Step 6: Synthesize Audio with Google TTS ---
+        // Track TTS characters and category for cost
+        let ttsCharactersTotal = 0;
+        let ttsCategory = 'Premium';
         logger.info(`[${requestId}] Starting Google TTS synthesis...`);
         logStep({
             requestId,
@@ -727,6 +755,14 @@ const processTtsRequest = async (req, res) => {
                     duration: ttsResult.totalDuration,
                     wordCount: ttsResult.wordTimings.length
                 });
+
+                // Cost tracking for TTS
+                ttsCharactersTotal += chunk.length;
+                // Determine package category from utils/googleTTS voice list heuristics in ttsResult or voice name
+                if (selectedVoice?.includes('Standard')) ttsCategory = 'Basic';
+                else if (selectedVoice?.includes('Wavenet') || selectedVoice?.includes('Neural2')) ttsCategory = 'Premium';
+                else if (selectedVoice?.includes('Chirp') || selectedVoice?.includes('Journey')) ttsCategory = 'Gold';
+                else if (selectedVoice?.includes('Studio')) ttsCategory = 'Platinum';
 
                 // Clean ve original words'leri topla
                 if (ttsResult.cleanWords) {
@@ -921,6 +957,12 @@ const processTtsRequest = async (req, res) => {
             }
             
             if (userId) {
+                // Calculate costs
+                const { calculateOpenAiCost, calculateTtsCost } = require('../utils/costTracker');
+                const openaiCost = calculateOpenAiCost(openaiUsage, 'gpt-4o');
+                const ttsCostUsd = calculateTtsCost(ttsCharactersTotal, ttsCategory);
+                const totalCostUsd = Number(((openaiCost.totalCostUsd || 0) + (ttsCostUsd || 0)).toFixed(6));
+
                 const insertData = {
                     user_id: userId,
                     level: level || 'B1',
@@ -931,15 +973,48 @@ const processTtsRequest = async (req, res) => {
                     input_type: req.body.type || 'text',
                     created_at: new Date().toISOString(),
                     words: words && words.length > 0 ? JSON.stringify(words) : null,
-                    timepoints: timepoints && timepoints.length > 0 ? JSON.stringify(timepoints) : null
+                    timepoints: timepoints && timepoints.length > 0 ? JSON.stringify(timepoints) : null,
+                    // cost fields
+                    openai_prompt_tokens: openaiUsage.prompt_tokens || 0,
+                    openai_completion_tokens: openaiUsage.completion_tokens || 0,
+                    openai_total_tokens: openaiUsage.total_tokens || (openaiUsage.prompt_tokens || 0) + (openaiUsage.completion_tokens || 0),
+                    openai_cost_usd: openaiCost.totalCostUsd || 0,
+                    tts_characters: ttsCharactersTotal,
+                    tts_category: ttsCategory,
+                    tts_cost_usd: ttsCostUsd,
+                    total_cost_usd: totalCostUsd,
                 };
                 
                 logger.info(`[${requestId}] 📋 Insert data:`, JSON.stringify(insertData, null, 2));
                 
-                const { data, error } = await supabase
-                    .from('contenthistory')
-                    .insert(insertData)
-                    .select();
+                // If a record with same mp3_url already exists for this user, update it instead of inserting a new one
+                let data, error;
+                try {
+                    const existingQuery = await supabase
+                        .from('contenthistory')
+                        .select('id')
+                        .eq('user_id', userId)
+                        .eq('mp3_url', finalMp3Url)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+
+                    if (!existingQuery.error && existingQuery.data && existingQuery.data.length > 0) {
+                        const existingId = existingQuery.data[0].id;
+                        ({ data, error } = await supabase
+                            .from('contenthistory')
+                            .update(insertData)
+                            .eq('id', existingId)
+                            .select());
+                        logger.info(`[${requestId}] ♻️ Updated existing contenthistory ID: ${existingId} for same mp3_url`);
+                    } else {
+                        ({ data, error } = await supabase
+                            .from('contenthistory')
+                            .insert(insertData)
+                            .select());
+                    }
+                } catch (upsertErr) {
+                    error = upsertErr;
+                }
                 
                 if (error) {
                     logger.error(`[${requestId}] 🚨 Supabase insert error:`, error);
