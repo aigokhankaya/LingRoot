@@ -77,7 +77,13 @@ const LoginScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.linkButton}>
+          <TouchableOpacity 
+            style={styles.linkButton}
+            onPress={() => {
+              try { (navigation as any)?.navigate?.('ForgotPassword'); } catch {}
+              try { (navigation as any)?.getParent?.()?.navigate?.('Auth', { screen: 'ForgotPassword' }); } catch {}
+            }}
+          >
             <Text style={styles.linkText}>Şifremi Unuttum</Text>
           </TouchableOpacity>
 

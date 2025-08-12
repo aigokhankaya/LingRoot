@@ -226,6 +226,18 @@ export const apiService = {
     }
   },
 
+  // Forgot password (email)
+  async forgotPassword(email: string): Promise<APIResponse> {
+    const response = await apiClient.post<APIResponse>(`/api/auth/forgot-password`, { email });
+    return response.data;
+  },
+
+  // Reset password with code
+  async resetPassword(email: string, code: string, newPassword: string): Promise<APIResponse> {
+    const response = await apiClient.post<APIResponse>(`/api/auth/reset-password`, { email, code, newPassword });
+    return response.data;
+  },
+
   // Fast count endpoint
   async getUserAudioCount(userId: string): Promise<number | null> {
     try {

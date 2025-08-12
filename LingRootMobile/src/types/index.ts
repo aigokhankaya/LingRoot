@@ -112,6 +112,7 @@ export type RootStackParamList = {
   Main: undefined;
   Login: undefined;
   Register: undefined;
+  ForgotPassword: undefined;
   Profile: undefined;
   Settings: undefined;
   Vocabulary: { wordId?: string } | undefined;
