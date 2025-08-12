@@ -544,12 +544,94 @@ exports.logout = async (req, res) => {
   }
 };
 
+// 6 haneli sayısal kod üretir
+function generateNumericCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 exports.forgotPassword = async (req, res) => {
-  return res.status(501).json({ success: false, message: "Şifre sıfırlama fonksiyonu henüz hazır değil" });
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('email', email)
+      .maybeSingle();
+    if (error) throw error;
+
+    // Kullanıcı var/yok demeden OK dön (enum. engelle)
+    if (!user) return res.json({ success: true, message: 'If the email exists, a reset code has been sent.' });
+
+    const code = generateNumericCode();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 dk
+
+    const { error: updErr } = await supabase
+      .from('users')
+      .update({ resetPasswordToken: code, resetPasswordExpires: expiresAt })
+      .eq('id', user.id);
+    if (updErr) throw updErr;
+
+    // Mail gönder (şimdilik log/webhook)
+    logger.info(`[RESET] Sending reset code to ${email}: ${code} (expires at ${expiresAt})`);
+    try {
+      if (process.env.RESET_EMAIL_WEBHOOK_URL) {
+        await fetch(process.env.RESET_EMAIL_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: email, subject: 'Şifre Sıfırlama Kodu', text: `Şifre sıfırlama kodunuz: ${code}` })
+        });
+      }
+    } catch (e) {
+      logger.warn('Reset email webhook failed:', e.message);
+    }
+
+    return res.json({ success: true, message: 'Reset code sent if email exists.' });
+  } catch (e) {
+    logger.error('forgotPassword error:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
 };
 
 exports.resetPassword = async (req, res) => {
-  return res.status(501).json({ success: false, message: "Şifre sıfırlama fonksiyonu henüz hazır değil" });
+  try {
+    const { email, code, newPassword } = req.body;
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, code and newPassword are required' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Yeni şifre en az 6 karakter olmalıdır' });
+    }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, resetPasswordToken, resetPasswordExpires')
+      .eq('email', email)
+      .maybeSingle();
+    if (error) throw error;
+    if (!user || !user.resetPasswordToken || !user.resetPasswordExpires) {
+      return res.status(400).json({ success: false, message: 'Geçersiz sıfırlama talebi' });
+    }
+    if (user.resetPasswordToken !== code) {
+      return res.status(400).json({ success: false, message: 'Kod geçersiz' });
+    }
+    if (new Date(user.resetPasswordExpires).getTime() < Date.now()) {
+      return res.status(400).json({ success: false, message: 'Kodun süresi doldu' });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
+    const { error: updErr } = await supabase
+      .from('users')
+      .update({ password: hashed, resetPasswordToken: null, resetPasswordExpires: null, updated_at: new Date().toISOString() })
+      .eq('id', user.id);
+    if (updErr) throw updErr;
+
+    return res.json({ success: true, message: 'Şifre başarıyla güncellendi' });
+  } catch (e) {
+    logger.error('resetPassword error:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
 };
 
 exports.verifyEmail = async (req, res) => {
