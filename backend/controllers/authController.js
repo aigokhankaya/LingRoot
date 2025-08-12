@@ -569,7 +569,12 @@ exports.forgotPassword = async (req, res) => {
 
     const { error: updErr } = await supabase
       .from('users')
-      .update({ resetPasswordToken: code, resetPasswordExpires: expiresAt })
+      .update({ 
+        resetPasswordToken: code, 
+        resetPasswordExpires: expiresAt,
+        reset_password_token: code,
+        reset_password_expires: expiresAt
+      })
       .eq('id', user.id);
     if (updErr) throw updErr;
 
@@ -606,24 +611,33 @@ exports.resetPassword = async (req, res) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, resetPasswordToken, resetPasswordExpires')
+      .select('id, resetPasswordToken, resetPasswordExpires, reset_password_token, reset_password_expires')
       .eq('email', email)
       .maybeSingle();
     if (error) throw error;
-    if (!user || !user.resetPasswordToken || !user.resetPasswordExpires) {
+    const token = user?.resetPasswordToken || user?.reset_password_token;
+    const expires = user?.resetPasswordExpires || user?.reset_password_expires;
+    if (!user || !token || !expires) {
       return res.status(400).json({ success: false, message: 'Geçersiz sıfırlama talebi' });
     }
-    if (user.resetPasswordToken !== code) {
+    if (token !== code) {
       return res.status(400).json({ success: false, message: 'Kod geçersiz' });
     }
-    if (new Date(user.resetPasswordExpires).getTime() < Date.now()) {
+    if (new Date(expires).getTime() < Date.now()) {
       return res.status(400).json({ success: false, message: 'Kodun süresi doldu' });
     }
 
     const hashed = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
     const { error: updErr } = await supabase
       .from('users')
-      .update({ password: hashed, resetPasswordToken: null, resetPasswordExpires: null, updated_at: new Date().toISOString() })
+      .update({ 
+        password: hashed, 
+        resetPasswordToken: null, 
+        resetPasswordExpires: null,
+        reset_password_token: null,
+        reset_password_expires: null,
+        updated_at: new Date().toISOString() 
+      })
       .eq('id', user.id);
     if (updErr) throw updErr;
 
