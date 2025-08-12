@@ -581,7 +581,7 @@ exports.forgotPassword = async (req, res) => {
     if (!user) return res.json({ success: true, message: 'If the email exists, a reset code has been sent.' });
 
     const code = generateNumericCode();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 dk
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 60 dk
 
     const { error: updErr } = await supabase
       .from('users')
