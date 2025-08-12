@@ -549,6 +549,22 @@ function generateNumericCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+function parseExpiryMs(expires) {
+  try {
+    if (!expires) return 0;
+    if (expires instanceof Date) return expires.getTime();
+    let s = String(expires);
+    // Normalize: replace space with T
+    s = s.replace(' ', 'T');
+    // If no timezone info, assume UTC
+    if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) s += 'Z';
+    const ms = Date.parse(s);
+    return Number.isNaN(ms) ? 0 : ms;
+  } catch {
+    return 0;
+  }
+}
+
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -621,7 +637,9 @@ exports.resetPassword = async (req, res) => {
     if (token !== code) {
       return res.status(400).json({ success: false, message: 'Kod geçersiz' });
     }
-    if (new Date(expires).getTime() < Date.now()) {
+    const expiresMs = parseExpiryMs(expires);
+    // Allow 2 minutes clock skew
+    if (expiresMs < Date.now() - 2 * 60 * 1000) {
       return res.status(400).json({ success: false, message: 'Kodun süresi doldu' });
     }
 
