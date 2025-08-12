@@ -570,8 +570,7 @@ exports.forgotPassword = async (req, res) => {
     const { error: updErr } = await supabase
       .from('users')
       .update({ 
-        resetPasswordToken: code, 
-        resetPasswordExpires: expiresAt,
+        // Use snake_case columns in production
         reset_password_token: code,
         reset_password_expires: expiresAt
       })
@@ -611,12 +610,12 @@ exports.resetPassword = async (req, res) => {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, resetPasswordToken, resetPasswordExpires, reset_password_token, reset_password_expires')
+      .select('id, reset_password_token, reset_password_expires, resetPasswordToken, resetPasswordExpires')
       .eq('email', email)
       .maybeSingle();
     if (error) throw error;
-    const token = user?.resetPasswordToken || user?.reset_password_token;
-    const expires = user?.resetPasswordExpires || user?.reset_password_expires;
+    const token = user?.reset_password_token || user?.resetPasswordToken;
+    const expires = user?.reset_password_expires || user?.resetPasswordExpires;
     if (!user || !token || !expires) {
       return res.status(400).json({ success: false, message: 'Geçersiz sıfırlama talebi' });
     }
@@ -632,10 +631,11 @@ exports.resetPassword = async (req, res) => {
       .from('users')
       .update({ 
         password: hashed, 
-        resetPasswordToken: null, 
-        resetPasswordExpires: null,
         reset_password_token: null,
         reset_password_expires: null,
+        // tolerate camelCase fields if they exist
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
         updated_at: new Date().toISOString() 
       })
       .eq('id', user.id);
