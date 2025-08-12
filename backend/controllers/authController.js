@@ -577,18 +577,17 @@ exports.forgotPassword = async (req, res) => {
       .eq('id', user.id);
     if (updErr) throw updErr;
 
-    // Mail gönder (şimdilik log/webhook)
-    logger.info(`[RESET] Sending reset code to ${email}: ${code} (expires at ${expiresAt})`);
+    // Mail gönder (SMTP varsa), yoksa logla
     try {
-      if (process.env.RESET_EMAIL_WEBHOOK_URL) {
-        await fetch(process.env.RESET_EMAIL_WEBHOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to: email, subject: 'Şifre Sıfırlama Kodu', text: `Şifre sıfırlama kodunuz: ${code}` })
-        });
-      }
-    } catch (e) {
-      logger.warn('Reset email webhook failed:', e.message);
+      const { sendMail } = require('../utils/mailer');
+      await sendMail({
+        to: email,
+        subject: 'Şifre Sıfırlama Kodu',
+        text: `Şifre sıfırlama kodunuz: ${code}\n\nKod 15 dakika geçerlidir.`,
+      });
+    } catch (mailErr) {
+      logger.warn('Reset email send skipped or failed (logged instead):', mailErr?.message);
+      logger.info(`[RESET-FALLBACK] Code for ${email}: ${code}`);
     }
 
     return res.json({ success: true, message: 'Reset code sent if email exists.' });
