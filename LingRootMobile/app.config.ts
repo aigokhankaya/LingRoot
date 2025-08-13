@@ -7,6 +7,10 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 // These will be accessible at runtime via Constants.expoConfig?.extra
 export default ({ config }: any) => ({
   ...config,
+  android: {
+    ...(config?.android || {}),
+    package: 'com.nsyzk.lingrootmobile',
+  },
   extra: {
     ...(config?.extra || {}),
     EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
