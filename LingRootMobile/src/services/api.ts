@@ -250,6 +250,27 @@ export const apiService = {
     }
   },
 
+  // Favorites
+  async getUserFavorites(): Promise<string[]> {
+    try {
+      const response = await apiClient.get('/api/user-favorites');
+      return response.data?.data || [];
+    } catch (e) {
+      console.warn('getUserFavorites failed:', e);
+      return [];
+    }
+  },
+
+  async saveUserFavorites(ids: string[]): Promise<boolean> {
+    try {
+      const response = await apiClient.post('/api/user-favorites', { ids });
+      return !!response.data?.success;
+    } catch (e) {
+      console.warn('saveUserFavorites failed:', e);
+      return false;
+    }
+  },
+
   // Tüm içerik geçmişini getirme (limit yok) - sadece gerekirse kullanılmalı
   async getFullContentHistory(): Promise<APIResponse> {
     try {

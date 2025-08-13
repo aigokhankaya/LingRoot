@@ -127,6 +127,15 @@ const LibraryScreen: React.FC = () => {
   const loadFavorites = async () => {
     try {
       if (!user?.id) return;
+      // pull from backend first
+      const remote = await apiService.getUserFavorites();
+      if (Array.isArray(remote) && remote.length > 0) {
+        setFavoriteIds(remote);
+        await AsyncStorage.setItem(favoritesKey, JSON.stringify(remote));
+        return;
+      }
+
+      // fallback to local
       const stored = await AsyncStorage.getItem(favoritesKey);
       if (stored) {
         const parsed = JSON.parse(stored);
@@ -141,6 +150,10 @@ const LibraryScreen: React.FC = () => {
     try {
       if (!user?.id) return;
       await AsyncStorage.setItem(favoritesKey, JSON.stringify(ids));
+      // fire and forget remote save
+      apiService.saveUserFavorites(ids).then((ok) => {
+        if (!ok) console.warn('Remote favorites save failed');
+      });
     } catch (e) {
       console.warn('Failed to save favorites', e);
     }

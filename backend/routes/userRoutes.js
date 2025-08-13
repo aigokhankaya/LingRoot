@@ -53,6 +53,82 @@ router.post('/user-settings/default-voice', authenticate, async (req, res) => {
   }
 });
 
+// User favorites stored inside user_settings.settings JSON as settings.favorites: string[]
+router.get('/user-favorites', authenticate, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('settings')
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (error && error.details !== 'The result contains 0 rows') {
+      logger.error('Error fetching user favorites:', error);
+      return res.status(500).json({ success: false, message: 'Error fetching favorites' });
+    }
+
+    let favorites = [];
+    try {
+      const settings = data?.settings && typeof data.settings === 'string' ? JSON.parse(data.settings) : (data?.settings || {});
+      if (settings && Array.isArray(settings.favorites)) {
+        favorites = settings.favorites.filter(id => typeof id === 'string');
+      }
+    } catch (e) {
+      logger.warn('Failed to parse settings when reading favorites:', e);
+    }
+
+    return res.json({ success: true, data: favorites });
+  } catch (e) {
+    logger.error('Unexpected error fetching favorites:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+router.post('/user-favorites', authenticate, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids)) {
+      return res.status(400).json({ success: false, message: 'Geçersiz favorites listesi' });
+    }
+
+    // Read current settings
+    const { data: existing, error: readError } = await supabase
+      .from('user_settings')
+      .select('settings')
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (readError && readError.details !== 'The result contains 0 rows') {
+      logger.error('Error reading settings for favorites:', readError);
+      return res.status(500).json({ success: false, message: 'Favorites could not be saved' });
+    }
+
+    let settingsObj = {};
+    try {
+      settingsObj = existing?.settings && typeof existing.settings === 'string' ? JSON.parse(existing.settings) : (existing?.settings || {});
+    } catch {}
+
+    const sanitizedIds = ids.filter(id => typeof id === 'string');
+    const newSettings = { ...(settingsObj || {}), favorites: sanitizedIds };
+
+    const { error: upsertError, data: upsertData } = await supabase
+      .from('user_settings')
+      .upsert({ user_id: req.user.id, settings: newSettings }, { onConflict: 'user_id' })
+      .select('settings')
+      .single();
+
+    if (upsertError) {
+      logger.error('Error saving favorites:', upsertError);
+      return res.status(500).json({ success: false, message: 'Favorites could not be saved' });
+    }
+
+    return res.json({ success: true, data: (upsertData?.settings?.favorites || sanitizedIds) });
+  } catch (e) {
+    logger.error('Unexpected error saving favorites:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Supabase client setup
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
