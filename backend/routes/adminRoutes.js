@@ -36,4 +36,6 @@ router.get('/settings/tts-provider', getTtsProviderSetting);
 // TTS provider ayarını güncelle
 router.post('/settings/tts-provider', setTtsProviderSetting);
 
+// Removed test-google-voices endpoint per request
+
 module.exports = router;

@@ -18,7 +18,6 @@ import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import HomeScreen from '../screens/HomeScreen';
 import LibraryScreen from '../screens/LibraryScreen';
 import CreateScreen from '../screens/CreateScreen';
-import SuggestionsScreen from '../screens/SuggestionsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import VocabularyScreen from '../screens/VocabularyScreen';
 
@@ -60,9 +59,6 @@ const MainTabs = () => {
               break;
             case 'Create':
               iconName = 'add-circle';
-              break;
-            case 'Suggestions':
-              iconName = 'lightbulb';
               break;
             case 'Profile':
               iconName = 'person';
@@ -109,14 +105,6 @@ const MainTabs = () => {
           headerTitle: t('create.title')
         }}
         initialParams={{ mode: 'text' }}
-      />
-      <Tab.Screen 
-        name="Suggestions" 
-        component={SuggestionsScreen}
-        options={{ 
-          tabBarLabel: t('suggestions.title'),
-          headerTitle: t('suggestions.title')
-        }}
       />
       <Tab.Screen 
         name="Profile" 

@@ -723,9 +723,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       visible={visible}
       animationType="slide"
       onRequestClose={onClose}
-      presentationStyle="pageSheet"
+      presentationStyle="overFullScreen"
+      transparent
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { marginTop: 0, paddingTop: 0 }] }>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>

@@ -58,7 +58,17 @@ const HomeScreen: React.FC = () => {
       description: t('home.topicSuggestionsDesc'),
       icon: 'lightbulb',
       color: '#FF9500',
-      screenName: 'Suggestions',
+      screenName: 'Create',
+      params: { mode: 'suggestion' as const },
+    },
+    {
+      id: 6,
+      title: t('home.bookSearch'),
+      description: t('home.bookSearchDesc'),
+      icon: 'menu-book',
+      color: '#3f51b5',
+      screenName: 'Create',
+      params: { mode: 'book' as const },
     },
     {
       id: 5,

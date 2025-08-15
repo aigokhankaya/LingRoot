@@ -18,6 +18,7 @@ const ProfileScreen: React.FC = () => {
   const { user, signOut } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
+  
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -120,6 +121,7 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
     { id: 3, title: t('profile.membership'), icon: 'card-membership', action: () => {} },
     { id: 4, title: t('profile.testNotification'), icon: 'notifications', action: handleTestNotification },
     { id: 5, title: t('profile.notificationStatus'), icon: 'notifications-active', action: handleNotificationStatus },
+    
     { id: 8, title: t('profile.quickDebug'), icon: 'bug-report', action: handleQuickDebug },
     { id: 6, title: t('profile.help'), icon: 'help', action: () => {} },
     { id: 7, title: t('profile.about'), icon: 'info', action: () => {} },
@@ -212,6 +214,8 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
           </View>
         </View>
       </Modal>
+
+      {/* TTS Test Modal removed */}
     </SafeAreaView>
   );
 };

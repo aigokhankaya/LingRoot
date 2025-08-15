@@ -781,8 +781,8 @@ const Welcome: React.FC = () => {
         chapter_id: selectedChapter?.id, // Kitap bölümü ID'sini ekle
       };
 
-      // "subject" (Konu) ve "topic" (Hobi) type'ları için özel işlem
-      if (inputData.type === 'subject' || inputData.type === 'topic') {
+      // "subject" (Konu), "topic" (Hobi) ve "custom" (Öneriler) type'ları için özel işlem
+      if (inputData.type === 'subject' || inputData.type === 'topic' || inputData.type === 'custom') {
         const typeLabel = inputData.type === 'subject' ? 'Subject (Konu)' : 'Topic (Hobi)';
         console.log(`${typeLabel} type detected, rewriting to narration...`);
         
@@ -896,8 +896,22 @@ const Welcome: React.FC = () => {
           fetchContentHistory();
         } catch (submitError: any) {
           console.error('İçerik kaydetme hatası (ses oluşturma başarılı):', submitError);
-          // İçerik kaydetme hatası olsa da ses oluşturma başarılı, kullanıcıya bilgi ver
-          setError(`Ses başarıyla oluşturuldu ancak kaydetme sırasında hata oluştu: ${submitError.message}`);
+          const errMsg = String(submitError?.message || '');
+          const errJson = (() => {
+            try { return JSON.parse(errMsg.split(' - ').pop() || '{}'); } catch { return {}; }
+          })();
+          const serverError = String((errJson as any)?.error || '');
+          const isDuplicate = errMsg.toLowerCase().includes('duplicate key') 
+            || serverError.toLowerCase().includes('duplicate key')
+            || errMsg.includes('ux_contenthistory_user_mp3') 
+            || serverError.includes('ux_contenthistory_user_mp3');
+          if (isDuplicate) {
+            // Aynı mp3_url için kayıt zaten var → uyarıyı kullanıcıya göstermeyelim
+            console.warn('Duplicate contenthistory entry detected; suppressing user-facing error.');
+          } else {
+            // Diğer hataları normal şekilde göster
+            setError(`Ses başarıyla oluşturuldu ancak kaydetme sırasında hata oluştu: ${submitError.message}`);
+          }
         }
       } else {
         setError(result.message || t('audio_generation_failed'));

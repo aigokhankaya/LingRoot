@@ -123,7 +123,6 @@ export type MainTabParamList = {
   Home: undefined;
   Library: undefined;
   Create: undefined;
-  Suggestions: undefined;
   Profile: undefined;
   Vocabulary: { wordId?: string } | undefined;
 };
@@ -135,3 +134,35 @@ export interface APIResponse<T = any> {
   message?: string;
   error?: string;
 } 
+
+// Books
+export interface BookItem {
+  id: number;
+  gutendex_id?: number;
+  title: string;
+  authors: string;
+  cover_url?: string;
+  download_count?: number;
+  language?: string;
+  copyright?: boolean;
+  subjects?: string[] | string;
+  text_url?: string;
+  created_at?: string;
+}
+
+export interface BookSearchResponse {
+  books: BookItem[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+export interface BookChapter {
+  id: number;
+  book_id: number;
+  chapter_index: number;
+  chapter_title: string;
+  chapter_text?: string;
+  created_at?: string;
+}

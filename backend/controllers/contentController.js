@@ -478,28 +478,65 @@ exports.submitContent = async (req, res) => {
       user_id: validUserId
     });
 
-    // Supabase veritabanına kaydet
+    // Supabase veritabanına kaydet (duplicate mp3_url için upsert mantığı)
     logger.info(`Saving content history to database for user ID: ${validUserId}`);
     const now = new Date().toISOString();
-    const { data, error } = await supabase
-      .from('contenthistory')
-      .insert([
-        {
+
+    // Önce mevcut kayıt var mı kontrol et
+    let existingId = null;
+    try {
+      const existingQuery = await supabase
+        .from('contenthistory')
+        .select('id')
+        .eq('user_id', validUserId)
+        .eq('mp3_url', convertedMp3Url)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (!existingQuery.error && existingQuery.data && existingQuery.data.length > 0) {
+        existingId = existingQuery.data[0].id;
+        logger.info(`Existing contenthistory found for user ${validUserId}, id=${existingId}; updating instead of insert`);
+      }
+    } catch (existErr) {
+      logger.warn('Existing record check failed; proceeding with insert', existErr);
+    }
+
+    let data, error;
+    if (existingId) {
+      // Güncelle
+      ({ data, error } = await supabase
+        .from('contenthistory')
+        .update({
           input,
           input_type,
           level,
-          mp3_url: convertedMp3Url,
           translated_text: translated_text || '',
           adapted_text: adapted_text || '',
-          user_id: validUserId,
-          created_at: now,
           updated_at: now,
-        },
-      ])
-      .select();
+        })
+        .eq('id', existingId)
+        .select());
+    } else {
+      // Ekle
+      ({ data, error } = await supabase
+        .from('contenthistory')
+        .insert([
+          {
+            input,
+            input_type,
+            level,
+            mp3_url: convertedMp3Url,
+            translated_text: translated_text || '',
+            adapted_text: adapted_text || '',
+            user_id: validUserId,
+            created_at: now,
+            updated_at: now,
+          },
+        ])
+        .select());
+    }
 
     if (error) {
-      logger.error(`Supabase database insert error for content history (user ID ${user_id || 'anon'}):`, error);
+      logger.error(`Supabase database upsert error for content history (user ID ${user_id || 'anon'}):`, error);
       return res.status(500).json({
         success: false,
         message: "Kayıt sırasında hata oluştu.",

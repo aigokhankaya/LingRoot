@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { TTSRequest, TTSResponse, APIResponse } from '../types';
+import { TTSRequest, TTSResponse, APIResponse, BookSearchResponse, BookChapter } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
@@ -331,6 +331,56 @@ export const apiService = {
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Filtrelenmiş sesler yüklenemedi');
+    }
+  },
+
+  // Narration rewrite (like web): turn a topic/suggestion into a full narration text
+  async rewriteToNarration(inputText: string, level: string): Promise<{ success: boolean; data?: { narration_text: string } }> {
+    try {
+      const response = await apiClient.post('/api/narration/rewrite', {
+        input_text: inputText,
+        level,
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Öneri metne dönüştürülemedi');
+    }
+  },
+
+  // Books API
+  async searchBooks(params: { q?: string; title?: string; author?: string; page?: number; per_page?: number }): Promise<BookSearchResponse> {
+    try {
+      const sp = new URLSearchParams();
+      if (params.q && params.q.trim()) sp.append('q', params.q.trim());
+      if (params.title && params.title.trim()) sp.append('title', params.title.trim());
+      if (params.author && params.author.trim()) sp.append('author', params.author.trim());
+      if (params.page) sp.append('page', String(params.page));
+      if (params.per_page) sp.append('per_page', String(params.per_page));
+      if (!sp.toString()) {
+        throw new Error('En az bir arama kriteri gerekli');
+      }
+      const response = await apiClient.get(`/api/books/search?${sp.toString()}`);
+      return response.data as BookSearchResponse;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || error.message || 'Kitap arama başarısız');
+    }
+  },
+
+  async getBookChapters(bookId: number): Promise<BookChapter[]> {
+    try {
+      const response = await apiClient.get(`/api/books/${bookId}/chapters`);
+      return response.data as BookChapter[];
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || error.message || 'Bölümler alınamadı');
+    }
+  },
+
+  async getBookChapter(bookId: number, chapterId: number): Promise<BookChapter & { book_title?: string; book_authors?: string }> {
+    try {
+      const response = await apiClient.get(`/api/books/${bookId}/chapters/${chapterId}`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.error || error.message || 'Bölüm alınamadı');
     }
   },
 }; 

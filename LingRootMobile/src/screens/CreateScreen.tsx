@@ -22,7 +22,9 @@ import { apiService, saveDefaultVoiceSetting, getUserSettings } from '../service
 const CreateScreen: React.FC = () => {
   const route = useRoute<any>();
   const navigation = useNavigation();
-  const [mode, setMode] = useState<'text' | 'file'>(route.params?.mode === 'file' ? 'file' : 'text');
+  const [mode, setMode] = useState<'text' | 'file' | 'book' | 'suggestion'>(
+    route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : 'text'))
+  );
   const { t } = useLanguage();
   const [inputText, setInputText] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>('B1');
@@ -32,15 +34,51 @@ const CreateScreen: React.FC = () => {
   // Keep mode in sync when screen gains focus (e.g., navigating from Home with different params)
   useFocusEffect(
     React.useCallback(() => {
-      const nextMode: 'text' | 'file' = route.params?.mode === 'file' ? 'file' : 'text';
+      const nextMode: 'text' | 'file' | 'book' | 'suggestion' = route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : 'text'));
       setMode(nextMode);
       if (nextMode === 'text') {
         setSelectedFile(null);
+        // Book mode cleanup
+        setSelectedBook(null);
+        setSelectedChapterId(null);
+        setSelectedChapterText('');
+        setSuggestion('');
+        setSuggestionResults([]);
       } else {
         setInputText('');
+        if (nextMode !== 'book') {
+          setSelectedBook(null);
+          setSelectedChapterId(null);
+          setSelectedChapterText('');
+        }
       }
     }, [route.params?.mode])
   );
+  // --- Suggestion Mode State ---
+  const [suggestion, setSuggestion] = useState('');
+  const [suggestionResults, setSuggestionResults] = useState<string[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+
+  const handleGetSuggestions = async () => {
+    if (!suggestion.trim()) {
+      Alert.alert(t('common.error'), t('suggestions.alerts.pleaseEnterTopic'));
+      return;
+    }
+    setIsLoadingSuggestions(true);
+    try {
+      const res = await apiService.getTopicSuggestions(suggestion, selectedLevel);
+      if (res?.success) {
+        setSuggestionResults(res.suggestions || []);
+      } else {
+        Alert.alert(t('common.error'), res?.message || t('suggestions.alerts.fetchFailed'));
+      }
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
   
   // Voice selection states
   const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('standard');
@@ -53,6 +91,20 @@ const CreateScreen: React.FC = () => {
   const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || selectedVoiceCategory !== 'standard';
 
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+
+  // --- Book Search State ---
+  const [bookQ, setBookQ] = useState('');
+  const [bookTitle, setBookTitle] = useState('');
+  const [bookAuthor, setBookAuthor] = useState('');
+  const [isSearchingBooks, setIsSearchingBooks] = useState(false);
+  const [bookResults, setBookResults] = useState<any[]>([]);
+  const [bookPage, setBookPage] = useState(1);
+  const [bookTotalPages, setBookTotalPages] = useState(1);
+  const [selectedBook, setSelectedBook] = useState<any | null>(null);
+  const [bookChapters, setBookChapters] = useState<any[]>([]);
+  const [isLoadingChapters, setIsLoadingChapters] = useState(false);
+  const [selectedChapterId, setSelectedChapterId] = useState<number | null>(null);
+  const [selectedChapterText, setSelectedChapterText] = useState<string>('');
 
   const levelDescriptions = {
     A1: t('create.cefrDescriptions.A1'),
@@ -362,6 +414,49 @@ const CreateScreen: React.FC = () => {
     return result;
   };
 
+  // --- Book Search Handlers ---
+  const handleSearchBooks = async (nextPage?: number) => {
+    const hasCriteria = bookQ.trim() || bookTitle.trim() || bookAuthor.trim();
+    if (!hasCriteria) return;
+    setIsSearchingBooks(true);
+    try {
+      const res = await apiService.searchBooks({ q: bookQ, title: bookTitle, author: bookAuthor, page: nextPage || 1, per_page: 10 });
+      setBookResults(res.books || []);
+      setBookPage(res.page || 1);
+      setBookTotalPages(res.total_pages || 1);
+      setSelectedBook(null);
+      setBookChapters([]);
+      setSelectedChapterId(null);
+      setSelectedChapterText('');
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e.message || t('Arama başarısız'));
+    } finally {
+      setIsSearchingBooks(false);
+    }
+  };
+
+  const handleLoadChapters = async (book: any) => {
+    setSelectedBook(book);
+    setIsLoadingChapters(true);
+    try {
+      const list = await apiService.getBookChapters(book.id);
+      setBookChapters(list || []);
+      // Auto-select first chapter text if available
+      if (Array.isArray(list) && list.length > 0) {
+        const first = list[0];
+        setSelectedChapterId(first.id);
+        setSelectedChapterText(first.chapter_text || '');
+      } else {
+        setSelectedChapterId(null);
+        setSelectedChapterText('');
+      }
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e.message || t('Bölümler alınamadı'));
+    } finally {
+      setIsLoadingChapters(false);
+    }
+  };
+
   // Load voices, then load default voice and apply matching filters so it appears selected
   useEffect(() => {
     (async () => {
@@ -415,7 +510,35 @@ const CreateScreen: React.FC = () => {
   }, [selectedAccent, selectedGender, selectedVoiceCategory]);
 
   const handleCreateAudio = async () => {
-    if (!inputText.trim() && !selectedFile) {
+    // Suggestion mode: if no input yet, rewrite the topic/suggestion into narration text first
+    let effectiveInputText = inputText;
+    if (mode === 'suggestion' && !effectiveInputText.trim()) {
+      const base = (suggestionResults && suggestionResults.length > 0)
+        ? suggestionResults[0]
+        : suggestion;
+      if (!base || !base.trim()) {
+        Alert.alert(t('common.error'), t('suggestions.alerts.pleaseEnterTopic'));
+        return;
+      }
+      try {
+        setIsLoading(true);
+        const rr = await apiService.rewriteToNarration(base, selectedLevel);
+        const narration = rr?.data?.narration_text || base;
+        effectiveInputText = narration;
+        setInputText(narration);
+      } catch (e: any) {
+        setIsLoading(false);
+        Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
+        return;
+      }
+    }
+
+    if (mode === 'book') {
+      if (!selectedChapterText || selectedChapterText.trim().length === 0) {
+        Alert.alert(t('common.error'), t('create.book.alerts.selectChapter'));
+        return;
+      }
+    } else if (!effectiveInputText.trim() && !selectedFile) {
       Alert.alert(t('common.error'), t('create.alerts.enterTextOrFile'));
       return;
     }
@@ -472,11 +595,11 @@ const CreateScreen: React.FC = () => {
         } else {
           Alert.alert(t('common.error'), response.message || t('create.alerts.fileProcessFailed'));
         }
-      } else {
+      } else if (mode === 'text' || mode === 'suggestion') {
         // Text processing
         request = {
           type: 'text',
-          input: inputText,
+          input: effectiveInputText,
           level: selectedLevel,
           // Backend 'voice' ve 'speakingRate' bekliyor
           speakingRate: speechRate,
@@ -490,7 +613,7 @@ const CreateScreen: React.FC = () => {
 
         console.log('📝 [TEXT DEBUG] Request parameters:', {
           type: 'text',
-          input: inputText.substring(0, 50) + (inputText.length > 50 ? '...' : ''),
+          input: effectiveInputText.substring(0, 50) + (effectiveInputText.length > 50 ? '...' : ''),
           level: selectedLevel,
           sesHizi: speechRate,
           voiceName: selectedVoice
@@ -514,6 +637,30 @@ const CreateScreen: React.FC = () => {
         } else {
           console.log('🎯 [TTS DEBUG] Response success is false, showing error...');
           Alert.alert(t('common.error'), response.message || t('create.alerts.audioCreateFailed'));
+        }
+      } else if (mode === 'book') {
+        // Use selected chapter text
+        request = {
+          type: 'text',
+          input: selectedChapterText,
+          level: selectedLevel,
+          speakingRate: speechRate,
+          voice: selectedVoice,
+          sesHizi: speechRate,
+          voiceName: selectedVoice,
+          gender: selectedGender as any,
+          accent: selectedAccent as any,
+        };
+
+        console.log('📚 [BOOK TTS] Using chapter text length:', selectedChapterText.length);
+        const response = await apiService.processTextToSpeech(request);
+        if (response.success) {
+          setSelectedBook(null);
+          setSelectedChapterId(null);
+          setSelectedChapterText('');
+          navigation.navigate('Library' as never);
+        } else {
+          Alert.alert(t('common.error'), response.message || t('create.book.alerts.ttsFailed'));
         }
       }
     } catch (error: any) {
@@ -584,6 +731,155 @@ const CreateScreen: React.FC = () => {
         )}
 
         {/* Divider hidden in single-mode screens */}
+
+        {mode === 'suggestion' && (
+          <View style={styles.inputSection}>
+            <Text style={styles.sectionTitle}>{t('suggestions.title')}</Text>
+            <TextInput
+              style={[styles.textInput]}
+              placeholder={t('suggestions.input.placeholder')}
+              value={suggestion}
+              onChangeText={setSuggestion}
+            />
+            <TouchableOpacity
+              style={[styles.searchButton, isLoadingSuggestions && styles.createButtonDisabled]}
+              onPress={handleGetSuggestions}
+              disabled={isLoadingSuggestions}
+            >
+              {isLoadingSuggestions ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <>
+                  <Icon name="lightbulb" size={20} color="#fff" />
+                  <Text style={styles.createButtonText}>{t('suggestions.buttons.getSuggestions')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            {suggestionResults.length > 0 && (
+              <View style={{ marginTop: 8 }}>
+                {suggestionResults.map((s, idx) => (
+                  <TouchableOpacity
+                    key={`${idx}-${s.substring(0,10)}`}
+                    style={styles.bookCard}
+                    onPress={async () => {
+                      try {
+                        const rr = await apiService.rewriteToNarration(s, selectedLevel);
+                        const narration = rr?.data?.narration_text || s;
+                        setInputText(narration);
+                        setMode('text');
+                        Alert.alert(t('common.success'), t('Öneri metne dönüştürüldü'));
+                      } catch (e: any) {
+                        Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
+                      }
+                    }}
+                  >
+                    <View style={{ marginRight: 10 }}><Icon name="description" size={20} color="#FF9500" /></View>
+                    <Text style={{ flex: 1, color: '#333' }}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {mode === 'book' && (
+          <View style={styles.inputSection}>
+            <Text style={styles.sectionTitle}>{t('create.book.title')}</Text>
+            <View style={styles.bookSearchRow}>
+              <Icon name="search" size={20} color="#666" />
+              <TextInput
+                style={[styles.textField]}
+                placeholder={t('create.book.inputs.qPlaceholder')}
+                value={bookQ}
+                onChangeText={setBookQ}
+                returnKeyType="search"
+                onSubmitEditing={() => handleSearchBooks(1)}
+              />
+            </View>
+            <View style={styles.bookSearchRow}>
+              <Icon name="title" size={20} color="#666" />
+              <TextInput
+                style={[styles.textField]}
+                placeholder={t('create.book.inputs.titlePlaceholder')}
+                value={bookTitle}
+                onChangeText={setBookTitle}
+                returnKeyType="search"
+                onSubmitEditing={() => handleSearchBooks(1)}
+              />
+            </View>
+            <View style={styles.bookSearchRow}>
+              <Icon name="person" size={20} color="#666" />
+              <TextInput
+                style={[styles.textField]}
+                placeholder={t('create.book.inputs.authorPlaceholder')}
+                value={bookAuthor}
+                onChangeText={setBookAuthor}
+                returnKeyType="search"
+                onSubmitEditing={() => handleSearchBooks(1)}
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.searchButton, !(bookQ.trim() || bookTitle.trim() || bookAuthor.trim()) && styles.createButtonDisabled]}
+              onPress={() => handleSearchBooks(1)}
+              disabled={isSearchingBooks || !(bookQ.trim() || bookTitle.trim() || bookAuthor.trim())}
+            >
+              {isSearchingBooks ? <ActivityIndicator color="white" size="small" /> : (
+                <>
+                  <Icon name="search" size={20} color="#fff" />
+                  <Text style={styles.createButtonText}>{t('create.book.buttons.search')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {/* Results */}
+            {!selectedBook ? (
+              <View style={{ marginTop: 12 }}>
+                {bookResults.map((b) => (
+                  <TouchableOpacity key={b.id} style={styles.bookCard} onPress={() => handleLoadChapters(b)}>
+                    <View style={{ marginRight: 10 }}><Icon name="menu-book" size={24} color="#3f51b5" /></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.bookTitle}>{b.title}</Text>
+                      <Text style={styles.bookAuthor}>{b.authors}</Text>
+                    </View>
+                    <Icon name="chevron-right" size={18} color="#999" />
+                  </TouchableOpacity>
+                ))}
+                {bookResults.length === 0 && !isSearchingBooks && (
+                  <Text style={{ color: '#888', textAlign: 'center', marginTop: 8 }}>{t('create.book.emptyResults')}</Text>
+                )}
+              </View>
+            ) : (
+              <View style={{ marginTop: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <TouchableOpacity onPress={() => { setSelectedBook(null); setBookChapters([]); setSelectedChapterId(null); setSelectedChapterText(''); }}>
+                    <Icon name="arrow-back" size={22} color="#007AFF" />
+                  </TouchableOpacity>
+                  <Text style={[styles.bookTitle, { marginLeft: 8 }]} numberOfLines={1}>{selectedBook.title}</Text>
+                </View>
+                {isLoadingChapters ? (
+                  <ActivityIndicator color="#007AFF" />
+                ) : (
+                  <View>
+                    {bookChapters.map((c) => (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={[styles.chapterItem, selectedChapterId === c.id && styles.chapterItemActive]}
+                        onPress={() => { setSelectedChapterId(c.id); setSelectedChapterText(c.chapter_text || ''); }}
+                      >
+                        <View style={styles.chapterIndex}><Text style={styles.chapterIndexText}>{c.chapter_index}</Text></View>
+                        <Text style={styles.chapterTitle} numberOfLines={2}>{c.chapter_title}</Text>
+                        {selectedChapterId === c.id && <Icon name="check" size={18} color="#007AFF" />}
+                      </TouchableOpacity>
+                    ))}
+                    {bookChapters.length === 0 && (
+                      <Text style={{ color: '#888', textAlign: 'center', marginTop: 8 }}>{t('create.book.noChapters')}</Text>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+        )}
 
         {mode === 'file' && (
           selectedFile ? (
@@ -808,17 +1104,21 @@ const CreateScreen: React.FC = () => {
           ) : null}
         </View>
 
-        {/* Voice Selection Modal */}
-        {showVoiceSelection && (
-          <View style={styles.voiceModal}>
-            <View style={styles.voiceModalContent}>
+        {/* Voice Selection Modal - uses RN Modal so it opens in viewport regardless of scroll */}
+        <Modal
+          visible={showVoiceSelection}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowVoiceSelection(false)}
+        >
+          <View style={styles.voiceModalBackdrop}>
+            <View style={[styles.voiceModalContent, { maxHeight: '75%', width: '92%' }]}>
               <View style={styles.voiceModalHeader}>
                 <Text style={styles.voiceModalTitle}>{t('create.voice.modal.title')}</Text>
                 <TouchableOpacity onPress={() => setShowVoiceSelection(false)}>
                   <Icon name="close" size={24} color="#666" />
                 </TouchableOpacity>
               </View>
-              
               {loadingVoices ? (
                 <ActivityIndicator size="large" color="#007AFF" style={styles.voiceLoader} />
               ) : (
@@ -838,12 +1138,12 @@ const CreateScreen: React.FC = () => {
                       <View style={styles.voiceItemInfo}>
                         <Text style={styles.voiceItemName}>{item.name}</Text>
                         <Text style={styles.voiceItemDescription}>
-                  {(item.accent === 'american' && t('create.voice.accents.american')) ||
-                   (item.accent === 'british' && t('create.voice.accents.british')) ||
-                   (item.accent === 'australian' && t('create.voice.accents.australian')) ||
-                   (item.accent === 'canadian' && t('create.voice.accents.canadian')) ||
-                   (item.accent === 'indian' && t('create.voice.accents.indian')) || item.accent}
-                  {` • ${item.gender === 'male' ? t('create.voice.genders.male') : t('create.voice.genders.female')}`}
+                          {(item.accent === 'american' && t('create.voice.accents.american')) ||
+                           (item.accent === 'british' && t('create.voice.accents.british')) ||
+                           (item.accent === 'australian' && t('create.voice.accents.australian')) ||
+                           (item.accent === 'canadian' && t('create.voice.accents.canadian')) ||
+                           (item.accent === 'indian' && t('create.voice.accents.indian')) || item.accent}
+                          {` • ${item.gender === 'male' ? t('create.voice.genders.male') : t('create.voice.genders.female')}`}
                         </Text>
                         {item.ssmlSupport && (
                           <Text style={styles.voiceItemSSML}>{t('create.voice.modal.ssmlSupported')}</Text>
@@ -858,7 +1158,7 @@ const CreateScreen: React.FC = () => {
               )}
             </View>
           </View>
-        )}
+        </Modal>
 
         <TouchableOpacity
           style={[styles.createButton, isLoading && styles.createButtonDisabled]}
@@ -883,6 +1183,97 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  // Book search styles
+  bookSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    marginBottom: 8,
+    backgroundColor: '#fafafa',
+    gap: 8,
+  },
+  textField: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+    paddingVertical: 0,
+  },
+  searchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  bookCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3f51b5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginBottom: 8,
+  },
+  chapterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#009688',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginBottom: 8,
+    gap: 10,
+  },
+  chapterItemActive: {
+    borderWidth: 2,
+    borderColor: '#009688',
+  },
+  chapterIndex: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#009688',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chapterIndexText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  chapterTitle: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333',
+    fontWeight: '500',
+  },
+  bookTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  bookAuthor: {
+    fontSize: 13,
+    color: '#666',
   },
   content: {
     flex: 1,
@@ -1210,6 +1601,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+  },
+  // New: Backdrop for RN Modal to center content on screen
+  voiceModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   voiceModalContent: {
     backgroundColor: 'white',
