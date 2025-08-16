@@ -151,7 +151,12 @@ const HomeScreen: React.FC = () => {
   const handleFeaturePress = (feature: any) => {
     console.log('🔄 Navigating to:', feature.screenName, feature.params ? `with params ${JSON.stringify(feature.params)}` : '');
     if (feature.params) {
-      navigation.navigate(feature.screenName as never, feature.params as never);
+      // For Tab screens, ensure params are merged even if the tab is already mounted
+      try {
+        (navigation as any).navigate({ name: feature.screenName, params: feature.params, merge: true });
+      } catch {
+        navigation.navigate(feature.screenName as never, feature.params as never);
+      }
     } else {
       navigation.navigate(feature.screenName as never);
     }
