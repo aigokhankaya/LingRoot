@@ -54,7 +54,7 @@ const ResetPasswordScreen: React.FC = () => {
         keyboardType="number-pad"
         maxLength={6}
       />
-      <View style={styles.passwordRow}>
+      <View style={styles.inputWrapper}>
         <TextInput
           style={[styles.input, styles.passwordInput]}
           placeholder="Yeni şifre"
@@ -66,7 +66,7 @@ const ResetPasswordScreen: React.FC = () => {
           <Icon name={showNewPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
         </TouchableOpacity>
       </View>
-      <View style={styles.passwordRow}>
+      <View style={styles.inputWrapper}>
         <TextInput
           style={[styles.input, styles.passwordInput]}
           placeholder="Yeni şifre (tekrar)"
@@ -89,9 +89,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#f5f5f5' },
   title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 },
   input: { backgroundColor: '#fff', borderRadius: 8, padding: 15, borderWidth: 1, borderColor: '#ddd', marginBottom: 16 },
-  passwordRow: { flexDirection: 'row', alignItems: 'center' },
-  passwordInput: { flex: 1, marginRight: 8 },
-  eyeButton: { width: 44, height: 44, borderRadius: 8, backgroundColor: '#f0f0f0', alignItems: 'center', justifyContent: 'center' },
+  inputWrapper: { position: 'relative' },
+  passwordInput: { paddingRight: 48 },
+  eyeButton: { position: 'absolute', right: 12, top: 0, bottom: 16, width: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   button: { backgroundColor: '#007AFF', borderRadius: 8, padding: 15, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: 'bold' },
 });

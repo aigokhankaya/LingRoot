@@ -60,7 +60,7 @@ const LoginScreen: React.FC = () => {
             autoComplete="email"
           />
 
-          <View style={styles.passwordRow}>
+          <View style={styles.inputWrapper}>
             <TextInput
               style={[styles.input, styles.passwordInput]}
               placeholder="Şifre"
@@ -140,21 +140,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
   },
-  passwordRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  inputWrapper: {
+    position: 'relative',
   },
   passwordInput: {
-    flex: 1,
-    marginRight: 8,
+    paddingRight: 48,
   },
   eyeButton: {
+    position: 'absolute',
+    right: 12,
+    top: 0,
+    bottom: 15,
     width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   button: {
     backgroundColor: '#007AFF',
