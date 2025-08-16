@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { signIn } = useAuth();
   const navigation = useNavigation();
 
@@ -58,14 +60,19 @@ const LoginScreen: React.FC = () => {
             autoComplete="email"
           />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Şifre"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="password"
-          />
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[styles.input, styles.passwordInput]}
+              placeholder="Şifre"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoComplete="password"
+            />
+            <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(v => !v)}>
+              <Icon name={showPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
             style={[styles.button, isLoading && styles.buttonDisabled]}
@@ -132,6 +139,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
+  },
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+    marginRight: 8,
+  },
+  eyeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   button: {
     backgroundColor: '#007AFF',

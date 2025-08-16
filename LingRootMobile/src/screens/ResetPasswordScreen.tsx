@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiService } from '../services/api';
 import { useRoute, useNavigation } from '@react-navigation/native';
 
@@ -10,6 +11,8 @@ const ResetPasswordScreen: React.FC = () => {
   const [code, setCode] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [showNewPassword, setShowNewPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
 
   const handleReset = async () => {
@@ -51,20 +54,30 @@ const ResetPasswordScreen: React.FC = () => {
         keyboardType="number-pad"
         maxLength={6}
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Yeni şifre"
-        value={newPassword}
-        onChangeText={setNewPassword}
-        secureTextEntry
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Yeni şifre (tekrar)"
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        secureTextEntry
-      />
+      <View style={styles.passwordRow}>
+        <TextInput
+          style={[styles.input, styles.passwordInput]}
+          placeholder="Yeni şifre"
+          value={newPassword}
+          onChangeText={setNewPassword}
+          secureTextEntry={!showNewPassword}
+        />
+        <TouchableOpacity style={styles.eyeButton} onPress={() => setShowNewPassword(v => !v)}>
+          <Icon name={showNewPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.passwordRow}>
+        <TextInput
+          style={[styles.input, styles.passwordInput]}
+          placeholder="Yeni şifre (tekrar)"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry={!showConfirmPassword}
+        />
+        <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirmPassword(v => !v)}>
+          <Icon name={showConfirmPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
+        </TouchableOpacity>
+      </View>
       <TouchableOpacity style={styles.button} onPress={handleReset} disabled={loading}>
         <Text style={styles.buttonText}>{loading ? 'Gönderiliyor...' : 'Şifreyi Güncelle'}</Text>
       </TouchableOpacity>
@@ -76,6 +89,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#f5f5f5' },
   title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 },
   input: { backgroundColor: '#fff', borderRadius: 8, padding: 15, borderWidth: 1, borderColor: '#ddd', marginBottom: 16 },
+  passwordRow: { flexDirection: 'row', alignItems: 'center' },
+  passwordInput: { flex: 1, marginRight: 8 },
+  eyeButton: { width: 44, height: 44, borderRadius: 8, backgroundColor: '#f0f0f0', alignItems: 'center', justifyContent: 'center' },
   button: { backgroundColor: '#007AFF', borderRadius: 8, padding: 15, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: 'bold' },
 });
