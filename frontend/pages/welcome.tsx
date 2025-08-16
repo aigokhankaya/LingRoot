@@ -142,6 +142,10 @@ const Welcome: React.FC = () => {
   const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('standard');
   const [selectedGender, setSelectedGender] = useState<string>('all');
   const [selectedAccent, setSelectedAccent] = useState<string>('all');
+  // YouTube altyazı çekme state'leri
+  const [youtubeUrl, setYoutubeUrl] = useState<string>('');
+  const [isFetchingSubtitle, setIsFetchingSubtitle] = useState<boolean>(false);
+  const [subtitleError, setSubtitleError] = useState<string | null>(null);
   
   // Kitap arama ve seçim state'leri
   const [bookSearchQuery, setBookSearchQuery] = useState<string>('');
@@ -256,6 +260,42 @@ const Welcome: React.FC = () => {
       { id: 'en-AU-Standard-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'standard', ssmlSupport: false },
       { id: 'en-AU-Standard-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'standard', ssmlSupport: false }
     ]
+  };
+
+  // YouTube altyazı çekme
+  const handleFetchYoutubeSubtitle = async () => {
+    if (!youtubeUrl || !/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(youtubeUrl)) {
+      setSubtitleError('Geçerli bir YouTube linki girin.');
+      return;
+    }
+    setIsFetchingSubtitle(true);
+    setSubtitleError(null);
+    try {
+      // CORS sorunlarını aşmak için yerel Next.js API proxy'sini kullan
+      const endpoint = '/api/youtube-subtitle';
+      console.log('🎬 [YOUTUBE] via local proxy:', endpoint, youtubeUrl);
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: youtubeUrl })
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`API hatası: ${res.status} ${res.statusText} ${body ? `- ${body}` : ''}`);
+      }
+      const data: any = await res.json();
+      const subtitleText = data?.text || '';
+      if (!subtitleText || subtitleText.trim().length === 0) {
+        throw new Error('Altyazı bulunamadı veya boş döndü.');
+      }
+      setTextInput(subtitleText);
+      console.log('🎬 [YOUTUBE] Subtitles fetched. Length:', subtitleText.length);
+    } catch (e: any) {
+      console.error('❌ [YOUTUBE] Altyazı çekme hatası:', e);
+      setSubtitleError(e?.message || 'Altyazı çekilemedi.');
+    } finally {
+      setIsFetchingSubtitle(false);
+    }
   };
 
   const genderOptions = [
@@ -781,8 +821,21 @@ const Welcome: React.FC = () => {
         chapter_id: selectedChapter?.id, // Kitap bölümü ID'sini ekle
       };
 
-      // "subject" (Konu), "topic" (Hobi) ve "custom" (Öneriler) type'ları için özel işlem
-      if (inputData.type === 'subject' || inputData.type === 'topic' || inputData.type === 'custom') {
+      // YouTube: altyazı metnini text olarak TTS'e gönder
+      if (inputData.type === 'youtube') {
+        const subtitle = (inputData.text || inputData.input || textInput || '').trim();
+        if (!subtitle) {
+          throw new Error('Önce "Altyazı çek" ile metni yükleyin.');
+        }
+        processInput = {
+          ...processInput,
+          type: 'text',
+          input: subtitle,
+        };
+      }
+
+      // "subject" (Konu) ve "topic" (Hobi) type'ları için özel işlem
+      if (inputData.type === 'subject' || inputData.type === 'topic') {
         const typeLabel = inputData.type === 'subject' ? 'Subject (Konu)' : 'Topic (Hobi)';
         console.log(`${typeLabel} type detected, rewriting to narration...`);
         
@@ -1415,6 +1468,52 @@ const Welcome: React.FC = () => {
                       </div>
                     )}
                     
+                    {/* YouTube sekmesi - link girişi ve altyazı çekme */}
+                    {contentType === 'youtube' && (
+                      <div className="space-y-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          YouTube Linki:
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={youtubeUrl}
+                            onChange={(e) => setYoutubeUrl(e.target.value)}
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            className="flex-1 p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                          />
+                          <Button
+                            type="button"
+                            onClick={handleFetchYoutubeSubtitle}
+                            className={`px-6 py-3 !rounded-button whitespace-nowrap ${
+                              !isFetchingSubtitle ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' : 'bg-gray-400 cursor-not-allowed'
+                            }`}
+                            disabled={isFetchingSubtitle}
+                          >
+                            {isFetchingSubtitle ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Altyazı çekiliyor...
+                              </>
+                            ) : (
+                              <>
+                                <i className="fas fa-closed-captioning mr-2"></i>
+                                Altyazı çek
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        {subtitleError && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                            {subtitleError}
+                          </div>
+                        )}
+                        <p className="text-xs text-gray-500">
+                          Not: Altyazı metni başarıyla alındığında aşağıdaki metin kutusuna otomatik olarak yapıştırılır.
+                        </p>
+                      </div>
+                    )}
+
                     {/* Kitap sekmesi */}
                     {contentType === 'book' && (
                       <div className="space-y-6">

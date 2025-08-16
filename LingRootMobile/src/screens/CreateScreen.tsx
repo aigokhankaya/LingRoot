@@ -22,8 +22,8 @@ import { apiService, saveDefaultVoiceSetting, getUserSettings } from '../service
 const CreateScreen: React.FC = () => {
   const route = useRoute<any>();
   const navigation = useNavigation();
-  const [mode, setMode] = useState<'text' | 'file' | 'book' | 'suggestion'>(
-    route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : 'text'))
+  const [mode, setMode] = useState<'text' | 'file' | 'book' | 'suggestion' | 'youtube'>(
+    route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : (route.params?.mode === 'youtube' ? 'youtube' : 'text')))
   );
   const { t } = useLanguage();
   const [inputText, setInputText] = useState('');
@@ -34,11 +34,21 @@ const CreateScreen: React.FC = () => {
   // Keep mode in sync when screen gains focus (e.g., navigating from Home with different params)
   useFocusEffect(
     React.useCallback(() => {
-      const nextMode: 'text' | 'file' | 'book' | 'suggestion' = route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : 'text'));
+      const nextMode: 'text' | 'file' | 'book' | 'suggestion' | 'youtube' = route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : (route.params?.mode === 'youtube' ? 'youtube' : 'text')));
       setMode(nextMode);
       if (nextMode === 'text') {
         setSelectedFile(null);
         // Book mode cleanup
+        setSelectedBook(null);
+        setSelectedChapterId(null);
+        setSelectedChapterText('');
+        setSuggestion('');
+        setSuggestionResults([]);
+        setYoutubeUrl('');
+        setYoutubeLoading(false);
+        setYoutubeError(null);
+      } else if (nextMode === 'youtube') {
+        setSelectedFile(null);
         setSelectedBook(null);
         setSelectedChapterId(null);
         setSelectedChapterText('');
@@ -58,6 +68,48 @@ const CreateScreen: React.FC = () => {
   const [suggestion, setSuggestion] = useState('');
   const [suggestionResults, setSuggestionResults] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+
+  // --- YouTube Mode State ---
+  const [youtubeUrl, setYoutubeUrl] = useState<string>('');
+  const [youtubeLoading, setYoutubeLoading] = useState<boolean>(false);
+  const [youtubeError, setYoutubeError] = useState<string | null>(null);
+
+  const fetchYoutubeSubtitle = async () => {
+    if (!youtubeUrl || !/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(youtubeUrl)) {
+      Alert.alert(t('common.error'), 'Geçerli bir YouTube linki girin');
+      return;
+    }
+    setYoutubeLoading(true);
+    setYoutubeError(null);
+    try {
+      const resp = await fetch('https://yt-subtitle-api-na5bfjgtjq-ew.a.run.app/api/subtitle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: youtubeUrl, temizle: true, dil: 'tr' })
+      });
+      const contentType = resp.headers.get('content-type') || '';
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => '');
+        throw new Error(errText || `HTTP ${resp.status}`);
+      }
+      if (!contentType.includes('application/json')) {
+        const text = await resp.text();
+        if (!text || !text.trim()) throw new Error('Altyazı bulunamadı');
+        setInputText(text);
+        return;
+      }
+      const data = await resp.json();
+      const text = data?.text || data?.data?.text || '';
+      if (!text || !text.trim()) throw new Error('Altyazı bulunamadı');
+      setInputText(text);
+      Alert.alert(t('common.success'), 'Altyazı metni yüklendi');
+    } catch (e: any) {
+      setYoutubeError(e?.message || 'Altyazı çekilemedi');
+      Alert.alert(t('common.error'), e?.message || 'Altyazı çekilemedi');
+    } finally {
+      setYoutubeLoading(false);
+    }
+  };
 
   const handleGetSuggestions = async () => {
     if (!suggestion.trim()) {
@@ -595,7 +647,7 @@ const CreateScreen: React.FC = () => {
         } else {
           Alert.alert(t('common.error'), response.message || t('create.alerts.fileProcessFailed'));
         }
-      } else if (mode === 'text' || mode === 'suggestion') {
+      } else if (mode === 'text' || mode === 'suggestion' || mode === 'youtube') {
         // Text processing
         request = {
           type: 'text',
@@ -714,9 +766,39 @@ const CreateScreen: React.FC = () => {
           </Text>
         </View>
 
-        {mode === 'text' && (
+        {(mode === 'text' || mode === 'youtube') && (
           <View style={styles.inputSection}>
             <Text style={styles.sectionTitle}>{t('create.input.title')}</Text>
+            {mode === 'youtube' && (
+              <View style={{ marginBottom: 10 }}>
+                <View style={styles.bookSearchRow}>
+                  <Icon name="ondemand-video" size={20} color="#666" />
+                  <TextInput
+                    style={[styles.textField]}
+                    placeholder={'YouTube video URL'}
+                    value={youtubeUrl}
+                    onChangeText={setYoutubeUrl}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={[styles.searchButton, youtubeLoading && styles.createButtonDisabled]}
+                  onPress={fetchYoutubeSubtitle}
+                  disabled={youtubeLoading}
+                >
+                  {youtubeLoading ? <ActivityIndicator color="white" size="small" /> : (
+                    <>
+                      <Icon name="closed-caption" size={20} color="#fff" />
+                      <Text style={styles.createButtonText}>Altyazı Çek</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                {youtubeError ? (
+                  <Text style={{ color: '#d32f2f', marginTop: 6 }}>{youtubeError}</Text>
+                ) : null}
+              </View>
+            )}
             <TextInput
               style={[styles.textInput, selectedFile && styles.textInputDisabled]}
               placeholder={selectedFile ? t('create.input.placeholderDisabled') : t('create.input.placeholder')}

@@ -36,6 +36,15 @@ const HomeScreen: React.FC = () => {
       params: { mode: 'text' as const },
     },
     {
+      id: 7,
+      title: 'YouTube',
+      description: 'YouTube linkinden altyazı çek ve sese dönüştür',
+      icon: 'ondemand-video',
+      color: '#FF0000',
+      screenName: 'Create',
+      params: { mode: 'youtube' as const },
+    },
+    {
       id: 2,
       title: t('home.uploadFile'),
       description: t('home.uploadFileDesc'),
