@@ -311,6 +311,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       await authService.signOut();
       setUser(null);
+      // Ensure UI leaves loading state after successful logout
+      setIsLoading(false);
       // User state will be updated via onAuthStateChange
     } catch (error) {
       setIsLoading(false);
