@@ -520,11 +520,12 @@ const processTtsRequest = async (req, res) => {
                 logger.info(`[${requestId}] 🎙️ [CHIRP CHUNK ${i + 1}] Generated ${chunks.length} chirp-safe chunks`);
             } else {
                 // Regular voices: Use normal chunking with 1000 character limit
-                chunks = chunkTextByCharLimit(initialChunks[i], 1000);
+                // Daha küçük parçalara böl (bazı videolarda uzun paragraflar sorun çıkarıyor)
+                chunks = chunkTextByCharLimit(initialChunks[i], 600);
                 chunks = chunks.map((chunk, j) => {
-                    if (chunk.length > 1000) {
-                        logger.warn(`[Regular chunk] [${i}.${j}] length exceeds safe limit: ${chunk.length}, truncating to 1000.`);
-                        return chunk.substring(0, 1000);
+                    if (chunk.length > 600) {
+                        logger.warn(`[Regular chunk] [${i}.${j}] length exceeds safe limit: ${chunk.length}, truncating to 600.`);
+                        return chunk.substring(0, 600);
                     }
                     return chunk;
                 });

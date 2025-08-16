@@ -41,7 +41,7 @@ const LoginScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={styles.header}>
           <Text style={styles.title}>LingRoot</Text>
           <Text style={styles.subtitle}>AI Destekli Dil Öğrenme</Text>

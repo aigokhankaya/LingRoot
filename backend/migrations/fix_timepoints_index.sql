@@ -7,7 +7,7 @@ DROP INDEX IF EXISTS idx_contenthistory_timepoints;
 
 -- The words index can be kept since it's typically smaller,
 -- but if it also causes issues, it can be dropped with:
--- DROP INDEX IF EXISTS idx_contenthistory_words;
+DROP INDEX IF EXISTS idx_contenthistory_words;
 
 -- Add comment explaining why we removed the index
 COMMENT ON COLUMN contenthistory.timepoints IS 'JSON array of timepoints for word highlighting - no index needed (data too large for btree)'; 

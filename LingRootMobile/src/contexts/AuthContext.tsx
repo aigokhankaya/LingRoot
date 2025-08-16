@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AuthContextType, User } from '../types';
 import { authService } from '../services/supabase';
 import { apiService, setUnauthorizedHandler } from '../services/api';
@@ -23,6 +23,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isBootstrappingRef = useRef(true);
 
   useEffect(() => {
     // Initial auth state check
@@ -30,6 +31,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Listen for auth changes - web projesindeki gibi basitleştirildi
     const { data: { subscription } } = authService.onAuthStateChange(async (authUser) => {
+      // Avoid flashing login at app start: ignore auth change callbacks until initial check completes
+      if (isBootstrappingRef.current) {
+        return;
+      }
       if (authUser) {
         // Build robust full name from Supabase user metadata
         const umd = authUser.user_metadata || {};
@@ -70,7 +75,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.error('📱 [AUTH] Failed to stop notifications:', error);
         }
       }
-      setIsLoading(false);
     });
 
     // Setup global unauthorized handler (401)
@@ -195,6 +199,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Auth state check error:', error);
       setUser(null);
     } finally {
+      // Mark bootstrap complete so further auth change events are processed
+      isBootstrappingRef.current = false;
       setIsLoading(false);
     }
   };

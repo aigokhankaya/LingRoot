@@ -15,6 +15,57 @@ try {
   ttsClient = null;
 }
 
+// --- Helpers ---
+function sanitizePlainText(text) {
+  if (!text || typeof text !== 'string') return '';
+  // Remove control characters except newlines and tabs, collapse spaces
+  return text
+    .replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function deriveLanguageCodeFromVoice(voiceName, fallback = 'en-US') {
+  try {
+    if (voiceName && typeof voiceName === 'string') {
+      const parts = voiceName.split('-');
+      if (parts.length >= 2) {
+        return `${parts[0]}-${parts[1]}`;
+      }
+    }
+  } catch {}
+  return fallback;
+}
+
+function chooseFallbackVoiceName(languageCode, preferredGender) {
+  // Map to widely available voices
+  const lang = languageCode || 'en-US';
+  const maleDefaults = {
+    'en-GB': 'en-GB-Neural2-D',
+    'en-US': 'en-US-Neural2-D',
+    'en-AU': 'en-AU-Neural2-D',
+    'en-CA': 'en-CA-Neural2-D',
+    'en-IN': 'en-IN-Neural2-D'
+  };
+  const femaleDefaults = {
+    'en-GB': 'en-GB-Neural2-C',
+    'en-US': 'en-US-Neural2-C',
+    'en-AU': 'en-AU-Neural2-C',
+    'en-CA': 'en-CA-Neural2-C',
+    'en-IN': 'en-IN-Neural2-C'
+  };
+  const neutralFallback = {
+    'en-GB': 'en-GB-Standard-A',
+    'en-US': 'en-US-Standard-C',
+    'en-AU': 'en-AU-Standard-C',
+    'en-CA': 'en-CA-Standard-A',
+    'en-IN': 'en-IN-Standard-A'
+  };
+  if (preferredGender === 'MALE') return maleDefaults[lang] || maleDefaults['en-US'];
+  if (preferredGender === 'FEMALE') return femaleDefaults[lang] || femaleDefaults['en-US'];
+  return neutralFallback[lang] || neutralFallback['en-US'];
+}
+
 /**
  * Metni noktalama işaretlerinden temizler ve sadece kelimeleri döndürür
  * @param {string} text - Temizlenecek metin
@@ -244,6 +295,7 @@ async function synthesizeWithGoogle(options) {
   }
 
   const { text, voiceName = 'en-US-Standard-C', languageCode = 'en-US', speakingRate = 1.0, ssmlGender = 'NEUTRAL' } = options;
+  const safePlainText = sanitizePlainText(text);
   
   logger.info(`🎯 Google TTS synthesis - Voice: ${voiceName}, Rate: ${speakingRate}x, Length: ${text.length} chars`);
   
@@ -258,7 +310,7 @@ async function synthesizeWithGoogle(options) {
     }
     
     // Optimized SSML ile timing marks ekle
-    const ssmlData = generateSSMLWithOptimizedMarks(text);
+    const ssmlData = generateSSMLWithOptimizedMarks(safePlainText);
     logger.debug('🎯 Generated optimized SSML:', ssmlData.ssml.substring(0, 200) + '...');
     
     // 🔥 ÖNEMLİ: Google TTS API'den gerçek voice gender'ını al
@@ -407,7 +459,7 @@ async function synthesizeWithGoogle(options) {
       logger.info('Retrying with fallback configuration (plain text + compatible gender)...');
       
       try {
-        const { cleanWords } = cleanTextForTiming(text);
+        const { cleanWords } = cleanTextForTiming(safePlainText);
         const plainText = cleanWords.join(' ');
         
         // 🔥 ÖNEMLİ: Fallback'te de gerçek gender'ı kullan  
@@ -422,11 +474,22 @@ async function synthesizeWithGoogle(options) {
         
         logger.info(`🔄 [CHIRP FALLBACK] Final gender for ${voiceName}: ${fallbackGender}`);
         
+        let effectiveVoiceName = voiceName;
+        // If original voice is known problematic or we hit permission/quota errors, switch to a safe Neural2/Standard voice
+        const errMsg = String(error.message || '').toLowerCase();
+        const isPermissionOrQuota = errMsg.includes('permission') || errMsg.includes('denied') || errMsg.includes('quota') || errMsg.includes('unavailable') || errMsg.includes('resource_exhausted');
+        const isChirpOrStudio = voiceName.includes('Chirp') || voiceName.includes('Studio') || voiceName.includes('Journey');
+        if (isPermissionOrQuota || isChirpOrStudio) {
+          const lang = languageCode || deriveLanguageCodeFromVoice(voiceName, 'en-US');
+          effectiveVoiceName = chooseFallbackVoiceName(lang, fallbackGender);
+          logger.warn(`🔄 [VOICE FALLBACK] Switching voice from ${voiceName} to ${effectiveVoiceName} due to ${isPermissionOrQuota ? 'permission/quota' : 'unsupported voice'} issue`);
+        }
+
         const request = {
           input: { text: plainText },
           voice: { 
-            languageCode: languageCode || 'en-US',
-            name: voiceName || 'en-US-Standard-C',
+            languageCode: languageCode || deriveLanguageCodeFromVoice(voiceName, 'en-US'),
+            name: effectiveVoiceName || 'en-US-Standard-C',
             ssmlGender: fallbackGender
           },
           audioConfig: { 
@@ -461,7 +524,7 @@ async function synthesizeWithGoogle(options) {
           originalWords: text.split(/\s+/).filter(word => word.length > 0),
           totalDuration: estimatedDuration,
           speakingRate: speakingRate,
-          voiceName: voiceName,
+          voiceName: effectiveVoiceName,
           actualGender: fallbackGender, // Gerçek kullanılan gender'ı döndür
           timingMethod: 'Fallback Linear',
           fallbackUsed: true,
@@ -470,7 +533,47 @@ async function synthesizeWithGoogle(options) {
         
       } catch (fallbackError) {
         logger.error(`Fallback TTS also failed: ${fallbackError.message}`);
-        throw fallbackError;
+        // Final safety fallback: try safest Standard voice once
+        try {
+          const lang = languageCode || deriveLanguageCodeFromVoice(voiceName, 'en-US');
+          const safestVoice = chooseFallbackVoiceName(lang, 'FEMALE');
+          const finalRequest = {
+            input: { text: safePlainText },
+            voice: {
+              languageCode: lang,
+              name: safestVoice,
+            },
+            audioConfig: {
+              audioEncoding: 'MP3',
+              speakingRate: speakingRate || 1.0,
+              sampleRateHertz: 24000
+            }
+          };
+          const [finalResp] = await ttsClient.synthesizeSpeech(finalRequest);
+          const words = sanitizePlainText(safePlainText).split(/\s+/).filter(Boolean);
+          const estDur = words.length * (0.5 / speakingRate);
+          return {
+            audioContent: finalResp.audioContent,
+            wordTimings: words.map((w, i) => ({
+              word: w,
+              timeSeconds: (i / words.length) * estDur,
+              endTimeSeconds: ((i + 1) / words.length) * estDur,
+              hasDirectTiming: false
+            })),
+            cleanWords: words,
+            originalWords: words,
+            totalDuration: estDur,
+            speakingRate: speakingRate,
+            voiceName: safestVoice,
+            actualGender: 'FEMALE',
+            timingMethod: 'Final Fallback Linear',
+            fallbackUsed: true,
+            success: true
+          };
+        } catch (finalErr) {
+          logger.error(`Final safety fallback failed: ${finalErr.message}`);
+          throw fallbackError;
+        }
       }
     } else {
       throw error;

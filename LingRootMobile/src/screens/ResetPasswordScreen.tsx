@@ -9,11 +9,15 @@ const ResetPasswordScreen: React.FC = () => {
   const [email, setEmail] = useState<string>(route.params?.email || '');
   const [code, setCode] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
 
   const handleReset = async () => {
     if (!email || !code || !newPassword) {
       return Alert.alert('Hata', 'Lütfen e-posta, kod ve yeni şifreyi girin');
+    }
+    if (newPassword !== confirmPassword) {
+      return Alert.alert('Hata', 'Yeni şifreler eşleşmiyor');
     }
     setLoading(true);
     try {
@@ -52,6 +56,13 @@ const ResetPasswordScreen: React.FC = () => {
         placeholder="Yeni şifre"
         value={newPassword}
         onChangeText={setNewPassword}
+        secureTextEntry
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Yeni şifre (tekrar)"
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
         secureTextEntry
       />
       <TouchableOpacity style={styles.button} onPress={handleReset} disabled={loading}>

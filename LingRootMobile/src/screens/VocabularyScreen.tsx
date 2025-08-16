@@ -525,7 +525,13 @@ export default function VocabularyScreen({ navigation, route }: any) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView ref={scrollViewRef} style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#3B82F6" />

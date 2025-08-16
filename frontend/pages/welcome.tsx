@@ -280,13 +280,21 @@ const Welcome: React.FC = () => {
         body: JSON.stringify({ url: youtubeUrl })
       });
       if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        throw new Error(`API hatası: ${res.status} ${res.statusText} ${body ? `- ${body}` : ''}`);
+        let body: any = null;
+        try { body = await res.json(); } catch { body = await res.text().catch(() => ''); }
+        const noSubs = (body && (body?.errorCode === 'NO_SUBTITLES' || body?.detail?.error_code === 'NO_SUBTITLES'));
+        if (noSubs) {
+          throw new Error('Bu videoda altyazı bulunmamaktadır');
+        }
+        throw new Error(`API hatası: ${res.status} ${res.statusText}`);
       }
       const data: any = await res.json();
+      if (data?.errorCode === 'NO_SUBTITLES' || data?.detail?.error_code === 'NO_SUBTITLES') {
+        throw new Error('Bu videoda altyazı bulunmamaktadır');
+      }
       const subtitleText = data?.text || '';
       if (!subtitleText || subtitleText.trim().length === 0) {
-        throw new Error('Altyazı bulunamadı veya boş döndü.');
+        throw new Error('Bu videoda altyazı bulunmamaktadır');
       }
       setTextInput(subtitleText);
       console.log('🎬 [YOUTUBE] Subtitles fetched. Length:', subtitleText.length);

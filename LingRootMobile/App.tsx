@@ -6,6 +6,7 @@ import { AudioProvider } from './src/contexts/AudioContext';
 import { LanguageProvider } from './src/contexts/LanguageContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import NotificationService from './src/services/notificationService';
+import KeyboardToggleOverlay from './src/components/KeyboardToggleOverlay';
 
 // Environment Variables Test
 console.log('🔧 [APP.TSX DEBUG] Environment Variables:');
@@ -40,6 +41,7 @@ export default function App() {
       <AuthProvider>
         <AudioProvider>
           <AppNavigator />
+          <KeyboardToggleOverlay />
           <StatusBar style="auto" />
         </AudioProvider>
       </AuthProvider>

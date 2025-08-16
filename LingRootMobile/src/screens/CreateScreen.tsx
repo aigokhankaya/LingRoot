@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -26,6 +27,8 @@ const CreateScreen: React.FC = () => {
     route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : (route.params?.mode === 'youtube' ? 'youtube' : 'text')))
   );
   const { t } = useLanguage();
+  const screenHeight = Dimensions.get('window').height;
+  const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [inputText, setInputText] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>('B1');
   const [speechRate, setSpeechRate] = useState(1.0);
@@ -89,18 +92,30 @@ const CreateScreen: React.FC = () => {
       });
       const contentType = resp.headers.get('content-type') || '';
       if (!resp.ok) {
-        const errText = await resp.text().catch(() => '');
-        throw new Error(errText || `HTTP ${resp.status}`);
+        let errBody: any = null;
+        if (contentType.includes('application/json')) {
+          try { errBody = await resp.json(); } catch { errBody = null; }
+        } else {
+          try { errBody = await resp.text(); } catch { errBody = ''; }
+        }
+        const noSubs = (errBody && (errBody?.detail?.error_code === 'NO_SUBTITLES' || errBody?.error_code === 'NO_SUBTITLES'));
+        if (noSubs) {
+          throw new Error('Bu videoda altyazı bulunmamaktadır');
+        }
+        throw new Error(`HTTP ${resp.status}`);
       }
       if (!contentType.includes('application/json')) {
         const text = await resp.text();
-        if (!text || !text.trim()) throw new Error('Altyazı bulunamadı');
+        if (!text || !text.trim()) throw new Error('Bu videoda altyazı bulunmamaktadır');
         setInputText(text);
         return;
       }
       const data = await resp.json();
+      if (data?.detail?.error_code === 'NO_SUBTITLES' || data?.error_code === 'NO_SUBTITLES') {
+        throw new Error('Bu videoda altyazı bulunmamaktadır');
+      }
       const text = data?.text || data?.data?.text || '';
-      if (!text || !text.trim()) throw new Error('Altyazı bulunamadı');
+      if (!text || !text.trim()) throw new Error('Bu videoda altyazı bulunmamaktadır');
       setInputText(text);
       Alert.alert(t('common.success'), 'Altyazı metni yüklendi');
     } catch (e: any) {
@@ -141,6 +156,7 @@ const CreateScreen: React.FC = () => {
   const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
   const [showVoiceSelection, setShowVoiceSelection] = useState<boolean>(false);
   const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || selectedVoiceCategory !== 'standard';
+  const [shouldPromoteSelectedVoiceTop, setShouldPromoteSelectedVoiceTop] = useState<boolean>(false);
 
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
@@ -526,6 +542,7 @@ const CreateScreen: React.FC = () => {
           await fetchFilteredVoices(derived.accent, 'all', derived.category);
           // Ensure the selected voice remains selected after list refresh
           setSelectedVoice(dv);
+          setShouldPromoteSelectedVoiceTop(true);
           console.log('🎯 [DEFAULT VOICE] Applied with filters:', dv, derived);
         }
       } catch (e) {
@@ -536,7 +553,11 @@ const CreateScreen: React.FC = () => {
 
   // Keep selected voice at top whenever available voices change
   useEffect(() => {
-    if (!selectedVoice || availableVoices.length === 0) return;
+    if (!shouldPromoteSelectedVoiceTop) return;
+    if (!selectedVoice || availableVoices.length === 0) {
+      setShouldPromoteSelectedVoiceTop(false);
+      return;
+    }
     const index = availableVoices.findIndex(v => v.name === selectedVoice);
     if (index > 0) {
       const reordered = [availableVoices[index], ...availableVoices.filter((_, i) => i !== index)];
@@ -544,7 +565,8 @@ const CreateScreen: React.FC = () => {
         setAvailableVoices(reordered);
       }
     }
-  }, [availableVoices, selectedVoice]);
+    setShouldPromoteSelectedVoiceTop(false);
+  }, [availableVoices, selectedVoice, shouldPromoteSelectedVoiceTop]);
 
   // Update filtered voices when filters change
   useEffect(() => {
@@ -758,7 +780,11 @@ const CreateScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         <View style={styles.header}>
           <Text style={styles.title}>{t('create.title')}</Text>
           <Text style={styles.subtitle}>
@@ -800,15 +826,34 @@ const CreateScreen: React.FC = () => {
               </View>
             )}
             <TextInput
-              style={[styles.textInput, selectedFile && styles.textInputDisabled]}
+              style={[
+                styles.textInput,
+                selectedFile && styles.textInputDisabled,
+                !isTextExpanded && { maxHeight: Math.floor(screenHeight * 0.25) },
+              ]}
               placeholder={selectedFile ? t('create.input.placeholderDisabled') : t('create.input.placeholder')}
               value={inputText}
               onChangeText={setInputText}
               multiline
               textAlignVertical="top"
               editable={!selectedFile}
+              scrollEnabled
             />
-            {!selectedFile && <Text style={styles.charCount}>{t('create.input.charCount', { count: inputText.length })}</Text>}
+            {!selectedFile && (
+              <>
+                <TouchableOpacity
+                  onPress={() => setIsTextExpanded(v => !v)}
+                  activeOpacity={0.8}
+                  style={[styles.textExpander, isTextExpanded && styles.textExpanderExpanded, { alignSelf: 'stretch' }]}
+                >
+                  <Text style={styles.textExpanderLabel}>
+                    {isTextExpanded ? (t('create.input.collapse') || 'Daralt') : (t('create.input.expand') || 'Genişlet')}
+                  </Text>
+                  <Icon name={isTextExpanded ? 'expand-less' : 'expand-more'} size={18} color="#007AFF" />
+                </TouchableOpacity>
+                <Text style={styles.charCount}>{t('create.input.charCount', { count: inputText.length })}</Text>
+              </>
+            )}
           </View>
         )}
 
@@ -993,6 +1038,7 @@ const CreateScreen: React.FC = () => {
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.levelSelector}
+            keyboardShouldPersistTaps="handled"
           >
             {levels.map((level) => (
               <TouchableOpacity
@@ -1047,7 +1093,7 @@ const CreateScreen: React.FC = () => {
           
           {/* Voice Categories */}
           <View style={styles.voiceCategoryContainer}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {voiceCategories.map((category) => (
                 <TouchableOpacity
                   key={category.value}
@@ -1091,7 +1137,7 @@ const CreateScreen: React.FC = () => {
             <View style={styles.filterRow}>
               <View style={styles.filterGroup}>
                 <Text style={styles.filterLabel}>{t('create.voice.filters.accent')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                   {accentOptions.map((accent) => (
                     <TouchableOpacity
                       key={accent.value}
@@ -1114,7 +1160,7 @@ const CreateScreen: React.FC = () => {
               
               <View style={styles.filterGroup}>
                 <Text style={styles.filterLabel}>{t('create.voice.filters.gender')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                   {genderOptions.map((gender) => (
                     <TouchableOpacity
                       key={gender.value}
@@ -1168,22 +1214,7 @@ const CreateScreen: React.FC = () => {
             <Icon name="arrow-forward-ios" size={16} color="#007AFF" />
           </TouchableOpacity>
 
-          {selectedVoice ? (
-            <TouchableOpacity
-              style={[styles.defaultVoiceButton, !selectedVoice && styles.createButtonDisabled]}
-              onPress={async () => {
-                try {
-                  const response = await saveDefaultVoiceSetting(selectedVoice);
-                  Alert.alert(t('common.success'), t('Varsayılan ses kaydedildi'));
-                } catch (e: any) {
-                  Alert.alert(t('common.error'), e.message || 'Kaydedilemedi');
-                }
-              }}
-              disabled={!selectedVoice}
-            >
-              <Text style={styles.defaultVoiceButtonText}>Varsayılan Ses Seç</Text>
-            </TouchableOpacity>
-          ) : null}
+          
         </View>
 
         {/* Voice Selection Modal - uses RN Modal so it opens in viewport regardless of scroll */}
@@ -1204,39 +1235,58 @@ const CreateScreen: React.FC = () => {
               {loadingVoices ? (
                 <ActivityIndicator size="large" color="#007AFF" style={styles.voiceLoader} />
               ) : (
-                <ScrollView style={styles.voiceList}>
-                  {getFilteredVoicesByCategory().map((item) => (
-                    <TouchableOpacity
-                      key={item.name}
-                      style={[
-                        styles.voiceItem,
-                        selectedVoice === item.name && styles.voiceItemActive,
-                      ]}
-                      onPress={() => {
-                        setSelectedVoice(item.name);
-                        setShowVoiceSelection(false);
-                      }}
-                    >
-                      <View style={styles.voiceItemInfo}>
-                        <Text style={styles.voiceItemName}>{item.name}</Text>
-                        <Text style={styles.voiceItemDescription}>
-                          {(item.accent === 'american' && t('create.voice.accents.american')) ||
-                           (item.accent === 'british' && t('create.voice.accents.british')) ||
-                           (item.accent === 'australian' && t('create.voice.accents.australian')) ||
-                           (item.accent === 'canadian' && t('create.voice.accents.canadian')) ||
-                           (item.accent === 'indian' && t('create.voice.accents.indian')) || item.accent}
-                          {` • ${item.gender === 'male' ? t('create.voice.genders.male') : t('create.voice.genders.female')}`}
-                        </Text>
-                        {item.ssmlSupport && (
-                          <Text style={styles.voiceItemSSML}>{t('create.voice.modal.ssmlSupported')}</Text>
+                <View>
+                  <ScrollView style={styles.voiceList}>
+                    {getFilteredVoicesByCategory().map((item) => (
+                      <TouchableOpacity
+                        key={item.name}
+                        style={[
+                          styles.voiceItem,
+                          selectedVoice === item.name && styles.voiceItemActive,
+                        ]}
+                        onPress={() => {
+                          setSelectedVoice(item.name);
+                        }}
+                      >
+                        <View style={styles.voiceItemInfo}>
+                          <Text style={styles.voiceItemName}>{item.name}</Text>
+                          <Text style={styles.voiceItemDescription}>
+                            {(item.accent === 'american' && t('create.voice.accents.american')) ||
+                             (item.accent === 'british' && t('create.voice.accents.british')) ||
+                             (item.accent === 'australian' && t('create.voice.accents.australian')) ||
+                             (item.accent === 'canadian' && t('create.voice.accents.canadian')) ||
+                             (item.accent === 'indian' && t('create.voice.accents.indian')) || item.accent}
+                            {` • ${item.gender === 'male' ? t('create.voice.genders.male') : t('create.voice.genders.female')}`}
+                          </Text>
+                          {item.ssmlSupport && (
+                            <Text style={styles.voiceItemSSML}>{t('create.voice.modal.ssmlSupported')}</Text>
+                          )}
+                        </View>
+                        {selectedVoice === item.name && (
+                          <Icon name="check" size={20} color="#007AFF" />
                         )}
-                      </View>
-                      {selectedVoice === item.name && (
-                        <Icon name="check" size={20} color="#007AFF" />
-                      )}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  {selectedVoice ? (
+                    <TouchableOpacity
+                      style={[styles.defaultVoiceButton, !selectedVoice && styles.createButtonDisabled]}
+                      onPress={async () => {
+                        try {
+                          await saveDefaultVoiceSetting(selectedVoice);
+                          setShouldPromoteSelectedVoiceTop(true);
+                          Alert.alert(t('common.success'), 'Varsayılan ses kaydedildi');
+                          setShowVoiceSelection(false);
+                        } catch (e: any) {
+                          Alert.alert(t('common.error'), e.message || 'Kaydedilemedi');
+                        }
+                      }}
+                      disabled={!selectedVoice}
+                    >
+                      <Text style={styles.defaultVoiceButtonText}>Varsayılan Ses Seç</Text>
                     </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                  ) : null}
+                </View>
               )}
             </View>
           </View>
@@ -1402,6 +1452,31 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'right',
     marginTop: 8,
+  },
+  textExpander: {
+    marginTop: 8,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F8FF',
+    borderWidth: 1,
+    borderColor: '#D6E6FF',
+  },
+  textExpanderExpanded: {
+    backgroundColor: '#EEF7EE',
+    borderColor: '#BFE5BF',
+  },
+  textExpanderLabel: {
+    color: '#007AFF',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    flex: 0,
   },
   divider: {
     flexDirection: 'row',

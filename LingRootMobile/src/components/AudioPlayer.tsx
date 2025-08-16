@@ -10,6 +10,7 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, Timepoint } from '../types';
@@ -33,6 +34,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   timepoints = [],
   words = [],
 }) => {
+  const insets = useSafeAreaInsets();
   const { setCurrentTrack, setIsPlaying, isPlaying, currentTrack, sound, setSound, stopAllAudio } = useAudioContext();
   const [isLoading, setIsLoading] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -726,10 +728,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       presentationStyle="overFullScreen"
       transparent
     >
-      <View style={[styles.container, { marginTop: 0, paddingTop: 0 }] }>
+      <View style={[styles.container, { paddingTop: insets.top + 56 }]}>
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+        <View style={[styles.header, { paddingTop: Math.max(8, insets.top + 8) }]}>
+          <TouchableOpacity
+            onPress={onClose}
+            style={styles.closeButton}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Kapat"
+          >
             <Icon name="close" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.title} numberOfLines={1}>
@@ -739,6 +747,20 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             <Text style={styles.levelText}>{track.level}</Text>
           </View>
         </View>
+
+        {/* Extra floating close button to guarantee tappable area */}
+        <TouchableOpacity
+          onPress={onClose}
+          style={[
+            styles.floatingClose,
+            { top: Math.max(12, insets.top + 6) }
+          ]}
+          hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+          accessibilityRole="button"
+          accessibilityLabel="Kapat"
+        >
+          <Icon name="close" size={22} color="#333" />
+        </TouchableOpacity>
 
         {/* Swipeable pages: current EN on page 0, original TR on page 1 */}
         <ScrollView
@@ -767,7 +789,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           <View style={{ width: screenWidth }}>
             <ScrollView
               ref={scrollViewRef}
-              style={styles.scrollContainer}
+              style={[styles.scrollContainer, { paddingTop: 8 }]}
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.textWrapper}>
@@ -776,7 +798,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             </ScrollView>
           </View>
           <View style={{ width: screenWidth }}>
-            <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+            <ScrollView style={[styles.scrollContainer, { paddingTop: 8 }]} showsVerticalScrollIndicator={false}>
               <Text style={styles.originalTitle}>Orijinal Türkçe Metin</Text>
               {originalLoading ? (
                 <Text style={styles.originalText}>Yükleniyor...</Text>
@@ -877,6 +899,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    zIndex: 10,
+    elevation: 6,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
   },
   linkText: {
     color: '#2563EB',
@@ -1099,6 +1127,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#333',
     textAlign: 'center',
+  },
+  floatingClose: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
+    elevation: 10,
   },
   // sentenceIndicator and number styles removed
   testButton: {

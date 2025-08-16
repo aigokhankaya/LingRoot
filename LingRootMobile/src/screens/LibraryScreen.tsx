@@ -33,11 +33,16 @@ const LibraryScreen: React.FC = () => {
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const { user } = useAuth();
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasUserScrolled, setHasUserScrolled] = useState(false);
+  const [serverTotalCount, setServerTotalCount] = useState<number | null>(null);
 
   const levels: (CEFRLevel | 'all')[] = ['all', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   // Fetch audio history from API
-  const fetchAudioHistory = async (showLoading = true) => {
+  const fetchAudioHistory = async (showLoading = true, nextPage?: number) => {
     if (!user?.id) {
       console.warn('User not authenticated');
       setLoading(false);
@@ -50,9 +55,9 @@ const LibraryScreen: React.FC = () => {
         setLoading(true);
       }
       
-      console.log('🔍 Fetching audio history for user:', user.id);
-      
-      const response = await apiService.getUserAudioHistory(user.id);
+      const currentPage = nextPage || 1;
+      console.log('🔍 Fetching audio history for user:', user.id, 'page=', currentPage, 'limit=', PAGE_SIZE);
+      const response = await apiService.getUserAudioHistory(user.id, currentPage, PAGE_SIZE);
       
       if (response.success && response.data) {
         console.log('✅ Audio history fetched:', response.data.length, 'tracks');
@@ -92,7 +97,17 @@ const LibraryScreen: React.FC = () => {
           return track;
         });
         
-        setAudioTracks(tracks);
+        if (currentPage === 1) {
+          setAudioTracks(tracks);
+        } else {
+          // Append new page without duplicates (by id)
+          const existingIds = new Set(audioTracks.map(t => t.id));
+          const merged = [...audioTracks, ...tracks.filter(t => !existingIds.has(t.id))];
+          setAudioTracks(merged);
+        }
+        setServerTotalCount(typeof response.total_count === 'number' ? response.total_count : (response.pagination?.total ?? null));
+        setPage(currentPage);
+        setHasUserScrolled(currentPage > 1);
       } else {
         console.warn('❌ Failed to fetch audio history:', response.message);
         setAudioTracks([]);
@@ -193,14 +208,14 @@ const LibraryScreen: React.FC = () => {
 
   // Load data on component mount
   useEffect(() => {
-    fetchAudioHistory();
+    fetchAudioHistory(true, 1);
     loadFavorites();
   }, [user?.id]);
 
   // Auto-refresh when screen gains focus (e.g., after navigating from Create)
   useFocusEffect(
     React.useCallback(() => {
-      fetchAudioHistory(false);
+      fetchAudioHistory(false, 1);
       return () => {};
     }, [user?.id])
   );
@@ -229,6 +244,24 @@ const LibraryScreen: React.FC = () => {
     const matchesFav = !showFavoritesOnly || isFavorite(track.id);
     return matchesSearch && matchesLevel && matchesFav;
   });
+
+  const displayedTracks = filteredTracks.slice(0, page * PAGE_SIZE);
+
+  useEffect(() => {
+    // Reset pagination when filters or search change
+    setPage(1);
+    setHasUserScrolled(false);
+  }, [searchText, selectedLevel, showFavoritesOnly]);
+
+  const handleLoadMore = () => {
+    if (!hasUserScrolled) return; // prevent auto-trigger on mount when list doesn't fill viewport
+    if (isLoadingMore) return;
+    // If we already fetched fewer than PAGE_SIZE from server on last page, no more pages
+    if (serverTotalCount !== null && audioTracks.length >= serverTotalCount) return;
+    setIsLoadingMore(true);
+    const nextPage = page + 1;
+    fetchAudioHistory(false, nextPage).finally(() => setIsLoadingMore(false));
+  };
 
   const handlePlayTrack = (track: AudioTrack) => {
     console.log('🎵 [LIBRARY] Playing track:', {
@@ -407,13 +440,27 @@ const LibraryScreen: React.FC = () => {
 
       {filteredTracks.length > 0 ? (
         <FlatList
-          data={filteredTracks}
+          data={displayedTracks}
           keyExtractor={(item) => item.id}
           renderItem={renderAudioTrack}
           contentContainerStyle={styles.tracksList}
           showsVerticalScrollIndicator={false}
           refreshing={refreshing}
           onRefresh={onRefresh}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.2}
+          onMomentumScrollBegin={() => setHasUserScrolled(true)}
+          onScrollBeginDrag={() => setHasUserScrolled(true)}
+          initialNumToRender={PAGE_SIZE}
+          windowSize={5}
+          removeClippedSubviews
+          ListFooterComponent={
+            isLoadingMore && displayedTracks.length < filteredTracks.length ? (
+              <View style={{ paddingVertical: 12 }}>
+                <ActivityIndicator size="small" color="#007AFF" />
+              </View>
+            ) : null
+          }
         />
       ) : (
         <View style={styles.emptyState}>

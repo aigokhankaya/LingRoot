@@ -16,6 +16,49 @@ console.log('🔧 [API DEBUG] EXPO_PUBLIC_API_URL:', Constants.expoConfig?.extra
 console.log('🔧 [API DEBUG] Final API_BASE_URL:', API_BASE_URL);
 console.log('🔧 [API DEBUG] ==================');
 
+// Render hibernation handling
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+let lastBackendAwakeAt: number | null = null;
+
+async function wakeBackendIfNeeded(force: boolean = false): Promise<boolean> {
+  try {
+    // If we recently confirmed it's awake, skip
+    if (!force && lastBackendAwakeAt && Date.now() - lastBackendAwakeAt < 120000) {
+      return true;
+    }
+
+    const healthUrl = `${API_BASE_URL}/api/health`;
+    const res = await fetch(healthUrl, { method: 'GET' });
+    if (res.ok) {
+      lastBackendAwakeAt = Date.now();
+      return true;
+    }
+
+    // Render hibernation returns 503 dynamic-hibernate-error-503
+    if (res.status !== 503) {
+      return false;
+    }
+
+    // Try to wake by polling a few times with backoff
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      const delay = 800 * attempt + 400;
+      console.log(`🔧 [API DEBUG] Backend waking... attempt ${attempt}/6, waiting ${delay}ms`);
+      await sleep(delay);
+      try {
+        const ping = await fetch(healthUrl, { method: 'GET' });
+        if (ping.ok) {
+          console.log('🔧 [API DEBUG] Backend is awake.');
+          lastBackendAwakeAt = Date.now();
+          return true;
+        }
+      } catch {}
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // Global unauthorized handler to notify app on 401/expired token
 let unauthorizedHandler: (() => void) | null = null;
 
@@ -64,6 +107,20 @@ apiClient.interceptors.response.use(
     console.error('🚨 [API ERROR] Request URL:', error.config?.url);
     console.error('🚨 [API ERROR] Request method:', error.config?.method);
     
+    // If backend hibernated (Render 503), try waking and retry once
+    if (error.response?.status === 503 && error.config && !(error.config as any).__wakeRetry) {
+      console.log('🔧 [API DEBUG] 503 detected. Trying to wake backend and retry...');
+      const woke = await wakeBackendIfNeeded(true);
+      if (woke) {
+        (error.config as any).__wakeRetry = true;
+        try {
+          return await apiClient.request(error.config);
+        } catch (retryErr) {
+          console.error('🔧 [API DEBUG] Retry after wake failed:', retryErr?.message);
+        }
+      }
+    }
+    
     // Token expired handling
     if (error.response?.status === 401 || 
         error.response?.data?.message === 'Token expired' ||
@@ -106,6 +163,14 @@ export const apiService = {
       console.log('🔧 [API DEBUG] Online status:', navigator.onLine);
       console.log('🔧 [API DEBUG] Platform:', navigator.platform);
       
+      // Attempt to wake backend if sleeping
+      const woke = await wakeBackendIfNeeded(false);
+      if (woke) {
+        console.log('🔧 [API DEBUG] ✅ Backend is awake (pre-check).');
+        console.log('🔧 [API DEBUG] ==================');
+        return true;
+      }
+
       // Create abort controller for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
@@ -174,7 +239,11 @@ export const apiService = {
   // Text-to-Speech API
   async processTextToSpeech(request: TTSRequest): Promise<TTSResponse> {
     try {
-      const response = await apiClient.post<TTSResponse>('/api/tts/process', request);
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post<TTSResponse>('/api/tts/process', request, {
+        // Büyük metinlerde çeviri/uyarlama+TTS uzun sürebilir
+        timeout: 600000, // 10 dakika
+      });
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'TTS işlemi başarısız');
@@ -184,6 +253,7 @@ export const apiService = {
   // File Upload için TTS
   async processFileToSpeech(file: FormData): Promise<TTSResponse> {
     try {
+      await wakeBackendIfNeeded();
       const response = await apiClient.post<TTSResponse>('/api/tts/process', file, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -207,9 +277,14 @@ export const apiService = {
   },
 
   // Kullanıcının audio geçmişini getirme
-  async getUserAudioHistory(userId: string): Promise<APIResponse> {
+  async getUserAudioHistory(userId: string, page?: number, limit?: number): Promise<APIResponse> {
     try {
-      const response = await apiClient.get<APIResponse>(`/api/users/${userId}/audio-history`);
+      const params = new URLSearchParams();
+      if (page && page > 0) params.append('page', String(page));
+      if (limit && limit > 0) params.append('limit', String(limit));
+      const qs = params.toString();
+      const url = qs ? `/api/users/${userId}/audio-history?${qs}` : `/api/users/${userId}/audio-history`;
+      const response = await apiClient.get<APIResponse>(url);
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Geçmiş yüklenemedi');

@@ -30,8 +30,8 @@ async function runTimepointsMigration() {
         
         console.log('\n📊 This migration will:');
         console.log('   - Drop idx_contenthistory_timepoints index (causing the size error)');
-        console.log('   - Add comment explaining why the index was removed');
-        console.log('   - Keep words index (usually smaller, less problematic)');
+        console.log('   - Drop idx_contenthistory_words index (also exceeding btree size)');
+        console.log('   - Add comment explaining why the indices were removed');
         
         console.log('\n🔧 After running this migration:');
         console.log('   - TTS audio generation should work without the index size error');

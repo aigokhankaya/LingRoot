@@ -30,8 +30,17 @@ export default async function handler(req: any, res: any) {
     });
     const contentType = response.headers.get('content-type') || '';
     if (!response.ok) {
-      let errBody = null;
-      try { errBody = await response.json(); } catch { errBody = await response.text().catch(() => ''); }
+      let errBody: any = null;
+      if (contentType.includes('application/json')) {
+        try { errBody = await response.json(); } catch { errBody = null; }
+      } else {
+        try { errBody = await response.text(); } catch { errBody = ''; }
+      }
+      // Özel durum: Upstream NO_SUBTITLES hatası
+      const noSubs = (errBody && (errBody?.detail?.error_code === 'NO_SUBTITLES' || errBody?.error_code === 'NO_SUBTITLES'));
+      if (noSubs) {
+        return res.status(404).json({ success: false, errorCode: 'NO_SUBTITLES', message: 'Bu videoda altyazı bulunmamaktadır', upstream: errBody });
+      }
       console.error('[YT SUBTITLE PROXY] Upstream error:', response.status, response.statusText, errBody);
       return res.status(response.status).json({ success: false, error: 'Upstream API hatası', status: response.status, details: errBody });
     }
@@ -44,6 +53,10 @@ export default async function handler(req: any, res: any) {
     }
 
     const data = await response.json();
+    // Upstream JSON 200 dönse bile NO_SUBTITLES olabilir
+    if (data?.detail?.error_code === 'NO_SUBTITLES' || data?.error_code === 'NO_SUBTITLES') {
+      return res.status(404).json({ success: false, errorCode: 'NO_SUBTITLES', message: 'Bu videoda altyazı bulunmamaktadır', upstream: data });
+    }
     let subtitleText: any = (data as any)?.text ?? (data as any)?.data?.text ?? '';
     if (typeof subtitleText !== 'string') {
       subtitleText = String(subtitleText || '');

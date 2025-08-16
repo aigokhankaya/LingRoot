@@ -80,7 +80,7 @@ const RegisterScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={styles.header}>
           <Text style={styles.title}>{t('register.title')}</Text>
           <Text style={styles.subtitle}>{t('register.subtitle')}</Text>

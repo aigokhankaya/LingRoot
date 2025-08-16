@@ -21,6 +21,8 @@ export default ({ config }: any) => ({
   android: {
     ...(config?.android || {}),
     package: 'com.nsyzk.lingrootmobile',
+    // Ensure layout resizes when keyboard opens on Android so buttons remain tappable
+    softwareKeyboardLayoutMode: 'resize',
   },
   extra: {
     ...(config?.extra || {}),

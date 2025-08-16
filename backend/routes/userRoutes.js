@@ -147,7 +147,11 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
       });
     }
     
-    logger.info(`Fetching audio history for user: ${userId}`);
+    const page = parseInt(req.query.page, 10) > 0 ? parseInt(req.query.page, 10) : 1;
+    const limit = parseInt(req.query.limit, 10) > 0 ? parseInt(req.query.limit, 10) : 10;
+    const rangeFrom = (page - 1) * limit;
+    const rangeTo = rangeFrom + limit - 1;
+    logger.info(`Fetching audio history for user: ${userId} (page=${page}, limit=${limit})`);
     
     // Fetch from contenthistory table (limited list for display)
     const { data: audioHistory, error } = await supabase
@@ -167,7 +171,7 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
       .eq('user_id', userId)
       .not('mp3_url', 'is', null)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .range(rangeFrom, rangeTo);
     
     if (error) {
       logger.error('Error fetching audio history:', error);
@@ -239,7 +243,7 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
       };
     });
     
-    logger.info(`Found ${transformedHistory.length} audio files (limited) for user: ${userId}, totalCount: ${totalCount ?? 'unknown'}`);
+    logger.info(`Found ${transformedHistory.length} audio files (paged) for user: ${userId}, totalCount: ${totalCount ?? 'unknown'}, page=${page}, limit=${limit}`);
     
     res.json({
       success: true,

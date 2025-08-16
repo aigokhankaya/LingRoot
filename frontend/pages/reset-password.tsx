@@ -10,6 +10,7 @@ export default function ResetPasswordPage() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +29,9 @@ export default function ResetPasswordPage() {
     setMessage(null);
     setError(null);
     try {
+      if (newPassword !== confirmPassword) {
+        throw new Error('Yeni şifreler eşleşmiyor');
+      }
       const res = await fetch(getApiUrl('auth/reset-password'), {
         method: 'POST',
         headers: createHeaders('application/json'),
@@ -66,6 +70,11 @@ export default function ResetPasswordPage() {
             <label className="block text-sm font-medium mb-1" htmlFor="newPassword">Yeni Şifre</label>
             <input id="newPassword" type="password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
                    className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Yeni şifre" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="confirmPassword">Yeni Şifre (Tekrar)</label>
+            <input id="confirmPassword" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                   className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Yeni şifreyi tekrar girin" />
           </div>
           <button type="submit" disabled={loading}
                   className="w-full bg-indigo-600 text-white rounded py-2 hover:bg-indigo-700 disabled:opacity-50">
