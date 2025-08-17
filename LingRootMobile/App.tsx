@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { AudioProvider } from './src/contexts/AudioContext';
 import { LanguageProvider } from './src/contexts/LanguageContext';
@@ -37,14 +38,16 @@ export default function App() {
   }, []);
 
   return (
-    <LanguageProvider>
-      <AuthProvider>
-        <AudioProvider>
-          <AppNavigator />
-          <KeyboardToggleOverlay />
-          <StatusBar style="auto" />
-        </AudioProvider>
-      </AuthProvider>
-    </LanguageProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <LanguageProvider>
+        <AuthProvider>
+          <AudioProvider>
+            <AppNavigator />
+            <KeyboardToggleOverlay />
+            <StatusBar style="auto" />
+          </AudioProvider>
+        </AuthProvider>
+      </LanguageProvider>
+    </GestureHandlerRootView>
   );
 }

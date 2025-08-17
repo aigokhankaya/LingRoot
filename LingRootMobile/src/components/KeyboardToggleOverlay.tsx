@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Keyboard, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { Animated, Easing, Keyboard, Platform, StyleSheet, TextInput, View, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { TouchableOpacity } from 'react-native-gesture-handler';
 
 const ANIMATION_DURATION_MS = 180;
 
