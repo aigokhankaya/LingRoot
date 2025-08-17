@@ -25,12 +25,11 @@ const HomeScreen: React.FC = () => {
     loading: true,
   });
 
-  console.log('🔍 DEBUG: Creating features array...');
   const features = [
     {
       id: 1,
-      title: 'Metinden Sese',
-      description: 'Yazdığın metni doğal sese çevir',
+      title: t('home.textToSpeech'),
+      description: t('home.textToSpeechDesc'),
       icon: 'text-fields',
       color: '#007AFF',
       screenName: 'Create',
@@ -45,10 +44,50 @@ const HomeScreen: React.FC = () => {
       screenName: 'Create',
       params: { mode: 'youtube' as const },
     },
+    {
+      id: 2,
+      title: t('home.uploadFile'),
+      description: t('home.uploadFileDesc'),
+      icon: 'upload-file',
+      color: '#34C759',
+      screenName: 'Create',
+      params: { mode: 'file' as const },
+    },
+    {
+      id: 3,
+      title: t('home.vocabulary'),
+      description: t('home.vocabularyDesc'),
+      icon: 'book',
+      color: '#9C27B0',
+      screenName: 'Vocabulary',
+    },
+    {
+      id: 4,
+      title: t('home.topicSuggestions'),
+      description: t('home.topicSuggestionsDesc'),
+      icon: 'lightbulb',
+      color: '#FF9500',
+      screenName: 'Create',
+      params: { mode: 'suggestion' as const },
+    },
+    {
+      id: 6,
+      title: t('home.bookSearch'),
+      description: t('home.bookSearchDesc'),
+      icon: 'menu-book',
+      color: '#3f51b5',
+      screenName: 'Create',
+      params: { mode: 'book' as const },
+    },
+    {
+      id: 5,
+      title: t('home.audioLibrary'),
+      description: t('home.audioLibraryDesc'),
+      icon: 'library-music',
+      color: '#FF3B30',
+      screenName: 'Library',
+    },
   ];
-
-  console.log('🔍 DEBUG: Features array created, count:', features.length);
-  console.log('🔍 DEBUG: Feature titles:', features.map(f => f.title));
 
   // Fetch user statistics
   const fetchUserStats = async () => {
@@ -116,10 +155,10 @@ const HomeScreen: React.FC = () => {
       try {
         (navigation as any).navigate({ name: feature.screenName, params: feature.params, merge: true });
       } catch {
-        navigation.navigate(feature.screenName as never, feature.params as never);
+        (navigation as any).navigate(feature.screenName, feature.params);
       }
     } else {
-      navigation.navigate(feature.screenName as never);
+      (navigation as any).navigate(feature.screenName);
     }
   };
 
@@ -154,9 +193,7 @@ const HomeScreen: React.FC = () => {
         <View style={styles.featuresContainer}>
           <Text style={styles.sectionTitle}>{t('home.features')}</Text>
           <View style={styles.featuresGrid}>
-            {features.map((feature) => {
-              console.log('🔍 RENDER: Rendering feature:', feature.id, feature.title);
-              return (
+            {features.map((feature) => (
               <TouchableOpacity
                 key={feature.id}
                 style={[styles.featureCard, { borderLeftColor: feature.color }]}
@@ -173,8 +210,7 @@ const HomeScreen: React.FC = () => {
                 </View>
                 <Icon name="chevron-right" size={20} color="#ccc" />
               </TouchableOpacity>
-              );
-            })}
+            ))}
           </View>
         </View>
 
@@ -182,7 +218,7 @@ const HomeScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>{t('home.quickActions')}</Text>
           <TouchableOpacity 
             style={styles.quickActionButton}
-            onPress={() => navigation.navigate('Create' as never, { mode: 'text' } as never)}
+            onPress={() => (navigation as any).navigate('Create', { mode: 'text' })}
           >
             <Icon name="add-circle" size={24} color="white" />
             <Text style={styles.quickActionText}>{t('home.createNewAudio')}</Text>
@@ -190,7 +226,7 @@ const HomeScreen: React.FC = () => {
           
           <TouchableOpacity 
             style={[styles.quickActionButton, styles.secondaryButton]}
-            onPress={() => navigation.navigate('Library' as never)}
+            onPress={() => (navigation as any).navigate('Library')}
           >
             <Icon name="library-music" size={24} color="#007AFF" />
             <Text style={[styles.quickActionText, styles.secondaryText]}>{t('home.listenToAudio')}</Text>

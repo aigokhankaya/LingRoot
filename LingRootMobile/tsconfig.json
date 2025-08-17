@@ -21,7 +21,7 @@
   "include": [
     "src",
     "App.tsx",
-    "index.ts"
+    "index.tsx"
   ],
   "exclude": [
     "node_modules",
