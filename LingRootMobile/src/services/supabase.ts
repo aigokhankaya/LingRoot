@@ -7,7 +7,7 @@ const extra: any = (Constants.expoConfig?.extra || (Constants as any)?.manifest?
 const resolvedSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || extra.EXPO_PUBLIC_SUPABASE_URL;
 const resolvedSupabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || extra.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-// Fail fast with clear log if missing
+// Log if missing (but don't crash the app)
 if (!resolvedSupabaseUrl || !resolvedSupabaseAnonKey) {
   console.error('🚨 [SUPABASE] Missing Supabase public config. Ensure EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are defined (in .env) and app restarted with cache cleared.');
 }
@@ -18,15 +18,34 @@ const supabaseAnonKey = (resolvedSupabaseAnonKey || '').toString().trim();
 console.log('🔧 [SUPABASE INIT] URL present:', !!supabaseUrl, '| from env:', !!process.env.EXPO_PUBLIC_SUPABASE_URL, '| from extra:', !!extra.EXPO_PUBLIC_SUPABASE_URL);
 console.log('🔧 [SUPABASE INIT] Key present:', !!supabaseAnonKey, 'length:', supabaseAnonKey.length);
 
-// Supabase client oluştur - web projesindeki gibi basit yapılandırma
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-});
+// Supabase client oluştur (config yoksa güvenli noop client kullan)
+export const supabase: any = (supabaseUrl && supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        storage: AsyncStorage,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+      },
+    })
+  : {
+      // Minimal noop client to prevent crashes when env is missing on dev devices
+      auth: {
+        async signInWithPassword() {
+          throw new Error('[SUPABASE] Missing configuration: cannot sign in.');
+        },
+        async signOut() {
+          return { error: null };
+        },
+        async getUser() {
+          return { data: { user: null } } as any;
+        },
+        onAuthStateChange(cb: (event: any, session: any) => void) {
+          // Return an unsubscribe-like handle compatible with upstream usage
+          return { data: { subscription: { unsubscribe() {} } } } as any;
+        },
+      },
+    };
 
 // Web projesindeki getUserRole fonksiyonunu da ekleyelim
 export const getUserRole = async (userId: string): Promise<string | null> => {
@@ -94,8 +113,9 @@ export const authService = {
   },
 
   async signOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    const result = await supabase.auth.signOut();
+    // In noop mode result may be undefined or lack error field
+    if (result && (result as any).error) throw (result as any).error;
   },
 
   async getCurrentUser() {
