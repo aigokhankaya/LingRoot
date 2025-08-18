@@ -294,7 +294,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(true);
     try {
       await authService.signUp(email, password, fullName);
-      // User state will be updated via onAuthStateChange
+      // Signup does NOT log the user in; stop global loading here so UI can navigate to Login
+      setIsLoading(false);
+      // User state would be updated via onAuthStateChange only after an actual login
     } catch (error) {
       setIsLoading(false);
       throw error;
