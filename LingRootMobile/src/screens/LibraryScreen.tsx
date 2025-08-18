@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -39,6 +39,8 @@ const LibraryScreen: React.FC = () => {
   const [hasUserScrolled, setHasUserScrolled] = useState(false);
   const [serverTotalCount, setServerTotalCount] = useState<number | null>(null);
   const [isHydratingFavorites, setIsHydratingFavorites] = useState(false);
+  const audioTracksRef = useRef<AudioTrack[]>([]);
+  const pageRef = useRef<number>(1);
 
   const levels: (CEFRLevel | 'all')[] = ['all', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
@@ -100,14 +102,17 @@ const LibraryScreen: React.FC = () => {
         
         if (currentPage === 1) {
           setAudioTracks(tracks);
+          audioTracksRef.current = tracks;
         } else {
           // Append new page without duplicates (by id)
-          const existingIds = new Set(audioTracks.map(t => t.id));
-          const merged = [...audioTracks, ...tracks.filter(t => !existingIds.has(t.id))];
+          const existingIds = new Set(audioTracksRef.current.map(t => t.id));
+          const merged = [...audioTracksRef.current, ...tracks.filter(t => !existingIds.has(t.id))];
           setAudioTracks(merged);
+          audioTracksRef.current = merged;
         }
         setServerTotalCount(typeof response.total_count === 'number' ? response.total_count : (response.pagination?.total ?? null));
         setPage(currentPage);
+        pageRef.current = currentPage;
         setHasUserScrolled(currentPage > 1);
       } else {
         console.warn('❌ Failed to fetch audio history:', response.message);
@@ -197,15 +202,15 @@ const LibraryScreen: React.FC = () => {
     if (missingFavs.length === 0 || haveAllFromServer) return;
     setIsHydratingFavorites(true);
     try {
-      let nextPage = page + 1;
+      let nextPage = pageRef.current + 1;
       // Hard cap to avoid very long loops when server returns small counts
       for (let i = 0; i < 20; i++) {
-        const reachedEnd = (serverTotalCount !== null) && (audioTracks.length >= serverTotalCount);
+        const reachedEnd = (serverTotalCount !== null) && (audioTracksRef.current.length >= serverTotalCount);
         if (reachedEnd) break;
         await fetchAudioHistory(false, nextPage);
         nextPage += 1;
         // Recompute remaining
-        const ids = new Set((prev => prev)(audioTracks).map(t => t.id));
+        const ids = new Set(audioTracksRef.current.map(t => t.id));
         const stillMissing = favoriteIds.filter(fid => !ids.has(fid));
         if (stillMissing.length === 0) break;
       }
