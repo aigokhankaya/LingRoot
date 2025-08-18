@@ -1,14 +1,11 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const { createClient } = require("@supabase/supabase-js");
-require("dotenv").config();
+const { supabase } = require("../utils/supabaseClient");
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "../.env") });
 const logger = require("../utils/logger");
 const { logStep } = require('../utils/stepLogger');
 const { v4: uuidv4 } = require('uuid');
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-development";
 // Make tokens effectively non-expiring by default (very long lifetime)
@@ -16,8 +13,6 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "3650d"; // ~10 years
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "lingroot-refresh-secret-key";
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "3650d"; // ~10 years
 
-logger.info('Supabase URL:', supabaseUrl);
-logger.info('Supabase Service Key exists:', !!supabaseKey);
 logger.info('JWT_SECRET exists:', !!JWT_SECRET);
 
 // Always issue a long-lived token based on env config
@@ -172,47 +167,7 @@ exports.login = async (req, res) => {
       return res.status(400).json({ success: false, message: "Lütfen e-posta ve şifre girin" });
     }
 
-    // Check if mock auth mode is enabled from parameters table
-    try {
-      const { data: paramData, error: paramError } = await supabase
-        .from('parameters')
-        .select('value')
-        .eq('key', 'mock_auth_enabled')
-        .single();
-
-      const mockAuthEnabled = paramData?.value === 'true' || paramData?.value === true;
-
-      if (mockAuthEnabled) {
-        logger.info('[LOGIN] Mock auth mode enabled - allowing mock login for:', email);
-        
-        const mockUser = {
-          id: 'dev-user-123',
-          email: email,
-          name: 'Development User',
-          role: 'user',
-          membership_status: 'premium',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        mockUser.full_name = mockUser.name;
-        
-        const token = generateToken(mockUser.id, mockUser.email, mockUser.role, rememberMe);
-        const refreshToken = generateRefreshToken(mockUser.id);
-        
-        return res.status(200).json({
-          success: true,
-          message: "Giriş başarılı (Test Modu)",
-          data: {
-            user: mockUser,
-            token,
-            refreshToken
-          }
-        });
-      }
-    } catch (paramError) {
-      logger.warn(`Could not check mock_auth_enabled parameter: ${paramError.message}`);
-      // Continue with normal authentication if parameter check fails
-    }
+    // Mock auth disabled in production
 
     const { data: user, error } = await supabase
       .from('users')

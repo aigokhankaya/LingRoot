@@ -1,13 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/authMiddleware');
-const { createClient } = require('@supabase/supabase-js');
+const { supabase } = require('../utils/supabaseClient');
 const logger = require('../utils/logger');
 const { processWordForVocabulary } = require('../utils/wordTranslationService');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Supabase client provided by shared utility
 
 // Kullanıcının kelimelerini getir
 router.get('/', authenticate, async (req, res) => {

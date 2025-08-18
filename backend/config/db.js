@@ -1,6 +1,8 @@
-const { createClient } = require('@supabase/supabase-js');
 const { Pool } = require('pg');
 const winston = require('winston');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const { supabase } = require('../utils/supabaseClient');
 
 // Logger yapılandırması
 const logger = winston.createLogger({
@@ -15,18 +17,7 @@ const logger = winston.createLogger({
   ]
 });
 
-// Supabase istemcisi
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-
-let supabase = null;
-
-if (supabaseUrl && supabaseKey) {
-  supabase = createClient(supabaseUrl, supabaseKey);
-  logger.info('Supabase client initialized');
-} else {
-  logger.warn('Supabase URL or key not provided. Supabase client not initialized.');
-}
+// Supabase client is provided by shared utility
 
 // PostgreSQL havuzu
 const pool = new Pool({
@@ -100,7 +91,7 @@ module.exports = {
   testConnection,
   testSupabaseConnection,
   query: (text, params) => pool.query(text, params),
-  supabaseUrl,
-  supabaseKey,
+  supabaseUrl: process.env.SUPABASE_URL,
+  supabaseKey: process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY,
   dbConfig,
 };

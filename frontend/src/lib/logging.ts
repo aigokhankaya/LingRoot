@@ -42,16 +42,9 @@ export const logAdminAction = async (
             details: options.details,
         };
 
-        console.log("Attempting to log admin action (placeholder):", logEntry);
-
-        // 3. *** PLACEHOLDER ***
-        // Replace this with a call to your secure backend endpoint or Supabase Edge Function
-        // Example: await fetch("/api/admin/log", { method: "POST", body: JSON.stringify(logEntry) });
-        // Or: await supabase.functions.invoke("log-admin-action", { body: logEntry });
-
-        // Simulating the call for now
-        await new Promise(resolve => setTimeout(resolve, 100));
-        console.log("Admin action log simulated.");
+        // TODO: Implement secure logging via backend (no-op for now)
+        // await fetch('/api/admin/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(logEntry) });
+        return;
 
         // **DO NOT DO THIS IN PRODUCTION (INSECURE):**
         /*
@@ -92,48 +85,8 @@ export interface AuditLog {
  * @returns A promise that resolves to an array of AuditLog items.
  */
 export const fetchAdminLogs = async (): Promise<AuditLog[]> => {
-    console.log("Attempting to fetch admin logs (placeholder)...");
-
-    // *** PLACEHOLDER ***
-    // Replace this with a call to your secure backend endpoint or Supabase Edge Function
-    // Example: const response = await fetch("/api/admin/logs"); const data = await response.json(); return data;
-    // Or: const { data } = await supabase.functions.invoke("get-admin-logs"); return data;
-
-    // Simulating the fetch for now
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const placeholderLogs: AuditLog[] = [
-        {
-            id: 1,
-            timestamp: new Date(Date.now() - 3600000).toISOString(),
-            admin_email: 'super@example.com',
-            action: 'Added Admin',
-            target_type: 'admin',
-            target_id: 'admin2',
-            details: { email: 'support@example.com', role: 'support_admin' }
-        },
-        {
-            id: 2,
-            timestamp: new Date(Date.now() - 7200000).toISOString(),
-            admin_email: 'support@example.com',
-            action: 'Changed User Plan',
-            target_type: 'user',
-            target_id: 'uuid-4',
-            details: { old_plan: 'free', new_plan: 'pro' }
-        },
-         {
-            id: 3,
-            timestamp: new Date(Date.now() - 86400000).toISOString(),
-            admin_email: 'super@example.com',
-            action: 'Deleted Content',
-            target_type: 'content',
-            target_id: 'content-abc',
-            details: { title: 'Old Content Title' }
-        },
-    ];
-
-    console.log("Admin logs fetch simulated.");
-    return placeholderLogs;
+    // Not implemented yet; return empty list
+    return [];
 
     // **DO NOT DO THIS IN PRODUCTION (INSECURE/RLS):**
     /*

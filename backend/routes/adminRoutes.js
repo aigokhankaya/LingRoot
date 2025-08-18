@@ -16,6 +16,7 @@ router.get('/users', adminController.getAllUsers);
 router.get('/users/:id', adminController.getUserById);
 router.put('/users/:id', adminController.updateUser);
 router.delete('/users/:id', adminController.deleteUser);
+router.post('/users/bulk-delete', adminController.deleteUsersBulk);
 
 // User audio history (admin)
 router.get('/users/:id/audio-history', adminController.getUserAudioHistoryAdmin);

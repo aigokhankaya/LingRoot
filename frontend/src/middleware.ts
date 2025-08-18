@@ -10,8 +10,8 @@ export async function middleware(request: NextRequest) {
     });
 
     const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mock-project.supabase.co',
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'mock-anon-key',
+        process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
         {
             cookies: {
                 get(name: string) {

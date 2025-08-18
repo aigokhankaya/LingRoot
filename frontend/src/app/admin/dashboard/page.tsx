@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme } from "next-themes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import * as echarts from 'echarts';
 import { useRouter } from 'next/navigation';
+import { deleteUser as deleteUserApi, deleteUsersBulk as deleteUsersBulkApi } from '@/services/userService';
 
 const App: React.FC = () => {
   const { theme, setTheme } = useTheme();
@@ -39,6 +40,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   useEffect(() => {
@@ -107,6 +109,7 @@ const App: React.FC = () => {
       if (response.ok && data.success) {
         // Backend'den gelen data formatını kullan (zaten transform edilmiş)
         setUsers(data.users || []);
+        setSelectedUserIds(new Set());
         console.log('[FETCH USERS] Users set successfully:', data.users?.length || 0);
       } else {
         console.error('[FETCH USERS] Failed to fetch users:', data);
@@ -116,6 +119,57 @@ const App: React.FC = () => {
       console.error('Error fetching users:', error);
     } finally {
       setUsersLoading(false);
+    }
+  };
+
+  const allSelected = useMemo(() => users.length > 0 && selectedUserIds.size === users.length, [users, selectedUserIds]);
+  const hasSelection = selectedUserIds.size > 0;
+
+  const toggleSelectAll = (checked: boolean | string) => {
+    if (checked === true) {
+      setSelectedUserIds(new Set(users.map((u) => u.id)));
+    } else {
+      setSelectedUserIds(new Set());
+    }
+  };
+
+  const toggleSelectOne = (userId: string, checked: boolean | string) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (checked === true) next.add(userId); else next.delete(userId);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!hasSelection) return;
+    const ids = Array.from(selectedUserIds);
+    if (!confirm(`Seçili ${ids.length} kullanıcıyı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`)) return;
+    try {
+      const { deletedAudioCount } = await deleteUsersBulkApi(ids);
+      setUsers((prev) => prev.filter((u) => !selectedUserIds.has(u.id)));
+      setSelectedUserIds(new Set());
+      alert(`Seçili kullanıcılar silindi. Silinen ses kaydı: ${deletedAudioCount ?? 0}`);
+    } catch (e: any) {
+      console.error('Bulk delete error:', e);
+      alert(`Kullanıcılar silinemedi: ${e?.message || 'Bilinmeyen hata'}`);
+    }
+  };
+
+  const handleDeleteOne = async (userId: string, userEmail?: string) => {
+    if (!confirm(`Kullanıcıyı silmek istediğinize emin misiniz? (${userEmail || userId})`)) return;
+    try {
+      const { deletedAudioCount } = await deleteUserApi(userId);
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      setSelectedUserIds((prev) => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+      alert(`Kullanıcı silindi. Silinen ses kaydı: ${deletedAudioCount ?? 0}`);
+    } catch (e: any) {
+      console.error('Delete user error:', e);
+      alert(`Kullanıcı silinemedi: ${e?.message || 'Bilinmeyen hata'}`);
     }
   };
 
@@ -460,6 +514,15 @@ const App: React.FC = () => {
                       <i className="fas fa-download mr-2"></i>
                       Dışa Aktar
                     </Button>
+                    <Button
+                      variant={hasSelection ? "destructive" : "outline"}
+                      className={`!rounded-button whitespace-nowrap ${hasSelection ? '' : 'opacity-60 cursor-not-allowed'}`}
+                      disabled={!hasSelection}
+                      onClick={handleDeleteSelected}
+                    >
+                      <i className="fas fa-trash-alt mr-2"></i>
+                      Seçileni Sil
+                    </Button>
                   </div>
                 </div>
 
@@ -468,7 +531,7 @@ const App: React.FC = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[50px]">
-                          <Checkbox id="select-all" />
+                          <Checkbox id="select-all" checked={allSelected} onChange={(e) => toggleSelectAll(e.currentTarget.checked)} />
                         </TableHead>
                         <TableHead>Kullanıcı</TableHead>
                         <TableHead>Durum</TableHead>
@@ -496,11 +559,16 @@ const App: React.FC = () => {
                         </TableRow>
                       ) : (
                         filteredUsers.map((user) => (
-                        <TableRow key={user.id} className="cursor-pointer hover:bg-gray-50" onClick={() => handleUserClick(user.id)}>
+                        <TableRow key={user.id} className="hover:bg-gray-50">
                           <TableCell>
-                            <Checkbox id={`select-${user.id}`} onClick={(e) => e.stopPropagation()} />
+                            <Checkbox
+                              id={`select-${user.id}`}
+                              checked={selectedUserIds.has(user.id)}
+                              onChange={(e) => toggleSelectOne(user.id, e.currentTarget.checked)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
                           </TableCell>
-                          <TableCell>
+                          <TableCell onClick={() => handleUserClick(user.id)} className="cursor-pointer">
                             <div className="flex items-center space-x-3">
                               <Avatar className="h-8 w-8">
                                 <AvatarImage src={`https://readdy.ai/api/search-image?query=professional%20portrait%20of%20a%20Turkish%20person%20with%20neutral%20expression%2C%20studio%20lighting%2C%20high%20quality%2C%20photorealistic&width=100&height=100&seq=${user.id}&orientation=squarish`} />
@@ -534,9 +602,17 @@ const App: React.FC = () => {
                           <TableCell>{user.registrationDate}</TableCell>
                           <TableCell>{user.lastLogin}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 !rounded-button" onClick={(e) => { e.stopPropagation(); }}>
-                              <i className="fas fa-ellipsis-v text-gray-500"></i>
-                            </Button>
+                            <div className="inline-flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 !rounded-button"
+                                onClick={(e) => { e.stopPropagation(); handleDeleteOne(user.id, user.email); }}
+                                title="Sil"
+                              >
+                                <i className="fas fa-trash-alt text-red-600"></i>
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                         ))

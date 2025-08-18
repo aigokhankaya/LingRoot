@@ -18,10 +18,19 @@ for (const file of candidateEnvFiles) {
 // These will be accessible at runtime via Constants.expoConfig?.extra
 export default ({ config }: any) => ({
   ...config,
+  icon: './assets/icon.png',
+  ios: {
+    ...(config?.ios || {}),
+    icon: './assets/icon.png',
+  },
   android: {
     ...(config?.android || {}),
+    icon: './assets/icon.png',
+    adaptiveIcon: {
+      foregroundImage: './assets/adaptive-icon.png', // varsa
+      backgroundColor: '#FFFFFF',
+    },
     package: 'com.nsyzk.lingrootmobile',
-    // Ensure layout resizes when keyboard opens on Android so buttons remain tappable
     softwareKeyboardLayoutMode: 'resize',
   },
   extra: {

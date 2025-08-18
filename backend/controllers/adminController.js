@@ -1,11 +1,8 @@
-const { createClient } = require("@supabase/supabase-js");
+const { supabase } = require("../utils/supabaseClient");
 require("dotenv").config();
 const logger = require("../utils/logger"); // Import logger
 
-// Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Supabase client provided by shared utility
 
 // Get dashboard stats
 exports.getDashboardStats = async (req, res) => {
@@ -260,7 +257,34 @@ exports.deleteUser = async (req, res) => {
       });
     }
 
-    // Delete user
+    // Count user's audio/content records first
+    const { count: audioCount, error: countErr } = await supabase
+      .from('contenthistory')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', id);
+
+    if (countErr) {
+      logger.error(`Error counting contenthistory for user ID ${id}:`, countErr);
+      return res.status(500).json({ success: false, message: 'Error counting user\'s audio records', error: countErr.message });
+    }
+
+    // Then delete user's audio/content records
+    logger.info(`Deleting contenthistory records for user ID: ${id}`);
+    const { error: contentDeleteError } = await supabase
+      .from('contenthistory')
+      .delete()
+      .eq('user_id', id);
+
+    if (contentDeleteError) {
+      logger.error(`Error deleting contenthistory for user ID ${id}:`, contentDeleteError);
+      return res.status(500).json({
+        success: false,
+        message: "Error deleting user's audio records",
+        error: contentDeleteError.message,
+      });
+    }
+
+    // Delete user after content cleanup
     const { error } = await supabase.from("users").delete().eq("id", id);
 
     if (error) {
@@ -272,11 +296,8 @@ exports.deleteUser = async (req, res) => {
       });
     }
 
-    logger.info(`User ID ${id} deleted successfully.`);
-    return res.status(200).json({
-      success: true,
-      message: "User deleted successfully",
-    });
+    logger.info(`User ID ${id} deleted successfully. Deleted audio count: ${audioCount || 0}`);
+    return res.status(200).json({ success: true, message: 'User deleted successfully', deletedAudioCount: audioCount || 0 });
   } catch (error) {
     logger.error(`Server error while deleting user ID ${req.params.id}:`, error);
     return res.status(500).json({
@@ -284,6 +305,76 @@ exports.deleteUser = async (req, res) => {
       message: "Server error while deleting user",
       error: error.message,
     });
+  }
+};
+
+// Bulk delete users
+exports.deleteUsersBulk = async (req, res) => {
+  try {
+    const { ids } = req.body || {};
+    logger.info(`[ADMIN USERS] Attempting bulk delete. Count: ${Array.isArray(ids) ? ids.length : 0}`);
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No user IDs provided",
+      });
+    }
+
+    // Verify all users exist (optional, can be removed for performance)
+    const { data: existing, error: existErr } = await supabase
+      .from("users")
+      .select("id")
+      .in("id", ids);
+
+    if (existErr) {
+      logger.error("[ADMIN USERS] Error checking existing users for bulk delete:", existErr);
+      return res.status(500).json({ success: false, message: "Error verifying users", error: existErr.message });
+    }
+
+    if (!existing || existing.length === 0) {
+      return res.status(404).json({ success: false, message: "No matching users found" });
+    }
+
+    // Count audio/content records for all users first
+    const { count: audioCount, error: audioCountErr } = await supabase
+      .from('contenthistory')
+      .select('*', { count: 'exact', head: true })
+      .in('user_id', ids);
+
+    if (audioCountErr) {
+      logger.error("[ADMIN USERS] Error counting contenthistory for bulk delete:", audioCountErr);
+      return res.status(500).json({ success: false, message: "Error counting users' audio records", error: audioCountErr.message });
+    }
+
+    // Delete audio/content records for all users first
+    logger.info(`[ADMIN USERS] Deleting contenthistory for ${ids.length} users`);
+    const { error: contentBulkErr } = await supabase
+      .from('contenthistory')
+      .delete()
+      .in('user_id', ids);
+
+    if (contentBulkErr) {
+      logger.error("[ADMIN USERS] Error bulk deleting contenthistory:", contentBulkErr);
+      return res.status(500).json({ success: false, message: "Error deleting users' audio records", error: contentBulkErr.message });
+    }
+
+    // Then delete users
+    const { error: deleteErr } = await supabase
+      .from("users")
+      .delete()
+      .in("id", ids);
+
+    if (deleteErr) {
+      logger.error("[ADMIN USERS] Error bulk deleting users:", deleteErr);
+      return res.status(500).json({ success: false, message: "Error deleting users", error: deleteErr.message });
+    }
+
+    logger.info(`[ADMIN USERS] Bulk delete successful for ${ids.length} users. Deleted audio count: ${audioCount || 0}`);
+    return res.status(200).json({ success: true, message: "Users deleted successfully", deletedAudioCount: audioCount || 0 });
+  } catch (error) {
+    logger.error("[ADMIN USERS] Server error during bulk delete:", error);
+    return res.status(500).json({ success: false, message: "Server error while deleting users", error: error.message });
   }
 };
 

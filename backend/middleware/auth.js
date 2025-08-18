@@ -1,13 +1,11 @@
 // Middleware for authentication
 const jwt = require("jsonwebtoken");
-const { createClient } = require("@supabase/supabase-js");
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "../.env") });
+const { supabase } = require("../utils/supabaseClient");
 const logger = require("../utils/logger"); // Import logger
 
-// Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Supabase client comes from shared client; if missing, middleware will respond 500 on protected routes
 
 // JWT secret key
 const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-development";
@@ -52,15 +50,14 @@ exports.authenticate = async (req, res, next) => {
     );
     logger.debug(`Token verified for user ID: ${decoded.id}, path: ${path}`);
 
-    // DEVELOPMENT MODE: Skip Supabase user lookup for mock users
-    if (process.env.NODE_ENV === 'development' && decoded.id === 'dev-user-123') {
-      logger.info(`Development mode: Using mock user for path: ${path}`);
-      req.user = {
-        id: decoded.id,
-        email: decoded.email,
-        role: decoded.role || 'user'
-      };
-      return next();
+
+    // Ensure Supabase is configured
+    if (!supabase) {
+      logger.error("Authentication failed: Supabase is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY.");
+      return res.status(500).json({
+        success: false,
+        message: "Server auth not configured. Please contact support.",
+      });
     }
 
     // Check if user exists in Supabase with performance measurement
@@ -137,6 +134,13 @@ exports.optionalAuth = async (req, res, next) => {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       logger.debug(`Optional auth token verified for user ID: ${decoded.id}, path: ${path}`);
+
+      // If Supabase is not configured, proceed without user
+      if (!supabase) {
+        logger.warn("Optional auth: Supabase not configured; proceeding without user.");
+        req.user = null;
+        return next();
+      }
 
       // Check if user exists in Supabase
       const { data: user, error } = await supabase

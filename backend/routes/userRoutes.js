@@ -1,7 +1,7 @@
 const express = require('express');
 const { getUserInterests, updateUserInterests } = require('../controllers/interestController');
 const { authenticate } = require('../middleware/authMiddleware');
-const { createClient } = require('@supabase/supabase-js');
+const { supabase } = require('../utils/supabaseClient');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -129,10 +129,7 @@ router.post('/user-favorites', authenticate, async (req, res) => {
   }
 });
 
-// Supabase client setup
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Supabase client provided by shared utility
 
 // Get user's audio history
 router.get('/users/:userId/audio-history', authenticate, async (req, res) => {

@@ -49,7 +49,7 @@ export default function UserAudioHistoryPage() {
               placeholder="Ara (girdi / çeviri / adaptasyon)"
               className="border rounded px-2 py-1 text-sm bg-white dark:bg-gray-900 dark:text-gray-100"
             />
-            <a href="/admin/users" className="text-indigo-600 hover:underline dark:text-indigo-400">← Kullanıcı Listesi</a>
+            <a href="/admin/dashboard" className="text-indigo-600 hover:underline dark:text-indigo-400">← Kullanıcı Yönetimi</a>
           </div>
         </div>
 

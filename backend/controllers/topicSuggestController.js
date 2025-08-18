@@ -1,5 +1,10 @@
 const OpenAI = require("openai");
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let openai = null;
+if (process.env.OPENAI_API_KEY) {
+  try {
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  } catch {}
+}
 const { logRequestStep } = require('../utils/requestLogger');
 const { v4: uuidv4 } = require('uuid');
 
@@ -13,6 +18,9 @@ exports.suggestTopics = async (req, res) => {
   const prompt = `Based on the keyword '${input}', suggest 5 different, specific and engaging spoken-content topics suitable for a 15-minute narration. Each topic should be detailed and clearly described in 1-2 sentences so the user can easily choose. Return only the list of topics with their descriptions, no explanations or extra text.`;
   logRequestStep(requestId, 'topic-suggest:start', { input, prompt });
   try {
+    if (!openai) {
+      return res.status(503).json({ success: false, message: "Topic suggestions temporarily unavailable (missing OPENAI_API_KEY)." });
+    }
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [

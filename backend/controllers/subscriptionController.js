@@ -1,14 +1,11 @@
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 const logger = require("../utils/logger"); // Import logger
+const { supabase } = require("../utils/supabaseClient");
 // const { logStep } = require('../utils/stepLogger');
 const { v4: uuidv4 } = require('uuid');
 
-// Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Supabase client is provided by utils/supabaseClient (guarded init)
 
 // Get subscription plans
 exports.getSubscriptionPlans = async (req, res) => {

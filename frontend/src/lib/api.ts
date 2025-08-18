@@ -216,18 +216,7 @@ export const fetchYoutubeTranscript = async (youtubeUrl: string, languageCode: s
       return data.transcript.trim();
     } catch (err) {
       console.error(`Gerçek transkript servisi hatası:`, err);
-      
-      // Hata durumunda mock transcript döndür
-      console.log(`Mock transcript oluşturuluyor...`);
-      const mockTranscript = `
-      Bu bir mock transkript içeriğidir.
-      
-      Proin euismod, nunc in aliquam ultrices, nisi enim aliquam ipsum,
-      vitae luctus nisl nunc in lectus. Donec auctor, nisl eget aliquam
-      ultrices, nisi enim aliquam ipsum, vitae luctus nisl nunc in lectus.
-      `;
-      
-      return mockTranscript.trim();
+      throw err;
     }
   } catch (error) {
     console.error('YouTube transkript çekme hatası:', error);

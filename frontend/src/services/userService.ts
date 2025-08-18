@@ -1,6 +1,5 @@
 import { User, UserUpdateData } from '@/types/user';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+import { getApiUrl, createHeaders } from '@/lib/api';
 
 function mapUserFromApi(apiUser: any): User {
   return {
@@ -26,11 +25,9 @@ function mapUserFromApi(apiUser: any): User {
 // Fetch all users
 export const fetchUsers = async (): Promise<User[]> => {
   try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-    const response = await fetch(`${API_URL}/admin/users`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+    const response = await fetch(getApiUrl('admin/users'), {
+      headers: createHeaders('application/json'),
+      credentials: 'include',
     });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -44,17 +41,21 @@ export const fetchUsers = async (): Promise<User[]> => {
 };
 
 // Delete a user
-export const deleteUser = async (id: string): Promise<void> => {
+export const deleteUser = async (id: string): Promise<{ deletedAudioCount?: number; message?: string }> => {
   try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-    const response = await fetch(`${API_URL}/admin/users/${id}`, {
+    const response = await fetch(getApiUrl(`admin/users/${id}`), {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+      headers: createHeaders('application/json'),
+      credentials: 'include',
     });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    try {
+      const json = await response.json();
+      return { deletedAudioCount: json?.deletedAudioCount, message: json?.message };
+    } catch {
+      return {};
     }
   } catch (error) {
     console.error(`Error deleting user ${id}:`, error);
@@ -62,17 +63,38 @@ export const deleteUser = async (id: string): Promise<void> => {
   }
 };
 
+// Bulk delete users
+export const deleteUsersBulk = async (ids: string[]): Promise<{ deletedAudioCount?: number; message?: string }> => {
+  try {
+    const response = await fetch(getApiUrl('admin/users/bulk-delete'), {
+      method: 'POST',
+      headers: createHeaders('application/json'),
+      body: JSON.stringify({ ids }),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    try {
+      const json = await response.json();
+      return { deletedAudioCount: json?.deletedAudioCount, message: json?.message };
+    } catch {
+      return {};
+    }
+  } catch (error) {
+    console.error(`Error bulk deleting users:`, error);
+    throw error;
+  }
+};
+
 // Update user
 export const updateUser = async (id: string, userData: UserUpdateData): Promise<User> => {
   try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-    const response = await fetch(`${API_URL}/admin/users/${id}`, {
+    const response = await fetch(getApiUrl(`admin/users/${id}`), {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: createHeaders('application/json'),
       body: JSON.stringify(userData),
+      credentials: 'include',
     });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -88,11 +110,9 @@ export const updateUser = async (id: string, userData: UserUpdateData): Promise<
 // Get user by ID
 export const getUserById = async (id: string): Promise<User> => {
   try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-    const response = await fetch(`${API_URL}/admin/users/${id}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+    const response = await fetch(getApiUrl(`admin/users/${id}`), {
+      headers: createHeaders('application/json'),
+      credentials: 'include',
     });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

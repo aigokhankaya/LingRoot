@@ -1,7 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const OpenAI = require("openai");
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let openai = null;
+if (process.env.OPENAI_API_KEY) {
+  try { openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); } catch {}
+}
 const { logRequestStep } = require('../utils/requestLogger');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../utils/logger');
@@ -37,6 +40,9 @@ exports.rewriteToNarration = async (req, res) => {
     
     // OpenAI API'ye istek gönder
     logger.debug(`Sending OpenAI request for narration rewrite`);
+    if (!openai) {
+      return res.status(503).json({ success: false, message: "Narration rewrite unavailable (missing OPENAI_API_KEY)." });
+    }
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
