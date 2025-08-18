@@ -38,6 +38,7 @@ const LibraryScreen: React.FC = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasUserScrolled, setHasUserScrolled] = useState(false);
   const [serverTotalCount, setServerTotalCount] = useState<number | null>(null);
+  const [isHydratingFavorites, setIsHydratingFavorites] = useState(false);
 
   const levels: (CEFRLevel | 'all')[] = ['all', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
@@ -185,6 +186,36 @@ const LibraryScreen: React.FC = () => {
     await saveFavorites(next);
   };
 
+  // Ensure that when showing favorites we have coverage for all favorite IDs by fetching more pages if needed
+  const ensureFavoritesCoverage = async () => {
+    if (!showFavoritesOnly) return;
+    if (isHydratingFavorites) return;
+    // If we don't know total yet, a couple of fetches will set it
+    const haveAllFromServer = (serverTotalCount !== null) && (audioTracks.length >= serverTotalCount);
+    const currentIds = new Set(audioTracks.map(t => t.id));
+    const missingFavs = favoriteIds.filter(fid => !currentIds.has(fid));
+    if (missingFavs.length === 0 || haveAllFromServer) return;
+    setIsHydratingFavorites(true);
+    try {
+      let nextPage = page + 1;
+      // Hard cap to avoid very long loops when server returns small counts
+      for (let i = 0; i < 20; i++) {
+        const reachedEnd = (serverTotalCount !== null) && (audioTracks.length >= serverTotalCount);
+        if (reachedEnd) break;
+        await fetchAudioHistory(false, nextPage);
+        nextPage += 1;
+        // Recompute remaining
+        const ids = new Set((prev => prev)(audioTracks).map(t => t.id));
+        const stillMissing = favoriteIds.filter(fid => !ids.has(fid));
+        if (stillMissing.length === 0) break;
+      }
+    } catch (e) {
+      console.warn('Favorites hydration failed', e);
+    } finally {
+      setIsHydratingFavorites(false);
+    }
+  };
+
   const handleLongPress = (track: AudioTrack) => {
     const currentlyFav = isFavorite(track.id);
     Alert.alert(
@@ -211,6 +242,12 @@ const LibraryScreen: React.FC = () => {
     fetchAudioHistory(true, 1);
     loadFavorites();
   }, [user?.id]);
+
+  // When toggling to favorites view or when favorites change, try to hydrate missing ones
+  useEffect(() => {
+    ensureFavoritesCoverage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showFavoritesOnly, favoriteIds, serverTotalCount]);
 
   // Auto-refresh when screen gains focus (e.g., after navigating from Create)
   useFocusEffect(
