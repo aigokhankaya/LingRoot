@@ -328,10 +328,14 @@ const processTtsRequest = async (req, res) => {
             console.log("📥  Input type:", req.body.input_type);
             console.log("[DEBUG] Translated result:", translationResult);
         } catch (translateError) {
-            logger.error(`[${requestId}] Error during language detection/translation: ${translateError.message}. Proceeding with original cleaned text.`);
-            textToAdapt = cleanedText;
-            detectedLang = 'en';
+            logger.error(`[${requestId}] Error during language detection/translation: ${translateError.message}.`);
             logRequestStep(requestId, 'translate:error', { error: translateError.message });
+            // Return 4xx instead of silently continuing with original text
+            return res.status(422).json({
+                success: false,
+                message: 'Translation failed',
+                error: translateError.message
+            });
         }
         logStep({
             requestId,
