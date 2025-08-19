@@ -331,10 +331,12 @@ const processTtsRequest = async (req, res) => {
             logger.error(`[${requestId}] Error during language detection/translation: ${translateError.message}.`);
             logRequestStep(requestId, 'translate:error', { error: translateError.message });
             // Return 4xx instead of silently continuing with original text
-            return res.status(422).json({
+            const status = translateError?.status || translateError?.code === 'insufficient_quota' ? 429 : 422;
+            return res.status(status).json({
                 success: false,
                 message: 'Translation failed',
-                error: translateError.message
+                error: translateError.message,
+                code: translateError?.code
             });
         }
         logStep({

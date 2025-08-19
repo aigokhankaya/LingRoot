@@ -30,6 +30,12 @@ const vocabularyRoutes = require("./routes/vocabularyRoutes"); // 👈 Vocabular
 // Initialize Express app
 const app = express();
 
+// Dev-only env diagnostics (no secrets printed)
+if (process.env.NODE_ENV === 'development') {
+  const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
+  logger.info(`[ENV CHECK] OPENAI_API_KEY loaded: ${hasOpenAI ? 'YES' : 'NO'}`);
+}
+
 app.use(express.json());
 
 // Configure security middleware

@@ -54,7 +54,7 @@ async function adaptToCEFR(text, level, requestLogger) {
     let promptTokensTotal = 0;
     let completionTokensTotal = 0;
     let totalTokensTotal = 0;
-    const model = "gpt-4o";
+    const model = process.env.OPENAI_MODEL || "gpt-4o";
     for (let i = 0; i < chunks.length; i++) {
         const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, chunks[i]);
         logger.info({ promptName: promptFile, promptText: prompt }, 'adaptToCEFR: Kullanılan prompt');

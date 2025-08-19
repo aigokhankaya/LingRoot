@@ -41,7 +41,8 @@ async function translateToEnglishWithOpenAI(text, requestLogger) {
     const { chunkText } = require('./textProcessor');
     const chunks = chunkText(text);
     let translatedChunks = [];
-    const model = "gpt-4o";
+    // Allow overriding model via env in development
+    const model = process.env.OPENAI_MODEL || "gpt-4o";
     // precise per-chunk usage aggregation instead of first-chunk * N approximation
     let promptTokensTotal = 0;
     let completionTokensTotal = 0;
