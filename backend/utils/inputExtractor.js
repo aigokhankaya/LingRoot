@@ -42,6 +42,10 @@ async function translateToEnglishWithOpenAI(text, requestLogger) {
     const chunks = chunkText(text);
     let translatedChunks = [];
     const model = "gpt-4o";
+    // precise per-chunk usage aggregation instead of first-chunk * N approximation
+    let promptTokensTotal = 0;
+    let completionTokensTotal = 0;
+    let totalTokensTotal = 0;
     for (let i = 0; i < chunks.length; i++) {
         const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, chunks[i]);
         if (requestLogger) {
@@ -58,28 +62,22 @@ async function translateToEnglishWithOpenAI(text, requestLogger) {
         });
         let translated = completion.choices[0]?.message?.content?.trim();
         translatedChunks.push(translated);
-        // Attach usage info to first chunk only (aggregate roughly)
-        if (i === 0 && completion.usage) {
-            // Save usage per total by multiplying average usage by number of chunks (approx)
-            const usage = {
-                prompt_tokens: completion.usage.prompt_tokens * chunks.length,
-                completion_tokens: completion.usage.completion_tokens * chunks.length,
-                total_tokens: completion.usage.total_tokens * chunks.length,
-            };
-            if (requestLogger) {
-                requestLogger.log(`[openai:usage]` + JSON.stringify(usage));
-            }
-            // return as object at end
-            translateToEnglishWithOpenAI.__lastUsage = { usage, model };
+        if (completion.usage) {
+            promptTokensTotal += completion.usage.prompt_tokens || 0;
+            completionTokensTotal += completion.usage.completion_tokens || 0;
+            totalTokensTotal += completion.usage.total_tokens || 0;
         }
     }
     const textJoined = translatedChunks.join('\n\n');
-    if (translateToEnglishWithOpenAI.__lastUsage) {
-        const { usage, model } = translateToEnglishWithOpenAI.__lastUsage;
-        translateToEnglishWithOpenAI.__lastUsage = undefined;
-        return { text: textJoined, usage, model };
+    const usage = {
+        prompt_tokens: promptTokensTotal,
+        completion_tokens: completionTokensTotal,
+        total_tokens: totalTokensTotal,
+    };
+    if (requestLogger) {
+        requestLogger.log(`[openai:usage:translate]` + JSON.stringify({ usage, model }));
     }
-    return textJoined;
+    return { text: textJoined, usage, model };
 }
 
 /**

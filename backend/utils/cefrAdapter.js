@@ -50,7 +50,7 @@ async function adaptToCEFR(text, level, requestLogger) {
     const { chunkText } = require('./textProcessor');
     const chunks = chunkText(text);
     let adaptedChunks = [];
-    // Track OpenAI usage across chunks
+    // Track OpenAI usage across chunks (precise sum of all chunks)
     let promptTokensTotal = 0;
     let completionTokensTotal = 0;
     let totalTokensTotal = 0;
@@ -100,13 +100,17 @@ async function adaptToCEFR(text, level, requestLogger) {
         }
     }
     const merged = adaptedChunks.join('\n\n');
+    const usage = {
+        prompt_tokens: promptTokensTotal,
+        completion_tokens: completionTokensTotal,
+        total_tokens: totalTokensTotal,
+    };
+    if (requestLogger) {
+        requestLogger.log(`[openai:usage:adapt]` + JSON.stringify({ usage, model }));
+    }
     return {
         text: merged,
-        usage: {
-            prompt_tokens: promptTokensTotal,
-            completion_tokens: completionTokensTotal,
-            total_tokens: totalTokensTotal,
-        },
+        usage,
         model,
     };
 }
