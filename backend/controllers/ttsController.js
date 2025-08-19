@@ -292,9 +292,12 @@ const processTtsRequest = async (req, res) => {
         let openaiUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
         /** @type {{model: string, prompt_tokens: number, completion_tokens: number, total_tokens: number}[]} */
         const usageBreakdown = [];
+        let openaiCallCount = 0;
+        let googleTtsCallCount = 0;
         try {
             // translateToEnglishWithOpenAI may return string; we enhance to capture usage via try/catch below
             const trResult = await translateToEnglishWithOpenAI(cleanedText);
+            openaiCallCount += 1; // translate call aggregates chunk usages
             if (typeof trResult === 'object' && trResult !== null && trResult.text) {
                 translationResult = trResult.text;
                 if (trResult.usage) {
@@ -353,6 +356,7 @@ const processTtsRequest = async (req, res) => {
 
         try {
             const adaptedResult = await adaptToCEFRFunc(textToAdapt, level);
+            openaiCallCount += 1; // adapt call aggregates chunk usages
             if (typeof adaptedResult === 'object' && adaptedResult !== null && adaptedResult.text) {
                 textToAdapt = adaptedResult.text;
                 // accumulate CEFR usage into openaiUsage as well
@@ -688,6 +692,7 @@ const processTtsRequest = async (req, res) => {
 
                 // Cost tracking for TTS
                 ttsCharactersTotal += chunk.length;
+                googleTtsCallCount += 1;
                 // Determine package category from utils/googleTTS voice list heuristics in ttsResult or voice name
                 if (selectedVoice?.includes('Standard')) ttsCategory = 'Basic';
                 else if (selectedVoice?.includes('Wavenet') || selectedVoice?.includes('Neural2')) ttsCategory = 'Premium';
@@ -730,6 +735,7 @@ const processTtsRequest = async (req, res) => {
         const totalWords = allWordTimings.length;
         
         logger.info(`[${requestId}] All chunks synthesized - Total duration: ${totalRealDuration.toFixed(1)}s, Total words: ${totalWords}, Segments: ${audioSegments.length}`);
+        logger.info(`[${requestId}] 📊 API Call Counts -> OpenAI: ${openaiCallCount}, Google TTS: ${googleTtsCallCount}`);
 
         // --- Step 7: Merge Audio Segments ---
         logger.info(`[${requestId}] Merging ${audioSegments.length} audio segments...`);
