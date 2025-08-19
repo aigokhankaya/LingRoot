@@ -41,6 +41,7 @@ async function translateToEnglishWithOpenAI(text, requestLogger) {
     const { chunkText } = require('./textProcessor');
     const chunks = chunkText(text);
     let translatedChunks = [];
+    const model = "gpt-4o";
     for (let i = 0; i < chunks.length; i++) {
         const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, chunks[i]);
         if (requestLogger) {
@@ -48,7 +49,7 @@ async function translateToEnglishWithOpenAI(text, requestLogger) {
         }
         logger.info({ promptName: promptFile, promptText: prompt }, 'translateToEnglishWithOpenAI: Kullanılan prompt');
         const completion = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model,
             messages: [
                 { role: "system", content: "You are a translation assistant." },
                 { role: "user", content: prompt }
@@ -69,14 +70,14 @@ async function translateToEnglishWithOpenAI(text, requestLogger) {
                 requestLogger.log(`[openai:usage]` + JSON.stringify(usage));
             }
             // return as object at end
-            translateToEnglishWithOpenAI.__lastUsage = usage;
+            translateToEnglishWithOpenAI.__lastUsage = { usage, model };
         }
     }
     const textJoined = translatedChunks.join('\n\n');
     if (translateToEnglishWithOpenAI.__lastUsage) {
-        const usage = translateToEnglishWithOpenAI.__lastUsage;
+        const { usage, model } = translateToEnglishWithOpenAI.__lastUsage;
         translateToEnglishWithOpenAI.__lastUsage = undefined;
-        return { text: textJoined, usage };
+        return { text: textJoined, usage, model };
     }
     return textJoined;
 }

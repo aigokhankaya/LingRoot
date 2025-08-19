@@ -54,6 +54,7 @@ async function adaptToCEFR(text, level, requestLogger) {
     let promptTokensTotal = 0;
     let completionTokensTotal = 0;
     let totalTokensTotal = 0;
+    const model = "gpt-4o";
     for (let i = 0; i < chunks.length; i++) {
         const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, chunks[i]);
         logger.info({ promptName: promptFile, promptText: prompt }, 'adaptToCEFR: Kullanılan prompt');
@@ -61,9 +62,9 @@ async function adaptToCEFR(text, level, requestLogger) {
             requestLogger.log(`[adaptCEFR:prompt:chunk:${i}][input]` + JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2));
         }
         try {
-            logger.info(`Sending request to OpenAI (model: gpt-4o) for CEFR level ${level} adaptation.`);
+            logger.info(`Sending request to OpenAI (model: ${model}) for CEFR level ${level} adaptation.`);
             const completion = await openai.chat.completions.create({
-                model: "gpt-4o",
+                model,
                 messages: [
                     { role: "system", content: "You are a professional English teacher." },
                     { role: "user", content: prompt },
@@ -105,7 +106,8 @@ async function adaptToCEFR(text, level, requestLogger) {
             prompt_tokens: promptTokensTotal,
             completion_tokens: completionTokensTotal,
             total_tokens: totalTokensTotal,
-        }
+        },
+        model,
     };
 }
 

@@ -1,4 +1,4 @@
-import { API_BASE_URL, createHeaders, ApiResponse } from './api';
+import { API_BASE_URL, createHeaders, ApiResponse, getApiUrl } from './api';
 import { User } from './user'; // Assuming User interface is defined in user.ts
 
 // Types
@@ -12,8 +12,9 @@ export interface DashboardStats {
 // Get dashboard statistics (admin only)
 export const getDashboardStats = async (): Promise<ApiResponse<DashboardStats>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/stats`, {
-      headers: createHeaders()
+    const response = await fetch(getApiUrl('admin/stats'), {
+      headers: createHeaders(),
+      credentials: 'include',
     });
     
     if (!response.ok) {
@@ -33,9 +34,10 @@ export const getDashboardStats = async (): Promise<ApiResponse<DashboardStats>> 
 export const updateUserAdmin = async (userId: string, userData: Partial<User>): Promise<ApiResponse<User>> => {
   console.warn('updateUserAdmin function needs implementation based on specific requirements.');
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+    const response = await fetch(getApiUrl(`admin/users/${userId}`), {
       method: 'PUT',
-      headers: createHeaders(),
+      headers: createHeaders('application/json'),
+      credentials: 'include',
       body: JSON.stringify(userData)
     });
 
@@ -58,9 +60,10 @@ export const updateUserAdmin = async (userId: string, userData: Partial<User>): 
 export const updateUserSubscriptionAdmin = async (subscriptionId: string, updateData: any): Promise<ApiResponse<any>> => {
   console.warn('updateUserSubscriptionAdmin function needs implementation based on specific backend logic.');
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/subscriptions/${subscriptionId}`, {
+    const response = await fetch(getApiUrl(`admin/subscriptions/${subscriptionId}`), {
       method: 'PUT',
-      headers: createHeaders(),
+      headers: createHeaders('application/json'),
+      credentials: 'include',
       body: JSON.stringify(updateData) // e.g., { status: 'active', planId: 'new_plan_id' }
     });
 
@@ -118,8 +121,9 @@ export const getUserAudioHistoryAdmin = async (
   const { page = 1, limit = 50, search = '' } = opts || {};
   const params = new URLSearchParams({ page: String(page), limit: String(limit) });
   if (search) params.set('search', search);
-  const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/audio-history?${params.toString()}`, {
+  const response = await fetch(getApiUrl(`admin/users/${userId}/audio-history?${params.toString()}`), {
     headers: createHeaders(),
+    credentials: 'include',
   });
   if (!response.ok) {
     const err = await response.text();

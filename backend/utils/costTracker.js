@@ -7,6 +7,7 @@ const defaultOpenAiPricing = {
   // prices per 1K tokens
   'gpt-4o': { input: 0.005, output: 0.015 },
   'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+  'o4-mini': { input: 0.0025, output: 0.005 },
 };
 
 const defaultTtsPricingPer1kChars = {

@@ -290,6 +290,8 @@ const processTtsRequest = async (req, res) => {
         let translationResult = '';
         // Track OpenAI usage/cost
         let openaiUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+        /** @type {{model: string, prompt_tokens: number, completion_tokens: number, total_tokens: number}[]} */
+        const usageBreakdown = [];
         try {
             // translateToEnglishWithOpenAI may return string; we enhance to capture usage via try/catch below
             const trResult = await translateToEnglishWithOpenAI(cleanedText);
@@ -301,6 +303,9 @@ const processTtsRequest = async (req, res) => {
                         completion_tokens: trResult.usage.completion_tokens || 0,
                         total_tokens: trResult.usage.total_tokens || (trResult.usage.prompt_tokens || 0) + (trResult.usage.completion_tokens || 0)
                     };
+                    if (trResult.model) {
+                        usageBreakdown.push({ model: trResult.model, ...openaiUsage });
+                    }
                 }
             } else {
                 translationResult = String(trResult || '');
@@ -355,6 +360,9 @@ const processTtsRequest = async (req, res) => {
                     openaiUsage.prompt_tokens = (openaiUsage.prompt_tokens || 0) + (adaptedResult.usage.prompt_tokens || 0);
                     openaiUsage.completion_tokens = (openaiUsage.completion_tokens || 0) + (adaptedResult.usage.completion_tokens || 0);
                     openaiUsage.total_tokens = (openaiUsage.total_tokens || 0) + (adaptedResult.usage.total_tokens || 0);
+                    if (adaptedResult.model) {
+                        usageBreakdown.push({ model: adaptedResult.model, ...adaptedResult.usage });
+                    }
                 }
             } else {
                 textToAdapt = adaptedResult;
@@ -881,7 +889,18 @@ const processTtsRequest = async (req, res) => {
             if (userId) {
                 // Calculate costs
                 const { calculateOpenAiCost, calculateTtsCost } = require('../utils/costTracker');
-                const openaiCost = calculateOpenAiCost(openaiUsage, 'gpt-4o');
+                // Sum costs per model using detailed breakdown if available; fallback to total with default model
+                let openaiCost = { totalCostUsd: 0 };
+                if (usageBreakdown.length > 0) {
+                    let totalCost = 0;
+                    usageBreakdown.forEach((u) => {
+                        const c = calculateOpenAiCost({ prompt_tokens: u.prompt_tokens, completion_tokens: u.completion_tokens, total_tokens: u.total_tokens }, u.model);
+                        totalCost += c.totalCostUsd || 0;
+                    });
+                    openaiCost.totalCostUsd = Number(totalCost.toFixed(6));
+                } else {
+                    openaiCost = calculateOpenAiCost(openaiUsage, 'gpt-4o');
+                }
                 const ttsCostUsd = calculateTtsCost(ttsCharactersTotal, ttsCategory);
                 const totalCostUsd = Number(((openaiCost.totalCostUsd || 0) + (ttsCostUsd || 0)).toFixed(6));
 
