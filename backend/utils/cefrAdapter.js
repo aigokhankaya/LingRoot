@@ -9,13 +9,16 @@ const path = require("path");
 // Ensure OPENAI_API_KEY is set in the environment (.env file)
 let openai;
 try {
-    if (!process.env.OPENAI_API_KEY) {
+    const apiKeyRaw = process.env.OPENAI_API_KEY || '';
+    const apiKey = apiKeyRaw.trim().replace(/^['"]|['"]$/g, '');
+    if (!apiKey) {
         logger.warn("OpenAI API key not found in environment variables (OPENAI_API_KEY). CEFR adaptation will be skipped, returning original text.");
         openai = null;
     } else {
-        openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
+        if (process.env.NODE_ENV === 'development') {
+            logger.info(`[ENV CHECK] OpenAI key suffix: ${apiKey.slice(-6)} (len=${apiKey.length})`);
+        }
+        openai = new OpenAI({ apiKey });
         logger.info("OpenAI client initialized successfully.");
     }
 } catch (error) {

@@ -14,11 +14,16 @@ require("dotenv").config();
 // Initialize OpenAI client (similar to cefrAdapter, consider refactoring to a shared client)
 let openai;
 try {
-    if (!process.env.OPENAI_API_KEY) {
+    const apiKeyRaw = process.env.OPENAI_API_KEY || '';
+    const apiKey = apiKeyRaw.trim().replace(/^['"]|['"]$/g, '');
+    if (!apiKey) {
         logger.warn("OpenAI API key not found. Topic generation will not work.");
         openai = null;
     } else {
-        openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        if (process.env.NODE_ENV === 'development') {
+            logger.info(`[ENV CHECK] OpenAI key suffix: ${apiKey.slice(-6)} (len=${apiKey.length})`);
+        }
+        openai = new OpenAI({ apiKey });
         logger.info("OpenAI client initialized for input extraction (topic generation).");
     }
 } catch (error) {
