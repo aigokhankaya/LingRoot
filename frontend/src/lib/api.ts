@@ -331,7 +331,12 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
                 throw new Error(`TTS API failed: ${response.status} ${response.statusText} - ${errorText}`);
             }
             if (apiResponse?.code === 'USAGE_LIMIT_EXCEEDED') {
-                throw new Error('Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.');
+                const link = '/dashboard#paket-bilgilerim';
+                throw new Error(`Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin (${link}).`);
+            }
+            if (apiResponse?.code === 'NO_ACTIVE_PLAN') {
+                const link = '/dashboard#paket-bilgilerim';
+                throw new Error(`Aktif paketiniz yok. Lütfen paket seçin (${link}).`);
             }
             throw new Error(apiResponse?.message || `TTS API failed: ${response.status} ${response.statusText}`);
         } else {
