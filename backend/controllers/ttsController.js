@@ -849,6 +849,30 @@ const processTtsRequest = async (req, res) => {
         logger.info(`🔍 FINAL TIMEPOINTS DEBUG - Total words: ${words.length}, Timepoints: ${timepoints.length}`);
         logger.info(`🔍 First 5 timepoints:`, timepoints.slice(0, 5));
         logger.info(`🔍 All word timings count: ${allWordTimings.length}`);
+
+        // Post-process: check limits and deactivate subscription if exceeded
+        try {
+          const stateAfter = await checkLimits(req.user?.id);
+          if (stateAfter?.hasPlan && stateAfter.isExceeded) {
+            logger.warn(`[${requestId}] Usage exceeded after TTS generation. Deactivating active subscription.`);
+            const { data: activeSub } = await supabase
+              .from('subscriptions')
+              .select('id')
+              .eq('user_id', req.user?.id)
+              .eq('status', 'active')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (activeSub?.id) {
+              await supabase
+                .from('subscriptions')
+                .update({ status: 'inactive', updated_at: new Date().toISOString() })
+                .eq('id', activeSub.id);
+            }
+          }
+        } catch (postLimitErr) {
+          logger.error(`[${requestId}] Post-limit check failed: ${postLimitErr?.message}`);
+        }
         logger.info(`🔍 Sample word timing:`, allWordTimings[0]);
         
         logStep({

@@ -3,19 +3,25 @@ const logger = require('../utils/logger');
 
 function getPeriodStart(subscription, plan) {
   try {
-    // Prefer explicit start markers to ensure reset on plan change or new subscription
+    // Prefer explicit start markers to ensure reset on plan change/new subscription
+    // Use the most recent valid date among candidates (covers plan changes and manual updates)
     const startCandidates = [
       subscription?.current_period_start,
-      subscription?.start_date,
       subscription?.startdate,
       subscription?.startDate,
+      subscription?.updated_at,
+      subscription?.updatedAt,
       subscription?.created_at,
       subscription?.createdAt,
-    ].filter(Boolean);
+    ]
+      .filter(Boolean)
+      .map((v) => {
+        try { const d = new Date(String(v)); return isNaN(d.getTime()) ? null : d; } catch { return null; }
+      })
+      .filter((d) => d !== null);
     if (startCandidates.length > 0) {
-      const iso = String(startCandidates[0]);
-      const d = new Date(iso);
-      if (!isNaN(d.getTime())) return d.toISOString();
+      const latest = startCandidates.reduce((a, b) => (a.getTime() > b.getTime() ? a : b));
+      return latest.toISOString();
     }
 
     // Fallback: infer start as period end - interval
@@ -33,15 +39,43 @@ function getPeriodStart(subscription, plan) {
 }
 
 async function getActiveSubscriptionWithPlan(userId) {
-  const { data: sub, error } = await supabase
+  // Fetch recent subscriptions (active preferred) and choose the one with the latest start marker
+  const { data: subs, error } = await supabase
     .from('subscriptions')
     .select(`*`)
     .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order('created_at', { ascending: false });
   if (error && error.code !== 'PGRST116') throw error;
-  if (!sub) return null;
+  if (!Array.isArray(subs) || subs.length === 0) return null;
+
+  const pickStartDate = (s) => {
+    const cands = [
+      s?.current_period_start,
+      s?.startdate,
+      s?.startDate,
+      s?.updated_at,
+      s?.updatedAt,
+      s?.created_at,
+      s?.createdAt,
+    ]
+      .filter(Boolean)
+      .map((v) => {
+        try { const d = new Date(String(v)); return isNaN(d.getTime()) ? null : d.getTime(); } catch { return null; }
+      })
+      .filter((t) => t != null);
+    return cands.length ? Math.max(...cands) : 0;
+  };
+
+  // Prefer active records; among them choose the one with the latest start marker
+  const actives = subs.filter((s) => String(s.status || '').toLowerCase() === 'active');
+  const pool = actives.length > 0 ? actives : subs;
+  const best = pool.reduce((best, cur) => {
+    const bt = pickStartDate(best || {});
+    const ct = pickStartDate(cur || {});
+    return (!best || ct > bt) ? cur : best;
+  }, null);
+
+  const sub = best;
   let plan = null;
   try {
     // 1) Legacy by plan_id
@@ -74,13 +108,14 @@ async function getActiveSubscriptionWithPlan(userId) {
   return { ...sub, plan };
 }
 
-async function getUsageTotals(userId, periodStartIso) {
+async function getUsageTotals(userId, periodStartIso, periodEndIso) {
   // Sum usage from contenthistory since periodStart
   const { data, error } = await supabase
     .from('contenthistory')
     .select('openai_total_tokens, tts_characters, openai_cost_usd, tts_cost_usd, created_at')
     .eq('user_id', userId)
-    .gte('created_at', periodStartIso);
+    .gte('created_at', periodStartIso)
+    .lt('created_at', periodEndIso);
   if (error) throw error;
   let openaiTokens = 0;
   let ttsChars = 0;
@@ -109,7 +144,8 @@ async function checkLimits(userId) {
     }
     const plan = subscription.plan || null;
     const periodStart = getPeriodStart(subscription, plan);
-    const usage = await getUsageTotals(userId, periodStart);
+    const periodEnd = subscription?.current_period_end || subscription?.enddate || subscription?.endDate || new Date(new Date(periodStart).getTime() + (plan?.interval === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString();
+    const usage = await getUsageTotals(userId, periodStart, periodEnd);
     const limits = {
       openaiTokenLimit: plan?.openai_token_limit || null,
       ttsCharLimit: plan?.tts_char_limit || null,

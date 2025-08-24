@@ -435,6 +435,32 @@ exports.submitContent = async (req, res) => {
     }
 
     logger.info(`Content history saved successfully for user ID: ${user_id || 'anon'}, Record ID: ${data[0]?.id}`);
+
+    // Kullanım limiti kontrolü ve paketi gerekirse pasife çek
+    try {
+      const state = await require('../utils/usageLimiter').checkLimits(req.user.id);
+      if (state?.hasPlan && state.isExceeded) {
+        logger.warn(`[USAGE LIMIT] User ${req.user.id} exceeded limits after content save. Deactivating active subscription.`);
+        // En yeni aktif aboneliği pasife çek
+        const { data: activeSub } = await supabase
+          .from('subscriptions')
+          .select('id')
+          .eq('user_id', req.user.id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (activeSub?.id) {
+          await supabase
+            .from('subscriptions')
+            .update({ status: 'inactive', updated_at: new Date().toISOString() })
+            .eq('id', activeSub.id);
+        }
+      }
+    } catch (limitErr) {
+      logger.error('[USAGE LIMIT] post-save limit check failed:', limitErr);
+    }
+
     // Başarılı yanıt
     return res.status(200).json({
       success: true,
