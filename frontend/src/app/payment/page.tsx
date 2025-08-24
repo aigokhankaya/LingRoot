@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function PaymentPage() {
+function PaymentContent() {
   const router = useRouter();
   const params = useSearchParams();
   const planId = params?.get?.('planId') || null;
@@ -121,6 +121,14 @@ export default function PaymentPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function PaymentPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-gray-600">Yükleniyor...</div>}>
+      <PaymentContent />
+    </Suspense>
   );
 }
 
