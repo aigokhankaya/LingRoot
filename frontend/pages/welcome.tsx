@@ -7,7 +7,7 @@ import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
-import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData } from '../src/lib/api';
+import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary } from '../src/lib/api';
 import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
 import OutputSection from '../src/components/OutputSection';
@@ -869,6 +869,16 @@ const Welcome: React.FC = () => {
           throw new Error('Metin anlatım formatına dönüştürülemedi.');
         }
       }
+
+      // Kullanım limiti kontrolü
+      try {
+        const usageSummary = await getUsageSummary();
+        if (usageSummary?.success && usageSummary.data?.isExceeded) {
+          alert('Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya dönemi bekleyin.');
+          setIsLoading(false);
+          return;
+        }
+      } catch {}
 
       console.log('🔄 [DEBUG] About to call processTts with:', processInput);
       const result = await processTts(processInput);

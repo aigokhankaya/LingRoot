@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { processTts, submitContent, ProcessInputData, TtsResponseData, ApiResponse } from "../lib/api";
+import { processTts, submitContent, ProcessInputData, TtsResponseData, ApiResponse, getUsageSummary } from "../lib/api";
 
 interface InputFormProps {
   onSuccess?: (data: {
@@ -50,6 +50,17 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
     }
 
     try {
+      // Kullanım limiti kontrolü (client-side ön kontrol)
+      try {
+        const summary = await getUsageSummary();
+        if (summary?.success && summary.data?.isExceeded) {
+          setIsError(true);
+          setErrorMessage('Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya dönemi bekleyin.');
+          setIsLoading(false);
+          return;
+        }
+      } catch {}
+
       const result: TtsResponseData = await processTts(data);
       if (result.mp3_url) {
         setIsSuccess(true);

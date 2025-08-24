@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { useAuth } from '../src/lib/auth';
 import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
@@ -14,6 +13,7 @@ export default function Profile() {
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [contentHistory, setContentHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [locale, setLocale] = useState<string>('tr-TR');
 
   useEffect(() => {
     async function fetchActivities() {
@@ -57,6 +57,23 @@ export default function Profile() {
     }
     fetchHistory();
   }, []);
+
+  // Tercih edilen locale'i yükle
+  useEffect(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('lingroot_locale') : null;
+      if (stored) setLocale(stored);
+      else if (typeof navigator !== 'undefined' && navigator.language) setLocale(navigator.language);
+    } catch {}
+  }, [isAuthenticated]);
+
+  
+
+  const handleLocaleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value || 'tr-TR';
+    setLocale(value);
+    try { localStorage.setItem('lingroot_locale', value); } catch {}
+  };
 
   // Auth loading durumunda loading göster
   if (authLoading) {
@@ -103,7 +120,7 @@ export default function Profile() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
-                              <img src="/logo.svg" alt="LingRoot" className="w-8 h-8" />
+                              <span className="w-8 h-8 flex items-center justify-center rounded bg-blue-600 text-white font-bold text-sm">LR</span>
                 <h1 className="text-xl font-semibold text-gray-900">
                   <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent font-extrabold">LingRoot</span> Dashboard
                 </h1>
@@ -129,10 +146,51 @@ export default function Profile() {
       {/* Hoş geldin mesajı */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-6 flex items-center space-x-4">
-          <Image src={avatar} alt={displayName} width={56} height={56} className="rounded-full border-2 border-blue-200 object-cover" />
+          <span className="w-14 h-14 flex items-center justify-center rounded-full border-2 border-blue-200 bg-gray-200 text-gray-700 text-xl font-bold">
+            {displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0,2)}
+          </span>
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Hoş geldin, {displayName}!</h2>
             <p className="text-gray-600">Bugün ne öğrenmek istersin?</p>
+          </div>
+          <div className="ml-auto flex items-center space-x-2">
+            <label className="text-sm text-gray-600">Ana Dil</label>
+            <select className="border rounded-md px-2 py-1 text-sm" value={locale} onChange={handleLocaleChange}>
+              <option value="tr-TR">Türkçe (TR)</option>
+              <option value="en-US">English (US)</option>
+              <option value="en-GB">English (UK)</option>
+              <option value="de-DE">Deutsch (DE)</option>
+              <option value="fr-FR">Français (FR)</option>
+              <option value="es-ES">Español (ES)</option>
+              <option value="es-MX">Español (MX)</option>
+              <option value="it-IT">Italiano (IT)</option>
+              <option value="pt-PT">Português (PT)</option>
+              <option value="pt-BR">Português (BR)</option>
+              <option value="nl-NL">Nederlands (NL)</option>
+              <option value="sv-SE">Svenska (SE)</option>
+              <option value="no-NO">Norsk (NO)</option>
+              <option value="da-DK">Dansk (DK)</option>
+              <option value="pl-PL">Polski (PL)</option>
+              <option value="cs-CZ">Čeština (CZ)</option>
+              <option value="ro-RO">Română (RO)</option>
+              <option value="hu-HU">Magyar (HU)</option>
+              <option value="el-GR">Ελληνικά (GR)</option>
+              <option value="bg-BG">Български (BG)</option>
+              <option value="ru-RU">Русский (RU)</option>
+              <option value="uk-UA">Українська (UA)</option>
+              <option value="ar-SA">العربية (SA)</option>
+              <option value="he-IL">עברית (IL)</option>
+              <option value="hi-IN">हिन्दी (IN)</option>
+              <option value="id-ID">Bahasa Indonesia (ID)</option>
+              <option value="ms-MY">Bahasa Melayu (MY)</option>
+              <option value="th-TH">ไทย (TH)</option>
+              <option value="vi-VN">Tiếng Việt (VN)</option>
+              <option value="zh-CN">简体中文 (CN)</option>
+              <option value="zh-TW">繁體中文 (TW)</option>
+              <option value="ja-JP">日本語 (JP)</option>
+              <option value="ko-KR">한국어 (KR)</option>
+              <option value="fi-FI">Suomi (FI)</option>
+            </select>
           </div>
         </div>
       </div>
@@ -145,7 +203,9 @@ export default function Profile() {
             {/* Profil Kartı */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center space-x-4">
-                <Image src={avatar} alt={displayName} width={64} height={64} sizes="64px" className="rounded-full border-2 border-blue-200 object-cover" />
+                <span className="w-16 h-16 flex items-center justify-center rounded-full border-2 border-blue-200 bg-gray-200 text-gray-700 text-2xl font-bold">
+                  {displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0,2)}
+                </span>
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">{displayName}</h2>
                   <p className="text-gray-500 text-sm">{user.email}</p>
@@ -199,6 +259,8 @@ export default function Profile() {
 
           {/* Sağ Kolon - Hızlı Erişim ve Aktiviteler */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Paket Bilgilerim sekmesi taşındı (Dashboard) */}
+
             {/* Hızlı Erişim Kartları */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Link href="/text-to-speech" className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition border border-blue-100">

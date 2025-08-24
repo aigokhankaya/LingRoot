@@ -1,0 +1,9 @@
+
+-Kullanıclar kendi profillerinden hangi paketi istiyorlarsa seçecek ve ödeme adımına geçecekler.
+- Ödeme kısmını iyzico entegrasoyunu ile yapacağız.
+- Kullanıcı istediği paketi seçtikten sonra ödeme adımına geçecek. Burada kart bilgilerini girip iyzico entegrasyonu ile ödemsini gerçekleştirecek.
+- Şimdilik iyzico entegrasyonunu mock data ile  yapacağız. Kullanıcı kart bilgilerini girdikten sonra direkt ödemesi yapılmış gibi işlem olacak.
+- Ödemesi başarılı şekilde yapıltıktan sonra kullanıcı seçtiği paketin limitleri dahilinde ses oluşturma ve diğer işlemleri yapabilecek.
+- Kullanıcı her ses oluşturma işlemi sonrasında kullandığı kadar token ve karakter miktarları hesaplanıp kalan kullanım tutarlarlari güncellenecek.
+- Kullanıcının kullanım limitleri dolduğunda kullanıcıya uyarı gösterilecek.
+- 

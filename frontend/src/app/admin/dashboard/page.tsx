@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import * as echarts from 'echarts';
 import { useRouter } from 'next/navigation';
 import { deleteUser as deleteUserApi, deleteUsersBulk as deleteUsersBulkApi } from '@/services/userService';
+// Paket Bilgilerim kullanıcı dashboard'ına taşındı
 
 const App: React.FC = () => {
   const { theme, setTheme } = useTheme();
@@ -42,6 +43,99 @@ const App: React.FC = () => {
   const [usersLoading, setUsersLoading] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const router = useRouter();
+  const [plans, setPlans] = useState<any[]>([]);
+  const [plansLoading, setPlansLoading] = useState<boolean>(false);
+  const [plansError, setPlansError] = useState<string | null>(null);
+  const [editingPlan, setEditingPlan] = useState<any | null>(null);
+  const [planForm, setPlanForm] = useState<any>({
+    name: '',
+    description: '',
+    price: '',
+    interval: 'monthly',
+    features: '',
+    monthly_cost_limit_usd: '',
+    openai_token_limit: '',
+    tts_char_limit: '',
+    is_active: true,
+    is_trial: false,
+    trial_days: 7,
+  });
+  const resetPlanForm = () => setPlanForm({
+    name: '', description: '', price: '', interval: 'monthly', features: '', monthly_cost_limit_usd: '', openai_token_limit: '', tts_char_limit: '', is_active: true, is_trial: false, trial_days: 7
+  });
+  const openCreatePlan = () => { setEditingPlan(null); resetPlanForm(); setShowPackageForm(true); };
+  const openEditPlan = (p: any) => {
+    setEditingPlan(p);
+    setPlanForm({
+      name: p.name || '',
+      description: p.description || '',
+      price: p.price ?? '',
+      interval: p.interval || 'monthly',
+      features: Array.isArray(p.features) ? p.features.join(', ') : (p.features || ''),
+      monthly_cost_limit_usd: p.monthly_cost_limit_usd ?? '',
+      openai_token_limit: p.openai_token_limit ?? '',
+      tts_char_limit: p.tts_char_limit ?? '',
+      is_active: p.is_active ?? true,
+      is_trial: p.is_trial ?? false,
+      trial_days: p.trial_days ?? 7,
+    });
+    setShowPackageForm(true);
+  };
+  const savePlan = async () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+    const body: any = {
+      name: planForm.name,
+      description: planForm.description,
+      price: planForm.price !== '' ? Number(planForm.price) : undefined,
+      interval: planForm.interval,
+      features: planForm.features ? planForm.features.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+      monthly_cost_limit_usd: planForm.monthly_cost_limit_usd !== '' ? Number(planForm.monthly_cost_limit_usd) : undefined,
+      openai_token_limit: planForm.openai_token_limit !== '' ? Number(planForm.openai_token_limit) : undefined,
+      tts_char_limit: planForm.tts_char_limit !== '' ? Number(planForm.tts_char_limit) : undefined,
+      is_active: !!planForm.is_active,
+      is_trial: !!planForm.is_trial,
+      trial_days: Number(planForm.trial_days) || 7,
+    };
+    const url = editingPlan ? `/api/admin/plans/${editingPlan.id}` : '/api/admin/plans';
+    const method = editingPlan ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: { 'Authorization': `Bearer ${token || ''}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const json = await res.json();
+    if (!res.ok || !json?.success) throw new Error(json?.message || 'Plan kaydedilemedi');
+    setShowPackageForm(false);
+    setEditingPlan(null);
+    resetPlanForm();
+    await fetchPlans();
+  };
+
+  const fetchPlans = async () => {
+    try {
+      setPlansLoading(true);
+      setPlansError(null);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+      const res = await fetch('/api/admin/plans', {
+        headers: {
+          'Authorization': `Bearer ${token || ''}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.message || 'Planlar getirilemedi');
+      }
+      setPlans(Array.isArray(json.data) ? json.data : []);
+    } catch (e: any) {
+      console.error('Plan fetch error:', e);
+      setPlansError(e?.message || 'Planlar yüklenemedi');
+    } finally {
+      setPlansLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!loading && activeTab === 'paket-yonetimi') {
+      fetchPlans();
+    }
+  }, [loading, activeTab]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -357,15 +451,6 @@ const App: React.FC = () => {
     };
   }, [loading, activeTab]);
 
-  // Users will be fetched from API
-
-  const packages = [
-    { id: '1', name: 'Ücretsiz', price: '0 TL', userCount: 1548, description: 'Sınırlı seviye, sınırlı içerik / ay', features: ['A1-A2 seviyelerine erişim', 'Ayda 5 içerik', 'Temel özellikler'] },
-    { id: '2', name: 'Premium', price: '149 TL / ay', userCount: 735, description: 'Tüm seviyelere erişim, aylık içerik kotası artırılmış', features: ['Tüm seviyelere erişim', 'Ayda 30 içerik', 'Çevrimdışı erişim', 'Notlar oluşturma'] },
-    { id: '3', name: 'Pro', price: '299 TL / ay', userCount: 580, description: 'Sınırsız erişim, özel içerik', features: ['Tüm seviyelere erişim', 'Sınırsız içerik', 'Özel içerikler', 'Kişisel öğrenme asistanı', 'İlerleme raporları'] },
-    { id: '4', name: 'Kurumsal', price: 'Özel fiyatlandırma', userCount: 300, description: 'Kurumsal çözümler, özel raporlama', features: ['Tüm Pro özellikleri', 'Çoklu kullanıcı yönetimi', 'Kurumsal raporlama', 'Özel içerik üretimi', 'Öncelikli destek'] },
-  ];
-
   const coupons = [
     { id: '1', code: 'YAZ2025', discount: '%25', validUntil: '31.08.2025', usageCount: 145, maxUsage: 500, status: 'aktif' },
     { id: '2', code: 'HOŞGELDIN', discount: '%50 ilk ay', validUntil: '31.12.2025', usageCount: 278, maxUsage: 1000, status: 'aktif' },
@@ -374,7 +459,7 @@ const App: React.FC = () => {
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'tümü' || user.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -437,6 +522,7 @@ const App: React.FC = () => {
                 <i className="fas fa-box mr-3 text-lg"></i>
                 <span>Paket Yönetimi</span>
               </Button>
+              {/* Paket Bilgilerim sekmesi kaldırıldı */}
               <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("icerik-yonetimi")}>
                 <i className="fas fa-file-alt mr-3 text-lg"></i>
                 <span>İçerik Yönetimi</span>
@@ -791,53 +877,89 @@ const App: React.FC = () => {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">Paket Yönetimi</h2>
-                <Button className="bg-indigo-600 hover:bg-indigo-700 !rounded-button whitespace-nowrap" onClick={() => setShowPackageForm(true)}>
+                <Button className="bg-indigo-600 hover:bg-indigo-700 !rounded-button whitespace-nowrap" onClick={openCreatePlan}>
                   <i className="fas fa-plus mr-2"></i>
                   Yeni Paket Oluştur
                 </Button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                {packages.map((pkg) => (
+                {plansLoading && (
+                  <div className="col-span-full text-center py-8 text-gray-500">Planlar yükleniyor...</div>
+                )}
+                {plansError && (
+                  <div className="col-span-full text-center py-8 text-red-500">{plansError}</div>
+                )}
+                {!plansLoading && !plansError && plans?.length === 0 && (
+                  <div className="col-span-full text-center py-8 text-gray-500">Plan bulunamadı</div>
+                )}
+                {plans?.map((pkg) => (
                   <Card key={pkg.id} className="overflow-hidden">
                     <CardHeader className={
-                      pkg.name === 'Ücretsiz' ? 'bg-blue-50 border-b border-blue-100' :
-                      pkg.name === 'Premium' ? 'bg-purple-50 border-b border-purple-100' :
-                      pkg.name === 'Pro' ? 'bg-indigo-50 border-b border-indigo-100' :
+                      (pkg.name === 'Ücretsiz' || pkg.is_trial) ? 'bg-blue-50 border-b border-blue-100' :
+                      (pkg.name || '').toLowerCase().includes('premium') ? 'bg-purple-50 border-b border-purple-100' :
+                      (pkg.name || '').toLowerCase().includes('pro') ? 'bg-indigo-50 border-b border-indigo-100' :
                       'bg-teal-50 border-b border-teal-100'
                     }>
                       <CardTitle className={
-                        pkg.name === 'Ücretsiz' ? 'text-blue-700' :
-                        pkg.name === 'Premium' ? 'text-purple-700' :
-                        pkg.name === 'Pro' ? 'text-indigo-700' :
+                        (pkg.name === 'Ücretsiz' || pkg.is_trial) ? 'text-blue-700' :
+                        (pkg.name || '').toLowerCase().includes('premium') ? 'text-purple-700' :
+                        (pkg.name || '').toLowerCase().includes('pro') ? 'text-indigo-700' :
                         'text-teal-700'
                       }>{pkg.name}</CardTitle>
-                      <CardDescription>{pkg.description}</CardDescription>
+                      <CardDescription>{pkg.description || '—'}</CardDescription>
                     </CardHeader>
                     <CardContent className="pt-6">
-                      <div className="text-2xl font-bold mb-4">{pkg.price}</div>
+                      <div className="text-2xl font-bold mb-4">
+                        {typeof pkg.price === 'number' ? `₺${pkg.price}` : (pkg.price || '—')}
+                        <span className="text-sm font-normal text-gray-500 ml-1">{pkg.interval === 'yearly' ? '/yıl' : '/ay'}</span>
+                      </div>
                       <div className="space-y-2">
-                        {pkg.features.map((feature, index) => (
-                          <div key={index} className="flex items-start">
-                            <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
-                            <span>{feature}</span>
-                          </div>
-                        ))}
+                        {Array.isArray(pkg.features) && pkg.features.length > 0 ? (
+                          pkg.features.map((feature: string, index: number) => (
+                            <div key={index} className="flex items-start">
+                              <i className="fas fa-check text-green-500 mt-1 mr-2"></i>
+                              <span>{feature}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-gray-500">Özellik bilgisi yok</div>
+                        )}
                       </div>
                       <div className="mt-6 pt-4 border-t border-gray-100">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm text-gray-500">Aktif Kullanıcılar</span>
-                          <span className="font-medium">{pkg.userCount}</span>
+                          <span className="font-medium">—</span>
                         </div>
-                        <Progress value={(pkg.userCount / 3000) * 100} className="h-2" />
+                        <Progress value={0} className="h-2" />
+                        {pkg.estimates && (
+                          <div className="mt-3 text-xs text-gray-600">
+                            <div>Bu paketle tahmini video: <span className="font-medium">{pkg.estimates.video_minutes ?? '—'}</span> dk</div>
+                            <div>Bu paketle tahmini metin: <span className="font-medium">{pkg.estimates.text_pages ?? '—'}</span> sayfa</div>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                     <CardFooter className="flex justify-between border-t border-gray-100 pt-4">
-                      <Button variant="outline" className="!rounded-button whitespace-nowrap">
+                      <Button variant="outline" className="!rounded-button whitespace-nowrap" onClick={() => openEditPlan(pkg)}>
                         <i className="fas fa-edit mr-2"></i>
                         Düzenle
                       </Button>
-                      <Button variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50 !rounded-button whitespace-nowrap">
+                      <Button variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50 !rounded-button whitespace-nowrap" onClick={async () => {
+                        if (!confirm('Planı pasif hale getirmek istiyor musunuz?')) return;
+                        try {
+                          const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+                          const res = await fetch(`/api/admin/plans/${pkg.id}/deactivate`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token || ''}`, 'Content-Type': 'application/json' }
+                          });
+                          const json = await res.json();
+                          if (!res.ok || !json?.success) throw new Error(json?.message || 'Plan pasif edilemedi');
+                          fetchPlans();
+                        } catch (e: any) {
+                          alert(e?.message || 'Plan pasif edilemedi');
+                        }
+                      }}>
                         <i className="fas fa-trash-alt mr-2"></i>
                         Sil
                       </Button>
@@ -893,6 +1015,8 @@ const App: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Paket Bilgilerim içerik alanı kaldırıldı */}
 
           {activeTab === "icerik-yonetimi" && (
             <div className="p-6">
@@ -1566,6 +1690,74 @@ const App: React.FC = () => {
           )}
         </main>
       </div>
+
+      <Dialog open={showPackageForm} onOpenChange={setShowPackageForm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingPlan ? 'Paketi Düzenle' : 'Yeni Paket Oluştur'}</DialogTitle>
+            <DialogDescription>Paket detaylarını girin</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Ad</Label>
+              <Input value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} />
+            </div>
+            <div>
+              <Label>Açıklama</Label>
+              <Textarea value={planForm.description} onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label>Fiyat (₺)</Label>
+                <Input type="number" value={planForm.price} onChange={(e) => setPlanForm({ ...planForm, price: e.target.value })} />
+              </div>
+              <div>
+                <Label>Dönem</Label>
+                <select className="w-full border rounded-md px-3 py-2" value={planForm.interval} onChange={(e) => setPlanForm({ ...planForm, interval: e.target.value })}>
+                  <option value="monthly">Aylık</option>
+                  <option value="yearly">Yıllık</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2 mt-6 md:mt-0">
+                <Checkbox id="is-active" checked={!!planForm.is_active} onChange={(e) => setPlanForm({ ...planForm, is_active: e.currentTarget.checked })} />
+                <Label htmlFor="is-active">Aktif</Label>
+              </div>
+            </div>
+            <div>
+              <Label>Özellikler (virgülle ayırın)</Label>
+              <Input value={planForm.features} onChange={(e) => setPlanForm({ ...planForm, features: e.target.value })} placeholder="Örn: Tüm seviyelere erişim, Ayda 30 içerik" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label>Aylık USD Limit</Label>
+                <Input type="number" value={planForm.monthly_cost_limit_usd} onChange={(e) => setPlanForm({ ...planForm, monthly_cost_limit_usd: e.target.value })} />
+              </div>
+              <div>
+                <Label>OpenAI Token Limiti</Label>
+                <Input type="number" value={planForm.openai_token_limit} onChange={(e) => setPlanForm({ ...planForm, openai_token_limit: e.target.value })} />
+              </div>
+              <div>
+                <Label>TTS Karakter Limiti</Label>
+                <Input type="number" value={planForm.tts_char_limit} onChange={(e) => setPlanForm({ ...planForm, tts_char_limit: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center gap-2">
+                <Checkbox id="is-trial" checked={!!planForm.is_trial} onChange={(e) => setPlanForm({ ...planForm, is_trial: e.currentTarget.checked })} />
+                <Label htmlFor="is-trial">Ücretsiz Deneme</Label>
+              </div>
+              <div>
+                <Label>Deneme Süresi (gün)</Label>
+                <Input type="number" value={planForm.trial_days} onChange={(e) => setPlanForm({ ...planForm, trial_days: e.target.value })} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowPackageForm(false); setEditingPlan(null); }}>İptal</Button>
+            <Button onClick={async () => { try { await savePlan(); } catch (e: any) { alert(e?.message || 'Kaydedilemedi'); } }}>Kaydet</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

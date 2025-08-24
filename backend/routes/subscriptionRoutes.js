@@ -15,5 +15,9 @@ router.get('/my-subscription', authenticate, subscriptionController.getUserSubsc
 router.post('/cancel', authenticate, subscriptionController.cancelSubscription);
 router.post('/resume', authenticate, subscriptionController.resumeSubscription);
 router.post('/update', authenticate, subscriptionController.updateSubscription);
+// Mock Iyzico payment
+router.post('/mock-iyzico', authenticate, subscriptionController.mockIyzicoPayment);
+// Usage summary
+router.get('/usage-summary', authenticate, subscriptionController.getUsageSummary);
 
 module.exports = router;

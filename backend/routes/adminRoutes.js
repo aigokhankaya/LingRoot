@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, authorizeAdmin } = require('../middleware/auth');
 const adminController = require('../controllers/adminController');
+const planController = require('../controllers/planController');
 const { getTtsProviderSetting, setTtsProviderSetting } = require('../controllers/adminController');
 
 // All routes require authentication and admin authorization
@@ -10,6 +11,12 @@ router.use(authorizeAdmin);
 
 // Admin dashboard stats
 router.get('/stats', adminController.getDashboardStats);
+
+// Subscription plan management
+router.get('/plans', planController.getAllPlans);
+router.post('/plans', planController.createPlan);
+router.put('/plans/:id', planController.updatePlan);
+router.post('/plans/:id/deactivate', planController.deactivatePlan);
 
 // User management
 router.get('/users', adminController.getAllUsers);

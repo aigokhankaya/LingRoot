@@ -14,6 +14,7 @@ const tmp = require("tmp");
 const { logStep } = require('../utils/stepLogger');
 const { logRequestStep } = require("../utils/requestLogger");
 const { supabase } = require("../utils/supabaseClient");
+const { checkLimits } = require("../utils/usageLimiter");
 
 // Store references to temp files so they can be accessed via API
 const tempAudioFiles = new Map();
@@ -274,6 +275,28 @@ const processTtsRequest = async (req, res) => {
             outputData: { cleanedText }
         });
         logger.info(`[${requestId}] Text cleaned successfully.`);
+
+        // Enforce subscription usage limits before heavy operations
+        try {
+          const userId = req.user?.id;
+          if (userId) {
+            const limitState = await checkLimits(userId);
+            if (limitState?.hasPlan && limitState.isExceeded) {
+              logger.warn(`[${requestId}] Usage limit exceeded for user ${userId}`);
+              return res.status(402).json({
+                success: false,
+                code: 'USAGE_LIMIT_EXCEEDED',
+                message: 'Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.',
+                details: {
+                  limits: limitState.limits,
+                  usage: limitState.usage,
+                }
+              });
+            }
+          }
+        } catch (limitErr) {
+          logger.error(`[${requestId}] Failed to check usage limits: ${limitErr?.message}`);
+        }
 
         // --- Step 2.5: Detect Language and Translate if Necessary ---
         logRequestStep(requestId, 'translate:start', { cleanedText });

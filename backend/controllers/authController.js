@@ -119,6 +119,33 @@ exports.register = async (req, res) => {
     const token = generateToken(newUser[0].id, newUser[0].email, newUser[0].role, false);
     const refreshToken = generateRefreshToken(newUser[0].id);
 
+    // Assign default free trial plan if exists
+    try {
+      const { data: trialPlan, error: planErr } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .eq('is_trial', true)
+        .eq('is_active', true)
+        .order('price', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (!planErr && trialPlan) {
+        await supabase
+          .from('subscriptions')
+          .insert([
+            {
+              user_id: newUser[0].id,
+              plan_id: trialPlan.id,
+              status: 'trialing',
+              current_period_end: new Date(Date.now() + (Number(trialPlan.trial_days || 7) * 24 * 60 * 60 * 1000)).toISOString(),
+              cancel_at_period_end: false,
+            },
+          ]);
+      }
+    } catch (e) {
+      logger.warn('[REGISTER] Failed to assign trial plan:', e?.message);
+    }
+
     logStep({
       requestId,
       stepName: 'auth:register:supabase:insert',
@@ -366,6 +393,32 @@ exports.googleLogin = async (req, res) => {
       }
 
       user = createdUser;
+      // Assign default free trial plan if exists for Google new users
+      try {
+        const { data: trialPlan, error: planErr } = await supabase
+          .from('subscription_plans')
+          .select('*')
+          .eq('is_trial', true)
+          .eq('is_active', true)
+          .order('price', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (!planErr && trialPlan) {
+          await supabase
+            .from('subscriptions')
+            .insert([
+              {
+                user_id: user.id,
+                plan_id: trialPlan.id,
+                status: 'trialing',
+                current_period_end: new Date(Date.now() + (Number(trialPlan.trial_days || 7) * 24 * 60 * 60 * 1000)).toISOString(),
+                cancel_at_period_end: false,
+              },
+            ]);
+        }
+      } catch (e2) {
+        logger.warn('[GOOGLE_LOGIN] Failed to assign trial plan:', e2?.message);
+      }
     }
 
     // JWT token oluştur

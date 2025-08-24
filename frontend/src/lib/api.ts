@@ -367,6 +367,14 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
     }
 };
 
+// Usage summary for subscription limits
+export const getUsageSummary = async (): Promise<ApiResponse<any>> => {
+    const url = getApiUrl('/subscription/usage-summary');
+    const headers = createHeaders();
+    const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+    return await handleApiResponse(response);
+};
+
 // Function to submit content details after successful TTS processing
 export const submitContent = async (
     input: string,

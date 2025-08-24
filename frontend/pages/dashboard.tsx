@@ -8,6 +8,7 @@ import { Button } from '../src/components/ui/button';
 import { Progress } from '../src/components/ui/progress';
 import { ScrollArea } from '../src/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../src/components/ui/tabs';
+import PackageInfo from '../src/components/PackageInfo';
 import { VocabularyTabContent } from './vocabulary';
 
 const Dashboard = () => {
@@ -90,6 +91,10 @@ const Dashboard = () => {
             <TabsTrigger value="ai-features" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-robot mr-2"></i>
               AI Özellikleri
+            </TabsTrigger>
+            <TabsTrigger value="paket-bilgilerim" className="!rounded-button whitespace-nowrap cursor-pointer">
+              <i className="fas fa-box mr-2"></i>
+              Paket Bilgilerim
             </TabsTrigger>
           </TabsList>
 
@@ -413,6 +418,10 @@ const Dashboard = () => {
               <h3 className="text-lg font-medium text-gray-700">AI Özellikleri</h3>
               <p className="text-sm text-gray-500">AI özellikleri burada görünecek</p>
           </div>
+          </TabsContent>
+
+          <TabsContent value="paket-bilgilerim" className="mt-0">
+            <PackageInfo />
           </TabsContent>
         </Tabs>
           </div>

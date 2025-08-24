@@ -4,6 +4,7 @@ const logger = require("../utils/logger"); // Import logger
 const { supabase } = require("../utils/supabaseClient");
 // const { logStep } = require('../utils/stepLogger');
 const { v4: uuidv4 } = require('uuid');
+const { checkLimits } = require('../utils/usageLimiter');
 
 // Supabase client is provided by utils/supabaseClient (guarded init)
 
@@ -227,18 +228,8 @@ async function handleCheckoutSessionCompleted(session) {
     }
     logger.info(`Subscription record created successfully for User ID: ${userId}, Subscription ID: ${session.subscription}`);
 
-    // Update user role to premium
-    logger.info(`Updating user role to premium for User ID: ${userId}`);
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({ role: "premium" })
-      .eq("id", userId);
-
-    if (updateError) {
-      logger.error(`Error updating user role to premium for User ID ${userId}:`, updateError);
-      // Don't necessarily throw, subscription record was created, but log the error
-    }
-     logger.info(`User role updated to premium for User ID: ${userId}`);
+    // Do not modify users.role here; access should derive from subscriptions.status
+    logger.info(`Subscription provisioned for User ID: ${userId}; access will derive from subscriptions.status`);
 
   } catch (error) {
     // Log error from this specific helper
@@ -287,19 +278,8 @@ async function handleSubscriptionUpdated(subscription) {
     }
     logger.info(`Subscription record ID ${data.id} updated successfully.`);
 
-    // Update user role based on subscription status
-    const targetRole = (newStatus === "active" || newStatus === "trialing") ? "premium" : "user";
-    logger.info(`Updating user role for User ID ${data.user_id} based on subscription status ${newStatus} to: ${targetRole}`);
-    const { error: userUpdateError } = await supabase
-      .from("users")
-      .update({ role: targetRole })
-      .eq("id", data.user_id);
-
-    if (userUpdateError) {
-      logger.error(`Error updating user role for User ID ${data.user_id}:`, userUpdateError);
-      // Don't necessarily throw, subscription was updated, but log the error
-    }
-     logger.info(`User role updated for User ID ${data.user_id} to ${targetRole}`);
+    // Do not modify users.role; clients should read subscriptions.status for access control
+    logger.info(`Subscription status for User ID ${data.user_id} is now ${newStatus}; clients should derive access from this`);
 
   } catch (error) {
     logger.error(`Error in handleSubscriptionUpdated for Stripe Subscription ID ${subscription.id}:`, error);
@@ -345,18 +325,8 @@ async function handleSubscriptionCanceled(subscription) {
     }
     logger.info(`Subscription record ID ${data.id} updated to canceled.`);
 
-    // Update user role to regular user
-    logger.info(`Updating user role to user for User ID ${data.user_id}`);
-    const { error: userUpdateError } = await supabase
-      .from("users")
-      .update({ role: "user" })
-      .eq("id", data.user_id);
-
-    if (userUpdateError) {
-      logger.error(`Error updating user role to user for User ID ${data.user_id}:`, userUpdateError);
-      // Don't necessarily throw, subscription was updated, but log the error
-    }
-    logger.info(`User role updated to user for User ID ${data.user_id}`);
+    // Do not modify users.role on cancellation; access will adjust via subscriptions.status
+    logger.info(`Subscription canceled for User ID ${data.user_id}; access will adjust via subscriptions.status`);
 
   } catch (error) {
     logger.error(`Error in handleSubscriptionCanceled for Stripe Subscription ID ${subscription.id}:`, error);
@@ -374,26 +344,14 @@ exports.getUserSubscription = async (req, res) => {
     const userId = req.user.id;
     logger.info(`Fetching subscription details for user ID: ${userId}`);
 
-    // Get user's subscription
-    const { data, error } = await supabase
+    // Get user's subscription (no relational select)
+    const { data: sub, error } = await supabase
       .from("subscriptions")
-      .select(
-        `
-        *,
-        plan:plan_id (
-          id,
-          name,
-          description,
-          price,
-          interval,
-          features
-        )
-      `
-      )
+      .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(1)
-      .maybeSingle(); // Use maybeSingle to handle no subscription gracefully
+      .maybeSingle();
 
     if (error && error.code !== "PGRST116") { // Ignore 'No rows found' error
       logger.error(`Error fetching subscription for user ID ${userId} from Supabase:`, error);
@@ -404,7 +362,7 @@ exports.getUserSubscription = async (req, res) => {
       });
     }
 
-    if (!data) {
+    if (!sub) {
         logger.info(`No active subscription found for user ID: ${userId}`);
         return res.status(200).json({
           success: true,
@@ -412,10 +370,23 @@ exports.getUserSubscription = async (req, res) => {
         });
     }
 
-    logger.info(`Successfully fetched subscription details for user ID: ${userId}, Subscription ID: ${data.id}`);
+    // Load plan separately (avoid FK relationship requirement)
+    let plan = null;
+    try {
+      if (sub.plan_id) {
+        const { data: p } = await supabase
+          .from('subscription_plans')
+          .select('*')
+          .eq('id', sub.plan_id)
+          .single();
+        plan = p || null;
+      }
+    } catch {}
+
+    logger.info(`Successfully fetched subscription details for user ID: ${userId}, Subscription ID: ${sub.id}`);
     return res.status(200).json({
       success: true,
-      data,
+      data: { ...sub, plan },
     });
   } catch (error) {
     logger.error(`Server error while fetching subscription for user ID ${req.user?.id}:`, error);
@@ -675,6 +646,195 @@ exports.updateSubscription = async (req, res) => {
       message: "Server error while updating subscription",
       error: error.message,
     });
+  }
+};
+
+// Try an operation on multiple candidate table names (case differences in legacy db)
+async function tryOnTables(opFactory) {
+  const tables = ['subscriptions', 'Subscriptions'];
+  let lastError = null;
+  for (const t of tables) {
+    try {
+      const result = await opFactory(t);
+      if (!result || !result.error) return result;
+      lastError = result.error;
+      const msg = String(lastError?.message || '').toLowerCase();
+      if (msg.includes('relation') && msg.includes('does not exist')) {
+        continue;
+      }
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  return { data: null, error: lastError };
+}
+
+// Mock Iyzico payment: immediately provision subscription without external call
+exports.mockIyzicoPayment = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { planId } = req.body || {};
+    if (!planId) {
+      return res.status(400).json({ success: false, message: 'planId gereklidir' });
+    }
+
+    // Verify plan exists and active
+    const { data: plan, error: planError } = await supabase
+      .from('subscription_plans')
+      .select('*')
+      .eq('id', planId)
+      .eq('is_active', true)
+      .single();
+    if (planError || !plan) {
+      return res.status(404).json({ success: false, message: 'Plan bulunamadı' });
+    }
+
+    // Upsert active subscription for user
+    const now = Date.now();
+    const end = new Date(now + (plan.interval === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString();
+
+    // Build base payload (will prune unknown columns on error and retry)
+    // Align with existing subscriptions schema (see provided columns)
+    const insertPayloadBase = {
+      user_id: userId,
+      plantype: plan?.name || String(plan?.id || ''),
+      status: 'active',
+      startdate: new Date().toISOString(),
+      enddate: end,
+      stripesubscriptionid: `mock_sub_${uuidv4()}`,
+      stripepriceid: plan?.stripe_price_id || String(plan?.id || ''),
+      cancelatperiodend: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Helper: extract missing column name from error message
+    const extractMissingColumn = (errMsg) => {
+      try {
+        const s = String(errMsg || '');
+        // Postgres style: column "col" does not exist
+        let m = s.match(/column\s+\"?([a-zA-Z0-9_]+)\"?\s+does not exist/i);
+        if (m) return m[1];
+        // Supabase style: Could not find the 'col' column of 'subscriptions' in the schema cache
+        m = s.match(/Could not find the '([a-zA-Z0-9_]+)' column/i);
+        if (m) return m[1];
+        // Single quote variant
+        m = s.match(/column\s+'([a-zA-Z0-9_]+)'\s+does not exist/i);
+        if (m) return m[1];
+        return null;
+      } catch { return null; }
+    };
+
+    async function insertWithPrune(payload, maxRetries = 5) {
+      let attempt = 0;
+      let lastError = null;
+      let working = { ...payload };
+      while (attempt <= maxRetries) {
+        const resIns = await supabase
+          .from('subscriptions')
+          .insert([working])
+          .select()
+          .single();
+        if (!resIns.error) return resIns;
+        lastError = resIns.error;
+        const missing = extractMissingColumn(lastError.message);
+        if (!missing) break;
+        // Do not prune critical keys
+        if (missing === 'user_id' || missing === 'plan_id') break;
+        delete working[missing];
+        attempt += 1;
+      }
+      return { data: null, error: lastError };
+    }
+
+    let dbRes = await insertWithPrune(insertPayloadBase, 6);
+
+    // If duplicate/unique error, update latest record for this user (best effort)
+    if (dbRes.error) {
+      const code = dbRes.error.code || '';
+      const msg = (dbRes.error.message || '').toLowerCase();
+      if (code === '23505' || msg.includes('duplicate')) {
+        const latest = await supabase
+          .from('subscriptions')
+          .select('id')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (latest.data) {
+          // Try update with pruning as well
+          async function updateWithPrune(payload, maxRetries = 5) {
+            let attempt = 0;
+            let lastError = null;
+            let working = { ...payload };
+            while (attempt <= maxRetries) {
+              const resUpd = await supabase
+                .from('subscriptions')
+                .update(working)
+                .eq('id', latest.data.id)
+                .select()
+                .single();
+              if (!resUpd.error) return resUpd;
+              lastError = resUpd.error;
+              const missing = extractMissingColumn(lastError.message);
+              if (!missing) break;
+              if (missing === 'user_id' || missing === 'plan_id') break;
+              delete working[missing];
+              attempt += 1;
+            }
+            return { data: null, error: lastError };
+          }
+
+          const updatePayload = {
+            plantype: insertPayloadBase.plantype,
+            status: 'active',
+            startdate: new Date().toISOString(),
+            enddate: end,
+            stripesubscriptionid: insertPayloadBase.stripesubscriptionid,
+            stripepriceid: insertPayloadBase.stripepriceid,
+            cancelatperiodend: false,
+            updated_at: new Date().toISOString(),
+          };
+          dbRes = await updateWithPrune(updatePayload, 6);
+        }
+      }
+    }
+
+    if (dbRes.error) {
+      logger.error('[MOCK-PAYMENT] Abonelik güncelleme/ekleme hatası:', dbRes.error);
+      return res.status(500).json({ success: false, message: 'Abonelik güncellenemedi', error: dbRes.error.message });
+    }
+
+    // Do not modify users.role; subscription is active and clients should read subscriptions.status
+
+    return res.json({ success: true, message: 'Mock ödeme başarılı, abonelik aktif edildi', data: dbRes.data });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: 'Sunucu hatası', error: e.message });
+  }
+};
+
+// Usage summary for current period based on active subscription
+exports.getUsageSummary = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const state = await checkLimits(userId);
+    if (!state.hasPlan) {
+      return res.json({ success: true, data: { hasPlan: false } });
+    }
+    return res.json({
+      success: true,
+      data: {
+        hasPlan: true,
+        subscription: state.subscription,
+        periodStart: state.periodStart,
+        usage: state.usage,
+        limits: state.limits,
+        exceeded: state.exceeded,
+        isExceeded: state.isExceeded,
+      },
+    });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: 'Sunucu hatası', error: e.message });
   }
 };
 
