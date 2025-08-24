@@ -584,6 +584,17 @@ const CreateScreen: React.FC = () => {
   }, [selectedAccent, selectedGender, selectedVoiceCategory]);
 
   const handleCreateAudio = async () => {
+    try {
+      // Usage limit pre-check
+      const summary = await apiService.getUsageSummary();
+      if (summary?.success && (summary as any).data?.isExceeded) {
+        Alert.alert(t('common.error'), 'Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.');
+        return;
+      }
+    } catch (e: any) {
+      // Sessiz geç; backend yine de bloklayacak
+    }
+
     // Suggestion mode: if no input yet, rewrite the topic/suggestion into narration text first
     let effectiveInputText = inputText;
     if (mode === 'suggestion' && !effectiveInputText.trim()) {

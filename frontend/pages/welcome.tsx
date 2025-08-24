@@ -878,7 +878,9 @@ const Welcome: React.FC = () => {
           setIsLoading(false);
           return;
         }
-      } catch {}
+      } catch (e) {
+        // Sessiz geç; backend tarafı yine de engeller
+      }
 
       console.log('🔄 [DEBUG] About to call processTts with:', processInput);
       const result = await processTts(processInput);

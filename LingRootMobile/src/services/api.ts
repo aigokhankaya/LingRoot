@@ -254,6 +254,16 @@ export const apiService = {
     }
   },
 
+  async getUsageSummary(): Promise<APIResponse<any>> {
+    try {
+      await wakeBackendIfNeeded();
+      const res = await apiClient.get<APIResponse<any>>('/api/subscription/usage-summary');
+      return res.data as any;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Kullanım bilgileri alınamadı');
+    }
+  },
+
   // File Upload için TTS
   async processFileToSpeech(file: FormData): Promise<TTSResponse> {
     try {
