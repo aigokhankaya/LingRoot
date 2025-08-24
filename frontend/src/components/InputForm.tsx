@@ -191,9 +191,19 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
         </div>
         {isLoading && <p className="text-blue-600">Preparing audio...</p>}
         {isError && (
-          <div className="text-red-600 bg-red-100 border border-red-400 rounded p-3">
+          <div className="text-red-600 bg-red-100 border border-red-400 rounded p-3 space-y-2">
             <p className="font-semibold">Error:</p>
             <p>{errorMessage}</p>
+            <div>
+              <button
+                type="button"
+                onClick={() => (window.location.href = '/dashboard#paket-bilgilerim')}
+                className="inline-flex items-center px-3 py-2 text-sm font-medium rounded bg-indigo-600 text-white hover:bg-indigo-700"
+                aria-label="Paket Seç"
+              >
+                Paket Seç
+              </button>
+            </div>
           </div>
         )}
         {isSuccess && <p className="text-green-600">✅ Audio generated successfully!</p>}
