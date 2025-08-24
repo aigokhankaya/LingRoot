@@ -3,7 +3,21 @@ const logger = require('../utils/logger');
 
 function getPeriodStart(subscription, plan) {
   try {
-    // Infer period start as period end - interval
+    // Prefer explicit start markers to ensure reset on plan change or new subscription
+    const startCandidates = [
+      subscription?.current_period_start,
+      subscription?.startdate,
+      subscription?.startDate,
+      subscription?.created_at,
+      subscription?.createdAt,
+    ].filter(Boolean);
+    if (startCandidates.length > 0) {
+      const iso = String(startCandidates[0]);
+      const d = new Date(iso);
+      if (!isNaN(d.getTime())) return d.toISOString();
+    }
+
+    // Fallback: infer start as period end - interval
     const endIso = subscription?.current_period_end || subscription?.enddate || subscription?.endDate;
     const interval = (plan?.interval) || subscription?.interval || 'monthly';
     const end = endIso ? new Date(endIso) : new Date();
@@ -12,6 +26,7 @@ function getPeriodStart(subscription, plan) {
     else start.setMonth(start.getMonth() - 1);
     return start.toISOString();
   } catch (e) {
+    // Default to last 30 days
     return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   }
 }
