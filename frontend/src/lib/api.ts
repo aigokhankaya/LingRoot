@@ -321,17 +321,22 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
         });
         
         // CRITICAL: Check response status BEFORE parsing JSON
+        let apiResponse: any;
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ [TTS API] Error response:', {
-                status: response.status,
-                statusText: response.statusText,
-                body: errorText
-            });
-            throw new Error(`TTS API failed: ${response.status} ${response.statusText} - ${errorText}`);
+            // Try to parse JSON error; fallback to text
+            try {
+                apiResponse = await response.json();
+            } catch {
+                const errorText = await response.text();
+                throw new Error(`TTS API failed: ${response.status} ${response.statusText} - ${errorText}`);
+            }
+            if (apiResponse?.code === 'USAGE_LIMIT_EXCEEDED') {
+                throw new Error('Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.');
+            }
+            throw new Error(apiResponse?.message || `TTS API failed: ${response.status} ${response.statusText}`);
+        } else {
+            apiResponse = await response.json();
         }
-        
-        const apiResponse = await response.json();
         
         // Debug: Log what we received from backend
         console.log('🔍 [API DEBUG] Backend response keys:', Object.keys(apiResponse));

@@ -16,6 +16,7 @@ const {
   testVoices
 } = require("../controllers/ttsController");
 const logger = require("../utils/logger");
+const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -44,6 +45,7 @@ const upload = multer({
 // POST /api/tts/process – Handles both JSON and multipart/form-data
 router.post(
   "/process",
+  authenticate,
   upload.single("file"),
   (req, res, next) => {
     if (req.fileValidationError) {
