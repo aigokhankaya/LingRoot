@@ -246,6 +246,10 @@ export const apiService = {
       });
       return response.data;
     } catch (error: any) {
+      const code = error?.response?.data?.code;
+      if (code === 'USAGE_LIMIT_EXCEEDED') {
+        throw new Error('Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.');
+      }
       throw new Error(error.response?.data?.message || 'TTS işlemi başarısız');
     }
   },

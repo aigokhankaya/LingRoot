@@ -710,7 +710,8 @@ const CreateScreen: React.FC = () => {
           navigation.navigate('Library' as never);
         } else {
           console.log('🎯 [TTS DEBUG] Response success is false, showing error...');
-          Alert.alert(t('common.error'), response.message || t('create.alerts.audioCreateFailed'));
+          const msg = response.message || t('create.alerts.audioCreateFailed');
+          Alert.alert(t('common.error'), msg);
         }
       } else if (mode === 'book') {
         // Use selected chapter text
