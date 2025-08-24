@@ -6,6 +6,7 @@ function getPeriodStart(subscription, plan) {
     // Prefer explicit start markers to ensure reset on plan change or new subscription
     const startCandidates = [
       subscription?.current_period_start,
+      subscription?.start_date,
       subscription?.startdate,
       subscription?.startDate,
       subscription?.created_at,
@@ -18,7 +19,7 @@ function getPeriodStart(subscription, plan) {
     }
 
     // Fallback: infer start as period end - interval
-    const endIso = subscription?.current_period_end || subscription?.enddate || subscription?.endDate;
+    const endIso = subscription?.current_period_end || subscription?.end_date || subscription?.enddate || subscription?.endDate;
     const interval = (plan?.interval) || subscription?.interval || 'monthly';
     const end = endIso ? new Date(endIso) : new Date();
     const start = new Date(end);
