@@ -188,6 +188,27 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
       logger.warn('Count query error in audio-history:', countError);
     }
 
+    // Total duration across ALL records (seconds)
+    let totalDurationSeconds = 0;
+    try {
+      const { data: allForDuration, error: durError } = await supabase
+        .from('contenthistory')
+        .select('id, timepoints')
+        .eq('user_id', userId)
+        .not('mp3_url', 'is', null);
+      if (!durError && Array.isArray(allForDuration)) {
+        totalDurationSeconds = allForDuration.reduce((sum, row) => {
+          try {
+            const tps = typeof row.timepoints === 'string' ? JSON.parse(row.timepoints) : (row.timepoints || []);
+            const maxEnd = Array.isArray(tps) && tps.length > 0 ? Math.max(...tps.map(tp => (typeof tp?.endTimeSeconds === 'number' ? tp.endTimeSeconds : (typeof tp?.timeSeconds === 'number' ? tp.timeSeconds : 0)))) : 0;
+            return sum + (isFinite(maxEnd) && maxEnd > 0 ? Math.round(maxEnd) : 0);
+          } catch { return sum; }
+        }, 0);
+      }
+    } catch (e) {
+      logger.warn('Total duration aggregation failed:', e);
+    }
+
     // Transform data to match mobile app expectations
     const transformedHistory = (audioHistory || []).map(item => {
       let words = [];
@@ -245,7 +266,8 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
     res.json({
       success: true,
       data: transformedHistory,
-      total_count: typeof totalCount === 'number' ? totalCount : transformedHistory.length
+      total_count: typeof totalCount === 'number' ? totalCount : transformedHistory.length,
+      total_duration_seconds: totalDurationSeconds
     });
     
   } catch (error) {

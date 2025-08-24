@@ -119,8 +119,11 @@ const HomeScreen: React.FC = () => {
             }
           } catch {}
         }
-        // Fast: backend already provides per-item duration; avoid parsing timepoints on Home
-        const totalDuration = audioTracks.reduce((sum: number, item: any) => sum + (typeof item?.duration === 'number' ? item.duration : 0), 0);
+        // Prefer backend-provided aggregate if available
+        const apiTotal = typeof (response as any).total_duration_seconds === 'number' ? (response as any).total_duration_seconds : null;
+        // Fast: fallback to sum of the current page durations
+        const pageSum = audioTracks.reduce((sum: number, item: any) => sum + (typeof item?.duration === 'number' ? item.duration : 0), 0);
+        const totalDuration = apiTotal != null ? apiTotal : pageSum;
         
         console.log('✅ User stats:', { audioCount: finalCount, totalDuration });
         

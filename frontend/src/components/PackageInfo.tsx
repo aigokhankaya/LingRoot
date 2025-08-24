@@ -120,10 +120,22 @@ const PackageInfo: React.FC = () => {
               <div>OpenAI Token: <span className="font-semibold">{usage?.usage?.openaiTokens ?? 0}</span> / <span className="text-gray-500">{usage?.limits?.openaiTokenLimit ?? '—'}</span></div>
               <div>TTS Karakter: <span className="font-semibold">{usage?.usage?.ttsChars ?? 0}</span> / <span className="text-gray-500">{usage?.limits?.ttsCharLimit ?? '—'}</span></div>
               <div>Aylık USD: <span className="font-semibold">${usage?.usage?.totalCostUsd ?? 0}</span> / <span className="text-gray-500">${usage?.limits?.monthlyUsdLimit ?? '—'}</span></div>
-              {usage?.isExceeded && <div className="text-red-600 mt-1">Kullanım sınırınız aşıldı.</div>}
+              {usage?.isExceeded && (
+                <div className="text-red-600 mt-1">
+                  Kullanım sınırınız aşıldı.{' '}
+                  <a href="/dashboard#paket-bilgilerim" className="underline text-red-700 hover:text-red-800">
+                    Paket yükselt
+                  </a>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="text-gray-600">Aktif paket bulunamadı.</div>
+            <div className="text-gray-600">
+              Aktif paket bulunamadı.{' '}
+              <a href="/dashboard#paket-bilgilerim" className="underline text-indigo-700 hover:text-indigo-800">
+                Paket seç
+              </a>
+            </div>
           )}
         </div>
 
