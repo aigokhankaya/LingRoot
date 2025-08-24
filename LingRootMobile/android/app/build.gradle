@@ -100,8 +100,8 @@ android {
         applicationId 'com.nsyzk.lingrootmobile'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "1.7.2"
+        versionCode 6
+        versionName "1.7.4"
     }
     signingConfigs {
         debug {

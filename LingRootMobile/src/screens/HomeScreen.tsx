@@ -48,7 +48,7 @@ const HomeScreen: React.FC = () => {
       id: 2,
       title: t('home.uploadFile'),
       description: t('home.uploadFileDesc'),
-      icon: 'upload-file',
+      icon: 'file-upload',
       color: '#34C759',
       screenName: 'Create',
       params: { mode: 'file' as const },
