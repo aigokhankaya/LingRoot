@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 export default function PaymentPage() {
   const router = useRouter();
   const params = useSearchParams();
-  const planId = params.get('planId');
+  const planId = params?.get?.('planId') || null;
   const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
