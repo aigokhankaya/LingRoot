@@ -1,0 +1,11 @@
+Canlıya Engel Maddeler(Geliştirmesi yapılmamış)
+Abonelik Paketleri
+	https://www.lingroot.com/admin/dashboard bu sayfada solda Paket Yönetimi sekmesinde mevcutta paketler zaten geliyor. Ancak buradakiler mock data. Burada gerçek datalar ile çalışacağız. Bu sayfanın tasarımını bozmadan aşağıdaki geliştirmeleri yapacağız:
+	- Paket bilgileri girişi web admin sayfasından yönetilecek. Burada Yeni Paket ekle işlemiyle paket oluşturulacak.
+	- Mevcut paketler varsa  düzenle butonuyla düzeltme yapılabilecek.
+	- Admin sayfasında  girilen abonelik paketinin limit bilgileri de girilecek. Bu limit kullanıcının oluşturacağı sesler için max sınır olacak. Sınır kontrolü ses oluşturulduktan sonra yapılacak.  Sınır kontrolü yaparken 3 önemli madde var. Çeviri ve kelime ekleme için çağrılan OPEN AI ve google TTS. OPEN AI hem tüm metni ingilizceye çevirirken hemde vocabulary tablosuna kelimenin anlamı ve örnek cümle yi kayıt ederken kullanılıyor. Sınır kontrolü bu ikisinin toplamı olmalı. Ancak burada OPEN AI token hesabı yapıyor. Google TTS karakter sayısı. Burada ikisini toplayıp hesaplama yöntemini sana bırakıyorum. Sen yap.
+	- Paket bilgileri girerken Paket tutarı bilgisi, bir önceki maddede yapacağın sınır bilgisi, paket adı. Bu bilgileri girdikten sonra paket için “Kullanılabilecek Paket” kısmını sen hesapla. Girilen sınır bilgisine göre bu paketle ne kadarlık ses üretebileceğini gösteren “Kullanılabilecek Paket” kısmını göster. Paketin tamamıyla sadece youtube videosu çevirirse  ortalama kaç dakikalık video. Sadece metin çevirirse kaç sayfalık metin için ses üreteceği bilgisin yaz.
+	- Mevcut paketlerde güncelleme yapılabilecek.
+	- Mevcut paket pasif hale getirilebilecek(Asla silinmeyecek).
+	- Ücretsiz deneme olacak. Kullanıcı ödemesini yapana kadar belli bir miktar ücretsiz kullanım hakkı olacak. Bunu da yine paket bilgileri sayfasından yapcağız. Burada ilk defa login olan ve aktifleşen kullanıcılara default olarak bu ücretsiz paket tanımlı olacak.
+
