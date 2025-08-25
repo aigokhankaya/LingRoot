@@ -1,7 +1,11 @@
+import '../src/app/globals.css';
 import type { AppProps } from 'next/app';
 import { useEffect } from 'react';
+import Head from 'next/head';
+import AuthProvider from '../src/lib/auth';
+import { MembershipProvider } from '../src/context/MembershipContext';
 
-export default function MyApp({ Component, pageProps }: AppProps) {
+function MyApp({ Component, pageProps }: AppProps) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const originalAlert = window.alert;
@@ -17,16 +21,6 @@ export default function MyApp({ Component, pageProps }: AppProps) {
     };
   }, []);
 
-  return <Component {...pageProps} />;
-}
-
-import '../src/app/globals.css';
-import type { AppProps } from 'next/app';
-import Head from 'next/head';
-import AuthProvider from '../src/lib/auth';
-import { MembershipProvider } from '../src/context/MembershipContext';
-
-function MyApp({ Component, pageProps }: AppProps) {
   return (
     <>
       <Head>
