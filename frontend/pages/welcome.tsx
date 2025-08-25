@@ -594,11 +594,11 @@ const Welcome: React.FC = () => {
         const noPlan = text.includes('Aktif paketiniz yok');
         const limit = text.includes('Paket kullanım sınırınız aşıldı');
         if (noPlan || limit) {
-          const prompt = noPlan
-            ? 'Aktif paketiniz yok. Paket seçim ekranına gitmek ister misiniz?'
-            : 'Paket kullanım sınırınız aşıldı. Paket yükseltme ekranına gitmek ister misiniz?';
-          const go = window.confirm(prompt);
-          if (go) window.location.href = '/dashboard#paket-bilgilerim';
+          const info = noPlan
+            ? "Aktif paketiniz yok. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz."
+            : "Paket kullanım sınırınız aşıldı. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.";
+          originalAlert(info);
+          window.location.href = '/dashboard#paket-bilgilerim';
           return;
         }
       } catch {}
@@ -899,15 +899,18 @@ const Welcome: React.FC = () => {
       try {
         const usageSummary = await getUsageSummary();
         if (usageSummary?.success && usageSummary.data && usageSummary.data.hasPlan === false) {
-          const go = typeof window !== 'undefined' ? window.confirm('Aktif paketiniz yok. Paket seçim ekranına gitmek ister misiniz?') : false;
-          if (go && typeof window !== 'undefined') {
+          if (typeof window !== 'undefined') {
+            window.alert('Aktif paketiniz yok. Tamam\'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.');
             window.location.href = '/dashboard#paket-bilgilerim';
           }
           setIsLoading(false);
           return;
         }
         if (usageSummary?.success && usageSummary.data?.isExceeded) {
-          alert('Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya dönemi bekleyin.');
+          if (typeof window !== 'undefined') {
+            window.alert('Paket kullanım sınırınız aşıldı. Tamam\'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.');
+            window.location.href = '/dashboard#paket-bilgilerim';
+          }
           setIsLoading(false);
           return;
         }
@@ -1033,11 +1036,11 @@ const Welcome: React.FC = () => {
           const isLimit = message.includes('Paket kullanım sınırınız aşıldı');
           const is402 = (error as any)?.response?.status === 402;
           if (isNoPlan || isLimit || is402) {
-            const promptText = isNoPlan
-              ? 'Aktif paketiniz yok. Paket seçim ekranına gitmek ister misiniz?'
-              : 'Paket kullanım sınırınız aşıldı. Paket yükseltme ekranına gitmek ister misiniz?';
-            const go = window.confirm(promptText);
-            if (go) window.location.href = link;
+            const msg = isNoPlan
+              ? 'Aktif paketiniz yok. Tamam\'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.'
+              : 'Paket kullanım sınırınız aşıldı. Tamam\'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.';
+            window.alert(msg);
+            window.location.href = link;
           }
         }
       } catch {}
