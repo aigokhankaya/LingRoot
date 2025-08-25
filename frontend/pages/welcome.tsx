@@ -609,6 +609,26 @@ const Welcome: React.FC = () => {
     };
   }, []);
 
+  // Safety: redirect on unhandled 402 errors (promise rejections)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = (event: PromiseRejectionEvent) => {
+      try {
+        const anyReason: any = event.reason || {};
+        const status = anyReason?.response?.status;
+        const message = String(anyReason?.message || '');
+        const noPlan = message.includes('Aktif paketiniz yok');
+        const limit = message.includes('Paket kullanım sınırınız aşıldı');
+        if (status === 402 || noPlan || limit) {
+          window.alert("Abonelik gereklidir. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.");
+          window.location.href = '/dashboard#paket-bilgilerim';
+        }
+      } catch {}
+    };
+    window.addEventListener('unhandledrejection', handler);
+    return () => window.removeEventListener('unhandledrejection', handler);
+  }, []);
+
   // Filtreler değiştiğinde sesleri yeniden çek
   useEffect(() => {
     const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || emotionType !== 'all' || selectedVoiceCategory !== 'standard';
