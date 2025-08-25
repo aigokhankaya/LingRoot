@@ -609,6 +609,20 @@ const Welcome: React.FC = () => {
     };
   }, []);
 
+  // Redirect after error is set (fires immediately after user dismisses any blocking alert)
+  useEffect(() => {
+    if (!error) return;
+    try {
+      const text = String(error);
+      const shouldRedirect = text.includes('Aktif paketiniz yok') || text.includes('Paket kullanım sınırınız aşıldı');
+      if (shouldRedirect && typeof window !== 'undefined') {
+        setTimeout(() => {
+          try { window.location.assign('/dashboard#paket-bilgilerim'); } catch {}
+        }, 0);
+      }
+    } catch {}
+  }, [error]);
+
   // Safety: redirect on unhandled 402 errors (promise rejections)
   useEffect(() => {
     if (typeof window === 'undefined') return;
