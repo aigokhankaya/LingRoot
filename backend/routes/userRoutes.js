@@ -84,6 +84,119 @@ router.get('/user-favorites', authenticate, async (req, res) => {
   }
 });
 
+// Return full details for the user's favorite content items in a single call
+// Response: { success: true, data: ContentHistoryTransformed[], total: number, missing_ids: string[] }
+router.get('/user-favorites/details', authenticate, async (req, res) => {
+  try {
+    // 1) Read favorite IDs from settings
+    const { data: settingsRow, error: settingsErr } = await supabase
+      .from('user_settings')
+      .select('settings')
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (settingsErr && settingsErr.details !== 'The result contains 0 rows') {
+      logger.error('Error fetching user favorites (details):', settingsErr);
+      return res.status(500).json({ success: false, message: 'Error fetching favorites' });
+    }
+
+    let favoriteIds = [];
+    try {
+      const settingsVal = settingsRow?.settings && typeof settingsRow.settings === 'string'
+        ? JSON.parse(settingsRow.settings)
+        : (settingsRow?.settings || {});
+      if (settingsVal && Array.isArray(settingsVal.favorites)) {
+        favoriteIds = settingsVal.favorites.filter(id => typeof id === 'string');
+      }
+    } catch (e) {
+      logger.warn('Failed to parse settings when reading favorites (details):', e);
+    }
+
+    if (!Array.isArray(favoriteIds) || favoriteIds.length === 0) {
+      return res.json({ success: true, data: [], total: 0, missing_ids: [] });
+    }
+
+    // 2) Fetch content records for those IDs, ensuring ownership and available mp3
+    const { data: rows, error: fetchErr } = await supabase
+      .from('contenthistory')
+      .select(`
+        id,
+        user_id,
+        input,
+        input_type,
+        level,
+        mp3_url,
+        translated_text,
+        adapted_text,
+        created_at,
+        words,
+        timepoints
+      `)
+      .eq('user_id', req.user.id)
+      .not('mp3_url', 'is', null)
+      .in('id', favoriteIds);
+
+    if (fetchErr) {
+      logger.error('Error fetching favorites details from contenthistory:', fetchErr);
+      return res.status(500).json({ success: false, message: 'Error fetching favorite items' });
+    }
+
+    // 3) Transform as in audio-history
+    const transformed = (rows || []).map(item => {
+      let words = [];
+      let timepoints = [];
+      try {
+        if (item.words && typeof item.words === 'string') words = JSON.parse(item.words);
+        if (item.timepoints && typeof item.timepoints === 'string') timepoints = JSON.parse(item.timepoints);
+      } catch (parseError) {
+        logger.warn(`Error parsing words/timepoints for favorite item ${item.id}:`, parseError);
+      }
+
+      // derive duration
+      let derivedDurationSec = 180;
+      try {
+        if (Array.isArray(timepoints) && timepoints.length > 0) {
+          const maxEnd = Math.max(
+            ...timepoints.map(tp => {
+              const end = typeof tp?.endTimeSeconds === 'number' ? tp.endTimeSeconds : undefined;
+              const mid = typeof tp?.timeSeconds === 'number' ? tp.timeSeconds : undefined;
+              return end ?? mid ?? 0;
+            })
+          );
+          if (isFinite(maxEnd) && maxEnd > 0) derivedDurationSec = Math.round(maxEnd);
+        }
+      } catch (e) {}
+
+      return {
+        id: item.id,
+        title: item.input ? item.input.substring(0, 100) + '...' : 'Untitled',
+        url: item.mp3_url,
+        level: item.level || 'A1',
+        duration: derivedDurationSec,
+        created_at: item.created_at,
+        input_type: item.input_type,
+        translated_text: item.translated_text,
+        adapted_text: item.adapted_text,
+        input: item.input || '',
+        words,
+        timepoints
+      };
+    });
+
+    // 4) Keep client-friendly ordering matching favorites list if possible
+    const byId = new Map(transformed.map(x => [String(x.id), x]));
+    const ordered = favoriteIds.map(fid => byId.get(String(fid))).filter(Boolean);
+
+    const foundIds = new Set((rows || []).map(r => String(r.id)));
+    const missingIds = favoriteIds.filter(fid => !foundIds.has(String(fid)));
+
+    return res.json({ success: true, data: ordered, total: ordered.length, missing_ids: missingIds });
+  } catch (e) {
+    logger.error('Unexpected error in favorites details endpoint:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 router.post('/user-favorites', authenticate, async (req, res) => {
   try {
     const { ids } = req.body;

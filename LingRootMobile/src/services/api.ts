@@ -350,6 +350,18 @@ export const apiService = {
     }
   },
 
+  // Favorite items with full details in a single call
+  async getUserFavoriteDetails(): Promise<any[]> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.get('/api/user-favorites/details');
+      return response.data?.data || [];
+    } catch (e) {
+      console.warn('getUserFavoriteDetails failed:', e);
+      return [];
+    }
+  },
+
   async saveUserFavorites(ids: string[]): Promise<boolean> {
     try {
       const response = await apiClient.post('/api/user-favorites', { ids });

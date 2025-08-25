@@ -182,6 +182,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           localStorage.setItem('lingroot_remember_me', rememberMe.toString());
           console.log('[AUTH] Token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
         }
+        try { localStorage.setItem('justLoggedIn', String(Date.now())); } catch {}
         console.log('[AUTH] setUser & setIsAuthenticated', user);
         return { success: true };
       } else {

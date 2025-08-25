@@ -18,14 +18,27 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
+      // Grace period right after login to allow auth state to hydrate
+      let withinGrace = false;
+      try {
+        const ts = typeof window !== 'undefined' ? Number(localStorage.getItem('justLoggedIn') || '0') : 0;
+        withinGrace = ts > 0 && Date.now() - ts < 8000; // 8s
+      } catch {}
+      if (withinGrace) {
+        try { console.log('[DASHBOARD] within grace period after login, skip redirect'); } catch {}
+        return;
+      }
       const path = typeof window !== 'undefined' ? window.location.pathname : '/dashboard';
       const search = typeof window !== 'undefined' ? window.location.search : '';
       const hash = typeof window !== 'undefined' ? window.location.hash : '';
       const next = `${path}${search}${hash}`;
+      try { console.log('[DASHBOARD] redirecting unauthenticated to /login with next=', next, { isLoading, isAuthenticated }); } catch {}
       if (typeof window !== 'undefined') {
         try { sessionStorage.setItem('postLoginNext', next); } catch {}
       }
       router.push(`/login?next=${encodeURIComponent(next)}`);
+    } else {
+      try { console.log('[DASHBOARD] auth state', { isLoading, isAuthenticated }); } catch {}
     }
   }, [isAuthenticated, isLoading, router]);
 

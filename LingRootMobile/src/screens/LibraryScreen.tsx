@@ -70,7 +70,8 @@ const LibraryScreen: React.FC = () => {
           // Prefer backend-provided duration; fall back to 180 if missing
           const derivedDurationSec = typeof item?.duration === 'number' ? item.duration : 180;
           const track = {
-            id: item.id,
+            // ID'leri string olarak normalize et (favori eşleşmeleri için kritik)
+            id: String(item.id),
             title: item.adapted_text || item.translated_text || item.input || 'Başlıksız',
             url: item.mp3_url || item.url || '',
             level: item.level || 'B1',
@@ -101,8 +102,16 @@ const LibraryScreen: React.FC = () => {
         });
         
         if (currentPage === 1) {
-          setAudioTracks(tracks);
-          audioTracksRef.current = tracks;
+          // Favoriler görünümünde listeyi tamamen sıfırlamak yerine birleştir
+          if (showFavoritesOnly) {
+            const existingIds = new Set(audioTracksRef.current.map(t => t.id));
+            const mergedFirst = [...tracks, ...audioTracksRef.current.filter(t => !new Set(tracks.map(nt => nt.id)).has(t.id))];
+            setAudioTracks(mergedFirst);
+            audioTracksRef.current = mergedFirst;
+          } else {
+            setAudioTracks(tracks);
+            audioTracksRef.current = tracks;
+          }
         } else {
           // Append new page without duplicates (by id)
           const existingIds = new Set(audioTracksRef.current.map(t => t.id));
@@ -110,7 +119,11 @@ const LibraryScreen: React.FC = () => {
           setAudioTracks(merged);
           audioTracksRef.current = merged;
         }
-        setServerTotalCount(typeof response.total_count === 'number' ? response.total_count : (response.pagination?.total ?? null));
+        // Total count bilgisi farklı şekillerde gelebilir; güvenli kontrol yap
+        const anyRes: any = response as any;
+        const totalA = typeof anyRes?.total_count === 'number' ? anyRes.total_count : null;
+        const totalB = typeof anyRes?.pagination?.total === 'number' ? anyRes.pagination.total : null;
+        setServerTotalCount(totalA ?? totalB ?? null);
         setPage(currentPage);
         pageRef.current = currentPage;
         setHasUserScrolled(currentPage > 1);
@@ -151,8 +164,9 @@ const LibraryScreen: React.FC = () => {
       // pull from backend first
       const remote = await apiService.getUserFavorites();
       if (Array.isArray(remote) && remote.length > 0) {
-        setFavoriteIds(remote);
-        await AsyncStorage.setItem(favoritesKey, JSON.stringify(remote));
+        const normalized = remote.map((x: any) => String(x));
+        setFavoriteIds(normalized);
+        await AsyncStorage.setItem(favoritesKey, JSON.stringify(normalized));
         return;
       }
 
@@ -160,7 +174,7 @@ const LibraryScreen: React.FC = () => {
       const stored = await AsyncStorage.getItem(favoritesKey);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) setFavoriteIds(parsed);
+        if (Array.isArray(parsed)) setFavoriteIds(parsed.map((x: any) => String(x)));
       }
     } catch (e) {
       console.warn('Failed to load favorites', e);
@@ -189,6 +203,50 @@ const LibraryScreen: React.FC = () => {
       : [...favoriteIds, id];
     setFavoriteIds(next);
     await saveFavorites(next);
+  };
+
+  // Favoriler toggle'ı: Favoriler yüklenmemişse önce yükleyip sonra filtreyi aç
+  const handleToggleFavorites = async () => {
+    const enabling = !showFavoritesOnly;
+    if (enabling) {
+      // 1) Favori ID'lerini yükle
+      if (!favoriteIds || favoriteIds.length === 0) {
+        await loadFavorites();
+      }
+      // 2) Backend'ten favori detaylarını tek çağrıda çek ve listeye ekle
+      try {
+        const favDetails = await apiService.getUserFavoriteDetails();
+        if (Array.isArray(favDetails) && favDetails.length > 0) {
+          const mapped = favDetails.map((item: any) => ({
+            id: String(item.id),
+            title: item.adapted_text || item.translated_text || item.input || item.title || 'Başlıksız',
+            url: item.url || item.mp3_url,
+            level: (item.level || 'A1') as CEFRLevel,
+            duration: typeof item.duration === 'number' ? item.duration : 180,
+            created_at: item.created_at,
+            input_type: item.input_type,
+            translated_text: item.translated_text,
+            adapted_text: item.adapted_text,
+            original_turkish: item.original_turkish || item.input,
+            mp3_url: item.mp3_url || item.url,
+            timepoints: Array.isArray(item.timepoints) ? item.timepoints : undefined,
+            words: Array.isArray(item.words) ? item.words : undefined,
+          } as AudioTrack));
+          const existingIds = new Set(audioTracksRef.current.map(t => t.id));
+          const merged = [...audioTracksRef.current, ...mapped.filter(t => !existingIds.has(t.id))];
+          setAudioTracks(merged);
+          audioTracksRef.current = merged;
+        }
+      } catch (e) {
+        console.warn('Favori detayları alınamadı:', e);
+      }
+      // 3) Sonra filtreyi aç ve arka plan hidrasyonu devreye girsin
+      setShowFavoritesOnly(true);
+      setHasUserScrolled(true);
+      ensureFavoritesCoverage();
+    } else {
+      setShowFavoritesOnly(false);
+    }
   };
 
   // Ensure that when showing favorites we have coverage for all favorite IDs by fetching more pages if needed
@@ -257,9 +315,12 @@ const LibraryScreen: React.FC = () => {
   // Auto-refresh when screen gains focus (e.g., after navigating from Create)
   useFocusEffect(
     React.useCallback(() => {
-      fetchAudioHistory(false, 1);
+      // Favoriler görünümündeyken tam yenileme yapmayalım; flicker ve kayıp hissi yaratıyor
+      if (!showFavoritesOnly) {
+        fetchAudioHistory(false, 1);
+      }
       return () => {};
-    }, [user?.id])
+    }, [user?.id, showFavoritesOnly])
   );
 
   const formatDuration = (seconds: number) => {
@@ -287,13 +348,30 @@ const LibraryScreen: React.FC = () => {
     return matchesSearch && matchesLevel && matchesFav;
   });
 
-  const displayedTracks = filteredTracks.slice(0, page * PAGE_SIZE);
+  // Favorites görünümünde istemci tarafı sayfalamayı kaldırıyoruz.
+  // Böylece favorileriniz, daha önce sayfalamayı arttırmanıza gerek kalmadan
+  // elde mevcut olanların tamamı hemen listelenir.
+  const displayedTracks = showFavoritesOnly
+    ? filteredTracks
+    : filteredTracks.slice(0, page * PAGE_SIZE);
 
   useEffect(() => {
     // Reset pagination when filters or search change
     setPage(1);
     setHasUserScrolled(false);
   }, [searchText, selectedLevel, showFavoritesOnly]);
+
+  // Favoriler görünümüne geçildiğinde, eksik favorileri arka planda hydrate et
+  // ve sayfalamayı başlatmak için scroll gating'i aç.
+  useEffect(() => {
+    if (showFavoritesOnly) {
+      // onEndReached'in engellenmemesi için
+      setHasUserScrolled(true);
+      // eksik favoriler varsa sayfa sayfa çekmeyi tetikle
+      ensureFavoritesCoverage();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showFavoritesOnly]);
 
   const handleLoadMore = () => {
     if (!hasUserScrolled) return; // prevent auto-trigger on mount when list doesn't fill viewport
@@ -434,7 +512,7 @@ const LibraryScreen: React.FC = () => {
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]} 
-          onPress={() => setShowFavoritesOnly(prev => !prev)}
+          onPress={handleToggleFavorites}
         >
           <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#E91E63' : '#007AFF'} />
           <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>Favorilerim</Text>
@@ -504,6 +582,11 @@ const LibraryScreen: React.FC = () => {
             ) : null
           }
         />
+      ) : showFavoritesOnly && (isHydratingFavorites || favoriteIds.length > 0) ? (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Favoriler yükleniyor...</Text>
+        </View>
       ) : (
         <View style={styles.emptyState}>
           <Icon name="library-music" size={64} color="#ccc" />
