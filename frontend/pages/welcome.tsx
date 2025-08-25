@@ -598,7 +598,7 @@ const Welcome: React.FC = () => {
             ? "Aktif paketiniz yok. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz."
             : "Paket kullanım sınırınız aşıldı. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.";
           originalAlert(info);
-          window.location.href = '/dashboard#paket-bilgilerim';
+          window.location.assign('/dashboard#paket-bilgilerim');
           return;
         }
       } catch {}
@@ -621,7 +621,7 @@ const Welcome: React.FC = () => {
         const limit = message.includes('Paket kullanım sınırınız aşıldı');
         if (status === 402 || noPlan || limit) {
           window.alert("Abonelik gereklidir. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.");
-          window.location.href = '/dashboard#paket-bilgilerim';
+          window.location.assign('/dashboard#paket-bilgilerim');
         }
       } catch {}
     };
@@ -921,7 +921,7 @@ const Welcome: React.FC = () => {
         if (usageSummary?.success && usageSummary.data && usageSummary.data.hasPlan === false) {
           if (typeof window !== 'undefined') {
             window.alert('Aktif paketiniz yok. Tamam\'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.');
-            window.location.href = '/dashboard#paket-bilgilerim';
+            window.location.assign('/dashboard#paket-bilgilerim');
           }
           setIsLoading(false);
           return;
@@ -929,7 +929,7 @@ const Welcome: React.FC = () => {
         if (usageSummary?.success && usageSummary.data?.isExceeded) {
           if (typeof window !== 'undefined') {
             window.alert('Paket kullanım sınırınız aşıldı. Tamam\'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.');
-            window.location.href = '/dashboard#paket-bilgilerim';
+            window.location.assign('/dashboard#paket-bilgilerim');
           }
           setIsLoading(false);
           return;
@@ -1060,7 +1060,7 @@ const Welcome: React.FC = () => {
               ? 'Aktif paketiniz yok. Tamam\'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.'
               : 'Paket kullanım sınırınız aşıldı. Tamam\'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.';
             window.alert(msg);
-            window.location.href = link;
+            window.location.assign(link);
           }
         }
       } catch {}
