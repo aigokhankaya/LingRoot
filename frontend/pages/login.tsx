@@ -4,9 +4,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import AuthProvider, { useAuth } from '../src/lib/auth';
+import { useAuth } from '../src/lib/auth';
 
-const LoginInner: React.FC = () => {
+const LoginPage: React.FC = () => {
   const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
@@ -127,11 +127,4 @@ const LoginInner: React.FC = () => {
   );
 };
 
-// Wrap with AuthProvider to ensure context works in pages router
-const LoginPage: NextPage = () => (
-  <AuthProvider>
-    <LoginInner />
-  </AuthProvider>
-);
-
-export default LoginPage;
+export default LoginPage as NextPage;
