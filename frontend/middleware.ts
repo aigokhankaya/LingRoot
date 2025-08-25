@@ -11,7 +11,9 @@ import { NextRequest, NextResponse } from 'next/server';
 // - Normal login flows without next remain unaffected.
 
 export function middleware(req: NextRequest) {
-  const { pathname, searchParams } = req.nextUrl;
+  const nextUrl = req.nextUrl;
+  const pathname = nextUrl.pathname;
+  const searchParams = nextUrl.searchParams;
 
   // Helper to decode a "next" parameter safely
   const safeDecode = (val: string | null): string => {
@@ -54,8 +56,6 @@ export function middleware(req: NextRequest) {
     const hasFlag = req.cookies.get('suppressWelcome')?.value === '1';
     const targetCookie = req.cookies.get('postLoginTarget')?.value || '';
     if (hasFlag && targetCookie) {
-      const url = req.nextUrl.clone();
-      url.pathname = '/';
       // Build absolute redirect URL to the target stored in cookie
       // If target is absolute path like /dashboard?... use as is
       const redirectTo = targetCookie.startsWith('/') ? targetCookie : '/dashboard';
