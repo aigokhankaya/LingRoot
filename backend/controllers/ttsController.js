@@ -284,7 +284,8 @@ const processTtsRequest = async (req, res) => {
             // If user has no active plan, block TTS and request package selection
             if (!limitState?.hasPlan) {
               logger.warn(`[${requestId}] No active subscription for user ${userId}`);
-              return res.status(402).json({
+              // Return 200 to avoid mobile wrappers popping native alerts on 4xx
+              return res.status(200).json({
                 success: false,
                 code: 'NO_ACTIVE_PLAN',
                 message: 'Aktif paketiniz yok. Lütfen paket seçin ve aboneliğinizi başlatın.',
@@ -293,7 +294,8 @@ const processTtsRequest = async (req, res) => {
             // If plan exists but limits exceeded, block
             if (limitState.isExceeded) {
               logger.warn(`[${requestId}] Usage limit exceeded for user ${userId}`);
-              return res.status(402).json({
+              // Return 200 to avoid native alerts
+              return res.status(200).json({
                 success: false,
                 code: 'USAGE_LIMIT_EXCEEDED',
                 message: 'Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.',
