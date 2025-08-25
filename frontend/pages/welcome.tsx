@@ -870,9 +870,17 @@ const Welcome: React.FC = () => {
         }
       }
 
-      // Kullanım limiti kontrolü
+      // Kullanım/abonelik kontrolü
       try {
         const usageSummary = await getUsageSummary();
+        if (usageSummary?.success && usageSummary.data && usageSummary.data.hasPlan === false) {
+          const go = typeof window !== 'undefined' ? window.confirm('Aktif paketiniz yok. Paket seçim ekranına gitmek ister misiniz?') : false;
+          if (go && typeof window !== 'undefined') {
+            window.location.href = '/dashboard#paket-bilgilerim';
+          }
+          setIsLoading(false);
+          return;
+        }
         if (usageSummary?.success && usageSummary.data?.isExceeded) {
           alert('Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya dönemi bekleyin.');
           setIsLoading(false);
