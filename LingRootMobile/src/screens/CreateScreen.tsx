@@ -12,6 +12,7 @@ import {
   FlatList,
   Modal,
   Dimensions,
+  Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -76,6 +77,21 @@ const CreateScreen: React.FC = () => {
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
   const [youtubeLoading, setYoutubeLoading] = useState<boolean>(false);
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
+
+  // Helper: open external URL reliably without Expo WebBrowser
+  const openExternalUrl = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        // Fallback attempt
+        await Linking.openURL(url);
+      }
+    } catch (err) {
+      try { await Linking.openURL(url); } catch {}
+    }
+  };
 
   const fetchYoutubeSubtitle = async () => {
     if (!youtubeUrl || !/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(youtubeUrl)) {
@@ -587,8 +603,26 @@ const CreateScreen: React.FC = () => {
     try {
       // Usage limit pre-check
       const summary = await apiService.getUsageSummary();
-      if (summary?.success && (summary as any).data?.isExceeded) {
-        Alert.alert(t('common.error'), 'Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.');
+      const sData: any = (summary as any)?.data || {};
+      if (summary?.success && (sData?.isExceeded || sData?.hasPlan === false)) {
+        Alert.alert(
+          t('common.error'),
+          sData?.hasPlan === false
+            ? 'Aktif paketiniz yok. Lütfen paket seçin ve aboneliğinizi başlatın.'
+            : 'Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.',
+          [
+            {
+              text: 'Tamam',
+              onPress: () => {
+                // Delay slightly to allow Alert to dismiss on Android/iOS
+                setTimeout(() => {
+                  const next = encodeURIComponent('/dashboard?tab=paket-bilgilerim');
+                  openExternalUrl(`https://lingroot.com/login?next=${next}`);
+                }, 60);
+              },
+            },
+          ]
+        );
         return;
       }
     } catch (e: any) {
@@ -721,8 +755,27 @@ const CreateScreen: React.FC = () => {
           navigation.navigate('Library' as never);
         } else {
           console.log('🎯 [TTS DEBUG] Response success is false, showing error...');
+          const code = (response as any)?.code;
           const msg = response.message || t('create.alerts.audioCreateFailed');
-          Alert.alert(t('common.error'), msg);
+          if (code === 'NO_ACTIVE_PLAN' || code === 'USAGE_LIMIT_EXCEEDED') {
+            Alert.alert(
+              t('common.error'),
+              msg,
+              [
+                {
+                  text: 'Tamam',
+                  onPress: () => {
+                    setTimeout(() => {
+                      const next = encodeURIComponent('/dashboard?tab=paket-bilgilerim');
+                      openExternalUrl(`https://lingroot.com/login?next=${next}`);
+                    }, 60);
+                  },
+                },
+              ]
+            );
+          } else {
+            Alert.alert(t('common.error'), msg);
+          }
         }
       } else if (mode === 'book') {
         // Use selected chapter text
@@ -750,7 +803,31 @@ const CreateScreen: React.FC = () => {
         }
       }
     } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || t('common.unexpectedError'));
+      const emsg = error?.message || '';
+      if (
+        emsg.includes('Aktif paketiniz yok') ||
+        emsg.includes('kullanım sınırınız aşıldı') ||
+        emsg.includes('USAGE_LIMIT_EXCEEDED') ||
+        emsg.includes('NO_ACTIVE_PLAN')
+      ) {
+        Alert.alert(
+          t('common.error'),
+          emsg,
+          [
+            {
+              text: 'Tamam',
+              onPress: () => {
+                setTimeout(() => {
+                  const next = encodeURIComponent('/dashboard?tab=paket-bilgilerim');
+                  openExternalUrl(`https://lingroot.com/login?next=${next}`);
+                }, 60);
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(t('common.error'), emsg || t('common.unexpectedError'));
+      }
     } finally {
       setIsLoading(false);
     }

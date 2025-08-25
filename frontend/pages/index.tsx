@@ -68,7 +68,17 @@ const App: React.FC = () => {
 
   React.useEffect(() => {
     if (isAuthenticated) {
-      router.push('/welcome');
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+      const params = new URLSearchParams(search);
+      const raw = params.get('next') || '';
+      const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
+      if (next) {
+        if (typeof window !== 'undefined' && next.includes('#')) {
+          window.location.assign(next);
+        } else {
+          router.replace(next);
+        }
+      }
     }
   }, [isAuthenticated, router]);
 
@@ -99,7 +109,15 @@ const App: React.FC = () => {
             const result = await login(loginForm.email, loginForm.password, loginForm.rememberMe);
       if (result.success) {
                 setIsLoginOpen(false); // Başarılı olunca modalı kapat
-        router.push('/welcome');
+        const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+        const raw = params.get('next') || '';
+        const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
+        const target = next && next.trim() ? next : '/dashboard';
+        if (typeof window !== 'undefined' && target.includes('#')) {
+          window.location.assign(target);
+        } else {
+          router.replace(target);
+        }
       } else {
                 setError(result.message || 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
       }
@@ -119,7 +137,10 @@ const App: React.FC = () => {
       const result = await register(firstName, lastName, email, phoneNumber, password);
       if (result.success) {
                 setIsRegisterOpen(false); // Başarılı olunca modalı kapat
-        router.push('/welcome');
+        const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+        const next = params.get('next');
+        const target = next && next.trim() ? next : '/dashboard';
+        router.replace(target);
       } else {
                 setError(result.message || 'Kayıt başarısız. Lütfen bilgilerinizi kontrol edin.');
       }
@@ -159,7 +180,15 @@ const App: React.FC = () => {
             if (result.success) {
                 console.log('✅ Google giriş başarılı');
                 setIsLoginOpen(false);
-                router.push('/welcome');
+                const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+                const raw = params.get('next') || '';
+                const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
+                const target = next && next.trim() ? next : '/dashboard';
+                if (typeof window !== 'undefined' && target.includes('#')) {
+                  window.location.assign(target);
+                } else {
+                  router.replace(target);
+                }
             } else {
                 console.error('❌ Backend giriş hatası:', result.message);
                 setError(result.message || 'Google ile giriş başarısız.');

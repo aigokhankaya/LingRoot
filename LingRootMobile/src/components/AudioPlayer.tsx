@@ -9,13 +9,16 @@ import {
   ScrollView,
   Modal,
   Dimensions,
+  Pressable,
 } from 'react-native';
+import { Platform } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, Timepoint } from '../types';
 import { useAudioContext } from '../contexts/AudioContext';
-import { addWordToVocabulary, addWordWithTranslation } from '../services/api';
+import { addWordToVocabulary, addWordWithTranslation, apiService } from '../services/api';
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -45,6 +48,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('sentence'); // Default cümle yapıldı
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [pageIndex, setPageIndex] = useState(0);
   
   // Use refs to track the latest values for highlighting
   const durationRef = useRef(0);
@@ -613,47 +617,143 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   };
 
+  // Page-level double-tap to copy FULL text (without stripping punctuation)
+  const lastTapRefPage0 = useRef(0);
+  const lastTapRefPage1 = useRef(0);
+  const DOUBLE_TAP_DELAY_MS = 300;
+
+  const handleCopyFullText = (text: string, label: string) => {
+    const toCopy = (text || '').trim();
+    if (!toCopy) return;
+    try {
+      Clipboard.setString(toCopy);
+      Alert.alert('Kopyalandı', `${label} panoya kopyalandı`);
+    } catch (error) {
+      console.error('Kopyalama hatası:', error);
+      Alert.alert('Hata', 'Metin panoya kopyalanırken bir hata oluştu');
+    }
+  };
+
+  const handlePage0Tap = () => {
+    const now = Date.now();
+    if (now - lastTapRefPage0.current < DOUBLE_TAP_DELAY_MS) {
+      handleCopyFullText(textToHighlight, 'Ekrandaki metnin tamamı');
+    }
+    lastTapRefPage0.current = now;
+  };
+
+  const handlePage1Tap = () => {
+    const now = Date.now();
+    if (now - lastTapRefPage1.current < DOUBLE_TAP_DELAY_MS) {
+      const fullOriginal = originalText || track.original_turkish || '';
+      handleCopyFullText(fullOriginal, 'Orijinal metnin tamamı');
+    }
+    lastTapRefPage1.current = now;
+  };
+
+  const handleDoubleTap = (text: string) => {
+    // Copy text to clipboard
+    const cleanText = text.replace(/[.,!?;:]/g, '').trim();
+    if (cleanText) {
+      try {
+        Clipboard.setString(cleanText);
+        Alert.alert('Kopyalandı', `"${cleanText}" panoya kopyalandı`);
+      } catch (error) {
+        console.error('Kopyalama hatası:', error);
+        Alert.alert('Hata', 'Metin panoya kopyalanırken bir hata oluştu');
+      }
+    }
+  };
+
   const renderWordHighlighting = useCallback(() => {
+    let lastTap = 0;
+    let tapTimeout: NodeJS.Timeout;
+
     return (
       <View style={styles.textContainer}>
-        {wordsArray.map((word, index) => (
-          <TouchableOpacity
-            key={index}
-            ref={(ref) => {
-              if (ref) {
-                wordRefs.current.set(index, ref);
-              }
-            }}
-            onPress={() => handleWordPress(index)}
-            onLongPress={() => handleWordLongPress(word, index)}
-            style={[
-              styles.wordContainer,
-              index === currentWordIndex && styles.highlightedWord
-            ]}
-          >
-            <Text
+        {wordsArray.map((word, index) => {
+          // Handle double tap
+          const handleTap = () => {
+            const now = Date.now();
+            const DOUBLE_TAP_DELAY = 300;
+            
+            if (lastTap && (now - lastTap) < DOUBLE_TAP_DELAY) {
+              // Double tap detected
+              clearTimeout(tapTimeout);
+              handleDoubleTap(word);
+              lastTap = 0;
+            } else {
+              // Single tap
+              lastTap = now;
+              tapTimeout = setTimeout(() => {
+                handleWordPress(index);
+                lastTap = 0;
+              }, DOUBLE_TAP_DELAY);
+            }
+          };
+
+          return (
+            <TouchableOpacity
+              key={index}
+              ref={(ref) => {
+                if (ref) {
+                  wordRefs.current.set(index, ref);
+                }
+              }}
+              onPress={handleTap}
+              onLongPress={() => handleWordLongPress(word, index)}
               style={[
-                styles.word,
-                index === currentWordIndex && styles.highlightedWordText
+                styles.wordContainer,
+                index === currentWordIndex && styles.highlightedWord
               ]}
+              delayLongPress={300}
             >
-              {word}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.word,
+                  index === currentWordIndex && styles.highlightedWordText
+                ]}
+              >
+                {word}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     );
   }, [wordsArray, currentWordIndex, handleWordPress, handleWordLongPress]);
 
   const renderSentenceHighlighting = () => {
+    let lastTapTime = 0;
+    let lastSentenceIndex = -1;
+    let tapTimeout: NodeJS.Timeout;
+
     // Cümleye tıklandığında o cümlenin başına atla
-    const handleSentencePress = (sentenceIndex: number) => {
-      const totalDuration = duration / 1000;
-      if (totalDuration > 0) {
-        const sentenceProgress = sentenceIndex / sentences.length;
-        const targetTime = sentenceProgress * totalDuration;
-        const positionMs = targetTime * 1000;
-        handleSeek(positionMs);
+    const handleSentencePress = (sentenceIndex: number, sentenceText: string) => {
+      const now = Date.now();
+      const DOUBLE_TAP_DELAY = 300;
+      
+      if (lastSentenceIndex === sentenceIndex && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
+        // Double tap detected
+        clearTimeout(tapTimeout);
+        handleDoubleTap(sentenceText);
+        lastTapTime = 0;
+        lastSentenceIndex = -1;
+      } else {
+        // Single tap - handle seek
+        lastTapTime = now;
+        lastSentenceIndex = sentenceIndex;
+        tapTimeout = setTimeout(() => {
+          const totalDuration = duration / 1000;
+          if (totalDuration > 0) {
+            const sentenceProgress = sentenceIndex / sentences.length;
+            const targetTime = sentenceProgress * totalDuration;
+            const positionMs = targetTime * 1000;
+            handleSeek(positionMs);
+          }
+          lastTapTime = 0;
+          lastSentenceIndex = -1;
+        }, DOUBLE_TAP_DELAY);
       }
     };
     return (
@@ -670,7 +770,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 styles.sentenceContainer,
                 isCurrentSentence && styles.highlightedSentence
               ]}
-              onPress={() => handleSentencePress(sentenceIndex)}
+              onPress={() => handleSentencePress(sentenceIndex, sentence)}
               activeOpacity={0.7}
             >
               <View style={styles.sentenceWordsContainer}>
@@ -786,26 +886,32 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           }}
           style={{ flex: 1 }}
         >
-          <View style={{ width: screenWidth }}>
-            <ScrollView
-              ref={scrollViewRef}
-              style={[styles.scrollContainer, { paddingTop: 8 }]}
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={styles.textWrapper}>
-                {renderHighlightedText()}
-              </View>
-            </ScrollView>
+          <View style={{ width: screenWidth, flex: 1 }}>
+            <View style={{ width: '100%', flex: 1 }}>
+              <ScrollView
+                ref={scrollViewRef}
+                style={[styles.scrollContainer, { paddingTop: 8 }]}
+                showsVerticalScrollIndicator={false}
+              >
+                <View onTouchEnd={handlePage0Tap} style={styles.textWrapper}>
+                  {renderHighlightedText()}
+                </View>
+              </ScrollView>
+            </View>
           </View>
-          <View style={{ width: screenWidth }}>
-            <ScrollView style={[styles.scrollContainer, { paddingTop: 8 }]} showsVerticalScrollIndicator={false}>
-              <Text style={styles.originalTitle}>Orijinal Türkçe Metin</Text>
-              {originalLoading ? (
-                <Text style={styles.originalText}>Yükleniyor...</Text>
-              ) : (
-                <Text style={styles.originalText}>{originalText || track.original_turkish || '—'}</Text>
-              )}
-            </ScrollView>
+          <View style={{ width: screenWidth, flex: 1 }}>
+            <View style={{ width: '100%', flex: 1 }}>
+              <ScrollView style={[styles.scrollContainer, { paddingTop: 8 }]} showsVerticalScrollIndicator={false}>
+                <View onTouchEnd={handlePage1Tap}>
+                  <Text style={styles.originalTitle}>Orijinal Türkçe Metin</Text>
+                  {originalLoading ? (
+                    <Text style={styles.originalText}>Yükleniyor...</Text>
+                  ) : (
+                    <Text style={styles.originalText}>{originalText || track.original_turkish || '—'}</Text>
+                  )}
+                </View>
+              </ScrollView>
+            </View>
           </View>
         </ScrollView>
 

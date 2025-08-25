@@ -10,12 +10,39 @@ import { useRouter } from 'next/navigation';
 export default function Dashboard() {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
+  const [tab, setTab] = React.useState<string>('genel');
 
   React.useEffect(() => {
     if (!isAuthenticated) {
-      router.push('/login');
+      const path = typeof window !== 'undefined' ? window.location.pathname : '/dashboard';
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+      const hash = typeof window !== 'undefined' ? window.location.hash : '';
+      const next = `${path}${search}${hash}`;
+      router.push(`/login?next=${encodeURIComponent(next)}`);
     }
   }, [isAuthenticated, router]);
+
+  // Initialize tab from query (?tab=...) then hash, and keep in sync
+  React.useEffect(() => {
+    const applyLocation = () => {
+      if (typeof window === 'undefined') return;
+      const url = new URL(window.location.href);
+      const qp = url.searchParams.get('tab');
+      if (qp) {
+        setTab(qp);
+      } else {
+        const h = url.hash.replace('#', '');
+        if (h) setTab(h);
+      }
+    };
+    applyLocation();
+    window.addEventListener('hashchange', applyLocation);
+    window.addEventListener('popstate', applyLocation);
+    return () => {
+      window.removeEventListener('hashchange', applyLocation);
+      window.removeEventListener('popstate', applyLocation);
+    };
+  }, []);
 
   if (!user) {
     return <div className="p-8 text-center text-lg">Yükleniyor...</div>;
@@ -46,7 +73,16 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <Tabs defaultValue="genel">
+      <Tabs value={tab} onValueChange={(v) => { 
+        setTab(v); 
+        if (typeof window !== 'undefined') { 
+          const url = new URL(window.location.href);
+          url.searchParams.set('tab', v);
+          // keep hash too for backward-compat
+          url.hash = v;
+          window.history.replaceState({}, '', url.toString());
+        } 
+      }}>
         <TabsList className="mb-4">
           <TabsTrigger value="genel">Genel</TabsTrigger>
           <TabsTrigger value="paket-bilgilerim">Paket Bilgilerim</TabsTrigger>

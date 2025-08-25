@@ -118,6 +118,26 @@ const Welcome: React.FC = () => {
   const [showPlanRequired, setShowPlanRequired] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   
+  // Welcome guard: Eğer middleware çerezleri varsa (suppressWelcome/postLoginTarget), hemen hedefe yönlendir
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const cookies = document.cookie || '';
+      const hasFlag = /(?:^|; )suppressWelcome=1/.test(cookies);
+      const targetMatch = /(?:^|; )postLoginTarget=([^;]+)/.exec(cookies);
+      if (hasFlag) {
+        const raw = targetMatch ? targetMatch[1] : '';
+        let target = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '/dashboard';
+        if (!target || !target.trim() || target === '/welcome') target = '/dashboard';
+        // Çerezleri hemen temizle
+        document.cookie = 'postLoginTarget=; Path=/; Max-Age=0';
+        document.cookie = 'suppressWelcome=; Path=/; Max-Age=0';
+        // Yönlendir
+        router.replace(target.startsWith('/') ? target : '/dashboard');
+      }
+    } catch {}
+  }, [router]);
+
   // Yeni tasarım için state'ler
   const [contentType, setContentType] = useState<string>('text');
   const [englishLevel, setEnglishLevel] = useState<string>('a1');
@@ -1057,19 +1077,25 @@ const Welcome: React.FC = () => {
     } catch (error: any) {
       console.error('Error generating audio:', error);
       const message = String(error?.message || '');
-      // Mobile-safe confirm + redirect fallback for subscription/limit errors
+      // Mobile-safe open external link for subscription/limit errors
       try {
-        const link = '/dashboard#paket-bilgilerim';
+        const externalLink = '/login?next=%2Fdashboard%3Ftab%3Dpaket-bilgilerim';
         if (typeof window !== 'undefined') {
           const isNoPlan = message.includes('Aktif paketiniz yok');
           const isLimit = message.includes('Paket kullanım sınırınız aşıldı');
           const is402 = (error as any)?.response?.status === 402;
           if (isNoPlan || isLimit || is402) {
-            const msg = isNoPlan
-              ? 'Aktif paketiniz yok. Tamam\'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.'
-              : 'Paket kullanım sınırınız aşıldı. Tamam\'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.';
-            window.alert(msg);
-            window.location.assign(link);
+            // Try to open in a new tab/window; fallback to same-tab navigation
+            try {
+              const win = window.open(externalLink, '_blank', 'noopener,noreferrer');
+              if (win) {
+                win.focus();
+              } else {
+                window.location.href = externalLink;
+              }
+            } catch {
+              window.location.href = externalLink;
+            }
           }
         }
       } catch {}

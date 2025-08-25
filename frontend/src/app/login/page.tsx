@@ -1,19 +1,26 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from "@/lib/auth";
 import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Debug helpers for mobile: show next/target when ?debug=1
+  const debug = (searchParams?.get('debug') || '') === '1';
+  const debugNextRaw = searchParams?.get('next') || '';
+  const debugNext = debugNextRaw ? (() => { try { return decodeURIComponent(debugNextRaw); } catch { return debugNextRaw; } })() : '';
+  const debugTarget = debugNext && debugNext.trim() ? debugNext : '/dashboard';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +31,21 @@ export default function LoginPage() {
     try {
       const result = await login(email, password, rememberMe);
       if (result.success) {
-        router.push('/welcome'); // Başarılı login sonrası welcome sayfasına yönlendir
+        let nextRaw = searchParams?.get('next') || '';
+        if (!nextRaw && typeof window !== 'undefined') {
+          try { nextRaw = sessionStorage.getItem('postLoginNext') || ''; } catch {}
+        }
+        const next = nextRaw ? (() => { try { return decodeURIComponent(nextRaw); } catch { return nextRaw; } })() : '';
+        let target = next && next.trim() ? next : '/dashboard';
+        // Protective override: never fall back to /welcome
+        if (target === '/welcome') target = '/dashboard';
+        console.log('[LOGIN] redirecting to:', { nextRaw, next, target });
+        if (typeof window !== 'undefined') { try { sessionStorage.removeItem('postLoginNext'); } catch {} }
+        if (typeof window !== 'undefined' && target.includes('#')) {
+          window.location.assign(target);
+        } else {
+          router.replace(target);
+        }
       } else {
         setError(result.message || 'Giriş başarısız');
       }
@@ -37,6 +58,13 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      {debug && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-100 text-yellow-900 text-xs p-2 border-b border-yellow-300">
+          <div className="max-w-3xl mx-auto">
+            <strong>DEBUG</strong> — nextRaw: <code className="break-all">{debugNextRaw}</code> | next: <code className="break-all">{debugNext}</code> | target: <code className="break-all">{debugTarget}</code>
+          </div>
+        </div>
+      )}
       {/* Logo ve başlık */}
       <header className="w-full flex justify-center items-center py-8">
         <div className="flex items-center space-x-4">

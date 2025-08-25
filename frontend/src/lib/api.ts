@@ -332,7 +332,7 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
                 throw new Error(`TTS API failed: ${response.status} ${response.statusText} - ${errorText}`);
             }
             if (apiResponse?.code === 'USAGE_LIMIT_EXCEEDED') {
-                const link = '/dashboard#paket-bilgilerim';
+                const link = '/dashboard?tab=paket-bilgilerim';
                 // if not suppressed, we used to show alert+redirect; now modal handles UX
                 const err: any = new Error(`Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin (${link}).`);
                 err.code = 'USAGE_LIMIT_EXCEEDED';
@@ -340,7 +340,7 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
                 throw err;
             }
             if (apiResponse?.code === 'NO_ACTIVE_PLAN') {
-                const link = '/dashboard#paket-bilgilerim';
+                const link = '/dashboard?tab=paket-bilgilerim';
                 // if not suppressed, we used to show alert+redirect; now modal handles UX
                 const err: any = new Error(`Aktif paketiniz yok. Lütfen paket seçin (${link}).`);
                 err.code = 'NO_ACTIVE_PLAN';
