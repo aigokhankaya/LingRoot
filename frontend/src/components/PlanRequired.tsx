@@ -6,9 +6,13 @@ interface PlanRequiredProps {
 }
 
 const PlanRequired: React.FC<PlanRequiredProps> = ({ message, onClose }) => {
-  const go = () => {
-    window.location.assign('/dashboard#paket-bilgilerim');
+  const handleOk = () => {
+    // Close the modal first
+    if (onClose) onClose();
+    // Then redirect to dashboard with the package info tab
+    window.location.href = '/dashboard#paket-bilgilerim';
   };
+  
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
       <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-6 text-center">
@@ -18,16 +22,10 @@ const PlanRequired: React.FC<PlanRequiredProps> = ({ message, onClose }) => {
         </p>
         <div className="flex gap-3 justify-center">
           <button
-            onClick={go}
-            className="px-4 py-2 rounded bg-indigo-600 text-white font-medium hover:bg-indigo-700"
+            onClick={handleOk}
+            className="px-6 py-2 rounded bg-indigo-600 text-white font-medium hover:bg-indigo-700"
           >
-            Paket Seç
-          </button>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded bg-gray-200 text-gray-800 font-medium hover:bg-gray-300"
-          >
-            Kapat
+            Tamam
           </button>
         </div>
       </div>
