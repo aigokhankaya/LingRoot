@@ -1,5 +1,9 @@
 'use client';
 
+// Disable static prerendering for this page; render dynamically at runtime
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import React, { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
