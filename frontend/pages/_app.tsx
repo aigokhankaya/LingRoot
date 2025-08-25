@@ -1,3 +1,25 @@
+import type { AppProps } from 'next/app';
+import { useEffect } from 'react';
+
+export default function MyApp({ Component, pageProps }: AppProps) {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const originalAlert = window.alert;
+    // Completely suppress native alerts globally (mobile-friendly)
+    window.alert = (...args: any[]) => {
+      try {
+        console.warn('[alert suppressed]', ...args);
+      } catch {}
+      return;
+    };
+    return () => {
+      window.alert = originalAlert;
+    };
+  }, []);
+
+  return <Component {...pageProps} />;
+}
+
 import '../src/app/globals.css';
 import type { AppProps } from 'next/app';
 import Head from 'next/head';
