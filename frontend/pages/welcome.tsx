@@ -602,6 +602,7 @@ const Welcome: React.FC = () => {
           return;
         }
       } catch {}
+      // Fallback: other alerts proceed normally (keep minimal usage)
       originalAlert(msg);
     };
     return () => {
