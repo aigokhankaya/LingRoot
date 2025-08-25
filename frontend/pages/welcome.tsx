@@ -584,6 +584,31 @@ const Welcome: React.FC = () => {
     })();
   }, [isAuthenticated]);
 
+  // Mobile safety net: intercept alerts containing subscription/limit texts
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const originalAlert = window.alert;
+    window.alert = (msg?: any) => {
+      try {
+        const text = String(msg || '');
+        const noPlan = text.includes('Aktif paketiniz yok');
+        const limit = text.includes('Paket kullanım sınırınız aşıldı');
+        if (noPlan || limit) {
+          const prompt = noPlan
+            ? 'Aktif paketiniz yok. Paket seçim ekranına gitmek ister misiniz?'
+            : 'Paket kullanım sınırınız aşıldı. Paket yükseltme ekranına gitmek ister misiniz?';
+          const go = window.confirm(prompt);
+          if (go) window.location.href = '/dashboard#paket-bilgilerim';
+          return;
+        }
+      } catch {}
+      originalAlert(msg);
+    };
+    return () => {
+      window.alert = originalAlert;
+    };
+  }, []);
+
   // Filtreler değiştiğinde sesleri yeniden çek
   useEffect(() => {
     const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || emotionType !== 'all' || selectedVoiceCategory !== 'standard';
