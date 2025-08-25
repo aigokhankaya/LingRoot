@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary } from '../src/lib/api';
+import PlanRequired from '../src/components/PlanRequired';
 import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
 import OutputSection from '../src/components/OutputSection';
@@ -114,6 +115,7 @@ const Welcome: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [audioResult, setAudioResult] = useState<AudioResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showPlanRequired, setShowPlanRequired] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   
   // Yeni tasarım için state'ler
@@ -609,17 +611,13 @@ const Welcome: React.FC = () => {
     };
   }, []);
 
-  // Redirect after error is set (fires immediately after user dismisses any blocking alert)
+  // Redirect or show custom modal after error is set
   useEffect(() => {
     if (!error) return;
     try {
       const text = String(error);
-      const shouldRedirect = text.includes('Aktif paketiniz yok') || text.includes('Paket kullanım sınırınız aşıldı');
-      if (shouldRedirect && typeof window !== 'undefined') {
-        setTimeout(() => {
-          try { window.location.assign('/dashboard#paket-bilgilerim'); } catch {}
-        }, 0);
-      }
+      const shouldOpen = text.includes('Aktif paketiniz yok') || text.includes('Paket kullanım sınırınız aşıldı');
+      if (shouldOpen) setShowPlanRequired(true);
     } catch {}
   }, [error]);
 
@@ -933,18 +931,12 @@ const Welcome: React.FC = () => {
       try {
         const usageSummary = await getUsageSummary();
         if (usageSummary?.success && usageSummary.data && usageSummary.data.hasPlan === false) {
-          if (typeof window !== 'undefined') {
-            window.alert('Aktif paketiniz yok. Tamam\'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.');
-            window.location.assign('/dashboard#paket-bilgilerim');
-          }
+          setError('Aktif paketiniz yok');
           setIsLoading(false);
           return;
         }
         if (usageSummary?.success && usageSummary.data?.isExceeded) {
-          if (typeof window !== 'undefined') {
-            window.alert('Paket kullanım sınırınız aşıldı. Tamam\'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.');
-            window.location.assign('/dashboard#paket-bilgilerim');
-          }
+          setError('Paket kullanım sınırınız aşıldı');
           setIsLoading(false);
           return;
         }
@@ -953,7 +945,7 @@ const Welcome: React.FC = () => {
       }
 
       console.log('🔄 [DEBUG] About to call processTts with:', processInput);
-      const result = await processTts(processInput);
+      const result = await processTts({ ...processInput, suppressPlanAlerts: true });
       console.log('✅ [DEBUG] processTts completed with result:', result);
       
       // CRITICAL DEBUG: Check why setAudioResult is not called
@@ -1230,6 +1222,18 @@ const Welcome: React.FC = () => {
             Giriş Yap
           </button>
         </div>
+      </main>
+    );
+  }
+
+  // Custom plan required modal (replaces native alert)
+  if (showPlanRequired) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <PlanRequired
+          message={error?.includes('kullanım') ? 'Paket kullanım sınırınız aşıldı.' : 'Aktif paketiniz yok.'}
+          onClose={() => setShowPlanRequired(false)}
+        />
       </main>
     );
   }

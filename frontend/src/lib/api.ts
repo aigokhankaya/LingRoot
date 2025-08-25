@@ -151,6 +151,7 @@ export interface ProcessInputData {
     voice?: string;
     chapter?: string;
     chapter_id?: string;
+    suppressPlanAlerts?: boolean;
 }
 
 export interface TtsResponseData {
@@ -269,7 +270,7 @@ async function handleApiResponse<T>(response: Response): Promise<ApiResponse<T>>
 }
 
 export const processTts = async (data: ProcessInputData): Promise<TtsResponseData> => {
-    const { type, input, file, level, SesHızı, voice, chapter_id } = data;
+    const { type, input, file, level, SesHızı, voice, chapter_id, suppressPlanAlerts } = data;
     const url = `${getApiUrl("tts/process")}`;
     let headers: Record<string, string>;
     let body: string | FormData;
@@ -332,19 +333,25 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
             }
             if (apiResponse?.code === 'USAGE_LIMIT_EXCEEDED') {
                 const link = '/dashboard#paket-bilgilerim';
-                if (typeof window !== 'undefined') {
+                if (typeof window !== 'undefined' && !suppressPlanAlerts) {
                     window.alert("Paket kullanım sınırınız aşıldı. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.");
                     setTimeout(() => { try { window.location.assign(link); } catch {} }, 0);
                 }
-                throw new Error(`Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin (${link}).`);
+                const err: any = new Error(`Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin (${link}).`);
+                err.code = 'USAGE_LIMIT_EXCEEDED';
+                err.status = 402;
+                throw err;
             }
             if (apiResponse?.code === 'NO_ACTIVE_PLAN') {
                 const link = '/dashboard#paket-bilgilerim';
-                if (typeof window !== 'undefined') {
+                if (typeof window !== 'undefined' && !suppressPlanAlerts) {
                     window.alert("Aktif paketiniz yok. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.");
                     setTimeout(() => { try { window.location.assign(link); } catch {} }, 0);
                 }
-                throw new Error(`Aktif paketiniz yok. Lütfen paket seçin (${link}).`);
+                const err: any = new Error(`Aktif paketiniz yok. Lütfen paket seçin (${link}).`);
+                err.code = 'NO_ACTIVE_PLAN';
+                err.status = 402;
+                throw err;
             }
             throw new Error(apiResponse?.message || `TTS API failed: ${response.status} ${response.statusText}`);
         } else {
