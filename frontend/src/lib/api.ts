@@ -333,16 +333,16 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
             if (apiResponse?.code === 'USAGE_LIMIT_EXCEEDED') {
                 const link = '/dashboard#paket-bilgilerim';
                 if (typeof window !== 'undefined') {
-                    const go = window.confirm('Paket kullanım sınırınız aşıldı. Paket yükseltme ekranına gitmek ister misiniz?');
-                    if (go) window.location.href = link;
+                    window.alert("Paket kullanım sınırınız aşıldı. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.");
+                    window.location.href = link;
                 }
                 throw new Error(`Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin (${link}).`);
             }
             if (apiResponse?.code === 'NO_ACTIVE_PLAN') {
                 const link = '/dashboard#paket-bilgilerim';
                 if (typeof window !== 'undefined') {
-                    const go = window.confirm('Aktif paketiniz yok. Paket seçim ekranına gitmek ister misiniz?');
-                    if (go) window.location.href = link;
+                    window.alert("Aktif paketiniz yok. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.");
+                    window.location.href = link;
                 }
                 throw new Error(`Aktif paketiniz yok. Lütfen paket seçin (${link}).`);
             }
