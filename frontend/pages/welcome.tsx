@@ -999,7 +999,24 @@ const Welcome: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error generating audio:', error);
-      setError(error.message || t('unexpected_error'));
+      const message = String(error?.message || '');
+      // Mobile-safe confirm + redirect fallback for subscription/limit errors
+      try {
+        const link = '/dashboard#paket-bilgilerim';
+        if (typeof window !== 'undefined') {
+          const isNoPlan = message.includes('Aktif paketiniz yok');
+          const isLimit = message.includes('Paket kullanım sınırınız aşıldı');
+          const is402 = (error as any)?.response?.status === 402;
+          if (isNoPlan || isLimit || is402) {
+            const promptText = isNoPlan
+              ? 'Aktif paketiniz yok. Paket seçim ekranına gitmek ister misiniz?'
+              : 'Paket kullanım sınırınız aşıldı. Paket yükseltme ekranına gitmek ister misiniz?';
+            const go = window.confirm(promptText);
+            if (go) window.location.href = link;
+          }
+        }
+      } catch {}
+      setError(message || t('unexpected_error'));
     } finally {
       setIsLoading(false);
     }
