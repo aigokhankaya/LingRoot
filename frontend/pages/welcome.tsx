@@ -940,7 +940,11 @@ const Welcome: React.FC = () => {
           return;
         }
       } catch (e) {
-        // Sessiz geç; backend tarafı yine de engeller
+        // Precheck başarısızsa, TTS çağrısını yapmayalım; özel modalı açalım
+        setError('Paket doğrulaması yapılamadı');
+        setShowPlanRequired(true);
+        setIsLoading(false);
+        return;
       }
 
       console.log('🔄 [DEBUG] About to call processTts with:', processInput);
