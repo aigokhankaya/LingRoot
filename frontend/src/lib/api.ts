@@ -334,7 +334,7 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
                 const link = '/dashboard#paket-bilgilerim';
                 if (typeof window !== 'undefined') {
                     window.alert("Paket kullanım sınırınız aşıldı. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.");
-                    window.location.href = link;
+                    setTimeout(() => { try { window.location.assign(link); } catch {} }, 0);
                 }
                 throw new Error(`Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin (${link}).`);
             }
@@ -342,7 +342,7 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
                 const link = '/dashboard#paket-bilgilerim';
                 if (typeof window !== 'undefined') {
                     window.alert("Aktif paketiniz yok. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.");
-                    window.location.href = link;
+                    setTimeout(() => { try { window.location.assign(link); } catch {} }, 0);
                 }
                 throw new Error(`Aktif paketiniz yok. Lütfen paket seçin (${link}).`);
             }
