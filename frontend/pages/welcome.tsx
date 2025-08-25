@@ -586,7 +586,7 @@ const Welcome: React.FC = () => {
     })();
   }, [isAuthenticated]);
 
-  // Mobile safety net: intercept alerts containing subscription/limit texts (suppress native alert)
+  // Mobile safety net: DISABLE native alert and use custom modal instead
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const originalAlert = window.alert;
@@ -602,8 +602,8 @@ const Welcome: React.FC = () => {
           return;
         }
       } catch {}
-      // Fallback: other alerts proceed normally (keep minimal usage)
-      originalAlert(msg);
+      // For all other alerts on this page, suppress native alert entirely
+      return;
     };
     return () => {
       window.alert = originalAlert;
