@@ -1,4 +1,6 @@
 // Ortak TTS ve altyazı oluşturma fonksiyonu
+import { processTts, TtsResponseData, ProcessInputData } from './api';
+
 export async function generateAudioAndSubtitle({
   narrationText,
   level,
@@ -9,17 +11,14 @@ export async function generateAudioAndSubtitle({
   level: string;
   speakingRate: number;
   voice: string;
-}) {
-  const response = await fetch('/api/tts/process', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      input: narrationText,
-      type: 'text',
-      level,
-      SesHızı: speakingRate,
-      voice
-    })
-  });
-  return await response.json();
-} 
+}): Promise<TtsResponseData> {
+  const payload: ProcessInputData = {
+    type: 'text',
+    input: narrationText,
+    level,
+    SesHızı: speakingRate,
+    voice,
+    suppressPlanAlerts: true
+  };
+  return await processTts(payload);
+}
