@@ -586,7 +586,7 @@ const Welcome: React.FC = () => {
     })();
   }, [isAuthenticated]);
 
-  // Mobile safety net: intercept alerts containing subscription/limit texts
+  // Mobile safety net: intercept alerts containing subscription/limit texts (suppress native alert)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const originalAlert = window.alert;
@@ -596,11 +596,9 @@ const Welcome: React.FC = () => {
         const noPlan = text.includes('Aktif paketiniz yok');
         const limit = text.includes('Paket kullanım sınırınız aşıldı');
         if (noPlan || limit) {
-          const info = noPlan
-            ? "Aktif paketiniz yok. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz."
-            : "Paket kullanım sınırınız aşıldı. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.";
-          originalAlert(info);
-          window.location.assign('/dashboard#paket-bilgilerim');
+          // Do NOT show native alert; open custom modal instead
+          setError(noPlan ? 'Aktif paketiniz yok' : 'Paket kullanım sınırınız aşıldı');
+          setShowPlanRequired(true);
           return;
         }
       } catch {}
@@ -621,7 +619,7 @@ const Welcome: React.FC = () => {
     } catch {}
   }, [error]);
 
-  // Safety: redirect on unhandled 402 errors (promise rejections)
+  // Safety: handle unhandled 402 errors (promise rejections) without native alert
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handler = (event: PromiseRejectionEvent) => {
@@ -632,8 +630,8 @@ const Welcome: React.FC = () => {
         const noPlan = message.includes('Aktif paketiniz yok');
         const limit = message.includes('Paket kullanım sınırınız aşıldı');
         if (status === 402 || noPlan || limit) {
-          window.alert("Abonelik gereklidir. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.");
-          window.location.assign('/dashboard#paket-bilgilerim');
+          setError(noPlan ? 'Aktif paketiniz yok' : 'Paket kullanım sınırınız aşıldı');
+          setShowPlanRequired(true);
         }
       } catch {}
     };

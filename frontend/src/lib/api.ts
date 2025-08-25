@@ -333,10 +333,7 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
             }
             if (apiResponse?.code === 'USAGE_LIMIT_EXCEEDED') {
                 const link = '/dashboard#paket-bilgilerim';
-                if (typeof window !== 'undefined' && !suppressPlanAlerts) {
-                    window.alert("Paket kullanım sınırınız aşıldı. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.");
-                    setTimeout(() => { try { window.location.assign(link); } catch {} }, 0);
-                }
+                // if not suppressed, we used to show alert+redirect; now modal handles UX
                 const err: any = new Error(`Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin (${link}).`);
                 err.code = 'USAGE_LIMIT_EXCEEDED';
                 err.status = 402;
@@ -344,10 +341,7 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
             }
             if (apiResponse?.code === 'NO_ACTIVE_PLAN') {
                 const link = '/dashboard#paket-bilgilerim';
-                if (typeof window !== 'undefined' && !suppressPlanAlerts) {
-                    window.alert("Aktif paketiniz yok. Tamam'a bastığınızda Paket Bilgileri ekranına yönlendirileceksiniz.");
-                    setTimeout(() => { try { window.location.assign(link); } catch {} }, 0);
-                }
+                // if not suppressed, we used to show alert+redirect; now modal handles UX
                 const err: any = new Error(`Aktif paketiniz yok. Lütfen paket seçin (${link}).`);
                 err.code = 'NO_ACTIVE_PLAN';
                 err.status = 402;
