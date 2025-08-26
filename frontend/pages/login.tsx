@@ -31,8 +31,7 @@ const LoginPage: React.FC = () => {
     try {
       const result = await login(email, password, rememberMe);
       if (result.success) {
-        let target = nextDecoded && nextDecoded.trim() ? nextDecoded : '/dashboard';
-        if (target === '/welcome') target = '/dashboard';
+        let target = nextDecoded && nextDecoded.trim() ? nextDecoded : '/welcome';
         try { sessionStorage.removeItem('postLoginNext'); } catch {}
         if (target.includes('#')) {
           window.location.assign(target);

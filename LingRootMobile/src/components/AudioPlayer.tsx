@@ -893,23 +893,23 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 style={[styles.scrollContainer, { paddingTop: 8 }]}
                 showsVerticalScrollIndicator={false}
               >
-                <View onTouchEnd={handlePage0Tap} style={styles.textWrapper}>
+                <Pressable onPress={handlePage0Tap} style={styles.textWrapper}>
                   {renderHighlightedText()}
-                </View>
+                </Pressable>
               </ScrollView>
             </View>
           </View>
           <View style={{ width: screenWidth, flex: 1 }}>
             <View style={{ width: '100%', flex: 1 }}>
               <ScrollView style={[styles.scrollContainer, { paddingTop: 8 }]} showsVerticalScrollIndicator={false}>
-                <View onTouchEnd={handlePage1Tap}>
+                <Pressable onPress={handlePage1Tap}>
                   <Text style={styles.originalTitle}>Orijinal Türkçe Metin</Text>
                   {originalLoading ? (
                     <Text style={styles.originalText}>Yükleniyor...</Text>
                   ) : (
                     <Text style={styles.originalText}>{originalText || track.original_turkish || '—'}</Text>
                   )}
-                </View>
+                </Pressable>
               </ScrollView>
             </View>
           </View>
