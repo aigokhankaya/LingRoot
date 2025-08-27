@@ -25,7 +25,7 @@ import 'swiper/css/pagination';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
 
-import { getApiUrl } from "../src/lib/api";
+import { getApiUrl, resendVerificationEmail } from "../src/lib/api";
 import { initializeGoogleAuth, signInWithGoogle, decodeGoogleCredential } from "../src/lib/googleAuth";
 import dynamic from 'next/dynamic';
 // import Lottie from "lottie-react"; // Kaldırılacak
@@ -50,6 +50,9 @@ const App: React.FC = () => {
   const { login, loginWithGoogle, isAuthenticated, register } = useAuth();
     const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
     // --- FORM STATE'LERİ (KONTROLLÜ BİLEŞENLER İÇİN) ---
     const [loginForm, setLoginForm] = useState({ email: '', password: '', rememberMe: false });
@@ -105,6 +108,8 @@ const App: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setErrorCode(null); // stale state temizliği
+    setResendMessage(null);
     try {
             const result = await login(loginForm.email, loginForm.password, loginForm.rememberMe);
       if (result.success) {
@@ -120,6 +125,7 @@ const App: React.FC = () => {
         }
       } else {
                 setError(result.message || 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
+        setErrorCode((result as any).code || null);
       }
         } catch (err: any) {
             setError(err.message || 'Giriş sırasında bir hata oluştu.');
@@ -127,6 +133,28 @@ const App: React.FC = () => {
       setLoading(false);
     }
   };
+
+    // Aktivasyon e-postasını yeniden gönderme
+    const handleResendActivation = async () => {
+      if (!loginForm.email) {
+        setResendMessage('Lütfen e-posta adresinizi girin.');
+        return;
+      }
+      setResendLoading(true);
+      setResendMessage(null);
+      try {
+        const res = await resendVerificationEmail(loginForm.email);
+        if (res.success) {
+          setResendMessage('Aktivasyon e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.');
+        } else {
+          setResendMessage(res.message || 'E-posta gönderilemedi. Lütfen daha sonra tekrar deneyin.');
+        }
+      } catch (e: any) {
+        setResendMessage(e.message || 'E-posta gönderilirken bir hata oluştu.');
+      } finally {
+        setResendLoading(false);
+      }
+    };
 
     const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -462,6 +490,28 @@ const App: React.FC = () => {
                                     </div>
                                     
                                     {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+                                    {errorCode === 'EMAIL_NOT_VERIFIED' && (
+                                      <div className="text-center space-y-2">
+                                        <p className="text-sm text-gray-700">
+                                          Hesabınız henüz doğrulanmadı. Aktivasyon e-postasını tekrar göndermek ister misiniz?
+                                        </p>
+                                        <div className="flex justify-center">
+                                          <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="!rounded-button"
+                                            onClick={handleResendActivation}
+                                            disabled={resendLoading}
+                                          >
+                                            {resendLoading ? 'Gönderiliyor...' : 'Aktivasyon E-postasını Yeniden Gönder'}
+                                          </Button>
+                                        </div>
+                                        {resendMessage && (
+                                          <p className="text-xs text-gray-600">{resendMessage}</p>
+                                        )}
+                                      </div>
+                                    )}
                                     {/* Şifremi unuttum */}
                                     <div className="flex justify-end">
                                         <a href="/forgot-password" className="text-sm text-blue-600 hover:underline">Şifremi unuttum?</a>
@@ -567,6 +617,28 @@ const App: React.FC = () => {
                                             </div>
                                             
                                             {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+                                            {errorCode === 'EMAIL_NOT_VERIFIED' && (
+                                              <div className="text-center space-y-2">
+                                                <p className="text-sm text-gray-700">
+                                                  Hesabınız henüz doğrulanmadı. Aktivasyon e-postasını tekrar göndermek ister misiniz?
+                                                </p>
+                                                <div className="flex justify-center">
+                                                  <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="!rounded-button"
+                                                    onClick={handleResendActivation}
+                                                    disabled={resendLoading}
+                                                  >
+                                                    {resendLoading ? 'Gönderiliyor...' : 'Aktivasyon E-postasını Yeniden Gönder'}
+                                                  </Button>
+                                                </div>
+                                                {resendMessage && (
+                                                  <p className="text-xs text-gray-600">{resendMessage}</p>
+                                                )}
+                                              </div>
+                                            )}
                                             <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white !rounded-button" disabled={loading}>
                                                 {loading ? t.login.loadingButton : t.login.loginButton}
                                             </Button>

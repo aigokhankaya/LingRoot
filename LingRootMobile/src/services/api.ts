@@ -115,8 +115,8 @@ apiClient.interceptors.response.use(
         (error.config as any).__wakeRetry = true;
         try {
           return await apiClient.request(error.config);
-        } catch (retryErr) {
-          console.error('🔧 [API DEBUG] Retry after wake failed:', retryErr?.message);
+        } catch (retryErr: any) {
+          console.error('🔧 [API DEBUG] Retry after wake failed:', (retryErr as any)?.message);
         }
       }
     }
@@ -484,7 +484,20 @@ export const apiService = {
       throw new Error(error.response?.data?.error || error.message || 'Bölüm alınamadı');
     }
   },
-}; 
+
+  // Resend verification email
+  async resendVerificationEmail(email: string): Promise<APIResponse> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post<APIResponse>('/api/auth/resend-verification', { email });
+      return response.data;
+    } catch (error: any) {
+      // Return generic message to avoid user enumeration differences
+      const msg = error.response?.data?.message || 'Eğer e-posta adresi kayıtlı ise aktivasyon maili gönderildi.';
+      throw new Error(msg);
+    }
+  },
+};
 
 // Vocabulary API functions
 export interface VocabularyWord {

@@ -242,7 +242,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
+        const err = new Error(errorData.message || 'Login failed');
+        (err as any).code = errorData.code;
+        throw err;
       }
       
       const data = await response.json();
@@ -280,7 +282,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setIsLoading(false);
         console.log('🔧 [AUTH DEBUG] Login successful, user set:', appUser);
       } else {
-        throw new Error(data.message || 'Login failed');
+        const err = new Error(data.message || 'Login failed');
+        (err as any).code = data.code;
+        throw err;
       }
     } catch (error: any) {
       setIsLoading(false);

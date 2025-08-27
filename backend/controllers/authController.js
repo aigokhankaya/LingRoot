@@ -146,6 +146,48 @@ exports.register = async (req, res) => {
       logger.warn('[REGISTER] Failed to assign trial plan:', e?.message);
     }
 
+    // Generate email verification token and send activation email
+    try {
+      const verificationCode = generateNumericCode();
+      const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const { error: verErr } = await supabase
+        .from('users')
+        .update({
+          verification_token: verificationCode,
+          verification_expires: verificationExpires,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', newUser[0].id);
+      if (verErr) {
+        logger.warn('[REGISTER] Failed to set verification token:', verErr);
+      } else {
+        // Prefer sending users to the frontend verification page
+        const frontendBaseUrl = process.env.FRONTEND_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.APP_FRONTEND_URL || '';
+        const verifyUrl = frontendBaseUrl
+          ? `${frontendBaseUrl.replace(/\/$/, '')}/verify?token=${encodeURIComponent(verificationCode)}`
+          : `${req.protocol}://${req.get('host')}/api/auth/verify-email/${encodeURIComponent(verificationCode)}`;
+
+        try {
+          const { sendMail } = require('../utils/mailer');
+          const fullName = [newUser[0].firstname, newUser[0].lastname].filter(Boolean).join(' ').trim() || 'LingRoot Kullanıcısı';
+          await sendMail({
+            to: newUser[0].email,
+            subject: 'LingRoot Hesap Aktivasyonu',
+            text: `Merhaba ${fullName},\n\nHesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:\n${verifyUrl}\n\nBağlantı 24 saat geçerlidir.\n\nTeşekkürler,\nLingRoot Ekibi`,
+            html: `<p>Merhaba ${fullName},</p>
+                   <p>Hesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:</p>
+                   <p><a href="${verifyUrl}" target="_blank" rel="noopener noreferrer">Hesabımı Doğrula</a></p>
+                   <p>Bağlantı 24 saat geçerlidir.</p>
+                   <p>Teşekkürler,<br/>LingRoot Ekibi</p>`
+          });
+        } catch (mailErr) {
+          logger.warn('[REGISTER] Activation email send failed or skipped:', mailErr?.message);
+        }
+      }
+    } catch (e) {
+      logger.warn('[REGISTER] Verification setup skipped due to error:', e?.message);
+    }
+
     logStep({
       requestId,
       stepName: 'auth:register:supabase:insert',
@@ -206,6 +248,16 @@ exports.login = async (req, res) => {
     if (error || !user || !(await bcrypt.compare(password, user.password))) {
       logger.warn('[LOGIN] Invalid credentials for email:', email);
       return res.status(401).json({ success: false, message: "Geçersiz e-posta veya şifre" });
+    }
+
+    // Require verified email before allowing login
+    if (!user.isverified) {
+      logger.warn('[LOGIN] Unverified account tried to login:', email);
+      return res.status(403).json({
+        success: false,
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'Hesabınız henüz doğrulanmadı. Lütfen e-postanıza gönderilen aktivasyon bağlantısına tıklayarak hesabınızı doğrulayın.'
+      });
     }
 
     // Build a robust full_name on backend to simplify clients
@@ -674,7 +726,130 @@ exports.resetPassword = async (req, res) => {
 };
 
 exports.verifyEmail = async (req, res) => {
-  return res.status(501).json({ success: false, message: "E-posta doğrulama fonksiyonu henüz hazır değil" });
+  try {
+    const { token } = req.params;
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'Doğrulama tokenı gerekli' });
+    }
+
+    // Find user by verification token
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, verification_token, verification_expires, isverified')
+      .eq('verification_token', token)
+      .maybeSingle();
+
+    if (error) {
+      logger.error('[VERIFY_EMAIL] User fetch error:', error);
+      return res.status(500).json({ success: false, message: 'Sunucu hatası' });
+    }
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Geçersiz veya kullanılmış doğrulama bağlantısı' });
+    }
+
+    // Check expiry
+    const expiresMs = parseExpiryMs(user.verification_expires);
+    if (!expiresMs || expiresMs < Date.now() - 2 * 60 * 1000) {
+      return res.status(400).json({ success: false, message: 'Doğrulama bağlantısının süresi dolmuş' });
+    }
+
+    // Update user as verified and clear token
+    const { error: updErr } = await supabase
+      .from('users')
+      .update({
+        isverified: true,
+        verification_token: null,
+        verification_expires: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', user.id);
+
+    if (updErr) {
+      logger.error('[VERIFY_EMAIL] Update error:', updErr);
+      return res.status(500).json({ success: false, message: 'Doğrulama işlemi tamamlanamadı' });
+    }
+
+    return res.json({ success: true, message: 'E-posta başarıyla doğrulandı. Artık giriş yapabilirsiniz.' });
+  } catch (e) {
+    logger.error('[VERIFY_EMAIL] Unexpected error:', e);
+    return res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// Resend verification email for unverified users
+exports.resendVerificationEmail = async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'E-posta gerekli' });
+    }
+
+    // Fetch user by email
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email, firstname, lastname, isverified')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (error) {
+      logger.error('[RESEND_VERIFY] User fetch error:', error);
+      return res.status(500).json({ success: false, message: 'Sunucu hatası' });
+    }
+
+    // Always respond OK to avoid user enumeration, but if user exists and not verified, proceed to send
+    if (!user) {
+      return res.json({ success: true, message: 'Eğer e-posta sistemimizde kayıtlıysa, aktivasyon e-postası gönderildi.' });
+    }
+
+    if (user.isverified) {
+      return res.json({ success: true, message: 'Hesabınız zaten doğrulanmış. Giriş yapabilirsiniz.' });
+    }
+
+    // Generate new token and expiry (e.g., 24 hours)
+    const code = generateNumericCode();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    const { error: updErr } = await supabase
+      .from('users')
+      .update({
+        verification_token: code,
+        verification_expires: expiresAt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', user.id);
+    if (updErr) {
+      logger.error('[RESEND_VERIFY] Update token error:', updErr);
+      return res.status(500).json({ success: false, message: 'Aktivasyon e-postası gönderilemedi' });
+    }
+
+    // Prefer sending users to the frontend verification page
+    const frontendBaseUrl = process.env.FRONTEND_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.APP_FRONTEND_URL || '';
+    const verifyUrl = frontendBaseUrl
+      ? `${frontendBaseUrl.replace(/\/$/, '')}/verify?token=${encodeURIComponent(code)}`
+      : `${req.protocol}://${req.get('host')}/api/auth/verify-email/${encodeURIComponent(code)}`;
+
+    try {
+      const { sendMail } = require('../utils/mailer');
+      const fullName = [user.firstname, user.lastname].filter(Boolean).join(' ').trim() || 'LingRoot Kullanıcısı';
+      await sendMail({
+        to: email,
+        subject: 'LingRoot Hesap Aktivasyonu',
+        text: `Merhaba ${fullName},\n\nHesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:\n${verifyUrl}\n\nBağlantı 24 saat geçerlidir.\n\nTeşekkürler,\nLingRoot Ekibi`,
+        html: `<p>Merhaba ${fullName},</p>
+               <p>Hesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:</p>
+               <p><a href="${verifyUrl}" target="_blank" rel="noopener noreferrer">Hesabımı Doğrula</a></p>
+               <p>Bağlantı 24 saat geçerlidir.</p>
+               <p>Teşekkürler,<br/>LingRoot Ekibi</p>`
+      });
+    } catch (mailErr) {
+      logger.warn('[RESEND_VERIFY] Send mail failed or logged:', mailErr?.message);
+    }
+
+    return res.json({ success: true, message: 'Aktivasyon e-postası gönderildi. Lütfen e-posta kutunuzu kontrol edin.' });
+  } catch (e) {
+    logger.error('[RESEND_VERIFY] Unexpected error:', e);
+    return res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
 };
 
 // Duplicate function removed - using the main googleLogin function above

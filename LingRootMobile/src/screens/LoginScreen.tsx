@@ -13,12 +13,17 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { apiService } from '../services/api';
 
 const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
   const { signIn } = useAuth();
   const navigation = useNavigation();
 
@@ -29,12 +34,32 @@ const LoginScreen: React.FC = () => {
     }
 
     setIsLoading(true);
+    setErrorText(null);
+    setErrorCode(null);
     try {
       await signIn(email, password);
     } catch (error: any) {
-      Alert.alert('Giriş Hatası', error.message || 'Giriş başarısız');
+      if ((error as any)?.code === 'EMAIL_NOT_VERIFIED') {
+        setErrorText(error.message || 'E-posta adresiniz doğrulanmamış görünüyor.');
+        setErrorCode('EMAIL_NOT_VERIFIED');
+      } else {
+        Alert.alert('Giriş Hatası', error.message || 'Giriş başarısız');
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResendMessage(null);
+    setResendLoading(true);
+    try {
+      await apiService.resendVerificationEmail(email);
+      setResendMessage('Aktivasyon e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.');
+    } catch (e: any) {
+      setResendMessage(e?.message || 'İşlem sırasında bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -50,6 +75,31 @@ const LoginScreen: React.FC = () => {
         </View>
 
         <View style={styles.form}>
+          {errorText && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{errorText}</Text>
+            </View>
+          )}
+          {errorCode === 'EMAIL_NOT_VERIFIED' && (
+            <View style={styles.resendBox}>
+              <Text style={styles.resendText}>E-postanız doğrulanmamış görünüyor. Aktivasyon e-postasını tekrar gönderebilirsiniz.</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                <TextInput
+                  style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                  placeholder="E-posta"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                />
+                <TouchableOpacity style={[styles.smallButton, resendLoading && styles.buttonDisabled]} onPress={handleResend} disabled={resendLoading || !email}>
+                  <Text style={styles.smallButtonText}>{resendLoading ? 'Gönderiliyor...' : 'Gönder'}</Text>
+                </TouchableOpacity>
+              </View>
+              {!!resendMessage && <Text style={styles.resendInfo}>{resendMessage}</Text>}
+            </View>
+          )}
           <TextInput
             style={styles.input}
             placeholder="E-posta"
@@ -178,6 +228,47 @@ const styles = StyleSheet.create({
   linkText: {
     color: '#007AFF',
     fontSize: 14,
+  },
+  errorBox: {
+    backgroundColor: '#fde8e8',
+    borderColor: '#fca5a5',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+  },
+  errorText: {
+    color: '#b91c1c',
+    fontSize: 14,
+  },
+  resendBox: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#fcd34d',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+  },
+  resendText: {
+    color: '#78350f',
+    fontSize: 14,
+  },
+  resendInfo: {
+    marginTop: 6,
+    fontSize: 12,
+    color: '#444',
+  },
+  smallButton: {
+    marginLeft: 8,
+    backgroundColor: '#007AFF',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  smallButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
 
