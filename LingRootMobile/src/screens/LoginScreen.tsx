@@ -134,6 +134,22 @@ const LoginScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
 
+          {/* Always-visible resend activation option */}
+          <View style={{ alignItems: 'center', marginBottom: 6 }}>
+            <TouchableOpacity
+              style={[styles.linkButton, { opacity: resendLoading || !email ? 0.5 : 1 }]}
+              onPress={handleResend}
+              disabled={resendLoading || !email}
+            >
+              <Text style={styles.linkText}>
+                {resendLoading ? 'Gönderiliyor...' : 'Aktivasyon e-postasını tekrar gönder'}
+              </Text>
+            </TouchableOpacity>
+            {!!resendMessage && errorCode !== 'EMAIL_NOT_VERIFIED' && (
+              <Text style={styles.resendInfo}>{resendMessage}</Text>
+            )}
+          </View>
+
           <TouchableOpacity 
             style={styles.linkButton}
             onPress={() => {
