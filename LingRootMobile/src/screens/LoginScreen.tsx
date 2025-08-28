@@ -24,6 +24,7 @@ const LoginScreen: React.FC = () => {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [showResendUI, setShowResendUI] = useState(false);
   const { signIn } = useAuth();
   const navigation = useNavigation();
 
@@ -36,12 +37,21 @@ const LoginScreen: React.FC = () => {
     setIsLoading(true);
     setErrorText(null);
     setErrorCode(null);
+    setShowResendUI(false);
     try {
       await signIn(email, password);
     } catch (error: any) {
       if ((error as any)?.code === 'EMAIL_NOT_VERIFIED') {
         setErrorText(error.message || 'E-posta adresiniz doğrulanmamış görünüyor.');
         setErrorCode('EMAIL_NOT_VERIFIED');
+        setResendMessage(null);
+        Alert.alert(
+          'Aktivasyon Gerekli',
+          'Hesabınızı doğrulamak için e-postanıza gönderilen aktivasyon mailine bakın. (Spam/Junk klasörünü de kontrol edin.)',
+          [
+            { text: 'Tamam', onPress: () => setShowResendUI(true) },
+          ]
+        );
       } else {
         Alert.alert('Giriş Hatası', error.message || 'Giriş başarısız');
       }
@@ -80,7 +90,7 @@ const LoginScreen: React.FC = () => {
               <Text style={styles.errorText}>{errorText}</Text>
             </View>
           )}
-          {errorCode === 'EMAIL_NOT_VERIFIED' && (
+          {errorCode === 'EMAIL_NOT_VERIFIED' && showResendUI && (
             <View style={styles.resendBox}>
               <Text style={styles.resendText}>E-postanız doğrulanmamış görünüyor. Aktivasyon e-postasını tekrar gönderebilirsiniz.</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
