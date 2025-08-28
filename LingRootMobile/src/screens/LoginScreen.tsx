@@ -169,22 +169,21 @@ const LoginScreen: React.FC = () => {
           )}
           {(errorCode === 'EMAIL_NOT_VERIFIED' || showResendUI) && showResendUI && (
             <View style={styles.resendBox} onLayout={(e) => setResendBoxY(e.nativeEvent.layout.y)}>
-              <Text style={styles.resendText}>E-postanız doğrulanmamış görünüyor. Aktivasyon e-postasını tekrar gönderebilirsiniz.</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                <TextInput
-                  style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                  placeholder="E-posta"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                />
-                <TouchableOpacity style={[styles.smallButton, resendLoading && styles.buttonDisabled]} onPress={handleResend} disabled={resendLoading || !email}>
-                  <Text style={styles.smallButtonText}>{resendLoading ? 'Gönderiliyor...' : 'Gönder'}</Text>
-                </TouchableOpacity>
-              </View>
-              {!!resendMessage && <Text style={styles.resendInfo}>{resendMessage}</Text>}
+              <Text style={styles.resendText}>
+                E-postanız doğrulanmamış görünüyor. Aşağıdaki bağlantı ile aktivasyon e-postasını mevcut adresinize tekrar gönderebilirsiniz.
+              </Text>
+              <TouchableOpacity
+                style={[styles.linkButton, { alignSelf: 'flex-start', marginTop: 8, opacity: resendLoading || !email ? 0.5 : 1 }]}
+                onPress={handleResend}
+                disabled={resendLoading || !email}
+              >
+                <Text style={styles.linkText}>
+                  {resendLoading ? 'Gönderiliyor...' : 'Aktivasyon e-postasını yeniden gönder'}
+                </Text>
+              </TouchableOpacity>
+              {!!resendMessage && (
+                <Text style={styles.resendInfo}>{resendMessage}</Text>
+              )}
             </View>
           )}
           <TextInput

@@ -53,15 +53,12 @@ const App: React.FC = () => {
     price: '',
     interval: 'monthly',
     features: '',
-    monthly_cost_limit_usd: '',
-    openai_token_limit: '',
-    tts_char_limit: '',
     is_active: true,
     is_trial: false,
     trial_days: 7,
   });
   const resetPlanForm = () => setPlanForm({
-    name: '', description: '', price: '', interval: 'monthly', features: '', monthly_cost_limit_usd: '', openai_token_limit: '', tts_char_limit: '', is_active: true, is_trial: false, trial_days: 7
+    name: '', description: '', price: '', interval: 'monthly', features: '', is_active: true, is_trial: false, trial_days: 7
   });
   const openCreatePlan = () => { setEditingPlan(null); resetPlanForm(); setShowPackageForm(true); };
   const openEditPlan = (p: any) => {
@@ -72,9 +69,6 @@ const App: React.FC = () => {
       price: p.price ?? '',
       interval: p.interval || 'monthly',
       features: Array.isArray(p.features) ? p.features.join(', ') : (p.features || ''),
-      monthly_cost_limit_usd: p.monthly_cost_limit_usd ?? '',
-      openai_token_limit: p.openai_token_limit ?? '',
-      tts_char_limit: p.tts_char_limit ?? '',
       is_active: p.is_active ?? true,
       is_trial: p.is_trial ?? false,
       trial_days: p.trial_days ?? 7,
@@ -89,9 +83,6 @@ const App: React.FC = () => {
       price: planForm.price !== '' ? Number(planForm.price) : undefined,
       interval: planForm.interval,
       features: planForm.features ? planForm.features.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-      monthly_cost_limit_usd: planForm.monthly_cost_limit_usd !== '' ? Number(planForm.monthly_cost_limit_usd) : undefined,
-      openai_token_limit: planForm.openai_token_limit !== '' ? Number(planForm.openai_token_limit) : undefined,
-      tts_char_limit: planForm.tts_char_limit !== '' ? Number(planForm.tts_char_limit) : undefined,
       is_active: !!planForm.is_active,
       is_trial: !!planForm.is_trial,
       trial_days: Number(planForm.trial_days) || 7,
@@ -1727,20 +1718,7 @@ const App: React.FC = () => {
               <Label>Özellikler (virgülle ayırın)</Label>
               <Input value={planForm.features} onChange={(e) => setPlanForm({ ...planForm, features: e.target.value })} placeholder="Örn: Tüm seviyelere erişim, Ayda 30 içerik" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label>Aylık USD Limit</Label>
-                <Input type="number" value={planForm.monthly_cost_limit_usd} onChange={(e) => setPlanForm({ ...planForm, monthly_cost_limit_usd: e.target.value })} />
-              </div>
-              <div>
-                <Label>OpenAI Token Limiti</Label>
-                <Input type="number" value={planForm.openai_token_limit} onChange={(e) => setPlanForm({ ...planForm, openai_token_limit: e.target.value })} />
-              </div>
-              <div>
-                <Label>TTS Karakter Limiti</Label>
-                <Input type="number" value={planForm.tts_char_limit} onChange={(e) => setPlanForm({ ...planForm, tts_char_limit: e.target.value })} />
-              </div>
-            </div>
+            {/* Limit alanları kaldırıldı: Aylık USD, OpenAI token, TTS karakter */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex items-center gap-2">
                 <Checkbox id="is-trial" checked={!!planForm.is_trial} onChange={(e) => setPlanForm({ ...planForm, is_trial: e.currentTarget.checked })} />

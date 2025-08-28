@@ -10,6 +10,9 @@ import {
   Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import NotificationService from '../services/notificationService';
@@ -18,6 +21,7 @@ const ProfileScreen: React.FC = () => {
   const { user, signOut } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   
 
   const handleSignOut = async () => {
@@ -118,7 +122,7 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
     { id: 1, title: t('profile.accountSettings'), icon: 'settings', action: () => {} },
     { id: 1.5, title: t('profile.language'), icon: 'language', action: () => setLanguageModalVisible(true) },
     { id: 2, title: t('profile.audioHistory'), icon: 'history', action: () => {} },
-    { id: 3, title: t('profile.membership'), icon: 'card-membership', action: () => {} },
+    { id: 3, title: t('profile.membership'), icon: 'card-membership', action: () => navigation.navigate('Membership') },
     { id: 4, title: t('profile.testNotification'), icon: 'notifications', action: handleTestNotification },
     { id: 5, title: t('profile.notificationStatus'), icon: 'notifications-active', action: handleNotificationStatus },
     

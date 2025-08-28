@@ -116,13 +116,14 @@ export type RootStackParamList = {
   ResetPassword: { email?: string } | undefined;
   Profile: undefined;
   Settings: undefined;
+  Membership: undefined;
   Vocabulary: { wordId?: string } | undefined;
 };
 
 export type MainTabParamList = {
   Home: undefined;
   Library: undefined;
-  Create: undefined;
+  Create: { mode?: string } | undefined;
   Profile: undefined;
   Vocabulary: { wordId?: string } | undefined;
 };

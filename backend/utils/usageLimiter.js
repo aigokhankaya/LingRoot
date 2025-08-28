@@ -1,5 +1,6 @@
 const { supabase } = require('../utils/supabaseClient');
 const logger = require('../utils/logger');
+const { getUsdTryRate } = require('./settings');
 
 function getPeriodStart(subscription, plan) {
   try {
@@ -146,10 +147,20 @@ async function checkLimits(userId) {
     const periodStart = getPeriodStart(subscription, plan);
     const periodEnd = subscription?.current_period_end || subscription?.enddate || subscription?.endDate || new Date(new Date(periodStart).getTime() + (plan?.interval === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString();
     const usage = await getUsageTotals(userId, periodStart, periodEnd);
+    // Compute USD budget from TRY plan price and settings-based FX rate using 1/3 rule
+    const fx = await getUsdTryRate(40);
+    const planPriceTry = Number(plan?.price || 0);
+    const computedUsdBudget = fx > 0 ? Number(((planPriceTry / fx) / 3).toFixed(2)) : null;
     const limits = {
       openaiTokenLimit: plan?.openai_token_limit || null,
       ttsCharLimit: plan?.tts_char_limit || null,
-      monthlyUsdLimit: plan?.monthly_cost_limit_usd || null,
+      // Use computed USD budget regardless of static field to follow business rule
+      monthlyUsdLimit: computedUsdBudget,
+      pricing: {
+        planPriceTry,
+        usdTryRate: fx,
+        budgetUsdFromTry: computedUsdBudget,
+      },
     };
     const exceeded = {
       openai: limits.openaiTokenLimit != null && usage.openaiTokens > limits.openaiTokenLimit,
