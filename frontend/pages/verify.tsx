@@ -20,11 +20,7 @@ export default function VerifyPage() {
         const json = await res.json().catch(() => ({}));
         if (res.ok && json?.success) {
           setStatus('success');
-          setMessage(json.message || 'E-posta başarıyla doğrulandı. Yönlendiriliyorsunuz...');
-          // Redirect to login or welcome after a short delay
-          setTimeout(() => {
-            router.replace('/login');
-          }, 1500);
+          setMessage(json.message || 'E-posta başarıyla doğrulandı. Giriş sayfasına buradan gidebilirsiniz.');
         } else {
           setStatus('error');
           setMessage(json?.message || `Doğrulama başarısız (HTTP ${res.status}).`);
@@ -56,7 +52,7 @@ export default function VerifyPage() {
           {status === 'success' && (
             <>
               <p style={{ color: 'green' }}>{message}</p>
-              <p>Otomatik yönlendirilmezseniz <a href="/login">giriş</a> sayfasına gidebilirsiniz.</p>
+              <p><a href="/login">Giriş</a> sayfasına gidebilirsiniz.</p>
             </>
           )}
           {status === 'error' && (
