@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Keyboard,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiService } from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -26,7 +28,10 @@ const LoginScreen: React.FC = () => {
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [showResendUI, setShowResendUI] = useState(false);
   const { signIn } = useAuth();
+  const scrollRef = useRef<ScrollView | null>(null);
+  const [resendBoxY, setResendBoxY] = useState<number | null>(null);
   const navigation = useNavigation();
+  const route = useRoute<any>();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -37,21 +42,41 @@ const LoginScreen: React.FC = () => {
     setIsLoading(true);
     setErrorText(null);
     setErrorCode(null);
-    setShowResendUI(false);
     try {
       await signIn(email, password);
     } catch (error: any) {
       if ((error as any)?.code === 'EMAIL_NOT_VERIFIED') {
+        try { console.log('[Login] EMAIL_NOT_VERIFIED caught'); } catch {}
         setErrorText(error.message || 'E-posta adresiniz doğrulanmamış görünüyor.');
         setErrorCode('EMAIL_NOT_VERIFIED');
         setResendMessage(null);
         // Set early to ensure UI shows even if Alert causes a re-render/remount on some devices
         setShowResendUI(true);
+        // Persist intent to show resend UI in route params to survive remounts
+        try { (navigation as any)?.setParams?.({ emailNotVerified: true, emailPrefill: email }); } catch {}
+        // Also persist via AsyncStorage as a robust fallback across remounts
+        try {
+          await AsyncStorage.setItem('lr_email_not_verified', JSON.stringify({ email }));
+        } catch {}
+        // Dismiss keyboard to ensure visibility
+        try { Keyboard.dismiss(); } catch {}
         Alert.alert(
           'Aktivasyon Gerekli',
           'Hesabınızı doğrulamak için e-postanıza gönderilen aktivasyon mailine bakın. (Spam/Junk klasörünü de kontrol edin.)',
           [
-            { text: 'Tamam', onPress: () => setShowResendUI(true) },
+            {
+              text: 'Tamam',
+              onPress: () => {
+                try { setShowResendUI(true); } catch {}
+                // Force navigation to this screen with params so state reliably restores
+                try {
+                  (navigation as any)?.navigate?.((route as any)?.name || 'Login', {
+                    emailNotVerified: true,
+                    emailPrefill: email,
+                  });
+                } catch {}
+              }
+            },
           ]
         );
       } else {
@@ -61,6 +86,53 @@ const LoginScreen: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  // When resend UI becomes visible, auto-scroll to it
+  useEffect(() => {
+    if (showResendUI) {
+      setTimeout(() => {
+        try {
+          if (typeof resendBoxY === 'number') {
+            scrollRef.current?.scrollTo({ y: resendBoxY, animated: true });
+          } else {
+            // Fallback: ensure we scroll to reveal the bottom content
+            scrollRef.current?.scrollToEnd({ animated: true });
+          }
+        } catch {}
+      }, 0);
+    }
+  }, [showResendUI, resendBoxY]);
+
+  // Restore resend UI when coming back to this screen if param is set
+  useFocusEffect(
+    React.useCallback(() => {
+      const p: any = (route as any)?.params || {};
+      if (p.emailNotVerified) {
+        try { console.log('[Login] focus restore emailNotVerified param'); } catch {}
+        if (p.emailPrefill && !email) setEmail(p.emailPrefill);
+        setErrorCode('EMAIL_NOT_VERIFIED');
+        setShowResendUI(true);
+        // Clear the flag so it doesn't persist forever
+        try { (navigation as any)?.setParams?.({ emailNotVerified: false }); } catch {}
+      }
+      // Fallback: restore from AsyncStorage
+      (async () => {
+        try {
+          const raw = await AsyncStorage.getItem('lr_email_not_verified');
+          if (raw) {
+            const data = JSON.parse(raw || '{}');
+            if (data?.email) {
+              if (!email) setEmail(String(data.email));
+              setErrorCode('EMAIL_NOT_VERIFIED');
+              setShowResendUI(true);
+            }
+            await AsyncStorage.removeItem('lr_email_not_verified');
+          }
+        } catch {}
+      })();
+      return () => {};
+    }, [route, navigation, email])
+  );
 
   const handleResend = async () => {
     setResendMessage(null);
@@ -80,10 +152,13 @@ const LoginScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={styles.header}>
           <Text style={styles.title}>LingRoot</Text>
           <Text style={styles.subtitle}>AI Destekli Dil Öğrenme</Text>
+          <Text style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+            debug: code={String(errorCode)} | showResendUI={String(showResendUI)} | email={email ? 'yes' : 'no'}
+          </Text>
         </View>
 
         <View style={styles.form}>
@@ -93,7 +168,7 @@ const LoginScreen: React.FC = () => {
             </View>
           )}
           {(errorCode === 'EMAIL_NOT_VERIFIED' || showResendUI) && showResendUI && (
-            <View style={styles.resendBox}>
+            <View style={styles.resendBox} onLayout={(e) => setResendBoxY(e.nativeEvent.layout.y)}>
               <Text style={styles.resendText}>E-postanız doğrulanmamış görünüyor. Aktivasyon e-postasını tekrar gönderebilirsiniz.</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
                 <TextInput
