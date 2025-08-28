@@ -45,6 +45,8 @@ const LoginScreen: React.FC = () => {
         setErrorText(error.message || 'E-posta adresiniz doğrulanmamış görünüyor.');
         setErrorCode('EMAIL_NOT_VERIFIED');
         setResendMessage(null);
+        // Set early to ensure UI shows even if Alert causes a re-render/remount on some devices
+        setShowResendUI(true);
         Alert.alert(
           'Aktivasyon Gerekli',
           'Hesabınızı doğrulamak için e-postanıza gönderilen aktivasyon mailine bakın. (Spam/Junk klasörünü de kontrol edin.)',
@@ -90,7 +92,7 @@ const LoginScreen: React.FC = () => {
               <Text style={styles.errorText}>{errorText}</Text>
             </View>
           )}
-          {errorCode === 'EMAIL_NOT_VERIFIED' && showResendUI && (
+          {(errorCode === 'EMAIL_NOT_VERIFIED' || showResendUI) && showResendUI && (
             <View style={styles.resendBox}>
               <Text style={styles.resendText}>E-postanız doğrulanmamış görünüyor. Aktivasyon e-postasını tekrar gönderebilirsiniz.</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
