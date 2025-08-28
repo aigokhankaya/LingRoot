@@ -27,7 +27,7 @@ const CreateScreen: React.FC = () => {
   const [mode, setMode] = useState<'text' | 'file' | 'book' | 'suggestion' | 'youtube'>(
     route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : (route.params?.mode === 'youtube' ? 'youtube' : 'text')))
   );
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const screenHeight = Dimensions.get('window').height;
   const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -273,15 +273,13 @@ const CreateScreen: React.FC = () => {
     setLoadingVoices(true);
     try {
       const response = await apiService.getAvailableVoices();
-      console.log('🎯 [VOICE DEBUG] Raw API Response:', response);
+      
       
       // Backend'den { provider: 'google', voices: [...] } formatında geliyor
       const apiResponse = response as any;
       const voices = apiResponse.voices || apiResponse.data?.voices || [];
       
       if (voices.length > 0) {
-        console.log('🎯 [VOICE DEBUG] Available voices loaded:', voices.length);
-        console.log('🎯 [VOICE DEBUG] First voice:', voices[0]);
         
         // Voice alanlarını normalize et (name, category, accent, gender)
         const processedVoices = voices.map((voice: any) => {
@@ -321,8 +319,7 @@ const CreateScreen: React.FC = () => {
           };
         });
         
-        console.log('🎯 [VOICE DEBUG] Processed voices with categories:', processedVoices.length);
-        console.log('🎯 [VOICE DEBUG] Sample processed voice:', processedVoices[0]);
+        
         
         // Web tarafıyla birebir: Backend zaten filtreleyip gönderiyor → UI tarafında tekrar filtreleme yok
         setAvailableVoices(processedVoices);
@@ -333,10 +330,10 @@ const CreateScreen: React.FC = () => {
           return preferred?.name || source[0]?.name || prev;
         });
       } else {
-        console.error('🎯 [VOICE DEBUG] No voices found in response:', response);
+        
       }
     } catch (error) {
-      console.error('🎯 [VOICE DEBUG] Error loading voices:', error);
+      
     } finally {
       setLoadingVoices(false);
     }
@@ -347,9 +344,9 @@ const CreateScreen: React.FC = () => {
     setLoadingVoices(true);
     try {
       const backendCategory = mapCategoryForBackend(category);
-      console.log('🎯 [FILTER DEBUG] Backend request params -> accent:', accent, 'gender:', gender, 'category:', backendCategory);
+      
       const response = await apiService.getFilteredVoices(accent, gender, undefined, backendCategory);
-      console.log('🎯 [FILTER DEBUG] Raw filtered response:', response);
+      
 
       // Response şekli: { provider, voices, ... } veya { success, data } olabilir
       const apiResponse: any = response as any;
@@ -360,7 +357,6 @@ const CreateScreen: React.FC = () => {
         [];
 
       if (Array.isArray(voices) && voices.length >= 0) {
-        console.log('🎯 [FILTER DEBUG] Voices array length:', voices.length);
         // Studio + Male fallback (backend deploy beklenirken geçici çözüm)
         if (voices.length === 0 && (category === 'studio') && (gender === 'male')) {
           const fallbackName = accent === 'british' ? 'en-GB-Studio-B' : accent === 'american' ? 'en-US-Studio-M' : undefined;
@@ -375,7 +371,6 @@ const CreateScreen: React.FC = () => {
               package: 'Platinum',
               languageCode: fallbackName.includes('GB') ? 'en-GB' : 'en-US'
             }];
-            console.warn('🎯 [FILTER DEBUG] Injecting frontend fallback for Studio+Male:', fallbackName);
             setAvailableVoices(fallback as any);
             setSelectedVoice(fallbackName);
             setLoadingVoices(false);
@@ -402,7 +397,6 @@ const CreateScreen: React.FC = () => {
             package: 'Premium',
             languageCode: cfg.lang,
           }];
-          console.warn('🎯 [FILTER DEBUG] Injecting frontend fallback for Wavenet:', chosen);
           setAvailableVoices(fallback as any);
           setSelectedVoice(chosen);
           setLoadingVoices(false);
@@ -463,10 +457,9 @@ const CreateScreen: React.FC = () => {
           const preferred = processedVoices.find(v => (selectedGender === 'all') || v.gender === selectedGender);
           return preferred?.name || processedVoices[0]?.name || prev;
         });
-        console.log('✅ Loaded filtered voices with categories:', processedVoices.length);
       }
     } catch (error) {
-      console.error('❌ Error loading filtered voices:', error);
+      
     } finally {
       setLoadingVoices(false);
     }
@@ -485,16 +478,12 @@ const CreateScreen: React.FC = () => {
   };
 
   const getFilteredVoicesByCategory = () => {
-    console.log('🎯 [FILTER DEBUG] Using backend/available voices:', availableVoices.length);
-    console.log('🎯 [FILTER DEBUG] Selected filters -> category:', selectedVoiceCategory, 'gender:', selectedGender, 'accent:', selectedAccent);
     // Web'de olduğu gibi: filtre aktifse backend zaten filtrelenmiş listyi gönderiyor → doğrudan göster
     if (hasActiveFilters) {
-      console.log('🎯 [FILTER DEBUG] Backend-filtered mode active. Returning availableVoices directly:', availableVoices.length);
     return availableVoices;
     }
     // Filtre yoksa local kategori/gender/aksan filtresi uygula
     const result = filterVoices(availableVoices, selectedVoiceCategory, selectedGender, selectedAccent);
-    console.log('🎯 [FILTER DEBUG] UI filtered voices count:', result.length);
     return result;
   };
 
@@ -559,10 +548,9 @@ const CreateScreen: React.FC = () => {
           // Ensure the selected voice remains selected after list refresh
           setSelectedVoice(dv);
           setShouldPromoteSelectedVoiceTop(true);
-          console.log('🎯 [DEFAULT VOICE] Applied with filters:', dv, derived);
         }
       } catch (e) {
-        console.log('Default voice could not be loaded/applied');
+        
       }
     })();
   }, []);
@@ -626,7 +614,7 @@ const CreateScreen: React.FC = () => {
         return;
       }
     } catch (e: any) {
-      // Sessiz geç; backend yine de bloklayacak
+      
     }
 
     // Suggestion mode: if no input yet, rewrite the topic/suggestion into narration text first
@@ -668,7 +656,6 @@ const CreateScreen: React.FC = () => {
       
       if (selectedFile) {
         // File upload process
-        console.log('📁 Processing file:', selectedFile.name);
         
         // Create FormData for file upload
         const formData = new FormData();
@@ -690,19 +677,6 @@ const CreateScreen: React.FC = () => {
         formData.append('voiceName', selectedVoice);
         formData.append('gender', selectedGender);
         formData.append('accent', selectedAccent);
-        
-        console.log('📦 [FILE DEBUG] FormData parameters:', {
-          type: 'file',
-          input: selectedFile.name,
-          level: selectedLevel,
-          sesHizi: speechRate.toString(),
-          voiceName: selectedVoice,
-          fileName: selectedFile.name,
-          fileUri: selectedFile.uri,
-          fileMimeType: selectedFile.mimeType
-        });
-
-        console.log('📦 [FILE DEBUG] Calling processFileToSpeech...');
         
         const response = await apiService.processFileToSpeech(formData);
         
@@ -730,31 +704,13 @@ const CreateScreen: React.FC = () => {
           accent: selectedAccent as any,
         };
 
-        console.log('📝 [TEXT DEBUG] Request parameters:', {
-          type: 'text',
-          input: effectiveInputText.substring(0, 50) + (effectiveInputText.length > 50 ? '...' : ''),
-          level: selectedLevel,
-          sesHizi: speechRate,
-          voiceName: selectedVoice
-        });
-
-        console.log('🎯 [TTS DEBUG] Sending request:', request);
-        console.log('🎯 [TTS DEBUG] Selected voice:', selectedVoice);
-        console.log('🎯 [TTS DEBUG] Available voices count:', availableVoices.length);
-
         const response = await apiService.processTextToSpeech(request);
-        
-        console.log('🎯 [TTS DEBUG] Full API Response:', response);
-        console.log('🎯 [TTS DEBUG] Response success:', response.success);
-        console.log('🎯 [TTS DEBUG] Response message:', response.message);
-        console.log('🎯 [TTS DEBUG] Response mp3_url:', response.mp3_url);
         
         if (response.success) {
           // Success: directly navigate to Library and refresh there
           setInputText('');
           navigation.navigate('Library' as never);
         } else {
-          console.log('🎯 [TTS DEBUG] Response success is false, showing error...');
           const code = (response as any)?.code;
           const msg = response.message || t('create.alerts.audioCreateFailed');
           if (code === 'NO_ACTIVE_PLAN' || code === 'USAGE_LIMIT_EXCEEDED') {
@@ -791,7 +747,7 @@ const CreateScreen: React.FC = () => {
           accent: selectedAccent as any,
         };
 
-        console.log('📚 [BOOK TTS] Using chapter text length:', selectedChapterText.length);
+        
         const response = await apiService.processTextToSpeech(request);
         if (response.success) {
           setSelectedBook(null);
@@ -835,14 +791,11 @@ const CreateScreen: React.FC = () => {
 
   const handleFileUpload = async () => {
     try {
-      console.log('📁 Opening document picker...');
       
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
         copyToCacheDirectory: true,
       });
-
-      console.log('📁 Document picker result:', result);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
@@ -854,10 +807,8 @@ const CreateScreen: React.FC = () => {
           t('create.alerts.fileSelectedMessage', { fileName: file.name })
         );
         
-        console.log('✅ File selected:', file.name, file.mimeType);
       }
     } catch (error: any) {
-      console.error('❌ File picker error:', error);
       Alert.alert(t('common.error'), t('create.alerts.filePickError'));
     }
   };
@@ -905,7 +856,9 @@ const CreateScreen: React.FC = () => {
                   {youtubeLoading ? <ActivityIndicator color="white" size="small" /> : (
                     <>
                       <Icon name="closed-caption" size={20} color="#fff" />
-                      <Text style={styles.createButtonText}>Altyazı Çek</Text>
+                      <Text style={styles.createButtonText}>
+                        {language === 'tr' ? 'Altyazı Çek' : 'Fetch Subtitles'}
+                      </Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -1279,14 +1232,12 @@ const CreateScreen: React.FC = () => {
               // Modal açılmadan önce web'deki gibi mevcut filtrelerle backend'den tazele
               try {
                 if (hasActiveFilters) {
-                  console.log('🎯 [FILTER DEBUG] Opening modal → refreshing filtered voices...');
                   await fetchFilteredVoices(selectedAccent, selectedGender, selectedVoiceCategory);
                 } else {
-                  console.log('🎯 [FILTER DEBUG] Opening modal → refreshing all voices...');
                   await fetchAvailableVoices();
                 }
               } catch (e) {
-                console.warn('⚠️ [FILTER DEBUG] Pre-open refresh failed:', e);
+                
               }
               setShowVoiceSelection(true);
             }}

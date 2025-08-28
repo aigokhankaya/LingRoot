@@ -106,6 +106,12 @@ const MainTabs = () => {
           headerTitle: t('create.title')
         }}
         initialParams={{ mode: 'text' }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            // Prevent direct navigation to Create tab (no alert)
+            e.preventDefault();
+          },
+        })}
       />
       <Tab.Screen 
         name="Profile" 
@@ -127,8 +133,6 @@ const AppNavigator = () => {
     if (user && navigationRef.current) {
       // Setup notification response handler
       const subscription = NotificationService.setupNotificationResponseHandler((wordId: string) => {
-        console.log('📱 [NAVIGATION] Navigating to vocabulary with wordId:', wordId);
-        
         // Navigate to vocabulary screen with specific word ID
         navigationRef.current?.navigate('Vocabulary', { wordId });
       });
@@ -160,7 +164,6 @@ const AppNavigator = () => {
                 headerStyle: { backgroundColor: '#007AFF' },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
-                headerTitle: 'Üyelik',
               }}
             />
             <Stack.Screen 

@@ -81,14 +81,13 @@ export default function VocabularyScreen({ navigation, route }: any) {
   useEffect(() => {
     const wordId = route?.params?.wordId;
     if (wordId && vocabulary.length > 0) {
-      console.log('📱 [VOCABULARY] Opening word from notification:', wordId);
+      // open target word from notification silently
       
       // Find word by ID (convert string to number if needed)
       const targetWordId = parseInt(wordId, 10);
       const targetWord = vocabulary.find(word => word.id === targetWordId);
       
       if (targetWord) {
-        console.log('📱 [VOCABULARY] Found target word:', targetWord.word);
         setExpandedWordId(targetWordId);
         
         // Clear the search term to ensure the word is visible
@@ -99,13 +98,12 @@ export default function VocabularyScreen({ navigation, route }: any) {
         // Scroll to the word after a short delay to allow render
         setTimeout(() => {
           scrollToWord(targetWordId);
-          console.log('📱 [VOCABULARY] Word expanded and scrolled to:', targetWord.word);
           
           // Clear the route params to prevent re-triggering
           navigation.setParams({ wordId: undefined });
         }, 800); // Increased delay to ensure smooth rendering
       } else {
-        console.log('📱 [VOCABULARY] Word not found with ID:', wordId);
+        // word not found; no-op
       }
     }
   }, [route?.params?.wordId, vocabulary]);
@@ -113,7 +111,6 @@ export default function VocabularyScreen({ navigation, route }: any) {
   // Function to scroll to specific word
   const scrollToWord = (wordId: number) => {
     if (!scrollViewRef.current) {
-      console.log('📱 [SCROLL] ScrollView ref not available');
       return;
     }
 
@@ -121,13 +118,9 @@ export default function VocabularyScreen({ navigation, route }: any) {
     const wordRef = wordRefs.current.get(wordId);
     
     if (wordRef) {
-      console.log('📱 [SCROLL] Using word ref to measure position');
-      
       wordRef.measureLayout(
         scrollViewRef.current as any,
         (x, y, width, height) => {
-          console.log('📱 [SCROLL] Word position measured:', { x, y, width, height });
-          
           // Scroll to position with some offset from top
           const offset = Math.max(0, y - 100); // 100px from top
           
@@ -135,16 +128,12 @@ export default function VocabularyScreen({ navigation, route }: any) {
             y: offset,
             animated: true,
           });
-          
-          console.log('📱 [SCROLL] Scrolled to measured offset:', offset);
         },
         () => {
-          console.log('📱 [SCROLL] Measure failed, using fallback calculation');
           scrollToWordFallback(wordId);
         }
       );
     } else {
-      console.log('📱 [SCROLL] Word ref not found, using fallback calculation');
       scrollToWordFallback(wordId);
     }
   };
@@ -173,8 +162,6 @@ export default function VocabularyScreen({ navigation, route }: any) {
     const wordIndex = filtered.findIndex(word => word.id === wordId);
     
     if (wordIndex !== -1) {
-      console.log('📱 [SCROLL] Fallback scrolling to word index:', wordIndex, 'out of', filtered.length);
-      
       // More aggressive calculation - scroll closer to end for later items
       const estimatedWordHeight = 120;
       const headerOffset = 400; // Generous header space
@@ -184,10 +171,8 @@ export default function VocabularyScreen({ navigation, route }: any) {
         y: targetOffset,
         animated: true,
       });
-      
-      console.log('📱 [SCROLL] Fallback scrolled to offset:', targetOffset);
     } else {
-      console.log('📱 [SCROLL] Word not found in filtered list');
+      // word not found; no-op
     }
   };
 
@@ -198,7 +183,6 @@ export default function VocabularyScreen({ navigation, route }: any) {
       const words = await getVocabulary();
       setVocabulary(words);
     } catch (error: any) {
-      console.error('Error loading vocabulary:', error);
       setError(t('vocabulary.error') + error.message);
     } finally {
       setIsLoading(false);
@@ -211,18 +195,15 @@ export default function VocabularyScreen({ navigation, route }: any) {
       let settings;
       try {
         settings = await getReminderSettings();
-        console.log('📱 [SETTINGS] Loaded from API:', settings);
         // Save to local storage for offline access
         await ReminderSettingsService.saveSettings(settings);
       } catch (apiError) {
-        console.log('📱 [SETTINGS] API failed, using local storage:', apiError);
         settings = await ReminderSettingsService.getSettings();
       }
       
       setReminderSettings(settings);
-      console.log('📱 [SETTINGS] Final loaded settings:', settings);
     } catch (error) {
-      console.error('📱 [SETTINGS] Error loading settings:', error);
+      // silent in production
     }
   };
 
@@ -231,9 +212,8 @@ export default function VocabularyScreen({ navigation, route }: any) {
       // Save to both API and local storage
       try {
         await saveReminderSettings(reminderSettings);
-        console.log('📱 [SETTINGS] Saved to API successfully');
       } catch (apiError) {
-        console.log('📱 [SETTINGS] API save failed, saving locally only:', apiError);
+        // fall back to local only
       }
       
       // Always save to local storage as backup
@@ -245,7 +225,6 @@ export default function VocabularyScreen({ navigation, route }: any) {
       setIsReminderModalVisible(false);
       Alert.alert('✅ ' + t('vocabulary.success'), t('vocabulary.reminderSuccess'));
     } catch (error) {
-      console.error('📱 [SETTINGS] Error saving settings:', error);
       Alert.alert('❌ ' + t('notifications.error'), t('vocabulary.reminderError'));
     }
   };
@@ -303,7 +282,6 @@ export default function VocabularyScreen({ navigation, route }: any) {
         w.id === wordId ? updatedWord : w
       ));
     } catch (error: any) {
-      console.error('Error updating word status:', error);
       Alert.alert('Hata', 'Kelime durumu güncellenirken hata oluştu: ' + error.message);
     }
   };
@@ -322,7 +300,6 @@ export default function VocabularyScreen({ navigation, route }: any) {
               await deleteWordFromVocabulary(wordId);
               setVocabulary(vocabulary.filter(word => word.id !== wordId));
             } catch (error: any) {
-              console.error('Error deleting word:', error);
               Alert.alert('Hata', 'Kelime silinirken hata oluştu: ' + error.message);
             }
           }
@@ -350,7 +327,6 @@ export default function VocabularyScreen({ navigation, route }: any) {
       setIsAddModalVisible(false);
       Alert.alert('Başarılı', 'Kelime başarıyla eklendi!');
     } catch (error: any) {
-      console.error('Error adding word:', error);
       Alert.alert('Hata', 'Kelime eklenirken hata oluştu: ' + error.message);
     }
   };

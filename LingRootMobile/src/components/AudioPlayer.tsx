@@ -75,15 +75,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const wordsArray = words.length > 0 ? words : textToHighlight.split(' ');
     const sentences = textToHighlight.split(/[.!?]+/).filter(s => s.trim().length > 0);
 
-    console.log('📝 [TEXT PARSING]', {
-      trackId: track.id,
-      textSource: track.adapted_text ? 'adapted_text' : (track.translated_text ? 'translated_text' : 'title'),
-      textLength: textToHighlight.length,
-      wordsCount: wordsArray.length,
-      sentencesCount: sentences.length,
-      firstSentence: sentences[0]?.substring(0, 50) + '...'
-    });
-
     return {
       textToHighlight,
       wordsArray,
@@ -95,14 +86,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   // Log text data when component mounts or track changes
   useEffect(() => {
-    console.log('📝 [TEXT DATA] Component updated:', {
-      trackId: track.id,
-      hasAdaptedText: !!track.adapted_text,
-      hasTranslatedText: !!track.translated_text,
-      textLength: textToHighlight.length,
-      sentencesCount: sentences.length,
-      wordsCount: wordsArray.length
-    });
   }, [track.id, textToHighlight, sentences.length, wordsArray.length]);
 
   // Debug: Log initial data - GİZLENDİ
@@ -121,7 +104,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       if (!sound || currentTrack?.id !== track.id) {
         loadAudio();
       } else {
-        console.log('🔊 [AUDIO EFFECT] Using existing audio instance for track:', track.id);
         // Get current status from existing sound
         if (sound) {
           sound.getStatusAsync().then((status) => {
@@ -129,13 +111,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               const statusAny = status as any;
               const actualDuration = statusAny.durationMillis || track.duration * 1000;
               const actualPosition = statusAny.positionMillis || 0;
-              
-              console.log('🔊 [EXISTING AUDIO] Setting states:', {
-                duration: actualDuration,
-                position: actualPosition,
-                isPlaying: statusAny.isPlaying
-              });
-              
               setDuration(actualDuration);
               setPosition(actualPosition);
               setIsLoaded(true);
@@ -159,8 +134,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       // Reset refs as well
       durationRef.current = 0;
       isLoadedRef.current = false;
-      
-      console.log('🔊 [AUDIO EFFECT] Modal closed, keeping audio instance');
     }
     
     return () => {
@@ -178,8 +151,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setDuration(0);
       setPosition(0);
       
-      console.log('🔊 [LOAD AUDIO] Starting for track:', track.id);
-      
       // Stop any existing audio first
       await stopAllAudio();
       // Set audio mode
@@ -191,26 +162,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         playThroughEarpieceAndroid: false,
       });
 
-      console.log('🔊 [LOAD AUDIO] Creating new sound for:', track.url);
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: track.url },
         { shouldPlay: false }
       );
 
       setSound(newSound);
-      console.log('🔊 [LOAD AUDIO] Sound created and set globally');
 
       // Set up status update listener first
       newSound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
 
       // Get audio status and force duration update
       const status = await newSound.getStatusAsync();
-      console.log('🎵 [LOAD AUDIO STATUS]', {
-        isLoaded: status.isLoaded,
-        durationMillis: (status as any).durationMillis,
-        trackDuration: track.duration,
-        trackDurationMs: track.duration * 1000
-      });
 
       if (status.isLoaded) {
         const statusAny = status as any;
@@ -220,34 +183,24 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         const trackDurationMs = track.duration * 1000; // track.duration is in seconds
         const finalDuration = audioDuration || trackDurationMs;
 
-        console.log('🎵 [SETTING DURATION]', {
-          audioDuration,
-          trackDurationMs,
-          finalDuration
-        });
-
         setDuration(finalDuration);
         setIsLoaded(true);
         
         // Update refs as well
         durationRef.current = finalDuration;
         isLoadedRef.current = true;
-        
-        console.log('🔊 [LOAD AUDIO] Audio loaded successfully, duration:', finalDuration);
         // Force a status update to ensure everything is synced
         setTimeout(async () => {
           const latestStatus = await newSound.getStatusAsync();
           const latestStatusAny = latestStatus as any;
 
           if (latestStatus.isLoaded && latestStatusAny.durationMillis && latestStatusAny.durationMillis !== finalDuration) {
-            console.log('🎵 [UPDATING DURATION]', latestStatusAny.durationMillis);
             setDuration(latestStatusAny.durationMillis);
           }
         }, 100);
       }
 
     } catch (error) {
-      console.error('🔊 [LOAD AUDIO ERROR]', error);
       Alert.alert('Hata', 'Ses dosyası yüklenirken hata oluştu');
     } finally {
       setIsLoading(false);
@@ -256,13 +209,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const onPlaybackStatusUpdate = (status: any) => {
     if (status.isLoaded) {
-      console.log('🔊 [PLAYBACK STATUS]', {
-        isPlaying: status.isPlaying,
-        position: status.positionMillis,
-        duration: status.durationMillis,
-        didJustFinish: status.didJustFinish,
-        trackId: track.id
-      });
       
       setPosition(status.positionMillis || 0);
       
@@ -284,24 +230,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         if (duration !== actualDuration) {
           setDuration(actualDuration);
           durationRef.current = actualDuration;
-          console.log('🔊 [DURATION UPDATE] Duration set to:', actualDuration);
         }
         if (!isLoaded) {
           setIsLoaded(true);
           isLoadedRef.current = true;
-          console.log('🔊 [LOADED UPDATE] Audio marked as loaded');
         }
       }
 
       if (status.isPlaying) {
         const currentTimeInSeconds = status.positionMillis / 1000;
-        console.log('🎵 [PLAYBACK UPDATE]', {
-          currentTime: currentTimeInSeconds.toFixed(2),
-          duration: (duration / 1000).toFixed(2),
-          statusDuration: statusAny.durationMillis ? (statusAny.durationMillis / 1000).toFixed(2) : 'N/A',
-          isLoaded,
-          position: status.positionMillis
-        });
         // Pass the actual duration from status instead of relying on state
         updateHighlighting(currentTimeInSeconds);
       }
@@ -315,18 +252,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     
     // Skip if audio is not yet loaded
     if (!currentIsLoaded || currentDuration <= 0) {
-      console.log('🔤 [HIGHLIGHT] Skipping - audio not loaded or duration zero', {
-        isLoaded: currentIsLoaded,
-        duration: currentDuration
-      });
       return;
     }
     
-    console.log('🔤 [HIGHLIGHT] Mode:', highlightMode, 'Time:', currentTimeInSeconds, 'Duration:', currentDuration);
     if (highlightMode === 'word') {
       updateWordHighlighting(currentTimeInSeconds);
     } else {
-      console.log('📝 [CALLING SENTENCE HIGHLIGHTING]');
       updateSentenceHighlighting(currentTimeInSeconds);
     }
   };
@@ -367,20 +298,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const progress = totalDuration > 0 ? currentTime / totalDuration : 0;
     const newSentenceIndex = Math.floor(progress * sentences.length);
     const boundedIndex = Math.min(Math.max(0, newSentenceIndex), sentences.length - 1);
-    
-    console.log('🔤 [SENTENCE HIGHLIGHT]', {
-      currentTime,
-      totalDuration,
-      progress,
-      newSentenceIndex,
-      boundedIndex,
-      currentSentenceIndex,
-      sentencesLength: sentences.length
-    });
     if (boundedIndex !== currentSentenceIndex && boundedIndex >= 0) {
-      console.log('✅ [SENTENCE CHANGE]', `${currentSentenceIndex} → ${boundedIndex}`);
       setCurrentSentenceIndex(boundedIndex);
-      console.log('🔤 [SENTENCE HIGHLIGHT] Updated to sentence:', boundedIndex);
     }
   };
 
@@ -397,7 +316,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           });
         },
         (error: any) => {
-          console.warn('📜 [SCROLL ERROR]', error);
+          // silently ignore scroll measurement errors in production
         }
       );
     }
@@ -405,48 +324,29 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const handlePlayPause = async () => {
     if (!sound) {
-      console.log('🔊 [PLAY/PAUSE] No sound object');
       return;
     }
-
-    console.log('🔊 [PLAY/PAUSE] Current state:', {
-      isPlaying,
-      soundLoaded: !!sound,
-      trackId: track.id
-    });
 
     try {
       // Get actual sound status before making decision
       const currentStatus = await sound.getStatusAsync();
-      console.log('🔊 [PLAY/PAUSE] Actual sound status:', {
-        isLoaded: currentStatus.isLoaded,
-        isPlaying: (currentStatus as any).isPlaying
-      });
 
       if ((currentStatus as any).isPlaying) {
-        console.log('🔊 [PLAY/PAUSE] Attempting to pause...');
         await sound.pauseAsync();
-        console.log('🔊 [PLAY/PAUSE] Pause command sent');
       } else {
-        console.log('🔊 [PLAY/PAUSE] Attempting to play...');
         await sound.playAsync();
-        console.log('🔊 [PLAY/PAUSE] Play command sent');
       }
       
       // Wait a bit and verify the status change
       setTimeout(async () => {
         try {
           const verifyStatus = await sound.getStatusAsync();
-          console.log('🔊 [PLAY/PAUSE] Verified status:', {
-            isPlaying: (verifyStatus as any).isPlaying
-          });
         } catch (verifyError) {
-          console.error('🔊 [PLAY/PAUSE] Verify error:', verifyError);
+          // silent in production
         }
       }, 100);
       
     } catch (error) {
-      console.error('🔊 [PLAY/PAUSE ERROR]', error);
       Alert.alert('Hata', 'Ses oynatılırken hata oluştu');
     }
   };
@@ -459,7 +359,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     try {
       await sound.setPositionAsync(newPosition);
     } catch (error) {
-      console.error('⏰ [SEEK ERROR]', error);
+      // silent in production
     }
   }, [sound]);
 
@@ -475,7 +375,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       try {
         await sound.setRateAsync(newSpeed, true);
       } catch (error) {
-        console.error('Error changing playback speed:', error);
+        // silent in production
       }
     }
   };
@@ -547,13 +447,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         sentence.toLowerCase().includes(cleanWord.toLowerCase())
       ) || context;
 
-      console.log('📝 [VOCABULARY] Adding word:', {
-        word: cleanWord,
-        context: context.substring(0, 100),
-        sentence: originalSentence,
-        level: track.level
-      });
-
       // Call the real API with translation (like web version)
       const result = await addWordWithTranslation(
         cleanWord,
@@ -587,7 +480,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }
       
     } catch (error: any) {
-      console.error('📝 [VOCABULARY ERROR]', error);
       if (error.message?.includes('zaten listede mevcut')) {
         Alert.alert(
           'Bilgi',
@@ -629,7 +521,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       Clipboard.setString(toCopy);
       Alert.alert('Kopyalandı', `${label} panoya kopyalandı`);
     } catch (error) {
-      console.error('Kopyalama hatası:', error);
+      // silent in production
       Alert.alert('Hata', 'Metin panoya kopyalanırken bir hata oluştu');
     }
   };
@@ -659,7 +551,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         Clipboard.setString(cleanText);
         Alert.alert('Kopyalandı', `"${cleanText}" panoya kopyalandı`);
       } catch (error) {
-        console.error('Kopyalama hatası:', error);
+        // silent in production
         Alert.alert('Hata', 'Metin panoya kopyalanırken bir hata oluştu');
       }
     }
@@ -878,7 +770,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   setOriginalText((res as any).data.input);
                 }
               } catch (err) {
-                console.warn('Failed to load original text', err);
+                // silent in production
               } finally {
                 setOriginalLoading(false);
               }
@@ -974,7 +866,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               onPress={() => {
                 const nextIndex = (currentSentenceIndex + 1) % sentences.length;
                 setCurrentSentenceIndex(nextIndex);
-                console.log('🧪 [TEST] Manuel cümle değişimi:', nextIndex);
                 Alert.alert('Debug Info', 
                   `Aktif Cümle: ${nextIndex + 1}/${sentences.length}\n` +
                   `Süre: ${formatTime(duration)}\n` +

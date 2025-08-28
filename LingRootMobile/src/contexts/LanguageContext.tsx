@@ -38,7 +38,6 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
           setLanguageState(savedLanguage as Language);
         }
       } catch (error) {
-        console.error('Error loading language from storage:', error);
       } finally {
         setIsLoading(false);
       }
@@ -52,7 +51,6 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
       await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
       setLanguageState(lang);
     } catch (error) {
-      console.error('Error saving language to storage:', error);
     }
   };
 

@@ -17,7 +17,7 @@ import { AudioTrack } from '../types';
 
 const HomeScreen: React.FC = () => {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigation = useNavigation();
   const [stats, setStats] = useState({
     audioCount: 0,
@@ -38,7 +38,7 @@ const HomeScreen: React.FC = () => {
     {
       id: 7,
       title: 'YouTube',
-      description: 'YouTube linkinden altyazı çek ve sese dönüştür',
+      description: language === 'tr' ? 'YouTube linkinden altyazı çek ve sese dönüştür' : 'Fetch subtitles from a YouTube link and convert to speech',
       icon: 'ondemand-video',
       color: '#FF0000',
       screenName: 'Create',
@@ -97,8 +97,6 @@ const HomeScreen: React.FC = () => {
     }
 
     try {
-      console.log('🔍 Fetching user stats for:', user.id);
-      
       // Parallel: fetch count fast + limited history for duration sum
       const [countOrNull, response] = await Promise.all([
         apiService.getUserAudioCount(user.id),
@@ -125,15 +123,11 @@ const HomeScreen: React.FC = () => {
         const pageSum = audioTracks.reduce((sum: number, item: any) => sum + (typeof item?.duration === 'number' ? item.duration : 0), 0);
         const totalDuration = apiTotal != null ? apiTotal : pageSum;
         
-        console.log('✅ User stats:', { audioCount: finalCount, totalDuration });
-        
         setStats({ audioCount: finalCount, totalDuration: Math.round(totalDuration / 60), loading: false });
       } else {
-        console.warn('❌ Failed to fetch user stats:', response.message);
         setStats({ audioCount: 0, totalDuration: 0, loading: false });
       }
     } catch (error) {
-      console.error('❌ Error fetching user stats:', error);
       setStats({ audioCount: 0, totalDuration: 0, loading: false });
     }
   };
@@ -152,7 +146,6 @@ const HomeScreen: React.FC = () => {
   );
 
   const handleFeaturePress = (feature: any) => {
-    console.log('🔄 Navigating to:', feature.screenName, feature.params ? `with params ${JSON.stringify(feature.params)}` : '');
     if (feature.params) {
       // For Tab screens, ensure params are merged even if the tab is already mounted
       try {

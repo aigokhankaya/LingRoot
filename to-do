@@ -1,1 +1,18 @@
--Kelime vurguları geriden geliyor. Senkron yok yine.  SSML ile mark kullanımı yöntemini kullanarak kesin bir çözüm üret. Ama çıktıyı verdiğin metinde mark kısımları olmasın. Kullanıcı burada düz metin görmeli. Ayrıca noktalama işaretleride senkronu bozabilir. Bunu da göz önüğnde bulundur.
+To-do lists:
+- Her yeni kullanıcı register olduğunda support@lingroot.com adresine mail gönderilecek.
+Bu mailde kullanıcının isim, soyisim, email adresi ve register tarihi bilgileri olmalı.
+- 
+
+Done:
+- Register işlemi başarılı gerçekleştikten sonra kullanıcıya aktivasyon maili gönderilir. 
+Bu mailde kullanıcıya hesabını aktifleştirmesi için bir link gönderilir. Bu linke tıkladığında  
+kullanıcının users tablosundaki isverified kolonundaki değeri true ya dönmeli.
+
+- Kullanıcı login olmak istediğinde  users tablosundaki isverified alanı true olmalıdır. 
+Eğer bu durum sağlanmazsa kullanıcıya bir uyarı mesajı gösterilecek ve login işlemi gerçekleştirilemeyecek.
+
+- Eğer mail gelmediyse yeniden aktivasyon maili göndermek gerekir. 
+Login ekranında girişte aktivasyon uyarısı verdiğinde email adresi girilecek bir alan olsun. Burada email adresi girilecek.
+altında bir buton olsun. Adı: "Aktivasyon maili gönder"  olmalı. 
+
+

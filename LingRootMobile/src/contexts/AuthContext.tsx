@@ -59,20 +59,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Start notification reminders after user login
         try {
-          console.log('📱 [AUTH] User logged in, starting vocabulary reminders...');
           await NotificationService.setupPeriodicVocabularyNotifications();
         } catch (error) {
-          console.error('📱 [AUTH] Failed to start notifications:', error);
+          // silent in production
         }
       } else {
         setUser(null);
         
         // Stop notifications when user logs out
         try {
-          console.log('📱 [AUTH] User logged out, stopping vocabulary reminders...');
           await NotificationService.stopVocabularyReminders();
         } catch (error) {
-          console.error('📱 [AUTH] Failed to stop notifications:', error);
+          // silent in production
         }
       }
     });
@@ -98,14 +96,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const storedUser = await AsyncStorage.getItem('user_data');
       
       if (token && storedUser) {
-        console.log('🔧 [AUTH DEBUG] Found stored token and user data');
         
         // Validate token by making a test API call
         try {
           const API_BASE_URL = 'https://lingloops-backend.onrender.com';
-          console.log('🔧 [AUTH DEBUG] Token validation başlatılıyor...');
-          console.log('🔧 [AUTH DEBUG] API_BASE_URL:', API_BASE_URL);
-          console.log('🔧 [AUTH DEBUG] Full URL:', `${API_BASE_URL}/api/health`);
           
           const response = await fetch(`${API_BASE_URL}/api/health`, {
             method: 'GET',
@@ -119,12 +113,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             credentials: 'omit',
           });
           
-          console.log('🔧 [AUTH DEBUG] Response status:', response.status);
-          console.log('🔧 [AUTH DEBUG] Response ok:', response.ok);
-          console.log('🔧 [AUTH DEBUG] Response statusText:', response.statusText);
           
           if (response.ok) {
-            console.log('🔧 [AUTH DEBUG] Token is valid');
             const appUser: User = JSON.parse(storedUser);
             // Try to refresh name from backend /auth/me
             try {
@@ -158,21 +148,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             
             // Start notification reminders for stored user
             try {
-              console.log('📱 [AUTH] Stored user validated, starting vocabulary reminders...');
               await NotificationService.setupPeriodicVocabularyNotifications();
             } catch (error) {
-              console.error('📱 [AUTH] Failed to start notifications for stored user:', error);
+              // silent in production
             }
           } else {
             const errorText = await response.text();
-            console.log('🔧 [AUTH DEBUG] Error response text:', errorText);
             if (response.status === 401) {
-              console.log('🔧 [AUTH DEBUG] 401 received → clearing token');
               await AsyncStorage.removeItem('auth_token');
               await AsyncStorage.removeItem('user_data');
               setUser(null);
             } else {
-              console.log('🔧 [AUTH DEBUG] Non-auth error; preserving session');
               try {
                 const appUser: User = JSON.parse(storedUser);
                 setUser(appUser);
@@ -180,9 +166,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
           }
         } catch (validateError: any) {
-          console.log('🔧 [AUTH DEBUG] Token validation error:', validateError);
-          console.log('🔧 [AUTH DEBUG] Error message:', validateError.message);
-          console.log('🔧 [AUTH DEBUG] Error type:', validateError.constructor.name);
           // Network or validation error → preserve session locally
           try {
             const appUser: User = JSON.parse(storedUser);
@@ -192,11 +175,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
       } else {
-        console.log('🔧 [AUTH DEBUG] No stored token or user data found');
         setUser(null);
       }
     } catch (error) {
-      console.error('Auth state check error:', error);
+      // silent in production
       setUser(null);
     } finally {
       // Mark bootstrap complete so further auth change events are processed
@@ -208,7 +190,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      console.log('🔧 [AUTH DEBUG] signIn attempt via Backend API:', { email });
       
       // First check network connectivity
       const isConnected = await apiService.checkConnectivity();
@@ -218,9 +199,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Web uygulaması gibi backend API'sini kullan
       const API_BASE_URL = 'https://lingloops-backend.onrender.com';
-      console.log('🔧 [AUTH DEBUG] Login request başlatılıyor...');
-      console.log('🔧 [AUTH DEBUG] API_BASE_URL:', API_BASE_URL);
-      console.log('🔧 [AUTH DEBUG] Full login URL:', `${API_BASE_URL}/api/auth/login`);
       
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
@@ -235,11 +213,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         body: JSON.stringify({ email, password, rememberMe: true }),
       });
       
-      console.log('🔧 [AUTH DEBUG] Response received!');
-      console.log('🔧 [AUTH DEBUG] Backend API response status:', response.status);
-      console.log('🔧 [AUTH DEBUG] Response ok:', response.ok);
-      console.log('🔧 [AUTH DEBUG] Response statusText:', response.statusText);
-      
       if (!response.ok) {
         const errorData = await response.json();
         const err = new Error(errorData.message || 'Login failed');
@@ -248,7 +221,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       const data = await response.json();
-      console.log('🔧 [AUTH DEBUG] Backend API response:', data);
       
       if (data.success && data.data.user) {
         // Transform backend user to our User type
@@ -275,12 +247,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (data.data.token) {
           await AsyncStorage.setItem('auth_token', data.data.token);
           await AsyncStorage.setItem('user_data', JSON.stringify(appUser));
-          console.log('🔧 [AUTH DEBUG] Token and user data stored in AsyncStorage');
         }
         
         setUser(appUser);
         setIsLoading(false);
-        console.log('🔧 [AUTH DEBUG] Login successful, user set:', appUser);
       } else {
         const err = new Error(data.message || 'Login failed');
         (err as any).code = data.code;
@@ -288,8 +258,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (error: any) {
       setIsLoading(false);
-      console.error('🔧 [AUTH DEBUG] signIn error:', error);
-      console.error('🔧 [AUTH DEBUG] Error message:', error.message);
+      // silent in production
       throw error;
     }
   };
@@ -313,7 +282,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Clear AsyncStorage
       await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user_data');
-      console.log('🔧 [AUTH DEBUG] Token and user data cleared from AsyncStorage');
       
       await authService.signOut();
       setUser(null);

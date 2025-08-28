@@ -37,14 +37,12 @@ export class NotificationService {
       const hasPermission = await this.requestPermissions();
       if (hasPermission) {
         this.isInitialized = true;
-        console.log('📱 [NOTIFICATIONS] Service initialized successfully');
         return true;
       } else {
-        console.log('📱 [NOTIFICATIONS] Permission denied');
         return false;
       }
     } catch (error) {
-      console.error('📱 [NOTIFICATIONS] Initialization failed:', error);
+      // silent in production
       return false;
     }
   }
@@ -54,7 +52,6 @@ export class NotificationService {
    */
   private async requestPermissions(): Promise<boolean> {
     if (!Device.isDevice) {
-      console.log('📱 [NOTIFICATIONS] Not running on physical device');
       return false;
     }
 
@@ -67,7 +64,6 @@ export class NotificationService {
     }
 
     if (finalStatus !== 'granted') {
-      console.log('📱 [NOTIFICATIONS] Permission not granted');
       return false;
     }
 
@@ -93,7 +89,6 @@ export class NotificationService {
     if (!this.isInitialized) {
       const initialized = await this.initialize();
       if (!initialized) {
-        console.log('📱 [NOTIFICATIONS] Cannot start reminders - not initialized');
         return;
       }
     }
@@ -117,9 +112,9 @@ export class NotificationService {
         },
       });
 
-      console.log('📱 [NOTIFICATIONS] Vocabulary reminders started');
+      // started successfully
     } catch (error) {
-      console.error('📱 [NOTIFICATIONS] Failed to start reminders:', error);
+      // silent in production
     }
   }
 
@@ -141,9 +136,9 @@ export class NotificationService {
         }
       }
 
-      console.log('📱 [NOTIFICATIONS] Vocabulary reminders stopped');
+      // stopped successfully
     } catch (error) {
-      console.error('📱 [NOTIFICATIONS] Failed to stop reminders:', error);
+      // silent in production
     }
   }
 
@@ -172,9 +167,9 @@ export class NotificationService {
         },
       });
 
-      console.log('📱 [NOTIFICATIONS] Scheduled notification for word:', word.word);
+      // scheduled immediate word notification
     } catch (error) {
-      console.error('📱 [NOTIFICATIONS] Failed to schedule word notification:', error);
+      // silent in production
     }
   }
 
@@ -186,7 +181,6 @@ export class NotificationService {
       const vocabulary = await getVocabulary();
       
       if (!vocabulary || vocabulary.length === 0) {
-        console.log('📱 [NOTIFICATIONS] No vocabulary found');
         return null;
       }
 
@@ -194,7 +188,6 @@ export class NotificationService {
       const unlearnedWords = vocabulary.filter((word: VocabularyWord) => !word.is_learned);
       
       if (unlearnedWords.length === 0) {
-        console.log('📱 [NOTIFICATIONS] No unlearned words found');
         return null;
       }
 
@@ -202,14 +195,12 @@ export class NotificationService {
       const randomIndex = Math.floor(Math.random() * unlearnedWords.length);
       const selectedWord = unlearnedWords[randomIndex];
 
-      console.log('📱 [NOTIFICATIONS] Selected random word:', selectedWord.word);
       return selectedWord;
     } catch (error: any) {
-      console.error('📱 [NOTIFICATIONS] Failed to get random word:', error);
+      // silent in production
       
       // Handle authentication errors gracefully
       if (error?.response?.status === 401) {
-        console.log('📱 [NOTIFICATIONS] Authentication error - user needs to login');
         return null;
       }
       
@@ -222,14 +213,12 @@ export class NotificationService {
    */
   public setupNotificationResponseHandler(navigationCallback: (wordId: string) => void) {
     return Notifications.addNotificationResponseReceivedListener(response => {
-      const data = response.notification.request.content.data;
-      
-      console.log('📱 [NOTIFICATIONS] Notification tapped:', data);
+      const data = response.notification.request.content.data as { type?: string; wordId?: unknown };
       
       if (data?.type === 'smart_vocabulary_reminder' || data?.type === 'vocabulary_reminder') {
-        if (data?.wordId) {
+        if (data?.wordId != null && data?.wordId !== '') {
           // Navigate to vocabulary screen with specific word
-          navigationCallback(data.wordId);
+          navigationCallback(String(data.wordId));
         } else {
           // For smart reminders without specific word, just navigate to vocabulary
           navigationCallback('0'); // Use '0' as placeholder instead of empty string
@@ -256,17 +245,13 @@ export class NotificationService {
       try {
         const { getReminderSettings } = require('./api');
         settings = await getReminderSettings();
-        console.log('📱 [SMART_NOTIFICATIONS] Loaded settings from API:', settings);
         // Save to local storage for future offline use
         await ReminderSettingsService.saveSettings(settings);
       } catch (error) {
-        console.log('📱 [SMART_NOTIFICATIONS] API failed, using local storage:', error);
         settings = await ReminderSettingsService.getSettings();
-        console.log('📱 [SMART_NOTIFICATIONS] Loaded settings from local storage:', settings);
       }
       
       if (!settings.isEnabled) {
-        console.log('📱 [SMART_NOTIFICATIONS] Notifications disabled in settings');
         return;
       }
 
@@ -277,7 +262,6 @@ export class NotificationService {
         unlearnedWords = allVocabulary.filter((word: VocabularyWord) => !word.is_learned);
       } catch (error: any) {
         if (error?.response?.status === 401) {
-          console.log('📱 [SMART_NOTIFICATIONS] Authentication error - using offline mode');
           // Use a default number for offline scheduling
           unlearnedWords = Array(settings.wordsPerDay).fill({ id: 1, word: 'offline', definition: 'Please login to see your words' });
         } else {
@@ -291,14 +275,7 @@ export class NotificationService {
         unlearnedWords.length
       );
 
-      console.log('📱 [SMART_NOTIFICATIONS] Scheduling notifications:', {
-        settings,
-        unlearnedWordsCount: unlearnedWords.length,
-        notificationCount: notificationTimes.length,
-        times: notificationTimes.map(t => `${t.toLocaleTimeString()} (${t.toISOString()})`)
-      });
-
-      console.log('📱 [SMART_NOTIFICATIONS] Current time:', new Date().toLocaleTimeString(), '(' + new Date().toISOString() + ')');
+      // scheduling notifications with calculated times
 
       // Schedule each notification
       for (let i = 0; i < notificationTimes.length; i++) {
@@ -330,16 +307,16 @@ export class NotificationService {
             },
           });
 
-          console.log(`📱 [SMART_NOTIFICATIONS] Scheduled notification ${i + 1} for:`, notificationTime.toLocaleTimeString(), 'Word:', randomWord?.word);
+          // scheduled smart notification
         }
       }
 
       // Schedule daily reset (re-setup for next day)
       this.scheduleDailyReset();
 
-      console.log('📱 [SMART_NOTIFICATIONS] Smart notifications setup complete');
+      // setup complete
     } catch (error) {
-      console.error('📱 [SMART_NOTIFICATIONS] Failed to setup smart notifications:', error);
+      // silent in production
     }
   }
 
@@ -373,8 +350,7 @@ export class NotificationService {
         seconds: Math.floor(delayMs / 1000),
       },
     });
-
-    console.log('📱 [SMART_NOTIFICATIONS] Daily reset scheduled for:', tomorrow.toLocaleString());
+    // daily reset scheduled
   }
 
   /**
@@ -402,13 +378,11 @@ export class NotificationService {
             seconds: 300, // 5 minutes from now
           },
         });
-
-        console.log('📱 [NOTIFICATIONS] Next vocabulary check scheduled for:', randomWord.word);
       } else {
-        console.log('📱 [NOTIFICATIONS] No words to remind about - either no vocabulary or authentication issue');
+        // no words available to schedule
       }
     } catch (error) {
-      console.error('📱 [NOTIFICATIONS] Failed to schedule next check:', error);
+      // silent in production
     }
   }
 
@@ -433,7 +407,7 @@ export class NotificationService {
         scheduledCount: vocabularyNotifications.length,
       };
     } catch (error) {
-      console.error('📱 [NOTIFICATIONS] Failed to get status:', error);
+      // silent in production
       return {
         isInitialized: this.isInitialized,
         hasPermission: false,

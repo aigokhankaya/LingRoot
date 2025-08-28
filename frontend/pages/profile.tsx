@@ -326,23 +326,17 @@ export default function Profile() {
                           <div key={cat} className="text-xs py-1">
                             <div className="flex items-center justify-between">
                               <span className="text-gray-600 capitalize">{cat}</span>
-                              <span className="font-medium text-gray-900">
-                                {formatEstimate(perCategory[cat].remainingChars, 'karakter')} · {formatEstimate(
+                              <div className="text-right">
+                                <div className="font-medium text-gray-900">{formatEstimate(perCategory[cat].remainingChars, 'karakter')}</div>
+                                <div className="font-medium text-gray-900">{formatEstimate(
                                   perCategory[cat].remainingCharsByUsd === null ? null : Math.floor((perCategory[cat].remainingCharsByUsd || 0) / CHARS_PER_VIDEO_MINUTE),
                                   'dk'
-                                )} · {formatEstimate(
+                                )}</div>
+                                <div className="font-medium text-gray-900">{formatEstimate(
                                   perCategory[cat].remainingCharsByUsd === null ? null : Math.floor((perCategory[cat].remainingCharsByUsd || 0) / CHARS_PER_A4_PAGE),
                                   'sayfa'
-                                )}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between mt-0.5 text-[11px] text-gray-600">
-                              <span>Karakter limiti</span>
-                              <span className="text-gray-800">{formatEstimate(perCategory[cat].remainingCharsByLimit, 'karakter')}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-[11px] text-gray-600">
-                              <span>USD'e göre</span>
-                              <span className="text-gray-800">{formatEstimate(perCategory[cat].remainingCharsByUsd, 'karakter')}</span>
+                                )}</div>
+                              </div>
                             </div>
                           </div>
                         ))}

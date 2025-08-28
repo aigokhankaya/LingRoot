@@ -46,7 +46,6 @@ const LoginScreen: React.FC = () => {
       await signIn(email, password);
     } catch (error: any) {
       if ((error as any)?.code === 'EMAIL_NOT_VERIFIED') {
-        try { console.log('[Login] EMAIL_NOT_VERIFIED caught'); } catch {}
         setErrorText(error.message || 'E-posta adresiniz doğrulanmamış görünüyor.');
         setErrorCode('EMAIL_NOT_VERIFIED');
         setResendMessage(null);
@@ -108,7 +107,6 @@ const LoginScreen: React.FC = () => {
     React.useCallback(() => {
       const p: any = (route as any)?.params || {};
       if (p.emailNotVerified) {
-        try { console.log('[Login] focus restore emailNotVerified param'); } catch {}
         if (p.emailPrefill && !email) setEmail(p.emailPrefill);
         setErrorCode('EMAIL_NOT_VERIFIED');
         setShowResendUI(true);
@@ -156,9 +154,6 @@ const LoginScreen: React.FC = () => {
         <View style={styles.header}>
           <Text style={styles.title}>LingRoot</Text>
           <Text style={styles.subtitle}>AI Destekli Dil Öğrenme</Text>
-          <Text style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
-            debug: code={String(errorCode)} | showResendUI={String(showResendUI)} | email={email ? 'yes' : 'no'}
-          </Text>
         </View>
 
         <View style={styles.form}>

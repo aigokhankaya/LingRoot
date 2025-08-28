@@ -22,7 +22,7 @@ import AudioPlayer from '../components/AudioPlayer';
 
 const LibraryScreen: React.FC = () => {
   const { isTrackPlaying, currentTrack, isPlaying } = useAudioContext();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [searchText, setSearchText] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel | 'all'>('all');
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
@@ -47,7 +47,6 @@ const LibraryScreen: React.FC = () => {
   // Fetch audio history from API
   const fetchAudioHistory = async (showLoading = true, nextPage?: number) => {
     if (!user?.id) {
-      console.warn('User not authenticated');
       setLoading(false);
       setAudioTracks([]);
       return;
@@ -59,11 +58,9 @@ const LibraryScreen: React.FC = () => {
       }
       
       const currentPage = nextPage || 1;
-      console.log('🔍 Fetching audio history for user:', user.id, 'page=', currentPage, 'limit=', PAGE_SIZE);
       const response = await apiService.getUserAudioHistory(user.id, currentPage, PAGE_SIZE);
       
       if (response.success && response.data) {
-        console.log('✅ Audio history fetched:', response.data.length, 'tracks');
         
         // Backend verilerini AudioTrack tipine dönüştür
         const tracks: AudioTrack[] = response.data.map((item: any) => {
@@ -86,17 +83,7 @@ const LibraryScreen: React.FC = () => {
             words: item.words || [],
           };
           
-          console.log('🎵 [LIBRARY] Track mapped:', {
-            id: track.id,
-            title: track.title.substring(0, 50) + '...',
-            url: track.url,
-            hasTranslatedText: !!track.translated_text,
-            hasAdaptedText: !!track.adapted_text,
-            hasTimepoints: !!track.timepoints && track.timepoints.length > 0,
-            hasWords: !!track.words && track.words.length > 0,
-            timepointsCount: track.timepoints?.length || 0,
-            wordsCount: track.words?.length || 0
-          });
+          
           
           return track;
         });
@@ -128,11 +115,9 @@ const LibraryScreen: React.FC = () => {
         pageRef.current = currentPage;
         setHasUserScrolled(currentPage > 1);
       } else {
-        console.warn('❌ Failed to fetch audio history:', response.message);
         setAudioTracks([]);
       }
     } catch (error) {
-      console.error('❌ Error fetching audio history:', error);
       
       // Check if it's a token expiration error
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -141,7 +126,7 @@ const LibraryScreen: React.FC = () => {
           'Oturum Süresi Doldu', 
           'Lütfen tekrar giriş yapınız.',
           [
-            { text: 'Tamam', onPress: () => console.log('User needs to login again') }
+            { text: 'Tamam' }
           ]
         );
       } else {
@@ -177,7 +162,7 @@ const LibraryScreen: React.FC = () => {
         if (Array.isArray(parsed)) setFavoriteIds(parsed.map((x: any) => String(x)));
       }
     } catch (e) {
-      console.warn('Failed to load favorites', e);
+      
     }
   };
 
@@ -187,10 +172,12 @@ const LibraryScreen: React.FC = () => {
       await AsyncStorage.setItem(favoritesKey, JSON.stringify(ids));
       // fire and forget remote save
       apiService.saveUserFavorites(ids).then((ok) => {
-        if (!ok) console.warn('Remote favorites save failed');
+        if (!ok) {
+          // ignore silently in production
+        }
       });
     } catch (e) {
-      console.warn('Failed to save favorites', e);
+      
     }
   };
 
@@ -238,7 +225,7 @@ const LibraryScreen: React.FC = () => {
           audioTracksRef.current = merged;
         }
       } catch (e) {
-        console.warn('Favori detayları alınamadı:', e);
+        
       }
       // 3) Sonra filtreyi aç ve arka plan hidrasyonu devreye girsin
       setShowFavoritesOnly(true);
@@ -273,7 +260,7 @@ const LibraryScreen: React.FC = () => {
         if (stillMissing.length === 0) break;
       }
     } catch (e) {
-      console.warn('Favorites hydration failed', e);
+      
     } finally {
       setIsHydratingFavorites(false);
     }
@@ -384,16 +371,6 @@ const LibraryScreen: React.FC = () => {
   };
 
   const handlePlayTrack = (track: AudioTrack) => {
-    console.log('🎵 [LIBRARY] Playing track:', {
-      id: track.id,
-      title: track.title.substring(0, 50) + '...',
-      url: track.url,
-      hasUrl: !!track.url,
-      urlLength: track.url?.length || 0,
-      hasTranslatedText: !!track.translated_text,
-      hasAdaptedText: !!track.adapted_text,
-      isCurrentlyPlaying: isTrackPlaying(track.id)
-    });
     
     // Her durumda modal'ı aç
     setSelectedTrack(track);
@@ -410,10 +387,7 @@ const LibraryScreen: React.FC = () => {
     
     // Debug log sadece durumu değişen track'ler için
     if (isCurrentlyPlaying) {
-      console.log('🎵 [LIBRARY RENDER] Currently playing:', {
-        trackId: item.id,
-        title: item.title.substring(0, 30) + '...',
-      });
+      // no-op: avoid console in production
     }
     
     return (
@@ -474,7 +448,9 @@ const LibraryScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Ses kütüphanesi yükleniyor...</Text>
+          <Text style={styles.loadingText}>
+            {language === 'tr' ? 'Ses kütüphanesi yükleniyor...' : 'Loading audio library...'}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -486,18 +462,19 @@ const LibraryScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyState}>
           <Icon name="account-circle" size={64} color="#ccc" />
-          <Text style={styles.emptyTitle}>Giriş Yapılmadı</Text>
+          <Text style={styles.emptyTitle}>{language === 'tr' ? 'Giriş Yapılmadı' : 'Not Logged In'}</Text>
           <Text style={styles.emptyDescription}>
-            Ses kütüphanenizi görmek için giriş yapmanız gerekiyor.
+            {language === 'tr'
+              ? 'Ses kütüphanenizi görmek için giriş yapmanız gerekiyor.'
+              : 'You need to log in to see your audio library.'}
           </Text>
           <TouchableOpacity 
             style={styles.retryButton} 
             onPress={() => {
-              // You might want to navigate to login screen here
-              console.log('Navigate to login');
+              // Intentionally left blank to avoid console logs
             }}
           >
-            <Text style={styles.retryButtonText}>Giriş Yap</Text>
+            <Text style={styles.retryButtonText}>{language === 'tr' ? 'Giriş Yap' : 'Log In'}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -515,7 +492,9 @@ const LibraryScreen: React.FC = () => {
           onPress={handleToggleFavorites}
         >
           <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#E91E63' : '#007AFF'} />
-          <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>Favorilerim</Text>
+          <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>
+            {language === 'tr' ? 'Favorilerim' : 'My Favorites'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -524,7 +503,7 @@ const LibraryScreen: React.FC = () => {
           <Icon name="search" size={20} color="#666" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Ses dosyalarında ara..."
+            placeholder={language === 'tr' ? 'Ses dosyalarında ara...' : 'Search in audio files...'}
             value={searchText}
             onChangeText={setSearchText}
           />
@@ -585,22 +564,23 @@ const LibraryScreen: React.FC = () => {
       ) : showFavoritesOnly && (isHydratingFavorites || favoriteIds.length > 0) ? (
         <View style={styles.emptyState}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Favoriler yükleniyor...</Text>
+          <Text style={styles.loadingText}>{language === 'tr' ? 'Favoriler yükleniyor...' : 'Loading favorites...'}</Text>
         </View>
       ) : (
         <View style={styles.emptyState}>
           <Icon name="library-music" size={64} color="#ccc" />
           <Text style={styles.emptyTitle}>
-            {audioTracks.length === 0 ? 'Henüz ses dosyası yok' : 'Arama sonucu bulunamadı'}
+            {audioTracks.length === 0
+              ? (language === 'tr' ? 'Henüz ses dosyası yok' : 'No audio files yet')
+              : (language === 'tr' ? 'Arama sonucu bulunamadı' : 'No results found')}
           </Text>
           <Text style={styles.emptyDescription}>
             {audioTracks.length === 0 
-              ? 'İlk ses dosyanızı oluşturmak için "Oluştur" sekmesini kullanın'
-              : 'Farklı arama terimleri veya filtreler deneyin'
-            }
+              ? (language === 'tr' ? 'İlk ses dosyanızı oluşturmak için "Ansayfa" sekmesinden uygun bir seçenek kullanın' : 'Use a suitable option from the Home tab to create your first audio')
+              : (language === 'tr' ? 'Farklı arama terimleri veya filtreler deneyin' : 'Try different search terms or filters')}
           </Text>
           <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
-            <Text style={styles.retryButtonText}>Yenile</Text>
+            <Text style={styles.retryButtonText}>{language === 'tr' ? 'Yenile' : 'Refresh'}</Text>
           </TouchableOpacity>
         </View>
       )}

@@ -21,6 +21,8 @@ router.post('/plans/:id/deactivate', planController.deactivatePlan);
 // User management
 router.get('/users', adminController.getAllUsers);
 router.get('/users/:id', adminController.getUserById);
+router.get('/users/:id/usage', adminController.getUserUsageSummaryAdmin);
+router.get('/users/:id/logins', adminController.getUserLoginHistoryAdmin);
 router.put('/users/:id', adminController.updateUser);
 router.delete('/users/:id', adminController.deleteUser);
 router.post('/users/bulk-delete', adminController.deleteUsersBulk);

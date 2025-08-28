@@ -456,7 +456,7 @@ const App: React.FC = () => {
   });
 
   const handleUserClick = (userId: string) => {
-    router.push(`/admin/users/${userId}/audio`);
+    router.push(`/admin/users/${userId}`);
   };
 
   if (loading) {

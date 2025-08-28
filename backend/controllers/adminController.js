@@ -1,6 +1,7 @@
 const { supabase } = require("../utils/supabaseClient");
 require("dotenv").config();
 const logger = require("../utils/logger"); // Import logger
+const { checkLimits } = require('../utils/usageLimiter');
 
 // Supabase client provided by shared utility
 
@@ -68,6 +69,74 @@ exports.getDashboardStats = async (req, res) => {
       message: "Server error while fetching dashboard stats",
       error: error.message,
     });
+  }
+};
+
+// Get login history for a specific user (ADMIN)
+exports.getUserLoginHistoryAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 50 } = req.query;
+
+    logger.info(`[ADMIN LOGIN] Fetching login history for user: ${id} (page=${page}, limit=${limit})`);
+
+    const rangeFrom = (parseInt(page) - 1) * parseInt(limit);
+    const rangeTo = rangeFrom + parseInt(limit) - 1;
+
+    // Attempt to read from a conventional table name `login_history`
+    // If the table is missing or any error occurs, return an empty list gracefully
+    const { data, count, error } = await supabase
+      .from('login_history')
+      .select('*', { count: 'exact' })
+      .eq('user_id', id)
+      .order('created_at', { ascending: false })
+      .range(rangeFrom, rangeTo);
+
+    if (error) {
+      // Common cases: table not found or permission error in early stage
+      logger.warn('[ADMIN LOGIN] Falling back to empty list due to error querying login_history:', error);
+      return res.status(200).json({
+        success: true,
+        data: [],
+        pagination: {
+          total: 0,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: 0,
+        },
+      });
+    }
+
+    const transformed = (data || []).map((row) => {
+      const created = row.created_at || row.timestamp || row.createdAt || null;
+      return {
+        id: row.id || row.log_id || row.event_id,
+        userId: row.user_id || row.userid || row.userId,
+        ip: row.ip || row.ip_address || row.ipAddress || null,
+        userAgent: row.user_agent || row.userAgent || row.ua || null,
+        success: typeof row.success === 'boolean' ? row.success : (typeof row.ok === 'boolean' ? row.ok : true),
+        message: row.message || row.reason || null,
+        created_at: created,
+        timestamp: created,
+        location: row.location || null,
+      };
+    });
+
+    logger.info(`[ADMIN LOGIN] Found ${transformed.length} records (total=${count || transformed.length}) for user ${id}`);
+
+    return res.status(200).json({
+      success: true,
+      data: transformed,
+      pagination: {
+        total: count || transformed.length,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: count ? Math.ceil(count / parseInt(limit)) : (transformed.length > 0 ? 1 : 0),
+      },
+    });
+  } catch (error) {
+    logger.error('[ADMIN LOGIN] Server error while fetching user login history:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -146,7 +215,7 @@ exports.getUserById = async (req, res) => {
 
     const { data, error } = await supabase
       .from("users")
-      .select("id, firstname, lastname, email, role, created_at, phonenumber")
+      .select("id, firstname, lastname, email, role, created_at, updated_at, phonenumber, isverified")
       .eq("id", id)
       .single();
 
@@ -728,6 +797,34 @@ exports.getContentById = async (req, res) => {
   } catch (e) {
     logger.error('Error fetching content by id:', e);
     return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Get usage summary for a specific user (ADMIN)
+exports.getUserUsageSummaryAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    logger.info(`[ADMIN USAGE] Fetching usage summary for user: ${id}`);
+    const state = await checkLimits(id);
+    // Mirror subscriptionController.getUsageSummary shape
+    if (!state || !state.hasPlan) {
+      return res.json({ success: true, data: { hasPlan: false } });
+    }
+    return res.json({
+      success: true,
+      data: {
+        hasPlan: true,
+        subscription: state.subscription,
+        periodStart: state.periodStart,
+        usage: state.usage,
+        limits: state.limits,
+        exceeded: state.exceeded,
+        isExceeded: state.isExceeded,
+      },
+    });
+  } catch (e) {
+    logger.error('[ADMIN USAGE] Error:', e);
+    return res.status(500).json({ success: false, message: 'Server error', error: e.message });
   }
 };
 

@@ -8,13 +8,7 @@ import Constants from 'expo-constants';
 // Web projesiyle aynı yapı: base URL + /api/ endpoint
 const API_BASE_URL = 'https://lingloops-backend.onrender.com';
 
-// Debug: API URL'sini kontrol et
-console.log('🔧 [API DEBUG] ==================');
-console.log('🔧 [API DEBUG] Constants.expoConfig:', Constants.expoConfig);
-console.log('🔧 [API DEBUG] Constants.expoConfig?.extra:', Constants.expoConfig?.extra);
-console.log('🔧 [API DEBUG] EXPO_PUBLIC_API_URL:', Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL);
-console.log('🔧 [API DEBUG] Final API_BASE_URL:', API_BASE_URL);
-console.log('🔧 [API DEBUG] ==================');
+// Debug logs removed for production cleanliness
 
 // Render hibernation handling
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -42,12 +36,10 @@ async function wakeBackendIfNeeded(force: boolean = false): Promise<boolean> {
     // Try to wake by polling a few times with backoff
     for (let attempt = 1; attempt <= 6; attempt++) {
       const delay = 800 * attempt + 400;
-      console.log(`🔧 [API DEBUG] Backend waking... attempt ${attempt}/6, waiting ${delay}ms`);
       await sleep(delay);
       try {
         const ping = await fetch(healthUrl, { method: 'GET' });
         if (ping.ok) {
-          console.log('🔧 [API DEBUG] Backend is awake.');
           lastBackendAwakeAt = Date.now();
           return true;
         }
@@ -82,12 +74,9 @@ apiClient.interceptors.request.use(
       const token = await AsyncStorage.getItem('auth_token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log('🔧 [API DEBUG] Token added to request:', token.substring(0, 20) + '...');
-      } else {
-        console.log('🔧 [API DEBUG] No token found in AsyncStorage');
       }
     } catch (error) {
-      console.warn('Token alınamadı:', error);
+      
     }
     return config;
   },
@@ -100,23 +89,16 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    console.error('🚨 [API ERROR] Error message:', error.message);
-    console.error('🚨 [API ERROR] Status:', error.response?.status);
-    console.error('🚨 [API ERROR] Status text:', error.response?.statusText);
-    console.error('🚨 [API ERROR] Response data:', error.response?.data);
-    console.error('🚨 [API ERROR] Request URL:', error.config?.url);
-    console.error('🚨 [API ERROR] Request method:', error.config?.method);
     
     // If backend hibernated (Render 503), try waking and retry once
     if (error.response?.status === 503 && error.config && !(error.config as any).__wakeRetry) {
-      console.log('🔧 [API DEBUG] 503 detected. Trying to wake backend and retry...');
       const woke = await wakeBackendIfNeeded(true);
       if (woke) {
         (error.config as any).__wakeRetry = true;
         try {
           return await apiClient.request(error.config);
         } catch (retryErr: any) {
-          console.error('🔧 [API DEBUG] Retry after wake failed:', (retryErr as any)?.message);
+          
         }
       }
     }
@@ -126,14 +108,12 @@ apiClient.interceptors.response.use(
         error.response?.data?.message === 'Token expired' ||
         error.response?.data?.message === 'Unauthorized') {
       
-      console.log('🔧 [API DEBUG] Token expired, clearing auth data');
-      
       // Clear expired token and user data
       try {
         await AsyncStorage.removeItem('auth_token');
         await AsyncStorage.removeItem('user_data');
       } catch (clearError) {
-        console.error('Error clearing auth data:', clearError);
+        
       }
       
       // Notify app to update auth state (navigate to login)
@@ -142,10 +122,8 @@ apiClient.interceptors.response.use(
           unauthorizedHandler();
         }
       } catch (notifyError) {
-        console.error('Error notifying unauthorized handler:', notifyError);
+        
       }
-
-      console.log('🔧 [API DEBUG] User needs to login again');
     }
     
     return Promise.reject(error);
@@ -156,29 +134,19 @@ export const apiService = {
   // Network connectivity check
   async checkConnectivity(): Promise<boolean> {
     try {
-      console.log('🔧 [API DEBUG] ==================');
-      console.log('🔧 [API DEBUG] Testing connectivity to:', API_BASE_URL);
-      console.log('🔧 [API DEBUG] Full health check URL:', `${API_BASE_URL}/api/health`);
-      console.log('🔧 [API DEBUG] User Agent:', navigator.userAgent);
-      console.log('🔧 [API DEBUG] Online status:', navigator.onLine);
-      console.log('🔧 [API DEBUG] Platform:', navigator.platform);
       
       // Attempt to wake backend if sleeping
       const woke = await wakeBackendIfNeeded(false);
       if (woke) {
-        console.log('🔧 [API DEBUG] ✅ Backend is awake (pre-check).');
-        console.log('🔧 [API DEBUG] ==================');
         return true;
       }
 
       // Create abort controller for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.log('🔧 [API DEBUG] Request timeout after 60 seconds');
         controller.abort();
       }, 60000);
       
-      console.log('🔧 [API DEBUG] Fetch request başlatılıyor...');
       const response = await fetch(`${API_BASE_URL}/api/health`, {
         method: 'GET',
         signal: controller.signal,
@@ -193,45 +161,29 @@ export const apiService = {
       
       clearTimeout(timeoutId);
       
-      console.log('🔧 [API DEBUG] Response received!');
-      console.log('🔧 [API DEBUG] Response status:', response.status);
-      console.log('🔧 [API DEBUG] Response ok:', response.ok);
-      console.log('🔧 [API DEBUG] Response statusText:', response.statusText);
-      console.log('🔧 [API DEBUG] Response headers:', Object.fromEntries(response.headers.entries()));
+      
       
       if (response.ok) {
         const responseText = await response.text();
-        console.log('🔧 [API DEBUG] Response body:', responseText);
-        console.log('🔧 [API DEBUG] ✅ Backend connection successful!');
-        console.log('🔧 [API DEBUG] ==================');
+        
         return true;
       } else {
         const errorText = await response.text();
-        console.log('🔧 [API DEBUG] Error response text:', errorText);
-        console.log('🔧 [API DEBUG] ❌ Backend returned error status:', response.status);
-        console.log('🔧 [API DEBUG] ==================');
         return false;
       }
     } catch (error: any) {
-      console.log('🔧 [API DEBUG] ==================');
-      console.error('🔧 [API DEBUG] ❌ Connectivity test failed!');
-      console.error('🔧 [API DEBUG] Error type:', error.name);
-      console.error('🔧 [API DEBUG] Error message:', error.message);
-      console.error('🔧 [API DEBUG] Error code:', error.code);
-      console.error('🔧 [API DEBUG] Error stack:', error.stack);
+      
       
       // Provide specific error messages for common issues
       if (error.name === 'AbortError') {
-        console.error('🔧 [API DEBUG] Request was aborted due to timeout');
+        
       } else if (error.message.includes('Network request failed')) {
-        console.error('🔧 [API DEBUG] Network request failed - check internet connection');
+        
       } else if (error.message.includes('fetch')) {
-        console.error('🔧 [API DEBUG] Fetch API error - possible CORS or network issue');
+        
       } else if (error.message.includes('TypeError')) {
-        console.error('🔧 [API DEBUG] TypeError - possible network or URL issue');
+        
       }
-      
-      console.log('🔧 [API DEBUG] ==================');
       return false;
     }
   },
@@ -334,7 +286,7 @@ export const apiService = {
       if (response.data?.success) return typeof response.data.count === 'number' ? response.data.count : 0;
       return null;
     } catch (e) {
-      console.warn('getUserAudioCount failed:', e);
+      // silent in production
       return null;
     }
   },
@@ -345,7 +297,7 @@ export const apiService = {
       const response = await apiClient.get('/api/user-favorites');
       return response.data?.data || [];
     } catch (e) {
-      console.warn('getUserFavorites failed:', e);
+      // silent in production
       return [];
     }
   },
@@ -357,7 +309,7 @@ export const apiService = {
       const response = await apiClient.get('/api/user-favorites/details');
       return response.data?.data || [];
     } catch (e) {
-      console.warn('getUserFavoriteDetails failed:', e);
+      // silent in production
       return [];
     }
   },
@@ -367,7 +319,7 @@ export const apiService = {
       const response = await apiClient.post('/api/user-favorites', { ids });
       return !!response.data?.success;
     } catch (e) {
-      console.warn('saveUserFavorites failed:', e);
+      // silent in production
       return false;
     }
   },
@@ -426,9 +378,7 @@ export const apiService = {
       if (category && category !== 'all') params.append('category', category);
 
       const url = `/api/tts/voices/filter?${params.toString()}`;
-      console.log('🎯 [VOICE FILTER DEBUG] Requesting:', url);
       const response = await apiClient.get(url);
-      console.log('🎯 [VOICE FILTER DEBUG] Response keys:', Object.keys(response.data || {}));
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Filtrelenmiş sesler yüklenemedi');
@@ -517,12 +467,10 @@ export interface VocabularyWord {
 
 export const getVocabulary = async (): Promise<VocabularyWord[]> => {
   try {
-    console.log('🔧 [API DEBUG] Fetching vocabulary...');
     const response = await apiClient.get('/api/vocabulary');
-    console.log('🔧 [API DEBUG] Vocabulary response:', response.data);
     return response.data.success ? response.data.data : [];
   } catch (error) {
-    console.error('Error fetching vocabulary:', error);
+    
     throw error;
   }
 };
@@ -534,17 +482,15 @@ export const addWordToVocabulary = async (
   level?: string
 ): Promise<VocabularyWord> => {
   try {
-    console.log('🔧 [API DEBUG] Adding word to vocabulary:', { word, definition, sentence, level });
     const response = await apiClient.post('/api/vocabulary/add', {
       word,
       definition,
       example_sentence: sentence,
       level: level?.toUpperCase(),
     });
-    console.log('🔧 [API DEBUG] Add word response:', response.data);
     return response.data.data;
   } catch (error) {
-    console.error('Error adding word to vocabulary:', error);
+    
     throw error;
   }
 };
@@ -562,28 +508,24 @@ export const addWordWithTranslation = async (
   translationError?: boolean;
 }> => {
   try {
-    console.log('🔧 [API DEBUG] Adding word with translation:', { word, context, level, originalSentence });
     const response = await apiClient.post('/api/vocabulary/add-with-translation', {
       word,
       context,
       level,
       originalSentence
     });
-    console.log('🔧 [API DEBUG] Add word with translation response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error adding word with translation:', error);
+    
     throw error;
   }
 };
 
 export const deleteWordFromVocabulary = async (wordId: number): Promise<void> => {
   try {
-    console.log('🔧 [API DEBUG] Deleting word from vocabulary:', wordId);
     const response = await apiClient.delete(`/api/vocabulary/${wordId}`);
-    console.log('🔧 [API DEBUG] Delete word response:', response.data);
   } catch (error) {
-    console.error('Error deleting word from vocabulary:', error);
+    
     throw error;
   }
 };
@@ -593,12 +535,10 @@ export const updateWordInVocabulary = async (
   updates: Partial<VocabularyWord>
 ): Promise<VocabularyWord> => {
   try {
-    console.log('🔧 [API DEBUG] Updating word in vocabulary:', wordId, updates);
     const response = await apiClient.put(`/api/vocabulary/${wordId}`, updates);
-    console.log('🔧 [API DEBUG] Update word response:', response.data);
     return response.data.data;
   } catch (error) {
-    console.error('Error updating word in vocabulary:', error);
+    
     throw error;
   }
 };
@@ -616,7 +556,7 @@ export const getReminderSettings = async (): Promise<ReminderSettings> => {
     const response = await apiClient.get('/api/reminder-settings');
     return response.data.data;
   } catch (error) {
-    console.error('📱 [API] Error getting reminder settings:', error);
+    
     // Return default settings if API fails
     return {
       wordsPerDay: 5,
@@ -630,9 +570,8 @@ export const getReminderSettings = async (): Promise<ReminderSettings> => {
 export const saveReminderSettings = async (settings: ReminderSettings): Promise<void> => {
   try {
     await apiClient.post('/api/reminder-settings', settings);
-    console.log('📱 [API] Reminder settings saved successfully:', settings);
   } catch (error) {
-    console.error('📱 [API] Error saving reminder settings:', error);
+    
     throw new Error('Ayarlar kaydedilemedi');
   }
 }; 
@@ -643,7 +582,7 @@ export const getUserSettings = async (): Promise<{ default_voice?: string; setti
     const response = await apiClient.get('/api/user-settings');
     return response.data.data || {};
   } catch (error) {
-    console.error('📱 [API] Error getting user settings:', error);
+    
     // Local fallback: read from AsyncStorage if backend route missing/unavailable
     try {
       const localDefaultVoice = await AsyncStorage.getItem('default_voice_local');
@@ -658,13 +597,10 @@ export const getUserSettings = async (): Promise<{ default_voice?: string; setti
 export const saveDefaultVoiceSetting = async (voice: string): Promise<void> => {
   try {
     await apiClient.post('/api/user-settings/default-voice', { voice });
-    console.log('📱 [API] Default voice saved:', voice);
   } catch (error) {
-    console.error('📱 [API] Error saving default voice (will store locally):', error);
     // Store locally so UX works even if backend route missing
     try {
       await AsyncStorage.setItem('default_voice_local', voice);
-      console.log('📱 [API] Default voice stored locally:', voice);
     } catch {}
     // Do not throw to allow UI to proceed
   }

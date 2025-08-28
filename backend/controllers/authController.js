@@ -23,6 +23,43 @@ const generateToken = (id, email, role, _rememberMe = false) => {
 const generateRefreshToken = (id) =>
   jwt.sign({ id }, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN });
 
+// Helper: record login attempt (best-effort)
+async function recordLoginAttempt(userId, req, { success, message }) {
+  try {
+    const ipFromHeader = (req.headers['x-forwarded-for'] || '').toString().split(',')[0].trim();
+    const ip = ipFromHeader || req.ip || req.connection?.remoteAddress || null;
+    const userAgent = req.headers['user-agent'] || null;
+
+    // If userId is falsy and your table requires it, skip to avoid errors
+    if (!userId) {
+      return;
+    }
+
+    logger.info('[LOGIN_HISTORY] Attempt', { userId, ip, hasUA: !!userAgent, success, message });
+
+    const { error } = await supabase
+      .from('login_history')
+      .insert([
+        {
+          user_id: userId,
+          ip,
+          user_agent: userAgent,
+          success: !!success,
+          message: message || null,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+    if (error) {
+      logger.warn('[LOGIN_HISTORY] Insert failed:', error);
+    } else {
+      logger.info('[LOGIN_HISTORY] Insert ok');
+    }
+  } catch (e) {
+    // Table may not exist or permission may be missing; do not fail login
+    logger.warn('[LOGIN_HISTORY] Skipping write:', e?.message);
+  }
+}
+
 exports.register = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;
@@ -247,12 +284,18 @@ exports.login = async (req, res) => {
 
     if (error || !user || !(await bcrypt.compare(password, user.password))) {
       logger.warn('[LOGIN] Invalid credentials for email:', email);
+      // Record failed attempt only if user exists (to avoid user enumeration)
+      if (user?.id) {
+        await recordLoginAttempt(user.id, req, { success: false, message: 'invalid_credentials' });
+      }
       return res.status(401).json({ success: false, message: "Geçersiz e-posta veya şifre" });
     }
 
     // Require verified email before allowing login
     if (!user.isverified) {
       logger.warn('[LOGIN] Unverified account tried to login:', email);
+      // Optionally record attempt for diagnostics
+      try { await recordLoginAttempt(user.id, req, { success: false, message: 'email_not_verified' }); } catch {}
       return res.status(403).json({
         success: false,
         code: 'EMAIL_NOT_VERIFIED',
@@ -276,6 +319,9 @@ exports.login = async (req, res) => {
      // Attach normalized name fields
     user.full_name = safeFull;
     user.name = safeFull;
+
+    // Best-effort: record successful login
+    try { await recordLoginAttempt(user.id, req, { success: true, message: 'login_success' }); } catch {}
 
     return res.status(200).json({
       success: true,
@@ -481,6 +527,9 @@ exports.googleLogin = async (req, res) => {
     delete user.password;
     delete user.verificationToken;
     delete user.resetPasswordToken;
+
+    // Best-effort: record successful Google login
+    try { await recordLoginAttempt(user.id, req, { success: true, message: 'google_login_success' }); } catch {}
 
     return res.status(200).json({
       success: true,
