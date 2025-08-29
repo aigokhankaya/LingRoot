@@ -300,7 +300,7 @@ const updateConversationStatus = async (req, res) => {
     const { conversationId } = req.params;
     const { status, priority } = req.body;
     
-    if (!req.user.role === 'admin') {
+    if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Bu işlem için yetkiniz yok'
@@ -342,7 +342,7 @@ const updateConversationStatus = async (req, res) => {
 // Get conversation statistics (admin only)
 const getConversationStats = async (req, res) => {
   try {
-    if (!req.user.role === 'admin') {
+    if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Bu işlem için yetkiniz yok'

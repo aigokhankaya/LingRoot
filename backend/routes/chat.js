@@ -1,17 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const chatController = require('../controllers/chatController');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticate, authorizeAdmin } = require('../middleware/auth');
 
 // User routes
-router.get('/conversations', authenticateToken, chatController.getUserConversations);
-router.post('/conversations', authenticateToken, chatController.createConversation);
-router.get('/conversations/:conversationId/messages', authenticateToken, chatController.getConversationMessages);
-router.post('/conversations/:conversationId/messages', authenticateToken, chatController.sendMessage);
+router.get('/conversations', authenticate, chatController.getUserConversations);
+router.post('/conversations', authenticate, chatController.createConversation);
+router.get('/conversations/:conversationId/messages', authenticate, chatController.getConversationMessages);
+router.post('/conversations/:conversationId/messages', authenticate, chatController.sendMessage);
 
 // Admin routes
-router.get('/admin/conversations', authenticateToken, chatController.getAdminConversations);
-router.put('/admin/conversations/:conversationId', authenticateToken, chatController.updateConversationStatus);
-router.get('/admin/stats', authenticateToken, chatController.getConversationStats);
+router.get('/admin/conversations', authenticate, authorizeAdmin, chatController.getAdminConversations);
+router.put('/admin/conversations/:conversationId', authenticate, authorizeAdmin, chatController.updateConversationStatus);
+router.get('/admin/stats', authenticate, authorizeAdmin, chatController.getConversationStats);
 
 module.exports = router;
