@@ -26,6 +26,7 @@ import * as echarts from 'echarts';
 import { useRouter } from 'next/navigation';
 import { deleteUser as deleteUserApi, deleteUsersBulk as deleteUsersBulkApi } from '@/services/userService';
 // Paket Bilgilerim kullanıcı dashboard'ına taşındı
+import AdminChatInterface from '@/components/AdminChatInterface';
 
 const App: React.FC = () => {
   const { theme, setTheme } = useTheme();
@@ -1370,160 +1371,10 @@ const App: React.FC = () => {
 
           {activeTab === "destek" && (
             <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Destek Yönetimi</h2>
-                <Button variant="outline" className="!rounded-button whitespace-nowrap">
-                  <i className="fas fa-filter mr-2"></i>
-                  Filtrele
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-1">
-                  <Card className="h-[calc(100vh-180px)]">
-                    <CardHeader>
-                      <CardTitle>Destek Talepleri</CardTitle>
-                      <div className="relative">
-                        <Input
-                          type="text"
-                          placeholder="Talep ara..."
-                          className="pl-10 pr-4 py-2"
-                        />
-                        <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <ScrollArea className="h-[calc(100vh-280px)]">
-                        <div className="divide-y divide-gray-100">
-                          <div className="p-4 hover:bg-gray-50 cursor-pointer">
-                            <div className="flex justify-between items-start mb-1">
-                              <div className="font-medium">Ödeme Sorunu</div>
-                              <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Acil</Badge>
-                            </div>
-                            <div className="text-sm text-gray-500 mb-1">Zeynep Çelik</div>
-                            <div className="text-sm line-clamp-2">Kredi kartımdan ödeme alındı fakat hesabım Premium'a yükseltilmedi...</div>
-                            <div className="text-xs text-gray-400 mt-2">06.06.2025 - 10:23</div>
-                          </div>
-                          <div className="p-4 hover:bg-gray-50 cursor-pointer bg-indigo-50">
-                            <div className="flex justify-between items-start mb-1">
-                              <div className="font-medium">İçerik Erişimi</div>
-                              <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Orta</Badge>
-                            </div>
-                            <div className="text-sm text-gray-500 mb-1">Ahmet Yılmaz</div>
-                            <div className="text-sm line-clamp-2">Premium paketime rağmen bazı içeriklere erişemiyorum. Özellikle B2 seviyesindeki...</div>
-                            <div className="text-xs text-gray-400 mt-2">05.06.2025 - 16:45</div>
-                          </div>
-                          <div className="p-4 hover:bg-gray-50 cursor-pointer">
-                            <div className="flex justify-between items-start mb-1">
-                              <div className="font-medium">Ses Sorunu</div>
-                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Düşük</Badge>
-                            </div>
-                            <div className="text-sm text-gray-500 mb-1">Mehmet Kaya</div>
-                            <div className="text-sm line-clamp-2">Podcast'lerde ses kalitesi çok düşük. Kulaklık kullanmama rağmen sesleri net...</div>
-                            <div className="text-xs text-gray-400 mt-2">04.06.2025 - 09:12</div>
-                          </div>
-                        </div>
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div className="lg:col-span-2">
-                  <Card className="h-[calc(100vh-180px)]">
-                    <CardHeader className="border-b border-gray-100">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <CardTitle>İçerik Erişimi</CardTitle>
-                          <CardDescription>Talep #2458 - Ahmet Yılmaz</CardDescription>
-                        </div>
-                        <div className="flex space-x-2">
-                          <select defaultValue="progress" className="px-3 py-2 pr-10 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none"
-                            style={{
-                              backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
-                              backgroundPosition: 'right 0.75rem center',
-                              backgroundSize: '1.25em 1.25em',
-                              backgroundRepeat: 'no-repeat'
-                            }}
-                          >
-                            <option value="new">Yeni</option>
-                            <option value="progress">İşlemde</option>
-                            <option value="waiting">Beklemede</option>
-                            <option value="resolved">Çözüldü</option>
-                            <option value="closed">Kapatıldı</option>
-                          </select>
-                          <select defaultValue="medium" className="px-3 py-2 pr-10 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none"
-                            style={{
-                              backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
-                              backgroundPosition: 'right 0.75rem center',
-                              backgroundSize: '1.25em 1.25em',
-                              backgroundRepeat: 'no-repeat'
-                            }}
-                          >
-                            <option value="low">Düşük</option>
-                            <option value="medium">Orta</option>
-                            <option value="high">Yüksek</option>
-                            <option value="urgent">Acil</option>
-                          </select>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <ScrollArea className="h-[calc(100vh-340px)]">
-                        <div className="p-6 space-y-6">
-                          <div className="flex items-start space-x-4">
-                            <Avatar className="h-10 w-10 mt-1">
-                              <AvatarImage src="https://readdy.ai/api/search-image?query=professional%20portrait%20of%20a%20Turkish%20person%20with%20neutral%20expression%2C%20studio%20lighting%2C%20high%20quality%2C%20photorealistic&width=100&height=100&seq=user1&orientation=squarish" />
-                              <AvatarFallback>AY</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <div className="bg-gray-50 rounded-lg p-4">
-                                <div className="flex justify-between items-center mb-2">
-                                  <span className="font-medium">Ahmet Yılmaz</span>
-                                  <span className="text-xs text-gray-500">05.06.2025 - 16:45</span>
-                                </div>
-                                <p className="text-gray-700">Premium paketime rağmen bazı içeriklere erişemiyorum. Özellikle B2 seviyesindeki podcast'lere tıkladığımda "Bu içeriğe erişmek için Pro üye olun" mesajı alıyorum.</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-start space-x-4">
-                            <Avatar className="h-10 w-10 mt-1">
-                              <AvatarImage src="https://readdy.ai/api/search-image?query=professional%20portrait%20of%20a%20Turkish%20admin%20person%20with%20short%20dark%20hair%20wearing%20business%20casual%20attire%2C%20neutral%20expression%2C%20studio%20lighting%2C%20high%20quality%2C%20photorealistic&width=100&height=100&seq=admin1&orientation=squarish" />
-                              <AvatarFallback>AD</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <div className="bg-indigo-50 rounded-lg p-4">
-                                <div className="flex justify-between items-center mb-2">
-                                  <span className="font-medium">Destek Ekibi</span>
-                                  <span className="text-xs text-gray-500">05.06.2025 - 17:30</span>
-                                </div>
-                                <p className="text-gray-700">Merhaba Ahmet Bey, sorununuz için özür dileriz. Hesabınızı kontrol ettim ve Premium paketinizin aktif olduğunu gördüm. Sistem üzerinde bir kontrol gerçekleştiriyoruz.</p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </ScrollArea>
-                    </CardContent>
-                    <CardFooter className="border-t border-gray-100 p-4">
-                      <div className="w-full space-y-4">
-                        <Textarea placeholder="Yanıtınızı buraya yazın..." className="min-h-[100px]" />
-                        <div className="flex justify-between">
-                          <div className="flex space-x-2">
-                            <Button variant="outline" size="sm" className="!rounded-button whitespace-nowrap">
-                              <i className="fas fa-paperclip mr-2"></i>
-                              Dosya Ekle
-                            </Button>
-                          </div>
-                          <Button className="!rounded-button whitespace-nowrap">
-                            <i className="fas fa-paper-plane mr-2"></i>
-                            Yanıtla
-                          </Button>
-                        </div>
-                      </div>
-                    </CardFooter>
-                  </Card>
-                </div>
-              </div>
+              <AdminChatInterface
+                conversationFilter={conversationFilter}
+                setConversationFilter={setConversationFilter}
+              />
             </div>
           )}
 

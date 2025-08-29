@@ -12,6 +12,7 @@ interface Message {
   content: string;
   sender_type: 'user' | 'admin';
   sender_name: string;
+  sender_id: string;
   sender_email?: string;
   created_at: string;
   is_read: boolean;
