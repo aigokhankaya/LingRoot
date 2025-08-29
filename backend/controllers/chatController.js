@@ -9,7 +9,7 @@ const getUserConversations = async (req, res) => {
     const query = `
       SELECT 
         c.*,
-        u.name as admin_name,
+        (COALESCE(u.firstname, '') || ' ' || COALESCE(u.lastname, '')) AS admin_name,
         (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_type = 'admin' AND m.is_read = false) as unread_count,
         (SELECT content FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) as last_message_content,
         (SELECT sender_type FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) as last_message_sender_type
@@ -55,9 +55,9 @@ const getAdminConversations = async (req, res) => {
     const query = `
       SELECT 
         c.*,
-        u.name as user_name,
+        (COALESCE(u.firstname, '') || ' ' || COALESCE(u.lastname, '')) AS user_name,
         u.email as user_email,
-        admin.name as admin_name,
+        (COALESCE(admin.firstname, '') || ' ' || COALESCE(admin.lastname, '')) AS admin_name,
         (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.sender_type = 'user' AND m.is_read = false) as unread_count,
         (SELECT content FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) as last_message_content,
         (SELECT sender_type FROM messages m WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) as last_message_sender_type
@@ -150,7 +150,7 @@ const getConversationMessages = async (req, res) => {
     const messagesQuery = `
       SELECT 
         m.*,
-        u.name as sender_name,
+        (COALESCE(u.firstname, '') || ' ' || COALESCE(u.lastname, '')) AS sender_name,
         u.email as sender_email
       FROM messages m
       JOIN users u ON m.sender_id = u.id
@@ -234,7 +234,7 @@ const sendMessage = async (req, res) => {
     const messageWithSenderQuery = `
       SELECT 
         m.*,
-        u.name as sender_name,
+        (COALESCE(u.firstname, '') || ' ' || COALESCE(u.lastname, '')) AS sender_name,
         u.email as sender_email
       FROM messages m
       JOIN users u ON m.sender_id = u.id

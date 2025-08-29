@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 
 interface Message {
   id: string;
@@ -38,6 +39,13 @@ interface Conversation {
 }
 
 const ChatScreen: React.FC = ({ navigation }: any) => {
+  // Resolve API base URL: prefer Expo extra, then env, finally localhost
+  const extra: any = (Constants.expoConfig?.extra || (Constants as any)?.manifest?.extra || {});
+  const API_URL: string = (
+    extra.EXPO_PUBLIC_API_URL ||
+    process.env.EXPO_PUBLIC_API_URL ||
+    'https://lingloops-backend.onrender.com'
+  ) as string;
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -73,7 +81,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
   const fetchConversations = async () => {
     try {
       const token = await getToken();
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/chat/conversations`, {
+      const response = await fetch(`${API_URL}/api/chat/conversations`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -95,7 +103,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
   const fetchMessages = async (conversationId: string) => {
     try {
       const token = await getToken();
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/chat/conversations/${conversationId}/messages`, {
+      const response = await fetch(`${API_URL}/api/chat/conversations/${conversationId}/messages`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -121,7 +129,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
     setSending(true);
     try {
       const token = await getToken();
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/chat/conversations`, {
+      const response = await fetch(`${API_URL}/api/chat/conversations`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -163,7 +171,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
 
     try {
       const token = await getToken();
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/chat/conversations/${selectedConversation}/messages`, {
+      const response = await fetch(`${API_URL}/api/chat/conversations/${selectedConversation}/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
