@@ -119,6 +119,7 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
     { id: 1.5, title: t('profile.language'), icon: 'language', action: () => setLanguageModalVisible(true) },
     { id: 2, title: t('profile.audioHistory'), icon: 'history', action: () => {} },
     { id: 3, title: language === 'tr' ? 'Paket Bilgilerim' : 'My Plan', icon: 'inventory', action: () => navigation.navigate('Membership') },
+    { id: 3.5, title: 'Mesaj Gönder', icon: 'chat', action: () => navigation.navigate('Chat') },
     { id: 4, title: t('profile.testNotification'), icon: 'notifications', action: handleTestNotification },
     { id: 5, title: t('profile.notificationStatus'), icon: 'notifications-active', action: handleNotificationStatus },
     

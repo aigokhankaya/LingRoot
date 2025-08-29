@@ -62,9 +62,17 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
     }
   }, [messages]);
 
+  const getToken = async () => {
+    // Prefer new key; keep backward compatibility with old key
+    const token = await AsyncStorage.getItem('auth_token');
+    if (token && token !== 'null' && token !== 'undefined') return token;
+    const legacy = await AsyncStorage.getItem('lingroot_token');
+    return legacy || '';
+  };
+
   const fetchConversations = async () => {
     try {
-      const token = await AsyncStorage.getItem('lingroot_token');
+      const token = await getToken();
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/chat/conversations`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -86,7 +94,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
 
   const fetchMessages = async (conversationId: string) => {
     try {
-      const token = await AsyncStorage.getItem('lingroot_token');
+      const token = await getToken();
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/chat/conversations/${conversationId}/messages`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -112,7 +120,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
 
     setSending(true);
     try {
-      const token = await AsyncStorage.getItem('lingroot_token');
+      const token = await getToken();
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/chat/conversations`, {
         method: 'POST',
         headers: {
@@ -154,7 +162,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
     setNewMessage('');
 
     try {
-      const token = await AsyncStorage.getItem('lingroot_token');
+      const token = await getToken();
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/chat/conversations/${selectedConversation}/messages`, {
         method: 'POST',
         headers: {
