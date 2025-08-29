@@ -11,14 +11,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     last_message_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    admin_id UUID REFERENCES users(id) ON DELETE SET NULL, -- Which admin is handling this conversation
-    
-    -- Indexes for better performance
-    INDEX idx_conversations_user_id (user_id),
-    INDEX idx_conversations_status (status),
-    INDEX idx_conversations_priority (priority),
-    INDEX idx_conversations_last_message_at (last_message_at DESC),
-    INDEX idx_conversations_admin_id (admin_id)
+    admin_id UUID REFERENCES users(id) ON DELETE SET NULL -- Which admin is handling this conversation
 );
 
 -- Messages table to store individual messages in conversations
@@ -30,13 +23,7 @@ CREATE TABLE IF NOT EXISTS messages (
     content TEXT NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    -- Indexes for better performance
-    INDEX idx_messages_conversation_id (conversation_id),
-    INDEX idx_messages_sender_id (sender_id),
-    INDEX idx_messages_created_at (created_at DESC),
-    INDEX idx_messages_is_read (is_read)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Message attachments table (for future file uploads)
@@ -47,9 +34,7 @@ CREATE TABLE IF NOT EXISTS message_attachments (
     file_path VARCHAR(500) NOT NULL,
     file_size INTEGER,
     mime_type VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    INDEX idx_message_attachments_message_id (message_id)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Function to update conversation's updated_at and last_message_at when a new message is added
