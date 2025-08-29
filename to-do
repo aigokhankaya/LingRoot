@@ -1,7 +1,24 @@
 To-do lists:
+- Apple mağaza için uygulama ekran görüntüleri hazırlanacak.
 - Her yeni kullanıcı register olduğunda support@lingroot.com adresine mail gönderilecek.
 Bu mailde kullanıcının isim, soyisim, email adresi ve register tarihi bilgileri olmalı.
-- 
+- Web Profile sayfasının tasarımı çok kötü. Düzelt
+- Kullanıcının sorunlar için bize mesaj atabilmesi için geliştirme yapılacak. Admin sayfasında "Destek" menüsü var.
+Destek kısmında mesajlaşma olacak. Admin ve kullanıcılara anlık mesaj bildirimi gidecek. Hem mobil hem web tarafında bu işlevler olacak.
+- Register sayfasına telefon no alanı eklenecek.
+- Kampanya Yönetimi  geliştirilecek.
+- Kullanıcı verileri işlenerek önerilerde bulunacak. Bu kısım detaylandırılacak
+- Web sayfasında sayfalara linkler üzerinde erişim yok. Sitemap oluşturulacak.
+- Kelime hatırlatma ayarları mobil tarafa eklenecek.
+- Üretilen ses içeriklerinden Quizler oluştrulacak. bu kısım detaylandırılacak.
+- Öğrenme sürecini hızlandırmak için tavsiyeler verilecek.
+- Uygulama ilk kurulduğunda interaktif tanıtım kısmı olacak.
+
+Bugs:
+- Mobilde yapılan girişlerde  Login_history tablsouna kayıt atılmıyor.
+- Web de login olunca dashboard ekranına yönlendirme yapılıyor. Welcome sayfasına yönlendirilmeli.
+- Eklenen kelimlerin seviyesi doğru ölçülmüyor.
+
 
 Done:
 - Register işlemi başarılı gerçekleştikten sonra kullanıcıya aktivasyon maili gönderilir. 

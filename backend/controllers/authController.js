@@ -6,6 +6,7 @@ require("dotenv").config({ path: path.join(__dirname, "../.env") });
 const logger = require("../utils/logger");
 const { logStep } = require('../utils/stepLogger');
 const { v4: uuidv4 } = require('uuid');
+const { sendRegistrationNotification } = require('../utils/registrationNotifier');
 
 const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-development";
 // Make tokens effectively non-expiring by default (very long lifetime)
@@ -181,6 +182,13 @@ exports.register = async (req, res) => {
       }
     } catch (e) {
       logger.warn('[REGISTER] Failed to assign trial plan:', e?.message);
+    }
+
+    // Send registration notification to support team
+    try {
+      await sendRegistrationNotification(newUser[0]);
+    } catch (notificationErr) {
+      logger.warn('[REGISTER] Registration notification failed:', notificationErr?.message);
     }
 
     // Generate email verification token and send activation email
@@ -491,6 +499,14 @@ exports.googleLogin = async (req, res) => {
       }
 
       user = createdUser;
+      
+      // Send registration notification to support team for new Google users
+      try {
+        await sendRegistrationNotification(user);
+      } catch (notificationErr) {
+        logger.warn('[GOOGLE_LOGIN] Registration notification failed:', notificationErr?.message);
+      }
+      
       // Assign default free trial plan if exists for Google new users
       try {
         const { data: trialPlan, error: planErr } = await supabase

@@ -7,3 +7,15 @@
    curl -X POST http://localhost:5001/api/parameters/toggle-mock-content-save \
      -H "Content-Type: application/json" \
      -d '{"enabled": true}'
+
+
+     # GIT commit codes:
+     git add .
+     git commit -m ""Clean up console statements and remove debug UI from mobile app
+
+- Remove all console.log/warn/error statements from LingRootMobile/src/
+- Fix TypeScript lint errors in supabase.ts with proper types
+- Remove debug text from login screen header
+- Preserve all existing functionality and error handling""
+     git push
+     
