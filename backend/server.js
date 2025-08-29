@@ -26,6 +26,7 @@ const booksRouter = require("./routes/books");
 const userRoutes = require("./routes/userRoutes"); // 👈 İlgi alanları burada bağlandı
 const parameterRoutes = require("./routes/parameterRoutes");
 const vocabularyRoutes = require("./routes/vocabularyRoutes"); // 👈 Vocabulary route eklendi
+const chatRoutes = require("./routes/chat"); // Chat routes
 
 // Initialize Express app
 const app = express();
@@ -121,6 +122,7 @@ app.use("/api/books", booksRouter);
 app.use("/api", userRoutes); // ✅ user-interests endpoint burada aktif
 app.use("/api/parameters", parameterRoutes);
 app.use("/api/vocabulary", vocabularyRoutes); // 👈 Vocabulary route eklendi
+app.use("/api/chat", chatRoutes); // Chat routes
 app.use('/auth', authRoutes);
 
 // Health check endpoint (Render için)

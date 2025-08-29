@@ -46,6 +46,12 @@ const App: React.FC = () => {
   const [plans, setPlans] = useState<any[]>([]);
   const [plansLoading, setPlansLoading] = useState<boolean>(false);
   const [plansError, setPlansError] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [conversationsLoading, setConversationsLoading] = useState(false);
+  const [conversationFilter, setConversationFilter] = useState({ status: 'all', priority: 'all' });
   const [editingPlan, setEditingPlan] = useState<any | null>(null);
   const [planForm, setPlanForm] = useState<any>({
     name: '',
