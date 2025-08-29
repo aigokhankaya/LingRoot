@@ -85,53 +85,42 @@ const getAdminConversations = async (req, res) => {
 
 // Create a new conversation
 const createConversation = async (req, res) => {
+  const userId = req.user.id;
+  const { subject, content, priority = 'medium' } = req.body;
+  if (!subject || !content) {
+    return res.status(400).json({ success: false, message: 'Konu ve mesaj içeriği gereklidir' });
+  }
+
+  const client = await db.pool.connect();
   try {
-    const userId = req.user.id;
-    const { subject, content, priority = 'medium' } = req.body;
-    
-    if (!subject || !content) {
-      return res.status(400).json({
-        success: false,
-        message: 'Konu ve mesaj içeriği gereklidir'
-      });
-    }
-    
-    // Start transaction
-    await db.query('BEGIN');
-    
-    // Create conversation
+    await client.query('BEGIN');
+
     const conversationQuery = `
       INSERT INTO conversations (user_id, subject, priority)
       VALUES ($1, $2, $3)
       RETURNING *
     `;
-    
-    const conversationResult = await db.query(conversationQuery, [userId, subject, priority]);
+    const conversationResult = await client.query(conversationQuery, [userId, subject, priority]);
     const conversation = conversationResult.rows[0];
-    
-    // Create first message
+
     const messageQuery = `
       INSERT INTO messages (conversation_id, sender_id, sender_type, content)
       VALUES ($1, $2, 'user', $3)
       RETURNING *
     `;
-    
-    const messageResult = await db.query(messageQuery, [conversation.id, userId, content]);
-    
-    await db.query('COMMIT');
-    
-    res.json({
-      success: true,
-      conversation: conversation,
-      message: messageResult.rows[0]
-    });
+    const messageResult = await client.query(messageQuery, [conversation.id, userId, content]);
+
+    await client.query('COMMIT');
+
+    return res.json({ success: true, conversation, message: messageResult.rows[0] });
   } catch (error) {
-    await db.query('ROLLBACK');
-    logger.error('Error creating conversation:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Konuşma oluşturulamadı'
-    });
+    try { await client.query('ROLLBACK'); } catch (rbErr) {
+      logger.error('Transaction rollback failed in createConversation:', rbErr);
+    }
+    logger.error('Error creating conversation:', error?.stack || error);
+    return res.status(500).json({ success: false, message: 'Konuşma oluşturulamadı' });
+  } finally {
+    client.release();
   }
 };
 
@@ -198,76 +187,50 @@ const getConversationMessages = async (req, res) => {
 
 // Send a message
 const sendMessage = async (req, res) => {
+  const { conversationId } = req.params;
+  const { content } = req.body;
+  const userId = req.user.id;
+  const isAdmin = req.user.role === 'admin';
+
+  if (!content) {
+    return res.status(400).json({ success: false, message: 'Mesaj içeriği gereklidir' });
+  }
+
+  // Check access outside transaction
+  const accessQuery = `
+    SELECT id, status FROM conversations 
+    WHERE id = $1 AND (user_id = $2 OR $3 = true)
+  `;
+  const accessResult = await db.query(accessQuery, [conversationId, userId, isAdmin]);
+  if (accessResult.rows.length === 0) {
+    return res.status(403).json({ success: false, message: 'Bu konuşmaya erişim yetkiniz yok' });
+  }
+  const conversation = accessResult.rows[0];
+  if (conversation.status === 'closed' && !isAdmin) {
+    return res.status(400).json({ success: false, message: 'Kapatılmış konuşmalara mesaj gönderemezsiniz' });
+  }
+
+  const client = await db.pool.connect();
   try {
-    const { conversationId } = req.params;
-    const { content } = req.body;
-    const userId = req.user.id;
-    const isAdmin = req.user.role === 'admin';
-    
-    if (!content) {
-      return res.status(400).json({
-        success: false,
-        message: 'Mesaj içeriği gereklidir'
-      });
-    }
-    
-    // Check if user has access to this conversation
-    const accessQuery = `
-      SELECT id, status FROM conversations 
-      WHERE id = $1 AND (user_id = $2 OR $3 = true)
-    `;
-    
-    const accessResult = await db.query(accessQuery, [conversationId, userId, isAdmin]);
-    
-    if (accessResult.rows.length === 0) {
-      return res.status(403).json({
-        success: false,
-        message: 'Bu konuşmaya erişim yetkiniz yok'
-      });
-    }
-    
-    const conversation = accessResult.rows[0];
-    
-    // Don't allow messages in closed conversations unless admin
-    if (conversation.status === 'closed' && !isAdmin) {
-      return res.status(400).json({
-        success: false,
-        message: 'Kapatılmış konuşmalara mesaj gönderemezsiniz'
-      });
-    }
-    
-    // Start transaction
-    await db.query('BEGIN');
-    
-    // Create message
+    await client.query('BEGIN');
+
     const messageQuery = `
       INSERT INTO messages (conversation_id, sender_id, sender_type, content)
       VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
-    
     const senderType = isAdmin ? 'admin' : 'user';
-    const messageResult = await db.query(messageQuery, [conversationId, userId, senderType, content]);
-    
-    // Update conversation status if admin is replying
+    const messageResult = await client.query(messageQuery, [conversationId, userId, senderType, content]);
+
     if (isAdmin) {
-      await db.query(
-        'UPDATE conversations SET admin_id = $1, status = $2 WHERE id = $3',
-        [userId, 'in_progress', conversationId]
-      );
+      await client.query('UPDATE conversations SET admin_id = $1, status = $2 WHERE id = $3', [userId, 'in_progress', conversationId]);
     }
-    
-    // If user is replying to a resolved conversation, reopen it
     if (!isAdmin && conversation.status === 'resolved') {
-      await db.query(
-        'UPDATE conversations SET status = $1 WHERE id = $2',
-        ['open', conversationId]
-      );
+      await client.query('UPDATE conversations SET status = $1 WHERE id = $2', ['open', conversationId]);
     }
-    
-    await db.query('COMMIT');
-    
-    // Get the created message with sender info
+
+    await client.query('COMMIT');
+
     const messageWithSenderQuery = `
       SELECT 
         m.*,
@@ -277,20 +240,16 @@ const sendMessage = async (req, res) => {
       JOIN users u ON m.sender_id = u.id
       WHERE m.id = $1
     `;
-    
     const messageWithSenderResult = await db.query(messageWithSenderQuery, [messageResult.rows[0].id]);
-    
-    res.json({
-      success: true,
-      message: messageWithSenderResult.rows[0]
-    });
+    return res.json({ success: true, message: messageWithSenderResult.rows[0] });
   } catch (error) {
-    await db.query('ROLLBACK');
-    logger.error('Error sending message:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Mesaj gönderilemedi'
-    });
+    try { await client.query('ROLLBACK'); } catch (rbErr) {
+      logger.error('Transaction rollback failed in sendMessage:', rbErr);
+    }
+    logger.error('Error sending message:', error?.stack || error);
+    return res.status(500).json({ success: false, message: 'Mesaj gönderilemedi' });
+  } finally {
+    client.release();
   }
 };
 
