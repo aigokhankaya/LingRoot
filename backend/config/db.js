@@ -26,7 +26,9 @@ const pool = new Pool({
   user: process.env.PGUSER || process.env.DB_USER,
   password: process.env.PGPASSWORD || process.env.DB_PASSWORD || process.env.DB_PASS,
   database: process.env.PGDATABASE || process.env.DB_NAME,
-  ssl: process.env.NODE_ENV === 'production',
+  // Render/Postgres bazı ortamlarda self-signed sertifika döndürebilir.
+  // Üretimde SSL açık, sertifika doğrulamasını kapatıyoruz.
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   max: 20, // Bağlantı havuzu boyutu
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
