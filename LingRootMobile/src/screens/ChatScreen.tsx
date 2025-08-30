@@ -396,12 +396,12 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        style={styles.chatContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-      >
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <SafeAreaView style={styles.chatContainer}>
         <View style={styles.chatHeader}>
           <TouchableOpacity onPress={() => setShowConversationList(true)}>
             <Ionicons name="arrow-back" size={24} color="#374151" />
@@ -424,6 +424,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
           style={styles.messagesList}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          contentContainerStyle={styles.messagesListContent}
         />
 
         <View style={styles.inputContainer}>
@@ -448,8 +449,8 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
             )}
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -647,6 +648,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
+  messagesListContent: {
+    paddingBottom: 20,
+  },
   messageContainer: {
     marginVertical: 4,
   },
@@ -712,6 +716,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
+    paddingBottom: Platform.OS === 'ios' ? 12 : 16,
   },
   messageInput: {
     flex: 1,
