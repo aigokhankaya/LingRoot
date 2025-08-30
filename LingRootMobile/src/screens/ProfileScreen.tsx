@@ -10,6 +10,9 @@ import {
   Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import NotificationService from '../services/notificationService';
@@ -18,6 +21,7 @@ const ProfileScreen: React.FC = () => {
   const { user, signOut } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   
 
   const handleSignOut = async () => {
@@ -48,11 +52,8 @@ const ProfileScreen: React.FC = () => {
 
   const handleTestNotification = async () => {
     try {
-      console.log('📱 [TEST] Testing vocabulary notification...');
-      
       // Get notification service status
       const status = await NotificationService.getStatus();
-      console.log('📱 [TEST] Notification status:', status);
       
       if (!status.hasPermission) {
         Alert.alert(t('notifications.disabled'), t('notifications.permissionRequired'));
@@ -72,7 +73,6 @@ const ProfileScreen: React.FC = () => {
         );
       }
     } catch (error: any) {
-      console.error('📱 [TEST] Test notification failed:', error);
       let errorMessage = t('notifications.testFailed');
       
       if (error?.response?.status === 401) {
@@ -115,10 +115,11 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
   };
 
   const menuItems = [
-    { id: 1, title: t('profile.accountSettings'), icon: 'settings', action: () => {} },
+    { id: 1, title: t('profile.accountSettings'), icon: 'settings', action: () => navigation.navigate('Settings') },
     { id: 1.5, title: t('profile.language'), icon: 'language', action: () => setLanguageModalVisible(true) },
     { id: 2, title: t('profile.audioHistory'), icon: 'history', action: () => {} },
-    { id: 3, title: t('profile.membership'), icon: 'card-membership', action: () => {} },
+    { id: 3, title: language === 'tr' ? 'Paket Bilgilerim' : 'My Plan', icon: 'inventory', action: () => navigation.navigate('Membership') },
+    { id: 3.5, title: 'Mesaj Gönder', icon: 'chat', action: () => navigation.navigate('Chat') },
     { id: 4, title: t('profile.testNotification'), icon: 'notifications', action: handleTestNotification },
     { id: 5, title: t('profile.notificationStatus'), icon: 'notifications-active', action: handleNotificationStatus },
     

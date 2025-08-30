@@ -1,1 +1,37 @@
--Kelime vurguları geriden geliyor. Senkron yok yine.  SSML ile mark kullanımı yöntemini kullanarak kesin bir çözüm üret. Ama çıktıyı verdiğin metinde mark kısımları olmasın. Kullanıcı burada düz metin görmeli. Ayrıca noktalama işaretleride senkronu bozabilir. Bunu da göz önüğnde bulundur.
+To-do lists:
+- Apple mağaza için uygulama ekran görüntüleri hazırlanacak.
+
+Bu mailde kullanıcının isim, soyisim, email adresi ve register tarihi bilgileri olmalı.
+- Web Profile sayfasının tasarımı çok kötü. Düzelt
+- Kullanıcının sorunlar için bize mesaj atabilmesi için geliştirme yapılacak. Admin sayfasında "Destek" menüsü var.
+Destek kısmında mesajlaşma olacak. Admin ve kullanıcılara anlık mesaj bildirimi gidecek. Hem mobil hem web tarafında bu işlevler olacak.
+- Register sayfasına telefon no alanı eklenecek.
+- Kampanya Yönetimi  geliştirilecek.
+- Kullanıcı verileri işlenerek önerilerde bulunacak. Bu kısım detaylandırılacak
+- Web sayfasında sayfalara linkler üzerinde erişim yok. Sitemap oluşturulacak.
+- Kelime hatırlatma ayarları mobil tarafa eklenecek.
+- Üretilen ses içeriklerinden Quizler oluştrulacak. bu kısım detaylandırılacak.
+- Öğrenme sürecini hızlandırmak için tavsiyeler verilecek.
+- Uygulama ilk kurulduğunda interaktif tanıtım kısmı olacak.
+
+Bugs:
+- Mobilde yapılan girişlerde  Login_history tablsouna kayıt atılmıyor.
+- Web de login olunca dashboard ekranına yönlendirme yapılıyor. Welcome sayfasına yönlendirilmeli.
+- Eklenen kelimlerin seviyesi doğru ölçülmüyor.
+
+
+Done:
+- Register işlemi başarılı gerçekleştikten sonra kullanıcıya aktivasyon maili gönderilir. 
+Bu mailde kullanıcıya hesabını aktifleştirmesi için bir link gönderilir. Bu linke tıkladığında  
+kullanıcının users tablosundaki isverified kolonundaki değeri true ya dönmeli.
+
+- Kullanıcı login olmak istediğinde  users tablosundaki isverified alanı true olmalıdır. 
+Eğer bu durum sağlanmazsa kullanıcıya bir uyarı mesajı gösterilecek ve login işlemi gerçekleştirilemeyecek.
+
+- Eğer mail gelmediyse yeniden aktivasyon maili göndermek gerekir. 
+Login ekranında girişte aktivasyon uyarısı verdiğinde email adresi girilecek bir alan olsun. Burada email adresi girilecek.
+altında bir buton olsun. Adı: "Aktivasyon maili gönder"  olmalı. 
+29.08.2025
+- Her yeni kullanıcı register olduğunda support@lingroot.com adresine mail gönderilecek.
+
+

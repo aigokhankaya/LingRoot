@@ -28,7 +28,7 @@ export class ReminderSettingsService {
       }
       return defaultSettings;
     } catch (error) {
-      console.error('🔧 [REMINDER_SETTINGS] Error getting settings:', error);
+      // silent in production
       return defaultSettings;
     }
   }
@@ -39,9 +39,8 @@ export class ReminderSettingsService {
   static async saveSettings(settings: ReminderSettings): Promise<void> {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-      console.log('🔧 [REMINDER_SETTINGS] Settings saved:', settings);
     } catch (error) {
-      console.error('🔧 [REMINDER_SETTINGS] Error saving settings:', error);
+      // propagate for caller to handle
       throw error;
     }
   }
@@ -90,14 +89,7 @@ export class ReminderSettingsService {
     // Calculate interval between notifications
     const intervalMinutes = totalDurationMinutes / wordsToRemind;
 
-    console.log('🔧 [REMINDER_CALC] Calculation details:', {
-      startTime: settings.startTime,
-      endTime: settings.endTime,
-      totalDurationMinutes,
-      wordsToRemind,
-      intervalMinutes,
-      unlearnedWordsCount
-    });
+    // silent in production
 
     // Generate notification times
     for (let i = 0; i < wordsToRemind; i++) {

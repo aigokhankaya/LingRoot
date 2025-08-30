@@ -1,26 +1,48 @@
 import { User, UserUpdateData } from '@/types/user';
 import { getApiUrl, createHeaders } from '@/lib/api';
+import type { UsageSummary } from '@/lib/usageEstimates';
 
 function mapUserFromApi(apiUser: any): User {
+  const first = apiUser.firstname ?? apiUser.first_name ?? apiUser.firstName ?? '';
+  const last = apiUser.lastname ?? apiUser.last_name ?? apiUser.lastName ?? '';
+  const composedName = `${first} ${last}`.trim();
   return {
     id: apiUser.id,
-    name: apiUser.name,
+    name: apiUser.name ?? (composedName || undefined),
     email: apiUser.email,
     role: apiUser.role,
     membershipStatus: apiUser.membership_status || apiUser.membershipStatus,
     avatar: apiUser.avatar,
     createdAt: apiUser.created_at || apiUser.createdAt,
     updatedAt: apiUser.updated_at || apiUser.updatedAt,
-    firstName: apiUser.first_name || apiUser.firstName,
-    lastName: apiUser.last_name || apiUser.lastName,
-    lastLogin: apiUser.last_login || apiUser.lastLogin,
-    isActive: apiUser.is_active ?? apiUser.isActive,
-    phoneNumber: apiUser.phone_number || apiUser.phoneNumber,
+    firstName: apiUser.first_name || apiUser.firstName || apiUser.firstname,
+    lastName: apiUser.last_name || apiUser.lastName || apiUser.lastname,
+    lastLogin: apiUser.last_login || apiUser.lastLogin || apiUser.updated_at,
+    isActive: (apiUser.is_active ?? apiUser.isActive ?? undefined) ?? (typeof apiUser.isverified === 'boolean' ? apiUser.isverified : undefined),
+    phoneNumber: apiUser.phone_number || apiUser.phoneNumber || apiUser.phonenumber,
     preferences: apiUser.preferences,
     loginCount: apiUser.login_count ?? apiUser.loginCount,
     contentCount: apiUser.content_count ?? apiUser.contentCount,
   };
 }
+
+// Get usage summary for a specific user (admin)
+export const getAdminUserUsage = async (id: string): Promise<{ success: boolean; data?: UsageSummary | null }> => {
+  try {
+    const response = await fetch(getApiUrl(`admin/users/${id}/usage`), {
+      headers: createHeaders('application/json'),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const json = await response.json();
+    return json;
+  } catch (error) {
+    console.error(`Error fetching admin usage for user ${id}:`, error);
+    return { success: false };
+  }
+};
 
 // Fetch all users
 export const fetchUsers = async (): Promise<User[]> => {
@@ -117,7 +139,8 @@ export const getUserById = async (id: string): Promise<User> => {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    const data = await response.json();
+    const json = await response.json();
+    const data = json?.data ?? json; 
     return mapUserFromApi(data);
   } catch (error) {
     console.error(`Error fetching user ${id}:`, error);

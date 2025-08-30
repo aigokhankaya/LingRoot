@@ -247,6 +247,27 @@ export const createHeaders = (contentType?: string): Record<string, string> => {
     return headers;
 };
 
+// Resend verification email
+export const resendVerificationEmail = async (email: string): Promise<ApiResponse> => {
+  const url = getApiUrl('auth/resend-verification');
+  const headers = createHeaders('application/json');
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ email }),
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    let errMsg = `HTTP ${res.status}`;
+    try {
+      const j = await res.json();
+      errMsg = j.message || errMsg;
+    } catch {}
+    throw new Error(errMsg);
+  }
+  return res.json();
+};
+
 async function handleApiResponse<T>(response: Response): Promise<ApiResponse<T>> {
     if (!response.ok) {
         let errorMessage = `Request failed with status ${response.status}`;

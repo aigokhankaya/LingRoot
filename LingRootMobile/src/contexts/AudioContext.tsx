@@ -34,32 +34,14 @@ export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
 
   const isTrackPlaying = (trackId: string): boolean => {
     const result = currentTrack?.id === trackId && isPlaying;
-    // Only log when result is true (playing)
-    if (result) {
-      console.log('🎵 [AUDIO CONTEXT] Track is playing:', {
-        trackId,
-        currentTrackId: currentTrack?.id,
-        isPlaying
-      });
-    }
     return result;
   };
 
-  // Debug log when states change
   const setCurrentTrackWithLog = (track: AudioTrack | null) => {
-    console.log('🎵 [AUDIO CONTEXT] setCurrentTrack:', {
-      from: currentTrack?.id || 'null',
-      to: track?.id || 'null'
-    });
     setCurrentTrack(track);
   };
 
   const setIsPlayingWithLog = (playing: boolean) => {
-    console.log('🎵 [AUDIO CONTEXT] setIsPlaying:', {
-      from: isPlaying,
-      to: playing,
-      currentTrack: currentTrack?.id || 'null'
-    });
     setIsPlaying(playing);
   };
 

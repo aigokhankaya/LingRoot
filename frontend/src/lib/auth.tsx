@@ -15,7 +15,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string; code?: string }>;
   loginWithGoogle: (credential: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   register: (firstName: string, lastName: string, email: string, phoneNumber: string, password: string) => Promise<{ success: boolean; message?: string }>;
@@ -120,7 +120,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     return () => clearInterval(interval);
   }, []);
 
-  const login = async (email: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
+  const login = async (email: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string; code?: string }> => {
     try {
       console.log('[AUTH] login() called', { email });
       console.log("[API URL]", getApiUrl('/auth/login'));
@@ -203,8 +203,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         
         setUser(null);
         setIsAuthenticated(false);
-        console.log('[AUTH] login() failed', data.message);
-        return { success: false, message: data.message || 'Giriş başarısız.' };
+        console.log('[AUTH] login() failed', data.message, data.code);
+        return { success: false, message: data.message || 'Giriş başarısız.', code: data.code };
       }
     } catch (error: any) {
       console.log('[AUTH] login() error', error);
@@ -229,7 +229,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
         return { success: false, message: 'Sunucuya bağlanılamadı, lütfen internet bağlantınızı kontrol edin veya daha sonra tekrar deneyin.' };
       }
-      return { success: false, message: error.message || 'Giriş sırasında bir hata oluştu.' };
+      // If backend returned structured error previously, preserve code if present
+      return { success: false, message: error.message || 'Giriş sırasında bir hata oluştu.', code: (error && (error as any).code) || undefined };
     }
   };
 

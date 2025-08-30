@@ -20,6 +20,9 @@ import LibraryScreen from '../screens/LibraryScreen';
 import CreateScreen from '../screens/CreateScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import VocabularyScreen from '../screens/VocabularyScreen';
+import MembershipScreen from '../screens/MembershipScreen';
+import ChatScreen from '../screens/ChatScreen';
+import AccountSettingsScreen from '../screens/AccountSettingsScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -105,6 +108,12 @@ const MainTabs = () => {
           headerTitle: t('create.title')
         }}
         initialParams={{ mode: 'text' }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            // Prevent direct navigation to Create tab (no alert)
+            e.preventDefault();
+          },
+        })}
       />
       <Tab.Screen 
         name="Profile" 
@@ -126,8 +135,6 @@ const AppNavigator = () => {
     if (user && navigationRef.current) {
       // Setup notification response handler
       const subscription = NotificationService.setupNotificationResponseHandler((wordId: string) => {
-        console.log('📱 [NAVIGATION] Navigating to vocabulary with wordId:', wordId);
-        
         // Navigate to vocabulary screen with specific word ID
         navigationRef.current?.navigate('Vocabulary', { wordId });
       });
@@ -151,6 +158,38 @@ const AppNavigator = () => {
         {user ? (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen
+              name="Settings"
+              component={AccountSettingsScreen}
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: '#007AFF' },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: 'bold' },
+                headerTitle: 'Hesap Ayarları',
+              }}
+            />
+            <Stack.Screen
+              name="Membership"
+              component={MembershipScreen}
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: '#007AFF' },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: 'bold' },
+              }}
+            />
+            <Stack.Screen
+              name="Chat"
+              component={ChatScreen}
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: '#007AFF' },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: 'bold' },
+                headerTitle: 'Mesaj Gönder',
+              }}
+            />
             <Stack.Screen 
               name="Vocabulary" 
               component={VocabularyScreen}

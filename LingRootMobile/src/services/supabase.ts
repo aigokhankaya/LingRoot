@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type AuthChangeEvent, type Session } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
@@ -7,16 +7,15 @@ const extra: any = (Constants.expoConfig?.extra || (Constants as any)?.manifest?
 const resolvedSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || extra.EXPO_PUBLIC_SUPABASE_URL;
 const resolvedSupabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || extra.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-// Log if missing (but don't crash the app)
+// If missing, fail gracefully without logging to console
 if (!resolvedSupabaseUrl || !resolvedSupabaseAnonKey) {
-  console.error('🚨 [SUPABASE] Missing Supabase public config. Ensure EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are defined (in .env) and app restarted with cache cleared.');
+  // silent in production
 }
 
 const supabaseUrl = (resolvedSupabaseUrl || '').toString().trim();
 const supabaseAnonKey = (resolvedSupabaseAnonKey || '').toString().trim();
 
-console.log('🔧 [SUPABASE INIT] URL present:', !!supabaseUrl, '| from env:', !!process.env.EXPO_PUBLIC_SUPABASE_URL, '| from extra:', !!extra.EXPO_PUBLIC_SUPABASE_URL);
-console.log('🔧 [SUPABASE INIT] Key present:', !!supabaseAnonKey, 'length:', supabaseAnonKey.length);
+// silent init in production
 
 // Supabase client oluştur (config yoksa güvenli noop client kullan)
 export const supabase: any = (supabaseUrl && supabaseAnonKey)
@@ -59,9 +58,7 @@ export const getUserRole = async (userId: string): Promise<string | null> => {
       .single();
 
     if (error) {
-      console.error('Error fetching user role:', error.message);
       if (error.code === 'PGRST116') {
-        console.warn(`No profile found for user ID: ${userId}`);
         return null;
       }
       return null;
@@ -69,7 +66,6 @@ export const getUserRole = async (userId: string): Promise<string | null> => {
 
     return data?.role || null;
   } catch (err) {
-    console.error('Unexpected error fetching user role:', err);
     return null;
   }
 };
@@ -85,25 +81,25 @@ export const authService = {
     return data;
   },
 
-  async signUp(email: string, password: string, fullName?: string) {
+  async signUp(email: string, password: string, fullName?: string, phoneNumber?: string) {
     // Route signup through our backend to avoid direct Supabase Auth dependency on mobile
     const extra: any = (Constants.expoConfig?.extra || (Constants as any)?.manifest?.extra || {});
     const apiBaseUrl = (extra.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com') as string;
     const [firstName, ...rest] = (fullName || '').trim().split(' ');
     const lastName = rest.join(' ') || 'User';
-    // Generate a unique placeholder phone (E.164) to satisfy backend uniqueness
-    const phoneNumber = `+1${Math.floor(1000000000 + Math.random() * 9000000000)}`; // +1XXXXXXXXXX
+    
+    // Use provided phone number or generate a unique placeholder phone (E.164) to satisfy backend uniqueness
+    const finalPhoneNumber = phoneNumber || `+1${Math.floor(1000000000 + Math.random() * 9000000000)}`; // +1XXXXXXXXXX
 
-    console.log('🧪 [AUTH SIGNUP] Backend register call', { apiBaseUrl, firstName, lastName, hasPassword: !!password });
+    // silent in production
 
     const res = await fetch(`${apiBaseUrl}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ firstName: firstName || 'User', lastName, email, phoneNumber, password })
+      body: JSON.stringify({ firstName: firstName || 'User', lastName, email, phoneNumber: finalPhoneNumber, password })
     });
 
     const body = await res.json().catch(() => ({}));
-    console.log('🧪 [AUTH SIGNUP] Backend response', { status: res.status, ok: res.ok, bodyKeys: Object.keys(body || {}) });
 
     if (!res.ok) {
       throw new Error(body?.message || 'Kayıt başarısız');
@@ -124,7 +120,7 @@ export const authService = {
   },
 
   onAuthStateChange(callback: (user: any) => void) {
-    return supabase.auth.onAuthStateChange((event, session) => {
+    return supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
       callback(session?.user || null);
     });
   },

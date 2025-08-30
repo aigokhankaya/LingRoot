@@ -5,6 +5,7 @@ import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '../src/lib/auth';
+import { resendVerificationEmail } from '../src/lib/api';
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
@@ -13,7 +14,10 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   const debug = (router.query.debug as string) === '1';
   const nextRaw = (router.query.next as string) || '';
@@ -27,6 +31,8 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    // Reset errorCode before attempting login so UI reflects the latest state
+    setErrorCode(null);
 
     try {
       const result = await login(email, password, rememberMe);
@@ -40,11 +46,26 @@ const LoginPage: React.FC = () => {
         }
       } else {
         setError(result.message || 'Giriş başarısız');
+        setErrorCode(result.code || null);
       }
     } catch (err: any) {
       setError(err.message || 'Bir hata oluştu');
+      setErrorCode((err && err.code) || null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResendMessage(null);
+    setResendLoading(true);
+    try {
+      await resendVerificationEmail(email);
+      setResendMessage('Aktivasyon e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.');
+    } catch (e: any) {
+      setResendMessage(e?.message || 'İşlem sırasında bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -53,7 +74,7 @@ const LoginPage: React.FC = () => {
       {debug && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-100 text-yellow-900 text-xs p-2 border-b border-yellow-300">
           <div className="max-w-3xl mx-auto">
-            <strong>DEBUG</strong> — nextRaw: <code className="break-all">{nextRaw}</code> | next: <code className="break-all">{nextDecoded}</code> | target: <code className="break-all">{debugTarget}</code>
+            <strong>DEBUG</strong> — nextRaw: <code className="break-all">{nextRaw}</code> | next: <code className="break-all">{nextDecoded}</code> | target: <code className="break-all">{debugTarget}</code> | errorCode: <code>{errorCode || 'null'}</code>
           </div>
         </div>
       )}
@@ -74,6 +95,31 @@ const LoginPage: React.FC = () => {
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-md">
               <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+          {errorCode === 'EMAIL_NOT_VERIFIED' && (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800 mb-2">E-postanız doğrulanmamış görünüyor. Hesabınızı aktifleştirmek için e-postanızı kontrol edin.</p>
+              <div className="flex items-center space-x-2 mb-2">
+                <input
+                  type="email"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="E-posta adresi"
+                />
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendLoading || !email}
+                  className="px-3 py-2 text-sm rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {resendLoading ? 'Gönderiliyor...' : 'Aktivasyon maili gönder'}
+                </button>
+              </div>
+              {resendMessage && (
+                <p className="text-xs text-gray-700">{resendMessage}</p>
+              )}
             </div>
           )}
 

@@ -3,7 +3,8 @@ import { useAuth } from '../src/lib/auth';
 import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
 import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
-import { getContentHistory } from '../src/lib/api';
+import { getContentHistory, getUsageSummary } from '../src/lib/api';
+import { computeEstimates, formatEstimate, type UsageSummary, computeCostAwareEstimates, COST_PER_1K, CHARS_PER_VIDEO_MINUTE, CHARS_PER_A4_PAGE, type VoiceCategory, type CostAwarePerCategory } from '../src/lib/usageEstimates';
 import InterestManager from '../src/components/InterestManager';
 
 export default function Profile() {
@@ -14,6 +15,9 @@ export default function Profile() {
   const [contentHistory, setContentHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [locale, setLocale] = useState<string>('tr-TR');
+  const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null);
+  const [estimates, setEstimates] = useState<{ remainingChars: number | null; remainingVideoMinutes: number | null; remainingA4Pages: number | null } | null>(null);
+  const [perCategory, setPerCategory] = useState<CostAwarePerCategory | null>(null);
 
   useEffect(() => {
     async function fetchActivities() {
@@ -56,6 +60,25 @@ export default function Profile() {
       }
     }
     fetchHistory();
+  }, []);
+
+  // Kullanım özeti ve tahminleri getir
+  useEffect(() => {
+    async function fetchUsage() {
+      try {
+        const res = await getUsageSummary();
+        if (res?.success) {
+          const data = res.data || {};
+          setUsageSummary(data);
+          setEstimates(computeEstimates(data));
+          setPerCategory(computeCostAwareEstimates(data));
+        }
+      } catch (e) {
+        setUsageSummary(null);
+        setEstimates(null);
+      }
+    }
+    fetchUsage();
   }, []);
 
   // Tercih edilen locale'i yükle
@@ -252,6 +275,90 @@ export default function Profile() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Kalan</span>
                   <span className="font-semibold text-green-600">{remaining}</span>
+                </div>
+                <div className="pt-4 mt-2 border-t border-gray-100">
+                  {/* Top headline metrics removed per request */}
+                  {/* Pricing info (TL -> USD and 1/3 budget) */}
+                  {usageSummary?.limits?.pricing && (
+                    <div className="mt-3 rounded-md bg-gray-50 border border-gray-200 p-2">
+                      <div className="text-xs text-gray-700 font-semibold mb-1">Paket Fiyat Bilgisi</div>
+                      <div className="grid grid-cols-2 gap-1 text-xs">
+                        <div className="text-gray-600">Paket fiyatı (TL)</div>
+                        <div className="text-gray-900 font-medium">{new Intl.NumberFormat('tr-TR').format(usageSummary.limits.pricing.planPriceTry || 0)} TL</div>
+                        <div className="text-gray-600">Kur (USD/TRY)</div>
+                        <div className="text-gray-900 font-medium">{usageSummary.limits.pricing.usdTryRate}</div>
+                        <div className="text-gray-600">Paket fiyatı (USD)</div>
+                        <div className="text-gray-900 font-medium">${(((usageSummary.limits.pricing.planPriceTry || 0) / (usageSummary.limits.pricing.usdTryRate || 1))).toFixed(2)}</div>
+                        <div className="text-gray-600">Aylık bütçe (1/3 USD)</div>
+                        <div className="text-gray-900 font-semibold">${(usageSummary.limits.pricing.budgetUsdFromTry || 0).toFixed(2)}</div>
+                      </div>
+                    </div>
+                  )}
+                  {/* Cost breakdown and remaining USD budget */}
+                  {usageSummary?.usage && (
+                    <div className="mt-3 rounded-md bg-white border border-gray-200 p-2">
+                      <div className="text-xs text-gray-700 font-semibold mb-1">Aylık Maliyet Özeti</div>
+                      <div className="grid grid-cols-2 gap-1 text-xs">
+                        <div className="text-gray-600">OpenAI maliyeti</div>
+                        <div className="text-gray-900 font-medium">${(usageSummary.usage.openaiCostUsd || 0).toFixed(2)}</div>
+                        <div className="text-gray-600">TTS maliyeti</div>
+                        <div className="text-gray-900 font-medium">${(usageSummary.usage.ttsCostUsd || 0).toFixed(2)}</div>
+                        <div className="text-gray-600">Toplam maliyet</div>
+                        <div className="text-gray-900 font-semibold">${(usageSummary.usage.totalCostUsd || 0).toFixed(2)}</div>
+                        {usageSummary?.limits?.monthlyUsdLimit ? (
+                          <>
+                            <div className="text-gray-600">Bütçe (USD)</div>
+                            <div className="text-gray-900 font-medium">${(usageSummary.limits.monthlyUsdLimit || 0).toFixed(2)}</div>
+                            <div className="text-gray-600">Kalan bütçe</div>
+                            <div className={`font-semibold ${((usageSummary.limits.monthlyUsdLimit || 0) - (usageSummary.usage.totalCostUsd || 0)) <= 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                              ${Math.max(0, (usageSummary.limits.monthlyUsdLimit || 0) - (usageSummary.usage.totalCostUsd || 0)).toFixed(2)}
+                            </div>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
+                  {perCategory && (
+                    <div className="mt-3">
+                      <div className="text-xs text-gray-700 font-semibold mb-1">Kategoriye göre kalan kullanım</div>
+                      <div className="grid grid-cols-1 gap-1">
+                        {(['standard','neural2','wavenet','studio','chirp3d'] as VoiceCategory[]).map((cat) => (
+                          <div key={cat} className="text-xs py-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-600 capitalize">{cat}</span>
+                              <div className="text-right">
+                                <div className="font-medium text-gray-900">{formatEstimate(perCategory[cat].remainingChars, 'karakter')}</div>
+                                <div className="font-medium text-gray-900">{formatEstimate(
+                                  perCategory[cat].remainingCharsByUsd === null ? null : Math.floor((perCategory[cat].remainingCharsByUsd || 0) / CHARS_PER_VIDEO_MINUTE),
+                                  'dk'
+                                )}</div>
+                                <div className="font-medium text-gray-900">{formatEstimate(
+                                  perCategory[cat].remainingCharsByUsd === null ? null : Math.floor((perCategory[cat].remainingCharsByUsd || 0) / CHARS_PER_A4_PAGE),
+                                  'sayfa'
+                                )}</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {perCategory.standard.remainingUsdBasis !== null && (
+                        <div className="text-[11px] text-gray-500 mt-1">Uygulanan limit = min(Karakter, USD). Fiyatlar (1K): std/wvn ${COST_PER_1K.standard}, n2 ${COST_PER_1K.neural2}, studio ${COST_PER_1K.studio}, chirp3d ${COST_PER_1K.chirp3d}</div>
+                      )}
+                      {(() => {
+                        // Bottleneck uyarısı (karakter limiti dar boğaz ise çoğu kategori aynı olur)
+                        const cats = ['standard','neural2','wavenet','studio','chirp3d'] as VoiceCategory[];
+                        const allSame = cats.every((c) => perCategory[c].remainingChars === perCategory[cats[0]].remainingChars);
+                        const charLimitExists = perCategory.standard.remainingCharsByLimit !== null;
+                        if (allSame && charLimitExists) {
+                          return <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2">Karakter limiti dar boğaz olduğu için tüm kategoriler aynı görünüyor.</div>;
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  )}
+                  {usageSummary?.isExceeded && (
+                    <div className="mt-2 text-xs text-red-600">Paket kullanım sınırınız aşıldı.</div>
+                  )}
                 </div>
               </div>
             </div>

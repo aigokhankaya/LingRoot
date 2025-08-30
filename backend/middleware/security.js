@@ -22,6 +22,7 @@ exports.configureSecurity = (app) => {
       const allowedOrigins = [
         'https://www.lingroot.com',
         'https://lingroot.com',
+        'https://ling-root-mjrsjcki2-gokhans-projects-11087830.vercel.app',
         'http://localhost:3000',
         'http://127.0.0.1:3000'
       ];
