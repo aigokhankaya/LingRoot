@@ -263,10 +263,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signUp = async (email: string, password: string, fullName?: string) => {
+  const signUp = async (email: string, password: string, fullName?: string, phoneNumber?: string) => {
     setIsLoading(true);
     try {
-      await authService.signUp(email, password, fullName);
+      await authService.signUp(email, password, fullName, phoneNumber);
       // Signup does NOT log the user in; stop global loading here so UI can navigate to Login
       setIsLoading(false);
       // User state would be updated via onAuthStateChange only after an actual login
@@ -294,12 +294,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const updateUserProfile = async (data: Partial<User> & { phoneNumber?: string; full_name?: string }) => {
+    if (!user) throw new Error('Oturum bulunamadı');
+    try {
+      await apiService.updateProfile(user.id, data as any);
+      const updatedUser: User = {
+        ...user,
+        full_name: (data.full_name ?? user.full_name) as any,
+        updated_at: new Date().toISOString(),
+      };
+      setUser(updatedUser);
+      try { await AsyncStorage.setItem('user_data', JSON.stringify(updatedUser)); } catch {}
+    } catch (error: any) {
+      throw new Error(error?.message || 'Profil güncelleme başarısız');
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
     signIn,
     signUp,
     signOut,
+    updateUserProfile,
   };
 
   return (

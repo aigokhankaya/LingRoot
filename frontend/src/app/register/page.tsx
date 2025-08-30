@@ -10,6 +10,45 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 
+// Phone helpers: Turkish format +90 555 123 45 67
+function extractDigits(value: string): string {
+  return (value || '').replace(/\D+/g, '');
+}
+
+function extractTRLocalDigits(value: string): string {
+  const digits = extractDigits(value);
+  // Remove country code if present
+  let d = digits.startsWith('90') ? digits.slice(2) : digits;
+  // Drop a single leading 0 (common when typing local TR numbers like 0 5xx ...)
+  if (d.startsWith('0')) d = d.slice(1);
+  // Limit to max 10 local digits
+  d = d.slice(0, 10);
+  return d;
+}
+
+function normalizeTRPhone(value: string): string {
+  const local = extractTRLocalDigits(value);
+  if (local.length !== 10) return `+90${local}`; // caller should validate length
+  return `+90${local}`;
+}
+
+function formatTRPhone(value: string): string {
+  const local = extractTRLocalDigits(value);
+  let parts: string[] = [];
+  if (local.length <= 3) {
+    parts = [local];
+  } else if (local.length <= 6) {
+    parts = [local.slice(0, 3), local.slice(3)];
+  } else if (local.length <= 8) {
+    parts = [local.slice(0, 3), local.slice(3, 6), local.slice(6)];
+  } else {
+    parts = [local.slice(0, 3), local.slice(3, 6), local.slice(6, 8), local.slice(8, 10)];
+  }
+  const spaced = parts.filter(Boolean).join(' ').trim();
+  // Always show +90 prefix while typing (unless empty)
+  return spaced ? `+90 ${spaced}` : '';
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const { register } = useAuth();
@@ -17,6 +56,7 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
+    phoneNumber: '',
     password: '',
     confirmPassword: '',
     acceptTerms: false
@@ -27,7 +67,13 @@ export default function RegisterPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'phoneNumber') {
+      // format as "+90 555 123 45 67" while typing
+      const formatted = formatTRPhone(value);
+      setFormData(prev => ({ ...prev, phoneNumber: formatted }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleCheckboxChange = (checked: boolean) => {
@@ -39,7 +85,7 @@ export default function RegisterPage() {
     setError(null);
     
     // Validate form data
-    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
+    if (!formData.username || !formData.email || !formData.phoneNumber || !formData.password || !formData.confirmPassword) {
       setError('Lütfen tüm alanları doldurun.');
       return;
     }
@@ -54,11 +100,19 @@ export default function RegisterPage() {
       return;
     }
 
+    // phone validation: require 10 local digits for TR numbers
+    const localDigits = extractTRLocalDigits(formData.phoneNumber);
+    if (localDigits.length !== 10) {
+      setError('Lütfen geçerli bir telefon numarası girin.');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Backend'e kayıt isteği gönder
-      const result = await register(formData.username, '', formData.email, '', formData.password);
+      // Backend'e kayıt isteği gönder (normalize to +90XXXXXXXXXX)
+      const normalizedPhone = normalizeTRPhone(formData.phoneNumber);
+      const result = await register(formData.username, '', formData.email, normalizedPhone, formData.password);
       if (result.success) {
         // Başarılı kayıt sonrası dashboard'a yönlendir
         router.push('/dashboard');
@@ -145,6 +199,20 @@ export default function RegisterPage() {
                       type="email"
                       placeholder="ornek@email.com"
                       value={formData.email}
+                      onChange={handleChange}
+                      className="border-gray-300 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="phoneNumber">Telefon Numarası</Label>
+                    <Input
+                      id="phoneNumber"
+                      name="phoneNumber"
+                      type="tel"
+                      placeholder="+90 555 123 45 67"
+                      value={formData.phoneNumber}
                       onChange={handleChange}
                       className="border-gray-300 focus:border-blue-500"
                       required

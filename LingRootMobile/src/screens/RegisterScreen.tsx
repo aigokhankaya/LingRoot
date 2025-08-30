@@ -15,11 +15,39 @@ import { useLanguage } from '../contexts/LanguageContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 
+// Phone helpers: Turkish format +90 555 123 45 67
+const extractDigits = (value: string) => (value || '').replace(/\D+/g, '');
+const extractTRLocalDigits = (value: string) => {
+  const digits = extractDigits(value);
+  // Remove country code if present
+  let d = digits.startsWith('90') ? digits.slice(2) : digits;
+  // Drop a single leading 0 (common for local format like 0 5xx ...)
+  if (d.startsWith('0')) d = d.slice(1);
+  // Limit to max 10 local digits
+  d = d.slice(0, 10);
+  return d;
+};
+const normalizeTRPhone = (value: string) => {
+  const local = extractTRLocalDigits(value);
+  return `+90${local}`;
+};
+const formatTRPhone = (value: string) => {
+  const local = extractTRLocalDigits(value);
+  let parts: string[] = [];
+  if (local.length <= 3) parts = [local];
+  else if (local.length <= 6) parts = [local.slice(0, 3), local.slice(3)];
+  else if (local.length <= 8) parts = [local.slice(0, 3), local.slice(3, 6), local.slice(6)];
+  else parts = [local.slice(0, 3), local.slice(3, 6), local.slice(6, 8), local.slice(8, 10)];
+  const spaced = parts.filter(Boolean).join(' ').trim();
+  return spaced ? `+90 ${spaced}` : '';
+};
+
 const RegisterScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -30,26 +58,31 @@ const RegisterScreen: React.FC = () => {
 
   const emailRegex = useMemo(() => /\S+@\S+\.\S+/, []);
   const isFormValid = useMemo(() => {
+    const phoneDigits = extractTRLocalDigits(phoneNumber);
     return (
       fullName.trim().length >= 2 &&
       emailRegex.test(email.trim()) &&
+      phoneDigits.length === 10 &&
       password.length >= 6 &&
       confirmPassword.length >= 6 &&
       password === confirmPassword &&
       acceptTerms
     );
-  }, [fullName, email, password, confirmPassword, acceptTerms, emailRegex]);
+  }, [fullName, email, phoneNumber, password, confirmPassword, acceptTerms, emailRegex]);
 
   const handleRegister = async () => {
     if (!fullName.trim()) return Alert.alert(t('common.error'), t('register.errors.fullNameRequired'));
     if (!emailRegex.test(email.trim())) return Alert.alert(t('common.error'), t('register.errors.emailInvalid'));
+    const phoneDigits = extractTRLocalDigits(phoneNumber);
+    if (phoneDigits.length !== 10) return Alert.alert(t('common.error'), 'Lütfen geçerli bir telefon numarası girin');
     if (password.length < 6) return Alert.alert(t('common.error'), t('register.errors.passwordShort'));
     if (password !== confirmPassword) return Alert.alert(t('common.error'), t('register.errors.passwordMismatch'));
     if (!acceptTerms) return Alert.alert(t('common.error'), t('register.errors.acceptTerms'));
 
     setIsLoading(true);
     try {
-      await signUp(email.trim(), password, fullName.trim());
+      const normalizedPhone = normalizeTRPhone(phoneNumber);
+      await signUp(email.trim(), password, fullName.trim(), normalizedPhone);
       setIsLoading(false);
       const goToLogin = () => {
         try { (navigation as any)?.replace?.('Login'); } catch {}
@@ -103,6 +136,15 @@ const RegisterScreen: React.FC = () => {
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Telefon Numarası (+90 555 123 45 67)"
+            value={phoneNumber}
+            onChangeText={(v) => setPhoneNumber(formatTRPhone(v))}
+            keyboardType="phone-pad"
+            autoComplete="tel"
           />
 
           <View style={styles.inputWrapper}>

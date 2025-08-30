@@ -22,6 +22,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import VocabularyScreen from '../screens/VocabularyScreen';
 import MembershipScreen from '../screens/MembershipScreen';
 import ChatScreen from '../screens/ChatScreen';
+import AccountSettingsScreen from '../screens/AccountSettingsScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -157,6 +158,17 @@ const AppNavigator = () => {
         {user ? (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen
+              name="Settings"
+              component={AccountSettingsScreen}
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: '#007AFF' },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: 'bold' },
+                headerTitle: 'Hesap Ayarları',
+              }}
+            />
             <Stack.Screen
               name="Membership"
               component={MembershipScreen}

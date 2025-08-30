@@ -115,7 +115,7 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
   };
 
   const menuItems = [
-    { id: 1, title: t('profile.accountSettings'), icon: 'settings', action: () => {} },
+    { id: 1, title: t('profile.accountSettings'), icon: 'settings', action: () => navigation.navigate('Settings') },
     { id: 1.5, title: t('profile.language'), icon: 'language', action: () => setLanguageModalVisible(true) },
     { id: 2, title: t('profile.audioHistory'), icon: 'history', action: () => {} },
     { id: 3, title: language === 'tr' ? 'Paket Bilgilerim' : 'My Plan', icon: 'inventory', action: () => navigation.navigate('Membership') },

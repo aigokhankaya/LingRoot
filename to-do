@@ -1,6 +1,6 @@
 To-do lists:
 - Apple mağaza için uygulama ekran görüntüleri hazırlanacak.
-- Her yeni kullanıcı register olduğunda support@lingroot.com adresine mail gönderilecek.
+
 Bu mailde kullanıcının isim, soyisim, email adresi ve register tarihi bilgileri olmalı.
 - Web Profile sayfasının tasarımı çok kötü. Düzelt
 - Kullanıcının sorunlar için bize mesaj atabilmesi için geliştirme yapılacak. Admin sayfasında "Destek" menüsü var.
@@ -31,5 +31,7 @@ Eğer bu durum sağlanmazsa kullanıcıya bir uyarı mesajı gösterilecek ve lo
 - Eğer mail gelmediyse yeniden aktivasyon maili göndermek gerekir. 
 Login ekranında girişte aktivasyon uyarısı verdiğinde email adresi girilecek bir alan olsun. Burada email adresi girilecek.
 altında bir buton olsun. Adı: "Aktivasyon maili gönder"  olmalı. 
+29.08.2025
+- Her yeni kullanıcı register olduğunda support@lingroot.com adresine mail gönderilecek.
 
 

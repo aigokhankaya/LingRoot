@@ -81,21 +81,22 @@ export const authService = {
     return data;
   },
 
-  async signUp(email: string, password: string, fullName?: string) {
+  async signUp(email: string, password: string, fullName?: string, phoneNumber?: string) {
     // Route signup through our backend to avoid direct Supabase Auth dependency on mobile
     const extra: any = (Constants.expoConfig?.extra || (Constants as any)?.manifest?.extra || {});
     const apiBaseUrl = (extra.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com') as string;
     const [firstName, ...rest] = (fullName || '').trim().split(' ');
     const lastName = rest.join(' ') || 'User';
-    // Generate a unique placeholder phone (E.164) to satisfy backend uniqueness
-    const phoneNumber = `+1${Math.floor(1000000000 + Math.random() * 9000000000)}`; // +1XXXXXXXXXX
+    
+    // Use provided phone number or generate a unique placeholder phone (E.164) to satisfy backend uniqueness
+    const finalPhoneNumber = phoneNumber || `+1${Math.floor(1000000000 + Math.random() * 9000000000)}`; // +1XXXXXXXXXX
 
     // silent in production
 
     const res = await fetch(`${apiBaseUrl}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ firstName: firstName || 'User', lastName, email, phoneNumber, password })
+      body: JSON.stringify({ firstName: firstName || 'User', lastName, email, phoneNumber: finalPhoneNumber, password })
     });
 
     const body = await res.json().catch(() => ({}));

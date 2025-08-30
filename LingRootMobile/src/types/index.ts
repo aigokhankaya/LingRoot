@@ -13,8 +13,9 @@ export interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName?: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName?: string, phoneNumber?: string) => Promise<void>;
   signOut: () => Promise<void>;
+  updateUserProfile: (data: Partial<User> & { phoneNumber?: string; full_name?: string }) => Promise<void>;
 }
 
 // Membership Types
