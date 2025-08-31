@@ -117,7 +117,7 @@ const App: React.FC = () => {
         const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
         const raw = params.get('next') || '';
         const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
-        const target = next && next.trim() ? next : '/dashboard';
+        const target = next && next.trim() ? next : '/welcome';
         if (typeof window !== 'undefined' && target.includes('#')) {
           window.location.assign(target);
         } else {
@@ -167,7 +167,7 @@ const App: React.FC = () => {
                 setIsRegisterOpen(false); // Başarılı olunca modalı kapat
         const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
         const next = params.get('next');
-        const target = next && next.trim() ? next : '/dashboard';
+        const target = next && next.trim() ? next : '/welcome';
         router.replace(target);
       } else {
                 setError(result.message || 'Kayıt başarısız. Lütfen bilgilerinizi kontrol edin.');
@@ -211,7 +211,7 @@ const App: React.FC = () => {
                 const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
                 const raw = params.get('next') || '';
                 const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
-                const target = next && next.trim() ? next : '/dashboard';
+                const target = next && next.trim() ? next : '/welcome';
                 if (typeof window !== 'undefined' && target.includes('#')) {
                   window.location.assign(target);
                 } else {

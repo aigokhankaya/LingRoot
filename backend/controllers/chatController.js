@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const logger = require('../utils/logger');
+const { sendSupportMessageNotification } = require('../utils/supportNotifier');
 
 // Get all conversations for a user
 const getUserConversations = async (req, res) => {
@@ -111,6 +112,32 @@ const createConversation = async (req, res) => {
     const messageResult = await client.query(messageQuery, [conversation.id, userId, content]);
 
     await client.query('COMMIT');
+
+    // Send notification to admin users about the new support message
+    try {
+      // Get user details for notification
+      const userQuery = `
+        SELECT id, firstname, lastname, email, phonenumber 
+        FROM users 
+        WHERE id = $1
+      `;
+      const userResult = await db.query(userQuery, [userId]);
+      const user = userResult.rows[0];
+
+      if (user) {
+        await sendSupportMessageNotification({
+          conversationId: conversation.id,
+          subject: subject,
+          content: content,
+          priority: priority,
+          user: user,
+          createdAt: conversation.created_at
+        });
+      }
+    } catch (notificationError) {
+      // Don't fail the conversation creation if notification fails
+      logger.error('Failed to send support message notification:', notificationError);
+    }
 
     return res.json({ success: true, conversation, message: messageResult.rows[0] });
   } catch (error) {
@@ -230,6 +257,46 @@ const sendMessage = async (req, res) => {
     }
 
     await client.query('COMMIT');
+
+    // Send notification to assigned admin for follow-up messages from users
+    if (!isAdmin) {
+      try {
+        // Get conversation and user details for notification
+        const conversationQuery = `
+          SELECT c.subject, c.priority, c.admin_id, u.id, u.firstname, u.lastname, u.email, u.phonenumber
+          FROM conversations c
+          JOIN users u ON c.user_id = u.id
+          WHERE c.id = $1
+        `;
+        const conversationResult = await db.query(conversationQuery, [conversationId]);
+        
+        if (conversationResult.rows.length > 0) {
+          const data = conversationResult.rows[0];
+          
+          // Only send notification if there's an assigned admin
+          if (data.admin_id) {
+            await sendSupportMessageNotification({
+              conversationId: conversationId,
+              subject: `Takip Mesajı: ${data.subject}`,
+              content: content,
+              priority: data.priority,
+              user: {
+                id: data.id,
+                firstname: data.firstname,
+                lastname: data.lastname,
+                email: data.email,
+                phonenumber: data.phonenumber
+              },
+              createdAt: new Date().toISOString(),
+              assignedAdminId: data.admin_id
+            });
+          }
+        }
+      } catch (notificationError) {
+        // Don't fail the message creation if notification fails
+        logger.error('Failed to send follow-up message notification:', notificationError);
+      }
+    }
 
     const messageWithSenderQuery = `
       SELECT 
