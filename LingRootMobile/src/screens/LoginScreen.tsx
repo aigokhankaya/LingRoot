@@ -150,13 +150,22 @@ const LoginScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-        <View style={styles.header}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        bounces={false}
+        contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustKeyboardInsets
+      >
+        <View style={styles.centerWrap}>
+          <View style={styles.header}>
           <Text style={styles.title}>LingRoot</Text>
           <Text style={styles.subtitle}>AI Destekli Dil Öğrenme</Text>
-        </View>
+          </View>
 
-        <View style={styles.form}>
+          <View style={styles.form}>
           {errorText && (
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>{errorText}</Text>
@@ -189,6 +198,8 @@ const LoginScreen: React.FC = () => {
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
+            textContentType="emailAddress"
+            autoCorrect={false}
           />
 
           <View style={styles.inputWrapper}>
@@ -228,6 +239,7 @@ const LoginScreen: React.FC = () => {
           <TouchableOpacity style={styles.linkButton} onPress={() => { try { (navigation as any)?.navigate?.('Register'); } catch {} }}>
             <Text style={styles.linkText}>Hesabın yok mu? Kayıt ol</Text>
           </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -241,8 +253,13 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    justifyContent: 'center',
     padding: 20,
+    paddingBottom: 24,
+  },
+  centerWrap: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    minHeight: '100%',
   },
   header: {
     alignItems: 'center',

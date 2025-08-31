@@ -1,12 +1,14 @@
 import React, { useEffect } from 'react';
-import { StatusBar, StyleSheet, Text, View } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 import { AuthProvider } from './src/contexts/AuthContext';
-import { AudioProvider } from './src/contexts/AudioContext';
 import { LanguageProvider } from './src/contexts/LanguageContext';
+import { AudioProvider } from './src/contexts/AudioContext';
 import AppNavigator from './src/navigation/AppNavigator';
-import NotificationService from './src/services/notificationService';
-import KeyboardToggleOverlay from './src/components/KeyboardToggleOverlay';
+import { useAuth } from './src/contexts/AuthContext';
 import TrackPlayer from 'react-native-track-player';
+import { Notifications } from 'react-native-notifications';
+import NotificationService from './src/services/notificationService';
 
 // Temporarily enable console outputs for debugging
 // TODO: Re-enable console suppression after fixing loading issues
@@ -55,8 +57,6 @@ export default function App() {
       <AuthProvider>
         <AudioProvider>
           <AppNavigator />
-          <KeyboardToggleOverlay />
-          <StatusBar barStyle="dark-content" />
         </AudioProvider>
       </AuthProvider>
     </LanguageProvider>
