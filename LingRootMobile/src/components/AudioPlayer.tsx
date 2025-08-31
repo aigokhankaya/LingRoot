@@ -190,7 +190,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }
 
     } catch (error) {
-      Alert.alert('Hata', 'Ses dosyası yüklenirken hata oluştu');
+      console.error('Audio loading error:', error);
+      Alert.alert('Hata', `Ses dosyası yüklenirken hata oluştu: ${error}`);
     } finally {
       setIsLoading(false);
     }

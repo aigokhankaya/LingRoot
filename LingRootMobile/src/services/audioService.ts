@@ -30,10 +30,10 @@ let progressListenerRegistered = false;
 
 async function ensureSetup() {
   try {
+    // Check if already initialized to avoid duplicate setup
     const isSetup = await TrackPlayer.isServiceRunning();
     console.log('TrackPlayer service running:', isSetup);
     
-    // Setup player if not already
     if (!isSetup) {
       console.log('Setting up TrackPlayer...');
       await TrackPlayer.setupPlayer({
@@ -105,18 +105,30 @@ async function buildStatus(forceFinished = false) {
 }
 
 export async function createSound(url: string): Promise<SoundLike> {
-  await ensureSetup();
+  console.log('Creating sound for URL:', url);
+  
+  try {
+    await ensureSetup();
+    console.log('TrackPlayer setup completed');
 
-  // Reset queue and add the single track
-  await TrackPlayer.reset();
+    // Reset queue and add the single track
+    await TrackPlayer.reset();
+    console.log('TrackPlayer queue reset');
 
-  const track: Track = {
-    id: 'current',
-    url,
-    title: 'LingRoot',
-    artist: 'LingRoot',
-  };
-  await TrackPlayer.add([track]);
+    const track: Track = {
+      id: 'current',
+      url,
+      title: 'LingRoot',
+      artist: 'LingRoot',
+    };
+    
+    console.log('Adding track to TrackPlayer:', track);
+    await TrackPlayer.add([track]);
+    console.log('Track added successfully');
+  } catch (error) {
+    console.error('Error in createSound:', error);
+    throw error;
+  }
 
   const soundLike: SoundLike = {
     playAsync: async () => {

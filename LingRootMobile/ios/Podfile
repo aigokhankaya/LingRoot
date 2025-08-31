@@ -5,7 +5,7 @@ require File.join(File.dirname(`node --print "require.resolve('react-native/pack
 require 'json'
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
-ENV['RCT_NEW_ARCH_ENABLED'] = '0' if podfile_properties['newArchEnabled'] == 'false'
+ENV['RCT_NEW_ARCH_ENABLED'] = '0'
 
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 install! 'cocoapods',
@@ -28,6 +28,19 @@ target 'LingRootMobile' do
   )
 
   post_install do |installer|
+    # Fix for Xcode 14.3+ and React Native header search paths
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+        
+        # Fix React Native header search paths for Xcode builds
+        if target.name == 'React-Core'
+          config.build_settings['HEADER_SEARCH_PATHS'] ||= ['$(inherited)']
+          config.build_settings['HEADER_SEARCH_PATHS'] << '"$(PODS_ROOT)/React-Core/React"'
+          config.build_settings['HEADER_SEARCH_PATHS'] << '"$(PODS_ROOT)/React-Core"'
+        end
+      end
+    end
     react_native_post_install(
       installer,
       config[:reactNativePath],

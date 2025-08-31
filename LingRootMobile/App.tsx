@@ -4,8 +4,9 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { AudioProvider } from './src/contexts/AudioContext';
 import { LanguageProvider } from './src/contexts/LanguageContext';
 import AppNavigator from './src/navigation/AppNavigator';
-import NotificationService from './src/services/notificationServiceNoop';
+import NotificationService from './src/services/notificationService';
 import KeyboardToggleOverlay from './src/components/KeyboardToggleOverlay';
+import TrackPlayer from 'react-native-track-player';
 
 // Temporarily enable console outputs for debugging
 // TODO: Re-enable console suppression after fixing loading issues
@@ -27,16 +28,26 @@ if (typeof console !== 'undefined') {
 
 export default function App() {
   useEffect(() => {
-    // Initialize notification service when app starts
-    const initializeNotifications = async () => {
+    // Initialize services when app starts
+    const initializeServices = async () => {
       try {
-        await NotificationService.initialize();
+        // Initialize TrackPlayer first
+        console.log('Initializing TrackPlayer...');
+        await TrackPlayer.setupPlayer({
+          waitForBuffer: true,
+        });
+        console.log('TrackPlayer initialized successfully');
+        
+        // Then initialize notifications
+        console.log('Initializing notifications...');
+        const notificationPermission = await NotificationService.initialize();
+        console.log('Notification permission granted:', notificationPermission);
       } catch (error) {
-        // Swallow errors to avoid console output on mobile
+        console.error('Service initialization error:', error);
       }
     };
 
-    initializeNotifications();
+    initializeServices();
   }, []);
 
   return (
