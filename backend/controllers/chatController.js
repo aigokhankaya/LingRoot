@@ -273,24 +273,21 @@ const sendMessage = async (req, res) => {
         if (conversationResult.rows.length > 0) {
           const data = conversationResult.rows[0];
           
-          // Only send notification if there's an assigned admin
-          if (data.admin_id) {
-            await sendSupportMessageNotification({
-              conversationId: conversationId,
-              subject: `Takip Mesajı: ${data.subject}`,
-              content: content,
-              priority: data.priority,
-              user: {
-                id: data.id,
-                firstname: data.firstname,
-                lastname: data.lastname,
-                email: data.email,
-                phonenumber: data.phonenumber
-              },
-              createdAt: new Date().toISOString(),
-              assignedAdminId: data.admin_id
-            });
-          }
+          await sendSupportMessageNotification({
+            conversationId: conversationId,
+            subject: `Takip Mesajı: ${data.subject}`,
+            content: content,
+            priority: data.priority,
+            user: {
+              id: data.id,
+              firstname: data.firstname,
+              lastname: data.lastname,
+              email: data.email,
+              phonenumber: data.phonenumber
+            },
+            createdAt: new Date().toISOString(),
+            assignedAdminId: data.admin_id // Will be null if no admin assigned
+          });
         }
       } catch (notificationError) {
         // Don't fail the message creation if notification fails

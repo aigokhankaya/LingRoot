@@ -4,7 +4,7 @@ async function checkSpecificMessage() {
   try {
     console.log('🔍 Checking specific message and conversation...');
     
-    const messageId = '8d612a7b-79cb-40c7-994e-24d6d962cd70';
+    const messageId = '9bcee7b9-5806-4112-b376-5b803a5de764';
     
     // Get message details
     const messageQuery = `

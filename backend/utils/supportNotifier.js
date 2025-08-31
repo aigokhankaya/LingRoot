@@ -50,8 +50,14 @@ async function sendSupportMessageNotification(messageData) {
       `;
       const result = await db.query(query, [messageData.assignedAdminId]);
       adminUsers = result.rows;
+      
+      // If assigned admin not found or no email, fall back to all admins
+      if (adminUsers.length === 0) {
+        logger.warn(`[SUPPORT_NOTIFICATION] Assigned admin ${messageData.assignedAdminId} not found, sending to all admins`);
+        adminUsers = await getAdminEmails();
+      }
     } else {
-      // Send to all admins
+      // Send to all admins (new conversations or unassigned follow-ups)
       adminUsers = await getAdminEmails();
     }
     
@@ -65,7 +71,7 @@ async function sendSupportMessageNotification(messageData) {
                         messageData.priority === 'high' ? '🟡 YÜKSEK' : 
                         messageData.priority === 'medium' ? '🟢 ORTA' : '⚪ DÜŞÜK';
     
-    const subject = `Yeni Destek Mesajı - ${userFullName} (${priorityText})`;
+    const subject = `Yeni Destek Talebi - ${userFullName} (${priorityText})`;
     
     const textContent = `
 Yeni bir destek mesajı alındı:
@@ -91,7 +97,7 @@ Bu bildirim otomatik olarak gönderilmiştir.
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333; border-bottom: 2px solid #dc3545; padding-bottom: 10px;">
-          🆘 Yeni Destek Mesajı
+          🆘 Yeni Destek Talebi
         </h2>
         
         <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;">
