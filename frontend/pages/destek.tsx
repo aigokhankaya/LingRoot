@@ -167,6 +167,36 @@ const DestekPage: React.FC = () => {
     fetchMessages(conversationId);
   };
 
+  const isSelectedConversationClosed = () => {
+    if (!selectedConversation) return false;
+    const conv = conversations.find(c => c.id === selectedConversation);
+    return conv?.status === 'closed';
+  };
+
+  const reopenSelectedConversation = async () => {
+    if (!selectedConversation) return;
+    try {
+      const token = localStorage.getItem('lingroot_token');
+      const response = await fetch(`/api/chat/conversations/${selectedConversation}/reopen`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        await fetchConversations();
+        await fetchMessages(selectedConversation);
+      } else {
+        alert(data.message || 'Konuşma yeniden açılamadı');
+      }
+    } catch (err) {
+      console.error('Error reopening conversation:', err);
+      alert('Bir hata oluştu');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open': return 'bg-blue-100 text-blue-800';
@@ -331,8 +361,21 @@ const DestekPage: React.FC = () => {
                       <div ref={messagesEndRef} />
                     </div>
 
-                    {/* Message Input */}
+                    {/* Message Input / Reopen */}
                     <div className="border-t border-gray-200 p-4">
+                      {isSelectedConversationClosed() && (
+                        <div className="mb-3 p-3 rounded-md bg-gray-50 border border-gray-200 flex items-center justify-between">
+                          <div className="text-sm text-gray-700">
+                            Bu konuşma kapatılmış. Yeni mesaj gönderemezsiniz.
+                          </div>
+                          <button
+                            onClick={reopenSelectedConversation}
+                            className="bg-indigo-600 text-white px-3 py-2 rounded-md hover:bg-indigo-700"
+                          >
+                            Yeniden Aç
+                          </button>
+                        </div>
+                      )}
                       <div className="flex space-x-2">
                         <input
                           type="text"
@@ -341,11 +384,11 @@ const DestekPage: React.FC = () => {
                           onKeyPress={(e) => e.key === 'Enter' && !sending && sendMessage()}
                           placeholder="Mesajınızı yazın..."
                           className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          disabled={sending}
+                          disabled={sending || isSelectedConversationClosed()}
                         />
                         <button
                           onClick={sendMessage}
-                          disabled={sending || !newMessage.trim()}
+                          disabled={sending || !newMessage.trim() || isSelectedConversationClosed()}
                           className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                           {sending ? 'Gönderiliyor...' : 'Gönder'}

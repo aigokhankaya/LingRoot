@@ -8,6 +8,7 @@ router.get('/conversations', authenticate, chatController.getUserConversations);
 router.post('/conversations', authenticate, chatController.createConversation);
 router.get('/conversations/:conversationId/messages', authenticate, chatController.getConversationMessages);
 router.post('/conversations/:conversationId/messages', authenticate, chatController.sendMessage);
+router.post('/conversations/:conversationId/reopen', authenticate, chatController.reopenConversation);
 
 // Admin routes
 router.get('/admin/conversations', authenticate, authorizeAdmin, chatController.getAdminConversations);

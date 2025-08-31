@@ -35,6 +35,69 @@ const getUserConversations = async (req, res) => {
   }
 };
 
+// Reopen a closed conversation (user can do this)
+const reopenConversation = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    // Only the conversation owner (user) or admin can access; requirement: user triggers reopen via UI
+    const accessQuery = `
+      SELECT c.id, c.status, c.subject, c.priority, c.admin_id, u.id as uid, u.firstname, u.lastname, u.email, u.phonenumber
+      FROM conversations c
+      JOIN users u ON c.user_id = u.id
+      WHERE c.id = $1 AND (c.user_id = $2 OR $3 = true)
+    `;
+    const accessResult = await db.query(accessQuery, [conversationId, userId, isAdmin]);
+    if (accessResult.rows.length === 0) {
+      return res.status(403).json({ success: false, message: 'Bu konuşmaya erişim yetkiniz yok' });
+    }
+
+    const conv = accessResult.rows[0];
+    if (conv.status !== 'closed') {
+      return res.status(400).json({ success: false, message: 'Sadece kapatılmış konuşmalar yeniden açılabilir' });
+    }
+
+    // Update status to open; do not change priority; keep admin assignment
+    const updateQuery = `
+      UPDATE conversations
+      SET status = 'open', updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `;
+    const updateResult = await db.query(updateQuery, [conversationId]);
+
+    // Notify assigned admin (or all admins if none) that the ticket was reopened
+    try {
+      await sendSupportMessageNotification({
+        conversationId,
+        subject: conv.subject,
+        content: 'Kullanıcı talebi yeniden açtı.',
+        priority: conv.priority,
+        user: {
+          id: conv.uid,
+          firstname: conv.firstname,
+          lastname: conv.lastname,
+          email: conv.email,
+          phonenumber: conv.phonenumber
+        },
+        createdAt: new Date().toISOString(),
+        assignedAdminId: conv.admin_id || null,
+        overrideSubject: 'Yeniden açılan talep',
+        overrideHeaderTitle: 'Yeniden Açılan Talep'
+      });
+    } catch (notifyErr) {
+      logger.error('Failed to send reopen notification:', notifyErr);
+    }
+
+    return res.json({ success: true, conversation: updateResult.rows[0] });
+  } catch (error) {
+    logger.error('Error reopening conversation:', error);
+    return res.status(500).json({ success: false, message: 'Konuşma yeniden açılamadı' });
+  }
+};
+
 // Get all conversations for admin
 const getAdminConversations = async (req, res) => {
   try {
@@ -329,6 +392,11 @@ const updateConversationStatus = async (req, res) => {
         message: 'Bu işlem için yetkiniz yok'
       });
     }
+    // Only allow specific statuses for admin updates
+    const allowedStatuses = ['open', 'in_progress', 'closed'];
+    if (status && !allowedStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Geçersiz durum' });
+    }
     
     const updateQuery = `
       UPDATE conversations 
@@ -408,5 +476,6 @@ module.exports = {
   getConversationMessages,
   sendMessage,
   updateConversationStatus,
+  reopenConversation,
   getConversationStats
 };

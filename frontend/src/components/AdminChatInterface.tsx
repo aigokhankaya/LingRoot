@@ -321,8 +321,6 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
                     >
                       <option value="open">Açık</option>
                       <option value="in_progress">İşlemde</option>
-                      <option value="waiting">Beklemede</option>
-                      <option value="resolved">Çözüldü</option>
                       <option value="closed">Kapatıldı</option>
                     </select>
                     <select 
