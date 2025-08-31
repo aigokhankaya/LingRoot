@@ -3,8 +3,7 @@ import { AuthContextType, User } from '../types';
 import { authService } from '../services/supabase';
 import { apiService, setUnauthorizedHandler } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NotificationService from '../services/notificationService';
-import Constants from 'expo-constants';
+import NotificationService from '../services/notificationServiceNoop';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -97,9 +96,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (token && storedUser) {
         
-        // Validate token by making a test API call
+        // Validate token by making a test API call with timeout
         try {
           const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+          
+          console.log('Validating auth token...');
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
           
           const response = await fetch(`${API_BASE_URL}/api/health`, {
             method: 'GET',
@@ -111,7 +114,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             },
             mode: 'cors',
             credentials: 'omit',
+            signal: controller.signal,
           });
+          
+          clearTimeout(timeoutId);
           
           
           if (response.ok) {
@@ -166,11 +172,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
           }
         } catch (validateError: any) {
+          console.log('Auth validation error:', validateError.name, validateError.message);
           // Network or validation error → preserve session locally
           try {
             const appUser: User = JSON.parse(storedUser);
             setUser(appUser);
+            console.log('Using cached user data due to network error');
           } catch {
+            console.log('Failed to parse stored user data');
             // If parsing fails, do not clear token; just keep user null
           }
         }
@@ -178,7 +187,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(null);
       }
     } catch (error) {
-      // silent in production
+      console.log('Auth check error:', error);
       setUser(null);
     } finally {
       // Mark bootstrap complete so further auth change events are processed

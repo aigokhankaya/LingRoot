@@ -15,7 +15,7 @@ import {
   Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import * as DocumentPicker from 'expo-document-picker';
+import DocumentPicker, { types as DocumentTypes, isCancel } from 'react-native-document-picker';
 import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter } from '../types';
 import { useRoute, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -791,24 +791,33 @@ const CreateScreen: React.FC = () => {
 
   const handleFileUpload = async () => {
     try {
-      
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-        copyToCacheDirectory: true,
+      const picks = await DocumentPicker.pick({
+        type: [DocumentTypes.pdf, DocumentTypes.docx],
+        allowMultiSelection: false,
+        presentationStyle: 'fullScreen',
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
+      if (Array.isArray(picks) && picks.length > 0) {
+        const p = picks[0];
+        const file = {
+          uri: p.uri,
+          name: p.name || 'document',
+          mimeType: p.type || (p.name?.endsWith('.pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+          size: (p as any).size,
+        } as any;
         setSelectedFile(file);
         setInputText(''); // Clear text input when file is selected
-        
+
         Alert.alert(
           t('create.alerts.fileSelectedTitle'),
           t('create.alerts.fileSelectedMessage', { fileName: file.name })
         );
-        
       }
     } catch (error: any) {
+      if (isCancel && isCancel(error)) {
+        // user cancelled, no alert
+        return;
+      }
       Alert.alert(t('common.error'), t('create.alerts.filePickError'));
     }
   };
@@ -1484,6 +1493,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+    color: '#333',
     minHeight: 120,
     textAlignVertical: 'top',
   },

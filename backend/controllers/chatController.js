@@ -1,6 +1,9 @@
 const db = require('../config/db');
 const logger = require('../utils/logger');
+const path = require('path');
+const fs = require('fs');
 const { sendSupportMessageNotification } = require('../utils/supportNotifier');
+const { uploadChatAttachment } = require('../utils/chatStorageUploader');
 
 // Get all conversations for a user
 const getUserConversations = async (req, res) => {
@@ -249,6 +252,28 @@ const getConversationMessages = async (req, res) => {
     `;
     
     const messagesResult = await db.query(messagesQuery, [conversationId]);
+
+    const messages = messagesResult.rows;
+
+    // Fetch attachments for these messages
+    if (messages.length > 0) {
+      const messageIds = messages.map(m => m.id);
+      const paramsPlaceholders = messageIds.map((_, idx) => `$${idx + 1}`).join(',');
+      const attachmentsQuery = `
+        SELECT id, message_id, filename, file_path, file_size, mime_type, created_at
+        FROM message_attachments
+        WHERE message_id IN (${paramsPlaceholders})
+      `;
+      const attachmentsResult = await db.query(attachmentsQuery, messageIds);
+      const byMessage = attachmentsResult.rows.reduce((acc, att) => {
+        if (!acc[att.message_id]) acc[att.message_id] = [];
+        acc[att.message_id].push(att);
+        return acc;
+      }, {});
+      messages.forEach(m => {
+        m.attachments = byMessage[m.id] || [];
+      });
+    }
     
     // Mark messages as read for the current user
     const markReadQuery = `
@@ -264,7 +289,7 @@ const getConversationMessages = async (req, res) => {
     
     res.json({
       success: true,
-      messages: messagesResult.rows
+      messages
     });
   } catch (error) {
     logger.error('Error fetching conversation messages:', error);
@@ -275,15 +300,16 @@ const getConversationMessages = async (req, res) => {
   }
 };
 
-// Send a message
+// Send a message (supports optional file attachments via multer on route)
 const sendMessage = async (req, res) => {
   const { conversationId } = req.params;
   const { content } = req.body;
   const userId = req.user.id;
   const isAdmin = req.user.role === 'admin';
 
-  if (!content) {
-    return res.status(400).json({ success: false, message: 'Mesaj içeriği gereklidir' });
+  const uploadedFiles = Array.isArray(req.files) ? req.files : [];
+  if (!content && uploadedFiles.length === 0) {
+    return res.status(400).json({ success: false, message: 'Mesaj içeriği veya dosya ekleri gereklidir' });
   }
 
   // Check access outside transaction
@@ -310,7 +336,47 @@ const sendMessage = async (req, res) => {
       RETURNING *
     `;
     const senderType = isAdmin ? 'admin' : 'user';
-    const messageResult = await client.query(messageQuery, [conversationId, userId, senderType, content]);
+    const messageResult = await client.query(messageQuery, [conversationId, userId, senderType, content || '']);
+
+    // Save attachments to Supabase Storage and metadata to DB
+    if (uploadedFiles.length > 0) {
+      const insertValues = [];
+      const placeholders = [];
+      
+      for (let idx = 0; idx < uploadedFiles.length; idx++) {
+        const file = uploadedFiles[idx];
+        
+        // Upload to Supabase Storage
+        const uploadResult = await uploadChatAttachment(
+          file.buffer,
+          conversationId,
+          file.originalname,
+          file.mimetype
+        );
+        
+        if (!uploadResult.success) {
+          throw new Error(`File upload failed: ${uploadResult.error}`);
+        }
+        
+        // Store metadata with Supabase public URL
+        insertValues.push(
+          messageResult.rows[0].id,
+          file.originalname,
+          uploadResult.publicUrl, // Store public URL instead of local path
+          file.size,
+          file.mimetype
+        );
+        const base = idx * 5;
+        placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`);
+      }
+      
+      const attachInsertQuery = `
+        INSERT INTO message_attachments (message_id, filename, file_path, file_size, mime_type)
+        VALUES ${placeholders.join(', ')}
+        RETURNING *
+      `;
+      await client.query(attachInsertQuery, insertValues);
+    }
 
     if (isAdmin) {
       await client.query('UPDATE conversations SET admin_id = $1, status = $2 WHERE id = $3', [userId, 'in_progress', conversationId]);
@@ -368,7 +434,15 @@ const sendMessage = async (req, res) => {
       WHERE m.id = $1
     `;
     const messageWithSenderResult = await db.query(messageWithSenderQuery, [messageResult.rows[0].id]);
-    return res.json({ success: true, message: messageWithSenderResult.rows[0] });
+
+    // Attach attachments to the response
+    const attachmentsForMessage = await db.query(
+      'SELECT id, filename, file_path, file_size, mime_type, created_at FROM message_attachments WHERE message_id = $1',
+      [messageResult.rows[0].id]
+    );
+    const message = messageWithSenderResult.rows[0];
+    message.attachments = attachmentsForMessage.rows || [];
+    return res.json({ success: true, message });
   } catch (error) {
     try { await client.query('ROLLBACK'); } catch (rbErr) {
       logger.error('Transaction rollback failed in sendMessage:', rbErr);
@@ -377,6 +451,38 @@ const sendMessage = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Mesaj gönderilemedi' });
   } finally {
     client.release();
+  }
+};
+
+// Secure attachment access - redirect to Supabase public URL after auth check
+const getAttachment = async (req, res) => {
+  try {
+    const { attachmentId } = req.params;
+    const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    const query = `
+      SELECT a.id, a.file_path, a.filename, a.mime_type, a.file_size,
+             m.conversation_id, c.user_id
+      FROM message_attachments a
+      JOIN messages m ON a.message_id = m.id
+      JOIN conversations c ON m.conversation_id = c.id
+      WHERE a.id = $1
+    `;
+    const result = await db.query(query, [attachmentId]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Dosya bulunamadı' });
+    }
+    const att = result.rows[0];
+    if (!(isAdmin || att.user_id === userId)) {
+      return res.status(403).json({ success: false, message: 'Bu dosyaya erişim yetkiniz yok' });
+    }
+
+    // Redirect to Supabase public URL (file_path now contains the public URL)
+    return res.redirect(att.file_path);
+  } catch (error) {
+    logger.error('Error serving attachment:', error);
+    return res.status(500).json({ success: false, message: 'Dosya getirilemedi' });
   }
 };
 
@@ -477,5 +583,6 @@ module.exports = {
   sendMessage,
   updateConversationStatus,
   reopenConversation,
-  getConversationStats
+  getConversationStats,
+  getAttachment
 };

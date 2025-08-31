@@ -14,7 +14,8 @@ import {
 import { Platform } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
+// Replaced expo-av with our TrackPlayer-based service
+import { createSound } from '../services/audioService';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, Timepoint } from '../types';
 import { useAudioContext } from '../contexts/AudioContext';
@@ -153,20 +154,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       
       // Stop any existing audio first
       await stopAllAudio();
-      // Set audio mode
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
-      });
-
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: track.url },
-        { shouldPlay: false }
-      );
-
+      // Create TrackPlayer-backed sound
+      const newSound = await createSound(track.url);
       setSound(newSound);
 
       // Set up status update listener first

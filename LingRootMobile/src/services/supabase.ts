@@ -1,11 +1,9 @@
 import { createClient, type AuthChangeEvent, type Session } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
 
-// Resolve public config from Expo extra first, then env
-const extra: any = (Constants.expoConfig?.extra || (Constants as any)?.manifest?.extra || {});
-const resolvedSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || extra.EXPO_PUBLIC_SUPABASE_URL;
-const resolvedSupabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || extra.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+// Resolve from env with safe fallbacks
+const resolvedSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const resolvedSupabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 // If missing, fail gracefully without logging to console
 if (!resolvedSupabaseUrl || !resolvedSupabaseAnonKey) {
@@ -83,8 +81,7 @@ export const authService = {
 
   async signUp(email: string, password: string, fullName?: string, phoneNumber?: string) {
     // Route signup through our backend to avoid direct Supabase Auth dependency on mobile
-    const extra: any = (Constants.expoConfig?.extra || (Constants as any)?.manifest?.extra || {});
-    const apiBaseUrl = (extra.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com') as string;
+    const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com') as string;
     const [firstName, ...rest] = (fullName || '').trim().split(' ');
     const lastName = rest.join(' ') || 'User';
     

@@ -22,6 +22,15 @@ export default ({ config }: any) => ({
   ios: {
     ...(config?.ios || {}),
     icon: './assets/icon.png',
+    infoPlist: {
+      ...(config?.ios?.infoPlist || {}),
+      NSPhotoLibraryUsageDescription:
+        'Uygulama, mesajlarınıza fotoğraf ekleyebilmeniz için fotoğraflarınıza erişmek ister.',
+      NSCameraUsageDescription:
+        'Uygulama, fotoğraf çekebilmeniz için kameraya erişmek ister.',
+      NSMicrophoneUsageDescription:
+        'Uygulama, video/fotoğraf çekerken ses kaydı için mikrofona erişmek ister.',
+    },
   },
   android: {
     ...(config?.android || {}),
@@ -33,6 +42,19 @@ export default ({ config }: any) => ({
     package: 'com.nsyzk.lingrootmobile',
     softwareKeyboardLayoutMode: 'resize',
   },
+  plugins: [
+    'react-native-document-picker',
+    [
+      'react-native-image-picker',
+      {
+        photosPermission:
+          'Uygulama, mesajlarınıza fotoğraf ekleyebilmeniz için fotoğraflarınıza erişmek ister.',
+        cameraPermission: 'Uygulama, fotoğraf çekebilmeniz için kameraya erişmek ister.',
+        microphonePermission: 'Uygulama, ses kaydı için mikrofona erişmek ister.',
+        savePhotosPermission: 'Uygulama, çekilen fotoğrafları kaydetmek için izin ister.'
+      }
+    ]
+  ],
   extra: {
     ...(config?.extra || {}),
     EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
@@ -40,5 +62,3 @@ export default ({ config }: any) => ({
     EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
   },
 });
-
-

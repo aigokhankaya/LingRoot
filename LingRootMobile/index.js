@@ -1,0 +1,9 @@
+import 'react-native-gesture-handler';
+import { AppRegistry } from 'react-native';
+import TrackPlayer from 'react-native-track-player';
+import App from './App';
+
+AppRegistry.registerComponent('LingRootMobile', () => App);
+
+// Register background playback service
+TrackPlayer.registerPlaybackService(() => require('./service').default);

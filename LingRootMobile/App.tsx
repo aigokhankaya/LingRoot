@@ -1,17 +1,15 @@
 import React, { useEffect } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StatusBar, StyleSheet, Text, View } from 'react-native';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { AudioProvider } from './src/contexts/AudioContext';
 import { LanguageProvider } from './src/contexts/LanguageContext';
 import AppNavigator from './src/navigation/AppNavigator';
-import NotificationService from './src/services/notificationService';
+import NotificationService from './src/services/notificationServiceNoop';
 import KeyboardToggleOverlay from './src/components/KeyboardToggleOverlay';
 
-// Suppress all console outputs in mobile app runtime
-// This disables console logs, warnings, errors, info, debug, and trace
-// to avoid leaking logs in production builds and during mobile usage.
+// Temporarily enable console outputs for debugging
+// TODO: Re-enable console suppression after fixing loading issues
+/*
 if (typeof console !== 'undefined') {
   const noop = () => {};
   // Assign no-op to common console methods
@@ -25,6 +23,7 @@ if (typeof console !== 'undefined') {
     }
   });
 }
+*/
 
 export default function App() {
   useEffect(() => {
@@ -41,16 +40,14 @@ export default function App() {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <LanguageProvider>
-        <AuthProvider>
-          <AudioProvider>
-            <AppNavigator />
-            <KeyboardToggleOverlay />
-            <StatusBar style="auto" />
-          </AudioProvider>
-        </AuthProvider>
-      </LanguageProvider>
-    </GestureHandlerRootView>
+    <LanguageProvider>
+      <AuthProvider>
+        <AudioProvider>
+          <AppNavigator />
+          <KeyboardToggleOverlay />
+          <StatusBar barStyle="dark-content" />
+        </AudioProvider>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }

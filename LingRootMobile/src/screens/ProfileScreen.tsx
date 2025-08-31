@@ -15,7 +15,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import NotificationService from '../services/notificationService';
+import NotificationService from '../services/notificationServiceNoop';
 
 const ProfileScreen: React.FC = () => {
   const { user, signOut } = useAuth();

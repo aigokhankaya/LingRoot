@@ -88,7 +88,7 @@ const ResetPasswordScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#f5f5f5' },
   title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 },
-  input: { backgroundColor: '#fff', borderRadius: 8, padding: 15, borderWidth: 1, borderColor: '#ddd', marginBottom: 16 },
+  input: { backgroundColor: '#fff', borderRadius: 8, padding: 15, borderWidth: 1, borderColor: '#ddd', marginBottom: 16, color: '#333' },
   inputWrapper: { position: 'relative' },
   passwordInput: { paddingRight: 48 },
   eyeButton: { position: 'absolute', right: 12, top: 0, bottom: 16, width: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },

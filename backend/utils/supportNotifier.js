@@ -71,11 +71,13 @@ async function sendSupportMessageNotification(messageData) {
                         messageData.priority === 'high' ? '🟡 YÜKSEK' : 
                         messageData.priority === 'medium' ? '🟢 ORTA' : '⚪ DÜŞÜK';
     
-    // Determine if this is a follow-up message (has assigned admin) or a new conversation
+    // Determine context and allow overrides
     const isFollowUp = !!messageData.assignedAdminId;
-    const subject = isFollowUp 
-      ? `Takip Mesajı: ${messageData.subject}` 
-      : `Yeni Destek Talebi - ${userFullName} (${priorityText})`;
+    const subject = messageData.overrideSubject
+      ? messageData.overrideSubject
+      : (isFollowUp 
+        ? `Takip Mesajı: ${messageData.subject}` 
+        : `Yeni Destek Talebi - ${userFullName} (${priorityText})`);
     
     const textContent = `
 Yeni bir destek mesajı alındı:
@@ -101,7 +103,7 @@ Bu bildirim otomatik olarak gönderilmiştir.
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333; border-bottom: 2px solid #dc3545; padding-bottom: 10px;">
-          🆘 ${isFollowUp ? 'Takip Mesajı' : 'Yeni Destek Talebi'}
+          🆘 ${messageData.overrideHeaderTitle ? messageData.overrideHeaderTitle : (isFollowUp ? 'Takip Mesajı' : 'Yeni Destek Talebi')}
         </h2>
         
         <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;">

@@ -18,4 +18,10 @@
 - Remove debug text from login screen header
 - Preserve all existing functionality and error handling""
      git push
-     
+    
+
+
+  git push:
+  git add.
+  git commit -m ""
+  git push

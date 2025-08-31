@@ -8,7 +8,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { RootStackParamList, MainTabParamList } from '../types';
-import NotificationService from '../services/notificationService';
+import NotificationService from '../services/notificationServiceNoop';
 
 // Screens
 import LoginScreen from '../screens/LoginScreen';

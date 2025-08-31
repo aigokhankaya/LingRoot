@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { TTSRequest, TTSResponse, APIResponse, BookSearchResponse, BookChapter } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
 
 // Backend URL'i expo constants'tan alacağız
 // Production API URL'si kullanılıyor

@@ -21,17 +21,18 @@ jest.mock('expo-status-bar', () => ({
   StatusBar: 'StatusBar',
 }));
 
-jest.mock('expo-av', () => ({
-  Audio: {
-    Recording: jest.fn(),
-    Sound: {
-      createAsync: jest.fn(),
-    },
-  },
-}));
+// Removed expo-av mock (no longer used)
 
-jest.mock('expo-document-picker', () => ({
-  getDocumentAsync: jest.fn(),
+jest.mock('react-native-document-picker', () => ({
+  __esModule: true,
+  default: {
+    pick: jest.fn(),
+  },
+  types: {
+    pdf: 'application/pdf',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  },
+  isCancel: (e) => false,
 }));
 
 // Mock navigation

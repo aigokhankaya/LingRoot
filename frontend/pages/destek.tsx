@@ -2,6 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 
+interface Attachment {
+  id: string;
+  filename: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+  created_at: string;
+}
+
 interface Message {
   id: string;
   content: string;
@@ -9,6 +18,7 @@ interface Message {
   sender_name: string;
   created_at: string;
   is_read: boolean;
+  attachments?: Attachment[];
 }
 
 interface Conversation {
@@ -34,7 +44,9 @@ const DestekPage: React.FC = () => {
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -130,26 +142,38 @@ const DestekPage: React.FC = () => {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation) return;
+    if (!newMessage.trim() && selectedFiles.length === 0) {
+      alert('Lütfen bir mesaj yazın veya dosya ekleyin');
+      return;
+    }
+    if (!selectedConversation) return;
 
     setSending(true);
     try {
       const token = localStorage.getItem('lingroot_token');
+      const formData = new FormData();
+      
+      if (newMessage.trim()) {
+        formData.append('content', newMessage);
+      }
+      
+      selectedFiles.forEach(file => {
+        formData.append('files', file);
+      });
+
       const response = await fetch(`/api/chat/conversations/${selectedConversation}/messages`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          content: newMessage
-        })
+        body: formData
       });
 
       const data = await response.json();
       if (data.success) {
         setMessages(prev => [...prev, data.message]);
         setNewMessage('');
+        setSelectedFiles([]);
         await fetchConversations(); // Refresh conversation list
       } else {
         alert(data.message || 'Mesaj gönderilemedi');
@@ -229,6 +253,71 @@ const DestekPage: React.FC = () => {
     } else {
       return date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' });
     }
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length + selectedFiles.length > 5) {
+      alert('En fazla 5 dosya ekleyebilirsiniz');
+      return;
+    }
+    
+    const validFiles = files.filter(file => {
+      if (file.size > 20 * 1024 * 1024) {
+        alert(`${file.name} dosyası çok büyük (maksimum 20MB)`);
+        return false;
+      }
+      return true;
+    });
+    
+    setSelectedFiles(prev => [...prev, ...validFiles]);
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith('image/')) return '🖼️';
+    if (mimeType.includes('pdf')) return '📄';
+    if (mimeType.includes('word') || mimeType.includes('document')) return '📝';
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return '📊';
+    if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return '📽️';
+    if (mimeType.startsWith('audio/')) return '🎵';
+    return '📎';
+  };
+
+  const renderAttachments = (attachments: Attachment[]) => {
+    if (!attachments || attachments.length === 0) return null;
+    
+    return (
+      <div className="mt-2 space-y-1">
+        {attachments.map((attachment) => (
+          <div key={attachment.id} className="flex items-center space-x-2 p-2 bg-gray-50 rounded border">
+            <span className="text-lg">{getFileIcon(attachment.mime_type)}</span>
+            <div className="flex-1 min-w-0">
+              <a 
+                href={`/api/chat/attachments/${attachment.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-blue-600 hover:text-blue-800 truncate block"
+              >
+                {attachment.filename}
+              </a>
+              <p className="text-xs text-gray-500">{formatFileSize(attachment.file_size)}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   if (loading) {
@@ -354,7 +443,8 @@ const DestekPage: React.FC = () => {
                                 {formatDate(message.created_at)}
                               </span>
                             </div>
-                            <p className="text-sm">{message.content}</p>
+                            {message.content && <p className="text-sm">{message.content}</p>}
+                            {renderAttachments(message.attachments || [])}
                           </div>
                         </div>
                       ))}
@@ -376,6 +466,42 @@ const DestekPage: React.FC = () => {
                           </button>
                         </div>
                       )}
+                      {/* Selected Files Display */}
+                      {selectedFiles.length > 0 && (
+                        <div className="mb-3 p-3 bg-gray-50 rounded-lg border">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-gray-700">Seçilen Dosyalar ({selectedFiles.length}/5)</span>
+                            <button
+                              onClick={() => setSelectedFiles([])}
+                              className="text-xs text-red-600 hover:text-red-800"
+                            >
+                              Tümünü Kaldır
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            {selectedFiles.map((file, index) => (
+                              <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-sm">{getFileIcon(file.type)}</span>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900 truncate" style={{maxWidth: '200px'}}>{file.name}</p>
+                                    <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => removeFile(index)}
+                                  className="text-red-600 hover:text-red-800 p-1"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex space-x-2">
                         <input
                           type="text"
@@ -386,9 +512,30 @@ const DestekPage: React.FC = () => {
                           className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           disabled={sending || isSelectedConversationClosed()}
                         />
+                        
+                        {/* File Upload Button */}
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          multiple
+                          onChange={handleFileSelect}
+                          className="hidden"
+                          accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx,.mp3,.wav,.aac,.ogg"
+                        />
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={sending || isSelectedConversationClosed() || selectedFiles.length >= 5}
+                          className="border border-gray-300 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title="Dosya Ekle"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                          </svg>
+                        </button>
+                        
                         <button
                           onClick={sendMessage}
-                          disabled={sending || !newMessage.trim() || isSelectedConversationClosed()}
+                          disabled={sending || (!newMessage.trim() && selectedFiles.length === 0) || isSelectedConversationClosed()}
                           className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                           {sending ? 'Gönderiliyor...' : 'Gönder'}

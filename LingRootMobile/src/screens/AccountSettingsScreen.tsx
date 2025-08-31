@@ -134,6 +134,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
+    color: '#333',
   },
   inputDisabled: { backgroundColor: '#f6f6f6', color: '#999' },
   button: { backgroundColor: '#007AFF', borderRadius: 8, padding: 16, alignItems: 'center', marginTop: 16 },

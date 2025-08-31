@@ -1,14 +1,14 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Audio } from 'expo-av';
 import { AudioTrack } from '../types';
+import { SoundLike } from '../services/audioService';
 
 interface AudioContextType {
   currentTrack: AudioTrack | null;
   isPlaying: boolean;
-  sound: Audio.Sound | null;
+  sound: SoundLike | null;
   setCurrentTrack: (track: AudioTrack | null) => void;
   setIsPlaying: (playing: boolean) => void;
-  setSound: (sound: Audio.Sound | null) => void;
+  setSound: (sound: SoundLike | null) => void;
   isTrackPlaying: (trackId: string) => boolean;
   stopAllAudio: () => Promise<void>;
 }
@@ -30,7 +30,7 @@ interface AudioProviderProps {
 export const AudioProvider: React.FC<AudioProviderProps> = ({ children }) => {
   const [currentTrack, setCurrentTrack] = useState<AudioTrack | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [sound, setSound] = useState<SoundLike | null>(null);
 
   const isTrackPlaying = (trackId: string): boolean => {
     const result = currentTrack?.id === trackId && isPlaying;

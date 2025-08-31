@@ -319,7 +319,7 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
                         backgroundRepeat: 'no-repeat'
                       }}
                     >
-                      <option value="open">Açık</option>
+                      <option value="open">Yeniden Açıldı</option>
                       <option value="in_progress">İşlemde</option>
                       <option value="closed">Kapatıldı</option>
                     </select>
