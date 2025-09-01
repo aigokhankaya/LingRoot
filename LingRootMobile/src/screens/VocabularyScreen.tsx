@@ -80,14 +80,21 @@ export default function VocabularyScreen({ navigation, route }: any) {
   // Handle notification navigation - expand specific word if wordId is provided
   useEffect(() => {
     const wordId = route?.params?.wordId;
+    console.log('📖 VocabularyScreen useEffect - wordId from params:', wordId);
+    console.log('📖 Vocabulary length:', vocabulary.length);
+    
     if (wordId && vocabulary.length > 0) {
-      // open target word from notification silently
+      console.log('📖 Processing wordId:', wordId);
       
       // Find word by ID (convert string to number if needed)
       const targetWordId = parseInt(wordId, 10);
+      console.log('📖 Parsed targetWordId:', targetWordId);
+      
       const targetWord = vocabulary.find(word => word.id === targetWordId);
+      console.log('📖 Found target word:', targetWord);
       
       if (targetWord) {
+        console.log('📖 Setting expanded word and clearing filters');
         setExpandedWordId(targetWordId);
         
         // Clear the search term to ensure the word is visible
@@ -97,13 +104,14 @@ export default function VocabularyScreen({ navigation, route }: any) {
         
         // Scroll to the word after a short delay to allow render
         setTimeout(() => {
+          console.log('📖 Scrolling to word:', targetWordId);
           scrollToWord(targetWordId);
           
           // Clear the route params to prevent re-triggering
           navigation.setParams({ wordId: undefined });
-        }, 800); // Increased delay to ensure smooth rendering
+        }, 1200); // Increased delay to ensure smooth rendering
       } else {
-        // word not found; no-op
+        console.log('📖 Word not found with ID:', targetWordId);
       }
     }
   }, [route?.params?.wordId, vocabulary]);

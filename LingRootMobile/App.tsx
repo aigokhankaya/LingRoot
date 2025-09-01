@@ -7,26 +7,10 @@ import { AudioProvider } from './src/contexts/AudioContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useAuth } from './src/contexts/AuthContext';
 import TrackPlayer from 'react-native-track-player';
-import { Notifications } from 'react-native-notifications';
+import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import NotificationService from './src/services/notificationService';
 
-// Temporarily enable console outputs for debugging
-// TODO: Re-enable console suppression after fixing loading issues
-/*
-if (typeof console !== 'undefined') {
-  const noop = () => {};
-  // Assign no-op to common console methods
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (['log', 'warn', 'error', 'info', 'debug', 'trace'] as any[]).forEach((k: any) => {
-    try {
-      // @ts-ignore
-      console[k] = noop;
-    } catch (e) {
-      // ignore
-    }
-  });
-}
-*/
+// Console logging enabled for debugging notifications
 
 export default function App() {
   useEffect(() => {
@@ -35,15 +19,17 @@ export default function App() {
       try {
         // Initialize TrackPlayer first
         console.log('Initializing TrackPlayer...');
-        await TrackPlayer.setupPlayer({
-          waitForBuffer: true,
-        });
-        console.log('TrackPlayer initialized successfully');
+        await TrackPlayer.setupPlayer();
         
-        // Then initialize notifications
-        console.log('Initializing notifications...');
-        const notificationPermission = await NotificationService.initialize();
-        console.log('Notification permission granted:', notificationPermission);
+        // Initialize NotificationService
+        await NotificationService.initialize();
+        
+        // Setup notification tap handler
+        NotificationService.setupNotificationResponseHandler((wordId: string) => {
+          console.log('Notification tapped, navigating to word:', wordId);
+          // Navigate to vocabulary screen with wordId
+          // This will be handled by the navigation system
+        });
       } catch (error) {
         console.error('Service initialization error:', error);
       }

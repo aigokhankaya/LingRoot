@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { Notifications } from 'react-native-notifications';
+import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import type { VocabularyWord } from './api';
 import { getVocabulary } from './api';
 
@@ -7,6 +7,7 @@ class NotificationService {
   private static instance: NotificationService;
   private isInitialized = false;
   private hasPermission = false;
+  private pendingWordId: string | null = null;
 
   private constructor() {}
 
@@ -25,30 +26,17 @@ class NotificationService {
     try {
       console.log('Starting notification service initialization...');
       
-      // First check current permissions
-      const currentPermissions = await Notifications.ios.checkPermissions();
-      console.log('Current permissions:', currentPermissions);
+      // Request permissions using PushNotificationIOS
+      const permissions = await PushNotificationIOS.requestPermissions({
+        alert: true,
+        badge: true,
+        sound: true,
+      });
       
-      // If no permissions, request them
-      if (!currentPermissions.alert && !currentPermissions.badge && !currentPermissions.sound) {
-        console.log('No permissions found, requesting...');
-        const requestResult = await new Promise((resolve) => {
-          Notifications.events().registerNotificationReceivedForeground((notification, completion) => {
-            console.log('Foreground notification received:', notification);
-            completion({ alert: true, sound: true, badge: true });
-          });
-          
-          // Use registerRemoteNotifications for permission request
-          Notifications.registerRemoteNotifications();
-          setTimeout(() => resolve(currentPermissions), 1000);
-        });
-        console.log('Permission request result:', requestResult);
-        this.hasPermission = (requestResult as any)?.alert || (requestResult as any)?.badge || (requestResult as any)?.sound || false;
-      } else {
-        this.hasPermission = currentPermissions.alert || currentPermissions.badge || currentPermissions.sound;
-      }
-      
+      console.log('Permission request result:', permissions);
+      this.hasPermission = !!(permissions.alert || permissions.badge || permissions.sound);
       this.isInitialized = true;
+      
       console.log('Notification service initialized, hasPermission:', this.hasPermission);
       return this.hasPermission;
     } catch (error) {
@@ -86,48 +74,133 @@ class NotificationService {
   }
 
   public async scheduleVocabularyNotification(word: VocabularyWord): Promise<void> {
-    console.log('scheduleVocabularyNotification called with word:', word.word);
-    console.log('hasPermission:', this.hasPermission);
+    console.log('🔔 scheduleVocabularyNotification called with word:', word.word);
+    console.log('🔔 Current hasPermission:', this.hasPermission);
+    console.log('🔔 Service initialized:', this.isInitialized);
     
-    if (!this.hasPermission) {
-      console.log('No permission, showing alert instead');
-      Alert.alert("İzin Gerekli", "Bildirim izni verilmemiş. Ayarlar > Bildirimler > LingRoot'tan açabilirsiniz.");
-      return;
-    }
-    
+    // Always request permissions first
     try {
-      console.log('Attempting to send local notification...');
+      console.log('🔔 Requesting permissions...');
+      const permissions = await PushNotificationIOS.requestPermissions({
+        alert: true,
+        badge: true,
+        sound: true,
+        critical: true,
+      });
+      console.log('🔔 Permission request result:', permissions);
+      this.hasPermission = !!(permissions.alert || permissions.badge || permissions.sound);
       
-      // Send immediate local notification
-      Notifications.postLocalNotification({
-        identifier: `word_${word.id || Date.now()}`,
-        title: 'LingRoot Kelime Hatırlatması',
-        body: `Kelime: "${word.word}" - ${word.definition || 'Tanım yok'}`,
-        sound: 'default',
-        badge: 1,
-        type: '',
-        thread: '',
-        payload: { wordId: word.id?.toString() || '' },
+      if (!this.hasPermission) {
+        Alert.alert(
+          "❌ Bildirim İzni Gerekli", 
+          "iOS Ayarlar > Bildirimler > LingRoot > 'Bildirimlere İzin Ver' seçeneğini açın.",
+          [{ text: 'Tamam' }]
+        );
+        return;
+      }
+      
+      console.log('✅ Permissions granted, sending notifications...');
+      
+      // Send immediate notification
+      PushNotificationIOS.presentLocalNotification({
+        alertTitle: '🎯 LingRoot Kelime',
+        alertBody: `${word.word} - ${word.definition || 'Tanım yok'}`,
+        soundName: 'default',
+        applicationIconBadgeNumber: 1,
+        userInfo: { wordId: word.id?.toString() || '' },
       });
       
-      console.log('postLocalNotification called successfully for word:', word.word);
+      // Send scheduled notification as backup
+      PushNotificationIOS.scheduleLocalNotification({
+        alertTitle: '📚 LingRoot Hatırlatma',
+        alertBody: `Kelime: ${word.word} - ${word.definition || 'Tanım yok'}`,
+        soundName: 'default',
+        applicationIconBadgeNumber: 1,
+        userInfo: { wordId: word.id?.toString() || '' },
+        fireDate: new Date(Date.now() + 3000).toISOString(),
+      });
       
-      // Also show alert to confirm
+      console.log('✅ Notifications sent for word:', word.word, 'with ID:', word.id);
+      
       Alert.alert(
-        "Bildirim Gönderildi",
-        `"${word.word}" için bildirim gönderildi. Bildirim panelini kontrol edin.`
+        "✅ Bildirim Gönderildi",
+        `"${word.word}" bildirimi gönderildi!\n\n📱 Bildirimi görmek için:\n• Uygulamayı arka plana al (home tuşu)\n• Bildirim merkezi/banner'ı kontrol et\n• 3 saniye sonra yedek bildirim gelecek`,
+        [{ text: 'Tamam' }]
       );
+      
     } catch (error) {
-      console.error('Failed to send local notification:', error);
+      console.error('🔔 Failed to send notification:', error);
       Alert.alert(
-        "Bildirim Hatası",
-        `Bildirim gönderilemedi: ${error}`
+        "❌ Bildirim Hatası",
+        `Hata: ${error}\n\niOS Ayarlar > Bildirimler > LingRoot'u kontrol edin.`,
+        [{ text: 'Tamam' }]
       );
     }
   }
 
   public setupNotificationResponseHandler(navigationCallback: (wordId: string) => void) {
-    return { remove: () => {} };
+    console.log('🔧 Setting up notification response handler...');
+    
+    // Set up notification tap handler for when app is launched from notification
+    PushNotificationIOS.addEventListener('notification', (notification: any) => {
+      console.log('🔔 Notification event (app launch) - Full object:', JSON.stringify(notification, null, 2));
+      console.log('🔔 UserInfo:', notification.userInfo);
+      console.log('🔔 WordId from userInfo:', notification.userInfo?.wordId);
+      
+      // Show alert for debugging
+      Alert.alert(
+        '🔔 Notification Tapped (Launch)',
+        `Event: notification\nWordId: ${notification.userInfo?.wordId}\nCallback: ${!!navigationCallback}`,
+        [{ text: 'OK' }]
+      );
+      
+      const wordId = notification.userInfo?.wordId;
+      if (wordId && navigationCallback) {
+        console.log('🎯 Calling navigation callback with wordId:', wordId);
+        this.pendingWordId = String(wordId);
+        navigationCallback(wordId);
+      } else {
+        console.log('❌ No wordId found or no callback provided');
+        console.log('WordId:', wordId, 'Callback:', !!navigationCallback);
+      }
+    });
+
+    // Set up notification tap handler for when app is in background
+    PushNotificationIOS.addEventListener('localNotification', (notification: any) => {
+      console.log('🔔 Local notification tapped - Full object:', JSON.stringify(notification, null, 2));
+      console.log('🔔 UserInfo:', notification.userInfo);
+      console.log('🔔 WordId from userInfo:', notification.userInfo?.wordId);
+      
+      // Show alert for debugging
+      Alert.alert(
+        '🔔 Notification Tapped (Background)',
+        `Event: localNotification\nWordId: ${notification.userInfo?.wordId}\nCallback: ${!!navigationCallback}`,
+        [{ text: 'OK' }]
+      );
+      
+      const wordId = notification.userInfo?.wordId;
+      if (wordId && navigationCallback) {
+        console.log('🎯 Calling navigation callback with wordId:', wordId);
+        this.pendingWordId = String(wordId);
+        navigationCallback(wordId);
+      } else {
+        console.log('❌ No wordId found or no callback provided');
+        console.log('WordId:', wordId, 'Callback:', !!navigationCallback);
+      }
+    });
+
+    return {
+      remove: () => {
+        PushNotificationIOS.removeEventListener('notification');
+        PushNotificationIOS.removeEventListener('localNotification');
+      }
+    };
+  }
+
+  public consumePendingWordId(): string | null {
+    const id = this.pendingWordId;
+    this.pendingWordId = null;
+    return id;
   }
 
   public async getRandomUnlearnedWord(): Promise<VocabularyWord | null> {

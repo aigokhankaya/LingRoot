@@ -15,7 +15,7 @@ import {
   Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import DocumentPicker, { types as DocumentTypes, isCancel } from 'react-native-document-picker';
+// import DocumentPicker from 'react-native-document-picker';
 import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter } from '../types';
 import { useRoute, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -790,36 +790,7 @@ const CreateScreen: React.FC = () => {
   };
 
   const handleFileUpload = async () => {
-    try {
-      const picks = await DocumentPicker.pick({
-        type: [DocumentTypes.pdf, DocumentTypes.docx],
-        allowMultiSelection: false,
-        presentationStyle: 'fullScreen',
-      });
-
-      if (Array.isArray(picks) && picks.length > 0) {
-        const p = picks[0];
-        const file = {
-          uri: p.uri,
-          name: p.name || 'document',
-          mimeType: p.type || (p.name?.endsWith('.pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
-          size: (p as any).size,
-        } as any;
-        setSelectedFile(file);
-        setInputText(''); // Clear text input when file is selected
-
-        Alert.alert(
-          t('create.alerts.fileSelectedTitle'),
-          t('create.alerts.fileSelectedMessage', { fileName: file.name })
-        );
-      }
-    } catch (error: any) {
-      if (isCancel && isCancel(error)) {
-        // user cancelled, no alert
-        return;
-      }
-      Alert.alert(t('common.error'), t('create.alerts.filePickError'));
-    }
+    Alert.alert('Bilgi', 'Dosya yükleme özelliği şu anda kullanılamıyor.');
   };
 
   const clearSelectedFile = () => {

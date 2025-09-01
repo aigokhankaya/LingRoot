@@ -1,14 +1,16 @@
-import React, { useEffect, useRef } from 'react';
-import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
+import React, { useRef, useEffect, useState } from 'react';
+import { NavigationContainer, NavigationContainerRef, CommonActions } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ActivityIndicator, View } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialIcons';
-
+// import { Ionicons } from '@expo/vector-icons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Alert, View, ActivityIndicator } from 'react-native';
+import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import { useAuth } from '../contexts/AuthContext';
+import NotificationService from '../services/notificationService';
+
 import { useLanguage } from '../contexts/LanguageContext';
 import { RootStackParamList, MainTabParamList } from '../types';
-import NotificationService from '../services/notificationServiceNoop';
 
 // Screens
 import LoginScreen from '../screens/LoginScreen';
@@ -55,22 +57,22 @@ const MainTabs = () => {
 
           switch (route.name) {
             case 'Home':
-              iconName = 'home';
+              iconName = 'home' as any;
               break;
             case 'Library':
-              iconName = 'library-music';
+              iconName = 'library' as any;
               break;
             case 'Create':
-              iconName = 'add-circle';
+              iconName = 'add-circle' as any;
               break;
             case 'Profile':
-              iconName = 'person';
+              iconName = 'person' as any;
               break;
             default:
-              iconName = 'help';
+              iconName = 'help' as any;
           }
 
-          return <Icon name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: 'gray',
@@ -130,14 +132,57 @@ const MainTabs = () => {
 const AppNavigator = () => {
   const { user, isLoading } = useAuth();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+  const [navReady, setNavReady] = useState(false);
+  const [initialWordId, setInitialWordId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && navigationRef.current) {
+      console.log('📱 Setting up notification handler in AppNavigator...');
+      
       // Setup notification response handler
       const subscription = NotificationService.setupNotificationResponseHandler((wordId: string) => {
-        // Navigate to vocabulary screen with specific word ID
-        navigationRef.current?.navigate('Vocabulary', { wordId });
+        console.log('📱 AppNavigator received wordId:', wordId);
+        console.log('📱 Current navigation state:', navigationRef.current?.getCurrentRoute());
+        
+        // Show debug alert
+        Alert.alert(
+          '📱 Navigation Callback',
+          `Received wordId: ${wordId}\nNavigating to Vocabulary...`,
+          [{ text: 'OK' }]
+        );
+        
+        // Navigate only when nav is ready; if not, store for later
+        const doNavigate = () => {
+          console.log('📱 Navigating to Vocabulary with wordId:', wordId);
+          navigationRef.current?.dispatch(
+            CommonActions.reset({
+              index: 1,
+              routes: [
+                { name: 'Main' },
+                { name: 'Vocabulary', params: { wordId } },
+              ],
+            })
+          );
+        };
+        if (navReady) doNavigate();
+        else setInitialWordId(String(wordId));
       });
+
+      // Handle cold start: app launched by tapping a notification
+      (async () => {
+        try {
+          const initial = await PushNotificationIOS.getInitialNotification();
+          const data: any = initial?.getData ? initial.getData() : null;
+          const initialWordId = data?.wordId ?? data?.userInfo?.wordId;
+          if (initialWordId) {
+            const wordId = String(initialWordId);
+            console.log('❄️ Cold start captured wordId (waiting for nav ready):', wordId);
+            setInitialWordId(wordId);
+          }
+        } catch (e) {
+          console.log('getInitialNotification error', e);
+        }
+      })();
 
       // Return cleanup function
       return () => {
@@ -146,14 +191,38 @@ const AppNavigator = () => {
         }
       };
     }
-  }, [user]);
+  }, [user, navReady]);
+
+  // When navigation becomes ready or user logs in, consume any pending wordId and navigate
+  useEffect(() => {
+    if (!user || !navReady || !navigationRef.current) return;
+
+    // 1) From service-queued taps
+    const pending = NotificationService.consumePendingWordId
+      ? NotificationService.consumePendingWordId()
+      : null;
+    const target = pending || initialWordId;
+    if (target) {
+      console.log('🚀 Consuming pending/initial wordId:', target);
+      navigationRef.current.dispatch(
+        CommonActions.reset({
+          index: 1,
+          routes: [
+            { name: 'Main' },
+            { name: 'Vocabulary', params: { wordId: target } },
+          ],
+        })
+      );
+      setInitialWordId(null);
+    }
+  }, [user, navReady, initialWordId]);
 
   if (isLoading) {
     return <LoadingScreen />;
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} onReady={() => setNavReady(true)}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>

@@ -7,6 +7,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+interface Attachment {
+  id: string;
+  filename: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+  created_at: string;
+}
+
 interface Message {
   id: string;
   content: string;
@@ -16,6 +25,7 @@ interface Message {
   sender_email?: string;
   created_at: string;
   is_read: boolean;
+  attachments?: Attachment[];
 }
 
 interface Conversation {
@@ -219,6 +229,58 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
     }
   };
 
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType?.startsWith('image/')) return '🖼️';
+    if (mimeType?.includes('pdf')) return '📄';
+    if (mimeType?.includes('word') || mimeType?.includes('document')) return '📝';
+    if (mimeType?.includes('excel') || mimeType?.includes('spreadsheet')) return '📊';
+    if (mimeType?.includes('powerpoint') || mimeType?.includes('presentation')) return '📽️';
+    if (mimeType?.startsWith('audio/')) return '🎵';
+    return '📎';
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const downloadAttachment = async (attachmentId: string, filename: string) => {
+    try {
+      const token = localStorage.getItem('lingroot_token');
+      const response = await fetch(`/api/chat/attachments/${attachmentId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Dosya indirilemedi');
+      }
+
+      // If response is a redirect (302), follow it
+      if (response.redirected) {
+        window.open(response.url, '_blank');
+      } else {
+        // Handle direct file download
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    } catch (error) {
+      console.error('Error downloading attachment:', error);
+      alert('Dosya indirilemedi');
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-1">
@@ -361,7 +423,28 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
                               <span className="font-medium">{message.sender_name}</span>
                               <span className="text-xs text-gray-500">{formatDate(message.created_at)}</span>
                             </div>
-                            <p className="text-gray-700">{message.content}</p>
+                            {message.content && (
+                              <p className="text-gray-700">{message.content}</p>
+                            )}
+                            {message.attachments && message.attachments.length > 0 && (
+                              <div className="mt-3 space-y-2">
+                                {message.attachments.map((attachment) => (
+                                  <div key={attachment.id} className="flex items-center space-x-2 p-2 bg-white rounded border">
+                                    <span className="text-lg">{getFileIcon(attachment.mime_type)}</span>
+                                    <div className="flex-1 min-w-0">
+                                      <button 
+                                        onClick={() => downloadAttachment(attachment.id, attachment.filename)}
+                                        className="text-sm font-medium text-blue-600 hover:text-blue-800 truncate block text-left"
+                                      >
+                                        {attachment.filename}
+                                      </button>
+                                      <p className="text-xs text-gray-500">{formatFileSize(attachment.file_size)}</p>
+                                    </div>
+                                    <i className="fas fa-download text-gray-400 text-sm"></i>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

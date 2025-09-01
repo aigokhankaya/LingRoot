@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import DocumentPicker from 'react-native-document-picker';
+// import DocumentPicker from 'react-native-document-picker';
 import { launchImageLibrary } from 'react-native-image-picker';
 
 interface Attachment {
@@ -247,35 +247,8 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
   };
 
   const pickDocument = async () => {
-    try {
-      const result = await DocumentPicker.pick({
-        type: [DocumentPicker.types.allFiles],
-        allowMultiSelection: true,
-      });
-      
-      const validFiles = result.filter(file => {
-        if (file.size && file.size > 20 * 1024 * 1024) {
-          Alert.alert('Hata', `${file.name} dosyası çok büyük (maksimum 20MB)`);
-          return false;
-        }
-        return true;
-      });
-      
-      if (selectedFiles.length + validFiles.length > 5) {
-        Alert.alert('Uyarı', 'En fazla 5 dosya ekleyebilirsiniz');
-        return;
-      }
-      
-      setSelectedFiles(prev => [...prev, ...validFiles]);
-      setShowAttachmentOptions(false);
-    } catch (err) {
-      if (DocumentPicker.isCancel(err)) {
-        // User cancelled
-      } else {
-        console.error('Document picker error:', err);
-        Alert.alert('Hata', 'Dosya seçimi başarısız');
-      }
-    }
+    Alert.alert('Bilgi', 'Dosya seçme özelliği şu anda kullanılamıyor.');
+    setShowAttachmentOptions(false);
   };
 
   const pickImage = async () => {
@@ -607,7 +580,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
           contentContainerStyle={styles.messagesListContent}
         />
 
-        <View style={styles.inputContainer}>
+        <View style={styles.inputWrapper}>
           {isSelectedConversationClosed() && (
             <View style={styles.reopenBanner}>
               <Text style={styles.reopenText}>Bu konuşma kapatılmış. Yeni mesaj gönderemezsiniz.</Text>
@@ -648,7 +621,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
             </View>
           )}
           
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+          <View style={styles.inputContainer}>
             <TextInput
               style={styles.messageInput}
               value={newMessage}
@@ -984,15 +957,17 @@ const styles = StyleSheet.create({
   adminMessageContent: {
     color: '#111827',
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  inputWrapper: {
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
+    paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 12 : 16,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
   messageInput: {
     flex: 1,
