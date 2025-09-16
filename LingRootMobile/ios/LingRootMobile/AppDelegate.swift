@@ -1,6 +1,7 @@
 import UIKit
 import React
 import UserNotifications
+import RNCPushNotificationIOS
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -46,13 +47,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
   func userNotificationCenter(_ center: UNUserNotificationCenter,
                               didReceive response: UNNotificationResponse,
                               withCompletionHandler completionHandler: @escaping () -> Void) {
-    // Fallback: forward notification payload to JS via NotificationCenter
-    let userInfo = response.notification.request.content.userInfo
-    NotificationCenter.default.post(
-      name: NSNotification.Name("RCTLocalNotificationReceived"),
-      object: nil,
-      userInfo: userInfo
-    )
+    // Forward to RNCPushNotificationIOS so JS listeners receive the event consistently
+    RNCPushNotificationIOS.didReceive(response)
     completionHandler()
   }
 
