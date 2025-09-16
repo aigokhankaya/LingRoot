@@ -54,7 +54,7 @@ export class ReminderSettingsService {
   ): Date[] {
     const notifications: Date[] = [];
     
-    if (!settings.isEnabled || unlearnedWordsCount === 0) {
+    if (!settings.isEnabled) {
       return notifications;
     }
 
@@ -79,8 +79,8 @@ export class ReminderSettingsService {
     const totalDurationMs = endTime.getTime() - startTime.getTime();
     const totalDurationMinutes = totalDurationMs / (1000 * 60);
 
-    // Calculate how many words to remind based on available and desired
-    const wordsToRemind = Math.min(settings.wordsPerDay, unlearnedWordsCount);
+    // Always schedule desired number of reminders; word selection will fallback when needed
+    const wordsToRemind = settings.wordsPerDay;
     
     if (wordsToRemind <= 0) {
       return notifications;
@@ -89,14 +89,23 @@ export class ReminderSettingsService {
     // Calculate interval between notifications
     const intervalMinutes = totalDurationMinutes / wordsToRemind;
 
-    // silent in production
+    // Keep cadence consistent across the whole window.
+    // If user saves settings mid-window, start from the next interval boundary >= now
+    // and continue with the same cadence until end of window or desired count.
+    const minLeadMillis = 5 * 1000; // small safety margin for iOS scheduling
+    const intervalMs = intervalMinutes * 60 * 1000;
 
-    // Generate notification times
-    for (let i = 0; i < wordsToRemind; i++) {
-      const notificationTime = new Date(startTime.getTime() + (i * intervalMinutes * 60 * 1000));
-      
-      // Only add future notifications
-      if (notificationTime > now) {
+    // How many intervals have elapsed from startTime to now?
+    const elapsedMs = Math.max(0, now.getTime() - startTime.getTime());
+    const elapsedIntervals = elapsedMs / intervalMs;
+    const nextIntervalIndex = Math.ceil(elapsedIntervals); // first index whose time >= now
+
+    for (let i = nextIntervalIndex; i < wordsToRemind; i++) {
+      const candidate = new Date(startTime.getTime() + i * intervalMs);
+      // enforce minimal lead time for very near-future schedules
+      const earliest = new Date(now.getTime() + minLeadMillis);
+      const notificationTime = candidate < earliest ? earliest : candidate;
+      if (notificationTime <= endTime) {
         notifications.push(notificationTime);
       }
     }

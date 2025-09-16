@@ -6,6 +6,10 @@
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+  <!-- Android 13+ notification runtime permission -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+  <!-- Ensure scheduled notifications can be restored after reboot -->
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
   <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
   <queries>
     <intent>
@@ -24,5 +28,20 @@
         <category android:name="android.intent.category.LAUNCHER"/>
       </intent-filter>
     </activity>
+
+    <!-- Receivers required by react-native-push-notification for scheduled local notifications -->
+    <receiver
+      android:name="com.dieam.reactnativepushnotification.modules.RNPushNotificationPublisher"
+      android:exported="false" />
+    <receiver
+      android:name="com.dieam.reactnativepushnotification.modules.RNPushNotificationBootEventReceiver"
+      android:enabled="true"
+      android:exported="false">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+        <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+        <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+      </intent-filter>
+    </receiver>
   </application>
 </manifest>

@@ -1,4 +1,4 @@
-import { Alert, Platform } from 'react-native';
+import { Alert, Platform, PermissionsAndroid } from 'react-native';
 import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import type { VocabularyWord } from './api';
 import { getVocabulary } from './api';
@@ -145,9 +145,21 @@ class NotificationService {
           },
           (created: boolean) => console.log('Android channel created:', created)
         );
-        // Android 13+ için kullanıcı izni gerekebilir; kütüphane iOS kadar explicit istemiyor.
-        // Varsayılan olarak true kabul ediyoruz; kullanıcı izin kapatırsa sistem göstermez.
-        this.hasPermission = true;
+        // Android 13+ runtime permission (POST_NOTIFICATIONS)
+        try {
+          const apiLevel = Number(Platform.Version) || 0;
+          if (apiLevel >= 33) {
+            const result = await PermissionsAndroid.request(
+              'android.permission.POST_NOTIFICATIONS' as any
+            );
+            this.hasPermission = result === PermissionsAndroid.RESULTS.GRANTED;
+          } else {
+            this.hasPermission = true; // no runtime permission below 33
+          }
+        } catch (err) {
+          console.warn('Android notification permission request failed:', err);
+          this.hasPermission = true; // best-effort
+        }
       }
 
       this.isInitialized = true;
@@ -162,22 +174,15 @@ class NotificationService {
   }
 
   public async setupPeriodicVocabularyNotifications(): Promise<void> {
-    if (!this.hasPermission) {
-      const permissions = await PushNotificationIOS.requestPermissions({ alert: true, badge: true, sound: true });
-      this.hasPermission = !!(permissions.alert || permissions.badge || permissions.sound);
-    }
+    // Ensure initialized and permissions handled per platform
+    await this.initialize();
     if (!this.hasPermission) return;
-
     await this.rescheduleDailyReminders();
   }
 
   public async setupSmartVocabularyNotifications(): Promise<void> {
-    if (!this.hasPermission) {
-      const permissions = await PushNotificationIOS.requestPermissions({ alert: true, badge: true, sound: true });
-      this.hasPermission = !!(permissions.alert || permissions.badge || permissions.sound);
-    }
+    await this.initialize();
     if (!this.hasPermission) return;
-
     await this.rescheduleDailyReminders();
   }
 
@@ -203,28 +208,40 @@ class NotificationService {
     console.log('🔔 Current hasPermission:', this.hasPermission);
     console.log('🔔 Service initialized:', this.isInitialized);
     
-    // Always request permissions first
+    // Always ensure permissions first by platform
     try {
-      console.log('🔔 Requesting permissions...');
-      const permissions = await PushNotificationIOS.requestPermissions({
-        alert: true,
-        badge: true,
-        sound: true,
-        critical: true,
-      });
-      console.log('🔔 Permission request result:', permissions);
-      this.hasPermission = !!(permissions.alert || permissions.badge || permissions.sound);
-      
-      if (!this.hasPermission) {
-        Alert.alert(
-          "❌ Bildirim İzni Gerekli", 
-          "iOS Ayarlar > Bildirimler > LingRoot > 'Bildirimlere İzin Ver' seçeneğini açın.",
-          [{ text: 'Tamam' }]
-        );
-        return;
+      console.log('🔔 Ensuring permissions...');
+      if (Platform.OS === 'ios') {
+        const permissions = await PushNotificationIOS.requestPermissions({
+          alert: true,
+          badge: true,
+          sound: true,
+          critical: true,
+        });
+        console.log('🔔 iOS permission request result:', permissions);
+        this.hasPermission = !!(permissions.alert || permissions.badge || permissions.sound);
+        if (!this.hasPermission) {
+          Alert.alert(
+            "❌ Bildirim İzni Gerekli", 
+            "iOS Ayarlar > Bildirimler > LingRoot > 'Bildirimlere İzin Ver' seçeneğini açın.",
+            [{ text: 'Tamam' }]
+          );
+          return;
+        }
+      } else {
+        // Android runtime permission for API 33+
+        const apiLevel = Number(Platform.Version) || 0;
+        if (apiLevel >= 33) {
+          const result = await PermissionsAndroid.request(
+            'android.permission.POST_NOTIFICATIONS' as any
+          );
+          this.hasPermission = result === PermissionsAndroid.RESULTS.GRANTED;
+        } else {
+          this.hasPermission = true;
+        }
       }
-      
-      console.log('✅ Permissions granted, sending notifications...');
+
+      console.log('✅ Permissions ensured, sending notifications...');
       
       if (Platform.OS === 'ios') {
         // iOS immediate notification
