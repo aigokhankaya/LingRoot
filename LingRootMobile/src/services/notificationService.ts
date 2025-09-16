@@ -1,7 +1,9 @@
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import type { VocabularyWord } from './api';
 import { getVocabulary } from './api';
+import { ReminderSettingsService } from './reminderSettingsService';
+import PushNotification from 'react-native-push-notification';
 
 class NotificationService {
   private static instance: NotificationService;
@@ -18,6 +20,101 @@ class NotificationService {
     return NotificationService.instance;
   }
 
+  /**
+   * Recreate today's reminder notifications according to user's reminder settings.
+   */
+  private async rescheduleDailyReminders(): Promise<void> {
+    try {
+      // 1) Cancel previous ones
+      if (Platform.OS === 'ios') {
+        PushNotificationIOS.cancelAllLocalNotifications();
+      } else {
+        PushNotification.cancelAllLocalNotifications();
+        PushNotification.removeAllDeliveredNotifications?.();
+      }
+
+      // 2) Read settings
+      const settings = await ReminderSettingsService.getSettings();
+      if (!settings?.isEnabled) {
+        return; // disabled
+      }
+
+      // 3) Load vocabulary and compute unlearned words
+      const words = await getVocabulary();
+      const unlearned = Array.isArray(words)
+        ? words.filter(w => w && (w.is_learned === false || typeof w.is_learned === 'undefined'))
+        : [];
+
+      const unlearnedCount = unlearned.length;
+
+      // 4) Compute notification times for today
+      const times = ReminderSettingsService.calculateNotificationTimes(settings, unlearnedCount);
+      if (times.length === 0) return;
+
+      // 5) Choose words for each slot
+      const selectedWords = this.pickWordsForSlots(unlearned, words, times.length);
+
+      // 6) Schedule notifications
+      for (let i = 0; i < times.length; i++) {
+        const when = times[i];
+        const word = selectedWords[i];
+        const title = '📚 LingRoot Hatırlatma';
+        const body = word
+          ? `Kelime: ${word.word}${word.definition ? ' — ' + word.definition : ''}`
+          : 'Günün kelimelerini tekrar et!';
+
+        if (Platform.OS === 'ios') {
+          PushNotificationIOS.scheduleLocalNotification({
+            alertTitle: title,
+            alertBody: body,
+            soundName: 'default',
+            applicationIconBadgeNumber: 1,
+            userInfo: { wordId: word?.id?.toString() || '' },
+            fireDate: when.toISOString(),
+          });
+        } else {
+          PushNotification.localNotificationSchedule({
+            channelId: 'lingroot-reminders',
+            title,
+            message: body,
+            date: when,
+            allowWhileIdle: true,
+            playSound: true,
+            soundName: 'default',
+            userInfo: { wordId: word?.id?.toString() || '' } as any,
+            // optional: repeatType: 'day'
+          });
+        }
+      }
+
+      Alert.alert(
+        '✅ Bildirimler Ayarlandı',
+        `${times.length} adet günlük hatırlatma planlandı.`
+      );
+    } catch (e) {
+      console.error('rescheduleDailyReminders error:', e);
+      // best-effort — show info for debugging
+      Alert.alert('❌ Bildirim Hatası', 'Hatırlatmalar planlanamadı.');
+    }
+  }
+
+  /**
+   * Selects a word for each notification slot. Prefer unlearned; fallback to any vocabulary.
+   */
+  private pickWordsForSlots(unlearned: VocabularyWord[], all: VocabularyWord[], count: number): VocabularyWord[] {
+    const source = (unlearned.length > 0 ? [...unlearned] : [...all]).filter(Boolean);
+    // Shuffle source
+    for (let i = source.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [source[i], source[j]] = [source[j], source[i]];
+    }
+    const result: VocabularyWord[] = [];
+    for (let i = 0; i < count; i++) {
+      result.push(source[i % Math.max(1, source.length)]);
+    }
+    return result;
+  }
+
   public async initialize(): Promise<boolean> {
     if (this.isInitialized) {
       return this.hasPermission;
@@ -25,19 +122,36 @@ class NotificationService {
 
     try {
       console.log('Starting notification service initialization...');
-      
-      // Request permissions using PushNotificationIOS
-      const permissions = await PushNotificationIOS.requestPermissions({
-        alert: true,
-        badge: true,
-        sound: true,
-      });
-      
-      console.log('Permission request result:', permissions);
-      this.hasPermission = !!(permissions.alert || permissions.badge || permissions.sound);
+
+      if (Platform.OS === 'ios') {
+        // iOS permission
+        const permissions = await PushNotificationIOS.requestPermissions({
+          alert: true,
+          badge: true,
+          sound: true,
+        });
+        console.log('iOS permission request result:', permissions);
+        this.hasPermission = !!(permissions.alert || permissions.badge || permissions.sound);
+      } else {
+        // Android: create a default channel for reminders
+        PushNotification.createChannel(
+          {
+            channelId: 'lingroot-reminders',
+            channelName: 'LingRoot Reminders',
+            channelDescription: 'Günlük kelime hatırlatma bildirimleri',
+            importance: 4, // high
+            vibrate: true,
+            soundName: 'default',
+          },
+          (created: boolean) => console.log('Android channel created:', created)
+        );
+        // Android 13+ için kullanıcı izni gerekebilir; kütüphane iOS kadar explicit istemiyor.
+        // Varsayılan olarak true kabul ediyoruz; kullanıcı izin kapatırsa sistem göstermez.
+        this.hasPermission = true;
+      }
+
       this.isInitialized = true;
-      
-      console.log('Notification service initialized, hasPermission:', this.hasPermission);
+      console.log('Notification service initialized, hasPermission:', this.hasPermission, 'platform:', Platform.OS);
       return this.hasPermission;
     } catch (error) {
       console.error('Notification initialization error:', error);
@@ -48,29 +162,40 @@ class NotificationService {
   }
 
   public async setupPeriodicVocabularyNotifications(): Promise<void> {
+    if (!this.hasPermission) {
+      const permissions = await PushNotificationIOS.requestPermissions({ alert: true, badge: true, sound: true });
+      this.hasPermission = !!(permissions.alert || permissions.badge || permissions.sound);
+    }
     if (!this.hasPermission) return;
-    
-    // Show alert for now instead of actual notification
-    Alert.alert(
-      "Bildirim Ayarlandı",
-      "Periyodik kelime hatırlatmaları aktif edildi."
-    );
+
+    await this.rescheduleDailyReminders();
   }
 
   public async setupSmartVocabularyNotifications(): Promise<void> {
+    if (!this.hasPermission) {
+      const permissions = await PushNotificationIOS.requestPermissions({ alert: true, badge: true, sound: true });
+      this.hasPermission = !!(permissions.alert || permissions.badge || permissions.sound);
+    }
     if (!this.hasPermission) return;
-    
-    Alert.alert(
-      "Akıllı Bildirimler",
-      "Akıllı kelime hatırlatmaları aktif edildi."
-    );
+
+    await this.rescheduleDailyReminders();
   }
 
   public async stopVocabularyReminders(): Promise<void> {
-    Alert.alert(
-      "Bildirimler Durduruldu", 
-      "Tüm kelime hatırlatmaları iptal edildi."
-    );
+    try {
+      if (Platform.OS === 'ios') {
+        PushNotificationIOS.cancelAllLocalNotifications();
+      } else {
+        PushNotification.cancelAllLocalNotifications();
+        PushNotification.removeAllDeliveredNotifications?.();
+      }
+      Alert.alert(
+        "Bildirimler Durduruldu", 
+        "Tüm kelime hatırlatmaları iptal edildi."
+      );
+    } catch (e) {
+      // silent
+    }
   }
 
   public async scheduleVocabularyNotification(word: VocabularyWord): Promise<void> {
@@ -101,24 +226,46 @@ class NotificationService {
       
       console.log('✅ Permissions granted, sending notifications...');
       
-      // Send immediate notification
-      PushNotificationIOS.presentLocalNotification({
-        alertTitle: '🎯 LingRoot Kelime',
-        alertBody: `${word.word} - ${word.definition || 'Tanım yok'}`,
-        soundName: 'default',
-        applicationIconBadgeNumber: 1,
-        userInfo: { wordId: word.id?.toString() || '' },
-      });
-      
-      // Send scheduled notification as backup
-      PushNotificationIOS.scheduleLocalNotification({
-        alertTitle: '📚 LingRoot Hatırlatma',
-        alertBody: `Kelime: ${word.word} - ${word.definition || 'Tanım yok'}`,
-        soundName: 'default',
-        applicationIconBadgeNumber: 1,
-        userInfo: { wordId: word.id?.toString() || '' },
-        fireDate: new Date(Date.now() + 3000).toISOString(),
-      });
+      if (Platform.OS === 'ios') {
+        // iOS immediate notification
+        PushNotificationIOS.presentLocalNotification({
+          alertTitle: '🎯 LingRoot Kelime',
+          alertBody: `${word.word} - ${word.definition || 'Tanım yok'}`,
+          soundName: 'default',
+          applicationIconBadgeNumber: 1,
+          userInfo: { wordId: word.id?.toString() || '' },
+        });
+        // backup after 3s
+        PushNotificationIOS.scheduleLocalNotification({
+          alertTitle: '📚 LingRoot Hatırlatma',
+          alertBody: `Kelime: ${word.word} - ${word.definition || 'Tanım yok'}`,
+          soundName: 'default',
+          applicationIconBadgeNumber: 1,
+          userInfo: { wordId: word.id?.toString() || '' },
+          fireDate: new Date(Date.now() + 3000).toISOString(),
+        });
+      } else {
+        // Android immediate notification
+        PushNotification.localNotification({
+          channelId: 'lingroot-reminders',
+          title: '🎯 LingRoot Kelime',
+          message: `${word.word} - ${word.definition || 'Tanım yok'}`,
+          playSound: true,
+          soundName: 'default',
+          userInfo: { wordId: word.id?.toString() || '' } as any,
+        });
+        // backup after 3s
+        PushNotification.localNotificationSchedule({
+          channelId: 'lingroot-reminders',
+          title: '📚 LingRoot Hatırlatma',
+          message: `Kelime: ${word.word} - ${word.definition || 'Tanım yok'}`,
+          date: new Date(Date.now() + 3000),
+          allowWhileIdle: true,
+          playSound: true,
+          soundName: 'default',
+          userInfo: { wordId: word.id?.toString() || '' } as any,
+        });
+      }
       
       console.log('✅ Notifications sent for word:', word.word, 'with ID:', word.id);
       
