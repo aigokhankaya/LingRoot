@@ -10,6 +10,7 @@ class NotificationService {
   private isInitialized = false;
   private hasPermission = false;
   private pendingWordId: string | null = null;
+  private responseCallback: ((wordId: string) => void) | null = null;
 
   private constructor() {}
 
@@ -54,7 +55,6 @@ class NotificationService {
       const selectedWords = this.pickWordsForSlots(unlearned, words, times.length);
 
       // 6) Schedule notifications
-      const scheduledSummaries: string[] = [];
       for (let i = 0; i < times.length; i++) {
         const when = times[i];
         const word = selectedWords[i];
@@ -64,7 +64,6 @@ class NotificationService {
           : 'Günün kelimelerini tekrar et!';
 
         console.log(`[Reminder] Scheduling (${i + 1}/${times.length}) at`, when.toString(), 'word:', word?.word);
-        scheduledSummaries.push(`${i + 1}. ${when.toLocaleTimeString()}${word?.word ? ` • ${word.word}` : ''}`);
 
         if (Platform.OS === 'ios') {
           // Prefer the newer API for scheduling on iOS
@@ -116,52 +115,7 @@ class NotificationService {
         }
       }
 
-      // Show a summary of scheduled times for quick verification
-      try {
-        const summary = scheduledSummaries.join('\n');
-        Alert.alert('✅ Bildirimler Ayarlandı', `${times.length} adet planlandı:\n${summary}`);
-      } catch {}
-
-      // Schedule a one-time debug notification 10s later to confirm flow executed
-      try {
-        const debugWhen = new Date(Date.now() + 10_000);
-        if (Platform.OS === 'ios') {
-          try {
-            PushNotificationIOS.addNotificationRequest({
-              id: `lingroot_debug_${debugWhen.getTime()}`,
-              title: '🧪 LingRoot (Tanılama)',
-              body: `Planlama tamamlandı. (${times.length}) adet ayarlandı.`,
-              sound: 'default',
-              badge: 1,
-              userInfo: { debug: 'true' },
-              fireDate: debugWhen,
-              repeats: false,
-            });
-          } catch {
-            PushNotificationIOS.scheduleLocalNotification({
-              alertTitle: '🧪 LingRoot (Tanılama)',
-              alertBody: `Planlama tamamlandı. (${times.length}) adet ayarlandı.`,
-              soundName: 'default',
-              applicationIconBadgeNumber: 1,
-              userInfo: { debug: 'true' },
-              fireDate: debugWhen.toISOString(),
-            });
-          }
-        } else {
-          PushNotification.localNotificationSchedule({
-            channelId: 'lingroot-reminders',
-            title: '🧪 LingRoot (Tanılama)',
-            message: `Planlama tamamlandı. (${times.length}) adet ayarlandı.`,
-            date: debugWhen,
-            allowWhileIdle: true,
-            playSound: true,
-            soundName: 'default',
-            userInfo: { debug: 'true' } as any,
-          });
-        }
-      } catch (err) {
-        console.log('Failed to schedule debug notification:', err);
-      }
+      // No user-facing success alerts or extra debug notifications
     } catch (e) {
       console.error('rescheduleDailyReminders error:', e);
       // best-effort — show info for debugging
@@ -231,6 +185,33 @@ class NotificationService {
           console.warn('Android notification permission request failed:', err);
           this.hasPermission = true; // best-effort
         }
+      }
+
+      // Configure a cross-platform notification handler (works on iOS and Android)
+      try {
+        PushNotification.configure({
+          onNotification: (notification: any) => {
+            try {
+              const userInfo = notification?.userInfo || notification?.data || {};
+              const wordId = userInfo.wordId || userInfo?.item?.wordId;
+              console.log('🔔 onNotification (configure) userInfo:', userInfo, 'wordId:', wordId);
+              if (wordId) {
+                if (this.responseCallback) {
+                  this.pendingWordId = String(wordId);
+                  this.responseCallback(String(wordId));
+                } else {
+                  this.pendingWordId = String(wordId);
+                }
+              }
+            } catch (e) {
+              console.log('onNotification handler error', e);
+            }
+          },
+          popInitialNotification: true,
+          requestPermissions: false,
+        } as any);
+      } catch (cfgErr) {
+        console.log('PushNotification.configure failed or not available:', cfgErr);
       }
 
       this.isInitialized = true;
@@ -375,6 +356,7 @@ class NotificationService {
 
   public setupNotificationResponseHandler(navigationCallback: (wordId: string) => void) {
     console.log('🔧 Setting up notification response handler...');
+    this.responseCallback = navigationCallback;
     
     // Set up notification tap handler for when app is launched from notification
     PushNotificationIOS.addEventListener('notification', (notification: any) => {
@@ -426,8 +408,9 @@ class NotificationService {
 
     return {
       remove: () => {
-        PushNotificationIOS.removeEventListener('notification');
-        PushNotificationIOS.removeEventListener('localNotification');
+        try { PushNotificationIOS.removeEventListener('notification'); } catch {}
+        try { PushNotificationIOS.removeEventListener('localNotification'); } catch {}
+        this.responseCallback = null;
       }
     };
   }

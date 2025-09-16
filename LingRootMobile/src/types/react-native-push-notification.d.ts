@@ -24,6 +24,14 @@ declare module 'react-native-push-notification' {
   }
 
   const PushNotification: {
+    configure(config: {
+      onNotification?: (notification: any) => void;
+      popInitialNotification?: boolean;
+      requestPermissions?: boolean;
+      onRegister?: (token: { os: string; token: string }) => void;
+      permissions?: { alert?: boolean; badge?: boolean; sound?: boolean };
+      senderID?: string;
+    }): void;
     createChannel(channel: ChannelObject, cb?: (created: boolean) => void): void;
     localNotification(config: LocalNotificationObject): void;
     localNotificationSchedule(config: LocalNotificationObject): void;
