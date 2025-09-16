@@ -19,6 +19,8 @@ declare module 'react-native-push-notification' {
     playSound?: boolean;
     soundName?: string;
     userInfo?: any;
+    /** Repeat interval on Android */
+    repeatType?: 'minute' | 'hour' | 'day' | 'week' | 'month';
   }
 
   const PushNotification: {

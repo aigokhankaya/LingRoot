@@ -77,7 +77,8 @@ class NotificationService {
               badge: 1,
               userInfo: { wordId: word?.id?.toString() || '' },
               fireDate: when,
-              repeats: false,
+              // Repeat daily at the same time
+              repeats: true,
             });
           } catch (err) {
             // Fallback to legacy API if needed
@@ -100,7 +101,8 @@ class NotificationService {
             playSound: true,
             soundName: 'default',
             userInfo: { wordId: word?.id?.toString() || '' } as any,
-            // optional: repeatType: 'day'
+            // Repeat daily at the same time
+            repeatType: 'day',
           });
         }
       }
