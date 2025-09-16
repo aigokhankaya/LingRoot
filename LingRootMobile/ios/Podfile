@@ -27,6 +27,9 @@ target 'LingRootMobile' do
     :privacy_file_aggregation_enabled => true,
   )
 
+  # Push Notification iOS native module
+  pod 'RNCPushNotificationIOS', :path => '../node_modules/@react-native-community/push-notification-ios'
+
   post_install do |installer|
     # Fix for Xcode 14.3+ and React Native header search paths
     installer.pods_project.targets.each do |target|
