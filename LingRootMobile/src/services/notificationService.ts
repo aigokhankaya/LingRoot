@@ -68,6 +68,7 @@ class NotificationService {
 
         if (Platform.OS === 'ios') {
           // Prefer the newer API for scheduling on iOS
+          let modernOk = false;
           try {
             PushNotificationIOS.addNotificationRequest({
               id: `lingroot_${when.getTime()}_${i}`,
@@ -80,8 +81,12 @@ class NotificationService {
               // Repeat daily at the same time
               repeats: true,
             });
+            modernOk = true;
           } catch (err) {
-            // Fallback to legacy API if needed
+            console.log('addNotificationRequest failed, will use legacy API', err);
+          }
+          // Also schedule with legacy API as redundancy
+          try {
             PushNotificationIOS.scheduleLocalNotification({
               alertTitle: title,
               alertBody: body,
@@ -90,6 +95,10 @@ class NotificationService {
               userInfo: { wordId: word?.id?.toString() || '' },
               fireDate: when.toISOString(),
             });
+          } catch (legacyErr) {
+            if (!modernOk) {
+              console.log('Both modern and legacy iOS scheduling failed:', legacyErr);
+            }
           }
         } else {
           PushNotification.localNotificationSchedule({
@@ -450,11 +459,37 @@ class NotificationService {
   }
 
   public async getStatus(): Promise<{ isInitialized: boolean; hasPermission: boolean; scheduledCount: number }> {
-    return {
-      isInitialized: this.isInitialized,
-      hasPermission: this.hasPermission,
-      scheduledCount: 0,
-    };
+    try {
+      if (Platform.OS === 'ios') {
+        const scheduledCount = await new Promise<number>((resolve) => {
+          try {
+            // @ts-ignore: RN community API provides this callback-style method
+            PushNotificationIOS.getScheduledLocalNotifications((list: any[]) => {
+              resolve(Array.isArray(list) ? list.length : 0);
+            });
+          } catch {
+            resolve(0);
+          }
+        });
+        return {
+          isInitialized: this.isInitialized,
+          hasPermission: this.hasPermission,
+          scheduledCount,
+        };
+      }
+      // Android: no simple getter; return 0
+      return {
+        isInitialized: this.isInitialized,
+        hasPermission: this.hasPermission,
+        scheduledCount: 0,
+      };
+    } catch {
+      return {
+        isInitialized: this.isInitialized,
+        hasPermission: this.hasPermission,
+        scheduledCount: 0,
+      };
+    }
   }
 }
 
