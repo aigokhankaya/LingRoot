@@ -49,7 +49,6 @@ class NotificationService {
 
       // 4) Compute notification times for today
       const times = ReminderSettingsService.calculateNotificationTimes(settings, unlearnedCount);
-      if (times.length === 0) return;
 
       // 5) Choose words for each slot
       const selectedWords = this.pickWordsForSlots(unlearned, words, times.length);
@@ -68,14 +67,29 @@ class NotificationService {
         scheduledSummaries.push(`${i + 1}. ${when.toLocaleTimeString()}${word?.word ? ` • ${word.word}` : ''}`);
 
         if (Platform.OS === 'ios') {
-          PushNotificationIOS.scheduleLocalNotification({
-            alertTitle: title,
-            alertBody: body,
-            soundName: 'default',
-            applicationIconBadgeNumber: 1,
-            userInfo: { wordId: word?.id?.toString() || '' },
-            fireDate: when.toISOString(),
-          });
+          // Prefer the newer API for scheduling on iOS
+          try {
+            PushNotificationIOS.addNotificationRequest({
+              id: `lingroot_${when.getTime()}_${i}`,
+              title,
+              body,
+              sound: 'default',
+              badge: 1,
+              userInfo: { wordId: word?.id?.toString() || '' },
+              fireDate: when,
+              repeats: false,
+            });
+          } catch (err) {
+            // Fallback to legacy API if needed
+            PushNotificationIOS.scheduleLocalNotification({
+              alertTitle: title,
+              alertBody: body,
+              soundName: 'default',
+              applicationIconBadgeNumber: 1,
+              userInfo: { wordId: word?.id?.toString() || '' },
+              fireDate: when.toISOString(),
+            });
+          }
         } else {
           PushNotification.localNotificationSchedule({
             channelId: 'lingroot-reminders',
@@ -101,14 +115,27 @@ class NotificationService {
       try {
         const debugWhen = new Date(Date.now() + 10_000);
         if (Platform.OS === 'ios') {
-          PushNotificationIOS.scheduleLocalNotification({
-            alertTitle: '🧪 LingRoot (Tanılama)',
-            alertBody: `Planlama tamamlandı. (${times.length}) adet ayarlandı.`,
-            soundName: 'default',
-            applicationIconBadgeNumber: 1,
-            userInfo: { debug: 'true' },
-            fireDate: debugWhen.toISOString(),
-          });
+          try {
+            PushNotificationIOS.addNotificationRequest({
+              id: `lingroot_debug_${debugWhen.getTime()}`,
+              title: '🧪 LingRoot (Tanılama)',
+              body: `Planlama tamamlandı. (${times.length}) adet ayarlandı.`,
+              sound: 'default',
+              badge: 1,
+              userInfo: { debug: 'true' },
+              fireDate: debugWhen,
+              repeats: false,
+            });
+          } catch {
+            PushNotificationIOS.scheduleLocalNotification({
+              alertTitle: '🧪 LingRoot (Tanılama)',
+              alertBody: `Planlama tamamlandı. (${times.length}) adet ayarlandı.`,
+              soundName: 'default',
+              applicationIconBadgeNumber: 1,
+              userInfo: { debug: 'true' },
+              fireDate: debugWhen.toISOString(),
+            });
+          }
         } else {
           PushNotification.localNotificationSchedule({
             channelId: 'lingroot-reminders',
@@ -209,13 +236,13 @@ class NotificationService {
   public async setupPeriodicVocabularyNotifications(): Promise<void> {
     // Ensure initialized and permissions handled per platform
     await this.initialize();
-    if (!this.hasPermission) return;
+    if (!this.hasPermission && Platform.OS !== 'ios') return; // proceed on iOS to allow local scheduling
     await this.rescheduleDailyReminders();
   }
 
   public async setupSmartVocabularyNotifications(): Promise<void> {
     await this.initialize();
-    if (!this.hasPermission) return;
+    if (!this.hasPermission && Platform.OS !== 'ios') return; // proceed on iOS to allow local scheduling
     await this.rescheduleDailyReminders();
   }
 

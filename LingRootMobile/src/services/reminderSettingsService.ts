@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getReminderSettings as getReminderSettingsFromApi } from './api';
 
 export interface ReminderSettings {
   wordsPerDay: number;
@@ -22,11 +23,20 @@ export class ReminderSettingsService {
    */
   static async getSettings(): Promise<ReminderSettings> {
     try {
-      const storedSettings = await AsyncStorage.getItem(STORAGE_KEY);
-      if (storedSettings) {
-        return { ...defaultSettings, ...JSON.parse(storedSettings) };
+      // 1) Try fetching latest settings from backend so web changes are reflected
+      try {
+        const apiSettings = await getReminderSettingsFromApi();
+        const merged = { ...defaultSettings, ...apiSettings } as ReminderSettings;
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        return merged;
+      } catch (apiErr) {
+        // 2) Fallback to local storage
+        const storedSettings = await AsyncStorage.getItem(STORAGE_KEY);
+        if (storedSettings) {
+          return { ...defaultSettings, ...JSON.parse(storedSettings) };
+        }
+        return defaultSettings;
       }
-      return defaultSettings;
     } catch (error) {
       // silent in production
       return defaultSettings;
