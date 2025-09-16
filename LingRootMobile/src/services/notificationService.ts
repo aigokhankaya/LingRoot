@@ -55,6 +55,7 @@ class NotificationService {
       const selectedWords = this.pickWordsForSlots(unlearned, words, times.length);
 
       // 6) Schedule notifications
+      const scheduledSummaries: string[] = [];
       for (let i = 0; i < times.length; i++) {
         const when = times[i];
         const word = selectedWords[i];
@@ -62,6 +63,9 @@ class NotificationService {
         const body = word
           ? `Kelime: ${word.word}${word.definition ? ' — ' + word.definition : ''}`
           : 'Günün kelimelerini tekrar et!';
+
+        console.log(`[Reminder] Scheduling (${i + 1}/${times.length}) at`, when.toString(), 'word:', word?.word);
+        scheduledSummaries.push(`${i + 1}. ${when.toLocaleTimeString()}${word?.word ? ` • ${word.word}` : ''}`);
 
         if (Platform.OS === 'ios') {
           PushNotificationIOS.scheduleLocalNotification({
@@ -87,10 +91,39 @@ class NotificationService {
         }
       }
 
-      Alert.alert(
-        '✅ Bildirimler Ayarlandı',
-        `${times.length} adet günlük hatırlatma planlandı.`
-      );
+      // Show a summary of scheduled times for quick verification
+      try {
+        const summary = scheduledSummaries.join('\n');
+        Alert.alert('✅ Bildirimler Ayarlandı', `${times.length} adet planlandı:\n${summary}`);
+      } catch {}
+
+      // Schedule a one-time debug notification 10s later to confirm flow executed
+      try {
+        const debugWhen = new Date(Date.now() + 10_000);
+        if (Platform.OS === 'ios') {
+          PushNotificationIOS.scheduleLocalNotification({
+            alertTitle: '🧪 LingRoot (Tanılama)',
+            alertBody: `Planlama tamamlandı. (${times.length}) adet ayarlandı.`,
+            soundName: 'default',
+            applicationIconBadgeNumber: 1,
+            userInfo: { debug: 'true' },
+            fireDate: debugWhen.toISOString(),
+          });
+        } else {
+          PushNotification.localNotificationSchedule({
+            channelId: 'lingroot-reminders',
+            title: '🧪 LingRoot (Tanılama)',
+            message: `Planlama tamamlandı. (${times.length}) adet ayarlandı.`,
+            date: debugWhen,
+            allowWhileIdle: true,
+            playSound: true,
+            soundName: 'default',
+            userInfo: { debug: 'true' } as any,
+          });
+        }
+      } catch (err) {
+        console.log('Failed to schedule debug notification:', err);
+      }
     } catch (e) {
       console.error('rescheduleDailyReminders error:', e);
       // best-effort — show info for debugging
