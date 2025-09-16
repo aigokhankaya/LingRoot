@@ -21,6 +21,65 @@ const generateToken = (id, email, role, _rememberMe = false) => {
   return jwt.sign({ id, email, role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 };
 
+// Exchange a valid refresh token for a new access token (and rotate refresh token)
+exports.refreshToken = async (req, res) => {
+  try {
+    // Accept refresh token from Authorization header or request body for flexibility
+    let refreshToken = null;
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Bearer ')) {
+      refreshToken = authHeader.split(' ')[1];
+    }
+    if (!refreshToken) {
+      refreshToken = (req.body && (req.body.refreshToken || req.body.refresh_token)) || null;
+    }
+
+    if (!refreshToken) {
+      return res.status(400).json({ success: false, message: 'Refresh token gerekli' });
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+    } catch (e) {
+      return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+
+    const userId = payload && payload.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+
+    // Ensure user still exists and is active
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email, role, isverified')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error || !user) {
+      return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+    if (!user.isverified) {
+      return res.status(403).json({ success: false, message: 'Hesap doğrulanmamış' });
+    }
+
+    const accessToken = generateToken(user.id, user.email, user.role, true);
+    const newRefreshToken = generateRefreshToken(user.id);
+
+    return res.json({
+      success: true,
+      message: 'Token yenilendi',
+      data: {
+        token: accessToken,
+        refreshToken: newRefreshToken,
+      },
+    });
+  } catch (err) {
+    logger.error('Refresh token error:', err);
+    return res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
 const generateRefreshToken = (id) =>
   jwt.sign({ id }, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN });
 

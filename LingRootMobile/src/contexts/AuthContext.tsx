@@ -79,6 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         await AsyncStorage.removeItem('auth_token');
         await AsyncStorage.removeItem('user_data');
+        try { await AsyncStorage.removeItem('refresh_token'); } catch {}
       } catch {}
       setUser(null);
     });
@@ -163,6 +164,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (response.status === 401) {
               await AsyncStorage.removeItem('auth_token');
               await AsyncStorage.removeItem('user_data');
+              try { await AsyncStorage.removeItem('refresh_token'); } catch {}
               setUser(null);
             } else {
               try {
@@ -256,6 +258,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (data.data.token) {
           await AsyncStorage.setItem('auth_token', data.data.token);
           await AsyncStorage.setItem('user_data', JSON.stringify(appUser));
+          // Store refresh token if provided by backend
+          try {
+            if (data.data.refreshToken) {
+              await AsyncStorage.setItem('refresh_token', data.data.refreshToken);
+            }
+          } catch {}
         }
         
         setUser(appUser);
@@ -291,6 +299,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Clear AsyncStorage
       await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user_data');
+      try { await AsyncStorage.removeItem('refresh_token'); } catch {}
       
       await authService.signOut();
       setUser(null);

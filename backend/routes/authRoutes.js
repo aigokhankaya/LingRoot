@@ -8,6 +8,8 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
+// Refresh token route
+router.post('/refresh', authController.refreshToken);
 // Support both POST and GET for verification to allow email link clicks
 router.post('/verify-email/:token', authController.verifyEmail);
 router.get('/verify-email/:token', authController.verifyEmail);

@@ -65,6 +65,43 @@ const apiClient = axios.create({
   },
 });
 
+// Simple single-flight refresh lock
+let refreshPromise: Promise<void> | null = null;
+async function performTokenRefresh(): Promise<void> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    try {
+      const refreshToken = await AsyncStorage.getItem('refresh_token');
+      if (!refreshToken) throw new Error('no_refresh_token');
+      const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          // Allow either body or Authorization; we use body here
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const msg = (body?.message || '').toString().toLowerCase();
+        throw new Error(msg || `refresh_failed_${res.status}`);
+      }
+      const body = await res.json();
+      const newAccess = body?.data?.token;
+      const newRefresh = body?.data?.refreshToken;
+      if (!newAccess || !newRefresh) throw new Error('invalid_refresh_response');
+      await AsyncStorage.setItem('auth_token', newAccess);
+      await AsyncStorage.setItem('refresh_token', newRefresh);
+    } finally {
+      // Reset lock after completion (success or failure)
+      const _ = refreshPromise; // keep ref to avoid race
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
+}
+
 // Request interceptor - authentication token eklemek için
 apiClient.interceptors.request.use(
   async (config) => {
@@ -102,26 +139,45 @@ apiClient.interceptors.response.use(
       }
     }
     
-    // Token expired handling
-    if (error.response?.status === 401 || 
-        error.response?.data?.message === 'Token expired' ||
-        error.response?.data?.message === 'Unauthorized') {
-      
-      // Clear expired token and user data
-      try {
-        await AsyncStorage.removeItem('auth_token');
-        await AsyncStorage.removeItem('user_data');
-      } catch (clearError) {
-        
-      }
-      
-      // Notify app to update auth state (navigate to login)
-      try {
-        if (unauthorizedHandler) {
-          unauthorizedHandler();
+    // Token error handling: only act on explicit token problems
+    if (error.response?.status === 401) {
+      const msg = (error.response?.data?.message || '').toString();
+      const isExplicitTokenProblem =
+        msg.toLowerCase().includes('token expired') ||
+        msg.toLowerCase().includes('invalid token');
+
+      if (isExplicitTokenProblem && error.config && !(error.config as any).__retryAfterRefresh) {
+        // Attempt refresh once
+        try {
+          await performTokenRefresh();
+          const newToken = await AsyncStorage.getItem('auth_token');
+          if (newToken) {
+            (error.config as any).__retryAfterRefresh = true;
+            error.config.headers = error.config.headers || {};
+            error.config.headers.Authorization = `Bearer ${newToken}`;
+            return await apiClient.request(error.config);
+          }
+        } catch (refreshErr) {
+          // If refresh fails, clear and notify
+          try {
+            await AsyncStorage.removeItem('auth_token');
+            await AsyncStorage.removeItem('user_data');
+            await AsyncStorage.removeItem('refresh_token');
+          } catch {}
+          try {
+            if (unauthorizedHandler) unauthorizedHandler();
+          } catch {}
         }
-      } catch (notifyError) {
-        
+      } else if (isExplicitTokenProblem) {
+        // Already retried or no config -> clear and notify
+        try {
+          await AsyncStorage.removeItem('auth_token');
+          await AsyncStorage.removeItem('user_data');
+          await AsyncStorage.removeItem('refresh_token');
+        } catch {}
+        try {
+          if (unauthorizedHandler) unauthorizedHandler();
+        } catch {}
       }
     }
     
