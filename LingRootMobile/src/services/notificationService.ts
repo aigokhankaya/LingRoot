@@ -2,7 +2,7 @@ import { Alert, Platform, PermissionsAndroid } from 'react-native';
 import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import type { VocabularyWord } from './api';
 import { getVocabulary } from './api';
-import { ReminderSettingsService } from './reminderSettingsService';
+import { ReminderSettingsService, ReminderSettings } from './reminderSettingsService';
 import PushNotification from 'react-native-push-notification';
 
 // Ensure onNotification is configured as early as possible (at module load)
@@ -110,9 +110,25 @@ class NotificationService {
         PushNotification.removeAllDeliveredNotifications?.();
       }
 
-      // 2) Read settings
-      const settings = await ReminderSettingsService.getSettings();
+      // 2) Read settings with network error handling
+      let settings;
+      try {
+        settings = await ReminderSettingsService.getSettings();
+      } catch (networkError) {
+        console.log('⚠️ Network error getting settings, using fallback:', networkError);
+        // Fallback: create a simple test schedule for next 5 minutes
+        const now = new Date();
+        settings = {
+          isEnabled: true,
+          startTime: `${now.getHours()}:${String(now.getMinutes() + 1).padStart(2, '0')}`,
+          endTime: `${now.getHours()}:${String(now.getMinutes() + 6).padStart(2, '0')}`,
+          wordsPerDay: 5
+        } as ReminderSettings;
+        console.log('📋 Using fallback settings:', settings);
+      }
+      
       if (!settings?.isEnabled) {
+        console.log('❌ Notifications disabled in settings');
         return; // disabled
       }
 
