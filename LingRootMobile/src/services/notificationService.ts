@@ -87,6 +87,10 @@ class NotificationService {
   private hasPermission = false;
   private pendingWordId: string | null = null;
   private responseCallback: ((wordId: string) => void) | null = null;
+  // Serialize scheduling to avoid duplicate schedules from concurrent triggers
+  private rescheduleRunning = false;
+  private rescheduleQueued = false;
+  private lastRescheduleAt: number = 0;
 
   private constructor() {}
 
@@ -101,6 +105,21 @@ class NotificationService {
    * Recreate today's reminder notifications according to user's reminder settings.
    */
   private async rescheduleDailyReminders(): Promise<void> {
+    // Debounce: if rescheduled too frequently (< 750ms), skip this trigger
+    const nowMs = Date.now();
+    if (nowMs - this.lastRescheduleAt < 750) {
+      console.log('⏳ reschedule skipped (debounced)');
+      return;
+    }
+    this.lastRescheduleAt = nowMs;
+
+    // Serialize: if a run is in progress, queue exactly one more run
+    if (this.rescheduleRunning) {
+      this.rescheduleQueued = true;
+      console.log('⏳ reschedule queued (already running)');
+      return;
+    }
+    this.rescheduleRunning = true;
     console.log('🔔 rescheduleDailyReminders starting...');
     try {
       // 1) Cancel previous ones
@@ -172,8 +191,10 @@ class NotificationService {
         if (Platform.OS === 'ios') {
           // Use only one scheduling method to avoid duplicate notifications
           try {
+            // Use only timestamp-based ID so duplicate runs replace the same request
+            const requestId = `lingroot_${when.getTime()}`;
             PushNotificationIOS.addNotificationRequest({
-              id: `lingroot_${when.getTime()}_${i}`,
+              id: requestId,
               title,
               body,
               sound: 'default',
@@ -221,6 +242,17 @@ class NotificationService {
       console.error('rescheduleDailyReminders error:', e);
       // best-effort — show info for debugging
       Alert.alert('❌ Bildirim Hatası', 'Hatırlatmalar planlanamadı.');
+    } finally {
+      this.rescheduleRunning = false;
+      if (this.rescheduleQueued) {
+        // Run the queued reschedule once
+        this.rescheduleQueued = false;
+        console.log('🔁 running queued reschedule...');
+        // Slight delay to allow cancellations to propagate
+        setTimeout(() => {
+          this.rescheduleDailyReminders().catch(() => {});
+        }, 150);
+      }
     }
   }
 

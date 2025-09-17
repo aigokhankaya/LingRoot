@@ -425,7 +425,23 @@ router.post('/user-interests', authenticate, updateUserInterests);
 router.put('/users/:userId', authenticate, async (req, res) => {
   try {
     const { userId } = req.params;
-    const { fullname, phonenumber } = req.body || {};
+    const { fullname, phonenumber, phoneNumber, full_name, name, fullName, phone, phone_number } = req.body || {};
+
+    // Normalize incoming keys from different clients (mobile/web)
+    const normalizedFullname = (
+      typeof full_name === 'string' ? full_name :
+      typeof fullname === 'string' ? fullname :
+      typeof fullName === 'string' ? fullName :
+      typeof name === 'string' ? name :
+      undefined
+    );
+    const normalizedPhone = (
+      typeof phonenumber === 'string' ? phonenumber :
+      typeof phoneNumber === 'string' ? phoneNumber :
+      typeof phone_number === 'string' ? phone_number :
+      typeof phone === 'string' ? phone :
+      undefined
+    );
 
     // Authorization: user can only update their own profile
     if (req.user.id !== userId) {
@@ -442,14 +458,19 @@ router.put('/users/:userId', authenticate, async (req, res) => {
 
     // Build update payload
     const updatePayload = {};
-    if (typeof fullname === 'string' && fullname.trim().length > 0) {
-      updatePayload.fullname = fullname.trim();
+    if (typeof normalizedFullname === 'string' && normalizedFullname.trim().length > 0) {
+      const parts = normalizedFullname.trim().split(/\s+/);
+      const first = parts.shift() || '';
+      const last = parts.join(' ').trim() || null;
+      updatePayload.firstname = first;
+      updatePayload.lastname = last;
     }
-    if (typeof phonenumber === 'string' && phonenumber.trim().length > 0) {
-      updatePayload.phonenumber = phonenumber.trim();
+    if (typeof normalizedPhone === 'string' && normalizedPhone.trim().length > 0) {
+      updatePayload.phonenumber = normalizedPhone.trim();
     }
 
     if (Object.keys(updatePayload).length === 0) {
+      logger.warn('Empty profile update payload', { bodyKeys: Object.keys(req.body || {}), body: req.body });
       return res.status(400).json({ success: false, message: 'Güncellenecek alan bulunamadı' });
     }
 
