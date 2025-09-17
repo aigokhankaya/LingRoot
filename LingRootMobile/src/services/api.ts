@@ -290,10 +290,15 @@ export const apiService = {
   // Kullanıcı profili güncelleme
   async updateProfile(userId: string, data: any): Promise<APIResponse> {
     try {
-      const response = await apiClient.put<APIResponse>(`/api/users/${userId}`, data);
+      // Ensure backend is awake (Render cold start protection)
+      await wakeBackendIfNeeded();
+      const response = await apiClient.put<APIResponse>(`/api/users/${userId}`, data, {
+        timeout: 60000, // 60s per-request timeout for profile update
+      });
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Profil güncellenemedi');
+      const msg = error?.code === 'ECONNABORTED' ? 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.' : (error.response?.data?.message || 'Profil güncellenemedi');
+      throw new Error(msg);
     }
   },
 

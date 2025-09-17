@@ -421,6 +421,75 @@ router.get('/users/:userId/audio-count', authenticate, async (req, res) => {
 router.get('/user-interests', authenticate, getUserInterests);
 router.post('/user-interests', authenticate, updateUserInterests);
 
+// Update user profile (fullname, phonenumber)
+router.put('/users/:userId', authenticate, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { fullname, phonenumber } = req.body || {};
+
+    // Authorization: user can only update their own profile
+    if (req.user.id !== userId) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    // Basic validation
+    if (fullname && typeof fullname !== 'string') {
+      return res.status(400).json({ success: false, message: 'Geçersiz isim' });
+    }
+    if (phonenumber && typeof phonenumber !== 'string') {
+      return res.status(400).json({ success: false, message: 'Geçersiz telefon' });
+    }
+
+    // Build update payload
+    const updatePayload = {};
+    if (typeof fullname === 'string' && fullname.trim().length > 0) {
+      updatePayload.fullname = fullname.trim();
+    }
+    if (typeof phonenumber === 'string' && phonenumber.trim().length > 0) {
+      updatePayload.phonenumber = phonenumber.trim();
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return res.status(400).json({ success: false, message: 'Güncellenecek alan bulunamadı' });
+    }
+
+    // If phone is being updated, ensure uniqueness
+    if (updatePayload.phonenumber) {
+      const { data: existingWithPhone, error: phoneCheckErr } = await supabase
+        .from('users')
+        .select('id')
+        .eq('phonenumber', updatePayload.phonenumber)
+        .neq('id', userId)
+        .maybeSingle();
+
+      if (phoneCheckErr) {
+        logger.error('Phone uniqueness check failed:', phoneCheckErr);
+        return res.status(500).json({ success: false, message: 'Telefon kontrolü başarısız' });
+      }
+      if (existingWithPhone && existingWithPhone.id) {
+        return res.status(409).json({ success: false, message: 'Bu telefon numarası başka bir hesapta kayıtlı' });
+      }
+    }
+
+    const { error: updateErr, data: updated } = await supabase
+      .from('users')
+      .update(updatePayload)
+      .eq('id', userId)
+      .select('id, fullname, phonenumber, email')
+      .single();
+
+    if (updateErr) {
+      logger.error('User update failed:', updateErr);
+      return res.status(500).json({ success: false, message: 'Profil güncellenemedi' });
+    }
+
+    return res.json({ success: true, message: 'Profil güncellendi', data: updated });
+  } catch (e) {
+    logger.error('Unexpected error in user update:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Get single content record for the authenticated user
 // Note: use distinct path to avoid clashing with /api/content/* routes
 router.get('/users/content/:id', authenticate, async (req, res) => {
