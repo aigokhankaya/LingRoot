@@ -135,6 +135,11 @@ const AppNavigator = () => {
   const [navReady, setNavReady] = useState(false);
   const [initialWordId, setInitialWordId] = useState<string | null>(null);
 
+  // Store navigation ref globally for direct access from notification service
+  useEffect(() => {
+    (global as any).__NAVIGATION_REF__ = navigationRef;
+  }, []);
+
   useEffect(() => {
     if (user && navigationRef.current) {
       console.log('📱 Setting up notification handler in AppNavigator...');

@@ -5,6 +5,80 @@ import { getVocabulary } from './api';
 import { ReminderSettingsService } from './reminderSettingsService';
 import PushNotification from 'react-native-push-notification';
 
+// Ensure onNotification is configured as early as possible (at module load)
+try {
+  PushNotification.configure({
+    onNotification: (notification: any) => {
+      try {
+        const userInfo = notification?.userInfo || notification?.data || {};
+        const wordId = userInfo.wordId || userInfo?.item?.wordId;
+        console.log('🔔 onNotification (early configure) userInfo:', userInfo, 'wordId:', wordId);
+        if (wordId) {
+          const svc = NotificationService.getInstance?.();
+          if (svc) {
+            (svc as any).pendingWordId = String(wordId);
+            const cb = (svc as any).responseCallback as ((id: string) => void) | null;
+            if (cb) cb(String(wordId));
+          }
+        }
+      } catch (e) {
+        console.log('early onNotification error', e);
+      }
+    },
+    popInitialNotification: true,
+    requestPermissions: false,
+  } as any);
+} catch (e) {
+  console.log('Early PushNotification.configure failed (safe to ignore at build time):', e);
+}
+
+// Listen for custom native notification events (iOS foreground tap fix)
+import { DeviceEventEmitter } from 'react-native';
+try {
+  DeviceEventEmitter.addListener('LingRootNotificationTapped', (data: any) => {
+    console.log('📱 Native tap event received:', data);
+    const wordId = data?.wordId;
+    if (wordId) {
+      const svc = NotificationService.getInstance?.();
+      if (svc) {
+        (svc as any).pendingWordId = String(wordId);
+        const cb = (svc as any).responseCallback as ((id: string) => void) | null;
+        if (cb) {
+          console.log('📱 Calling navigation callback with wordId:', wordId);
+          cb(String(wordId));
+        } else {
+          console.log('📱 No callback registered yet, wordId stored as pending');
+          // Direct navigation fallback when callback not ready
+          setTimeout(() => {
+            const { NavigationContainer } = require('@react-navigation/native');
+            const { CommonActions } = require('@react-navigation/native');
+            try {
+              // Try to get current navigation ref and navigate directly
+              const navRef = (global as any).__NAVIGATION_REF__;
+              if (navRef?.current) {
+                console.log('📱 Direct navigation fallback triggered');
+                navRef.current.dispatch(
+                  CommonActions.reset({
+                    index: 1,
+                    routes: [
+                      { name: 'Main' },
+                      { name: 'Vocabulary', params: { wordId } },
+                    ],
+                  })
+                );
+              }
+            } catch (e) {
+              console.log('Direct navigation fallback failed:', e);
+            }
+          }, 100);
+        }
+      }
+    }
+  });
+} catch (e) {
+  console.log('Native event listener setup failed:', e);
+}
+
 class NotificationService {
   private static instance: NotificationService;
   private isInitialized = false;
@@ -98,6 +172,20 @@ class NotificationService {
             if (!modernOk) {
               console.log('Both modern and legacy iOS scheduling failed:', legacyErr);
             }
+          }
+
+          // Schedule via react-native-push-notification as well so `configure.onNotification` is triggered reliably on iOS
+          try {
+            PushNotification.localNotificationSchedule({
+              title,
+              message: body,
+              date: when,
+              playSound: true,
+              soundName: 'default',
+              userInfo: { wordId: word?.id?.toString() || '' } as any,
+            });
+          } catch (crossErr) {
+            console.log('iOS cross-schedule via react-native-push-notification failed:', crossErr);
           }
         } else {
           PushNotification.localNotificationSchedule({
@@ -313,6 +401,19 @@ class NotificationService {
           userInfo: { wordId: word.id?.toString() || '' },
           fireDate: new Date(Date.now() + 3000).toISOString(),
         });
+
+        // Also fire a local notification through react-native-push-notification so onNotification handler runs
+        try {
+          PushNotification.localNotification({
+            title: '🎯 LingRoot Kelime',
+            message: `${word.word} - ${word.definition || 'Tanım yok'}`,
+            playSound: true,
+            soundName: 'default',
+            userInfo: { wordId: word.id?.toString() || '' } as any,
+          });
+        } catch (e) {
+          console.log('iOS localNotification via RN Push Notification failed:', e);
+        }
       } else {
         // Android immediate notification
         PushNotification.localNotification({

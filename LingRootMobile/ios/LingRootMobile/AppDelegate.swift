@@ -1,7 +1,6 @@
 import UIKit
 import React
 import UserNotifications
-import RNCPushNotificationIOS
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -47,8 +46,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
   func userNotificationCenter(_ center: UNUserNotificationCenter,
                               didReceive response: UNNotificationResponse,
                               withCompletionHandler completionHandler: @escaping () -> Void) {
-    // Forward to RNCPushNotificationIOS so JS listeners receive the event consistently
-    RNCPushNotificationIOS.didReceive(response)
+    // Extract wordId and post custom notification for immediate JS handling
+    let userInfo = response.notification.request.content.userInfo
+    let wordId = userInfo["wordId"] as? String ?? ""
+    
+    // Send event to React Native via RCTDeviceEventEmitter
+    if let bridge = self.bridge {
+      bridge.eventDispatcher().sendDeviceEvent(withName: "LingRootNotificationTapped", body: [
+        "wordId": wordId,
+        "timestamp": Date().timeIntervalSince1970
+      ])
+    }
+    
+    print("📱 Native: Posted LingRootNotificationTapped with wordId: \(wordId)")
     completionHandler()
   }
 
