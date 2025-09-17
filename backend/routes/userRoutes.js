@@ -492,19 +492,28 @@ router.put('/users/:userId', authenticate, async (req, res) => {
       }
     }
 
-    const { error: updateErr, data: updated } = await supabase
+    // Log normalized payload for diagnostics (no secrets)
+    try { logger.info('[USER_UPDATE] userId:', userId, 'payload:', updatePayload); } catch {}
+
+    const { error: updateErr } = await supabase
       .from('users')
       .update(updatePayload)
-      .eq('id', userId)
-      .select('id, fullname, phonenumber, email')
-      .single();
+      .eq('id', userId);
 
     if (updateErr) {
       logger.error('User update failed:', updateErr);
       return res.status(500).json({ success: false, message: 'Profil güncellenemedi' });
     }
 
-    return res.json({ success: true, message: 'Profil güncellendi', data: updated });
+    // Echo minimal data back (avoid RLS issues on select after update)
+    const responseData = {
+      id: userId,
+      firstname: updatePayload.firstname,
+      lastname: updatePayload.lastname,
+      phonenumber: updatePayload.phonenumber,
+      full_name: [updatePayload.firstname, updatePayload.lastname].filter(Boolean).join(' ').trim()
+    };
+    return res.json({ success: true, message: 'Profil güncellendi', data: responseData });
   } catch (e) {
     logger.error('Unexpected error in user update:', e);
     return res.status(500).json({ success: false, message: 'Server error' });
