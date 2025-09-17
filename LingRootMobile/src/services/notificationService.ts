@@ -140,10 +140,10 @@ class NotificationService {
           : 'Günün kelimelerini tekrar et!';
 
         console.log(`[Reminder] Scheduling (${i + 1}/${times.length}) at`, when.toString(), 'word:', word?.word);
+        console.log(`[Reminder] Time check - Now: ${new Date().toString()}, Target: ${when.toString()}, Future: ${when > new Date()}`);
 
         if (Platform.OS === 'ios') {
-          // Prefer the newer API for scheduling on iOS
-          let modernOk = false;
+          // Use only one scheduling method to avoid duplicate notifications
           try {
             PushNotificationIOS.addNotificationRequest({
               id: `lingroot_${when.getTime()}_${i}`,
@@ -153,41 +153,25 @@ class NotificationService {
               badge: 1,
               userInfo: { wordId: word?.id?.toString() || '' },
               fireDate: when,
-              // Repeat daily at the same time
-              repeats: true,
+              repeats: false,
             });
-            modernOk = true;
+            console.log(`[Reminder] Single notification scheduled for ${when.toLocaleString()}`);
           } catch (err) {
-            console.log('addNotificationRequest failed, will use legacy API', err);
-          }
-          // Also schedule with legacy API as redundancy
-          try {
-            PushNotificationIOS.scheduleLocalNotification({
-              alertTitle: title,
-              alertBody: body,
-              soundName: 'default',
-              applicationIconBadgeNumber: 1,
-              userInfo: { wordId: word?.id?.toString() || '' },
-              fireDate: when.toISOString(),
-            });
-          } catch (legacyErr) {
-            if (!modernOk) {
-              console.log('Both modern and legacy iOS scheduling failed:', legacyErr);
+            console.log('addNotificationRequest failed, trying legacy API', err);
+            // Fallback to legacy only if modern fails
+            try {
+              PushNotificationIOS.scheduleLocalNotification({
+                alertTitle: title,
+                alertBody: body,
+                soundName: 'default',
+                applicationIconBadgeNumber: 1,
+                userInfo: { wordId: word?.id?.toString() || '' },
+                fireDate: when.toISOString(),
+              });
+              console.log(`[Reminder] Legacy notification scheduled for ${when.toLocaleString()}`);
+            } catch (legacyErr) {
+              console.log('Both iOS scheduling methods failed:', legacyErr);
             }
-          }
-
-          // Schedule via react-native-push-notification as well so `configure.onNotification` is triggered reliably on iOS
-          try {
-            PushNotification.localNotificationSchedule({
-              title,
-              message: body,
-              date: when,
-              playSound: true,
-              soundName: 'default',
-              userInfo: { wordId: word?.id?.toString() || '' } as any,
-            });
-          } catch (crossErr) {
-            console.log('iOS cross-schedule via react-native-push-notification failed:', crossErr);
           }
         } else {
           PushNotification.localNotificationSchedule({
