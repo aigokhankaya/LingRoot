@@ -149,12 +149,6 @@ const AppNavigator = () => {
         console.log('📱 AppNavigator received wordId:', wordId);
         console.log('📱 Current navigation state:', navigationRef.current?.getCurrentRoute());
         
-        // Show debug alert
-        Alert.alert(
-          '📱 Navigation Callback',
-          `Received wordId: ${wordId}\nNavigating to Vocabulary...`,
-          [{ text: 'OK' }]
-        );
         
         // Navigate only when nav is ready; if not, store for later
         const doNavigate = () => {
