@@ -101,8 +101,10 @@ class NotificationService {
    * Recreate today's reminder notifications according to user's reminder settings.
    */
   private async rescheduleDailyReminders(): Promise<void> {
+    console.log('🔔 rescheduleDailyReminders starting...');
     try {
       // 1) Cancel previous ones
+      console.log('🔔 Cancelling existing notifications...');
       if (Platform.OS === 'ios') {
         PushNotificationIOS.cancelAllLocalNotifications();
       } else {
@@ -323,9 +325,22 @@ class NotificationService {
   }
 
   public async setupSmartVocabularyNotifications(): Promise<void> {
-    await this.initialize();
-    if (!this.hasPermission && Platform.OS !== 'ios') return; // proceed on iOS to allow local scheduling
-    await this.rescheduleDailyReminders();
+    console.log('🔔 setupSmartVocabularyNotifications called');
+    try {
+      await this.initialize();
+      console.log('🔔 Service initialized, hasPermission:', this.hasPermission);
+      
+      if (!this.hasPermission && Platform.OS !== 'ios') {
+        console.log('❌ No permissions and not iOS, skipping');
+        return;
+      }
+      
+      console.log('🔔 Calling rescheduleDailyReminders...');
+      await this.rescheduleDailyReminders();
+      console.log('✅ rescheduleDailyReminders completed');
+    } catch (error) {
+      console.error('❌ setupSmartVocabularyNotifications failed:', error);
+    }
   }
 
   public async stopVocabularyReminders(): Promise<void> {
