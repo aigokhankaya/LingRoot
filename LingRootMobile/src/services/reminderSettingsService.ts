@@ -74,16 +74,33 @@ export class ReminderSettingsService {
 
     // Create today's start and end times
     const now = new Date();
-    const startTime = new Date(now);
+    let startTime = new Date(now);
     startTime.setHours(startHour, startMinute, 0, 0);
     
     const endTime = new Date(now);
     endTime.setHours(endHour, endMinute, 0, 0);
 
+    // If start time is in the past, adjust to next occurrence
+    // BUT if we're within the time window (past start but before end), start from now
+    if (startTime <= now) {
+      const endTimeToday = new Date(now);
+      endTimeToday.setHours(endHour, endMinute, 0, 0);
+      
+      if (now < endTimeToday) {
+        // We're within today's window, start scheduling from now
+        startTime = new Date(now.getTime() + 60000); // Start 1 minute from now
+      } else {
+        // Window is completely past, move to next day
+        startTime.setDate(startTime.getDate() + 1);
+      }
+    }
+
     // If end time is before start time, it means next day
     if (endTime <= startTime) {
       endTime.setDate(endTime.getDate() + 1);
     }
+    
+    console.log('🔔 Time calculation - Now:', now.toLocaleString(), 'Start:', startTime.toLocaleString(), 'End:', endTime.toLocaleString());
 
     // Calculate total duration in minutes
     const totalDurationMs = endTime.getTime() - startTime.getTime();
