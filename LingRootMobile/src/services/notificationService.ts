@@ -43,34 +43,36 @@ try {
       if (svc) {
         (svc as any).pendingWordId = String(wordId);
         const cb = (svc as any).responseCallback as ((id: string) => void) | null;
-        if (cb) {
-          console.log('📱 Calling navigation callback with wordId:', wordId);
-          cb(String(wordId));
-        } else {
-          console.log('📱 No callback registered yet, wordId stored as pending');
-          // Direct navigation fallback when callback not ready
-          setTimeout(() => {
-            const { NavigationContainer } = require('@react-navigation/native');
-            const { CommonActions } = require('@react-navigation/native');
-            try {
-              // Try to get current navigation ref and navigate directly
-              const navRef = (global as any).__NAVIGATION_REF__;
-              if (navRef?.current) {
-                console.log('📱 Direct navigation fallback triggered');
-                navRef.current.dispatch(
-                  CommonActions.reset({
-                    index: 1,
-                    routes: [
-                      { name: 'Main' },
-                      { name: 'Vocabulary', params: { wordId } },
-                    ],
-                  })
-                );
-              }
-            } catch (e) {
-              console.log('Direct navigation fallback failed:', e);
+        console.log('📱 Callback available:', !!cb);
+        
+        // Always try direct navigation first since callback timing is unreliable
+        setTimeout(() => {
+          const { CommonActions } = require('@react-navigation/native');
+          try {
+            const navRef = (global as any).__NAVIGATION_REF__;
+            if (navRef?.current) {
+              console.log('📱 Direct navigation triggered for wordId:', wordId);
+              navRef.current.dispatch(
+                CommonActions.reset({
+                  index: 1,
+                  routes: [
+                    { name: 'Main' },
+                    { name: 'Vocabulary', params: { wordId } },
+                  ],
+                })
+              );
+            } else {
+              console.log('📱 Navigation ref not available');
             }
-          }, 100);
+          } catch (e) {
+            console.log('Direct navigation failed:', e);
+          }
+        }, 100);
+        
+        // Also try callback if available
+        if (cb) {
+          console.log('📱 Also calling navigation callback with wordId:', wordId);
+          cb(String(wordId));
         }
       }
     }
@@ -458,6 +460,7 @@ class NotificationService {
   public setupNotificationResponseHandler(navigationCallback: (wordId: string) => void) {
     console.log('🔧 Setting up notification response handler...');
     this.responseCallback = navigationCallback;
+    console.log('🔧 Callback registered:', !!navigationCallback);
     
     // Set up notification tap handler for when app is launched from notification
     PushNotificationIOS.addEventListener('notification', (notification: any) => {
