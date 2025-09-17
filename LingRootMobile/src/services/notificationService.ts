@@ -113,9 +113,11 @@ class NotificationService {
       }
 
       // 2) Read settings with network error handling
+      console.log('🔔 Attempting to get settings from ReminderSettingsService...');
       let settings;
       try {
         settings = await ReminderSettingsService.getSettings();
+        console.log('✅ Settings retrieved successfully:', settings);
       } catch (networkError) {
         console.log('⚠️ Network error getting settings, using fallback:', networkError);
         // Fallback: create a simple test schedule for next 5 minutes
@@ -130,20 +132,27 @@ class NotificationService {
       }
       
       if (!settings?.isEnabled) {
-        console.log('❌ Notifications disabled in settings');
+        console.log('❌ Notifications disabled in settings, isEnabled:', settings?.isEnabled);
         return; // disabled
       }
+      
+      console.log('✅ Settings validated, proceeding with scheduling...');
 
       // 3) Load vocabulary and compute unlearned words
+      console.log('🔔 Loading vocabulary...');
       const words = await getVocabulary();
+      console.log('🔔 Vocabulary loaded, total words:', Array.isArray(words) ? words.length : 'not array');
       const unlearned = Array.isArray(words)
         ? words.filter(w => w && (w.is_learned === false || typeof w.is_learned === 'undefined'))
         : [];
 
       const unlearnedCount = unlearned.length;
+      console.log('🔔 Unlearned words count:', unlearnedCount);
 
       // 4) Compute notification times for today
+      console.log('🔔 Calculating notification times...');
       const times = ReminderSettingsService.calculateNotificationTimes(settings, unlearnedCount);
+      console.log('🔔 Calculated times:', times.length, 'notifications');
 
       // 5) Choose words for each slot
       const selectedWords = this.pickWordsForSlots(unlearned, words, times.length);
