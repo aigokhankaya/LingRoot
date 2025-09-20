@@ -1,0 +1,36 @@
+create aPK
+.\gradlew.bat clean
+.\gradlew.bat assembleRelease --no-daemon --console plain
+.\gradlew.bat assembleRelease --no-daemon --console plain --warning-mode all
+
+.\gradlew.bat clean --stacktrace --no-daemon --console plain
+.\gradlew.bat assembleRelease --no-daemon --console plain --stacktrace --info
+
+
+
+.\gradlew.bat :app:createBundleReleaseJsAndAssets --info --stacktrace --console plain
+
+ Release AAB üret
+.\gradlew.bat clean
+.\gradlew.bat bundleRelease
+
+
+
+
+GITHUB:
+Tracked fark var mı?
+git diff --name-status origin/main...HEAD
+
+Takipsizleri listele:
+git ls-files --others --exclude-standard
+
+
+
+npx react-native start --reset-cache
+
+
+.\gradlew.bat clean --no-daemon --console plain
+
+.\gradlew.bat assembleRelease --no-daemon --console plain --stacktrace
+
+.\gradlew.bat :react-native-reanimated:configureCMakeRelWithDebInfo[arm64-v8a] --stacktrace --info --console plain

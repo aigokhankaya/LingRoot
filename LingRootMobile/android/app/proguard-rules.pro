@@ -11,4 +11,7 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
+# react-native-track-player (prevent service/controller classes from being stripped)
+-keep class com.doublesymmetry.** { *; }
+
 # Add any project specific keep options here:

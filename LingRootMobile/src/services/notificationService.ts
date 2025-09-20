@@ -518,58 +518,62 @@ class NotificationService {
     this.responseCallback = navigationCallback;
     console.log('🔧 Callback registered:', !!navigationCallback);
     
-    // Set up notification tap handler for when app is launched from notification
-    PushNotificationIOS.addEventListener('notification', (notification: any) => {
-      console.log('🔔 Notification event (app launch) - Full object:', JSON.stringify(notification, null, 2));
-      console.log('🔔 UserInfo:', notification.userInfo);
-      console.log('🔔 WordId from userInfo:', notification.userInfo?.wordId);
-      
-      // Show alert for debugging
-      Alert.alert(
-        '🔔 Notification Tapped (Launch)',
-        `Event: notification\nWordId: ${notification.userInfo?.wordId}\nCallback: ${!!navigationCallback}`,
-        [{ text: 'OK' }]
-      );
-      
-      const wordId = notification.userInfo?.wordId;
-      if (wordId && navigationCallback) {
-        console.log('🎯 Calling navigation callback with wordId:', wordId);
-        this.pendingWordId = String(wordId);
-        navigationCallback(wordId);
-      } else {
-        console.log('❌ No wordId found or no callback provided');
-        console.log('WordId:', wordId, 'Callback:', !!navigationCallback);
-      }
-    });
+    if (Platform.OS === 'ios') {
+      // Set up notification tap handler for when app is launched from notification (iOS only)
+      PushNotificationIOS.addEventListener('notification', (notification: any) => {
+        console.log('🔔 Notification event (app launch) - Full object:', JSON.stringify(notification, null, 2));
+        console.log('🔔 UserInfo:', notification.userInfo);
+        console.log('🔔 WordId from userInfo:', notification.userInfo?.wordId);
+        
+        // Show alert for debugging
+        Alert.alert(
+          '🔔 Notification Tapped (Launch)',
+          `Event: notification\nWordId: ${notification.userInfo?.wordId}\nCallback: ${!!navigationCallback}`,
+          [{ text: 'OK' }]
+        );
+        
+        const wordId = notification.userInfo?.wordId;
+        if (wordId && navigationCallback) {
+          console.log('🎯 Calling navigation callback with wordId:', wordId);
+          this.pendingWordId = String(wordId);
+          navigationCallback(wordId);
+        } else {
+          console.log('❌ No wordId found or no callback provided');
+          console.log('WordId:', wordId, 'Callback:', !!navigationCallback);
+        }
+      });
 
-    // Set up notification tap handler for when app is in background
-    PushNotificationIOS.addEventListener('localNotification', (notification: any) => {
-      console.log('🔔 Local notification tapped - Full object:', JSON.stringify(notification, null, 2));
-      console.log('🔔 UserInfo:', notification.userInfo);
-      console.log('🔔 WordId from userInfo:', notification.userInfo?.wordId);
-      
-      // Show alert for debugging
-      Alert.alert(
-        '🔔 Notification Tapped (Background)',
-        `Event: localNotification\nWordId: ${notification.userInfo?.wordId}\nCallback: ${!!navigationCallback}`,
-        [{ text: 'OK' }]
-      );
-      
-      const wordId = notification.userInfo?.wordId;
-      if (wordId && navigationCallback) {
-        console.log('🎯 Calling navigation callback with wordId:', wordId);
-        this.pendingWordId = String(wordId);
-        navigationCallback(wordId);
-      } else {
-        console.log('❌ No wordId found or no callback provided');
-        console.log('WordId:', wordId, 'Callback:', !!navigationCallback);
-      }
-    });
+      // Set up notification tap handler for when app is in background (iOS only)
+      PushNotificationIOS.addEventListener('localNotification', (notification: any) => {
+        console.log('🔔 Local notification tapped - Full object:', JSON.stringify(notification, null, 2));
+        console.log('🔔 UserInfo:', notification.userInfo);
+        console.log('🔔 WordId from userInfo:', notification.userInfo?.wordId);
+        
+        // Show alert for debugging
+        Alert.alert(
+          '🔔 Notification Tapped (Background)',
+          `Event: localNotification\nWordId: ${notification.userInfo?.wordId}\nCallback: ${!!navigationCallback}`,
+          [{ text: 'OK' }]
+        );
+        
+        const wordId = notification.userInfo?.wordId;
+        if (wordId && navigationCallback) {
+          console.log('🎯 Calling navigation callback with wordId:', wordId);
+          this.pendingWordId = String(wordId);
+          navigationCallback(wordId);
+        } else {
+          console.log('❌ No wordId found or no callback provided');
+          console.log('WordId:', wordId, 'Callback:', !!navigationCallback);
+        }
+      });
+    }
 
     return {
       remove: () => {
-        try { PushNotificationIOS.removeEventListener('notification'); } catch {}
-        try { PushNotificationIOS.removeEventListener('localNotification'); } catch {}
+        if (Platform.OS === 'ios') {
+          try { PushNotificationIOS.removeEventListener('notification'); } catch {}
+          try { PushNotificationIOS.removeEventListener('localNotification'); } catch {}
+        }
         this.responseCallback = null;
       }
     };
