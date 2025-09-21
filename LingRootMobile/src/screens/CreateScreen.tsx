@@ -792,6 +792,7 @@ const CreateScreen: React.FC = () => {
 
   const handleFileUpload = async () => {
     try {
+
       // Use iOS UTIs to avoid greyed-out files; use MIME types on Android
       const pickerTypes = Platform.OS === 'ios'
         ? [
