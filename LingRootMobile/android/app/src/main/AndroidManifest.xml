@@ -12,6 +12,8 @@
   <uses-permission android:name="android.permission.WAKE_LOCK" />
   <!-- Android 13+ notification runtime permission -->
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+  <!-- Android 12+ exact alarms permission required for setExactAndAllowWhileIdle -->
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
   <!-- Ensure scheduled notifications can be restored after reboot -->
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
   <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
