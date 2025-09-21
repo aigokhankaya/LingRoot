@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+
 import {
   View,
   Text,
@@ -8,7 +9,10 @@ import {
   ScrollView,
   Alert,
   Modal,
+  Linking,
+  Platform,
 } from 'react-native';
+
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -22,7 +26,6 @@ const ProfileScreen: React.FC = () => {
   const { language, setLanguage, t } = useLanguage();
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -114,15 +117,30 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
     }
   };
 
+  const handleOpenNotificationSettings = async () => {
+    try {
+      // Ensure notification service is initialized (creates channel and requests permission on Android)
+      try { await NotificationService.initialize(); } catch {}
+
+      // Open OS-level app settings (contains Notifications toggle on both Android and iOS)
+      await Linking.openSettings();
+    } catch (e) {
+      Alert.alert(
+        t('notifications.error'),
+        language === 'tr' ? 'Sistem bildirim ayarları açılamadı.' : 'Failed to open system notification settings.'
+      );
+    }
+  };
+
   const menuItems = [
     { id: 1, title: t('profile.accountSettings'), icon: 'settings', action: () => navigation.navigate('Settings') },
     { id: 1.5, title: t('profile.language'), icon: 'language', action: () => setLanguageModalVisible(true) },
     { id: 2, title: t('profile.audioHistory'), icon: 'history', action: () => {} },
     { id: 3, title: language === 'tr' ? 'Paket Bilgilerim' : 'My Plan', icon: 'inventory', action: () => navigation.navigate('Membership') },
     { id: 3.5, title: 'Mesaj Gönder', icon: 'chat', action: () => navigation.navigate('Chat') },
+    { id: 3.8, title: language === 'tr' ? 'Bildirim Ayarlarını Aç' : 'Open Notification Settings', icon: 'notifications-none', action: handleOpenNotificationSettings },
     { id: 4, title: t('profile.testNotification'), icon: 'notifications', action: handleTestNotification },
     { id: 5, title: t('profile.notificationStatus'), icon: 'notifications-active', action: handleNotificationStatus },
-    
     { id: 8, title: t('profile.quickDebug'), icon: 'bug-report', action: handleQuickDebug },
     { id: 6, title: t('profile.help'), icon: 'help', action: () => {} },
     { id: 7, title: t('profile.about'), icon: 'info', action: () => {} },
