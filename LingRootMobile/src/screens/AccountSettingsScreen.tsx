@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { apiService } from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
 
 // Phone helpers: Turkish format +90 555 123 45 67
@@ -39,7 +40,22 @@ const AccountSettingsScreen: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Initial phone from backend is not in user type; optionally leave blank
+  // Load current phone from backend and prefill
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const me = await apiService.getMe();
+        const backendPhone: string | undefined = me?.phonenumber || me?.phoneNumber || me?.phone;
+        if (mounted && backendPhone) {
+          setPhone(formatTRPhone(backendPhone));
+        }
+      } catch {
+        // silent: leave blank if not available
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const isValid = useMemo(() => {
     const nameOk = fullName.trim().length >= 2;
@@ -75,6 +91,8 @@ const AccountSettingsScreen: React.FC = () => {
       if (normalizedPhone) payload.phoneNumber = normalizedPhone;
 
       await updateUserProfile(payload);
+      // Keep phone input as formatted version after save
+      if (normalizedPhone) setPhone(formatTRPhone(normalizedPhone));
       Alert.alert(t('common.success'), t('profile.updated'));
     } catch (e: any) {
       Alert.alert(t('notifications.error'), e.message || t('profile.updateFailed'));

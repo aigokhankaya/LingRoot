@@ -374,6 +374,20 @@ export const apiService = {
     }
   },
 
+  // Current authenticated user info (used to prefill phone)
+  async getMe(): Promise<any> {
+    try {
+      await wakeBackendIfNeeded();
+      const res = await apiClient.get('/api/auth/me');
+      // Backend sometimes returns { success, user } or { success, data }
+      const user = res.data?.user || res.data?.data || res.data;
+      return user || {};
+    } catch (e: any) {
+      // Return empty object on failure to avoid breaking UI
+      return {};
+    }
+  },
+
   async saveUserFavorites(ids: string[]): Promise<boolean> {
     try {
       const response = await apiClient.post('/api/user-favorites', { ids });
