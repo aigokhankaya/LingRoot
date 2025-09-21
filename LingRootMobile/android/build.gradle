@@ -40,5 +40,9 @@ ext {
     compileSdkVersion = 35
     targetSdkVersion = 35
     ndkVersion = "27.1.12297006"
+    // Some third-party libraries (e.g., react-native-documents_picker) read Kotlin version
+    // from a Gradle property. Expose both common variants to be safe.
+    kotlin_version = '1.9.24'
+    kotlinVersion = '1.9.24'
 }
 

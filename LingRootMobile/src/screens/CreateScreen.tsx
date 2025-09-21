@@ -15,7 +15,7 @@ import {
   Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-// import DocumentPicker from 'react-native-document-picker';
+import { pick, keepLocalCopy } from '@react-native-documents/picker';
 import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter } from '../types';
 import { useRoute, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -790,7 +790,46 @@ const CreateScreen: React.FC = () => {
   };
 
   const handleFileUpload = async () => {
-    Alert.alert('Bilgi', 'Dosya yükleme özelliği şu anda kullanılamıyor.');
+    try {
+      const [file] = await pick({
+        type: [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain',
+        ],
+        presentationStyle: 'fullScreen',
+      });
+      if (!file) {
+        // user cancelled
+        return;
+      }
+
+      // Make a local copy for reliable access during upload
+      const [localCopy] = await keepLocalCopy({
+        files: [
+          {
+            uri: file.uri,
+            fileName: file.name || 'document',
+          },
+        ],
+        destination: 'cachesDirectory',
+      });
+
+      const uri = (localCopy && (localCopy as any).status === 'success' && (localCopy as any).localUri) ? (localCopy as any).localUri : (file.uri as string);
+      const name = file.name || (uri ? uri.split('/').pop() : 'document') || 'document';
+      const mimeType = (file as any).type || 'application/octet-stream';
+      const size = (file as any).size;
+
+      setSelectedFile({ uri, name, mimeType, size });
+      setMode('file');
+      Alert.alert(t('common.success'), language === 'tr' ? 'Dosya seçildi' : 'File selected');
+    } catch (err: any) {
+      Alert.alert(
+        t('common.error'),
+        err?.message || (language === 'tr' ? 'Dosya seçimi başarısız' : 'File selection failed')
+      );
+    }
   };
 
   const clearSelectedFile = () => {
