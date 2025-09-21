@@ -14,6 +14,7 @@ import {
   Dimensions,
   Linking,
 } from 'react-native';
+import { Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { pick, keepLocalCopy } from '@react-native-documents/picker';
 import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter } from '../types';
@@ -791,13 +792,23 @@ const CreateScreen: React.FC = () => {
 
   const handleFileUpload = async () => {
     try {
+      // Use iOS UTIs to avoid greyed-out files; use MIME types on Android
+      const pickerTypes = Platform.OS === 'ios'
+        ? [
+            'com.adobe.pdf', // PDF
+            'com.microsoft.word.doc', // DOC
+            'org.openxmlformats.wordprocessingml.document', // DOCX
+            'public.plain-text', // TXT
+          ]
+        : [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'text/plain',
+          ];
+
       const [file] = await pick({
-        type: [
-          'application/pdf',
-          'application/msword',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'text/plain',
-        ],
+        type: pickerTypes,
         presentationStyle: 'fullScreen',
       });
       if (!file) {
