@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { AuthProvider } from './src/contexts/AuthContext';
@@ -8,7 +8,6 @@ import { AudioProvider } from './src/contexts/AudioContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useAuth } from './src/contexts/AuthContext';
 import TrackPlayer from 'react-native-track-player';
-import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import NotificationService from './src/services/notificationService';
 
 // Console logging enabled for debugging notifications
@@ -20,17 +19,21 @@ export default function App() {
     // Initialize services when app starts
     const initializeServices = async () => {
       try {
-        // Initialize TrackPlayer first
-        console.log('Initializing TrackPlayer...');
-        await TrackPlayer.setupPlayer();
-        
-        // Initialize NotificationService
-        await NotificationService.initialize();
-        // Auto schedule reminders on app start
-        try {
-          await NotificationService.setupSmartVocabularyNotifications();
-        } catch (e) {
-          console.log('Auto schedule on launch failed:', e);
+        // iOS: perform full init on launch
+        if (Platform.OS === 'ios') {
+          console.log('Initializing TrackPlayer (iOS)...');
+          await TrackPlayer.setupPlayer();
+
+          await NotificationService.initialize();
+          try {
+            await NotificationService.setupSmartVocabularyNotifications();
+          } catch (e) {
+            console.log('Auto schedule on launch failed (iOS):', e);
+          }
+        } else {
+          // Android: Skip any early initialization to avoid rare OEM-specific startup crashes.
+          // We'll initialize lazily from Profile actions (Test Notification / Open Notification Settings / Quick Debug).
+          console.log('Android detected: Skipping notification initialization on launch');
         }
         
         // Setup notification tap handler
@@ -50,8 +53,13 @@ export default function App() {
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
         try {
-          console.log('App returned to foreground, ensuring reminders are scheduled...');
-          await NotificationService.setupSmartVocabularyNotifications();
+          if (Platform.OS === 'ios') {
+            console.log('App returned to foreground (iOS), ensuring reminders are scheduled...');
+            await NotificationService.setupSmartVocabularyNotifications();
+          } else {
+            // On Android we still avoid aggressive auto-scheduling on every resume; will be triggered by user login/navigation flows
+            console.log('App returned to foreground (Android), skipping auto reschedule to avoid early crashes');
+          }
         } catch (e) {
           console.log('Auto schedule on foreground failed:', e);
         }

@@ -3,7 +3,7 @@ import { AuthContextType, User } from '../types';
 import { authService } from '../services/supabase';
 import { apiService, setUnauthorizedHandler } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NotificationService from '../services/notificationServiceNoop';
+import NotificationService from '../services/notificationService';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 

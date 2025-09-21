@@ -5,7 +5,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 // import { Ionicons } from '@expo/vector-icons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Alert, View, ActivityIndicator } from 'react-native';
-import PushNotificationIOS from '@react-native-community/push-notification-ios';
+import { Platform } from 'react-native';
+
 import { useAuth } from '../contexts/AuthContext';
 import NotificationService from '../services/notificationService';
 
@@ -167,21 +168,24 @@ const AppNavigator = () => {
         else setInitialWordId(String(wordId));
       });
 
-      // Handle cold start: app launched by tapping a notification
-      (async () => {
-        try {
-          const initial = await PushNotificationIOS.getInitialNotification();
-          const data: any = initial?.getData ? initial.getData() : null;
-          const initialWordId = data?.wordId ?? data?.userInfo?.wordId;
-          if (initialWordId) {
-            const wordId = String(initialWordId);
-            console.log('❄️ Cold start captured wordId (waiting for nav ready):', wordId);
-            setInitialWordId(wordId);
+      // Handle cold start: app launched by tapping a notification (iOS only)
+      if (Platform.OS === 'ios') {
+        (async () => {
+          try {
+            const PushNotificationIOS = require('@react-native-community/push-notification-ios').default;
+            const initial = await PushNotificationIOS.getInitialNotification();
+            const data: any = initial?.getData ? initial.getData() : null;
+            const initialWordId = data?.wordId ?? data?.userInfo?.wordId;
+            if (initialWordId) {
+              const wordId = String(initialWordId);
+              console.log('❄️ Cold start captured wordId (waiting for nav ready):', wordId);
+              setInitialWordId(wordId);
+            }
+          } catch (e) {
+            console.log('getInitialNotification error', e);
           }
-        } catch (e) {
-          console.log('getInitialNotification error', e);
-        }
-      })();
+        })();
+      }
 
       // Return cleanup function
       return () => {
