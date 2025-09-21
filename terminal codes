@@ -34,3 +34,13 @@ npx react-native start --reset-cache
 .\gradlew.bat assembleRelease --no-daemon --console plain --stacktrace
 
 .\gradlew.bat :react-native-reanimated:configureCMakeRelWithDebInfo[arm64-v8a] --stacktrace --info --console plain
+
+
+logları açmak için. :
+USB hata ayıklama modunu aktif et
+Uygulamayı açmadan önce çalıştır:
+& "F:\Program Files\2022.3.46f1\Editor\Data\PlaybackEngines\AndroidPlayer\SDK\platform-tools\adb.exe" logcat *:S ReactNative:V ReactNativeJS:V RNPushNotification:V AndroidRuntime:E ReactNativeJNI:E NotificationManager:V
+
+
+-- hatayı log dosyasına yazar:
+.\gradlew.bat :app:assembleRelease --no-daemon --console plain --stacktrace *> build-log.txt
