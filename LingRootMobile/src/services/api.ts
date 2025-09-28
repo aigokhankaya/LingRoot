@@ -521,6 +521,18 @@ export const apiService = {
       throw new Error(msg);
     }
   },
+
+  // Apple IAP receipt verification
+  async verifyAppleReceipt(receiptData: string, productId: string): Promise<{ success: boolean; data?: any; message?: string }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post('/api/iap/apple/verify', { receiptData, productId });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Abonelik doğrulaması başarısız';
+      throw new Error(msg);
+    }
+  },
 };
 
 // Vocabulary API functions

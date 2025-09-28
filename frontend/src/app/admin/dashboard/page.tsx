@@ -63,9 +63,10 @@ const App: React.FC = () => {
     is_active: true,
     is_trial: false,
     trial_days: 7,
+    apple_product_id: '',
   });
   const resetPlanForm = () => setPlanForm({
-    name: '', description: '', price: '', interval: 'monthly', features: '', is_active: true, is_trial: false, trial_days: 7
+    name: '', description: '', price: '', interval: 'monthly', features: '', is_active: true, is_trial: false, trial_days: 7, apple_product_id: ''
   });
   const openCreatePlan = () => { setEditingPlan(null); resetPlanForm(); setShowPackageForm(true); };
   const openEditPlan = (p: any) => {
@@ -79,6 +80,7 @@ const App: React.FC = () => {
       is_active: p.is_active ?? true,
       is_trial: p.is_trial ?? false,
       trial_days: p.trial_days ?? 7,
+      apple_product_id: p.apple_product_id || '',
     });
     setShowPackageForm(true);
   };
@@ -93,6 +95,7 @@ const App: React.FC = () => {
       is_active: !!planForm.is_active,
       is_trial: !!planForm.is_trial,
       trial_days: Number(planForm.trial_days) || 7,
+      apple_product_id: planForm.apple_product_id?.trim() || null,
     };
     const url = editingPlan ? `/api/admin/plans/${editingPlan.id}` : '/api/admin/plans';
     const method = editingPlan ? 'PUT' : 'POST';
@@ -1570,6 +1573,15 @@ const App: React.FC = () => {
                 <Checkbox id="is-active" checked={!!planForm.is_active} onChange={(e) => setPlanForm({ ...planForm, is_active: e.currentTarget.checked })} />
                 <Label htmlFor="is-active">Aktif</Label>
               </div>
+            </div>
+            <div>
+              <Label>Apple Product ID</Label>
+              <Input
+                value={planForm.apple_product_id}
+                onChange={(e) => setPlanForm({ ...planForm, apple_product_id: e.target.value })}
+                placeholder="com.lingroot.premium.monthly"
+              />
+              <p className="text-xs text-gray-500 mt-1">Örn: Gold için com.lingroot.premium.monthly, Platinum için com.lingroot.premium.monthly.platin</p>
             </div>
             <div>
               <Label>Özellikler (virgülle ayırın)</Label>
