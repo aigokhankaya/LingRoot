@@ -1737,6 +1737,8 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - RNIap (12.16.4):
+    - React-Core
   - RNReanimated (3.19.1):
     - DoubleConversion
     - glog
@@ -1994,6 +1996,7 @@ DEPENDENCIES:
   - "RNCClipboard (from `../node_modules/@react-native-clipboard/clipboard`)"
   - "RNCPushNotificationIOS (from `../node_modules/@react-native-community/push-notification-ios`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
+  - RNIap (from `../node_modules/react-native-iap`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
@@ -2160,6 +2163,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-community/push-notification-ios"
   RNGestureHandler:
     :path: "../node_modules/react-native-gesture-handler"
+  RNIap:
+    :path: "../node_modules/react-native-iap"
   RNReanimated:
     :path: "../node_modules/react-native-reanimated"
   RNScreens:
@@ -2247,6 +2252,7 @@ SPEC CHECKSUMS:
   RNCClipboard: f6679d470d0da2bce2a37b0af7b9e0bf369ecda5
   RNCPushNotificationIOS: 6c4ca3388c7434e4a662b92e4dfeeee858e6f440
   RNGestureHandler: ce4a87dba81030b374d7f1993c4376f5c230da2e
+  RNIap: 65051c94a29a17bd8356bcf16a878821862eecd0
   RNReanimated: 7fe194cef376e772f1efbad325cb5d26ea3930df
   RNScreens: 0cba9551497bcf6ceaa75878c08f5cb9a2fac6a4
   RNVectorIcons: e431ef1e6bef75d6ad0e33a83d376e6207962a9d
@@ -2254,6 +2260,6 @@ SPEC CHECKSUMS:
   SwiftAudioEx: f6aa653770f3a0d3851edaf8d834a30aee4a7646
   Yoga: adb397651e1c00672c12e9495babca70777e411e
 
-PODFILE CHECKSUM: 9a38b0de2d370476d4b7caf261bb64a09b451d54
+PODFILE CHECKSUM: 70e1f454062caae621a7c944d4bc4ea5b2688cf5
 
 COCOAPODS: 1.16.2

@@ -72,6 +72,8 @@ exports.createPlan = async (req, res) => {
       tts_char_limit,
       is_trial = false,
       trial_days,
+      // apple mapping
+      apple_product_id,
     } = req.body || {};
 
     if (!name || price === undefined) {
@@ -90,6 +92,10 @@ exports.createPlan = async (req, res) => {
       updated_at: new Date().toISOString(),
     };
     if (Array.isArray(features)) record.features = features;
+    // Apple product mapping (optional)
+    if (apple_product_id !== undefined) {
+      record.apple_product_id = apple_product_id || null;
+    }
     // Optional numeric limit fields
     if (monthly_cost_limit_usd !== undefined && monthly_cost_limit_usd !== null && monthly_cost_limit_usd !== "") {
       record.monthly_cost_limit_usd = Number(monthly_cost_limit_usd);
@@ -137,6 +143,7 @@ exports.updatePlan = async (req, res) => {
       'features',
       'is_active',
       'stripe_price_id',
+      'apple_product_id',
       // limits & trial fields
       'monthly_cost_limit_usd',
       'openai_token_limit',

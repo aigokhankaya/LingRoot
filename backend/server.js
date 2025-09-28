@@ -27,6 +27,7 @@ const userRoutes = require("./routes/userRoutes"); // 👈 İlgi alanları burad
 const parameterRoutes = require("./routes/parameterRoutes");
 const vocabularyRoutes = require("./routes/vocabularyRoutes"); // 👈 Vocabulary route eklendi
 const chatRoutes = require("./routes/chat"); // Chat routes
+const iapRoutes = require("./routes/iapRoutes"); // Apple IAP routes
 
 // Initialize Express app
 const app = express();
@@ -124,6 +125,7 @@ app.use("/api/parameters", parameterRoutes);
 app.use("/api/vocabulary", vocabularyRoutes); // 👈 Vocabulary route eklendi
 app.use("/api/chat", chatRoutes); // Chat routes
 app.use('/auth', authRoutes);
+app.use("/api/iap", iapRoutes); // Apple IAP routes
 
 // Health check endpoint (Render için)
 app.get("/healthz", (req, res) => {
