@@ -26,6 +26,7 @@ import VocabularyScreen from '../screens/VocabularyScreen';
 import MembershipScreen from '../screens/MembershipScreen';
 import ChatScreen from '../screens/ChatScreen';
 import AccountSettingsScreen from '../screens/AccountSettingsScreen';
+import PackagesScreen from '../screens/PackagesScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -249,6 +250,13 @@ const AppNavigator = () => {
                 headerStyle: { backgroundColor: '#007AFF' },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
+              }}
+            />
+            <Stack.Screen
+              name="Packages"
+              component={PackagesScreen}
+              options={{
+                headerShown: false,
               }}
             />
             <Stack.Screen

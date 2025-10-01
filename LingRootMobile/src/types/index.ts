@@ -118,6 +118,7 @@ export type RootStackParamList = {
   Profile: undefined;
   Settings: undefined;
   Membership: undefined;
+  Packages: undefined;
   Chat: undefined;
   Vocabulary: { wordId?: string } | undefined;
 };

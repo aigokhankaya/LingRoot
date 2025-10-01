@@ -533,6 +533,17 @@ export const apiService = {
       throw new Error(msg);
     }
   },
+
+  // Get subscription plans (public endpoint)
+  async getSubscriptionPlans(): Promise<{ success: boolean; data?: any[] }> {
+    try {
+      const response = await apiClient.get('/api/subscription/plans');
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Paketler yüklenemedi';
+      throw new Error(msg);
+    }
+  },
 };
 
 // Vocabulary API functions
