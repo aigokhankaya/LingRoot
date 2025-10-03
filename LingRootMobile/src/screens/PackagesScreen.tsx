@@ -37,9 +37,11 @@ const PackagesScreen: React.FC = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [purchasingPlanId, setPurchasingPlanId] = useState<number | null>(null);
+  const [activePackageName, setActivePackageName] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPlans();
+    fetchActivePackage();
   }, []);
 
   const fetchPlans = async () => {
@@ -63,6 +65,17 @@ const PackagesScreen: React.FC = () => {
       Alert.alert('Hata', error.message || 'Paketler yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchActivePackage = async () => {
+    try {
+      const response = await apiService.getUsageSummary();
+      if (response.success && response.data?.plan) {
+        setActivePackageName(response.data.plan.name);
+      }
+    } catch (error) {
+      console.log('Active package fetch error:', error);
     }
   };
 
@@ -148,11 +161,23 @@ const PackagesScreen: React.FC = () => {
           const planColor = getPlanColor(plan.name);
           const isPurchasing = purchasingPlanId === plan.id;
           const features = formatFeatures(plan.features);
+          const isActive = Boolean(activePackageName && plan.name.toLowerCase().includes(activePackageName.toLowerCase()));
 
           return (
-            <View key={plan.id} style={styles.planCard}>
+            <View key={plan.id} style={[
+              styles.planCard,
+              isActive && styles.activePlanCard
+            ]}>
               {/* Header with gradient-like background */}
               <View style={[styles.planHeader, { backgroundColor: planColor + '20' }]}>
+                {isActive && (
+                  <View style={styles.activeBadge}>
+                    <Icon name="check-circle" size={20} color="#10B981" />
+                    <Text style={styles.activeBadgeText}>
+                      {language === 'tr' ? 'Aktif Paket' : 'Active Package'}
+                    </Text>
+                  </View>
+                )}
                 <Text style={[styles.planName, { color: planColor }]}>
                   {plan.name}
                 </Text>
@@ -210,13 +235,17 @@ const PackagesScreen: React.FC = () => {
                   style={[
                     styles.purchaseButton,
                     { backgroundColor: planColor },
-                    isPurchasing && styles.purchaseButtonDisabled,
+                    (isPurchasing || isActive) && styles.purchaseButtonDisabled,
                   ]}
                   onPress={() => handlePurchase(plan)}
-                  disabled={isPurchasing}
+                  disabled={isPurchasing || isActive}
                 >
                   {isPurchasing ? (
                     <ActivityIndicator size="small" color="#FFF" />
+                  ) : isActive ? (
+                    <Text style={styles.purchaseButtonText}>
+                      {language === 'tr' ? 'Aktif Paket' : 'Active Package'}
+                    </Text>
                   ) : (
                     <Text style={styles.purchaseButtonText}>
                       {language === 'tr' ? 'Paketi Satın Al' : 'Purchase Package'}
@@ -384,6 +413,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#999',
     marginTop: 16,
+  },
+  activePlanCard: {
+    borderWidth: 2,
+    borderColor: '#10B981',
+  },
+  activeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+  },
+  activeBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#10B981',
+    marginLeft: 6,
   },
 });
 
