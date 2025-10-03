@@ -172,9 +172,9 @@ const PackagesScreen: React.FC = () => {
               <View style={[styles.planHeader, { backgroundColor: planColor + '20' }]}>
                 {isActive && (
                   <View style={styles.activeBadge}>
-                    <Icon name="check-circle" size={20} color="#10B981" />
+                    <Icon name="check-circle" size={22} color="#FFFFFF" />
                     <Text style={styles.activeBadgeText}>
-                      {language === 'tr' ? 'Aktif Paket' : 'Active Package'}
+                      {language === 'tr' ? '✓ AKTİF PAKET' : '✓ ACTIVE PACKAGE'}
                     </Text>
                   </View>
                 )}
@@ -415,23 +415,29 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   activePlanCard: {
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
   },
   activeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 24,
     alignSelf: 'flex-start',
     marginBottom: 12,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   activeBadgeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#10B981',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
     marginLeft: 6,
   },
 });
