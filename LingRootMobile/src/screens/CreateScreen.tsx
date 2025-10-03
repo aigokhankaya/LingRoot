@@ -597,18 +597,18 @@ const CreateScreen: React.FC = () => {
         Alert.alert(
           t('common.error'),
           sData?.hasPlan === false
-            ? 'Aktif paketiniz yok. Lütfen paket seçin ve aboneliğinizi başlatın.'
+            ? 'Aktif paketiniz yok. Lütfen Apple Store üzerinden paket satın alın.'
             : 'Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.',
           [
             {
-              text: 'Tamam',
+              text: 'Paket Al',
               onPress: () => {
-                // Delay slightly to allow Alert to dismiss on Android/iOS
-                setTimeout(() => {
-                  const next = encodeURIComponent('/dashboard?tab=paket-bilgilerim');
-                  openExternalUrl(`https://lingroot.com/login?next=${next}`);
-                }, 60);
+                navigation.navigate('Packages' as never);
               },
+            },
+            {
+              text: 'İptal',
+              style: 'cancel',
             },
           ]
         );
@@ -720,13 +720,14 @@ const CreateScreen: React.FC = () => {
               msg,
               [
                 {
-                  text: 'Tamam',
+                  text: 'Paket Al',
                   onPress: () => {
-                    setTimeout(() => {
-                      const next = encodeURIComponent('/dashboard?tab=paket-bilgilerim');
-                      openExternalUrl(`https://lingroot.com/login?next=${next}`);
-                    }, 60);
+                    navigation.navigate('Settings' as never);
                   },
+                },
+                {
+                  text: 'İptal',
+                  style: 'cancel',
                 },
               ]
             );
@@ -772,13 +773,14 @@ const CreateScreen: React.FC = () => {
           emsg,
           [
             {
-              text: 'Tamam',
+              text: 'Paket Al',
               onPress: () => {
-                setTimeout(() => {
-                  const next = encodeURIComponent('/dashboard?tab=paket-bilgilerim');
-                  openExternalUrl(`https://lingroot.com/login?next=${next}`);
-                }, 60);
+                navigation.navigate('Packages' as never);
               },
+            },
+            {
+              text: 'İptal',
+              style: 'cancel',
             },
           ]
         );

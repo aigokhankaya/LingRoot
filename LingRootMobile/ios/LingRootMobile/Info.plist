@@ -46,6 +46,10 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>LingRoot needs access to your photo library to allow you to upload documents and images for text-to-speech conversion.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>LingRoot needs permission to save generated audio files to your photo library.</string>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>
