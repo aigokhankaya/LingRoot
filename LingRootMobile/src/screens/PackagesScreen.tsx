@@ -71,8 +71,14 @@ const PackagesScreen: React.FC = () => {
   const fetchActivePackage = async () => {
     try {
       const response = await apiService.getUsageSummary();
+      console.log('Usage Summary Response:', JSON.stringify(response, null, 2));
       if (response.success && response.data?.plan) {
+        console.log('Active Package Name:', response.data.plan.name);
         setActivePackageName(response.data.plan.name);
+      } else if (response.success && response.data?.plantype) {
+        // Alternatif: plantype alanı kullanılıyor olabilir
+        console.log('Active Package Type:', response.data.plantype);
+        setActivePackageName(response.data.plantype);
       }
     } catch (error) {
       console.log('Active package fetch error:', error);
@@ -161,7 +167,13 @@ const PackagesScreen: React.FC = () => {
           const planColor = getPlanColor(plan.name);
           const isPurchasing = purchasingPlanId === plan.id;
           const features = formatFeatures(plan.features);
-          const isActive = Boolean(activePackageName && plan.name.toLowerCase().includes(activePackageName.toLowerCase()));
+          // Daha esnek eşleştirme: hem plan adı hem de paket adı içinde arama
+          const isActive = Boolean(
+            activePackageName && (
+              plan.name.toLowerCase().includes(activePackageName.toLowerCase()) ||
+              activePackageName.toLowerCase().includes(plan.name.toLowerCase())
+            )
+          );
 
           return (
             <View key={plan.id} style={[
