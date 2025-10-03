@@ -72,12 +72,20 @@ const PackagesScreen: React.FC = () => {
     try {
       const response = await apiService.getUsageSummary();
       console.log('Usage Summary Response:', JSON.stringify(response, null, 2));
-      if (response.success && response.data?.plan) {
-        console.log('Active Package Name:', response.data.plan.name);
+      
+      // Önce plan objesinden al
+      if (response.success && response.data?.plan?.name) {
+        console.log('Active Package Name from plan:', response.data.plan.name);
         setActivePackageName(response.data.plan.name);
-      } else if (response.success && response.data?.plantype) {
-        // Alternatif: plantype alanı kullanılıyor olabilir
-        console.log('Active Package Type:', response.data.plantype);
+      } 
+      // Sonra subscription.plantype'dan al
+      else if (response.success && response.data?.subscription?.plantype) {
+        console.log('Active Package Name from plantype:', response.data.subscription.plantype);
+        setActivePackageName(response.data.subscription.plantype);
+      }
+      // Son olarak plantype'dan al
+      else if (response.success && response.data?.plantype) {
+        console.log('Active Package Name from data.plantype:', response.data.plantype);
         setActivePackageName(response.data.plantype);
       }
     } catch (error) {
