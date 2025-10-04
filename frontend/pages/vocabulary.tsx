@@ -27,7 +27,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
   });
   const [newWord, setNewWord] = useState({
     word: "",
-    level: "a1",
+    level: "",
     meaning: "",
     example: ""
   });
@@ -152,11 +152,11 @@ export function VocabularyTabContent({ user }: { user: any }) {
       const result = await addWordWithTranslation(
         cleanWord,
         '', // Context boş olabilir, API kendi context'ini oluşturur
-        newWord.level.toUpperCase(),
+        '', // Level boş - OpenAI otomatik belirleyecek
         '' // Original sentence boş olabilir
       );
       
-      setNewWord({ word: "", level: "a1", meaning: "", example: "" });
+      setNewWord({ word: "", level: "", meaning: "", example: "" });
       setIsAddWordModalOpen(false);
       loadVocabulary();
       
@@ -294,26 +294,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
                       required
                     />
                     <p className="text-sm text-gray-500 mt-2 italic">
-                      💡 Anlam, örnek cümle ve seviye otomatik olarak çekilecektir
-                    </p>
-                  </div>
-                  <div>
-                    <Label htmlFor="level">Seviye (Varsayılan)</Label>
-                    <select
-                      id="level"
-                      value={newWord.level}
-                      onChange={(e) => setNewWord({...newWord, level: e.target.value})}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                    >
-                      <option value="a1">A1</option>
-                      <option value="a2">A2</option>
-                      <option value="b1">B1</option>
-                      <option value="b2">B2</option>
-                      <option value="c1">C1</option>
-                      <option value="c2">C2</option>
-                    </select>
-                    <p className="text-sm text-gray-500 mt-2 italic">
-                      Seviye AI tarafından otomatik belirlenecektir
+                      💡 Anlam, örnek cümle ve seviye otomatik olarak AI tarafından belirlenecektir
                     </p>
                   </div>
                 </div>

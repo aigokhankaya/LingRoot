@@ -49,7 +49,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
   const [newWord, setNewWord] = useState({
     word: '',
     definition: '',
-    level: 'a1',
+    level: '',
     example: ''
   });
   const [reminderSettings, setReminderSettings] = useState({
@@ -330,12 +330,12 @@ export default function VocabularyScreen({ navigation, route }: any) {
       const result = await addWordWithTranslation(
         cleanWord,
         '', // Context boş olabilir, API kendi context'ini oluşturur
-        newWord.level.toUpperCase(),
+        '', // Level boş - OpenAI otomatik belirleyecek
         '' // Original sentence boş olabilir
       );
 
       setVocabulary([...vocabulary, result.data]);
-      setNewWord({ word: '', definition: '', level: 'a1', example: '' });
+      setNewWord({ word: '', definition: '', level: '', example: '' });
       setIsAddModalVisible(false);
       
       // Detaylı başarı mesajı göster
@@ -686,35 +686,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
                 placeholder="Örn: beautiful"
               />
               <Text style={styles.helperText}>
-                💡 Anlam, örnek cümle ve seviye otomatik olarak çekilecektir
-              </Text>
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Seviye (Varsayılan)</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {Object.entries(wordLevels).map(([level, data]) => (
-                  <TouchableOpacity
-                    key={level}
-                    style={[
-                      styles.levelSelector,
-                      { backgroundColor: data.bgColor, borderColor: data.color },
-                      newWord.level === level && { backgroundColor: data.color }
-                    ]}
-                    onPress={() => setNewWord({...newWord, level})}
-                  >
-                    <Text style={[
-                      styles.levelSelectorText,
-                      { color: data.color },
-                      newWord.level === level && { color: 'white' }
-                    ]}>
-                      {level.toUpperCase()}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-              <Text style={styles.helperText}>
-                Seviye AI tarafından otomatik belirlenecektir
+                💡 Anlam, örnek cümle ve seviye otomatik olarak AI tarafından belirlenecektir
               </Text>
             </View>
           </ScrollView>
