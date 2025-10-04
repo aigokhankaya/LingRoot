@@ -33,14 +33,19 @@ export default function AdminUserGeneralPage() {
         setUser(u);
         
         // Fetch available plans
-        const plansRes = await fetch('/api/admin/plans', {
+        const token = localStorage.getItem('token');
+        const plansRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/admin/plans`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
         });
         const plansData = await plansRes.json();
+        console.log('Plans data:', plansData);
         if (plansData.success && plansData.data) {
-          setPlans(plansData.data.filter((p: Plan) => p.id));
+          const activePlans = plansData.data.filter((p: any) => p.id && p.is_active);
+          console.log('Active plans:', activePlans);
+          setPlans(activePlans);
         }
       } catch (e: any) {
         setError(e?.message || 'Kullanıcı bilgileri alınamadı');
@@ -55,11 +60,12 @@ export default function AdminUserGeneralPage() {
     
     try {
       setAssigning(true);
-      const response = await fetch(`/api/admin/users/${userId}/assign-plan`, {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/admin/users/${userId}/assign-plan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ planId: selectedPlanId }),
       });
