@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { getUserById } from '@/services/userService';
 import type { User } from '@/types/user';
 import { Button } from '@/components/ui/button';
+import { getApiUrl, createHeaders } from '@/lib/api';
 
 interface Plan {
   id: string;
@@ -33,12 +34,9 @@ export default function AdminUserGeneralPage() {
         setUser(u);
         
         // Fetch available plans
-        const token = localStorage.getItem('token');
-        const plansRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/admin/plans`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+        const plansRes = await fetch(getApiUrl('admin/plans'), {
+          headers: createHeaders('application/json'),
+          credentials: 'include',
         });
         const plansData = await plansRes.json();
         console.log('Plans data:', plansData);
@@ -60,13 +58,10 @@ export default function AdminUserGeneralPage() {
     
     try {
       setAssigning(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/admin/users/${userId}/assign-plan`, {
+      const response = await fetch(getApiUrl(`admin/users/${userId}/assign-plan`), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: createHeaders('application/json'),
+        credentials: 'include',
         body: JSON.stringify({ planId: selectedPlanId }),
       });
 
