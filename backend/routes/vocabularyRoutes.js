@@ -221,15 +221,14 @@ router.post('/add-with-translation', authenticate, async (req, res) => {
             });
         }
         
+        // Context boş ise varsayılan bir context oluştur
+        let finalContext = context;
         if (!context || context.trim().length < 3) {
-            logger.warn(`Invalid context received for word "${word}": "${context}"`);
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Bağlam metni gereklidir' 
-            });
+            logger.warn(`Empty context received for word "${word}", using default context`);
+            finalContext = `The English word "${word}" is used in everyday conversation.`;
         }
         
-        logger.info(`Context received for word "${word}": "${context.substring(0, 100)}..."`);
+        logger.info(`Context received for word "${word}": "${finalContext.substring(0, 100)}..."`);
         
         // Kelime zaten var mı kontrol et
         const { data: existingWord, error: checkError } = await supabase
@@ -260,7 +259,7 @@ router.post('/add-with-translation', authenticate, async (req, res) => {
         
         // OpenAI ile kelimeyi işle
         try {
-            const wordData = await processWordForVocabulary(word, context, level);
+            const wordData = await processWordForVocabulary(word, finalContext, level);
             
             // Yeni kelime ekle
             logger.info(`Debug - Inserting word with data:`, {
