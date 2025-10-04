@@ -140,7 +140,7 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
     { id: 1.5, title: t('profile.language'), icon: 'language', action: () => setLanguageModalVisible(true) },
     { id: 3, title: language === 'tr' ? 'Kalan Kullanım' : 'Remaining Usage', icon: 'assessment', action: () => navigation.navigate('Membership') },
     { id: 3.2, title: language === 'tr' ? 'Paket Bilgileri' : 'Package Information', icon: 'inventory', action: () => navigation.navigate('Packages') },
-    { id: 3.5, title: 'Mesaj Gönder', icon: 'chat', action: () => navigation.navigate('Chat') },
+    { id: 3.5, title: language === 'tr' ? 'Mesaj Gönder' : 'Send Message', icon: 'chat', action: () => navigation.navigate('Chat') },
     // Admin-only menu items
     ...(isAdmin ? [
       { id: 3.8, title: language === 'tr' ? 'Bildirim Ayarlarını Aç' : 'Open Notification Settings', icon: 'notifications-none', action: handleOpenNotificationSettings },
