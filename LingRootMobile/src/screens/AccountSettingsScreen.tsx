@@ -3,7 +3,6 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvo
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
-import { IAP_PRODUCTS, requestSubscription, restorePurchases } from '../services/iap';
 
 // Phone helpers: Turkish format +90 555 123 45 67
 const extractDigits = (value: string) => (value || '').replace(/\D+/g, '');
@@ -136,40 +135,6 @@ const AccountSettingsScreen: React.FC = () => {
         <TouchableOpacity style={[styles.button, (!isValid || isSaving) && styles.buttonDisabled]} onPress={onSave} disabled={!isValid || isSaving}>
           <Text style={styles.buttonText}>{isSaving ? savingLabel : saveLabel}</Text>
         </TouchableOpacity>
-
-        <View style={[styles.section, { marginTop: 16 }]}>
-          <Text style={[styles.label, { marginBottom: 8 }]}>Abonelik</Text>
-
-          <TouchableOpacity
-            style={styles.button}
-            onPress={async () => {
-              const res = await requestSubscription(IAP_PRODUCTS.goldMonthly);
-              Alert.alert(res.ok ? 'Başarılı' : 'Hata', res.message || (res.ok ? 'Gold (Aylık) abonelik etkinleştirildi' : 'Satın alma başarısız'));
-            }}
-          >
-            <Text style={styles.buttonText}>Gold (Aylık) Satın Al</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, { marginTop: 10 }]}
-            onPress={async () => {
-              const res = await requestSubscription(IAP_PRODUCTS.platinumMonthly);
-              Alert.alert(res.ok ? 'Başarılı' : 'Hata', res.message || (res.ok ? 'Platinum (Aylık) abonelik etkinleştirildi' : 'Satın alma başarısız'));
-            }}
-          >
-            <Text style={styles.buttonText}>Platinum (Aylık) Satın Al</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.buttonSecondary, { marginTop: 10 }]}
-            onPress={async () => {
-              const res = await restorePurchases();
-              Alert.alert(res.ok ? 'Başarılı' : 'Hata', res.message || (res.ok ? 'Satın alımlar geri yüklendi' : 'Geri yükleme başarısız'));
-            }}
-          >
-            <Text style={styles.buttonSecondaryText}>Satın Alımları Geri Yükle</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -18,7 +18,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { 
   getVocabulary, 
-  addWordToVocabulary, 
+  addWordToVocabulary,
+  addWordWithTranslation,
   deleteWordFromVocabulary, 
   updateWordInVocabulary,
   VocabularyWord,
@@ -317,23 +318,46 @@ export default function VocabularyScreen({ navigation, route }: any) {
   };
 
   const addNewWord = async () => {
-    if (!newWord.word || !newWord.definition) {
-      Alert.alert('Hata', 'Kelime ve anlam alanları zorunludur.');
+    if (!newWord.word) {
+      Alert.alert('Hata', 'Kelime alanı zorunludur.');
       return;
     }
 
     try {
-      const addedWord = await addWordToVocabulary(
-        newWord.word,
-        newWord.definition,
-        newWord.example || undefined,
-        newWord.level.toUpperCase()
+      const cleanWord = newWord.word.trim();
+      
+      // Otomatik olarak kelime detaylarını çek (AudioPlayer'daki gibi)
+      const result = await addWordWithTranslation(
+        cleanWord,
+        '', // Context boş olabilir, API kendi context'ini oluşturur
+        newWord.level.toUpperCase(),
+        '' // Original sentence boş olabilir
       );
 
-      setVocabulary([...vocabulary, addedWord]);
+      setVocabulary([...vocabulary, result.data]);
       setNewWord({ word: '', definition: '', level: 'a1', example: '' });
       setIsAddModalVisible(false);
-      Alert.alert('Başarılı', 'Kelime başarıyla eklendi!');
+      
+      // Detaylı başarı mesajı göster
+      if (result.isExisting) {
+        Alert.alert(
+          'Bilgi!',
+          `"${cleanWord}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${result.data.definition || 'Belirtilmemiş'}\nÖrnek: ${result.data.example_sentence || 'Belirtilmemiş'}`,
+          [{ text: 'Tamam' }]
+        );
+      } else if (result.translationError) {
+        Alert.alert(
+          'Uyarı!',
+          `"${cleanWord}" kelimesi eklendi ancak çeviri yapılamadı. Anlamı manuel olarak ekleyebilirsiniz.`,
+          [{ text: 'Tamam' }]
+        );
+      } else {
+        Alert.alert(
+          'Başarılı!',
+          `"${cleanWord}" kelimesi başarıyla eklendi!\n\nAnlam: ${result.data.definition}\nÖrnek Cümle: ${result.data.example_sentence}\nSeviye: ${result.data.level}`,
+          [{ text: 'Tamam' }]
+        );
+      }
     } catch (error: any) {
       Alert.alert('Hata', 'Kelime eklenirken hata oluştu: ' + error.message);
     }
@@ -661,20 +685,13 @@ export default function VocabularyScreen({ navigation, route }: any) {
                 onChangeText={(text) => setNewWord({...newWord, word: text})}
                 placeholder="Örn: beautiful"
               />
+              <Text style={styles.helperText}>
+                💡 Anlam, örnek cümle ve seviye otomatik olarak çekilecektir
+              </Text>
             </View>
             
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Anlam *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={newWord.definition}
-                onChangeText={(text) => setNewWord({...newWord, definition: text})}
-                placeholder="Örn: güzel, hoş"
-              />
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Seviye</Text>
+              <Text style={styles.inputLabel}>Seviye (Varsayılan)</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {Object.entries(wordLevels).map(([level, data]) => (
                   <TouchableOpacity
@@ -696,18 +713,9 @@ export default function VocabularyScreen({ navigation, route }: any) {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Örnek Cümle</Text>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                value={newWord.example}
-                onChangeText={(text) => setNewWord({...newWord, example: text})}
-                placeholder="Örn: She is very beautiful."
-                multiline
-                numberOfLines={3}
-              />
+              <Text style={styles.helperText}>
+                Seviye AI tarafından otomatik belirlenecektir
+              </Text>
             </View>
           </ScrollView>
         </SafeAreaView>
@@ -1148,6 +1156,12 @@ const styles = StyleSheet.create({
   levelSelectorText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  helperText: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   authContainer: {
     flex: 1,
