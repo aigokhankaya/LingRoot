@@ -828,3 +828,88 @@ exports.getUserUsageSummaryAdmin = async (req, res) => {
   }
 };
 
+// Assign plan to user (ADMIN)
+exports.assignPlanToUser = async (req, res) => {
+  try {
+    const { id: userId } = req.params;
+    const { planId } = req.body;
+
+    if (!userId || !planId) {
+      return res.status(400).json({ success: false, message: 'userId ve planId gereklidir' });
+    }
+
+    logger.info(`[ADMIN] Assigning plan ${planId} to user ${userId}`);
+
+    // Verify plan exists and is active
+    const { data: plan, error: planError } = await supabase
+      .from('subscription_plans')
+      .select('*')
+      .eq('id', planId)
+      .eq('is_active', true)
+      .single();
+
+    if (planError || !plan) {
+      logger.error('[ADMIN] Plan not found or inactive:', planError);
+      return res.status(404).json({ success: false, message: 'Plan bulunamadı veya aktif değil' });
+    }
+
+    // Create or update subscription for user
+    const now = new Date();
+    const endDate = new Date(now);
+    endDate.setMonth(endDate.getMonth() + (plan.interval === 'yearly' ? 12 : 1));
+
+    const subscriptionData = {
+      user_id: userId,
+      plantype: plan.name,
+      status: 'active',
+      startdate: now.toISOString(),
+      enddate: endDate.toISOString(),
+      stripesubscriptionid: `admin_assigned_${Date.now()}`,
+      stripepriceid: plan.id,
+      cancelatperiodend: false,
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    };
+
+    // Check if user already has a subscription
+    const { data: existingSub } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let result;
+    if (existingSub) {
+      // Update existing subscription
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .update(subscriptionData)
+        .eq('id', existingSub.id)
+        .select()
+        .single();
+      result = { data, error };
+    } else {
+      // Create new subscription
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .insert([subscriptionData])
+        .select()
+        .single();
+      result = { data, error };
+    }
+
+    if (result.error) {
+      logger.error('[ADMIN] Error assigning plan:', result.error);
+      return res.status(500).json({ success: false, message: 'Paket ataması başarısız', error: result.error.message });
+    }
+
+    logger.info(`[ADMIN] Successfully assigned plan ${planId} to user ${userId}`);
+    return res.json({ success: true, message: 'Paket başarıyla atandı', data: result.data });
+  } catch (e) {
+    logger.error('[ADMIN] Error in assignPlanToUser:', e);
+    return res.status(500).json({ success: false, message: 'Server error', error: e.message });
+  }
+};
+
