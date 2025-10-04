@@ -122,7 +122,7 @@ const AccountSettingsScreen: React.FC = () => {
             selectTextOnFocus={false}
           />
 
-          <Text style={styles.label}>Telefon</Text>
+          <Text style={styles.label}>{language === 'tr' ? 'Telefon' : 'Phone'}</Text>
           <TextInput
             style={styles.input}
             value={phone}

@@ -34,7 +34,7 @@ const { width } = Dimensions.get('window');
 
 export default function VocabularyScreen({ navigation, route }: any) {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [vocabulary, setVocabulary] = useState<VocabularyWord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,12 +62,36 @@ export default function VocabularyScreen({ navigation, route }: any) {
 
   // CEFR Seviyeleri Konfigürasyonu
   const wordLevels = {
-    a1: { title: 'A1 - Başlangıç', color: '#10B981', bgColor: '#ECFDF5' },
-    a2: { title: 'A2 - Temel', color: '#3B82F6', bgColor: '#EFF6FF' },
-    b1: { title: 'B1 - Orta', color: '#8B5CF6', bgColor: '#F3E8FF' },
-    b2: { title: 'B2 - Orta-Üstü', color: '#F59E0B', bgColor: '#FFFBEB' },
-    c1: { title: 'C1 - İleri', color: '#6366F1', bgColor: '#EEF2FF' },
-    c2: { title: 'C2 - Ustalık', color: '#EF4444', bgColor: '#FEF2F2' },
+    a1: { 
+      title: language === 'tr' ? 'A1 - Başlangıç' : 'A1 - Beginner', 
+      color: '#10B981', 
+      bgColor: '#ECFDF5' 
+    },
+    a2: { 
+      title: language === 'tr' ? 'A2 - Temel' : 'A2 - Elementary', 
+      color: '#3B82F6', 
+      bgColor: '#EFF6FF' 
+    },
+    b1: { 
+      title: language === 'tr' ? 'B1 - Orta' : 'B1 - Intermediate', 
+      color: '#8B5CF6', 
+      bgColor: '#F3E8FF' 
+    },
+    b2: { 
+      title: language === 'tr' ? 'B2 - Orta-Üstü' : 'B2 - Upper Intermediate', 
+      color: '#F59E0B', 
+      bgColor: '#FEF3C7' 
+    },
+    c1: { 
+      title: language === 'tr' ? 'C1 - İleri' : 'C1 - Advanced', 
+      color: '#EF4444', 
+      bgColor: '#FEE2E2' 
+    },
+    c2: { 
+      title: language === 'tr' ? 'C2 - Ustalık' : 'C2 - Proficiency', 
+      color: '#EC4899', 
+      bgColor: '#FCE7F3' 
+    },
   };
 
   // Load vocabulary and settings on component mount
@@ -291,25 +315,31 @@ export default function VocabularyScreen({ navigation, route }: any) {
         w.id === wordId ? updatedWord : w
       ));
     } catch (error: any) {
-      Alert.alert('Hata', 'Kelime durumu güncellenirken hata oluştu: ' + error.message);
+      Alert.alert(
+        language === 'tr' ? 'Hata' : 'Error',
+        (language === 'tr' ? 'Kelime durumu güncellenirken hata oluştu: ' : 'Error updating word status: ') + error.message
+      );
     }
   };
 
   const deleteWord = async (wordId: number) => {
     Alert.alert(
-      'Kelimeyi Sil',
-      'Bu kelimeyi silmek istediğinizden emin misiniz?',
+      language === 'tr' ? 'Kelimeyi Sil' : 'Delete Word',
+      language === 'tr' ? 'Bu kelimeyi silmek istediğinizden emin misiniz?' : 'Are you sure you want to delete this word?',
       [
-        { text: 'İptal', style: 'cancel' },
+        { text: language === 'tr' ? 'İptal' : 'Cancel', style: 'cancel' },
         {
-          text: 'Sil',
+          text: language === 'tr' ? 'Sil' : 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
               await deleteWordFromVocabulary(wordId);
               setVocabulary(vocabulary.filter(word => word.id !== wordId));
             } catch (error: any) {
-              Alert.alert('Hata', 'Kelime silinirken hata oluştu: ' + error.message);
+              Alert.alert(
+                language === 'tr' ? 'Hata' : 'Error',
+                (language === 'tr' ? 'Kelime silinirken hata oluştu: ' : 'Error deleting word: ') + error.message
+              );
             }
           }
         }
@@ -319,7 +349,10 @@ export default function VocabularyScreen({ navigation, route }: any) {
 
   const addNewWord = async () => {
     if (!newWord.word) {
-      Alert.alert('Hata', 'Kelime alanı zorunludur.');
+      Alert.alert(
+        language === 'tr' ? 'Hata' : 'Error',
+        language === 'tr' ? 'Kelime alanı zorunludur.' : 'Word field is required.'
+      );
       return;
     }
 
@@ -341,25 +374,34 @@ export default function VocabularyScreen({ navigation, route }: any) {
       // Detaylı başarı mesajı göster
       if (result.isExisting) {
         Alert.alert(
-          'Bilgi!',
-          `"${cleanWord}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${result.data.definition || 'Belirtilmemiş'}\nÖrnek: ${result.data.example_sentence || 'Belirtilmemiş'}`,
-          [{ text: 'Tamam' }]
+          language === 'tr' ? 'Bilgi!' : 'Info!',
+          language === 'tr'
+            ? `"${cleanWord}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${result.data.definition || 'Belirtilmemiş'}\nÖrnek: ${result.data.example_sentence || 'Belirtilmemiş'}`
+            : `"${cleanWord}" is already in your vocabulary list:\n\nMeaning: ${result.data.definition || 'Not specified'}\nExample: ${result.data.example_sentence || 'Not specified'}`,
+          [{ text: language === 'tr' ? 'Tamam' : 'OK' }]
         );
       } else if (result.translationError) {
         Alert.alert(
-          'Uyarı!',
-          `"${cleanWord}" kelimesi eklendi ancak çeviri yapılamadı. Anlamı manuel olarak ekleyebilirsiniz.`,
-          [{ text: 'Tamam' }]
+          language === 'tr' ? 'Uyarı!' : 'Warning!',
+          language === 'tr'
+            ? `"${cleanWord}" kelimesi eklendi ancak çeviri yapılamadı. Anlamı manuel olarak ekleyebilirsiniz.`
+            : `"${cleanWord}" was added but translation failed. You can add the meaning manually.`,
+          [{ text: language === 'tr' ? 'Tamam' : 'OK' }]
         );
       } else {
         Alert.alert(
-          'Başarılı!',
-          `"${cleanWord}" kelimesi başarıyla eklendi!\n\nAnlam: ${result.data.definition}\nÖrnek Cümle: ${result.data.example_sentence}\nSeviye: ${result.data.level}`,
-          [{ text: 'Tamam' }]
+          language === 'tr' ? 'Başarılı!' : 'Success!',
+          language === 'tr'
+            ? `"${cleanWord}" kelimesi başarıyla eklendi!\n\nAnlam: ${result.data.definition}\nÖrnek Cümle: ${result.data.example_sentence}\nSeviye: ${result.data.level}`
+            : `"${cleanWord}" was successfully added!\n\nMeaning: ${result.data.definition}\nExample: ${result.data.example_sentence}\nLevel: ${result.data.level}`,
+          [{ text: language === 'tr' ? 'Tamam' : 'OK' }]
         );
       }
     } catch (error: any) {
-      Alert.alert('Hata', 'Kelime eklenirken hata oluştu: ' + error.message);
+      Alert.alert(
+        language === 'tr' ? 'Hata' : 'Error',
+        (language === 'tr' ? 'Kelime eklenirken hata oluştu: ' : 'Error adding word: ') + error.message
+      );
     }
   };
 
@@ -409,7 +451,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
         </View>
         <View style={styles.progressContainer}>
           <View style={styles.progressHeader}>
-            <Text style={styles.progressText}>İlerleme</Text>
+            <Text style={styles.progressText}>{language === 'tr' ? 'İlerleme' : 'Progress'}</Text>
             <Text style={styles.progressPercent}>{progress}%</Text>
           </View>
           <View style={styles.progressBar}>
@@ -417,12 +459,12 @@ export default function VocabularyScreen({ navigation, route }: any) {
           </View>
         </View>
         <View style={styles.levelCardFooter}>
-          <Text style={styles.wordCount}>{levelWords.length} kelime</Text>
+          <Text style={styles.wordCount}>{levelWords.length} {language === 'tr' ? 'kelime' : 'words'}</Text>
           <TouchableOpacity
             style={[styles.viewButton, { backgroundColor: data.color }]}
             onPress={() => setActiveLevel(level)}
           >
-            <Text style={styles.viewButtonText}>Görüntüle</Text>
+            <Text style={styles.viewButtonText}>{language === 'tr' ? 'Görüntüle' : 'View'}</Text>
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -490,7 +532,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
           <View style={styles.wordDetails}>
             {item.example_sentence && (
               <View style={styles.exampleContainer}>
-                <Text style={styles.exampleTitle}>Örnek Cümle:</Text>
+                <Text style={styles.exampleTitle}>{language === 'tr' ? 'Örnek Cümle:' : 'Example Sentence:'}</Text>
                 <Text style={styles.exampleText}>"{item.example_sentence}"</Text>
                 {item.example_sentence_turkish && (
                   <Text style={styles.exampleTurkish}>🇹🇷 "{item.example_sentence_turkish}"</Text>
@@ -500,7 +542,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
             
             {item.original_sentence && (
               <View style={styles.originalContainer}>
-                <Text style={styles.originalTitle}>Orijinal Cümle:</Text>
+                <Text style={styles.originalTitle}>{language === 'tr' ? 'Orijinal Cümle:' : 'Original Sentence:'}</Text>
                 <Text style={styles.originalText}>"{item.original_sentence}"</Text>
               </View>
             )}
@@ -511,7 +553,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
                 onPress={() => deleteWord(item.id!)}
               >
                 <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                <Text style={styles.deleteText}>Sil</Text>
+                <Text style={styles.deleteText}>{language === 'tr' ? 'Sil' : 'Delete'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -575,7 +617,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
 
             {/* CEFR Seviyeleri */}
             <View style={styles.levelsContainer}>
-              <Text style={styles.sectionTitle}>CEFR Seviyeleri</Text>
+              <Text style={styles.sectionTitle}>{language === 'tr' ? 'CEFR Seviyeleri' : 'CEFR Levels'}</Text>
               <FlatList
                 data={Object.entries(wordLevels)}
                 renderItem={renderLevelCard}
@@ -592,7 +634,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
                 <Ionicons name="search" size={20} color="#9CA3AF" />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Kelime veya anlam ara..."
+                  placeholder={language === 'tr' ? 'Kelime veya anlam ara...' : 'Search word or meaning...'}
                   value={searchTerm}
                   onChangeText={setSearchTerm}
                 />
@@ -605,7 +647,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
                     onPress={() => setActiveLevel('all')}
                   >
                     <Text style={[styles.filterText, activeLevel === 'all' && styles.activeFilterText]}>
-                      Tüm Seviyeler
+                      {language === 'tr' ? 'Tüm Seviyeler' : 'All Levels'}
                     </Text>
                   </TouchableOpacity>
                   {Object.entries(wordLevels).map(([level, data]) => (
@@ -627,9 +669,9 @@ export default function VocabularyScreen({ navigation, route }: any) {
             <View style={styles.wordListContainer}>
               <View style={styles.wordListHeader}>
                 <Text style={styles.sectionTitle}>
-                  {activeLevel === 'all' ? 'Tüm Kelimeler' : wordLevels[activeLevel as keyof typeof wordLevels]?.title}
+                  {activeLevel === 'all' ? (language === 'tr' ? 'Tüm Kelimeler' : 'All Words') : wordLevels[activeLevel as keyof typeof wordLevels]?.title}
                 </Text>
-                <Text style={styles.wordCount}>{filteredWords.length} kelime</Text>
+                <Text style={styles.wordCount}>{filteredWords.length} {language === 'tr' ? 'kelime' : 'words'}</Text>
               </View>
               
               {filteredWords.length > 0 ? (
@@ -644,12 +686,19 @@ export default function VocabularyScreen({ navigation, route }: any) {
                 <View style={styles.emptyContainer}>
                   <Ionicons name="book-outline" size={48} color="#9CA3AF" />
                   <Text style={styles.emptyTitle}>
-                    {vocabulary.length === 0 ? 'Henüz kelime eklenmemiş' : 'Sonuç bulunamadı'}
+                    {vocabulary.length === 0 
+                      ? (language === 'tr' ? 'Henüz kelime eklenmemiş' : 'No words added yet')
+                      : (language === 'tr' ? 'Sonuç bulunamadı' : 'No results found')
+                    }
                   </Text>
                   <Text style={styles.emptyText}>
                     {vocabulary.length === 0 
-                      ? 'Metin oynatıcısında kelimelere uzun basarak kelime ekleyebilirsiniz.'
-                      : 'Arama kriterlerinize uygun kelime bulunamadı.'
+                      ? (language === 'tr' 
+                          ? 'Metin oynatıcısında kelimelere uzun basarak kelime ekleyebilirsiniz.'
+                          : 'You can add words by long-pressing on words in the text player.')
+                      : (language === 'tr'
+                          ? 'Arama kriterlerinize uygun kelime bulunamadı.'
+                          : 'No words found matching your search criteria.')
                     }
                   </Text>
                 </View>
@@ -668,25 +717,27 @@ export default function VocabularyScreen({ navigation, route }: any) {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setIsAddModalVisible(false)}>
-              <Text style={styles.modalCancel}>İptal</Text>
+              <Text style={styles.modalCancel}>{language === 'tr' ? 'İptal' : 'Cancel'}</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Yeni Kelime</Text>
+            <Text style={styles.modalTitle}>{language === 'tr' ? 'Yeni Kelime' : 'New Word'}</Text>
             <TouchableOpacity onPress={addNewWord}>
-              <Text style={styles.modalSave}>Kaydet</Text>
+              <Text style={styles.modalSave}>{language === 'tr' ? 'Kaydet' : 'Save'}</Text>
             </TouchableOpacity>
           </View>
           
           <ScrollView style={styles.modalContent}>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Kelime *</Text>
+              <Text style={styles.inputLabel}>{language === 'tr' ? 'Kelime *' : 'Word *'}</Text>
               <TextInput
                 style={styles.textInput}
                 value={newWord.word}
                 onChangeText={(text) => setNewWord({...newWord, word: text})}
-                placeholder="Örn: beautiful"
+                placeholder={language === 'tr' ? 'Örn: beautiful' : 'e.g: beautiful'}
               />
               <Text style={styles.helperText}>
-                💡 Anlam, örnek cümle ve seviye otomatik olarak AI tarafından belirlenecektir
+                {language === 'tr' 
+                  ? '💡 Anlam, örnek cümle ve seviye otomatik olarak AI tarafından belirlenecektir'
+                  : '💡 Meaning, example sentence and level will be automatically determined by AI'}
               </Text>
             </View>
           </ScrollView>
