@@ -153,24 +153,75 @@ async function translateSentenceToTurkish(englishSentence) {
 }
 
 /**
- * CEFR seviyesini tahmin eder (basit bir algoritma)
+ * OpenAI ile CEFR seviyesini belirler
  * @param {string} word - Kelime
- * @returns {string} - Tahmini CEFR seviyesi
+ * @param {string} context - Bağlam
+ * @returns {Promise<string>} - CEFR seviyesi
  */
-function estimateCEFRLevel(word) {
-    const lowerWord = word.toLowerCase();
-    
-    // Very basic CEFR level estimation based on word characteristics
-    const A1_WORDS = ['hello', 'thank', 'please', 'yes', 'no', 'good', 'bad', 'big', 'small', 'hot', 'cold', 'new', 'old'];
-    const A2_WORDS = ['beautiful', 'important', 'difficult', 'different', 'special', 'interesting', 'expensive'];
-    const C1_C2_WORDS = ['sophisticated', 'tremendous', 'inevitable', 'predominantly', 'substantially', 'comprehensive'];
-    
-    if (A1_WORDS.includes(lowerWord) || lowerWord.length <= 4) return 'A1';
-    if (A2_WORDS.includes(lowerWord) || lowerWord.length <= 6) return 'A2';
-    if (C1_C2_WORDS.includes(lowerWord) || lowerWord.length >= 12) return 'C1';
-    if (lowerWord.includes('tion') || lowerWord.includes('ment') || lowerWord.includes('ness')) return 'B2';
-    
-    return 'B1'; // Default to B1
+async function estimateCEFRLevel(word, context = '') {
+    if (!openai) {
+        // Fallback: basit tahmin
+        const lowerWord = word.toLowerCase();
+        if (lowerWord.length <= 4) return 'A1';
+        if (lowerWord.length <= 6) return 'A2';
+        if (lowerWord.length >= 12) return 'C1';
+        return 'B1';
+    }
+
+    try {
+        const prompt = `Determine the CEFR level (A1, A2, B1, B2, C1, or C2) for the English word "${word}".
+
+Context: ${context || 'General usage'}
+
+CEFR Level Guidelines:
+- A1: Very basic everyday words (hello, yes, no, cat, dog, big, small)
+- A2: Common everyday words (beautiful, important, difficult, interesting)
+- B1: Intermediate words used in daily situations (achieve, consider, develop)
+- B2: Advanced words for complex topics (implement, analyze, significant)
+- C1: Sophisticated academic/professional words (comprehensive, substantial, inevitable)
+- C2: Rare, literary, or highly specialized words (ephemeral, ubiquitous, paradigm)
+
+Consider:
+1. Word frequency in English
+2. Complexity of meaning
+3. Typical usage context
+4. Academic vs everyday usage
+
+Respond with ONLY the level code (A1, A2, B1, B2, C1, or C2).`;
+
+        logger.info(`Estimating CEFR level for word "${word}"`);
+
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                { 
+                    role: "system", 
+                    content: "You are an expert in English language teaching and CEFR (Common European Framework of Reference) level assessment. You accurately determine the difficulty level of English words." 
+                },
+                { role: "user", content: prompt }
+            ],
+            temperature: 0.1,
+            max_tokens: 10
+        });
+
+        const level = completion.choices[0]?.message?.content?.trim().toUpperCase() || 'B1';
+        
+        // Validate level
+        const validLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+        const finalLevel = validLevels.includes(level) ? level : 'B1';
+        
+        logger.info(`CEFR level for "${word}": ${finalLevel}`);
+        return finalLevel;
+
+    } catch (error) {
+        logger.error(`Error estimating CEFR level for "${word}":`, error);
+        // Fallback to simple estimation
+        const lowerWord = word.toLowerCase();
+        if (lowerWord.length <= 4) return 'A1';
+        if (lowerWord.length <= 6) return 'A2';
+        if (lowerWord.length >= 12) return 'C1';
+        return 'B1';
+    }
 }
 
 /**
@@ -185,8 +236,11 @@ async function processWordForVocabulary(word, context, level = null, originalSen
     try {
         logger.info(`Processing word "${word}" for vocabulary with context: "${context.substring(0, 50)}..."`);
         
-        // Seviye belirtilmemişse tahmin et
-        const estimatedLevel = level || estimateCEFRLevel(word);
+        // Seviye belirtilmemişse OpenAI ile tahmin et
+        let estimatedLevel = level;
+        if (!estimatedLevel) {
+            estimatedLevel = await estimateCEFRLevel(word, context);
+        }
         
         // Türkçe çeviriyi al
         const turkishMeaning = await translateWordToTurkish(word, context);
