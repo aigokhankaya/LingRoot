@@ -133,6 +133,7 @@ const MainTabs = () => {
 
 const AppNavigator = () => {
   const { user, isLoading } = useAuth();
+  const { t, language } = useLanguage();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [navReady, setNavReady] = useState(false);
   const [initialWordId, setInitialWordId] = useState<string | null>(null);
@@ -234,13 +235,13 @@ const AppNavigator = () => {
             <Stack.Screen
               name="Settings"
               component={AccountSettingsScreen}
-              options={{
+              options={({ navigation }) => ({
                 headerShown: true,
                 headerStyle: { backgroundColor: '#007AFF' },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
-                headerTitle: 'Hesap Ayarları',
-              }}
+                headerTitle: t('profile.accountSettings'),
+              })}
             />
             <Stack.Screen
               name="Membership"
@@ -262,13 +263,13 @@ const AppNavigator = () => {
             <Stack.Screen
               name="Chat"
               component={ChatScreen}
-              options={{
+              options={({ navigation }) => ({
                 headerShown: true,
                 headerStyle: { backgroundColor: '#007AFF' },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
-                headerTitle: 'Mesaj Gönder',
-              }}
+                headerTitle: language === 'tr' ? 'Mesaj Gönder' : 'Send Message',
+              })}
             />
             <Stack.Screen 
               name="Vocabulary" 

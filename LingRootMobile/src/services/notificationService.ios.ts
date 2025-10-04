@@ -144,7 +144,7 @@ class NotificationService {
       }
     } catch (e) {
       console.error('rescheduleDailyReminders (iOS) error:', e);
-      Alert.alert('❌ Bildirim Hatası', 'Hatırlatmalar planlanamadı.');
+      // Silently fail - don't show alert to user
     } finally {
       this.rescheduleRunning = false;
       if (this.rescheduleQueued) { this.rescheduleQueued = false; setTimeout(() => { this.rescheduleDailyReminders().catch(() => {}); }, 150); }

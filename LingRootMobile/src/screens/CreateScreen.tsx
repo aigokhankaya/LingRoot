@@ -41,32 +41,18 @@ const CreateScreen: React.FC = () => {
     React.useCallback(() => {
       const nextMode: 'text' | 'file' | 'book' | 'suggestion' | 'youtube' = route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : (route.params?.mode === 'youtube' ? 'youtube' : 'text')));
       setMode(nextMode);
-      if (nextMode === 'text') {
-        setSelectedFile(null);
-        // Book mode cleanup
-        setSelectedBook(null);
-        setSelectedChapterId(null);
-        setSelectedChapterText('');
-        setSuggestion('');
-        setSuggestionResults([]);
-        setYoutubeUrl('');
-        setYoutubeLoading(false);
-        setYoutubeError(null);
-      } else if (nextMode === 'youtube') {
-        setSelectedFile(null);
-        setSelectedBook(null);
-        setSelectedChapterId(null);
-        setSelectedChapterText('');
-        setSuggestion('');
-        setSuggestionResults([]);
-      } else {
-        setInputText('');
-        if (nextMode !== 'book') {
-          setSelectedBook(null);
-          setSelectedChapterId(null);
-          setSelectedChapterText('');
-        }
-      }
+      
+      // Her zaman tüm form alanlarını temizle
+      setInputText('');
+      setSelectedFile(null);
+      setSelectedBook(null);
+      setSelectedChapterId(null);
+      setSelectedChapterText('');
+      setSuggestion('');
+      setSuggestionResults([]);
+      setYoutubeUrl('');
+      setYoutubeLoading(false);
+      setYoutubeError(null);
     }, [route.params?.mode])
   );
   // --- Suggestion Mode State ---
