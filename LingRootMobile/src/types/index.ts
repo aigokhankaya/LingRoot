@@ -5,6 +5,7 @@ export interface User {
   full_name?: string;
   avatar_url?: string;
   membership_level: MembershipLevel;
+  role?: string;
   created_at: string;
   updated_at: string;
 }

@@ -51,6 +51,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           full_name: (builtFullName && builtFullName.length > 0) ? builtFullName : (authUser.email?.split('@')[0] || ''),
           avatar_url: umd.avatar_url,
           membership_level: umd.membership_level || 'free',
+          role: umd.role,
           created_at: authUser.created_at,
           updated_at: authUser.updated_at || authUser.created_at,
         };
@@ -138,6 +139,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                   [su.firstname, su.lastname].filter(Boolean).join(' ')
                 )?.toString().trim();
                 appUser.full_name = (built && built.length > 0) ? built : (appUser.full_name || appUser.email?.split('@')[0] || '');
+                appUser.role = su.role;
                 await AsyncStorage.setItem('user_data', JSON.stringify(appUser));
               } else {
                 if (!appUser.full_name || (appUser.full_name as any)?.toString().trim().length === 0) {
@@ -250,6 +252,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           full_name: builtFullName && builtFullName.length > 0 ? builtFullName : (backendUser.email?.split('@')[0] || ''),
           avatar_url: backendUser.avatar_url,
           membership_level: backendUser.membership_status || 'free',
+          role: backendUser.role,
           created_at: backendUser.created_at,
           updated_at: backendUser.updated_at,
         };

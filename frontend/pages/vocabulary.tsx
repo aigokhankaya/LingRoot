@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getVocabulary, deleteWordFromVocabulary, updateWordInVocabulary, addWordToVocabulary, VocabularyWord, getReminderSettings, saveReminderSettings, ReminderSettings } from '../src/lib/api';
+import { getVocabulary, deleteWordFromVocabulary, updateWordInVocabulary, addWordToVocabulary, addWordWithTranslation, VocabularyWord, getReminderSettings, saveReminderSettings, ReminderSettings } from '../src/lib/api';
 import { Button } from "../src/components/ui/button";
 import { Input } from "../src/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "../src/components/ui/card";
@@ -146,15 +146,28 @@ export function VocabularyTabContent({ user }: { user: any }) {
   const handleAddWord = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addWordToVocabulary(
-        newWord.word, 
-        newWord.meaning, 
-        newWord.example, 
-        newWord.level.toUpperCase()
+      const cleanWord = newWord.word.trim();
+      
+      // Otomatik olarak kelime detaylarını çek (AudioPlayer ve mobil uygulama gibi)
+      const result = await addWordWithTranslation(
+        cleanWord,
+        '', // Context boş olabilir, API kendi context'ini oluşturur
+        newWord.level.toUpperCase(),
+        '' // Original sentence boş olabilir
       );
+      
       setNewWord({ word: "", level: "a1", meaning: "", example: "" });
       setIsAddWordModalOpen(false);
       loadVocabulary();
+      
+      // Detaylı başarı mesajı göster
+      if (result.isExisting) {
+        alert(`Bilgi!\n\n"${cleanWord}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${result.data.definition || 'Belirtilmemiş'}\nÖrnek: ${result.data.example_sentence || 'Belirtilmemiş'}`);
+      } else if (result.translationError) {
+        alert(`Uyarı!\n\n"${cleanWord}" kelimesi eklendi ancak çeviri yapılamadı. Anlamı manuel olarak ekleyebilirsiniz.`);
+      } else {
+        alert(`Başarılı!\n\n"${cleanWord}" kelimesi başarıyla eklendi!\n\nAnlam: ${result.data.definition}\nÖrnek Cümle: ${result.data.example_sentence}\nSeviye: ${result.data.level}`);
+      }
     } catch (error: any) {
       alert('Kelime eklenirken hata oluştu: ' + error.message);
     }
@@ -269,19 +282,23 @@ export function VocabularyTabContent({ user }: { user: any }) {
                 </Button>
               </div>
               <form onSubmit={handleAddWord} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <Label htmlFor="word">Kelime</Label>
+                    <Label htmlFor="word">Kelime *</Label>
                     <Input
                       id="word"
                       value={newWord.word}
                       onChange={(e) => setNewWord({...newWord, word: e.target.value})}
                       className="mt-1"
+                      placeholder="Örn: beautiful"
                       required
                     />
+                    <p className="text-sm text-gray-500 mt-2 italic">
+                      💡 Anlam, örnek cümle ve seviye otomatik olarak çekilecektir
+                    </p>
                   </div>
                   <div>
-                    <Label htmlFor="level">Seviye</Label>
+                    <Label htmlFor="level">Seviye (Varsayılan)</Label>
                     <select
                       id="level"
                       value={newWord.level}
@@ -295,25 +312,9 @@ export function VocabularyTabContent({ user }: { user: any }) {
                       <option value="c1">C1</option>
                       <option value="c2">C2</option>
                     </select>
-                  </div>
-                  <div className="col-span-2">
-                    <Label htmlFor="meaning">Anlam</Label>
-                    <Input
-                      id="meaning"
-                      value={newWord.meaning}
-                      onChange={(e) => setNewWord({...newWord, meaning: e.target.value})}
-                      className="mt-1"
-                      required
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label htmlFor="example">Örnek Cümle</Label>
-                    <Input
-                      id="example"
-                      value={newWord.example}
-                      onChange={(e) => setNewWord({...newWord, example: e.target.value})}
-                      className="mt-1"
-                    />
+                    <p className="text-sm text-gray-500 mt-2 italic">
+                      Seviye AI tarafından otomatik belirlenecektir
+                    </p>
                   </div>
                 </div>
                 <div className="flex justify-end space-x-3 mt-6">

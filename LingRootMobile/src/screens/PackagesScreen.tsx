@@ -133,7 +133,7 @@ const PackagesScreen: React.FC = () => {
   };
 
   const formatPrice = (price: number) => {
-    return `₹${price}`;
+    return `₺${price}`;
   };
 
   const formatFeatures = (features?: string[]) => {

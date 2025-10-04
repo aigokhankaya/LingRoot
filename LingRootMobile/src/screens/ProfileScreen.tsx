@@ -132,19 +132,22 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
     }
   };
 
+  // Check if user is admin
+  const isAdmin = user?.role === 'admin';
+
   const menuItems = [
     { id: 1, title: t('profile.accountSettings'), icon: 'settings', action: () => navigation.navigate('Settings') },
     { id: 1.5, title: t('profile.language'), icon: 'language', action: () => setLanguageModalVisible(true) },
-    { id: 2, title: t('profile.audioHistory'), icon: 'history', action: () => {} },
     { id: 3, title: language === 'tr' ? 'Kalan Kullanım' : 'Remaining Usage', icon: 'assessment', action: () => navigation.navigate('Membership') },
     { id: 3.2, title: language === 'tr' ? 'Paket Bilgileri' : 'Package Information', icon: 'inventory', action: () => navigation.navigate('Packages') },
     { id: 3.5, title: 'Mesaj Gönder', icon: 'chat', action: () => navigation.navigate('Chat') },
-    { id: 3.8, title: language === 'tr' ? 'Bildirim Ayarlarını Aç' : 'Open Notification Settings', icon: 'notifications-none', action: handleOpenNotificationSettings },
-    { id: 4, title: t('profile.testNotification'), icon: 'notifications', action: handleTestNotification },
-    { id: 5, title: t('profile.notificationStatus'), icon: 'notifications-active', action: handleNotificationStatus },
-    { id: 8, title: t('profile.quickDebug'), icon: 'bug-report', action: handleQuickDebug },
-    { id: 6, title: t('profile.help'), icon: 'help', action: () => {} },
-    { id: 7, title: t('profile.about'), icon: 'info', action: () => {} },
+    // Admin-only menu items
+    ...(isAdmin ? [
+      { id: 3.8, title: language === 'tr' ? 'Bildirim Ayarlarını Aç' : 'Open Notification Settings', icon: 'notifications-none', action: handleOpenNotificationSettings },
+      { id: 4, title: t('profile.testNotification'), icon: 'notifications', action: handleTestNotification },
+      { id: 5, title: t('profile.notificationStatus'), icon: 'notifications-active', action: handleNotificationStatus },
+      { id: 8, title: t('profile.quickDebug'), icon: 'bug-report', action: handleQuickDebug },
+    ] : []),
   ];
 
   return (
