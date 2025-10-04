@@ -441,7 +441,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const result = await addWordWithTranslation(
         cleanWord,
         context, // Context for AI translation
-        track.level,
+        '', // Level boş - OpenAI otomatik belirleyecek
         originalSentence
       );
 
