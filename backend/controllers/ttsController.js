@@ -281,20 +281,25 @@ const processTtsRequest = async (req, res) => {
           const userId = req.user?.id;
           if (userId) {
             const limitState = await checkLimits(userId);
-            // If user has no active plan, block TTS and request package selection
+            // If user has no active plan or subscription expired, block TTS
             if (!limitState?.hasPlan) {
-              logger.warn(`[${requestId}] No active subscription for user ${userId}`);
-              // Return 200 to avoid mobile wrappers popping native alerts on 4xx
+              const isExpired = limitState?.isExpired;
+              const message = isExpired 
+                ? limitState.message || 'Paket süreniz dolmuştur. Lütfen yeni bir paket satın alın.'
+                : 'Aktif paketiniz yok. Lütfen paket seçin ve aboneliğinizi başlatın.';
+              
+              logger.warn(`[${requestId}] ${isExpired ? 'Subscription expired' : 'No active subscription'} for user ${userId}`);
+              
               return res.status(200).json({
                 success: false,
-                code: 'NO_ACTIVE_PLAN',
-                message: 'Aktif paketiniz yok. Lütfen paket seçin ve aboneliğinizi başlatın.',
+                code: isExpired ? 'SUBSCRIPTION_EXPIRED' : 'NO_ACTIVE_PLAN',
+                message,
+                expiredAt: limitState?.expiredAt,
               });
             }
             // If plan exists but limits exceeded, block
             if (limitState.isExceeded) {
               logger.warn(`[${requestId}] Usage limit exceeded for user ${userId}`);
-              // Return 200 to avoid native alerts
               return res.status(200).json({
                 success: false,
                 code: 'USAGE_LIMIT_EXCEEDED',

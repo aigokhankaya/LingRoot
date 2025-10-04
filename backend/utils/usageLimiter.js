@@ -146,6 +146,22 @@ async function checkLimits(userId) {
     const plan = subscription.plan || null;
     const periodStart = getPeriodStart(subscription, plan);
     const periodEnd = subscription?.current_period_end || subscription?.enddate || subscription?.endDate || new Date(new Date(periodStart).getTime() + (plan?.interval === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString();
+    
+    // Check if subscription has expired
+    const now = new Date();
+    const endDate = new Date(periodEnd);
+    const isExpired = endDate < now;
+    
+    if (isExpired) {
+      logger.warn(`[USAGE LIMIT] Subscription expired for user ${userId}. End date: ${periodEnd}, Current: ${now.toISOString()}`);
+      return { 
+        hasPlan: false, 
+        isExpired: true, 
+        expiredAt: periodEnd,
+        message: 'Paket süreniz dolmuştur. Lütfen yeni bir paket satın alın.' 
+      };
+    }
+    
     const usage = await getUsageTotals(userId, periodStart, periodEnd);
     // Compute USD budget from TRY plan price and settings-based FX rate using 1/3 rule
     const fx = await getUsdTryRate(40);
@@ -168,7 +184,17 @@ async function checkLimits(userId) {
       usd: limits.monthlyUsdLimit != null && usage.totalCostUsd > limits.monthlyUsdLimit,
     };
     const isExceeded = exceeded.openai || exceeded.tts || exceeded.usd;
-    return { hasPlan: true, subscription, periodStart, usage, limits, exceeded, isExceeded };
+    return { 
+      hasPlan: true, 
+      subscription, 
+      periodStart, 
+      periodEnd,
+      usage, 
+      limits, 
+      exceeded, 
+      isExceeded,
+      isExpired: false 
+    };
   } catch (e) {
     logger.error('[USAGE LIMIT] checkLimits error:', e);
     return { hasPlan: false, error: e.message };

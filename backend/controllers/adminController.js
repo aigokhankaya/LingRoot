@@ -808,7 +808,15 @@ exports.getUserUsageSummaryAdmin = async (req, res) => {
     const state = await checkLimits(id);
     // Mirror subscriptionController.getUsageSummary shape
     if (!state || !state.hasPlan) {
-      return res.json({ success: true, data: { hasPlan: false } });
+      return res.json({ 
+        success: true, 
+        data: { 
+          hasPlan: false,
+          isExpired: state?.isExpired || false,
+          expiredAt: state?.expiredAt,
+          message: state?.message
+        } 
+      });
     }
     return res.json({
       success: true,
