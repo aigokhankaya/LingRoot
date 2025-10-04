@@ -210,25 +210,6 @@ const HomeScreen: React.FC = () => {
           </View>
         </View>
 
-        <View style={styles.quickActions}>
-          <Text style={styles.sectionTitle}>{t('home.quickActions')}</Text>
-          <TouchableOpacity 
-            style={styles.quickActionButton}
-            onPress={() => (navigation as any).navigate('Create', { mode: 'text' })}
-          >
-            <Icon name="add-circle" size={24} color="white" />
-            <Text style={styles.quickActionText}>{t('home.createNewAudio')}</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.quickActionButton, styles.secondaryButton]}
-            onPress={() => (navigation as any).navigate('Library')}
-          >
-            <Icon name="library-music" size={24} color="#007AFF" />
-            <Text style={[styles.quickActionText, styles.secondaryText]}>{t('home.listenToAudio')}</Text>
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.tipSection}>
           <View style={styles.tipCard}>
             <Icon name="tips-and-updates" size={24} color="#FF9500" />
@@ -324,32 +305,6 @@ const styles = StyleSheet.create({
   featureDescription: {
     fontSize: 14,
     color: '#666',
-  },
-  quickActions: {
-    padding: 20,
-  },
-  quickActionButton: {
-    backgroundColor: '#007AFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  secondaryButton: {
-    backgroundColor: 'white',
-    borderWidth: 2,
-    borderColor: '#007AFF',
-  },
-  quickActionText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  secondaryText: {
-    color: '#007AFF',
   },
   tipSection: {
     padding: 20,
