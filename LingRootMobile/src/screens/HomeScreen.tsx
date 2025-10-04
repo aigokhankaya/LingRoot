@@ -35,15 +35,16 @@ const HomeScreen: React.FC = () => {
       screenName: 'Create',
       params: { mode: 'text' as const },
     },
-    {
-      id: 7,
-      title: 'YouTube',
-      description: language === 'tr' ? 'YouTube linkinden altyazı çek ve sese dönüştür' : 'Fetch subtitles from a YouTube link and convert to speech',
-      icon: 'ondemand-video',
-      color: '#FF0000',
-      screenName: 'Create',
-      params: { mode: 'youtube' as const },
-    },
+    // YouTube seçeneği geçici olarak gizlendi - geliştirme devam ediyor
+    // {
+    //   id: 7,
+    //   title: 'YouTube',
+    //   description: language === 'tr' ? 'YouTube linkinden altyazı çek ve sese dönüştür' : 'Fetch subtitles from a YouTube link and convert to speech',
+    //   icon: 'ondemand-video',
+    //   color: '#FF0000',
+    //   screenName: 'Create',
+    //   params: { mode: 'youtube' as const },
+    // },
     {
       id: 2,
       title: t('home.uploadFile'),
