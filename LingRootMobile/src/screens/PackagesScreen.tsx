@@ -71,8 +71,22 @@ const PackagesScreen: React.FC = () => {
   const fetchActivePackage = async () => {
     try {
       const response = await apiService.getUsageSummary();
-      if (response.success && response.data?.plan) {
+      console.log('Usage Summary Response:', JSON.stringify(response, null, 2));
+      
+      // Önce plan objesinden al
+      if (response.success && response.data?.plan?.name) {
+        console.log('Active Package Name from plan:', response.data.plan.name);
         setActivePackageName(response.data.plan.name);
+      } 
+      // Sonra subscription.plantype'dan al
+      else if (response.success && response.data?.subscription?.plantype) {
+        console.log('Active Package Name from plantype:', response.data.subscription.plantype);
+        setActivePackageName(response.data.subscription.plantype);
+      }
+      // Son olarak plantype'dan al
+      else if (response.success && response.data?.plantype) {
+        console.log('Active Package Name from data.plantype:', response.data.plantype);
+        setActivePackageName(response.data.plantype);
       }
     } catch (error) {
       console.log('Active package fetch error:', error);
@@ -161,7 +175,13 @@ const PackagesScreen: React.FC = () => {
           const planColor = getPlanColor(plan.name);
           const isPurchasing = purchasingPlanId === plan.id;
           const features = formatFeatures(plan.features);
-          const isActive = Boolean(activePackageName && plan.name.toLowerCase().includes(activePackageName.toLowerCase()));
+          // Daha esnek eşleştirme: hem plan adı hem de paket adı içinde arama
+          const isActive = Boolean(
+            activePackageName && (
+              plan.name.toLowerCase().includes(activePackageName.toLowerCase()) ||
+              activePackageName.toLowerCase().includes(plan.name.toLowerCase())
+            )
+          );
 
           return (
             <View key={plan.id} style={[
