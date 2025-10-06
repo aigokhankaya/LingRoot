@@ -1080,25 +1080,32 @@ const processTtsRequest = async (req, res) => {
                 
                 // Free Trial için ses oluşturma sayacını artır
                 try {
-                    const { data: activeSub } = await supabase
+                    const { data: activeSub, error: subError } = await supabase
                         .from('subscriptions')
-                        .select('id, plan_id, audio_creation_count, subscription_plans!inner(name)')
+                        .select('id, plantype, audio_creation_count')
                         .eq('user_id', userId)
                         .eq('status', 'active')
                         .order('created_at', { ascending: false })
                         .limit(1)
                         .maybeSingle();
                     
-                    if (activeSub && activeSub.subscription_plans?.name === 'Free Trial') {
+                    if (subError) {
+                        logger.warn(`[${requestId}] Error fetching subscription for counter update:`, subError.message);
+                    } else if (activeSub && activeSub.plantype === 'Free Trial') {
                         const currentCount = Number(activeSub.audio_creation_count || 0);
-                        await supabase
+                        const { error: updateError } = await supabase
                             .from('subscriptions')
                             .update({ 
                                 audio_creation_count: currentCount + 1,
                                 updated_at: new Date().toISOString()
                             })
                             .eq('id', activeSub.id);
-                        logger.info(`[${requestId}] 🎯 Free Trial counter updated: ${currentCount} -> ${currentCount + 1}`);
+                        
+                        if (updateError) {
+                            logger.warn(`[${requestId}] Failed to update Free Trial counter:`, updateError.message);
+                        } else {
+                            logger.info(`[${requestId}] 🎯 Free Trial counter updated: ${currentCount} -> ${currentCount + 1}`);
+                        }
                     }
                 } catch (counterErr) {
                     logger.warn(`[${requestId}] Failed to update Free Trial counter:`, counterErr?.message);
