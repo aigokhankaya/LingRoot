@@ -122,6 +122,8 @@ export type RootStackParamList = {
   Packages: undefined;
   Chat: undefined;
   Vocabulary: { wordId?: string } | undefined;
+  PrivacyPolicy: undefined;
+  TermsOfService: undefined;
 };
 
 export type MainTabParamList = {

@@ -27,6 +27,8 @@ import MembershipScreen from '../screens/MembershipScreen';
 import ChatScreen from '../screens/ChatScreen';
 import AccountSettingsScreen from '../screens/AccountSettingsScreen';
 import PackagesScreen from '../screens/PackagesScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -284,6 +286,28 @@ const AppNavigator = () => {
                   fontWeight: 'bold',
                 },
                 headerTitle: 'Vocabulary', // This will be updated by the component
+              }}
+            />
+            <Stack.Screen
+              name="PrivacyPolicy"
+              component={PrivacyPolicyScreen}
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: '#007AFF' },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: 'bold' },
+                headerTitle: language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy',
+              }}
+            />
+            <Stack.Screen
+              name="TermsOfService"
+              component={TermsOfServiceScreen}
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: '#007AFF' },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: 'bold' },
+                headerTitle: language === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service',
               }}
             />
           </>

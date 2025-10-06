@@ -12,7 +12,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
-import { IAP_PRODUCTS, requestSubscription } from '../services/iap';
+import { IAP_PRODUCTS, requestSubscription, restorePurchases } from '../services/iap';
 import { apiService } from '../services/api';
 
 interface SubscriptionPlan {
@@ -38,6 +38,7 @@ const PackagesScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [purchasingPlanId, setPurchasingPlanId] = useState<number | null>(null);
   const [activePackageName, setActivePackageName] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
 
   useEffect(() => {
     fetchPlans();
@@ -110,7 +111,10 @@ const PackagesScreen: React.FC = () => {
           [
             {
               text: 'Tamam',
-              onPress: () => navigation.goBack(),
+              onPress: () => {
+                fetchActivePackage(); // Refresh active package
+                navigation.goBack();
+              },
             },
           ]
         );
@@ -121,6 +125,47 @@ const PackagesScreen: React.FC = () => {
       Alert.alert('Hata', error.message || 'Satın alma sırasında bir hata oluştu');
     } finally {
       setPurchasingPlanId(null);
+    }
+  };
+
+  const handleRestore = async () => {
+    setRestoring(true);
+    try {
+      const result = await restorePurchases();
+      
+      if (result.ok) {
+        Alert.alert(
+          language === 'tr' ? 'Başarılı' : 'Success',
+          result.message || (language === 'tr' 
+            ? 'Satın alımlarınız başarıyla geri yüklendi' 
+            : 'Your purchases have been restored successfully'),
+          [
+            {
+              text: language === 'tr' ? 'Tamam' : 'OK',
+              onPress: () => {
+                fetchActivePackage(); // Refresh active package
+                fetchPlans(); // Refresh plans
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          language === 'tr' ? 'Bilgi' : 'Info',
+          result.message || (language === 'tr'
+            ? 'Geri yüklenecek satın alım bulunamadı'
+            : 'No purchases found to restore')
+        );
+      }
+    } catch (error: any) {
+      Alert.alert(
+        language === 'tr' ? 'Hata' : 'Error',
+        error.message || (language === 'tr'
+          ? 'Geri yükleme sırasında bir hata oluştu'
+          : 'An error occurred during restore')
+      );
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -285,6 +330,54 @@ const PackagesScreen: React.FC = () => {
             </Text>
           </View>
         )}
+
+        {/* Restore Purchases Button */}
+        <View style={styles.restoreContainer}>
+          <TouchableOpacity
+            style={styles.restoreButton}
+            onPress={handleRestore}
+            disabled={restoring}
+          >
+            {restoring ? (
+              <ActivityIndicator size="small" color="#007AFF" />
+            ) : (
+              <>
+                <Icon name="restore" size={20} color="#007AFF" />
+                <Text style={styles.restoreButtonText}>
+                  {language === 'tr' ? 'Satın Alımları Geri Yükle' : 'Restore Purchases'}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.restoreHint}>
+            {language === 'tr'
+              ? 'Daha önce satın aldığınız paketleri geri yükleyin'
+              : 'Restore your previously purchased packages'}
+          </Text>
+        </View>
+
+        {/* Apple Required Subscription Terms */}
+        <View style={styles.termsContainer}>
+          <Text style={styles.termsText}>
+            {language === 'tr'
+              ? '• Ödeme, satın alma onaylandığında iTunes Hesabınızdan tahsil edilecektir.\n\n• Abonelik, mevcut dönem bitmeden en az 24 saat önce iptal edilmediği sürece otomatik olarak yenilenir.\n\n• Hesabınız, mevcut dönem sona ermeden 24 saat içinde yenileme için ücretlendirilecektir.\n\n• Abonelikler kullanıcı tarafından yönetilebilir ve otomatik yenileme, satın alma sonrasında kullanıcının Hesap Ayarlarına gidilerek kapatılabilir.\n\n• Ücretsiz deneme süresinin kullanılmayan kısmı, varsa, kullanıcı o yayına abone olduğunda kaybedilecektir.'
+              : '• Payment will be charged to iTunes Account at confirmation of purchase.\n\n• Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period.\n\n• Account will be charged for renewal within 24-hours prior to the end of the current period.\n\n• Subscriptions may be managed by the user and auto-renewal may be turned off by going to the user\'s Account Settings after purchase.\n\n• Any unused portion of a free trial period, if offered, will be forfeited when the user purchases a subscription to that publication.'}
+          </Text>
+          
+          <View style={styles.legalLinks}>
+            <TouchableOpacity onPress={() => (navigation as any).navigate('PrivacyPolicy')}>
+              <Text style={styles.legalLink}>
+                {language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy'}
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.legalSeparator}>•</Text>
+            <TouchableOpacity onPress={() => (navigation as any).navigate('TermsOfService')}>
+              <Text style={styles.legalLink}>
+                {language === 'tr' ? 'Kullanım Şartları' : 'Terms of Service'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -459,6 +552,71 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     marginLeft: 6,
+  },
+  restoreContainer: {
+    marginHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  restoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#F0F9FF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    minHeight: 48,
+    gap: 8,
+  },
+  restoreButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
+    marginLeft: 8,
+  },
+  restoreHint: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  termsContainer: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  termsText: {
+    fontSize: 11,
+    color: '#6B7280',
+    lineHeight: 16,
+    textAlign: 'left',
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    gap: 8,
+  },
+  legalLink: {
+    fontSize: 12,
+    color: '#007AFF',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  legalSeparator: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginHorizontal: 8,
   },
 });
 

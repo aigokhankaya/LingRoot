@@ -700,6 +700,55 @@ const CreateScreen: React.FC = () => {
         } else {
           const code = (response as any)?.code;
           const msg = response.message || t('create.alerts.audioCreateFailed');
+          
+          // Free Trial limit aşımı için özel yönlendirme
+          if (code === 'FREE_TRIAL_EXHAUSTED') {
+            const details = (response as any)?.details;
+            Alert.alert(
+              language === 'tr' ? 'Ücretsiz Deneme Bitti' : 'Free Trial Ended',
+              language === 'tr'
+                ? `${details?.audioCreationCount || 3} ses oluşturma hakkınızı kullandınız.\n\nDevam etmek için premium pakete geçin.`
+                : `You've used your ${details?.audioCreationCount || 3} audio creation credits.\n\nUpgrade to premium to continue.`,
+              [
+                {
+                  text: language === 'tr' ? 'Paketleri Gör' : 'View Packages',
+                  onPress: () => {
+                    navigation.navigate('Packages' as never);
+                  },
+                },
+                {
+                  text: language === 'tr' ? 'İptal' : 'Cancel',
+                  style: 'cancel',
+                },
+              ]
+            );
+            return;
+          }
+          
+          // Free Trial için metin çok uzun hatası
+          if (code === 'FREE_TRIAL_TEXT_TOO_LONG') {
+            const details = (response as any)?.details;
+            Alert.alert(
+              language === 'tr' ? 'Metin Çok Uzun' : 'Text Too Long',
+              language === 'tr'
+                ? `Ücretsiz denemede her ses maksimum ${details?.maxMinutes || 10} dakika olabilir.\n\nMetniniz: ~${details?.estimatedMinutes || 0} dakika\n\nLütfen metni kısaltın veya premium pakete geçin.`
+                : `In free trial, each audio can be maximum ${details?.maxMinutes || 10} minutes.\n\nYour text: ~${details?.estimatedMinutes || 0} minutes\n\nPlease shorten the text or upgrade to premium.`,
+              [
+                {
+                  text: language === 'tr' ? 'Paketleri Gör' : 'View Packages',
+                  onPress: () => {
+                    navigation.navigate('Packages' as never);
+                  },
+                },
+                {
+                  text: language === 'tr' ? 'Tamam' : 'OK',
+                  style: 'cancel',
+                },
+              ]
+            );
+            return;
+          }
+          
           if (code === 'NO_ACTIVE_PLAN' || code === 'USAGE_LIMIT_EXCEEDED') {
             Alert.alert(
               t('common.error'),
