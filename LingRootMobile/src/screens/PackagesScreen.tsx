@@ -53,10 +53,12 @@ const PackagesScreen: React.FC = () => {
       console.log('Plans response:', response);
       
       if (response.success && Array.isArray(response.data)) {
-        // Sadece aktif paketleri göster
-        const activePlans = response.data.filter((p: SubscriptionPlan) => p.is_active);
-        console.log('Active plans:', activePlans.length, activePlans);
-        setPlans(activePlans);
+        // Sadece aktif ve satın alınabilir paketleri göster (Free Trial hariç)
+        const purchasablePlans = response.data.filter((p: SubscriptionPlan) => 
+          p.is_active && p.apple_product_id // Sadece Apple Product ID'si olan paketler
+        );
+        console.log('Purchasable plans:', purchasablePlans.length, purchasablePlans);
+        setPlans(purchasablePlans);
       } else {
         console.log('Invalid response format:', response);
         Alert.alert('Hata', 'Paket verisi alınamadı');
