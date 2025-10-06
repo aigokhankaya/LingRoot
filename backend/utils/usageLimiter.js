@@ -144,6 +144,38 @@ async function checkLimits(userId) {
       return { hasPlan: false };
     }
     const plan = subscription.plan || null;
+    
+    // Free Trial özel kontrolü - ses oluşturma sayısı bazlı
+    if (plan?.name === 'Free Trial') {
+      const audioCount = Number(subscription.audio_creation_count || 0);
+      const maxAudioCount = 3;
+      
+      if (audioCount >= maxAudioCount) {
+        logger.warn(`[USAGE LIMIT] Free Trial limit reached for user ${userId}. Created: ${audioCount}/${maxAudioCount}`);
+        return {
+          hasPlan: true,
+          subscription,
+          plan,
+          isExceeded: true,
+          isFreeTrialExhausted: true,
+          audioCreationCount: audioCount,
+          maxAudioCount,
+          message: 'Ücretsiz deneme hakkınız doldu. Premium pakete geçin.',
+        };
+      }
+      
+      return {
+        hasPlan: true,
+        subscription,
+        plan,
+        isExceeded: false,
+        isFreeTrialExhausted: false,
+        audioCreationCount: audioCount,
+        maxAudioCount,
+        remainingAudioCount: maxAudioCount - audioCount,
+      };
+    }
+    
     const periodStart = getPeriodStart(subscription, plan);
     const periodEnd = subscription?.current_period_end || subscription?.enddate || subscription?.endDate || new Date(new Date(periodStart).getTime() + (plan?.interval === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString();
     

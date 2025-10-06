@@ -216,31 +216,33 @@ exports.register = async (req, res) => {
     const token = generateToken(newUser[0].id, newUser[0].email, newUser[0].role, false);
     const refreshToken = generateRefreshToken(newUser[0].id);
 
-    // Assign default free trial plan if exists
+    // Assign Free Trial plan (3 audio creation credits)
     try {
       const { data: trialPlan, error: planErr } = await supabase
         .from('subscription_plans')
         .select('*')
-        .eq('is_trial', true)
+        .eq('name', 'Free Trial')
         .eq('is_active', true)
-        .order('price', { ascending: true })
-        .limit(1)
         .maybeSingle();
+      
       if (!planErr && trialPlan) {
+        // Trial süresiz - sadece 3 ses oluşturma hakkı
         await supabase
           .from('subscriptions')
           .insert([
             {
               user_id: newUser[0].id,
               plan_id: trialPlan.id,
-              status: 'trialing',
-              current_period_end: new Date(Date.now() + (Number(trialPlan.trial_days || 7) * 24 * 60 * 60 * 1000)).toISOString(),
+              status: 'active', // Trial değil, aktif - kullanım hakkı bazlı
+              current_period_end: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(), // 1 yıl (süresiz gibi)
               cancel_at_period_end: false,
+              audio_creation_count: 0, // Başlangıç sayacı
             },
           ]);
+        logger.info(`[REGISTER] Free Trial plan assigned to user ${newUser[0].id}`);
       }
     } catch (e) {
-      logger.warn('[REGISTER] Failed to assign trial plan:', e?.message);
+      logger.warn('[REGISTER] Failed to assign Free Trial plan:', e?.message);
     }
 
     // Send registration notification to support team
@@ -566,31 +568,33 @@ exports.googleLogin = async (req, res) => {
         logger.warn('[GOOGLE_LOGIN] Registration notification failed:', notificationErr?.message);
       }
       
-      // Assign default free trial plan if exists for Google new users
+      // Assign Free Trial plan (3 audio creation credits) for Google new users
       try {
         const { data: trialPlan, error: planErr } = await supabase
           .from('subscription_plans')
           .select('*')
-          .eq('is_trial', true)
+          .eq('name', 'Free Trial')
           .eq('is_active', true)
-          .order('price', { ascending: true })
-          .limit(1)
           .maybeSingle();
+        
         if (!planErr && trialPlan) {
+          // Trial süresiz - sadece 3 ses oluşturma hakkı
           await supabase
             .from('subscriptions')
             .insert([
               {
                 user_id: user.id,
                 plan_id: trialPlan.id,
-                status: 'trialing',
-                current_period_end: new Date(Date.now() + (Number(trialPlan.trial_days || 7) * 24 * 60 * 60 * 1000)).toISOString(),
+                status: 'active', // Trial değil, aktif - kullanım hakkı bazlı
+                current_period_end: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(), // 1 yıl (süresiz gibi)
                 cancel_at_period_end: false,
+                audio_creation_count: 0, // Başlangıç sayacı
               },
             ]);
+          logger.info(`[GOOGLE_LOGIN] Free Trial plan assigned to user ${user.id}`);
         }
       } catch (e2) {
-        logger.warn('[GOOGLE_LOGIN] Failed to assign trial plan:', e2?.message);
+        logger.warn('[GOOGLE_LOGIN] Failed to assign Free Trial plan:', e2?.message);
       }
     }
 

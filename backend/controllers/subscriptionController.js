@@ -834,11 +834,18 @@ exports.getUsageSummary = async (req, res) => {
       data: {
         hasPlan: true,
         subscription: state.subscription,
+        plan: state.plan,
+        plantype: state.plan?.name,
         periodStart: state.periodStart,
         usage: state.usage,
         limits: state.limits,
         exceeded: state.exceeded,
         isExceeded: state.isExceeded,
+        // Free Trial özel alanları
+        isFreeTrialExhausted: state.isFreeTrialExhausted || false,
+        audioCreationCount: state.audioCreationCount,
+        maxAudioCount: state.maxAudioCount,
+        remainingAudioCount: state.remainingAudioCount,
       },
     });
   } catch (e) {
