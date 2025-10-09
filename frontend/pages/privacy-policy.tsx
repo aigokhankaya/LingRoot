@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Footer from '../src/components/Footer';
@@ -7,11 +7,14 @@ import { useTranslation } from '../src/lib/i18n';
 export default function PrivacyPolicy() {
   const { t } = useTranslation();
   
+  const pageTitle = useMemo(() => String(t('privacy_policy_title') || 'Privacy Policy'), [t]);
+  const pageDescription = useMemo(() => String(t('privacy_policy_subtitle') || 'Privacy Policy'), [t]);
+  
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <Head>
-        <title>{t('privacy_policy_title')} | LingRoot</title>
-        <meta name="description" content={t('privacy_policy_subtitle')} />
+        <title>{pageTitle} | LingRoot</title>
+        <meta name="description" content={pageDescription} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/favicon.ico" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -90,23 +93,23 @@ export default function PrivacyPolicy() {
         
         <nav className="hidden md:flex items-center space-x-8">
           <Link href="/about" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            {t('about')}
+            {String(t('about'))}
           </Link>
           <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            {t('how_it_works')}
+            {String(t('how_it_works'))}
           </Link>
           <Link href="/contact" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            {t('contact')}
+            {String(t('contact'))}
           </Link>
         </nav>
 
         <div className="flex items-center space-x-4">
           <Link href="/login" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            {t('login')}
+            {String(t('login'))}
           </Link>
           <Link href="/register" 
             className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-            {t('register_now')}
+            {String(t('register_now'))}
           </Link>
         </div>
       </header>
@@ -163,30 +166,30 @@ export default function PrivacyPolicy() {
                   <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl p-8 border border-gray-200 shadow-lg">
                     <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('privacy_account_info')}</h3>
                     <ul className="text-gray-600 space-y-3">
-                      <li className="flex items-center"><span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>Ad, soyad ve e-posta adresiniz</li>
-                      <li className="flex items-center"><span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>Telefon numaranız (isteğe bağlı)</li>
-                      <li className="flex items-center"><span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>Hesap oluşturma tarihi</li>
-                      <li className="flex items-center"><span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>Dil öğrenme seviyeniz ve tercihleri</li>
+                      <li className="flex items-center"><span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>{t('privacy_account_item1')}</li>
+                      <li className="flex items-center"><span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>{t('privacy_account_item2')}</li>
+                      <li className="flex items-center"><span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>{t('privacy_account_item3')}</li>
+                      <li className="flex items-center"><span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>{t('privacy_account_item4')}</li>
                     </ul>
                   </div>
 
                   <div className="bg-gradient-to-r from-gray-50 to-purple-50 rounded-2xl p-8 border border-gray-200 shadow-lg">
                     <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('privacy_usage_data')}</h3>
                     <ul className="text-gray-600 space-y-3">
-                      <li className="flex items-center"><span className="w-2 h-2 bg-purple-500 rounded-full mr-3"></span>İşlediğiniz içerikler ve sıklığı</li>
-                      <li className="flex items-center"><span className="w-2 h-2 bg-purple-500 rounded-full mr-3"></span>Platformda geçirdiğiniz süre</li>
-                      <li className="flex items-center"><span className="w-2 h-2 bg-purple-500 rounded-full mr-3"></span>Öğrenme ilerlemeniz ve istatistikler</li>
-                      <li className="flex items-center"><span className="w-2 h-2 bg-purple-500 rounded-full mr-3"></span>Tercih ettiğiniz özellikler</li>
+                      <li className="flex items-center"><span className="w-2 h-2 bg-purple-500 rounded-full mr-3"></span>{t('privacy_usage_item1')}</li>
+                      <li className="flex items-center"><span className="w-2 h-2 bg-purple-500 rounded-full mr-3"></span>{t('privacy_usage_item2')}</li>
+                      <li className="flex items-center"><span className="w-2 h-2 bg-purple-500 rounded-full mr-3"></span>{t('privacy_usage_item3')}</li>
+                      <li className="flex items-center"><span className="w-2 h-2 bg-purple-500 rounded-full mr-3"></span>{t('privacy_usage_item4')}</li>
                     </ul>
                   </div>
 
                   <div className="bg-gradient-to-r from-gray-50 to-green-50 rounded-2xl p-8 border border-gray-200 shadow-lg">
                     <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('privacy_technical_data')}</h3>
                     <ul className="text-gray-600 space-y-3">
-                      <li className="flex items-center"><span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>IP adresi ve konum bilgisi</li>
-                      <li className="flex items-center"><span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>Tarayıcı türü ve versiyonu</li>
-                      <li className="flex items-center"><span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>Cihaz bilgileri</li>
-                      <li className="flex items-center"><span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>Çerezler ve oturum verileri</li>
+                      <li className="flex items-center"><span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>{t('privacy_technical_item1')}</li>
+                      <li className="flex items-center"><span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>{t('privacy_technical_item2')}</li>
+                      <li className="flex items-center"><span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>{t('privacy_technical_item3')}</li>
+                      <li className="flex items-center"><span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>{t('privacy_technical_item4')}</li>
                     </ul>
                   </div>
                 </div>
@@ -207,9 +210,9 @@ export default function PrivacyPolicy() {
                     </div>
                     <h3 className="text-xl font-semibold text-blue-900 mb-4">{t('privacy_service_provision')}</h3>
                     <ul className="text-blue-800 space-y-3 text-sm">
-                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-blue-600 rounded-full mr-3 mt-2"></span>Kişiselleştirilmiş içerik oluşturma</li>
-                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-blue-600 rounded-full mr-3 mt-2"></span>Hesap yönetimi ve güvenlik</li>
-                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-blue-600 rounded-full mr-3 mt-2"></span>Öğrenme ilerlemesi takibi</li>
+                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-blue-600 rounded-full mr-3 mt-2"></span>{t('privacy_service_item1')}</li>
+                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-blue-600 rounded-full mr-3 mt-2"></span>{t('privacy_service_item2')}</li>
+                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-blue-600 rounded-full mr-3 mt-2"></span>{t('privacy_service_item3')}</li>
                     </ul>
                   </div>
 
@@ -221,9 +224,9 @@ export default function PrivacyPolicy() {
                     </div>
                     <h3 className="text-xl font-semibold text-green-900 mb-4">{t('privacy_communication')}</h3>
                     <ul className="text-green-800 space-y-3 text-sm">
-                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-green-600 rounded-full mr-3 mt-2"></span>Müşteri destek hizmetleri</li>
-                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-green-600 rounded-full mr-3 mt-2"></span>Önemli güncellemeler</li>
-                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-green-600 rounded-full mr-3 mt-2"></span>Geri bildirim toplama</li>
+                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-green-600 rounded-full mr-3 mt-2"></span>{t('privacy_comm_item1')}</li>
+                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-green-600 rounded-full mr-3 mt-2"></span>{t('privacy_comm_item2')}</li>
+                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-green-600 rounded-full mr-3 mt-2"></span>{t('privacy_comm_item3')}</li>
                     </ul>
                   </div>
 
@@ -235,9 +238,9 @@ export default function PrivacyPolicy() {
                     </div>
                     <h3 className="text-xl font-semibold text-purple-900 mb-4">{t('privacy_development')}</h3>
                     <ul className="text-purple-800 space-y-3 text-sm">
-                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-purple-600 rounded-full mr-3 mt-2"></span>Platform performansı analizi</li>
-                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-purple-600 rounded-full mr-3 mt-2"></span>Yeni özellik geliştirme</li>
-                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-purple-600 rounded-full mr-3 mt-2"></span>Hata tespiti ve düzeltme</li>
+                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-purple-600 rounded-full mr-3 mt-2"></span>{t('privacy_dev_item1')}</li>
+                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-purple-600 rounded-full mr-3 mt-2"></span>{t('privacy_dev_item2')}</li>
+                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-purple-600 rounded-full mr-3 mt-2"></span>{t('privacy_dev_item3')}</li>
                     </ul>
                   </div>
 
@@ -249,9 +252,9 @@ export default function PrivacyPolicy() {
                     </div>
                     <h3 className="text-xl font-semibold text-orange-900 mb-4">{t('privacy_security')}</h3>
                     <ul className="text-orange-800 space-y-3 text-sm">
-                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-orange-600 rounded-full mr-3 mt-2"></span>Dolandırıcılık önleme</li>
-                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-orange-600 rounded-full mr-3 mt-2"></span>Hesap güvenliği</li>
-                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-orange-600 rounded-full mr-3 mt-2"></span>Sistem koruması</li>
+                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-orange-600 rounded-full mr-3 mt-2"></span>{t('privacy_sec_item1')}</li>
+                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-orange-600 rounded-full mr-3 mt-2"></span>{t('privacy_sec_item2')}</li>
+                      <li className="flex items-start"><span className="w-1.5 h-1.5 bg-orange-600 rounded-full mr-3 mt-2"></span>{t('privacy_sec_item3')}</li>
                     </ul>
                   </div>
                 </div>
