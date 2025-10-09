@@ -155,6 +155,44 @@ export const translations: Translations = {
     privacy_questions_desc: "Gizlilik politikamız hakkında herhangi bir sorunuz varsa, bizimle iletişime geçmekten çekinmeyin.",
     privacy_contact_us: "İletişime Geçin",
     legal_documents: "Yasal Belgeler",
+    
+    // Privacy Policy - Account Info Items
+    privacy_account_item1: "Ad, soyad ve e-posta adresiniz",
+    privacy_account_item2: "Telefon numaranız (isteğe bağlı)",
+    privacy_account_item3: "Hesap oluşturma tarihi",
+    privacy_account_item4: "Dil öğrenme seviyeniz ve tercihleri",
+    
+    // Privacy Policy - Usage Data Items
+    privacy_usage_item1: "İşlediğiniz içerikler ve sıklığı",
+    privacy_usage_item2: "Platformda geçirdiğiniz süre",
+    privacy_usage_item3: "Öğrenme ilerlemeniz ve istatistikler",
+    privacy_usage_item4: "Tercih ettiğiniz özellikler",
+    
+    // Privacy Policy - Technical Data Items
+    privacy_technical_item1: "IP adresi ve konum bilgisi",
+    privacy_technical_item2: "Tarayıcı türü ve versiyonu",
+    privacy_technical_item3: "Cihaz bilgileri",
+    privacy_technical_item4: "Çerezler ve oturum verileri",
+    
+    // Privacy Policy - Service Provision Items
+    privacy_service_item1: "Kişiselleştirilmiş içerik oluşturma",
+    privacy_service_item2: "Hesap yönetimi ve güvenlik",
+    privacy_service_item3: "Öğrenme ilerlemesi takibi",
+    
+    // Privacy Policy - Communication Items
+    privacy_comm_item1: "Müşteri destek hizmetleri",
+    privacy_comm_item2: "Önemli güncellemeler",
+    privacy_comm_item3: "Geri bildirim toplama",
+    
+    // Privacy Policy - Development Items
+    privacy_dev_item1: "Platform performansı analizi",
+    privacy_dev_item2: "Yeni özellik geliştirme",
+    privacy_dev_item3: "Hata tespiti ve düzeltme",
+    
+    // Privacy Policy - Security Items
+    privacy_sec_item1: "Dolandırıcılık önleme",
+    privacy_sec_item2: "Hesap güvenliği",
+    privacy_sec_item3: "Sistem koruması",
     text_to_speech: "Metinden Sese",
     pronunciation: "Telaffuz",
     vocabulary: "Kelime Hazinesi",
@@ -312,6 +350,44 @@ export const translations: Translations = {
     privacy_questions_desc: "If you have any questions about our privacy policy, please don't hesitate to contact us.",
     privacy_contact_us: "Contact Us",
     legal_documents: "Legal Documents",
+    
+    // Privacy Policy - Account Info Items
+    privacy_account_item1: "Your name, surname and email address",
+    privacy_account_item2: "Your phone number (optional)",
+    privacy_account_item3: "Account creation date",
+    privacy_account_item4: "Your language learning level and preferences",
+    
+    // Privacy Policy - Usage Data Items
+    privacy_usage_item1: "Content you process and frequency",
+    privacy_usage_item2: "Time spent on the platform",
+    privacy_usage_item3: "Your learning progress and statistics",
+    privacy_usage_item4: "Your preferred features",
+    
+    // Privacy Policy - Technical Data Items
+    privacy_technical_item1: "IP address and location information",
+    privacy_technical_item2: "Browser type and version",
+    privacy_technical_item3: "Device information",
+    privacy_technical_item4: "Cookies and session data",
+    
+    // Privacy Policy - Service Provision Items
+    privacy_service_item1: "Creating personalized content",
+    privacy_service_item2: "Account management and security",
+    privacy_service_item3: "Learning progress tracking",
+    
+    // Privacy Policy - Communication Items
+    privacy_comm_item1: "Customer support services",
+    privacy_comm_item2: "Important updates",
+    privacy_comm_item3: "Feedback collection",
+    
+    // Privacy Policy - Development Items
+    privacy_dev_item1: "Platform performance analysis",
+    privacy_dev_item2: "New feature development",
+    privacy_dev_item3: "Bug detection and fixing",
+    
+    // Privacy Policy - Security Items
+    privacy_sec_item1: "Fraud prevention",
+    privacy_sec_item2: "Account security",
+    privacy_sec_item3: "System protection",
     text_to_speech: "Text to Speech",
     pronunciation: "Pronunciation",
     vocabulary: "Vocabulary",
@@ -755,7 +831,9 @@ export const getTranslation = (localeOverride?: Locale) => {
   const currentLocale = localeOverride || getCurrentLanguage();
 
   const t = (key: string): string => {
-    return translations[currentLocale]?.[key] || key;
+    const value = translations[currentLocale]?.[key] || key;
+    // Ensure we always return a string, not an array or object
+    return typeof value === 'string' ? value : String(value);
   };
 
   return { t, currentLocale };
