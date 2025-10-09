@@ -68,6 +68,50 @@ const App: React.FC = () => {
   const resetPlanForm = () => setPlanForm({
     name: '', description: '', price: '', interval: 'monthly', features: '', is_active: true, is_trial: false, trial_days: 7, apple_product_id: ''
   });
+
+  // Fiyata göre açıklama ve özellikleri hesapla
+  const generatePlanDetails = (price: number, name: string) => {
+    // TTS maliyeti: ~$0.000016 per karakter (Google TTS)
+    // OpenAI maliyeti: ~$0.002 per 1K token
+    // Ortalama: 1 dakika video = ~150 kelime = ~200 token = ~1000 karakter
+    // Toplam maliyet/dakika: ~$0.016 (TTS) + ~$0.0004 (OpenAI) ≈ $0.0165
+    // 1 sayfa = ~500 kelime = ~3.3 dakika
+    
+    const priceInUSD = price / 35; // ₺ to $ (yaklaşık kur)
+    const costPerMinute = 0.0165;
+    const minutesPerPage = 3.3;
+    
+    const estimatedMinutes = Math.floor((priceInUSD * 0.7) / costPerMinute); // %70'ini içerik üretimine ayır
+    const estimatedPages = Math.floor(estimatedMinutes / minutesPerPage);
+    
+    let description = '';
+    let features = '';
+    
+    const nameLower = name.toLowerCase();
+    
+    if (nameLower.includes('trial') || nameLower.includes('ücretsiz') || nameLower.includes('free')) {
+      description = 'Ücretsiz deneme paketi';
+      features = 'TR: 3 ses oluşturma hakkı, EN: 3 audio creation credits, TR: Her ses maksimum 10 dakika, EN: Each audio up to 10 minutes, TR: Tüm CEFR seviyeleri, EN: All CEFR levels';
+    } else if (nameLower.includes('gold')) {
+      description = 'Aylık premium paket - Sınırsız içerik üretimi';
+      features = `TR: Aylık ~${estimatedMinutes} dakika ses oluşturma, EN: Monthly ~${estimatedMinutes} minutes audio creation, TR: Yaklaşık ${estimatedPages} sayfa metin işleme, EN: Approximately ${estimatedPages} pages text processing, TR: Tüm CEFR seviyeleri, EN: All CEFR levels, TR: Sınırsız kelime ekleme, EN: Unlimited vocabulary`;
+    } else if (nameLower.includes('platinum') || nameLower.includes('platin')) {
+      description = 'Aylık premium+ paket - Öncelikli destek';
+      features = `TR: Aylık ~${estimatedMinutes} dakika ses oluşturma, EN: Monthly ~${estimatedMinutes} minutes audio creation, TR: Yaklaşık ${estimatedPages} sayfa metin işleme, EN: Approximately ${estimatedPages} pages text processing, TR: Tüm CEFR seviyeleri, EN: All CEFR levels, TR: Sınırsız kelime ekleme, EN: Unlimited vocabulary, TR: Öncelikli destek, EN: Priority support`;
+    } else {
+      description = 'Aylık paket';
+      features = `TR: Aylık ~${estimatedMinutes} dakika ses oluşturma, EN: Monthly ~${estimatedMinutes} minutes audio creation, TR: Yaklaşık ${estimatedPages} sayfa metin işleme, EN: Approximately ${estimatedPages} pages text processing, TR: Tüm CEFR seviyeleri, EN: All CEFR levels`;
+    }
+    
+    return {
+      description,
+      features,
+      estimates: {
+        video_minutes: estimatedMinutes,
+        text_pages: estimatedPages
+      }
+    };
+  };
   const openCreatePlan = () => { setEditingPlan(null); resetPlanForm(); setShowPackageForm(true); };
   const openEditPlan = (p: any) => {
     setEditingPlan(p);
@@ -902,12 +946,25 @@ const App: React.FC = () => {
                       (pkg.name || '').toLowerCase().includes('pro') ? 'bg-indigo-50 border-b border-indigo-100' :
                       'bg-teal-50 border-b border-teal-100'
                     }>
-                      <CardTitle className={
-                        (pkg.name === 'Ücretsiz' || pkg.is_trial) ? 'text-blue-700' :
-                        (pkg.name || '').toLowerCase().includes('premium') ? 'text-purple-700' :
-                        (pkg.name || '').toLowerCase().includes('pro') ? 'text-indigo-700' :
-                        'text-teal-700'
-                      }>{pkg.name}</CardTitle>
+                      <div className="flex items-center justify-between mb-2">
+                        <CardTitle className={
+                          (pkg.name === 'Ücretsiz' || pkg.is_trial) ? 'text-blue-700' :
+                          (pkg.name || '').toLowerCase().includes('premium') ? 'text-purple-700' :
+                          (pkg.name || '').toLowerCase().includes('pro') ? 'text-indigo-700' :
+                          'text-teal-700'
+                        }>{pkg.name}</CardTitle>
+                        <div className="flex items-center gap-2">
+                          {pkg.apple_product_id && (
+                            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                              <i className="fab fa-apple mr-1"></i>
+                              iOS
+                            </Badge>
+                          )}
+                          <Badge className={pkg.is_active ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-gray-100 text-gray-800 hover:bg-gray-100'}>
+                            {pkg.is_active ? 'Aktif' : 'Pasif'}
+                          </Badge>
+                        </div>
+                      </div>
                       <CardDescription>{pkg.description || '—'}</CardDescription>
                     </CardHeader>
                     <CardContent className="pt-6">
@@ -1551,16 +1608,41 @@ const App: React.FC = () => {
           <div className="space-y-4">
             <div>
               <Label>Ad</Label>
-              <Input value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} />
+              <Input 
+                value={planForm.name} 
+                onChange={(e) => {
+                  const newName = e.target.value;
+                  // İsim ve fiyat varsa açıklama ve özellikleri otomatik oluştur
+                  if (newName && planForm.price) {
+                    const details = generatePlanDetails(Number(planForm.price), newName);
+                    setPlanForm({ ...planForm, name: newName, description: details.description, features: details.features });
+                  } else {
+                    setPlanForm({ ...planForm, name: newName });
+                  }
+                }} 
+              />
             </div>
             <div>
               <Label>Açıklama</Label>
-              <Textarea value={planForm.description} onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })} />
+              <Textarea value={planForm.description} onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })} placeholder="Fiyat ve paket adı girildiğinde otomatik oluşturulur" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label>Fiyat (₺)</Label>
-                <Input type="number" value={planForm.price} onChange={(e) => setPlanForm({ ...planForm, price: e.target.value })} />
+                <Input 
+                  type="number" 
+                  value={planForm.price} 
+                  onChange={(e) => {
+                    const newPrice = e.target.value;
+                    // Fiyat ve isim varsa açıklama ve özellikleri otomatik oluştur
+                    if (newPrice && planForm.name) {
+                      const details = generatePlanDetails(Number(newPrice), planForm.name);
+                      setPlanForm({ ...planForm, price: newPrice, description: details.description, features: details.features });
+                    } else {
+                      setPlanForm({ ...planForm, price: newPrice });
+                    }
+                  }} 
+                />
               </div>
               <div>
                 <Label>Dönem</Label>

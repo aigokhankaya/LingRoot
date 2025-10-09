@@ -183,9 +183,15 @@ const PackagesScreen: React.FC = () => {
     return `₺${price}`;
   };
 
-  const formatFeatures = (features?: string[]) => {
+  const formatFeatures = (features?: string[], currentLanguage?: string) => {
     if (!features || features.length === 0) return [];
-    return features;
+    
+    // Özellikleri dile göre filtrele
+    const langPrefix = currentLanguage === 'tr' ? 'TR:' : 'EN:';
+    
+    return features
+      .filter(feature => feature.startsWith(langPrefix))
+      .map(feature => feature.replace(langPrefix, '').trim());
   };
 
   if (loading) {
@@ -221,7 +227,7 @@ const PackagesScreen: React.FC = () => {
         {plans.map((plan) => {
           const planColor = getPlanColor(plan.name);
           const isPurchasing = purchasingPlanId === plan.id;
-          const features = formatFeatures(plan.features);
+          const features = formatFeatures(plan.features, language);
           // Daha esnek eşleştirme: hem plan adı hem de paket adı içinde arama
           const isActive = Boolean(
             activePackageName && (
