@@ -50,21 +50,17 @@ const PackagesScreen: React.FC = () => {
       setLoading(true);
       // apiService kullanarak backend'den paketleri çek
       const response = await apiService.getSubscriptionPlans();
-      console.log('Plans response:', response);
       
       if (response.success && Array.isArray(response.data)) {
         // Sadece aktif ve satın alınabilir paketleri göster (Free Trial hariç)
         const purchasablePlans = response.data.filter((p: SubscriptionPlan) => 
           p.is_active && p.apple_product_id // Sadece Apple Product ID'si olan paketler
         );
-        console.log('Purchasable plans:', purchasablePlans.length, purchasablePlans);
         setPlans(purchasablePlans);
       } else {
-        console.log('Invalid response format:', response);
         Alert.alert('Hata', 'Paket verisi alınamadı');
       }
     } catch (error: any) {
-      console.error('Fetch plans error:', error);
       Alert.alert('Hata', error.message || 'Paketler yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);
@@ -74,25 +70,21 @@ const PackagesScreen: React.FC = () => {
   const fetchActivePackage = async () => {
     try {
       const response = await apiService.getUsageSummary();
-      console.log('Usage Summary Response:', JSON.stringify(response, null, 2));
       
       // Önce plan objesinden al
       if (response.success && response.data?.plan?.name) {
-        console.log('Active Package Name from plan:', response.data.plan.name);
         setActivePackageName(response.data.plan.name);
       } 
       // Sonra subscription.plantype'dan al
       else if (response.success && response.data?.subscription?.plantype) {
-        console.log('Active Package Name from plantype:', response.data.subscription.plantype);
         setActivePackageName(response.data.subscription.plantype);
       }
       // Son olarak plantype'dan al
       else if (response.success && response.data?.plantype) {
-        console.log('Active Package Name from data.plantype:', response.data.plantype);
         setActivePackageName(response.data.plantype);
       }
     } catch (error) {
-      console.log('Active package fetch error:', error);
+      // Silent error handling
     }
   };
 
@@ -194,6 +186,24 @@ const PackagesScreen: React.FC = () => {
       .map(feature => feature.replace(langPrefix, '').trim());
   };
 
+  const formatDescription = (description?: string, currentLanguage?: string) => {
+    if (!description) return '';
+    
+    // Açıklama formatı: "TR: Türkçe metin | EN: English text"
+    if (description.includes('|')) {
+      const parts = description.split('|');
+      const langPrefix = currentLanguage === 'tr' ? 'TR:' : 'EN:';
+      
+      const langPart = parts.find(part => part.trim().startsWith(langPrefix));
+      if (langPart) {
+        return langPart.replace(langPrefix, '').trim();
+      }
+    }
+    
+    // Eğer format yoksa olduğu gibi döndür
+    return description;
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -228,6 +238,7 @@ const PackagesScreen: React.FC = () => {
           const planColor = getPlanColor(plan.name);
           const isPurchasing = purchasingPlanId === plan.id;
           const features = formatFeatures(plan.features, language);
+          const description = formatDescription(plan.description, language);
           // Daha esnek eşleştirme: hem plan adı hem de paket adı içinde arama
           const isActive = Boolean(
             activePackageName && (
@@ -254,8 +265,8 @@ const PackagesScreen: React.FC = () => {
                 <Text style={[styles.planName, { color: planColor }]}>
                   {plan.name}
                 </Text>
-                {plan.description && (
-                  <Text style={styles.planDescription}>{plan.description}</Text>
+                {description && (
+                  <Text style={styles.planDescription}>{description}</Text>
                 )}
               </View>
 

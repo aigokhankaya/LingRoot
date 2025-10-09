@@ -21,14 +21,14 @@ try {
           }
         }
       } catch (e) {
-        console.log('early onNotification error', e);
+        // Silent error handling
       }
     },
     popInitialNotification: true,
     requestPermissions: false,
   } as any);
 } catch (e) {
-  console.log('Early PushNotification.configure failed (iOS):', e);
+  // Silent error handling
 }
 
 try {
@@ -55,7 +55,7 @@ try {
               );
             }
           } catch (e) {
-            console.log('Direct navigation failed:', e);
+            // Silent error handling
           }
         }, 100);
         if (cb) cb(String(wordId));
@@ -63,7 +63,7 @@ try {
     }
   });
 } catch (e) {
-  console.log('Native event listener setup failed (iOS):', e);
+  // Silent error handling
 }
 
 class NotificationService {
@@ -143,7 +143,6 @@ class NotificationService {
         }
       }
     } catch (e) {
-      console.error('rescheduleDailyReminders (iOS) error:', e);
       // Silently fail - don't show alert to user
     } finally {
       this.rescheduleRunning = false;
@@ -174,7 +173,7 @@ class NotificationService {
                 if (this.responseCallback) { this.pendingWordId = String(wordId); this.responseCallback(String(wordId)); }
                 else { this.pendingWordId = String(wordId); }
               }
-            } catch (e) { console.log('onNotification handler error', e); }
+            } catch (e) { /* Silent error handling */ }
           },
           popInitialNotification: true,
           requestPermissions: false,
@@ -184,7 +183,6 @@ class NotificationService {
       this.isInitialized = true;
       return this.hasPermission;
     } catch (error) {
-      console.error('Notification initialization (iOS) error:', error);
       this.isInitialized = true;
       this.hasPermission = false;
       return false;

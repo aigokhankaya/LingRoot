@@ -147,17 +147,10 @@ const AppNavigator = () => {
 
   useEffect(() => {
     if (user && navigationRef.current) {
-      console.log('📱 Setting up notification handler in AppNavigator...');
-      
       // Setup notification response handler
       const subscription = NotificationService.setupNotificationResponseHandler((wordId: string) => {
-        console.log('📱 AppNavigator received wordId:', wordId);
-        console.log('📱 Current navigation state:', navigationRef.current?.getCurrentRoute());
-        
-        
         // Navigate only when nav is ready; if not, store for later
         const doNavigate = () => {
-          console.log('📱 Navigating to Vocabulary with wordId:', wordId);
           navigationRef.current?.dispatch(
             CommonActions.reset({
               index: 1,
@@ -182,11 +175,10 @@ const AppNavigator = () => {
             const initialWordId = data?.wordId ?? data?.userInfo?.wordId;
             if (initialWordId) {
               const wordId = String(initialWordId);
-              console.log('❄️ Cold start captured wordId (waiting for nav ready):', wordId);
               setInitialWordId(wordId);
             }
           } catch (e) {
-            console.log('getInitialNotification error', e);
+            // Silent error handling
           }
         })();
       }
@@ -210,7 +202,6 @@ const AppNavigator = () => {
       : null;
     const target = pending || initialWordId;
     if (target) {
-      console.log('🚀 Consuming pending/initial wordId:', target);
       navigationRef.current.dispatch(
         CommonActions.reset({
           index: 1,

@@ -44,7 +44,7 @@ function generatePlanDetails(price, name) {
   let features = [];
   
   if (nameLower.includes('trial') || nameLower.includes('ücretsiz') || nameLower.includes('free')) {
-    description = 'Ücretsiz deneme paketi';
+    description = 'TR: Ücretsiz deneme paketi | EN: Free trial package';
     features = [
       'TR: 3 ses oluşturma hakkı',
       'EN: 3 audio creation credits',
@@ -54,7 +54,7 @@ function generatePlanDetails(price, name) {
       'EN: All CEFR levels'
     ];
   } else if (nameLower.includes('gold')) {
-    description = 'Aylık premium paket - Sınırsız içerik üretimi';
+    description = 'TR: Aylık premium paket - Sınırsız içerik üretimi | EN: Monthly premium package - Unlimited content creation';
     features = [
       `TR: Aylık ~${estimatedMinutes} dakika ses oluşturma`,
       `EN: Monthly ~${estimatedMinutes} minutes audio creation`,
@@ -66,7 +66,7 @@ function generatePlanDetails(price, name) {
       'EN: Unlimited vocabulary'
     ];
   } else if (nameLower.includes('platinum') || nameLower.includes('platin')) {
-    description = 'Aylık premium+ paket - Öncelikli destek';
+    description = 'TR: Aylık premium+ paket - Öncelikli destek | EN: Monthly premium+ package - Priority support';
     features = [
       `TR: Aylık ~${estimatedMinutes} dakika ses oluşturma`,
       `EN: Monthly ~${estimatedMinutes} minutes audio creation`,
@@ -80,7 +80,7 @@ function generatePlanDetails(price, name) {
       'EN: Priority support'
     ];
   } else {
-    description = 'Aylık paket';
+    description = 'TR: Aylık paket | EN: Monthly package';
     features = [
       `TR: Aylık ~${estimatedMinutes} dakika ses oluşturma`,
       `EN: Monthly ~${estimatedMinutes} minutes audio creation`,

@@ -99,8 +99,6 @@ export class ReminderSettingsService {
     if (endTime <= startTime) {
       endTime.setDate(endTime.getDate() + 1);
     }
-    
-    console.log('🔔 Time calculation - Now:', now.toLocaleString(), 'Start:', startTime.toLocaleString(), 'End:', endTime.toLocaleString());
 
     // Calculate total duration in minutes
     const totalDurationMs = endTime.getTime() - startTime.getTime();

@@ -62,7 +62,7 @@ class NotificationService {
               }
             }
           } catch (e) {
-            console.log('onNotification handler error (Android)', e);
+            // Silent error handling
           }
         },
         popInitialNotification: true,
@@ -70,7 +70,7 @@ class NotificationService {
       } as any);
       this.isConfigured = true;
     } catch (e) {
-      console.log('PushNotification.configure failed (Android):', e);
+      // Silent error handling
     }
   }
 
@@ -91,7 +91,6 @@ class NotificationService {
           this.hasPermission = true;
         }
       } catch (e) {
-        console.warn('Android notification permission request failed:', e);
         this.hasPermission = true;
       }
       // Configure
@@ -99,7 +98,6 @@ class NotificationService {
       this.isInitialized = true;
       return this.hasPermission;
     } catch (e) {
-      console.error('Notification initialization error (Android):', e);
       this.isInitialized = true;
       this.hasPermission = false;
       return false;
@@ -146,7 +144,7 @@ class NotificationService {
         const fetched = await getVocabulary();
         if (Array.isArray(fetched)) words = fetched as any[];
       } catch (err) {
-        console.log('Vocabulary fetch failed, proceeding with empty list:', err);
+        // Silent error handling
       }
       const unlearned = Array.isArray(words)
         ? words.filter(w => w && (w.is_learned === false || typeof w.is_learned === 'undefined'))
@@ -173,11 +171,10 @@ class NotificationService {
           });
           this.scheduledCount += 1;
         } catch (schedErr) {
-          console.log('Android schedule failed (maybe exact alarm disabled):', schedErr);
+          // Silent error handling
         }
       }
     } catch (e) {
-      console.error('rescheduleDailyReminders (Android) error:', e);
       // Silently fail - don't show alert to user
     } finally {
       this.rescheduleRunning = false;

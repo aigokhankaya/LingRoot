@@ -11,6 +11,7 @@
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		540DC866B9F0204551275394 /* libPods-LingRootMobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4717548E356535F1059FEFEE /* libPods-LingRootMobile.a */; };
 		55971A54C515B4607415E33E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F0E2872D4471B58B154224A9 /* PrivacyInfo.xcprivacy */; };
+		594283E02E9804F4007056E1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 594283DF2E9804F4007056E1 /* StoreKit.framework */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -20,6 +21,7 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = LingRootMobile/Info.plist; sourceTree = "<group>"; };
 		4717548E356535F1059FEFEE /* libPods-LingRootMobile.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-LingRootMobile.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		58E72AD0EF757BA5538379D4 /* Pods-LingRootMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-LingRootMobile.release.xcconfig"; path = "Target Support Files/Pods-LingRootMobile/Pods-LingRootMobile.release.xcconfig"; sourceTree = "<group>"; };
+		594283DF2E9804F4007056E1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = LingRootMobile/SplashScreen.storyboard; sourceTree = "<group>"; };
 		DE0A97C7D9E7E3CBF09ECF49 /* Pods-LingRootMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-LingRootMobile.debug.xcconfig"; path = "Target Support Files/Pods-LingRootMobile/Pods-LingRootMobile.debug.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
@@ -34,6 +36,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				540DC866B9F0204551275394 /* libPods-LingRootMobile.a in Frameworks */,
+				594283E02E9804F4007056E1 /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -56,6 +59,7 @@
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				594283DF2E9804F4007056E1 /* StoreKit.framework */,
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
 				4717548E356535F1059FEFEE /* libPods-LingRootMobile.a */,
 			);
@@ -445,10 +449,7 @@
 				LIBRARY_SEARCH_PATHS = "$(SDKROOT)/usr/lib/swift\"$(inherited)\"";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
@@ -507,10 +508,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = "$(SDKROOT)/usr/lib/swift\"$(inherited)\"";
 				MTL_ENABLE_DEBUG_INFO = NO;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;

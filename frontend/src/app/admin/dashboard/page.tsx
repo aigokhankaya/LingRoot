@@ -90,16 +90,16 @@ const App: React.FC = () => {
     const nameLower = name.toLowerCase();
     
     if (nameLower.includes('trial') || nameLower.includes('ücretsiz') || nameLower.includes('free')) {
-      description = 'Ücretsiz deneme paketi';
+      description = 'TR: Ücretsiz deneme paketi | EN: Free trial package';
       features = 'TR: 3 ses oluşturma hakkı, EN: 3 audio creation credits, TR: Her ses maksimum 10 dakika, EN: Each audio up to 10 minutes, TR: Tüm CEFR seviyeleri, EN: All CEFR levels';
     } else if (nameLower.includes('gold')) {
-      description = 'Aylık premium paket - Sınırsız içerik üretimi';
+      description = 'TR: Aylık premium paket - Sınırsız içerik üretimi | EN: Monthly premium package - Unlimited content creation';
       features = `TR: Aylık ~${estimatedMinutes} dakika ses oluşturma, EN: Monthly ~${estimatedMinutes} minutes audio creation, TR: Yaklaşık ${estimatedPages} sayfa metin işleme, EN: Approximately ${estimatedPages} pages text processing, TR: Tüm CEFR seviyeleri, EN: All CEFR levels, TR: Sınırsız kelime ekleme, EN: Unlimited vocabulary`;
     } else if (nameLower.includes('platinum') || nameLower.includes('platin')) {
-      description = 'Aylık premium+ paket - Öncelikli destek';
+      description = 'TR: Aylık premium+ paket - Öncelikli destek | EN: Monthly premium+ package - Priority support';
       features = `TR: Aylık ~${estimatedMinutes} dakika ses oluşturma, EN: Monthly ~${estimatedMinutes} minutes audio creation, TR: Yaklaşık ${estimatedPages} sayfa metin işleme, EN: Approximately ${estimatedPages} pages text processing, TR: Tüm CEFR seviyeleri, EN: All CEFR levels, TR: Sınırsız kelime ekleme, EN: Unlimited vocabulary, TR: Öncelikli destek, EN: Priority support`;
     } else {
-      description = 'Aylık paket';
+      description = 'TR: Aylık paket | EN: Monthly package';
       features = `TR: Aylık ~${estimatedMinutes} dakika ses oluşturma, EN: Monthly ~${estimatedMinutes} minutes audio creation, TR: Yaklaşık ${estimatedPages} sayfa metin işleme, EN: Approximately ${estimatedPages} pages text processing, TR: Tüm CEFR seviyeleri, EN: All CEFR levels`;
     }
     
