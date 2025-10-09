@@ -102,7 +102,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         try {
           const API_BASE_URL = 'https://lingloops-backend.onrender.com';
           
-          console.log('Validating auth token...');
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
           
@@ -120,7 +119,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           });
           
           clearTimeout(timeoutId);
-          
           
           if (response.ok) {
             const appUser: User = JSON.parse(storedUser);
@@ -176,14 +174,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
           }
         } catch (validateError: any) {
-          console.log('Auth validation error:', validateError.name, validateError.message);
           // Network or validation error → preserve session locally
           try {
             const appUser: User = JSON.parse(storedUser);
             setUser(appUser);
-            console.log('Using cached user data due to network error');
           } catch {
-            console.log('Failed to parse stored user data');
             // If parsing fails, do not clear token; just keep user null
           }
         }
@@ -191,7 +186,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(null);
       }
     } catch (error) {
-      console.log('Auth check error:', error);
       setUser(null);
     } finally {
       // Mark bootstrap complete so further auth change events are processed

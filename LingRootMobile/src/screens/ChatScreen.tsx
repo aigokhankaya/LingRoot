@@ -105,7 +105,6 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
         setConversations(data.conversations);
       }
     } catch (error) {
-      console.error('Error fetching conversations:', error);
       Alert.alert('Hata', 'Konuşmalar yüklenemedi');
     } finally {
       setLoading(false);
@@ -127,7 +126,6 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
         setMessages(data.messages);
       }
     } catch (error) {
-      console.error('Error fetching messages:', error);
       Alert.alert('Hata', 'Mesajlar yüklenemedi');
     }
   };
@@ -167,7 +165,6 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
         Alert.alert('Hata', data.message || 'Konuşma oluşturulamadı');
       }
     } catch (error) {
-      console.error('Error creating conversation:', error);
       Alert.alert('Hata', 'Bir hata oluştu');
     } finally {
       setSending(false);
@@ -227,7 +224,6 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
         setSelectedFiles(filesToSend);
       }
     } catch (error) {
-      console.error('Error sending message:', error);
       Alert.alert('Hata', 'Bir hata oluştu');
       setNewMessage(messageToSend);
       setSelectedFiles(filesToSend);
@@ -352,7 +348,6 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
         Alert.alert('Hata', data.message || 'Konuşma yeniden açılamadı');
       }
     } catch (error) {
-      console.error('Error reopening conversation:', error);
       Alert.alert('Hata', 'Bir hata oluştu');
     }
   };
