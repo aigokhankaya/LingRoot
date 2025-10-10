@@ -127,6 +127,16 @@ app.use("/api/chat", chatRoutes); // Chat routes
 app.use('/auth', authRoutes);
 app.use("/api/iap", iapRoutes); // Apple IAP routes
 
+// Account deletion page
+app.get('/delete-account', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'delete-account.html'));
+});
+
+// Account deletion endpoints
+const accountDeletionController = require('./controllers/accountDeletionController');
+app.post('/api/delete-account-request', accountDeletionController.requestAccountDeletion);
+app.delete('/api/admin/users/:userId/delete-account', accountDeletionController.adminDeleteAccount);
+
 // Health check endpoint (Render için)
 app.get("/healthz", (req, res) => {
   res.status(200).send("OK");

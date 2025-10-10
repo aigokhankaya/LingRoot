@@ -44,3 +44,28 @@ Uygulamayı açmadan önce çalıştır:
 
 -- hatayı log dosyasına yazar:
 .\gradlew.bat :app:assembleRelease --no-daemon --console plain --stacktrace *> build-log.txt
+
+next.js cache temizleme:
+Remove-Item -Path ".next" -Recurse -Force -ErrorAction SilentlyContinue
+
+=== BILLING PERMISSION İLE APK BUILD ===
+cd F:\Main\LingRootMobile\android
+
+# 1. Clean build
+.\gradlew.bat clean --no-daemon --console plain
+
+# 2. Release APK oluştur (billing permission dahil)
+.\gradlew.bat assembleRelease --no-daemon --console plain --stacktrace
+
+# APK konumu: F:\Main\LingRootMobile\android\app\build\outputs\apk\release\app-release.apk
+
+=== GOOGLE PLAY STORE İÇİN AAB (Android App Bundle) ===
+cd F:\Main\LingRootMobile\android
+
+# 1. Clean build
+.\gradlew.bat clean --no-daemon --console plain
+
+# 2. Release AAB oluştur (Google Play Store için)
+.\gradlew.bat bundleRelease --no-daemon --console plain
+
+# AAB konumu: F:\Main\LingRootMobile\android\app\build\outputs\bundle\release\app-release.aab

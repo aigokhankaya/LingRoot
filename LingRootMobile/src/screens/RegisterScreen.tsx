@@ -237,12 +237,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
+    color: '#000', // Text color for visibility
   },
   inputWrapper: { position: 'relative' },
   passwordInput: {
     paddingRight: 48,
   },
-  eyeButton: { position: 'absolute', right: 12, top: 0, bottom: 15, width: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   termsRow: {
     flexDirection: 'row',
     alignItems: 'center',

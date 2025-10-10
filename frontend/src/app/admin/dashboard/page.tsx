@@ -64,9 +64,10 @@ const App: React.FC = () => {
     is_trial: false,
     trial_days: 7,
     apple_product_id: '',
+    google_product_id: '',
   });
   const resetPlanForm = () => setPlanForm({
-    name: '', description: '', price: '', interval: 'monthly', features: '', is_active: true, is_trial: false, trial_days: 7, apple_product_id: ''
+    name: '', description: '', price: '', interval: 'monthly', features: '', is_active: true, is_trial: false, trial_days: 7, apple_product_id: '', google_product_id: ''
   });
 
   // Fiyata göre açıklama ve özellikleri hesapla
@@ -125,6 +126,7 @@ const App: React.FC = () => {
       is_trial: p.is_trial ?? false,
       trial_days: p.trial_days ?? 7,
       apple_product_id: p.apple_product_id || '',
+      google_product_id: p.google_product_id || '',
     });
     setShowPackageForm(true);
   };
@@ -140,6 +142,7 @@ const App: React.FC = () => {
       is_trial: !!planForm.is_trial,
       trial_days: Number(planForm.trial_days) || 7,
       apple_product_id: planForm.apple_product_id?.trim() || null,
+      google_product_id: planForm.google_product_id?.trim() || null,
     };
     const url = editingPlan ? `/api/admin/plans/${editingPlan.id}` : '/api/admin/plans';
     const method = editingPlan ? 'PUT' : 'POST';
@@ -1657,13 +1660,22 @@ const App: React.FC = () => {
               </div>
             </div>
             <div>
-              <Label>Apple Product ID</Label>
+              <Label>Apple Product ID (iOS)</Label>
               <Input
                 value={planForm.apple_product_id}
                 onChange={(e) => setPlanForm({ ...planForm, apple_product_id: e.target.value })}
                 placeholder="com.lingroot.premium.monthly"
               />
-              <p className="text-xs text-gray-500 mt-1">Örn: Gold için com.lingroot.premium.monthly, Platinum için com.lingroot.premium.monthly.platin</p>
+              <p className="text-xs text-gray-500 mt-1">iOS için: com.lingroot.premium.monthly</p>
+            </div>
+            <div>
+              <Label>Google Play Product ID (Android)</Label>
+              <Input
+                value={planForm.google_product_id}
+                onChange={(e) => setPlanForm({ ...planForm, google_product_id: e.target.value })}
+                placeholder="com.nsyzk.lingrootmobile.gold.monthly"
+              />
+              <p className="text-xs text-gray-500 mt-1">Android için: com.nsyzk.lingrootmobile.gold.monthly</p>
             </div>
             <div>
               <Label>Özellikler (virgülle ayırın)</Label>

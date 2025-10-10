@@ -303,6 +303,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
+    color: '#000', // Text color for visibility
   },
   inputWrapper: {
     position: 'relative',

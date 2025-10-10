@@ -136,6 +136,8 @@ exports.createPlan = async (req, res) => {
       trial_days,
       // apple mapping
       apple_product_id,
+      // google play mapping
+      google_product_id,
     } = req.body || {};
 
     if (!name || price === undefined) {
@@ -166,6 +168,10 @@ exports.createPlan = async (req, res) => {
     // Apple product mapping (optional)
     if (apple_product_id !== undefined) {
       record.apple_product_id = apple_product_id || null;
+    }
+    // Google Play product mapping (optional)
+    if (google_product_id !== undefined) {
+      record.google_product_id = google_product_id || null;
     }
     // Optional numeric limit fields
     if (monthly_cost_limit_usd !== undefined && monthly_cost_limit_usd !== null && monthly_cost_limit_usd !== "") {
@@ -215,6 +221,7 @@ exports.updatePlan = async (req, res) => {
       'is_active',
       'stripe_price_id',
       'apple_product_id',
+      'google_product_id',
       // limits & trial fields
       'monthly_cost_limit_usd',
       'openai_token_limit',

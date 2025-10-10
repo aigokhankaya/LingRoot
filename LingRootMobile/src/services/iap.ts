@@ -1,12 +1,21 @@
 import * as RNIap from 'react-native-iap';
+import { Platform } from 'react-native';
 import { apiService } from './api';
 
-// Apple product IDs mapped to your plans
-// Gold monthly and Platinum monthly as provided
-export const IAP_PRODUCTS = {
+// Product IDs for Apple and Google Play
+// Apple uses the original IDs, Google Play uses app-specific IDs
+const APPLE_PRODUCTS = {
   goldMonthly: 'com.lingroot.premium.monthly',
   platinumMonthly: 'com.lingroot.premium.monthly.platin',
 };
+
+const GOOGLE_PRODUCTS = {
+  goldMonthly: 'com.nsyzk.lingrootmobile.gold.monthly',
+  platinumMonthly: 'com.nsyzk.lingroot.platinum.monthly',
+};
+
+// Use platform-specific product IDs
+export const IAP_PRODUCTS = Platform.OS === 'ios' ? APPLE_PRODUCTS : GOOGLE_PRODUCTS;
 
 let purchaseUpdateSub: any = null;
 let purchaseErrorSub: any = null;
