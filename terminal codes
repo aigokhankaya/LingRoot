@@ -44,3 +44,10 @@ Uygulamayı açmadan önce çalıştır:
 
 -- hatayı log dosyasına yazar:
 .\gradlew.bat :app:assembleRelease --no-daemon --console plain --stacktrace *> build-log.txt
+
+
+
+.\gradlew.bat :app:createBundleReleaseJsAndAssets --info --stacktrace --console plain 2>&1 | Select-String -Pattern "error|Error|ERROR|failed|Failed|FAILED|Exception" -Context 3,3 | Select-Object -First 50
+
+cd 'f:\Main\LingRootMobile'
+npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/build/test.bundle --assets-dest android/app/build/test-assets 2>&1
