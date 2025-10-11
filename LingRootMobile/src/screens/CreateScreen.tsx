@@ -17,10 +17,11 @@ import {
 import { Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { pick, keepLocalCopy } from '@react-native-documents/picker';
-import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter } from '../types';
+import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter, AudioTrack } from '../types';
 import { useRoute, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiService, saveDefaultVoiceSetting, getUserSettings } from '../services/api';
+import AudioPlayer from '../components/AudioPlayer';
 
 const CreateScreen: React.FC = () => {
   const route = useRoute<any>();
@@ -36,6 +37,8 @@ const CreateScreen: React.FC = () => {
   const [speechRate, setSpeechRate] = useState(1.0);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [createdTrack, setCreatedTrack] = useState<AudioTrack | null>(null);
+  const [showPlayer, setShowPlayer] = useState(false);
   // Keep mode in sync when screen gains focus (e.g., navigating from Home with different params)
   useFocusEffect(
     React.useCallback(() => {
@@ -668,10 +671,29 @@ const CreateScreen: React.FC = () => {
         const response = await apiService.processFileToSpeech(formData);
         
         if (response.success) {
-          // Success: directly navigate to Library and refresh there
+          // Success: Create track and open player
           setInputText('');
           setSelectedFile(null);
-          navigation.navigate('Library' as never);
+          
+          // Create AudioTrack from response
+          const newTrack: AudioTrack = {
+            id: String(Date.now()), // Temporary ID
+            title: response.adapted_text || response.translated_text || selectedFile.name,
+            url: response.mp3_url || '',
+            level: response.level || selectedLevel,
+            duration: response.real_duration || 180,
+            created_at: new Date().toISOString(),
+            input_type: 'file',
+            translated_text: response.translated_text || response.translatedText,
+            adapted_text: response.adapted_text || response.adaptedText,
+            original_turkish: response.original_turkish || '',
+            mp3_url: response.mp3_url,
+            timepoints: response.timepoints || [],
+            words: response.words || [],
+          };
+          
+          setCreatedTrack(newTrack);
+          setShowPlayer(true);
         } else {
           Alert.alert(t('common.error'), response.message || t('create.alerts.fileProcessFailed'));
         }
@@ -694,9 +716,28 @@ const CreateScreen: React.FC = () => {
         const response = await apiService.processTextToSpeech(request);
         
         if (response.success) {
-          // Success: directly navigate to Library and refresh there
+          // Success: Create track and open player
           setInputText('');
-          navigation.navigate('Library' as never);
+          
+          // Create AudioTrack from response
+          const newTrack: AudioTrack = {
+            id: String(Date.now()), // Temporary ID
+            title: response.adapted_text || response.translated_text || effectiveInputText.substring(0, 50),
+            url: response.mp3_url || '',
+            level: response.level || selectedLevel,
+            duration: response.real_duration || 180,
+            created_at: new Date().toISOString(),
+            input_type: mode,
+            translated_text: response.translated_text || response.translatedText,
+            adapted_text: response.adapted_text || response.adaptedText,
+            original_turkish: response.original_turkish || effectiveInputText,
+            mp3_url: response.mp3_url,
+            timepoints: response.timepoints || [],
+            words: response.words || [],
+          };
+          
+          setCreatedTrack(newTrack);
+          setShowPlayer(true);
         } else {
           const code = (response as any)?.code;
           const msg = response.message || t('create.alerts.audioCreateFailed');
@@ -790,7 +831,26 @@ const CreateScreen: React.FC = () => {
           setSelectedBook(null);
           setSelectedChapterId(null);
           setSelectedChapterText('');
-          navigation.navigate('Library' as never);
+          
+          // Create AudioTrack from response
+          const newTrack: AudioTrack = {
+            id: String(Date.now()), // Temporary ID
+            title: response.adapted_text || response.translated_text || selectedBook?.title || 'Book Chapter',
+            url: response.mp3_url || '',
+            level: response.level || selectedLevel,
+            duration: response.real_duration || 180,
+            created_at: new Date().toISOString(),
+            input_type: 'book',
+            translated_text: response.translated_text || response.translatedText,
+            adapted_text: response.adapted_text || response.adaptedText,
+            original_turkish: response.original_turkish || selectedChapterText,
+            mp3_url: response.mp3_url,
+            timepoints: response.timepoints || [],
+            words: response.words || [],
+          };
+          
+          setCreatedTrack(newTrack);
+          setShowPlayer(true);
         } else {
           Alert.alert(t('common.error'), response.message || t('create.book.alerts.ttsFailed'));
         }
@@ -900,7 +960,7 @@ const CreateScreen: React.FC = () => {
           </Text>
         </View>
 
-        {(mode === 'text' || mode === 'youtube') && (
+        {(mode === 'text' || mode === 'youtube' || mode === 'suggestion') && (
           <View style={styles.inputSection}>
             <Text style={styles.sectionTitle}>{t('create.input.title')}</Text>
             {mode === 'youtube' && (
@@ -1003,7 +1063,7 @@ const CreateScreen: React.FC = () => {
                         const rr = await apiService.rewriteToNarration(s, selectedLevel);
                         const narration = rr?.data?.narration_text || s;
                         setInputText(narration);
-                        setMode('text');
+                        // Mode'u suggestion olarak bırak, metin input alanı zaten görünüyor
                         Alert.alert(t('common.success'), t('Öneri metne dönüştürüldü'));
                       } catch (e: any) {
                         Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
@@ -1415,6 +1475,22 @@ const CreateScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Audio Player Modal */}
+      {createdTrack && (
+        <AudioPlayer
+          track={createdTrack}
+          visible={showPlayer}
+          onClose={() => {
+            setShowPlayer(false);
+            setCreatedTrack(null);
+            // Navigate to Library after closing player
+            navigation.navigate('Library' as never);
+          }}
+          timepoints={createdTrack.timepoints || []}
+          words={createdTrack.words || []}
+        />
+      )}
     </SafeAreaView>
   );
 };

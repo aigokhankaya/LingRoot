@@ -207,6 +207,7 @@ const LoginScreen: React.FC = () => {
           <TextInput
             style={styles.input}
             placeholder={language === 'tr' ? 'E-posta' : 'Email'}
+            placeholderTextColor="#999"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -220,6 +221,7 @@ const LoginScreen: React.FC = () => {
             <TextInput
               style={[styles.input, styles.passwordInput]}
               placeholder={language === 'tr' ? 'Şifre' : 'Password'}
+              placeholderTextColor="#999"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}

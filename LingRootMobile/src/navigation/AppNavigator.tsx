@@ -4,7 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 // import { Ionicons } from '@expo/vector-icons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { Alert, View, ActivityIndicator } from 'react-native';
+import { Alert, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Platform } from 'react-native';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -109,9 +109,32 @@ const MainTabs = () => {
       <Tab.Screen 
         name="Create" 
         component={CreateScreen}
-        options={{ 
-          tabBarLabel: t('create.title'),
-          headerTitle: t('create.title')
+        options={({ route, navigation }) => {
+          // Check if this tab is currently focused
+          const state = navigation.getState();
+          const currentRoute = state.routes[state.index];
+          const isFocused = currentRoute.name === 'Create';
+          
+          return {
+            tabBarLabel: t('create.title'),
+            headerTitle: t('create.title'),
+            // Only apply custom button when NOT focused (to make it dim)
+            ...(isFocused ? {} : {
+              tabBarButton: ({ style, children, accessibilityState, testID, accessibilityLabel, accessibilityRole }) => (
+                <TouchableOpacity 
+                  style={[style, { opacity: 0.3 }]}
+                  disabled={true}
+                  activeOpacity={1}
+                  accessibilityState={accessibilityState}
+                  accessibilityLabel={accessibilityLabel}
+                  accessibilityRole={accessibilityRole}
+                  testID={testID}
+                >
+                  {children}
+                </TouchableOpacity>
+              )
+            })
+          };
         }}
         initialParams={{ mode: 'text' }}
         listeners={({ navigation }) => ({

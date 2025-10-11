@@ -325,6 +325,19 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       if ((currentStatus as any).isPlaying) {
         await sound.pauseAsync();
       } else {
+        // Check if audio has finished or is at the end
+        const statusAny = currentStatus as any;
+        const currentPosition = statusAny.positionMillis || 0;
+        const audioDuration = statusAny.durationMillis || duration;
+        
+        // If audio finished or is within 100ms of the end, restart from beginning
+        if (statusAny.didJustFinish || (audioDuration > 0 && currentPosition >= audioDuration - 100)) {
+          await sound.setPositionAsync(0);
+          setPosition(0);
+          setCurrentWordIndex(-1);
+          setCurrentSentenceIndex(-1);
+        }
+        
         await sound.playAsync();
       }
       
@@ -762,6 +775,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
+          directionalLockEnabled={true}
+          scrollEventThrottle={16}
           onMomentumScrollEnd={async (e) => {
             const idx = Math.round((e.nativeEvent.contentOffset.x || 0) / screenWidth);
             setPageIndex(idx);
@@ -782,31 +797,40 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           style={{ flex: 1 }}
         >
           <View style={{ width: screenWidth, flex: 1 }}>
-            <View style={{ width: '100%', flex: 1 }}>
-              <ScrollView
-                ref={scrollViewRef}
-                style={[styles.scrollContainer, { paddingTop: 8 }]}
-                showsVerticalScrollIndicator={false}
-              >
-                <Pressable onPress={handlePage0Tap} style={styles.textWrapper}>
-                  {renderHighlightedText()}
-                </Pressable>
-              </ScrollView>
-            </View>
+            <ScrollView
+              ref={scrollViewRef}
+              style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
+              contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+              scrollEventThrottle={16}
+              removeClippedSubviews={false}
+              bounces={true}
+            >
+              <Pressable onPress={handlePage0Tap} style={styles.textWrapper}>
+                {renderHighlightedText()}
+              </Pressable>
+            </ScrollView>
           </View>
           <View style={{ width: screenWidth, flex: 1 }}>
-            <View style={{ width: '100%', flex: 1 }}>
-              <ScrollView style={[styles.scrollContainer, { paddingTop: 8 }]} showsVerticalScrollIndicator={false}>
-                <Pressable onPress={handlePage1Tap}>
-                  <Text style={styles.originalTitle}>Orijinal Türkçe Metin</Text>
-                  {originalLoading ? (
-                    <Text style={styles.originalText}>Yükleniyor...</Text>
-                  ) : (
-                    <Text style={styles.originalText}>{originalText || track.original_turkish || '—'}</Text>
-                  )}
-                </Pressable>
-              </ScrollView>
-            </View>
+            <ScrollView 
+              style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]} 
+              contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+              scrollEventThrottle={16}
+              removeClippedSubviews={false}
+              bounces={true}
+            >
+              <Pressable onPress={handlePage1Tap}>
+                <Text style={styles.originalTitle}>Orijinal Türkçe Metin</Text>
+                {originalLoading ? (
+                  <Text style={styles.originalText}>Yükleniyor...</Text>
+                ) : (
+                  <Text style={styles.originalText}>{originalText || track.original_turkish || '—'}</Text>
+                )}
+              </Pressable>
+            </ScrollView>
           </View>
         </ScrollView>
 

@@ -120,59 +120,79 @@ const RegisterScreen: React.FC = () => {
         </View>
 
         <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder={t('register.fullName')}
-            value={fullName}
-            onChangeText={setFullName}
-            autoCapitalize="words"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder={t('register.email')}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Telefon Numarası (+90 555 123 45 67)"
-            value={phoneNumber}
-            onChangeText={(v) => setPhoneNumber(formatTRPhone(v))}
-            keyboardType="phone-pad"
-            autoComplete="tel"
-          />
-
-          <View style={styles.inputWrapper}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>{t('register.fullName')}</Text>
             <TextInput
-              style={[styles.input, styles.passwordInput]}
-              placeholder={t('register.password')}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoComplete="password"
+              style={styles.input}
+              placeholder={t('register.fullName')}
+              placeholderTextColor="#999"
+              value={fullName}
+              onChangeText={setFullName}
+              autoCapitalize="words"
             />
-            <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(v => !v)}>
-              <Icon name={showPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
-            </TouchableOpacity>
           </View>
 
-          <View style={styles.inputWrapper}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>{t('register.email')}</Text>
             <TextInput
-              style={[styles.input, styles.passwordInput]}
-              placeholder={t('register.confirmPassword')}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showConfirmPassword}
-              autoComplete="password"
+              style={styles.input}
+              placeholder={t('register.email')}
+              placeholderTextColor="#999"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
             />
-            <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirmPassword(v => !v)}>
-              <Icon name={showConfirmPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
-            </TouchableOpacity>
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Telefon Numarası</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="+90 555 123 45 67"
+              placeholderTextColor="#999"
+              value={phoneNumber}
+              onChangeText={(v) => setPhoneNumber(formatTRPhone(v))}
+              keyboardType="phone-pad"
+              autoComplete="tel"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>{t('register.password')}</Text>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={[styles.input, styles.passwordInput]}
+                placeholder={t('register.password')}
+                placeholderTextColor="#999"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoComplete="password"
+              />
+              <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(v => !v)}>
+                <Icon name={showPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>{t('register.confirmPassword')}</Text>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={[styles.input, styles.passwordInput]}
+                placeholder={t('register.confirmPassword')}
+                placeholderTextColor="#999"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
+                autoComplete="password"
+              />
+              <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirmPassword(v => !v)}>
+                <Icon name={showConfirmPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity style={styles.termsRow} onPress={() => setAcceptTerms(v => !v)}>
@@ -229,11 +249,19 @@ const styles = StyleSheet.create({
   form: {
     width: '100%',
   },
+  inputContainer: {
+    marginBottom: 15,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 6,
+  },
   input: {
     backgroundColor: 'white',
     borderRadius: 8,
     padding: 15,
-    marginBottom: 15,
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
@@ -242,6 +270,11 @@ const styles = StyleSheet.create({
   inputWrapper: { position: 'relative' },
   passwordInput: {
     paddingRight: 48,
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 12,
+    top: 15,
   },
   termsRow: {
     flexDirection: 'row',
