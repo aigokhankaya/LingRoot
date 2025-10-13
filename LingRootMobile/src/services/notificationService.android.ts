@@ -123,8 +123,11 @@ class NotificationService {
     try {
       // Reset our internal counter first
       this.scheduledCount = 0;
-      // Avoid cancelAllLocalNotifications on some Android 14/15 devices due to potential native crash
-      try { PushNotification.removeAllDeliveredNotifications?.(); } catch {}
+      // Cancel all scheduled notifications first
+      try { 
+        PushNotification.cancelAllLocalNotifications();
+        PushNotification.removeAllDeliveredNotifications?.(); 
+      } catch {}
 
       let settings: ReminderSettings;
       try { settings = await ReminderSettingsService.getSettings(); }
