@@ -10,7 +10,7 @@ SELECT
   sp.plan_features
 FROM users u
 LEFT JOIN subscriptions s ON u.id = s.user_id AND s.status = 'active'
-LEFT JOIN subscription_plans sp ON s.stripepriceid = sp.id
+LEFT JOIN subscription_plans sp ON s.stripepriceid::uuid = sp.id
 WHERE u.email = 'enersyuzak@hotmail.com'
 ORDER BY s.created_at DESC
 LIMIT 1;
