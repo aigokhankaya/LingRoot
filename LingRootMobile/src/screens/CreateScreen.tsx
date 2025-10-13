@@ -234,14 +234,27 @@ const CreateScreen: React.FC = () => {
     return category;
   };
 
-  // Voice categories
+  // Voice categories - filtered by plan features
   const voiceCategories: VoiceCategory[] = [
     { value: 'standard', label: t('create.voice.categories.standard'), icon: 'volume-up', badge: t('create.voice.badge.free') },
     { value: 'wavenet', label: t('create.voice.categories.wavenet'), icon: 'star', badge: t('create.voice.badge.premium') },
     { value: 'neural2', label: t('create.voice.categories.neural2'), icon: 'psychology', badge: t('create.voice.badge.premium') },
     { value: 'studio', label: t('create.voice.categories.studio'), icon: 'workspace-premium', badge: t('create.voice.badge.platinum') },
     { value: 'chirp3d', label: t('create.voice.categories.chirp3d'), icon: 'diamond', badge: t('create.voice.badge.gold') },
-  ];
+  ].filter(category => {
+    // Filter categories based on plan features
+    if (!planFeatures?.voice_categories) return true; // Show all if features not loaded
+    
+    const categories = planFeatures.voice_categories;
+    switch (category.value) {
+      case 'standard': return categories.standard !== false;
+      case 'wavenet': return categories.wavenet === true;
+      case 'neural2': return categories.neural2 === true;
+      case 'studio': return categories.studio === true;
+      case 'chirp3d': return categories.chirp3d === true;
+      default: return true;
+    }
+  });
 
   // Voice filters
   const accentOptions = [
