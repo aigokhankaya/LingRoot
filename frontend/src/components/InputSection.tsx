@@ -1269,12 +1269,19 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                 {t('voice_selection')}
               </label>
               <select
-                value="en-US-Wavenet-F"
-                disabled
+                value={voice}
+                onChange={(e) => setVoice(e.target.value)}
                 className="input-field focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="en-US-Wavenet-F">en-US-Wavenet-F (Kadın)</option>
+                {getFilteredVoices().map((v) => (
+                  <option key={v.name} value={v.name}>
+                    {v.name} ({v.ssmlGender === 'FEMALE' ? t('female_voice') : t('male_voice')})
+                  </option>
+                ))}
               </select>
+              {featuresLoading && (
+                <p className="text-xs text-gray-500">{t('loading_voices')}</p>
+              )}
             </div>
           </div>
 
