@@ -341,7 +341,7 @@ exports.getMyPlanFeatures = async (req, res) => {
     // Get user's active subscription
     const { data: subscription, error: subError } = await supabase
       .from("subscriptions")
-      .select("plan_id, status")
+      .select("stripepriceid, status")
       .eq("user_id", userId)
       .eq("status", "active")
       .order("created_at", { ascending: false })
@@ -382,10 +382,22 @@ exports.getMyPlanFeatures = async (req, res) => {
     }
 
     // Get plan details with features
+    // stripepriceid is varchar, need to cast to uuid
+    let planId = subscription.stripepriceid;
+    try {
+      // Validate UUID format
+      if (planId && typeof planId === 'string') {
+        planId = planId.trim();
+      }
+    } catch (e) {
+      logger.error("Invalid plan ID format:", e);
+      return res.status(500).json({ success: false, message: "Invalid plan ID" });
+    }
+
     const { data: plan, error: planError } = await supabase
       .from("subscription_plans")
       .select("id, name, plan_features")
-      .eq("id", subscription.plan_id)
+      .eq("id", planId)
       .single();
 
     if (planError || !plan) {
