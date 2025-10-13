@@ -138,6 +138,7 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
   const menuItems = [
     { id: 1, title: t('profile.accountSettings'), icon: 'settings', action: () => navigation.navigate('Settings') },
     { id: 1.5, title: t('profile.language'), icon: 'language', action: () => setLanguageModalVisible(true) },
+    { id: 2, title: language === 'tr' ? 'Hatırlatıcı Ayarları' : 'Reminder Settings', icon: 'alarm', action: () => navigation.navigate('ReminderSettings') },
     { id: 3, title: language === 'tr' ? 'Kalan Kullanım' : 'Remaining Usage', icon: 'assessment', action: () => navigation.navigate('Membership') },
     { id: 3.2, title: language === 'tr' ? 'Paket Bilgileri' : 'Package Information', icon: 'inventory', action: () => navigation.navigate('Packages') },
     { id: 3.5, title: language === 'tr' ? 'Mesaj Gönder' : 'Send Message', icon: 'chat', action: () => navigation.navigate('Chat') },

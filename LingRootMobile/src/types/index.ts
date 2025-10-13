@@ -124,6 +124,7 @@ export type RootStackParamList = {
   Vocabulary: { wordId?: string } | undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
+  ReminderSettings: undefined;
 };
 
 export type MainTabParamList = {

@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { apiService } from '../services/api';
+import { apiService, getMyPlanFeatures, PlanFeatures } from '../services/api';
 import { AudioTrack } from '../types';
 
 const HomeScreen: React.FC = () => {
@@ -24,8 +24,11 @@ const HomeScreen: React.FC = () => {
     totalDuration: 0,
     loading: true,
   });
+  const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
+  const [featuresLoading, setFeaturesLoading] = useState(true);
 
-  const features = [
+  // All available features
+  const allFeatures = [
     {
       id: 1,
       title: t('home.textToSpeech'),
@@ -34,17 +37,18 @@ const HomeScreen: React.FC = () => {
       color: '#007AFF',
       screenName: 'Create',
       params: { mode: 'text' as const },
+      featureKey: 'text_input',
     },
-    // YouTube seçeneği geçici olarak gizlendi - geliştirme devam ediyor
-    // {
-    //   id: 7,
-    //   title: 'YouTube',
-    //   description: language === 'tr' ? 'YouTube linkinden altyazı çek ve sese dönüştür' : 'Fetch subtitles from a YouTube link and convert to speech',
-    //   icon: 'ondemand-video',
-    //   color: '#FF0000',
-    //   screenName: 'Create',
-    //   params: { mode: 'youtube' as const },
-    // },
+    {
+      id: 7,
+      title: 'YouTube',
+      description: language === 'tr' ? 'YouTube linkinden altyazı çek ve sese dönüştür' : 'Fetch subtitles from a YouTube link and convert to speech',
+      icon: 'ondemand-video',
+      color: '#FF0000',
+      screenName: 'Create',
+      params: { mode: 'youtube' as const },
+      featureKey: 'youtube',
+    },
     {
       id: 2,
       title: t('home.uploadFile'),
@@ -53,6 +57,7 @@ const HomeScreen: React.FC = () => {
       color: '#34C759',
       screenName: 'Create',
       params: { mode: 'file' as const },
+      featureKey: 'file_upload',
     },
     {
       id: 3,
@@ -61,6 +66,7 @@ const HomeScreen: React.FC = () => {
       icon: 'book',
       color: '#9C27B0',
       screenName: 'Vocabulary',
+      featureKey: null, // Always show
     },
     {
       id: 4,
@@ -70,6 +76,7 @@ const HomeScreen: React.FC = () => {
       color: '#FF9500',
       screenName: 'Create',
       params: { mode: 'suggestion' as const },
+      featureKey: 'topic_suggestions',
     },
     {
       id: 6,
@@ -79,6 +86,17 @@ const HomeScreen: React.FC = () => {
       color: '#3f51b5',
       screenName: 'Create',
       params: { mode: 'book' as const },
+      featureKey: 'book',
+    },
+    {
+      id: 8,
+      title: language === 'tr' ? 'Podcast' : 'Podcast',
+      description: language === 'tr' ? 'Podcast linkinden ses çıkar' : 'Extract audio from podcast link',
+      icon: 'podcasts',
+      color: '#8E44AD',
+      screenName: 'Create',
+      params: { mode: 'podcast' as const },
+      featureKey: 'podcast',
     },
     {
       id: 5,
@@ -87,8 +105,23 @@ const HomeScreen: React.FC = () => {
       icon: 'library-music',
       color: '#FF3B30',
       screenName: 'Library',
+      featureKey: null, // Always show
     },
   ];
+
+  // Filter features based on plan
+  const features = allFeatures.filter(feature => {
+    // Always show features without featureKey (Vocabulary, Library)
+    if (!feature.featureKey) return true;
+    
+    // If features not loaded yet, show default features
+    if (!planFeatures?.homepage_features) {
+      return feature.featureKey === 'text_input' || feature.featureKey === 'topic_suggestions';
+    }
+    
+    // Check if feature is enabled in plan
+    return planFeatures.homepage_features[feature.featureKey as keyof typeof planFeatures.homepage_features] === true;
+  });
 
   // Fetch user statistics
   const fetchUserStats = async () => {
@@ -133,9 +166,23 @@ const HomeScreen: React.FC = () => {
     }
   };
 
-  // Load stats on component mount
+  // Fetch plan features
+  const fetchPlanFeatures = async () => {
+    try {
+      setFeaturesLoading(true);
+      const result = await getMyPlanFeatures();
+      setPlanFeatures(result.features);
+    } catch (error) {
+      console.error('Error loading plan features:', error);
+    } finally {
+      setFeaturesLoading(false);
+    }
+  };
+
+  // Load stats and features on component mount
   useEffect(() => {
     fetchUserStats();
+    fetchPlanFeatures();
   }, [user?.id]);
 
   // Refresh stats when Home gains focus (e.g., after creating new audio)
@@ -147,6 +194,11 @@ const HomeScreen: React.FC = () => {
   );
 
   const handleFeaturePress = (feature: any) => {
+    // Eğer screenName null ise (örn: Podcast), hiçbir şey yapma
+    if (!feature.screenName) {
+      return;
+    }
+    
     if (feature.params) {
       // For Tab screens, ensure params are merged even if the tab is already mounted
       try {
