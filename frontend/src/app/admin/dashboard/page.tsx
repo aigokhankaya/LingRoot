@@ -570,6 +570,10 @@ const App: React.FC = () => {
                 <i className="fas fa-box mr-3 text-lg"></i>
                 <span>Paket Yönetimi</span>
               </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => router.push('/admin/packages')}>
+                <i className="fas fa-cogs mr-3 text-lg"></i>
+                <span>Paket Özellikleri</span>
+              </Button>
               {/* Paket Bilgilerim sekmesi kaldırıldı */}
               <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("icerik-yonetimi")}>
                 <i className="fas fa-file-alt mr-3 text-lg"></i>

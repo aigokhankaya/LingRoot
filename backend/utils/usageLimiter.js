@@ -233,6 +233,128 @@ async function checkLimits(userId) {
   }
 }
 
-module.exports = { checkLimits };
+/**
+ * Check if user has access to a specific feature based on their plan
+ * @param {string} userId - User ID
+ * @param {string} featureType - Type of feature: 'homepage' or 'voice_model'
+ * @param {string} featureName - Name of the feature to check
+ * @returns {Promise<{hasAccess: boolean, planName: string|null}>}
+ */
+async function checkFeatureAccess(userId, featureType, featureName) {
+  try {
+    const subscription = await getActiveSubscriptionWithPlan(userId);
+    
+    if (!subscription || !subscription.plan) {
+      // No active plan - return default free features
+      const defaultFeatures = {
+        homepage_features: {
+          text_input: true,
+          youtube: false,
+          file_upload: false,
+          podcast: false,
+          topic_suggestions: true,
+          book: false
+        },
+        voice_models: {
+          openai_tts: true,
+          elevenlabs: false,
+          google_tts: false,
+          azure_tts: false
+        }
+      };
+      
+      const features = featureType === 'homepage' 
+        ? defaultFeatures.homepage_features 
+        : defaultFeatures.voice_models;
+      
+      return {
+        hasAccess: features[featureName] === true,
+        planName: null,
+        features: defaultFeatures
+      };
+    }
+    
+    const plan = subscription.plan;
+    const planFeatures = plan.plan_features || {};
+    
+    // Get the relevant feature set
+    let features = {};
+    if (featureType === 'homepage') {
+      features = planFeatures.homepage_features || {};
+    } else if (featureType === 'voice_model') {
+      features = planFeatures.voice_models || {};
+    }
+    
+    // Check if feature is enabled
+    const hasAccess = features[featureName] === true;
+    
+    return {
+      hasAccess,
+      planName: plan.name,
+      features: planFeatures
+    };
+  } catch (e) {
+    logger.error('[FEATURE ACCESS] checkFeatureAccess error:', e);
+    // On error, deny access
+    return {
+      hasAccess: false,
+      planName: null,
+      error: e.message
+    };
+  }
+}
+
+/**
+ * Get all features for a user based on their active plan
+ * @param {string} userId - User ID
+ * @returns {Promise<{features: object, planName: string|null}>}
+ */
+async function getUserFeatures(userId) {
+  try {
+    const subscription = await getActiveSubscriptionWithPlan(userId);
+    
+    if (!subscription || !subscription.plan) {
+      // Return default free features
+      return {
+        planName: null,
+        features: {
+          homepage_features: {
+            text_input: true,
+            youtube: false,
+            file_upload: false,
+            podcast: false,
+            topic_suggestions: true,
+            book: false
+          },
+          voice_models: {
+            openai_tts: true,
+            elevenlabs: false,
+            google_tts: false,
+            azure_tts: false
+          },
+          sentence_patterns: {
+            enabled: false,
+            max_patterns: 0
+          }
+        }
+      };
+    }
+    
+    const plan = subscription.plan;
+    return {
+      planName: plan.name,
+      features: plan.plan_features || {}
+    };
+  } catch (e) {
+    logger.error('[FEATURE ACCESS] getUserFeatures error:', e);
+    return {
+      planName: null,
+      features: {},
+      error: e.message
+    };
+  }
+}
+
+module.exports = { checkLimits, checkFeatureAccess, getUserFeatures };
 
 

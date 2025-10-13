@@ -29,6 +29,7 @@ import AccountSettingsScreen from '../screens/AccountSettingsScreen';
 import PackagesScreen from '../screens/PackagesScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
+import ReminderSettingsScreen from '../screens/ReminderSettingsScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -322,6 +323,17 @@ const AppNavigator = () => {
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: language === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service',
+              }}
+            />
+            <Stack.Screen
+              name="ReminderSettings"
+              component={ReminderSettingsScreen}
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: '#007AFF' },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: 'bold' },
+                headerTitle: language === 'tr' ? 'Hatırlatıcı Ayarları' : 'Reminder Settings',
               }}
             />
           </>

@@ -20,7 +20,7 @@ import { pick, keepLocalCopy } from '@react-native-documents/picker';
 import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter, AudioTrack } from '../types';
 import { useRoute, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
-import { apiService, saveDefaultVoiceSetting, getUserSettings } from '../services/api';
+import { apiService, saveDefaultVoiceSetting, getUserSettings, getMyPlanFeatures, PlanFeatures } from '../services/api';
 import AudioPlayer from '../components/AudioPlayer';
 
 const CreateScreen: React.FC = () => {
@@ -39,6 +39,7 @@ const CreateScreen: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [createdTrack, setCreatedTrack] = useState<AudioTrack | null>(null);
   const [showPlayer, setShowPlayer] = useState(false);
+  const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
   // Keep mode in sync when screen gains focus (e.g., navigating from Home with different params)
   useFocusEffect(
     React.useCallback(() => {
@@ -257,6 +258,19 @@ const CreateScreen: React.FC = () => {
     { value: 'male', label: t('create.voice.genders.male') },
     { value: 'female', label: t('create.voice.genders.female') },
   ];
+
+  // Fetch plan features
+  useEffect(() => {
+    const fetchPlanFeatures = async () => {
+      try {
+        const result = await getMyPlanFeatures();
+        setPlanFeatures(result.features);
+      } catch (error) {
+        console.error('Error loading plan features:', error);
+      }
+    };
+    fetchPlanFeatures();
+  }, []);
 
   // Fetch available voices
   const fetchAvailableVoices = async () => {

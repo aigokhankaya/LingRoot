@@ -167,7 +167,7 @@ class NotificationService {
             playSound: true,
             soundName: 'default',
             userInfo: { wordId: word?.id?.toString() || '' } as any,
-            repeatType: 'day',
+            // No repeatType - one-time notifications only
           });
           this.scheduledCount += 1;
         } catch (schedErr) {
