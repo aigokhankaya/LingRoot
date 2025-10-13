@@ -484,10 +484,33 @@ const CreateScreen: React.FC = () => {
   const getFilteredVoicesByCategory = () => {
     // Web'de olduğu gibi: filtre aktifse backend zaten filtrelenmiş listyi gönderiyor → doğrudan göster
     if (hasActiveFilters) {
-    return availableVoices;
+      return availableVoices;
     }
-    // Filtre yoksa local kategori/gender/aksan filtresi uygula
-    const result = filterVoices(availableVoices, selectedVoiceCategory, selectedGender, selectedAccent);
+    
+    // First apply plan-based voice category filtering
+    let voices = availableVoices;
+    if (planFeatures?.voice_categories) {
+      voices = availableVoices.filter(voice => {
+        const voiceName = voice.name.toLowerCase();
+        const categories = planFeatures.voice_categories!;
+        
+        // Check which category this voice belongs to and if it's enabled
+        if (voiceName.includes('wavenet') && categories.wavenet) return true;
+        if (voiceName.includes('neural2') && categories.neural2) return true;
+        if (voiceName.includes('studio') && categories.studio) return true;
+        if (voiceName.includes('chirp3d') && categories.chirp3d) return true;
+        if (categories.standard && 
+            !voiceName.includes('wavenet') && 
+            !voiceName.includes('neural2') && 
+            !voiceName.includes('studio') && 
+            !voiceName.includes('chirp3d')) return true;
+        
+        return false;
+      });
+    }
+    
+    // Then apply local kategori/gender/aksan filtresi
+    const result = filterVoices(voices, selectedVoiceCategory, selectedGender, selectedAccent);
     return result;
   };
 
