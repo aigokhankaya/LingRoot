@@ -178,18 +178,29 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
 
   // Filter voices based on plan features
   const getFilteredVoices = () => {
-    if (!planFeatures?.voice_models) {
+    if (!planFeatures?.voice_categories) {
       // If features not loaded yet, return all voices
       return googleVoices;
     }
     
-    // For now, we only filter Google TTS voices
-    // In the future, you can add more providers (ElevenLabs, Azure, etc.)
-    if (planFeatures.voice_models.google_tts === false) {
-      return [];
-    }
-    
-    return googleVoices;
+    // Filter voices based on enabled voice categories
+    // Google TTS voices are categorized as: standard, wavenet, neural2, studio, chirp3d
+    return googleVoices.filter(voice => {
+      const voiceName = voice.name.toLowerCase();
+      
+      // Check which category this voice belongs to
+      if (voiceName.includes('wavenet') && planFeatures.voice_categories.wavenet) return true;
+      if (voiceName.includes('neural2') && planFeatures.voice_categories.neural2) return true;
+      if (voiceName.includes('studio') && planFeatures.voice_categories.studio) return true;
+      if (voiceName.includes('chirp3d') && planFeatures.voice_categories.chirp3d) return true;
+      if (planFeatures.voice_categories.standard && 
+          !voiceName.includes('wavenet') && 
+          !voiceName.includes('neural2') && 
+          !voiceName.includes('studio') && 
+          !voiceName.includes('chirp3d')) return true;
+      
+      return false;
+    });
   };
 
   // Google sesleri yüklendiğinde ilk sesi otomatik seç
