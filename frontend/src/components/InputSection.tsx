@@ -183,17 +183,19 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       return googleVoices;
     }
     
+    const voiceCategories = planFeatures.voice_categories;
+    
     // Filter voices based on enabled voice categories
     // Google TTS voices are categorized as: standard, wavenet, neural2, studio, chirp3d
     return googleVoices.filter(voice => {
       const voiceName = voice.name.toLowerCase();
       
       // Check which category this voice belongs to
-      if (voiceName.includes('wavenet') && planFeatures.voice_categories.wavenet) return true;
-      if (voiceName.includes('neural2') && planFeatures.voice_categories.neural2) return true;
-      if (voiceName.includes('studio') && planFeatures.voice_categories.studio) return true;
-      if (voiceName.includes('chirp3d') && planFeatures.voice_categories.chirp3d) return true;
-      if (planFeatures.voice_categories.standard && 
+      if (voiceName.includes('wavenet') && voiceCategories.wavenet) return true;
+      if (voiceName.includes('neural2') && voiceCategories.neural2) return true;
+      if (voiceName.includes('studio') && voiceCategories.studio) return true;
+      if (voiceName.includes('chirp3d') && voiceCategories.chirp3d) return true;
+      if (voiceCategories.standard && 
           !voiceName.includes('wavenet') && 
           !voiceName.includes('neural2') && 
           !voiceName.includes('studio') && 
