@@ -105,16 +105,34 @@ export const signInWithApple = async (): Promise<SocialAuthResult> => {
       throw new Error('Apple Sign-In sadece iOS cihazlarda kullanılabilir');
     }
     
+    // Check if Apple Sign-In is supported
+    const isSupported = appleAuth.isSupported;
+    console.log('[APPLE_SIGNIN] Is supported:', isSupported);
+    
+    if (!isSupported) {
+      throw new Error('Apple Sign-In bu cihazda desteklenmiyor (iOS 13+ gerekli)');
+    }
+    
+    console.log('[APPLE_SIGNIN] Starting sign-in request...');
+    
     // Perform sign-in request
     const appleAuthRequestResponse = await appleAuth.performRequest({
       requestedOperation: appleAuth.Operation.LOGIN,
       requestedScopes: [appleAuth.Scope.EMAIL, appleAuth.Scope.FULL_NAME],
     });
     
+    console.log('[APPLE_SIGNIN] Response received:', {
+      user: appleAuthRequestResponse.user,
+      email: appleAuthRequestResponse.email,
+      hasToken: !!appleAuthRequestResponse.identityToken,
+    });
+    
     // Get credential state
     const credentialState = await appleAuth.getCredentialStateForUser(
       appleAuthRequestResponse.user
     );
+    
+    console.log('[APPLE_SIGNIN] Credential state:', credentialState);
     
     if (credentialState !== appleAuth.State.AUTHORIZED) {
       throw new Error('Apple Sign-In yetkilendirmesi başarısız');
@@ -136,6 +154,14 @@ export const signInWithApple = async (): Promise<SocialAuthResult> => {
     };
   } catch (error: any) {
     console.error('[APPLE_SIGNIN] Error:', error);
+    console.error('[APPLE_SIGNIN] Error code:', error.code);
+    console.error('[APPLE_SIGNIN] Error message:', error.message);
+    
+    // Error 1001 = User cancelled or configuration issue
+    if (error.code === '1001') {
+      throw new Error('Apple Sign-In iptal edildi veya yapılandırma hatası. Lütfen Apple Developer Portal\'da Sign in with Apple capability\'sinin etkin olduğundan emin olun.');
+    }
+    
     throw new Error(error.message || 'Apple ile giriş başarısız');
   }
 };
@@ -146,11 +172,7 @@ export const isAppleSignInAvailable = async (): Promise<boolean> => {
     return false;
   }
   
-  try {
-    return appleAuth.isSupported;
-  } catch {
-    return false;
-  }
+  return appleAuth.isSupported;
 };
 
 // Sign out from all social providers

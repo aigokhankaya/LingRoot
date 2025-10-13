@@ -483,7 +483,16 @@ exports.facebookLogin = async (req, res) => {
     let user;
     
     if (existingUser) {
-      // Mevcut kullanıcı
+      // Mevcut kullanıcı - email doğrulanmış mı kontrol et
+      if (!existingUser.isverified) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Email adresiniz doğrulanmamış. Lütfen email adresinize gönderilen doğrulama linkine tıklayın.",
+          code: "EMAIL_NOT_VERIFIED"
+        });
+      }
+
+      // Kullanıcı aktif, giriş yapabilir
       const { data: updatedUser, error: updateError } = await supabase
         .from('users')
         .update({ updated_at: new Date().toISOString() })
@@ -639,7 +648,16 @@ exports.appleLogin = async (req, res) => {
     let user;
     
     if (existingUser) {
-      // Mevcut kullanıcı
+      // Mevcut kullanıcı - email doğrulanmış mı kontrol et
+      if (!existingUser.isverified) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Email adresiniz doğrulanmamış. Lütfen email adresinize gönderilen doğrulama linkine tıklayın.",
+          code: "EMAIL_NOT_VERIFIED"
+        });
+      }
+
+      // Kullanıcı aktif, giriş yapabilir
       const { data: updatedUser, error: updateError } = await supabase
         .from('users')
         .update({ updated_at: new Date().toISOString() })
@@ -824,14 +842,19 @@ exports.googleLogin = async (req, res) => {
     let user;
     
     if (existingUser) {
-      // Mevcut kullanıcı - Google bilgilerini güncelle
-      const updateData = {
-        updated_at: new Date().toISOString()
-      };
+      // Mevcut kullanıcı - email doğrulanmış mı kontrol et
+      if (!existingUser.isverified) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Email adresiniz doğrulanmamış. Lütfen email adresinize gönderilen doğrulama linkine tıklayın.",
+          code: "EMAIL_NOT_VERIFIED"
+        });
+      }
 
+      // Kullanıcı aktif, giriş yapabilir
       const { data: updatedUser, error: updateError } = await supabase
         .from('users')
-        .update(updateData)
+        .update({ updated_at: new Date().toISOString() })
         .eq("id", existingUser.id)
         .select()
         .single();
