@@ -361,6 +361,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     if (!response.ok) {
       const errorData = await response.json();
+      
+      // Email doğrulanmamışsa özel hata mesajı
+      if (errorData.code === 'EMAIL_NOT_VERIFIED') {
+        throw new Error(errorData.message || 'Email adresiniz doğrulanmamış. Lütfen email adresinize gönderilen doğrulama linkine tıklayın.');
+      }
+      
       throw new Error(errorData.message || 'Sosyal giriş başarısız');
     }
     
