@@ -116,11 +116,14 @@ const HomeScreen: React.FC = () => {
     
     // If features not loaded yet, show default features
     if (!planFeatures?.homepage_features) {
+      console.log('⚠️ [Mobile] Plan features not loaded yet, showing defaults');
       return feature.featureKey === 'text_input' || feature.featureKey === 'topic_suggestions';
     }
     
     // Check if feature is enabled in plan
-    return planFeatures.homepage_features[feature.featureKey as keyof typeof planFeatures.homepage_features] === true;
+    const isEnabled = planFeatures.homepage_features[feature.featureKey as keyof typeof planFeatures.homepage_features] === true;
+    console.log(`🔍 [Mobile] Feature ${feature.featureKey}: ${isEnabled}`);
+    return isEnabled;
   });
 
   // Fetch user statistics
@@ -171,9 +174,11 @@ const HomeScreen: React.FC = () => {
     try {
       setFeaturesLoading(true);
       const result = await getMyPlanFeatures();
+      console.log('✅ [Mobile] Plan features loaded:', JSON.stringify(result, null, 2));
+      console.log('✅ [Mobile] Homepage features:', result.features?.homepage_features);
       setPlanFeatures(result.features);
     } catch (error) {
-      console.error('Error loading plan features:', error);
+      console.error('❌ [Mobile] Error loading plan features:', error);
     } finally {
       setFeaturesLoading(false);
     }

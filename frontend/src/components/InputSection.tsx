@@ -698,7 +698,11 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               )}
 
               {/* YouTube - Premium feature */}
-              {planFeatures?.homepage_features?.youtube && (
+              {(() => {
+                const shouldShow = planFeatures?.homepage_features?.youtube;
+                console.log('🔍 YouTube button check:', { planFeatures, shouldShow });
+                return shouldShow;
+              })() && (
                 <button
                   type="button"
                   onClick={() => setInputType('youtube')}
