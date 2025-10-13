@@ -259,7 +259,7 @@ export default function RegisterPage() {
                       <span>LingRoot'un </span>
                       <a href="/terms" className="text-blue-600 hover:underline cursor-pointer">Kullanım Şartları</a>
                       <span> ve </span>
-                      <a href="/privacy" className="text-blue-600 hover:underline cursor-pointer">Gizlilik Politikası</a>
+                      <a href="https://www.lingroot.com/privacy-policy" className="text-blue-600 hover:underline cursor-pointer">Gizlilik Politikası</a>
                       <span>'nı okudum ve kabul ediyorum.</span>
                     </Label>
                   </div>
@@ -492,7 +492,7 @@ export default function RegisterPage() {
             <div>
               <h3 className="text-lg font-bold mb-4">Yasal</h3>
               <ul className="space-y-2">
-                <li><a href="/privacy" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Gizlilik Politikası</a></li>
+                <li><a href="https://www.lingroot.com/privacy-policy" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Gizlilik Politikası</a></li>
                 <li><a href="/terms" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Kullanım Şartları</a></li>
                 <li><a href="/cookies" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Çerez Politikası</a></li>
                 <li><a href="/kvkk" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">KVKK</a></li>
