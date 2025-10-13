@@ -17,6 +17,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiService } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../contexts/LanguageContext';
+import { isAppleSignInAvailable } from '../services/socialAuth';
 
 const LoginScreen: React.FC = () => {
   const { language } = useLanguage();
@@ -29,11 +30,17 @@ const LoginScreen: React.FC = () => {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [showResendUI, setShowResendUI] = useState(false);
-  const { signIn } = useAuth();
+  const [showAppleSignIn, setShowAppleSignIn] = useState(false);
+  const { signIn, signInWithGoogle, signInWithFacebook, signInWithApple } = useAuth();
   const scrollRef = useRef<ScrollView | null>(null);
   const [resendBoxY, setResendBoxY] = useState<number | null>(null);
   const navigation = useNavigation();
   const route = useRoute<any>();
+
+  useEffect(() => {
+    // Check if Apple Sign-In is available
+    isAppleSignInAvailable().then(setShowAppleSignIn);
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -155,6 +162,42 @@ const LoginScreen: React.FC = () => {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    if (!signInWithGoogle) return;
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      Alert.alert(
+        language === 'tr' ? 'Google Giriş Hatası' : 'Google Sign-In Error',
+        error.message || (language === 'tr' ? 'Google ile giriş başarısız' : 'Google sign-in failed')
+      );
+    }
+  };
+
+  const handleFacebookSignIn = async () => {
+    if (!signInWithFacebook) return;
+    try {
+      await signInWithFacebook();
+    } catch (error: any) {
+      Alert.alert(
+        language === 'tr' ? 'Facebook Giriş Hatası' : 'Facebook Sign-In Error',
+        error.message || (language === 'tr' ? 'Facebook ile giriş başarısız' : 'Facebook sign-in failed')
+      );
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    if (!signInWithApple) return;
+    try {
+      await signInWithApple();
+    } catch (error: any) {
+      Alert.alert(
+        language === 'tr' ? 'Apple Giriş Hatası' : 'Apple Sign-In Error',
+        error.message || (language === 'tr' ? 'Apple ile giriş başarısız' : 'Apple sign-in failed')
+      );
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -257,6 +300,35 @@ const LoginScreen: React.FC = () => {
           <TouchableOpacity style={styles.linkButton} onPress={() => { try { (navigation as any)?.navigate?.('Register'); } catch {} }}>
             <Text style={styles.linkText}>{language === 'tr' ? 'Hesabın yok mu? Kayıt ol' : "Don't have an account? Sign up"}</Text>
           </TouchableOpacity>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>{language === 'tr' ? 'veya' : 'or'}</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignIn}>
+            <Icon name="google" size={20} color="#DB4437" />
+            <Text style={styles.socialButtonText}>
+              {language === 'tr' ? 'Google ile Giriş Yap' : 'Sign in with Google'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.socialButton} onPress={handleFacebookSignIn}>
+            <Icon name="facebook" size={20} color="#4267B2" />
+            <Text style={styles.socialButtonText}>
+              {language === 'tr' ? 'Facebook ile Giriş Yap' : 'Sign in with Facebook'}
+            </Text>
+          </TouchableOpacity>
+
+          {showAppleSignIn && (
+            <TouchableOpacity style={[styles.socialButton, styles.appleButton]} onPress={handleAppleSignIn}>
+              <Icon name="apple" size={20} color="#000" />
+              <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                {language === 'tr' ? 'Apple ile Giriş Yap' : 'Sign in with Apple'}
+              </Text>
+            </TouchableOpacity>
+          )}
           </View>
         </View>
       </ScrollView>
@@ -386,6 +458,44 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ddd',
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: '#666',
+    fontSize: 14,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  socialButtonText: {
+    marginLeft: 10,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  appleButton: {
+    backgroundColor: '#000',
+  },
+  appleButtonText: {
+    color: '#fff',
   },
 });
 

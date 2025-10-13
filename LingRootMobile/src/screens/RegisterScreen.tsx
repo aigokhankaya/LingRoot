@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation, CommonActions } from '@react-navigation/native';
+import { isAppleSignInAvailable } from '../services/socialAuth';
 
 // Phone helpers: Turkish format +90 555 123 45 67
 const extractDigits = (value: string) => (value || '').replace(/\D+/g, '');
@@ -52,9 +54,15 @@ const RegisterScreen: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { signUp } = useAuth();
+  const [showAppleSignIn, setShowAppleSignIn] = useState(false);
+  const { signUp, signInWithGoogle, signInWithFacebook, signInWithApple } = useAuth();
   const { t } = useLanguage();
   const navigation = useNavigation();
+
+  useEffect(() => {
+    // Check if Apple Sign-In is available
+    isAppleSignInAvailable().then(setShowAppleSignIn);
+  }, []);
 
   const emailRegex = useMemo(() => /\S+@\S+\.\S+/, []);
   const isFormValid = useMemo(() => {
@@ -69,6 +77,33 @@ const RegisterScreen: React.FC = () => {
       acceptTerms
     );
   }, [fullName, email, phoneNumber, password, confirmPassword, acceptTerms, emailRegex]);
+
+  const handleGoogleSignIn = async () => {
+    if (!signInWithGoogle) return;
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.message || 'Google ile kayıt başarısız');
+    }
+  };
+
+  const handleFacebookSignIn = async () => {
+    if (!signInWithFacebook) return;
+    try {
+      await signInWithFacebook();
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.message || 'Facebook ile kayıt başarısız');
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    if (!signInWithApple) return;
+    try {
+      await signInWithApple();
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.message || 'Apple ile kayıt başarısız');
+    }
+  };
 
   const handleRegister = async () => {
     if (!fullName.trim()) return Alert.alert(t('common.error'), t('register.errors.fullNameRequired'));
@@ -199,7 +234,29 @@ const RegisterScreen: React.FC = () => {
             <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
               {acceptTerms && <Icon name="check" size={16} color="#fff" />}
             </View>
-            <Text style={styles.termsText}>{t('register.termsText')}</Text>
+            <Text style={styles.termsText}>
+              <Text>LingRoot'un </Text>
+              <Text 
+                style={styles.linkText}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  Linking.openURL('https://www.lingroot.com/terms');
+                }}
+              >
+                Hizmet Şartları
+              </Text>
+              <Text> ve </Text>
+              <Text 
+                style={styles.linkText}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  Linking.openURL('https://www.lingroot.com/privacy-policy');
+                }}
+              >
+                Gizlilik Politikası
+              </Text>
+              <Text>'nı okudum ve kabul ediyorum.</Text>
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -215,6 +272,29 @@ const RegisterScreen: React.FC = () => {
           <TouchableOpacity style={styles.linkButton} onPress={() => { try { (navigation as any)?.navigate?.('Login'); } catch {} }}>
             <Text style={styles.linkText}>{t('register.haveAccount')}</Text>
           </TouchableOpacity>
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>veya</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignIn}>
+            <Icon name="google" size={20} color="#DB4437" />
+            <Text style={styles.socialButtonText}>Google ile Kayıt Ol</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.socialButton} onPress={handleFacebookSignIn}>
+            <Icon name="facebook" size={20} color="#4267B2" />
+            <Text style={styles.socialButtonText}>Facebook ile Kayıt Ol</Text>
+          </TouchableOpacity>
+
+          {showAppleSignIn && (
+            <TouchableOpacity style={[styles.socialButton, styles.appleButton]} onPress={handleAppleSignIn}>
+              <Icon name="apple" size={20} color="#000" />
+              <Text style={[styles.socialButtonText, styles.appleButtonText]}>Apple ile Kayıt Ol</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -323,6 +403,44 @@ const styles = StyleSheet.create({
   linkText: {
     color: '#007AFF',
     fontSize: 14,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ddd',
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: '#666',
+    fontSize: 14,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  socialButtonText: {
+    marginLeft: 10,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  appleButton: {
+    backgroundColor: '#000',
+  },
+  appleButtonText: {
+    color: '#fff',
   },
 });
 
