@@ -365,11 +365,12 @@ exports.getMyPlanFeatures = async (req, res) => {
               topic_suggestions: true,
               book: false
             },
-            voice_models: {
-              openai_tts: true,
-              elevenlabs: false,
-              google_tts: false,
-              azure_tts: false
+            voice_categories: {
+              standard: true,
+              wavenet: false,
+              neural2: false,
+              studio: false,
+              chirp3d: false
             },
             sentence_patterns: {
               enabled: false,
