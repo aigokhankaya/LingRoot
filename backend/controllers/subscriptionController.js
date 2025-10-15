@@ -819,18 +819,33 @@ exports.getUsageSummary = async (req, res) => {
     const userId = req.user.id;
     const state = await checkLimits(userId);
     if (!state.hasPlan) {
-      return res.json({ success: true, data: { hasPlan: false } });
+      return res.json({ 
+        success: true, 
+        data: { 
+          hasPlan: false,
+          isExpired: state.isExpired || false,
+          expiredAt: state.expiredAt,
+          message: state.message
+        } 
+      });
     }
     return res.json({
       success: true,
       data: {
         hasPlan: true,
         subscription: state.subscription,
+        plan: state.plan,
+        plantype: state.plan?.name,
         periodStart: state.periodStart,
         usage: state.usage,
         limits: state.limits,
         exceeded: state.exceeded,
         isExceeded: state.isExceeded,
+        // Free Trial özel alanları
+        isFreeTrialExhausted: state.isFreeTrialExhausted || false,
+        audioCreationCount: state.audioCreationCount,
+        maxAudioCount: state.maxAudioCount,
+        remainingAudioCount: state.remainingAudioCount,
       },
     });
   } catch (e) {

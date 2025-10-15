@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -182,6 +183,33 @@ const RegisterScreen: React.FC = () => {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    if (!signInWithGoogle) return;
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.message || 'Google ile kayıt başarısız');
+    }
+  };
+
+  const handleFacebookSignIn = async () => {
+    if (!signInWithFacebook) return;
+    try {
+      await signInWithFacebook();
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.message || 'Facebook ile kayıt başarısız');
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    if (!signInWithApple) return;
+    try {
+      await signInWithApple();
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.message || 'Apple ile kayıt başarısız');
+    }
+  };
+
   const handleRegister = async () => {
     // Eğer social register ise farklı akış
     if (isSocialRegister && socialData) {
@@ -238,48 +266,34 @@ const RegisterScreen: React.FC = () => {
         </View>
 
         <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder={t('register.fullName')}
-            value={fullName}
-            onChangeText={setFullName}
-            autoCapitalize="words"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder={t('register.email')}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Telefon Numarası (+90 555 123 45 67)"
-            value={phoneNumber}
-            onChangeText={(v) => setPhoneNumber(formatTRPhone(v))}
-            keyboardType="phone-pad"
-            autoComplete="tel"
-          />
-
-          <View style={styles.inputWrapper}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>{t('register.fullName')}</Text>
             <TextInput
-              style={[styles.input, styles.passwordInput]}
-              placeholder={t('register.password')}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoComplete="password"
+              style={styles.input}
+              placeholder={t('register.fullName')}
+              placeholderTextColor="#999"
+              value={fullName}
+              onChangeText={setFullName}
+              autoCapitalize="words"
             />
-            <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(v => !v)}>
-              <Icon name={showPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
-            </TouchableOpacity>
           </View>
 
-          <View style={styles.inputWrapper}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>{t('register.email')}</Text>
+            <TextInput
+              style={styles.input}
+              placeholder={t('register.email')}
+              placeholderTextColor="#999"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Telefon Numarası</Text>
             <TextInput
               style={[styles.input, isSocialRegister && styles.disabledInput]}
               placeholder={t('register.email')}
@@ -350,7 +364,29 @@ const RegisterScreen: React.FC = () => {
             <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
               {acceptTerms && <Icon name="check" size={16} color="#fff" />}
             </View>
-            <Text style={styles.termsText}>{t('register.termsText')}</Text>
+            <Text style={styles.termsText}>
+              <Text>LingRoot'un </Text>
+              <Text 
+                style={styles.linkText}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  Linking.openURL('https://www.lingroot.com/terms');
+                }}
+              >
+                Hizmet Şartları
+              </Text>
+              <Text> ve </Text>
+              <Text 
+                style={styles.linkText}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  Linking.openURL('https://www.lingroot.com/privacy-policy');
+                }}
+              >
+                Gizlilik Politikası
+              </Text>
+              <Text>'nı okudum ve kabul ediyorum.</Text>
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -418,14 +454,23 @@ const styles = StyleSheet.create({
   form: {
     width: '100%',
   },
+  inputContainer: {
+    marginBottom: 15,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 6,
+  },
   input: {
     backgroundColor: 'white',
     borderRadius: 8,
     padding: 15,
-    marginBottom: 15,
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
+    color: '#000', // Text color for visibility
   },
   disabledInput: {
     backgroundColor: '#f0f0f0',
@@ -435,7 +480,11 @@ const styles = StyleSheet.create({
   passwordInput: {
     paddingRight: 48,
   },
-  eyeButton: { position: 'absolute', right: 12, top: 0, bottom: 15, width: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  eyeButton: {
+    position: 'absolute',
+    right: 12,
+    top: 15,
+  },
   termsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -483,6 +532,44 @@ const styles = StyleSheet.create({
   linkText: {
     color: '#007AFF',
     fontSize: 14,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ddd',
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: '#666',
+    fontSize: 14,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  socialButtonText: {
+    marginLeft: 10,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  appleButton: {
+    backgroundColor: '#000',
+  },
+  appleButtonText: {
+    color: '#fff',
   },
 });
 

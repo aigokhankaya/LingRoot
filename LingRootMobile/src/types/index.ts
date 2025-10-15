@@ -5,6 +5,7 @@ export interface User {
   full_name?: string;
   avatar_url?: string;
   membership_level: MembershipLevel;
+  role?: string;
   created_at: string;
   updated_at: string;
 }
@@ -120,8 +121,12 @@ export type RootStackParamList = {
   Profile: undefined;
   Settings: undefined;
   Membership: undefined;
+  Packages: undefined;
   Chat: undefined;
   Vocabulary: { wordId?: string } | undefined;
+  PrivacyPolicy: undefined;
+  TermsOfService: undefined;
+  ReminderSettings: undefined;
 };
 
 export type MainTabParamList = {

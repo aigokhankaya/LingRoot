@@ -32,18 +32,14 @@ async function ensureSetup() {
   try {
     // Check if already initialized to avoid duplicate setup
     const isSetup = await TrackPlayer.isServiceRunning();
-    console.log('TrackPlayer service running:', isSetup);
     
     if (!isSetup) {
-      console.log('Setting up TrackPlayer...');
       await TrackPlayer.setupPlayer({
         waitForBuffer: true,
       });
-      console.log('TrackPlayer setup complete');
     }
 
     // Set options to enable background and controls
-    console.log('Updating TrackPlayer options...');
     await TrackPlayer.updateOptions({
       stoppingAppPausesPlayback: true,
       android: {
@@ -58,9 +54,7 @@ async function ensureSetup() {
       compactCapabilities: [Capability.Play, Capability.Pause],
       progressUpdateEventInterval: 0.5,
     });
-    console.log('TrackPlayer options updated');
   } catch (error) {
-    console.error('TrackPlayer setup error:', error);
     throw error;
   }
 
@@ -105,15 +99,11 @@ async function buildStatus(forceFinished = false) {
 }
 
 export async function createSound(url: string): Promise<SoundLike> {
-  console.log('Creating sound for URL:', url);
-  
   try {
     await ensureSetup();
-    console.log('TrackPlayer setup completed');
 
     // Reset queue and add the single track
     await TrackPlayer.reset();
-    console.log('TrackPlayer queue reset');
 
     const track: Track = {
       id: 'current',
@@ -122,11 +112,8 @@ export async function createSound(url: string): Promise<SoundLike> {
       artist: 'LingRoot',
     };
     
-    console.log('Adding track to TrackPlayer:', track);
     await TrackPlayer.add([track]);
-    console.log('Track added successfully');
   } catch (error) {
-    console.error('Error in createSound:', error);
     throw error;
   }
 

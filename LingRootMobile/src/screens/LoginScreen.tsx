@@ -16,8 +16,11 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiService } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from '../contexts/LanguageContext';
+import { isAppleSignInAvailable } from '../services/socialAuth';
 
 const LoginScreen: React.FC = () => {
+  const { language } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -34,9 +37,17 @@ const LoginScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<any>();
 
+  useEffect(() => {
+    // Check if Apple Sign-In is available
+    isAppleSignInAvailable().then(setShowAppleSignIn);
+  }, []);
+
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
+      Alert.alert(
+        language === 'tr' ? 'Hata' : 'Error',
+        language === 'tr' ? 'Lütfen tüm alanları doldurun' : 'Please fill in all fields'
+      );
       return;
     }
 
@@ -61,11 +72,13 @@ const LoginScreen: React.FC = () => {
         // Dismiss keyboard to ensure visibility
         try { Keyboard.dismiss(); } catch {}
         Alert.alert(
-          'Aktivasyon Gerekli',
-          'Hesabınızı doğrulamak için e-postanıza gönderilen aktivasyon mailine bakın. (Spam/Junk klasörünü de kontrol edin.)',
+          language === 'tr' ? 'Aktivasyon Gerekli' : 'Activation Required',
+          language === 'tr' 
+            ? 'Hesabınızı doğrulamak için e-postanıza gönderilen aktivasyon mailine bakın. (Spam/Junk klasörünü de kontrol edin.)'
+            : 'Please check the activation email sent to your email to verify your account. (Also check your Spam/Junk folder.)',
           [
             {
-              text: 'Tamam',
+              text: language === 'tr' ? 'Tamam' : 'OK',
               onPress: () => {
                 try { setShowResendUI(true); } catch {}
                 // Force navigation to this screen with params so state reliably restores
@@ -80,7 +93,10 @@ const LoginScreen: React.FC = () => {
           ]
         );
       } else {
-        Alert.alert('Giriş Hatası', error.message || 'Giriş başarısız');
+        Alert.alert(
+          language === 'tr' ? 'Giriş Hatası' : 'Login Error',
+          error.message || (language === 'tr' ? 'Giriş başarısız' : 'Login failed')
+        );
       }
     } finally {
       setIsLoading(false);
@@ -215,7 +231,7 @@ const LoginScreen: React.FC = () => {
         <View style={styles.centerWrap}>
           <View style={styles.header}>
           <Text style={styles.title}>LingRoot</Text>
-          <Text style={styles.subtitle}>AI Destekli Dil Öğrenme</Text>
+          <Text style={styles.subtitle}>{language === 'tr' ? 'AI Destekli Dil Öğrenme' : 'AI-Powered Language Learning'}</Text>
           </View>
 
           <View style={styles.form}>
@@ -227,7 +243,9 @@ const LoginScreen: React.FC = () => {
           {(errorCode === 'EMAIL_NOT_VERIFIED' || showResendUI) && showResendUI && (
             <View style={styles.resendBox} onLayout={(e) => setResendBoxY(e.nativeEvent.layout.y)}>
               <Text style={styles.resendText}>
-                E-postanız doğrulanmamış görünüyor. Aşağıdaki bağlantı ile aktivasyon e-postasını mevcut adresinize tekrar gönderebilirsiniz.
+                {language === 'tr' 
+                  ? 'E-postanız doğrulanmamış görünüyor. Aşağıdaki bağlantı ile aktivasyon e-postasını mevcut adresinize tekrar gönderebilirsiniz.'
+                  : 'Your email appears to be unverified. You can resend the activation email to your current address using the link below.'}
               </Text>
               <TouchableOpacity
                 style={[styles.linkButton, { alignSelf: 'flex-start', marginTop: 8, opacity: resendLoading || !email ? 0.5 : 1 }]}
@@ -235,7 +253,9 @@ const LoginScreen: React.FC = () => {
                 disabled={resendLoading || !email}
               >
                 <Text style={styles.linkText}>
-                  {resendLoading ? 'Gönderiliyor...' : 'Aktivasyon e-postasını yeniden gönder'}
+                  {resendLoading 
+                    ? (language === 'tr' ? 'Gönderiliyor...' : 'Sending...') 
+                    : (language === 'tr' ? 'Aktivasyon e-postasını yeniden gönder' : 'Resend activation email')}
                 </Text>
               </TouchableOpacity>
               {!!resendMessage && (
@@ -245,7 +265,8 @@ const LoginScreen: React.FC = () => {
           )}
           <TextInput
             style={styles.input}
-            placeholder="E-posta"
+            placeholder={language === 'tr' ? 'E-posta' : 'Email'}
+            placeholderTextColor="#999"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -258,7 +279,8 @@ const LoginScreen: React.FC = () => {
           <View style={styles.inputWrapper}>
             <TextInput
               style={[styles.input, styles.passwordInput]}
-              placeholder="Şifre"
+              placeholder={language === 'tr' ? 'Şifre' : 'Password'}
+              placeholderTextColor="#999"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
@@ -275,7 +297,9 @@ const LoginScreen: React.FC = () => {
             disabled={isLoading}
           >
             <Text style={styles.buttonText}>
-              {isLoading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
+              {isLoading 
+                ? (language === 'tr' ? 'Giriş Yapılıyor...' : 'Logging in...') 
+                : (language === 'tr' ? 'Giriş Yap' : 'Login')}
             </Text>
           </TouchableOpacity>
 
@@ -286,11 +310,11 @@ const LoginScreen: React.FC = () => {
               try { (navigation as any)?.getParent?.()?.navigate?.('Auth', { screen: 'ForgotPassword' }); } catch {}
             }}
           >
-            <Text style={styles.linkText}>Şifremi Unuttum</Text>
+            <Text style={styles.linkText}>{language === 'tr' ? 'Şifremi Unuttum' : 'Forgot Password'}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.linkButton} onPress={() => { try { (navigation as any)?.navigate?.('Register'); } catch {} }}>
-            <Text style={styles.linkText}>Hesabın yok mu? Kayıt ol</Text>
+            <Text style={styles.linkText}>{language === 'tr' ? 'Hesabın yok mu? Kayıt ol' : "Don't have an account? Sign up"}</Text>
           </TouchableOpacity>
 
           <View style={styles.divider}>
@@ -362,6 +386,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
+    color: '#000', // Text color for visibility
   },
   inputWrapper: {
     position: 'relative',
@@ -442,6 +467,44 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ddd',
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: '#666',
+    fontSize: 14,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  socialButtonText: {
+    marginLeft: 10,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  appleButton: {
+    backgroundColor: '#000',
+  },
+  appleButtonText: {
+    color: '#fff',
   },
 });
 
