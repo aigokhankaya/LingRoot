@@ -14,7 +14,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useNavigation, CommonActions } from '@react-navigation/native';
+import { useNavigation, CommonActions, useRoute } from '@react-navigation/native';
 import { isAppleSignInAvailable } from '../services/socialAuth';
 
 // Phone helpers: Turkish format +90 555 123 45 67
@@ -45,28 +45,48 @@ const formatTRPhone = (value: string) => {
 };
 
 const RegisterScreen: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const route = useRoute<any>();
+  const socialData = route.params?.socialData;
+  
+  const [email, setEmail] = useState(socialData?.email || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [fullName, setFullName] = useState(socialData?.name || '');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showAppleSignIn, setShowAppleSignIn] = useState(false);
-  const { signUp, signInWithGoogle, signInWithFacebook, signInWithApple } = useAuth();
+  const [isSocialRegister, setIsSocialRegister] = useState(!!socialData);
+  const { signUp, signInWithGoogle, signInWithApple } = useAuth();
   const { t } = useLanguage();
   const navigation = useNavigation();
 
   useEffect(() => {
     // Check if Apple Sign-In is available
     isAppleSignInAvailable().then(setShowAppleSignIn);
+    
+    // Eğer social data varsa, kullanıcıya bilgi ver
+    if (socialData) {
+      Alert.alert(
+        t('common.info') || 'Bilgi',
+        'Google hesabınızla kayıt olmak için lütfen telefon numaranızı girin ve şartları kabul edin.',
+        [{ text: 'OK' }]
+      );
+    }
   }, []);
 
   const emailRegex = useMemo(() => /\S+@\S+\.\S+/, []);
   const isFormValid = useMemo(() => {
     const phoneDigits = extractTRLocalDigits(phoneNumber);
+    
+    // Social register için sadece telefon ve şartlar yeterli
+    if (isSocialRegister) {
+      return phoneDigits.length === 10 && acceptTerms;
+    }
+    
+    // Normal register için tüm alanlar gerekli
     return (
       fullName.trim().length >= 2 &&
       emailRegex.test(email.trim()) &&
@@ -76,7 +96,92 @@ const RegisterScreen: React.FC = () => {
       password === confirmPassword &&
       acceptTerms
     );
-  }, [fullName, email, phoneNumber, password, confirmPassword, acceptTerms, emailRegex]);
+  }, [fullName, email, phoneNumber, password, confirmPassword, acceptTerms, emailRegex, isSocialRegister]);
+
+  const handleGoogleSignIn = async () => {
+    if (!signInWithGoogle) return;
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      // Kullanıcı sistemde yoksa, bu ekranda zaten kayıt yapıyoruz
+      if (error.code === 'USER_NOT_FOUND') {
+        Alert.alert(
+          t('common.info') || 'Bilgi',
+          'Lütfen telefon numaranızı girin ve kayıt işlemini tamamlayın.'
+        );
+        return;
+      }
+      Alert.alert(t('common.error'), error.message || 'Google ile kayıt başarısız');
+    }
+  };
+
+  // Facebook sign-in removed
+
+  const handleAppleSignIn = async () => {
+    if (!signInWithApple) return;
+    try {
+      await signInWithApple();
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.message || 'Apple ile kayıt başarısız');
+    }
+  };
+
+  const handleSocialRegister = async () => {
+    // Social register için sadece telefon numarası ve şartlar gerekli
+    const phoneDigits = extractTRLocalDigits(phoneNumber);
+    if (phoneDigits.length !== 10) return Alert.alert(t('common.error'), 'Lütfen geçerli bir telefon numarası girin');
+    if (!acceptTerms) return Alert.alert(t('common.error'), t('register.errors.acceptTerms'));
+
+    setIsLoading(true);
+    try {
+      const normalizedPhone = normalizeTRPhone(phoneNumber);
+      const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+      
+      // Backend'e social register isteği gönder
+      const endpoint = socialData.provider === 'google' 
+        ? '/api/auth/google-register'
+        : '/api/auth/apple-register';
+      
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          credential: socialData.credential,
+          phoneNumber: normalizedPhone,
+          fullName: fullName.trim() || socialData.name,
+          email: email.trim() || socialData.email,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Kayıt başarısız');
+      }
+
+      setIsLoading(false);
+      
+      Alert.alert(
+        t('common.success'),
+        'Kayıt başarılı! Şimdi giriş yapabilirsiniz.',
+        [
+          { 
+            text: 'OK', 
+            onPress: () => {
+              try { (navigation as any)?.navigate?.('Login'); } catch {}
+            }
+          }
+        ]
+      );
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error.message || 'Kayıt başarısız');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     if (!signInWithGoogle) return;
@@ -106,6 +211,12 @@ const RegisterScreen: React.FC = () => {
   };
 
   const handleRegister = async () => {
+    // Eğer social register ise farklı akış
+    if (isSocialRegister && socialData) {
+      return handleSocialRegister();
+    }
+
+    // Normal register
     if (!fullName.trim()) return Alert.alert(t('common.error'), t('register.errors.fullNameRequired'));
     if (!emailRegex.test(email.trim())) return Alert.alert(t('common.error'), t('register.errors.emailInvalid'));
     const phoneDigits = extractTRLocalDigits(phoneNumber);
@@ -184,6 +295,21 @@ const RegisterScreen: React.FC = () => {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Telefon Numarası</Text>
             <TextInput
+              style={[styles.input, isSocialRegister && styles.disabledInput]}
+              placeholder={t('register.email')}
+              placeholderTextColor="#999"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              editable={!isSocialRegister}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Telefon Numarası</Text>
+            <TextInput
               style={styles.input}
               placeholder="+90 555 123 45 67"
               placeholderTextColor="#999"
@@ -194,41 +320,45 @@ const RegisterScreen: React.FC = () => {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('register.password')}</Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={[styles.input, styles.passwordInput]}
-                placeholder={t('register.password')}
-                placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoComplete="password"
-              />
-              <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(v => !v)}>
-                <Icon name={showPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
-              </TouchableOpacity>
-            </View>
-          </View>
+          {!isSocialRegister && (
+            <>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>{t('register.password')}</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={[styles.input, styles.passwordInput]}
+                    placeholder={t('register.password')}
+                    placeholderTextColor="#999"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoComplete="password"
+                  />
+                  <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(v => !v)}>
+                    <Icon name={showPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('register.confirmPassword')}</Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={[styles.input, styles.passwordInput]}
-                placeholder={t('register.confirmPassword')}
-                placeholderTextColor="#999"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-                autoComplete="password"
-              />
-              <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirmPassword(v => !v)}>
-                <Icon name={showConfirmPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
-              </TouchableOpacity>
-            </View>
-          </View>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>{t('register.confirmPassword')}</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={[styles.input, styles.passwordInput]}
+                    placeholder={t('register.confirmPassword')}
+                    placeholderTextColor="#999"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showConfirmPassword}
+                    autoComplete="password"
+                  />
+                  <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirmPassword(v => !v)}>
+                    <Icon name={showConfirmPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </>
+          )}
 
           <TouchableOpacity style={styles.termsRow} onPress={() => setAcceptTerms(v => !v)}>
             <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
@@ -282,11 +412,6 @@ const RegisterScreen: React.FC = () => {
           <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignIn}>
             <Icon name="google" size={20} color="#DB4437" />
             <Text style={styles.socialButtonText}>Google ile Kayıt Ol</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.socialButton} onPress={handleFacebookSignIn}>
-            <Icon name="facebook" size={20} color="#4267B2" />
-            <Text style={styles.socialButtonText}>Facebook ile Kayıt Ol</Text>
           </TouchableOpacity>
 
           {showAppleSignIn && (
@@ -346,6 +471,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     color: '#000', // Text color for visibility
+  },
+  disabledInput: {
+    backgroundColor: '#f0f0f0',
+    color: '#666',
   },
   inputWrapper: { position: 'relative' },
   passwordInput: {

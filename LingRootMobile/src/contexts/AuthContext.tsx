@@ -6,7 +6,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationService from '../services/notificationService';
 import { 
   signInWithGoogle, 
-  signInWithFacebook, 
   signInWithApple,
   signOutFromSocialProviders,
   configureGoogleSignIn,
@@ -330,8 +329,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Determine endpoint based on provider
     const endpoint = socialResult.provider === 'google' 
       ? '/api/auth/google-login'
-      : socialResult.provider === 'facebook'
-      ? '/api/auth/facebook-login'
       : '/api/auth/apple-login';
     
     // Prepare request body
@@ -362,6 +359,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!response.ok) {
       const errorData = await response.json();
       
+      // Kullanıcı sistemde yoksa - register ekranına yönlendir
+      if (errorData.code === 'USER_NOT_FOUND' || errorData.code === 'USER_NOT_REGISTERED') {
+        const error: any = new Error(errorData.message || 'Kullanıcı bulunamadı. Lütfen kayıt olun.');
+        error.code = 'USER_NOT_FOUND';
+        error.socialData = socialResult; // Social auth bilgilerini sakla
+        throw error;
+      }
+      
       // Email doğrulanmamışsa özel hata mesajı
       if (errorData.code === 'EMAIL_NOT_VERIFIED') {
         throw new Error(errorData.message || 'Email adresiniz doğrulanmamış. Lütfen email adresinize gönderilen doğrulama linkine tıklayın.');
@@ -374,6 +379,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     if (data.success && data.data.user) {
       const backendUser = data.data.user;
+      
+      // Backend'den isNewUser flag'i geliyorsa kontrol et
+      // Veya kullanıcının phone_number'ı yoksa yeni kullanıcıdır
+      const isNewUser = data.data.isNewUser || 
+                        data.data.justCreated || 
+                        !backendUser.phone_number || 
+                        !backendUser.phoneNumber;
+      
+      if (isNewUser) {
+        // Yeni kullanıcı - register ekranına yönlendir
+        const error: any = new Error('Kullanıcı bulunamadı. Lütfen kayıt olun.');
+        error.code = 'USER_NOT_FOUND';
+        error.socialData = socialResult;
+        throw error;
+      }
+      
       const builtFullName = (
         backendUser.name ||
         backendUser.full_name ||
@@ -425,22 +446,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signInWithFacebookProvider = async () => {
-    setIsLoading(true);
-    try {
-      const isConnected = await apiService.checkConnectivity();
-      if (!isConnected) {
-        throw new Error('Backend serveri ile bağlantı kurulamıyor. Lütfen internet bağlantınızı kontrol edin.');
-      }
-      
-      const socialResult = await signInWithFacebook();
-      await handleSocialAuth(socialResult);
-      setIsLoading(false);
-    } catch (error: any) {
-      setIsLoading(false);
-      throw error;
-    }
-  };
+  // Facebook sign-in removed
 
   const signInWithAppleProvider = async () => {
     setIsLoading(true);
@@ -483,7 +489,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signOut,
     updateUserProfile,
     signInWithGoogle: signInWithGoogleProvider,
-    signInWithFacebook: signInWithFacebookProvider,
     signInWithApple: signInWithAppleProvider,
   };
 

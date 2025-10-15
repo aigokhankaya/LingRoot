@@ -31,7 +31,7 @@ const LoginScreen: React.FC = () => {
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [showResendUI, setShowResendUI] = useState(false);
   const [showAppleSignIn, setShowAppleSignIn] = useState(false);
-  const { signIn, signInWithGoogle, signInWithFacebook, signInWithApple } = useAuth();
+  const { signIn, signInWithGoogle, signInWithApple } = useAuth();
   const scrollRef = useRef<ScrollView | null>(null);
   const [resendBoxY, setResendBoxY] = useState<number | null>(null);
   const navigation = useNavigation();
@@ -167,6 +167,32 @@ const LoginScreen: React.FC = () => {
     try {
       await signInWithGoogle();
     } catch (error: any) {
+      // Kullanıcı sistemde yoksa register ekranına yönlendir
+      if (error.code === 'USER_NOT_FOUND') {
+        Alert.alert(
+          language === 'tr' ? 'Kullanıcı Bulunamadı' : 'User Not Found',
+          language === 'tr' 
+            ? 'Bu Google hesabı ile kayıtlı bir kullanıcı bulunamadı. Kayıt ekranına yönlendiriliyorsunuz.' 
+            : 'No user found with this Google account. Redirecting to registration.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Register ekranına yönlendir
+                try {
+                  (navigation as any)?.navigate?.('Register', { 
+                    socialData: error.socialData 
+                  });
+                } catch (navError) {
+                  console.error('Navigation error:', navError);
+                }
+              }
+            }
+          ]
+        );
+        return;
+      }
+      
       Alert.alert(
         language === 'tr' ? 'Google Giriş Hatası' : 'Google Sign-In Error',
         error.message || (language === 'tr' ? 'Google ile giriş başarısız' : 'Google sign-in failed')
@@ -174,17 +200,7 @@ const LoginScreen: React.FC = () => {
     }
   };
 
-  const handleFacebookSignIn = async () => {
-    if (!signInWithFacebook) return;
-    try {
-      await signInWithFacebook();
-    } catch (error: any) {
-      Alert.alert(
-        language === 'tr' ? 'Facebook Giriş Hatası' : 'Facebook Sign-In Error',
-        error.message || (language === 'tr' ? 'Facebook ile giriş başarısız' : 'Facebook sign-in failed')
-      );
-    }
-  };
+  // Facebook sign-in removed
 
   const handleAppleSignIn = async () => {
     if (!signInWithApple) return;
@@ -311,13 +327,6 @@ const LoginScreen: React.FC = () => {
             <Icon name="google" size={20} color="#DB4437" />
             <Text style={styles.socialButtonText}>
               {language === 'tr' ? 'Google ile Giriş Yap' : 'Sign in with Google'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.socialButton} onPress={handleFacebookSignIn}>
-            <Icon name="facebook" size={20} color="#4267B2" />
-            <Text style={styles.socialButtonText}>
-              {language === 'tr' ? 'Facebook ile Giriş Yap' : 'Sign in with Facebook'}
             </Text>
           </TouchableOpacity>
 

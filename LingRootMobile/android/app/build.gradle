@@ -62,7 +62,7 @@ android {
             // Support all ABIs for maximum device compatibility
             abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
         }
-        // Specify Google Play flavor for react-native-iap
+        // react-native-iap için Google Play variant'ını seç
         missingDimensionStrategy 'store', 'play'
     }
     signingConfigs {

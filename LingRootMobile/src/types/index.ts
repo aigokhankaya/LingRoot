@@ -18,7 +18,6 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   updateUserProfile: (data: Partial<User> & { phoneNumber?: string; full_name?: string }) => Promise<void>;
   signInWithGoogle?: () => Promise<void>;
-  signInWithFacebook?: () => Promise<void>;
   signInWithApple?: () => Promise<void>;
 }
 

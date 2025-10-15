@@ -1,34 +1,53 @@
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { LoginManager, AccessToken } from 'react-native-fbsdk-next';
 import appleAuth from '@invertase/react-native-apple-authentication';
 import { Platform } from 'react-native';
+import { 
+  EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, 
+  EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+  EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID 
+} from '@env';
 
 // Google Sign-In Configuration
 export const configureGoogleSignIn = () => {
   try {
-    const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-    const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+    const webClientId = EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+    const androidClientId = EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+    const iosClientId = EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
     
     // Don't configure if no client IDs are provided
-    if (!webClientId && !iosClientId) {
+    if (!webClientId && !androidClientId && !iosClientId) {
       console.warn('[GOOGLE_SIGNIN] No client IDs configured. Google Sign-In will not work.');
       return;
     }
     
-    GoogleSignin.configure({
+    // Platform-specific configuration
+    const config: any = {
       webClientId: webClientId || undefined,
-      iosClientId: iosClientId || undefined,
-      offlineAccess: false, // Set to false to avoid server web ClientId requirement
-    });
+      offlineAccess: false,
+    };
     
-    console.log('[GOOGLE_SIGNIN] Configuration successful');
+    if (Platform.OS === 'android' && androidClientId) {
+      // Android uses its own Client ID
+      config.androidClientId = androidClientId;
+    } else if (Platform.OS === 'ios' && iosClientId) {
+      config.iosClientId = iosClientId;
+    }
+    
+    GoogleSignin.configure(config);
+    
+    console.log('[GOOGLE_SIGNIN] Configuration successful', {
+      platform: Platform.OS,
+      hasWebClientId: !!webClientId,
+      hasAndroidClientId: !!androidClientId,
+      hasIosClientId: !!iosClientId,
+    });
   } catch (error) {
     console.error('[GOOGLE_SIGNIN] Configuration error:', error);
   }
 };
 
 export interface SocialAuthResult {
-  provider: 'google' | 'facebook' | 'apple';
+  provider: 'google' | 'apple';
   credential: string;
   email?: string;
   name?: string;
@@ -61,42 +80,8 @@ export const signInWithGoogle = async (): Promise<SocialAuthResult> => {
   }
 };
 
-// Facebook Login
-export const signInWithFacebook = async (): Promise<SocialAuthResult> => {
-  try {
-    const result = await LoginManager.logInWithPermissions(['public_profile', 'email']);
-    
-    if (result.isCancelled) {
-      throw new Error('Facebook girişi iptal edildi');
-    }
-    
-    // Get access token
-    const data = await AccessToken.getCurrentAccessToken();
-    
-    if (!data) {
-      throw new Error('Facebook access token alınamadı');
-    }
-    
-    // Fetch user info from Facebook Graph API
-    const response = await fetch(
-      `https://graph.facebook.com/me?fields=id,name,email,first_name,last_name,picture.type(large)&access_token=${data.accessToken}`
-    );
-    const userInfo = await response.json();
-    
-    return {
-      provider: 'facebook',
-      credential: data.accessToken,
-      email: userInfo.email,
-      name: userInfo.name,
-      given_name: userInfo.first_name,
-      family_name: userInfo.last_name,
-      picture: userInfo.picture?.data?.url,
-    };
-  } catch (error: any) {
-    console.error('[FACEBOOK_LOGIN] Error:', error);
-    throw new Error(error.message || 'Facebook ile giriş başarısız');
-  }
-};
+// Facebook Login - Removed (package uninstalled)
+// export const signInWithFacebook = async (): Promise<SocialAuthResult> => { ... }
 
 // Apple Sign-In (iOS only)
 export const signInWithApple = async (): Promise<SocialAuthResult> => {
@@ -182,12 +167,5 @@ export const signOutFromSocialProviders = async () => {
     await GoogleSignin.signOut();
   } catch (error) {
     console.warn('[SOCIAL_AUTH] Google sign out error:', error);
-  }
-  
-  try {
-    // Facebook logout
-    LoginManager.logOut();
-  } catch (error) {
-    console.warn('[SOCIAL_AUTH] Facebook logout error:', error);
   }
 };
