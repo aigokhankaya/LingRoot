@@ -13,12 +13,8 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-<<<<<<< Updated upstream
-import { useNavigation, CommonActions } from '@react-navigation/native';
-=======
 import { useNavigation, CommonActions, useRoute } from '@react-navigation/native';
 import { isAppleSignInAvailable } from '../services/socialAuth';
->>>>>>> Stashed changes
 
 // Phone helpers: Turkish format +90 555 123 45 67
 const extractDigits = (value: string) => (value || '').replace(/\D+/g, '');
@@ -60,12 +56,6 @@ const RegisterScreen: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-<<<<<<< Updated upstream
-  const { signUp } = useAuth();
-  const { t } = useLanguage();
-  const navigation = useNavigation();
-
-=======
   const [showAppleSignIn, setShowAppleSignIn] = useState(false);
   const [isSocialRegister, setIsSocialRegister] = useState(!!socialData);
   const { signUp, signInWithGoogle, signInWithApple } = useAuth();
@@ -86,7 +76,6 @@ const RegisterScreen: React.FC = () => {
     }
   }, []);
 
->>>>>>> Stashed changes
   const emailRegex = useMemo(() => /\S+@\S+\.\S+/, []);
   const isFormValid = useMemo(() => {
     const phoneDigits = extractTRLocalDigits(phoneNumber);
@@ -108,8 +97,6 @@ const RegisterScreen: React.FC = () => {
     );
   }, [fullName, email, phoneNumber, password, confirmPassword, acceptTerms, emailRegex, isSocialRegister]);
 
-<<<<<<< Updated upstream
-=======
   const handleGoogleSignIn = async () => {
     if (!signInWithGoogle) return;
     try {
@@ -195,7 +182,6 @@ const RegisterScreen: React.FC = () => {
     }
   };
 
->>>>>>> Stashed changes
   const handleRegister = async () => {
     // Eğer social register ise farklı akış
     if (isSocialRegister && socialData) {
@@ -295,19 +281,6 @@ const RegisterScreen: React.FC = () => {
 
           <View style={styles.inputWrapper}>
             <TextInput
-<<<<<<< Updated upstream
-              style={[styles.input, styles.passwordInput]}
-              placeholder={t('register.confirmPassword')}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showConfirmPassword}
-              autoComplete="password"
-            />
-            <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirmPassword(v => !v)}>
-              <Icon name={showConfirmPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
-            </TouchableOpacity>
-          </View>
-=======
               style={[styles.input, isSocialRegister && styles.disabledInput]}
               placeholder={t('register.email')}
               placeholderTextColor="#999"
@@ -372,7 +345,6 @@ const RegisterScreen: React.FC = () => {
               </View>
             </>
           )}
->>>>>>> Stashed changes
 
           <TouchableOpacity style={styles.termsRow} onPress={() => setAcceptTerms(v => !v)}>
             <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
@@ -394,8 +366,6 @@ const RegisterScreen: React.FC = () => {
           <TouchableOpacity style={styles.linkButton} onPress={() => { try { (navigation as any)?.navigate?.('Login'); } catch {} }}>
             <Text style={styles.linkText}>{t('register.haveAccount')}</Text>
           </TouchableOpacity>
-<<<<<<< Updated upstream
-=======
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
@@ -414,7 +384,6 @@ const RegisterScreen: React.FC = () => {
               <Text style={[styles.socialButtonText, styles.appleButtonText]}>Apple ile Kayıt Ol</Text>
             </TouchableOpacity>
           )}
->>>>>>> Stashed changes
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -4,8 +4,6 @@ import { authService } from '../services/supabase';
 import { apiService, setUnauthorizedHandler } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationService from '../services/notificationService';
-<<<<<<< Updated upstream
-=======
 import { 
   signInWithGoogle, 
   signInWithApple,
@@ -13,7 +11,6 @@ import {
   configureGoogleSignIn,
   type SocialAuthResult
 } from '../services/socialAuth';
->>>>>>> Stashed changes
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -322,8 +319,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-<<<<<<< Updated upstream
-=======
   // Social authentication handler
   const handleSocialAuth = async (socialResult: SocialAuthResult) => {
     const API_BASE_URL = 'https://lingloops-backend.onrender.com';
@@ -467,7 +462,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
->>>>>>> Stashed changes
   const updateUserProfile = async (data: Partial<User> & { phoneNumber?: string; full_name?: string }) => {
     if (!user) throw new Error('Oturum bulunamadı');
     try {
@@ -491,11 +485,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signUp,
     signOut,
     updateUserProfile,
-<<<<<<< Updated upstream
-=======
     signInWithGoogle: signInWithGoogleProvider,
     signInWithApple: signInWithAppleProvider,
->>>>>>> Stashed changes
   };
 
   return (

@@ -27,12 +27,8 @@ const LoginScreen: React.FC = () => {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [showResendUI, setShowResendUI] = useState(false);
-<<<<<<< Updated upstream
-  const { signIn } = useAuth();
-=======
   const [showAppleSignIn, setShowAppleSignIn] = useState(false);
   const { signIn, signInWithGoogle, signInWithApple } = useAuth();
->>>>>>> Stashed changes
   const scrollRef = useRef<ScrollView | null>(null);
   const [resendBoxY, setResendBoxY] = useState<number | null>(null);
   const navigation = useNavigation();
@@ -150,8 +146,6 @@ const LoginScreen: React.FC = () => {
     }
   };
 
-<<<<<<< Updated upstream
-=======
   const handleGoogleSignIn = async () => {
     if (!signInWithGoogle) return;
     try {
@@ -204,7 +198,6 @@ const LoginScreen: React.FC = () => {
     }
   };
 
->>>>>>> Stashed changes
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -299,8 +292,6 @@ const LoginScreen: React.FC = () => {
           <TouchableOpacity style={styles.linkButton} onPress={() => { try { (navigation as any)?.navigate?.('Register'); } catch {} }}>
             <Text style={styles.linkText}>Hesabın yok mu? Kayıt ol</Text>
           </TouchableOpacity>
-<<<<<<< Updated upstream
-=======
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
@@ -323,7 +314,6 @@ const LoginScreen: React.FC = () => {
               </Text>
             </TouchableOpacity>
           )}
->>>>>>> Stashed changes
           </View>
         </View>
       </ScrollView>
