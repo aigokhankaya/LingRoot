@@ -874,7 +874,7 @@ exports.googleLogin = async (req, res) => {
         phonenumber: null, // Google kullanıcıları için telefon numarası yok
         password: 'google-oauth', // Google kullanıcıları için placeholder şifre
         role: "user",
-        isverified: true, // Google hesapları doğrulanmış sayılır
+        isverified: false, // Google hesapları doğrulanmış sayılır
         dailycontentused: 0,
         lastcontentdate: null,
         stripecustomerid: null,
