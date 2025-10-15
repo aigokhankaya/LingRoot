@@ -99,15 +99,21 @@ const RegisterScreen: React.FC = () => {
 
   const handleGoogleSignIn = async () => {
     if (!signInWithGoogle) return;
+    
+    // Eğer zaten social register modundaysa, sadece uyarı göster
+    if (isSocialRegister && socialData) {
+      // Kullanıcı zaten Google ile register ekranına yönlendirilmiş
+      // Sadece formu doldurmalarını bekle
+      return;
+    }
+    
     try {
       await signInWithGoogle();
+      // Başarılı - kullanıcı zaten kayıtlı, giriş yapıldı
     } catch (error: any) {
       // Kullanıcı sistemde yoksa, bu ekranda zaten kayıt yapıyoruz
       if (error.code === 'USER_NOT_FOUND') {
-        Alert.alert(
-          t('common.info') || 'Bilgi',
-          'Lütfen telefon numaranızı girin ve kayıt işlemini tamamlayın.'
-        );
+        // Hiçbir şey yapma - kullanıcı zaten register ekranında
         return;
       }
       Alert.alert(t('common.error'), error.message || 'Google ile kayıt başarısız');
