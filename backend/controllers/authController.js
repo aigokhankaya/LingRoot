@@ -866,70 +866,13 @@ exports.googleLogin = async (req, res) => {
 
       user = updatedUser;
     } else {
-      // Yeni kullanıcı oluştur
-      const newUserData = {
-        firstname: given_name || name?.split(' ')[0] || 'Google',
-        lastname: family_name || name?.split(' ').slice(1).join(' ') || 'User',
-        email: email,
-        phonenumber: null, // Google kullanıcıları için telefon numarası yok
-        password: 'google-oauth', // Google kullanıcıları için placeholder şifre
-        role: "user",
-        isverified: true, // Google hesapları doğrulanmış sayılır
-        dailycontentused: 0,
-        lastcontentdate: null,
-        stripecustomerid: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      const { data: createdUser, error: createError } = await supabase
-        .from('users')
-        .insert([newUserData])
-        .select()
-        .single();
-
-      if (createError) {
-        logger.error('[GOOGLE_LOGIN] Kullanıcı oluşturma hatası:', createError);
-        return res.status(500).json({ success: false, message: "Kullanıcı oluşturulamadı" });
-      }
-
-      user = createdUser;
-      
-      // Send registration notification to support team for new Google users
-      try {
-        await sendRegistrationNotification(user);
-      } catch (notificationErr) {
-        logger.warn('[GOOGLE_LOGIN] Registration notification failed:', notificationErr?.message);
-      }
-      
-      // Assign Free Trial plan (3 audio creation credits) for Google new users
-      try {
-        const { data: trialPlan, error: planErr } = await supabase
-          .from('subscription_plans')
-          .select('*')
-          .eq('name', 'Free Trial')
-          .eq('is_active', true)
-          .maybeSingle();
-        
-        if (!planErr && trialPlan) {
-          // Trial süresiz - sadece 3 ses oluşturma hakkı
-          await supabase
-            .from('subscriptions')
-            .insert([
-              {
-                user_id: user.id,
-                plan_id: trialPlan.id,
-                status: 'active', // Trial değil, aktif - kullanım hakkı bazlı
-                current_period_end: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(), // 1 yıl (süresiz gibi)
-                cancel_at_period_end: false,
-                audio_creation_count: 0, // Başlangıç sayacı
-              },
-            ]);
-          logger.info(`[GOOGLE_LOGIN] Free Trial plan assigned to user ${user.id}`);
-        }
-      } catch (e2) {
-        logger.warn('[GOOGLE_LOGIN] Failed to assign Free Trial plan:', e2?.message);
-      }
+      // Kullanıcı bulunamadı - kayıt olması gerekiyor
+      logger.info('[GOOGLE_LOGIN] Kullanıcı bulunamadı:', email);
+      return res.status(404).json({ 
+        success: false, 
+        code: 'USER_NOT_FOUND',
+        message: "Bu Google hesabı ile kayıtlı kullanıcı bulunamadı. Lütfen önce kayıt olun." 
+      });
     }
 
     // JWT token oluştur
@@ -956,6 +899,165 @@ exports.googleLogin = async (req, res) => {
 
   } catch (error) {
     logger.error("Google login error", error);
+    return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
+  }
+};
+
+// Google ile kayıt
+exports.googleRegister = async (req, res) => {
+  try {
+    const { credential, phoneNumber, fullName, email: providedEmail } = req.body;
+    
+    if (!credential) {
+      return res.status(400).json({ success: false, message: "Google credential gerekli" });
+    }
+
+    if (!phoneNumber) {
+      return res.status(400).json({ success: false, message: "Telefon numarası gerekli" });
+    }
+
+    // Google credential'ı decode et
+    let googleUser;
+    const parts = credential.split('.');
+    const isJWT = parts.length === 3;
+    
+    try {
+      if (isJWT) {
+        // JWT token decode et
+        const base64Url = credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        googleUser = JSON.parse(jsonPayload);
+      } else {
+        // Access token ile Google API'den kullanıcı bilgilerini al
+        const axios = require('axios');
+        const response = await axios.get(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${credential}`);
+        googleUser = response.data;
+        googleUser.sub = googleUser.id;
+        googleUser.given_name = googleUser.given_name || googleUser.name?.split(' ')[0];
+        googleUser.family_name = googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ');
+      }
+    } catch (decodeError) {
+      logger.error('[GOOGLE_REGISTER] Credential decode hatası:', decodeError);
+      return res.status(400).json({ success: false, message: "Geçersiz Google credential" });
+    }
+
+    const { email, name, given_name, family_name, picture } = googleUser;
+    const finalEmail = email || providedEmail;
+    
+    if (!finalEmail) {
+      return res.status(400).json({ success: false, message: "Email gerekli" });
+    }
+
+    // Kullanıcının zaten var olup olmadığını kontrol et
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('users')
+      .select("*")
+      .eq("email", finalEmail)
+      .maybeSingle();
+
+    if (fetchError) {
+      logger.error('[GOOGLE_REGISTER] Kullanıcı sorgulama hatası:', fetchError);
+      return res.status(500).json({ success: false, message: "Veritabanı hatası" });
+    }
+
+    if (existingUser) {
+      return res.status(400).json({ 
+        success: false, 
+        code: 'USER_ALREADY_EXISTS',
+        message: "Bu email ile kayıtlı kullanıcı zaten var. Lütfen giriş yapın." 
+      });
+    }
+
+    // Yeni kullanıcı oluştur
+    const newUserData = {
+      firstname: given_name || fullName?.split(' ')[0] || name?.split(' ')[0] || 'Google',
+      lastname: family_name || fullName?.split(' ').slice(1).join(' ') || name?.split(' ').slice(1).join(' ') || 'User',
+      email: finalEmail,
+      phonenumber: phoneNumber,
+      password: 'google-oauth', // Google kullanıcıları için placeholder şifre
+      role: "user",
+      isverified: true, // Google hesapları doğrulanmış sayılır
+      dailycontentused: 0,
+      lastcontentdate: null,
+      stripecustomerid: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: createdUser, error: createError } = await supabase
+      .from('users')
+      .insert([newUserData])
+      .select()
+      .single();
+
+    if (createError) {
+      logger.error('[GOOGLE_REGISTER] Kullanıcı oluşturma hatası:', createError);
+      return res.status(500).json({ success: false, message: "Kullanıcı oluşturulamadı" });
+    }
+
+    const user = createdUser;
+    
+    // Send registration notification
+    try {
+      await sendRegistrationNotification(user);
+    } catch (notificationErr) {
+      logger.warn('[GOOGLE_REGISTER] Registration notification failed:', notificationErr?.message);
+    }
+    
+    // Assign default free trial plan if exists
+    try {
+      const { data: trialPlan, error: planErr } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .eq('is_trial', true)
+        .eq('is_active', true)
+        .order('price', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (!planErr && trialPlan) {
+        await supabase
+          .from('subscriptions')
+          .insert([
+            {
+              user_id: user.id,
+              plan_id: trialPlan.id,
+              status: 'trialing',
+              current_period_end: new Date(Date.now() + (Number(trialPlan.trial_days || 7) * 24 * 60 * 60 * 1000)).toISOString(),
+              cancel_at_period_end: false,
+            },
+          ]);
+      }
+    } catch (e2) {
+      logger.warn('[GOOGLE_REGISTER] Failed to assign trial plan:', e2?.message);
+    }
+
+    // JWT token oluştur
+    const token = generateToken(user.id, user.email, user.role, true);
+    const refreshToken = generateRefreshToken(user.id);
+
+    // Hassas verileri kaldır
+    delete user.password;
+    delete user.verificationToken;
+    delete user.resetPasswordToken;
+
+    // Record successful registration
+    try { await recordLoginAttempt(user.id, req, { success: true, message: 'google_register_success' }); } catch {}
+
+    return res.status(201).json({
+      success: true,
+      message: "Google ile kayıt başarılı",
+      data: {
+        user,
+        token,
+        refreshToken
+      }
+    });
+
+  } catch (error) {
+    logger.error("Google register error", error);
     return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
   }
 };
