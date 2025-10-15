@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AuthContextType, User } from '../types';
 import { authService } from '../services/supabase';
 import { apiService, setUnauthorizedHandler } from '../services/api';
@@ -29,6 +29,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingSocialData, setPendingSocialData] = useState<SocialAuthResult | null>(null);
   const isBootstrappingRef = useRef(true);
 
   useEffect(() => {
@@ -326,10 +327,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const handleSocialAuth = async (socialResult: SocialAuthResult) => {
     const API_BASE_URL = 'https://lingloops-backend.onrender.com';
     
+    console.log('[AUTH] handleSocialAuth called', {
+      provider: socialResult.provider,
+      email: socialResult.email,
+      hasCredential: !!socialResult.credential,
+    });
+    
     // Determine endpoint based on provider
     const endpoint = socialResult.provider === 'google' 
       ? '/api/auth/google-login'
       : '/api/auth/apple-login';
+    
+    console.log('[AUTH] Sending request to:', API_BASE_URL + endpoint);
     
     // Prepare request body
     const requestBody: any = { 
@@ -356,11 +365,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       body: JSON.stringify(requestBody),
     });
     
+    console.log('[AUTH] Response status:', response.status, response.ok);
+    
     if (!response.ok) {
       const errorData = await response.json();
+      console.log('[AUTH] Error response:', errorData);
       
       // Kullanıcı sistemde yoksa - register ekranına yönlendir
       if (errorData.code === 'USER_NOT_FOUND' || errorData.code === 'USER_NOT_REGISTERED') {
+        console.log('[AUTH] User not found, throwing error');
         const error: any = new Error(errorData.message || 'Kullanıcı bulunamadı. Lütfen kayıt olun.');
         error.code = 'USER_NOT_FOUND';
         error.socialData = socialResult; // Social auth bilgilerini sakla
@@ -440,18 +453,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signInWithGoogleProvider = async () => {
+    console.log('[AUTH] signInWithGoogleProvider called');
     setIsLoading(true);
+    let socialResult: SocialAuthResult | null = null;
+    
     try {
       const isConnected = await apiService.checkConnectivity();
       if (!isConnected) {
         throw new Error('Backend serveri ile bağlantı kurulamıyor. Lütfen internet bağlantınızı kontrol edin.');
       }
       
-      const socialResult = await signInWithGoogle();
+      console.log('[AUTH] Calling signInWithGoogle from socialAuth.ts');
+      socialResult = await signInWithGoogle();
+      console.log('[AUTH] Got social result, calling handleSocialAuth');
       await handleSocialAuth(socialResult);
       setIsLoading(false);
     } catch (error: any) {
+      console.log('[AUTH] Error in signInWithGoogleProvider:', error.code, error.message);
       setIsLoading(false);
+      
+      // Eğer USER_NOT_FOUND hatası ise ve socialResult varsa, hataya ekle VE pending state'e kaydet
+      if (error.code === 'USER_NOT_FOUND' && socialResult) {
+        console.log('[AUTH] Adding socialData to error and saving to pending state');
+        error.socialData = socialResult;
+        setPendingSocialData(socialResult);  // Global state'e kaydet
+      }
+      
       throw error;
     }
   };
@@ -460,17 +487,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signInWithAppleProvider = async () => {
     setIsLoading(true);
+    let socialResult: SocialAuthResult | null = null;
+    
     try {
       const isConnected = await apiService.checkConnectivity();
       if (!isConnected) {
         throw new Error('Backend serveri ile bağlantı kurulamıyor. Lütfen internet bağlantınızı kontrol edin.');
       }
       
-      const socialResult = await signInWithApple();
+      socialResult = await signInWithApple();
       await handleSocialAuth(socialResult);
       setIsLoading(false);
     } catch (error: any) {
       setIsLoading(false);
+      
+      // Eğer USER_NOT_FOUND hatası ise ve socialResult varsa, hataya ekle VE pending state'e kaydet
+      if (error.code === 'USER_NOT_FOUND' && socialResult) {
+        error.socialData = socialResult;
+        setPendingSocialData(socialResult);  // Global state'e kaydet
+      }
+      
       throw error;
     }
   };
@@ -491,7 +527,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const value: AuthContextType = {
+  const clearPendingSocialData = () => {
+    console.log('[AUTH] Clearing pending social data');
+    setPendingSocialData(null);
+  };
+
+  const value: AuthContextType = useMemo(() => ({
     user,
     isLoading,
     signIn,
@@ -500,7 +541,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     updateUserProfile,
     signInWithGoogle: signInWithGoogleProvider,
     signInWithApple: signInWithAppleProvider,
-  };
+    pendingSocialData,
+    clearPendingSocialData,
+  }), [user, isLoading, pendingSocialData]);  // pendingSocialData da dependency'ye eklendi
 
   return (
     <AuthContext.Provider value={value}>

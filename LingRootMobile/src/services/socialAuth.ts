@@ -65,11 +65,18 @@ export interface SocialAuthResult {
 // Google Sign-In
 export const signInWithGoogle = async (): Promise<SocialAuthResult> => {
   try {
+    console.log('[GOOGLE_SIGNIN] Starting Google Sign-In...');
     await GoogleSignin.hasPlayServices();
     const userInfo = await GoogleSignin.signIn();
     
+    console.log('[GOOGLE_SIGNIN] User info received:', {
+      email: userInfo.data?.user?.email,
+      name: userInfo.data?.user?.name,
+    });
+    
     // Get ID token for backend verification
     const tokens = await GoogleSignin.getTokens();
+    console.log('[GOOGLE_SIGNIN] Tokens received, returning result');
     
     return {
       provider: 'google',

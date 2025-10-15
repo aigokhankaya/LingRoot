@@ -971,7 +971,7 @@ exports.googleRegister = async (req, res) => {
       });
     }
 
-    // Yeni kullanıcı oluştur
+    // Yeni kullanıcı oluştur (inactive olarak)
     const newUserData = {
       firstname: given_name || fullName?.split(' ')[0] || name?.split(' ')[0] || 'Google',
       lastname: family_name || fullName?.split(' ').slice(1).join(' ') || name?.split(' ').slice(1).join(' ') || 'User',
@@ -979,7 +979,7 @@ exports.googleRegister = async (req, res) => {
       phonenumber: phoneNumber,
       password: 'google-oauth', // Google kullanıcıları için placeholder şifre
       role: "user",
-      isverified: true, // Google hesapları doğrulanmış sayılır
+      isverified: false, // Email doğrulaması gerekli
       dailycontentused: 0,
       lastcontentdate: null,
       stripecustomerid: null,
@@ -1034,10 +1034,6 @@ exports.googleRegister = async (req, res) => {
       logger.warn('[GOOGLE_REGISTER] Failed to assign trial plan:', e2?.message);
     }
 
-    // JWT token oluştur
-    const token = generateToken(user.id, user.email, user.role, true);
-    const refreshToken = generateRefreshToken(user.id);
-
     // Hassas verileri kaldır
     delete user.password;
     delete user.verificationToken;
@@ -1046,18 +1042,170 @@ exports.googleRegister = async (req, res) => {
     // Record successful registration
     try { await recordLoginAttempt(user.id, req, { success: true, message: 'google_register_success' }); } catch {}
 
+    // TODO: Email doğrulama maili gönder
+    // await sendVerificationEmail(user.email, verificationToken);
+
     return res.status(201).json({
       success: true,
-      message: "Google ile kayıt başarılı",
+      message: "Kayıt başarılı! Email adresinize gönderilen doğrulama linkine tıklayarak hesabınızı aktifleştirebilirsiniz.",
       data: {
-        user,
-        token,
-        refreshToken
+        user: {
+          id: user.id,
+          email: user.email,
+          firstname: user.firstname,
+          lastname: user.lastname,
+          isverified: user.isverified
+        },
+        requiresVerification: true
       }
     });
 
   } catch (error) {
     logger.error("Google register error", error);
+    return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
+  }
+};
+
+exports.appleRegister = async (req, res) => {
+  try {
+    const { credential, phoneNumber, fullName, email: providedEmail } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({ success: false, message: "Apple credential gerekli" });
+    }
+    if (!phoneNumber) {
+      return res.status(400).json({ success: false, message: "Telefon numarası gerekli" });
+    }
+
+    // Apple credential'ı decode et (JWT token)
+    let appleUser;
+    try {
+      const decoded = jwt.decode(credential);
+      appleUser = decoded || {};
+    } catch (decodeError) {
+      logger.error('[APPLE_REGISTER] Credential decode hatası:', decodeError);
+      return res.status(400).json({ success: false, message: "Geçersiz Apple credential" });
+    }
+
+    const { email, sub: appleId } = appleUser;
+    const finalEmail = email || providedEmail;
+    
+    if (!finalEmail) {
+      return res.status(400).json({ success: false, message: "Email gerekli" });
+    }
+
+    // Kullanıcının zaten var olup olmadığını kontrol et
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('users')
+      .select("*")
+      .eq("email", finalEmail)
+      .maybeSingle();
+
+    if (fetchError) {
+      logger.error('[APPLE_REGISTER] Kullanıcı sorgulama hatası:', fetchError);
+      return res.status(500).json({ success: false, message: "Veritabanı hatası" });
+    }
+
+    if (existingUser) {
+      return res.status(400).json({ 
+        success: false, 
+        code: 'USER_ALREADY_EXISTS',
+        message: "Bu email ile kayıtlı kullanıcı zaten var. Lütfen giriş yapın." 
+      });
+    }
+
+    // Yeni kullanıcı oluştur (inactive olarak)
+    const nameParts = (fullName || 'Apple User').split(' ');
+    const newUserData = {
+      firstname: nameParts[0] || 'Apple',
+      lastname: nameParts.slice(1).join(' ') || 'User',
+      email: finalEmail,
+      phonenumber: phoneNumber,
+      password: 'apple-oauth', // Apple kullanıcıları için placeholder şifre
+      role: "user",
+      isverified: false, // Email doğrulaması gerekli
+      dailycontentused: 0,
+      lastcontentdate: null,
+      stripecustomerid: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: createdUser, error: createError } = await supabase
+      .from('users')
+      .insert([newUserData])
+      .select()
+      .single();
+
+    if (createError) {
+      logger.error('[APPLE_REGISTER] Kullanıcı oluşturma hatası:', createError);
+      return res.status(500).json({ success: false, message: "Kullanıcı oluşturulamadı" });
+    }
+
+    const user = createdUser;
+    
+    // Send registration notification
+    try {
+      await sendRegistrationNotification(user);
+    } catch (notificationErr) {
+      logger.warn('[APPLE_REGISTER] Registration notification failed:', notificationErr?.message);
+    }
+    
+    // Assign default free trial plan if exists
+    try {
+      const { data: trialPlan, error: planErr } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .eq('is_trial', true)
+        .eq('is_active', true)
+        .order('price', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (!planErr && trialPlan) {
+        await supabase
+          .from('subscriptions')
+          .insert([
+            {
+              user_id: user.id,
+              plan_id: trialPlan.id,
+              status: 'trialing',
+              current_period_end: new Date(Date.now() + (Number(trialPlan.trial_days || 7) * 24 * 60 * 60 * 1000)).toISOString(),
+              cancel_at_period_end: false,
+            },
+          ]);
+      }
+    } catch (e2) {
+      logger.warn('[APPLE_REGISTER] Failed to assign trial plan:', e2?.message);
+    }
+
+    // Hassas verileri kaldır
+    delete user.password;
+    delete user.verificationToken;
+    delete user.resetPasswordToken;
+
+    // Record successful registration
+    try { await recordLoginAttempt(user.id, req, { success: true, message: 'apple_register_success' }); } catch {}
+
+    // TODO: Email doğrulama maili gönder
+    // await sendVerificationEmail(user.email, verificationToken);
+
+    return res.status(201).json({
+      success: true,
+      message: "Kayıt başarılı! Email adresinize gönderilen doğrulama linkine tıklayarak hesabınızı aktifleştirebilirsiniz.",
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstname: user.firstname,
+          lastname: user.lastname,
+          isverified: user.isverified
+        },
+        requiresVerification: true
+      }
+    });
+
+  } catch (error) {
+    logger.error("Apple register error", error);
     return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
   }
 };

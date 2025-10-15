@@ -47,20 +47,30 @@ const formatTRPhone = (value: string) => {
 const RegisterScreen: React.FC = () => {
   const route = useRoute<any>();
   const initialSocialData = route.params?.socialData;
+  const { signUp, signInWithGoogle, signInWithApple, pendingSocialData, clearPendingSocialData } = useAuth();
   
-  const [socialData, setSocialData] = useState(initialSocialData);
-  const [email, setEmail] = useState(initialSocialData?.email || '');
+  // pendingSocialData varsa onu kullan, yoksa route params'ı kullan
+  const effectiveSocialData = pendingSocialData || initialSocialData;
+  
+  console.log('[REGISTER] Screen mounted with params:', {
+    hasSocialData: !!effectiveSocialData,
+    email: effectiveSocialData?.email,
+    name: effectiveSocialData?.name,
+    fromPending: !!pendingSocialData,
+  });
+  
+  const [socialData, setSocialData] = useState(effectiveSocialData);
+  const [email, setEmail] = useState(effectiveSocialData?.email || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullName, setFullName] = useState(initialSocialData?.name || '');
+  const [fullName, setFullName] = useState(effectiveSocialData?.name || '');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showAppleSignIn, setShowAppleSignIn] = useState(false);
-  const [isSocialRegister, setIsSocialRegister] = useState(!!initialSocialData);
-  const { signUp, signInWithGoogle, signInWithApple } = useAuth();
+  const [isSocialRegister, setIsSocialRegister] = useState(!!effectiveSocialData);
   const { t } = useLanguage();
   const navigation = useNavigation();
 
@@ -77,6 +87,15 @@ const RegisterScreen: React.FC = () => {
       );
     }
   }, []);
+  
+  useEffect(() => {
+    console.log('[REGISTER] State changed:', {
+      isSocialRegister,
+      hasSocialData: !!socialData,
+      email,
+      fullName,
+    });
+  }, [isSocialRegister, socialData, email, fullName]);
 
   const emailRegex = useMemo(() => /\S+@\S+\.\S+/, []);
   const isFormValid = useMemo(() => {
@@ -111,8 +130,14 @@ const RegisterScreen: React.FC = () => {
     
     // Eğer zaten social register modundaysa, kullanıcıya bilgi ver
     if (isSocialRegister && socialData) {
-      console.log('[REGISTER] Already in social register mode, showing info');
+      console.log('[REGISTER] Already in social register mode, validating phone');
       const phoneDigits = extractTRLocalDigits(phoneNumber);
+      console.log('[REGISTER] Phone validation:', {
+        phoneNumber,
+        phoneDigits,
+        length: phoneDigits.length,
+      });
+      
       if (phoneDigits.length !== 10) {
         Alert.alert(
           t('common.error') || 'Hata',
@@ -141,21 +166,46 @@ const RegisterScreen: React.FC = () => {
     } catch (error: any) {
       setIsLoading(false);
       
+      console.log('[REGISTER] Caught error in handleGoogleSignIn:', {
+        code: error.code,
+        hasSocialData: !!error.socialData,
+        message: error.message,
+      });
+      
       // Kullanıcı sistemde yoksa, social data'yı al ve formu doldur
       if (error.code === 'USER_NOT_FOUND' && error.socialData) {
+        console.log('[REGISTER] USER_NOT_FOUND with socialData, updating form');
+        
         // Social data'yı state'e set et
-        setSocialData(error.socialData);
-        setEmail(error.socialData.email || '');
-        setFullName(error.socialData.name || '');
+        const socialInfo = error.socialData;
+        setSocialData(socialInfo);
+        setEmail(socialInfo.email || '');
+        setFullName(socialInfo.name || '');
         setIsSocialRegister(true);
         
-        Alert.alert(
-          t('common.info') || 'Bilgi',
-          'Google hesabınızla kayıt olmak için lütfen telefon numaranızı girin ve şartları kabul edin.'
-        );
+        console.log('[REGISTER] Form updated, showing alert');
+        
+        // Alert'i setTimeout ile biraz geciktir, state güncellemelerinin uygulanmasını bekle
+        setTimeout(() => {
+          Alert.alert(
+            t('common.info') || 'Bilgi',
+            'Google hesabınızla kayıt olmak için lütfen telefon numaranızı girin ve şartları kabul edin.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  console.log('[REGISTER] Alert dismissed, staying on Register screen');
+                }
+              }
+            ]
+          );
+        }, 100);
+        
+        console.log('[REGISTER] Alert scheduled, returning to stay on screen');
         return; // Register ekranında kal
       }
       
+      console.log('[REGISTER] Other error, showing error alert');
       // Diğer hatalar için hata mesajı göster ama ekrandan ayrılma
       Alert.alert(t('common.error'), error.message || 'Google ile kayıt başarısız');
     }
@@ -195,20 +245,45 @@ const RegisterScreen: React.FC = () => {
     } catch (error: any) {
       setIsLoading(false);
       
+      console.log('[REGISTER] Caught error in handleAppleSignIn:', {
+        code: error.code,
+        hasSocialData: !!error.socialData,
+        message: error.message,
+      });
+      
       // Kullanıcı sistemde yoksa, social data'yı al ve formu doldur
       if (error.code === 'USER_NOT_FOUND' && error.socialData) {
-        setSocialData(error.socialData);
-        setEmail(error.socialData.email || '');
-        setFullName(error.socialData.name || '');
+        console.log('[REGISTER] USER_NOT_FOUND with socialData, updating form');
+        
+        const socialInfo = error.socialData;
+        setSocialData(socialInfo);
+        setEmail(socialInfo.email || '');
+        setFullName(socialInfo.name || '');
         setIsSocialRegister(true);
         
-        Alert.alert(
-          t('common.info') || 'Bilgi',
-          'Apple hesabınızla kayıt olmak için lütfen telefon numaranızı girin ve şartları kabul edin.'
-        );
+        console.log('[REGISTER] Form updated, showing alert');
+        
+        // Alert'i setTimeout ile biraz geciktir
+        setTimeout(() => {
+          Alert.alert(
+            t('common.info') || 'Bilgi',
+            'Apple hesabınızla kayıt olmak için lütfen telefon numaranızı girin ve şartları kabul edin.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  console.log('[REGISTER] Alert dismissed, staying on Register screen');
+                }
+              }
+            ]
+          );
+        }, 100);
+        
+        console.log('[REGISTER] Alert scheduled, returning to stay on screen');
         return; // Register ekranında kal
       }
       
+      console.log('[REGISTER] Other error, showing error alert');
       Alert.alert(t('common.error'), error.message || 'Apple ile kayıt başarısız');
     }
   };
@@ -246,14 +321,35 @@ const RegisterScreen: React.FC = () => {
       const data = await response.json();
       
       if (!response.ok) {
+        setIsLoading(false);
+        
+        // Kullanıcı zaten varsa Login'e yönlendir
+        if (data.code === 'USER_ALREADY_EXISTS') {
+          Alert.alert(
+            t('common.info') || 'Bilgi',
+            data.message || 'Bu email ile kayıtlı kullanıcı zaten var.',
+            [
+              { 
+                text: 'Giriş Yap', 
+                onPress: () => {
+                  clearPendingSocialData?.();
+                  try { (navigation as any)?.navigate?.('Login'); } catch {}
+                }
+              }
+            ]
+          );
+          return;
+        }
+        
         throw new Error(data.message || 'Kayıt başarısız');
       }
 
       setIsLoading(false);
+      clearPendingSocialData?.(); // Pending data'yı temizle
       
       Alert.alert(
         t('common.success'),
-        'Kayıt başarılı! Şimdi giriş yapabilirsiniz.',
+        data.message || 'Kayıt başarılı! Email adresinizi doğrulayın.',
         [
           { 
             text: 'OK', 
@@ -267,33 +363,6 @@ const RegisterScreen: React.FC = () => {
       Alert.alert(t('common.error'), error.message || 'Kayıt başarısız');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    if (!signInWithGoogle) return;
-    try {
-      await signInWithGoogle();
-    } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || 'Google ile kayıt başarısız');
-    }
-  };
-
-  const handleFacebookSignIn = async () => {
-    if (!signInWithFacebook) return;
-    try {
-      await signInWithFacebook();
-    } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || 'Facebook ile kayıt başarısız');
-    }
-  };
-
-  const handleAppleSignIn = async () => {
-    if (!signInWithApple) return;
-    try {
-      await signInWithApple();
-    } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || 'Apple ile kayıt başarısız');
     }
   };
 

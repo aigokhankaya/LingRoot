@@ -1,0 +1,184 @@
+﻿To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.13/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :gradle-plugin:settings-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugin:shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugin:shared:compileKotlin UP-TO-DATE
+> Task :gradle-plugin:shared:compileJava NO-SOURCE
+> Task :gradle-plugin:shared:processResources NO-SOURCE
+> Task :gradle-plugin:shared:classes UP-TO-DATE
+> Task :gradle-plugin:shared:jar UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:compileKotlin UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:compileJava NO-SOURCE
+> Task :gradle-plugin:settings-plugin:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:processResources UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:classes UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:jar UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugin:react-native-gradle-plugin:compileKotlin UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:compileJava NO-SOURCE
+> Task :gradle-plugin:react-native-gradle-plugin:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:processResources UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:classes UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:jar UP-TO-DATE
+
+> Configure project :react-native-reanimated
+Android gradle plugin: 8.8.2
+Gradle: 8.13
+
+> Task :app:buildKotlinToolingMetadata UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:generateAutolinkingPackageList UP-TO-DATE
+> Task :app:generateCodegenSchemaFromJavaScript SKIPPED
+> Task :app:generateCodegenArtifactsFromSchema SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :app:generateReleaseBuildConfig UP-TO-DATE
+> Task :react-native-async-storage_async-storage:preBuild UP-TO-DATE
+> Task :react-native-async-storage_async-storage:preReleaseBuild UP-TO-DATE
+> Task :react-native-async-storage_async-storage:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-clipboard_clipboard:preBuild UP-TO-DATE
+> Task :react-native-clipboard_clipboard:preReleaseBuild UP-TO-DATE
+> Task :react-native-clipboard_clipboard:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-documents_picker:preBuild UP-TO-DATE
+> Task :react-native-documents_picker:preReleaseBuild UP-TO-DATE
+> Task :react-native-documents_picker:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-gesture-handler:preBuild UP-TO-DATE
+> Task :react-native-gesture-handler:preReleaseBuild UP-TO-DATE
+> Task :react-native-gesture-handler:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-google-signin_google-signin:preBuild UP-TO-DATE
+> Task :react-native-google-signin_google-signin:preReleaseBuild UP-TO-DATE
+> Task :react-native-google-signin_google-signin:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-iap:preBuild UP-TO-DATE
+> Task :react-native-iap:prePlayReleaseBuild UP-TO-DATE
+> Task :react-native-iap:writePlayReleaseAarMetadata UP-TO-DATE
+> Task :react-native-image-picker:preBuild UP-TO-DATE
+> Task :react-native-image-picker:preReleaseBuild UP-TO-DATE
+> Task :react-native-image-picker:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-push-notification:preBuild UP-TO-DATE
+> Task :react-native-push-notification:preReleaseBuild UP-TO-DATE
+> Task :react-native-push-notification:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-reanimated:assertMinimalReactNativeVersionTask SKIPPED
+> Task :react-native-reanimated:prepareReanimatedHeadersForPrefabs UP-TO-DATE
+> Task :react-native-reanimated:prepareWorkletsHeadersForPrefabs UP-TO-DATE
+> Task :react-native-reanimated:preBuild UP-TO-DATE
+> Task :react-native-reanimated:preReleaseBuild UP-TO-DATE
+> Task :react-native-reanimated:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-safe-area-context:preBuild UP-TO-DATE
+> Task :react-native-safe-area-context:preReleaseBuild UP-TO-DATE
+> Task :react-native-safe-area-context:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-screens:preBuild UP-TO-DATE
+> Task :react-native-screens:preReleaseBuild UP-TO-DATE
+> Task :react-native-screens:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-track-player:preBuild UP-TO-DATE
+> Task :react-native-track-player:preReleaseBuild UP-TO-DATE
+> Task :react-native-track-player:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-vector-icons:preBuild UP-TO-DATE
+> Task :react-native-vector-icons:preReleaseBuild UP-TO-DATE
+> Task :react-native-vector-icons:writeReleaseAarMetadata UP-TO-DATE
+> Task :app:checkReleaseAarMetadata UP-TO-DATE
+
+> Task :app:createBundleReleaseJsAndAssets
+ WARN  the transform cache was reset.
+                Welcome to Metro v0.83.1
+              Fast - Scalable - Integrated
+
+
+.\gradlew.bat : error SyntaxError: F:\Main\LingRootMobile\src\screens\RegisterScreen.tsx: Identifier 'handleGoogleSignIn' has already been declared. (273:8)
+At line:1 char:1
++ .\gradlew.bat assembleRelease --no-daemon --console plain 2>&1 | Out- ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (error SyntaxErr...clared. (273:8):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+SyntaxError: F:\Main\LingRootMobile\src\screens\RegisterScreen.tsx: Identifier 'handleGoogleSignIn' has already been declared. (273:8)
+
+[0m [90m 271 |[39m   }[33m;[39m
+[0m [90m 271 |[39m   }[33m;[39m
+ [90m 272 |[39m
+ [90m 272 |[39m
+[31m[1m>[22m[39m[90m 273 |[39m   [36mconst[39m handleGoogleSignIn [33m=[39m [36masync[39m () [33m=>[39m {
+[31m[1m>[22m[39m[90m 273 |[39m   [36mconst[39m handleGoogleSignIn [33m=[39m [36masync[39m () [33m=>[39m {
+ [90m     |[39m         [31m[1m^[22m[39m
+ [90m     |[39m         [31m[1m^[22m[39m
+ [90m 274 |[39m     [36mif[39m ([33m![39msignInWithGoogle) [36mreturn[39m[33m;[39m
+ [90m 274 |[39m     [36mif[39m ([33m![39msignInWithGoogle) [36mreturn[39m[33m;[39m
+ [90m 275 |[39m     [36mtry[39m {
+ [90m 275 |[39m     [36mtry[39m {
+ [90m 276 |[39m       [36mawait[39m signInWithGoogle()[33m;[39m[0m.
+ [90m 276 |[39m       [36mawait[39m signInWithGoogle()[33m;[39m[0m
+    at constructor (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:367:19)
+    at TypeScriptParserMixin.raise (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:6630:19)
+    at TypeScriptScopeHandler.checkRedeclarationInScope (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:1647:19)
+    at TypeScriptScopeHandler.declareName (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:1613:12)
+    at TypeScriptScopeHandler.declareName (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:4913:11)
+    at TypeScriptParserMixin.declareNameFromIdentifier (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:7594:16)
+    at TypeScriptParserMixin.checkIdentifier (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:7590:12)
+    at TypeScriptParserMixin.checkLVal (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:7529:12)
+    at TypeScriptParserMixin.parseVarId (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:13417:10)
+    at TypeScriptParserMixin.parseVarId (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:9772:11)
+    at TypeScriptParserMixin.parseVar (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:13388:12)
+    at TypeScriptParserMixin.parseVarStatement (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:13235:10)
+    at TypeScriptParserMixin.parseVarStatement (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:9498:31)
+    at TypeScriptParserMixin.parseStatementContent (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:12856:23)
+    at TypeScriptParserMixin.parseStatementContent (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:9532:18)
+    at TypeScriptParserMixin.parseStatementLike (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:12772:17)
+    at TypeScriptParserMixin.parseStatementListItem (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:12752:17)
+    at TypeScriptParserMixin.parseBlockOrModuleBlockBody (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:13321:61)
+    at TypeScriptParserMixin.parseBlockBody (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:13314:10)
+    at TypeScriptParserMixin.parseBlock (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:13302:10)
+    at TypeScriptParserMixin.parseFunctionBody (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:12106:24)
+    at TypeScriptParserMixin.parseArrowExpression (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:12081:10)
+    at TypeScriptParserMixin.parseParenAndDistinguishExpression (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:11691:12)
+    at TypeScriptParserMixin.parseExprAtom (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:11331:23)
+    at TypeScriptParserMixin.parseExprAtom (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:4797:20)
+    at TypeScriptParserMixin.parseExprSubscripts (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:11081:23)
+    at TypeScriptParserMixin.parseUpdate (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:11066:21)
+    at TypeScriptParserMixin.parseMaybeUnary (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:11046:23)
+    at TypeScriptParserMixin.parseMaybeUnary (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:9857:18)
+    at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:10899:61)
+    at TypeScriptParserMixin.parseExprOps (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:10904:23)
+    at TypeScriptParserMixin.parseMaybeConditional (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:10881:23)
+    at TypeScriptParserMixin.parseMaybeAssign (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:10831:21)
+    at TypeScriptParserMixin.parseMaybeAssign (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:9806:20)
+    at F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:10800:39
+    at TypeScriptParserMixin.allowInAnd (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:12427:16)
+    at TypeScriptParserMixin.parseMaybeAssignAllowIn (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:10800:17)
+    at TypeScriptParserMixin.parseVar (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:13389:91)
+    at TypeScriptParserMixin.parseVarStatement (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:13235:10)
+    at TypeScriptParserMixin.parseVarStatement (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:9498:31)
+    at TypeScriptParserMixin.parseStatementContent (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:12856:23)
+    at TypeScriptParserMixin.parseStatementContent (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:9532:18)
+    at TypeScriptParserMixin.parseStatementLike (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:12772:17)
+    at TypeScriptParserMixin.parseModuleItem (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:12749:17)
+    at TypeScriptParserMixin.parseBlockOrModuleBlockBody (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:13321:36)
+    at TypeScriptParserMixin.parseBlockBody (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:13314:10)
+    at TypeScriptParserMixin.parseProgram (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:12630:10)
+    at TypeScriptParserMixin.parseTopLevel (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:12620:25)
+    at TypeScriptParserMixin.parse (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:14497:10)
+    at TypeScriptParserMixin.parse (F:\Main\LingRootMobile\node_modules\@babel\parser\lib\index.js:10149:18)
+
+> Task :app:createBundleReleaseJsAndAssets FAILED
+
+[Incubating] Problems report is available at: file:///F:/Main/LingRootMobile/android/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:createBundleReleaseJsAndAssets'.
+> Process 'command 'cmd'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.13/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 49s
+31 actionable tasks: 2 executed, 29 up-to-date

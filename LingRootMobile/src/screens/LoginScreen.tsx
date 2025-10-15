@@ -17,7 +17,6 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiService } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useLanguage } from '../contexts/LanguageContext';
 import { isAppleSignInAvailable } from '../services/socialAuth';
 
 const LoginScreen: React.FC = () => {
@@ -33,7 +32,6 @@ const LoginScreen: React.FC = () => {
   const [showResendUI, setShowResendUI] = useState(false);
   const [showAppleSignIn, setShowAppleSignIn] = useState(false);
   const { signIn, signInWithGoogle, signInWithApple } = useAuth();
-  const { language } = useLanguage();
   const scrollRef = useRef<ScrollView | null>(null);
   const [resendBoxY, setResendBoxY] = useState<number | null>(null);
   const navigation = useNavigation();
@@ -169,29 +167,20 @@ const LoginScreen: React.FC = () => {
     try {
       await signInWithGoogle();
     } catch (error: any) {
+      console.log('[LOGIN] Google sign-in error:', error.code, error.message);
+      
       // Kullanıcı sistemde yoksa register ekranına yönlendir
       if (error.code === 'USER_NOT_FOUND') {
-        Alert.alert(
-          language === 'tr' ? 'Kullanıcı Bulunamadı' : 'User Not Found',
-          language === 'tr' 
-            ? 'Bu Google hesabı ile kayıtlı bir kullanıcı bulunamadı. Kayıt ekranına yönlendiriliyorsunuz.' 
-            : 'No user found with this Google account. Redirecting to registration.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Register ekranına yönlendir
-                try {
-                  (navigation as any)?.navigate?.('Register', { 
-                    socialData: error.socialData 
-                  });
-                } catch (navError) {
-                  console.error('Navigation error:', navError);
-                }
-              }
-            }
-          ]
-        );
+        console.log('[LOGIN] Navigating to Register with socialData:', error.socialData);
+        
+        // Direkt Register ekranına yönlendir (Alert gösterme)
+        try {
+          (navigation as any)?.navigate?.('Register', { 
+            socialData: error.socialData 
+          });
+        } catch (navError) {
+          console.error('[LOGIN] Navigation error:', navError);
+        }
         return;
       }
       
@@ -209,6 +198,23 @@ const LoginScreen: React.FC = () => {
     try {
       await signInWithApple();
     } catch (error: any) {
+      console.log('[LOGIN] Apple sign-in error:', error.code, error.message);
+      
+      // Kullanıcı sistemde yoksa register ekranına yönlendir
+      if (error.code === 'USER_NOT_FOUND') {
+        console.log('[LOGIN] Navigating to Register with socialData:', error.socialData);
+        
+        // Direkt Register ekranına yönlendir
+        try {
+          (navigation as any)?.navigate?.('Register', { 
+            socialData: error.socialData 
+          });
+        } catch (navError) {
+          console.error('[LOGIN] Navigation error:', navError);
+        }
+        return;
+      }
+      
       Alert.alert(
         language === 'tr' ? 'Apple Giriş Hatası' : 'Apple Sign-In Error',
         error.message || (language === 'tr' ? 'Apple ile giriş başarısız' : 'Apple sign-in failed')

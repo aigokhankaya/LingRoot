@@ -41,10 +41,11 @@ const LoadingScreen = () => (
 );
 
 const AuthStack = () => {
+  console.log('[AUTHSTACK] Rendering AuthStack');
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Register">
       <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
     </Stack.Navigator>
@@ -158,11 +159,16 @@ const MainTabs = () => {
 };
 
 const AppNavigator = () => {
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();  // isLoading'i kaldırdık
   const { t, language } = useLanguage();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [navReady, setNavReady] = useState(false);
   const [initialWordId, setInitialWordId] = useState<string | null>(null);
+  
+  console.log('[APPNAV] Rendering AppNavigator:', {
+    hasUser: !!user,
+    userId: user?.id,
+  });
 
   // Store navigation ref globally for direct access from notification service
   useEffect(() => {
@@ -239,9 +245,8 @@ const AppNavigator = () => {
     }
   }, [user, navReady, initialWordId]);
 
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
+  // isLoading kontrolünü kaldırdık - AuthContext'teki isLoading 
+  // navigation'ı unmount etmemeli, sadece button'ları disable etmeli
 
   return (
     <NavigationContainer ref={navigationRef} onReady={() => setNavReady(true)}>

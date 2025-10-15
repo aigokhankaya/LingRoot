@@ -10,6 +10,16 @@ export interface User {
   updated_at: string;
 }
 
+export interface SocialAuthResult {
+  provider: 'google' | 'apple';
+  credential: string;
+  email?: string;
+  name?: string;
+  given_name?: string;
+  family_name?: string;
+  picture?: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   isLoading: boolean;
@@ -19,6 +29,8 @@ export interface AuthContextType {
   updateUserProfile: (data: Partial<User> & { phoneNumber?: string; full_name?: string }) => Promise<void>;
   signInWithGoogle?: () => Promise<void>;
   signInWithApple?: () => Promise<void>;
+  pendingSocialData?: SocialAuthResult | null;
+  clearPendingSocialData?: () => void;
 }
 
 // Membership Types
