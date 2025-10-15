@@ -46,19 +46,20 @@ const formatTRPhone = (value: string) => {
 
 const RegisterScreen: React.FC = () => {
   const route = useRoute<any>();
-  const socialData = route.params?.socialData;
+  const initialSocialData = route.params?.socialData;
   
-  const [email, setEmail] = useState(socialData?.email || '');
+  const [socialData, setSocialData] = useState(initialSocialData);
+  const [email, setEmail] = useState(initialSocialData?.email || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullName, setFullName] = useState(socialData?.name || '');
+  const [fullName, setFullName] = useState(initialSocialData?.name || '');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showAppleSignIn, setShowAppleSignIn] = useState(false);
-  const [isSocialRegister, setIsSocialRegister] = useState(!!socialData);
+  const [isSocialRegister, setIsSocialRegister] = useState(!!initialSocialData);
   const { signUp, signInWithGoogle, signInWithApple } = useAuth();
   const { t } = useLanguage();
   const navigation = useNavigation();
@@ -100,14 +101,32 @@ const RegisterScreen: React.FC = () => {
 
   const handleGoogleSignIn = async () => {
     if (!signInWithGoogle) return;
+    
+    // Eğer zaten social register modundaysa, kullanıcıya bilgi ver
+    if (isSocialRegister && socialData) {
+      Alert.alert(
+        t('common.info') || 'Bilgi',
+        'Lütfen telefon numaranızı girin ve kayıt işlemini tamamlayın.'
+      );
+      return;
+    }
+    
     try {
+      // Google'dan bilgileri al
       await signInWithGoogle();
+      // Başarılı - kullanıcı zaten kayıtlı, giriş yapıldı
     } catch (error: any) {
-      // Kullanıcı sistemde yoksa, bu ekranda zaten kayıt yapıyoruz
-      if (error.code === 'USER_NOT_FOUND') {
+      // Kullanıcı sistemde yoksa, social data'yı al ve formu doldur
+      if (error.code === 'USER_NOT_FOUND' && error.socialData) {
+        // Social data'yı state'e set et
+        setSocialData(error.socialData);
+        setEmail(error.socialData.email || '');
+        setFullName(error.socialData.name || '');
+        setIsSocialRegister(true);
+        
         Alert.alert(
           t('common.info') || 'Bilgi',
-          'Lütfen telefon numaranızı girin ve kayıt işlemini tamamlayın.'
+          'Google hesabınızla kayıt olmak için lütfen telefon numaranızı girin ve şartları kabul edin.'
         );
         return;
       }
@@ -266,96 +285,68 @@ const RegisterScreen: React.FC = () => {
         </View>
 
         <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('register.fullName')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t('register.fullName')}
-              placeholderTextColor="#999"
-              value={fullName}
-              onChangeText={setFullName}
-              autoCapitalize="words"
-            />
-          </View>
+          <TextInput
+            style={[styles.input, isSocialRegister && styles.disabledInput]}
+            placeholder={t('register.fullName')}
+            placeholderTextColor="#999"
+            value={fullName}
+            onChangeText={setFullName}
+            autoCapitalize="words"
+            editable={!isSocialRegister}
+          />
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('register.email')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t('register.email')}
-              placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-            />
-          </View>
+          <TextInput
+            style={[styles.input, isSocialRegister && styles.disabledInput]}
+            placeholder={t('register.email')}
+            placeholderTextColor="#999"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            editable={!isSocialRegister}
+          />
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Telefon Numarası</Text>
-            <TextInput
-              style={[styles.input, isSocialRegister && styles.disabledInput]}
-              placeholder={t('register.email')}
-              placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              editable={!isSocialRegister}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Telefon Numarası</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="+90 555 123 45 67"
-              placeholderTextColor="#999"
-              value={phoneNumber}
-              onChangeText={(v) => setPhoneNumber(formatTRPhone(v))}
-              keyboardType="phone-pad"
-              autoComplete="tel"
-            />
-          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Telefon Numarası (+90 555 123 45 67)"
+            placeholderTextColor="#999"
+            value={phoneNumber}
+            onChangeText={(v) => setPhoneNumber(formatTRPhone(v))}
+            keyboardType="phone-pad"
+            autoComplete="tel"
+          />
 
           {!isSocialRegister && (
             <>
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t('register.password')}</Text>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={[styles.input, styles.passwordInput]}
-                    placeholder={t('register.password')}
-                    placeholderTextColor="#999"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPassword}
-                    autoComplete="password"
-                  />
-                  <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(v => !v)}>
-                    <Icon name={showPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
-                  </TouchableOpacity>
-                </View>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  placeholder={t('register.password')}
+                  placeholderTextColor="#999"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoComplete="password"
+                />
+                <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(v => !v)}>
+                  <Icon name={showPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
+                </TouchableOpacity>
               </View>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t('register.confirmPassword')}</Text>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={[styles.input, styles.passwordInput]}
-                    placeholder={t('register.confirmPassword')}
-                    placeholderTextColor="#999"
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry={!showConfirmPassword}
-                    autoComplete="password"
-                  />
-                  <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirmPassword(v => !v)}>
-                    <Icon name={showConfirmPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
-                  </TouchableOpacity>
-                </View>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  placeholder={t('register.confirmPassword')}
+                  placeholderTextColor="#999"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  autoComplete="password"
+                />
+                <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirmPassword(v => !v)}>
+                  <Icon name={showConfirmPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
+                </TouchableOpacity>
               </View>
             </>
           )}
@@ -555,14 +546,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 8,
     padding: 15,
-    marginBottom: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#ddd',
   },
   socialButtonText: {
     marginLeft: 10,
     fontSize: 16,
-    fontWeight: '600',
     color: '#333',
   },
   appleButton: {

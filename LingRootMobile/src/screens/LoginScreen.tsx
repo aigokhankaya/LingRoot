@@ -12,6 +12,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiService } from '../services/api';
@@ -32,6 +33,7 @@ const LoginScreen: React.FC = () => {
   const [showResendUI, setShowResendUI] = useState(false);
   const [showAppleSignIn, setShowAppleSignIn] = useState(false);
   const { signIn, signInWithGoogle, signInWithApple } = useAuth();
+  const { language } = useLanguage();
   const scrollRef = useRef<ScrollView | null>(null);
   const [resendBoxY, setResendBoxY] = useState<number | null>(null);
   const navigation = useNavigation();
@@ -490,14 +492,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 8,
     padding: 15,
-    marginBottom: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#ddd',
   },
   socialButtonText: {
     marginLeft: 10,
     fontSize: 16,
-    fontWeight: '600',
     color: '#333',
   },
   appleButton: {
@@ -508,4 +509,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LoginScreen; 
+export default LoginScreen;
