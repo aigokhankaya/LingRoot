@@ -42,7 +42,7 @@ export default function AdminUserPackagePage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold mb-4">Paket Bilgileri</h1>
+      <h1 className="text-xl font-semibold mb-4">Kullanım Bilgileri</h1>
       {!usageSummary || usageSummary.hasPlan === false ? (
         <div className="text-gray-600">Aktif paket yok.</div>
       ) : (

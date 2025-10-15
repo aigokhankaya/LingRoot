@@ -47,6 +47,58 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
 
   const perCategory = computeCostAwareEstimates(summary);
   const exceeded = !!summary?.isExceeded;
+  const isFreeTrialExhausted = !!(summary as any)?.isFreeTrialExhausted;
+  const planName = (summary as any)?.plan?.name || (summary as any)?.plantype;
+  const isFreeTrialPlan = planName === 'Free Trial';
+
+  // Free Trial için özel görünüm
+  if (isFreeTrialPlan) {
+    const audioCount = (summary as any)?.audioCreationCount || 0;
+    const maxAudioCount = (summary as any)?.maxAudioCount || 3;
+    const remainingCount = (summary as any)?.remainingAudioCount || (maxAudioCount - audioCount);
+    
+    return (
+      <View style={[styles.card, isFreeTrialExhausted && styles.cardExceeded]}>
+        <View style={styles.headerRow}>
+          <Icon name="card-giftcard" size={18} color={isFreeTrialExhausted ? '#C62828' : '#10B981'} />
+          <Text style={[styles.cardTitle, isFreeTrialExhausted && { color: '#C62828' }]}>
+            {language === 'tr' ? 'Ücretsiz Deneme' : 'Free Trial'}
+          </Text>
+        </View>
+        
+        <View style={{ marginTop: 12 }}>
+          <View style={styles.row}>
+            <Text style={styles.label}>
+              {language === 'tr' ? 'Oluşturulan Ses' : 'Created Audios'}
+            </Text>
+            <Text style={[styles.value, isFreeTrialExhausted && { color: '#C62828' }]}>
+              {audioCount} / {maxAudioCount}
+            </Text>
+          </View>
+          
+          <View style={[styles.row, { marginTop: 8 }]}>
+            <Text style={styles.label}>
+              {language === 'tr' ? 'Kalan Hak' : 'Remaining Credits'}
+            </Text>
+            <Text style={[styles.value, { color: remainingCount > 0 ? '#10B981' : '#C62828', fontSize: 18, fontWeight: '700' }]}>
+              {remainingCount}
+            </Text>
+          </View>
+        </View>
+        
+        {isFreeTrialExhausted && (
+          <View style={styles.exceededBox}>
+            <Icon name="error" size={16} color="#C62828" />
+            <Text style={styles.exceededText}>
+              {language === 'tr' 
+                ? 'Ücretsiz deneme hakkınız doldu. Premium pakete geçin.' 
+                : 'Your free trial credits are exhausted. Upgrade to premium.'}
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.card, exceeded && styles.cardExceeded]}>      

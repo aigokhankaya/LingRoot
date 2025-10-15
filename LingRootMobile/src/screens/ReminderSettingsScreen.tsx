@@ -1,0 +1,617 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  Modal,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useLanguage } from '../contexts/LanguageContext';
+import { getReminderSettings, saveReminderSettings, ReminderSettings } from '../services/api';
+import NotificationService from '../services/notificationService';
+
+const ReminderSettingsScreen: React.FC = () => {
+  const { language } = useLanguage();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [settings, setSettings] = useState<ReminderSettings>({
+    wordsPerDay: 5,
+    startTime: '09:00',
+    endTime: '18:00',
+    isEnabled: true,
+  });
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getReminderSettings();
+      setSettings(data);
+    } catch (error) {
+      console.error('Error loading reminder settings:', error);
+      Alert.alert(
+        language === 'tr' ? 'Hata' : 'Error',
+        language === 'tr' ? 'Ayarlar yüklenirken hata oluştu' : 'Failed to load settings'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      
+      // Always cancel existing notifications first before saving new settings
+      try {
+        await NotificationService.stopVocabularyReminders();
+      } catch (error) {
+        console.error('Error canceling existing notifications:', error);
+      }
+      
+      // Save settings to backend
+      await saveReminderSettings(settings);
+      
+      // If reminders are enabled, reschedule with new settings
+      if (settings.isEnabled) {
+        try {
+          await NotificationService.setupSmartVocabularyNotifications();
+        } catch (error) {
+          console.error('Error rescheduling notifications:', error);
+        }
+      }
+      
+      Alert.alert(
+        language === 'tr' ? 'Başarılı' : 'Success',
+        language === 'tr' 
+          ? settings.isEnabled
+            ? 'Hatırlatma ayarları başarıyla kaydedildi!\n\nYeni ayarlar aktif olacak.' 
+            : 'Hatırlatma ayarları kaydedildi.\n\nTüm zamanlanmış bildirimler iptal edildi.'
+          : settings.isEnabled
+            ? 'Reminder settings saved successfully!\n\nNew settings will be active.'
+            : 'Reminder settings saved.\n\nAll scheduled notifications have been canceled.'
+      );
+    } catch (error) {
+      console.error('Error saving reminder settings:', error);
+      Alert.alert(
+        language === 'tr' ? 'Hata' : 'Error',
+        language === 'tr' ? 'Ayarlar kaydedilirken hata oluştu' : 'Failed to save settings'
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const wordsPerDayOptions = [1, 3, 5, 7, 10, 15, 20];
+  
+  // Generate all 24 hours
+  const allTimeOptions = Array.from({ length: 24 }, (_, i) => {
+    const hour = i.toString().padStart(2, '0');
+    return `${hour}:00`;
+  });
+
+  const handleTimeSelect = (time: string, isStartTime: boolean) => {
+    if (isStartTime) {
+      setSettings({ ...settings, startTime: time });
+      setShowStartTimePicker(false);
+    } else {
+      setSettings({ ...settings, endTime: time });
+      setShowEndTimePicker(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>
+            {language === 'tr' ? 'Ayarlar yükleniyor...' : 'Loading settings...'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.content}>
+        {/* Header Info */}
+        <View style={styles.headerInfo}>
+          <Icon name="notifications-active" size={48} color="#007AFF" />
+          <Text style={styles.headerTitle}>
+            {language === 'tr' ? 'Kelime Hatırlatma Ayarları' : 'Word Reminder Settings'}
+          </Text>
+          <Text style={styles.headerDescription}>
+            {language === 'tr' 
+              ? 'Kelime öğrenme hatırlatmalarınızı özelleştirin' 
+              : 'Customize your word learning reminders'}
+          </Text>
+        </View>
+
+        {/* Enable/Disable Toggle */}
+        <View style={styles.section}>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleInfo}>
+              <Text style={styles.sectionTitle}>
+                {language === 'tr' ? 'Hatırlatıcıları Aktif Et' : 'Enable Reminders'}
+              </Text>
+              <Text style={styles.sectionDescription}>
+                {language === 'tr' 
+                  ? 'Kelime hatırlatmalarını aç/kapat' 
+                  : 'Turn word reminders on/off'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.toggleSwitch,
+                settings.isEnabled && styles.toggleSwitchActive,
+              ]}
+              onPress={() => setSettings({ ...settings, isEnabled: !settings.isEnabled })}
+            >
+              <View
+                style={[
+                  styles.toggleThumb,
+                  settings.isEnabled && styles.toggleThumbActive,
+                ]}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Words Per Day Setting */}
+        <View style={[styles.section, !settings.isEnabled && styles.sectionDisabled]}>
+          <Text style={[styles.sectionTitle, !settings.isEnabled && styles.textDisabled]}>
+            {language === 'tr' ? 'Günlük Kelime Sayısı' : 'Words Per Day'}
+          </Text>
+          <Text style={[styles.sectionDescription, !settings.isEnabled && styles.textDisabled]}>
+            {language === 'tr' 
+              ? 'Günde kaç kelime hatırlatılsın?' 
+              : 'How many words should be reminded per day?'}
+          </Text>
+          <View style={styles.optionsGrid}>
+            {wordsPerDayOptions.map((count) => (
+              <TouchableOpacity
+                key={count}
+                style={[
+                  styles.optionButton,
+                  settings.wordsPerDay === count && styles.optionButtonSelected,
+                  !settings.isEnabled && styles.optionButtonDisabled,
+                ]}
+                onPress={() => settings.isEnabled && setSettings({ ...settings, wordsPerDay: count })}
+                disabled={!settings.isEnabled}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    settings.wordsPerDay === count && styles.optionTextSelected,
+                    !settings.isEnabled && styles.textDisabled,
+                  ]}
+                >
+                  {count} {language === 'tr' ? 'kelime' : 'words'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Time Range Setting */}
+        <View style={[styles.section, !settings.isEnabled && styles.sectionDisabled]}>
+          <Text style={[styles.sectionTitle, !settings.isEnabled && styles.textDisabled]}>
+            {language === 'tr' ? 'Bildirim Saat Aralığı' : 'Notification Time Range'}
+          </Text>
+          <Text style={[styles.sectionDescription, !settings.isEnabled && styles.textDisabled]}>
+            {language === 'tr' 
+              ? 'Bildirim yapılacak saat aralığını belirleyin' 
+              : 'Set the time range for notifications'}
+          </Text>
+
+          {/* Start Time Selector */}
+          <View style={styles.timeRow}>
+            <Text style={[styles.timeLabel, !settings.isEnabled && styles.textDisabled]}>
+              {language === 'tr' ? 'Başlangıç Saati' : 'Start Time'}
+            </Text>
+            <TouchableOpacity
+              style={[styles.timeSelector, !settings.isEnabled && styles.timeSelectorDisabled]}
+              onPress={() => settings.isEnabled && setShowStartTimePicker(true)}
+              disabled={!settings.isEnabled}
+            >
+              <Text style={[styles.timeSelectorText, !settings.isEnabled && styles.textDisabled]}>
+                {settings.startTime}
+              </Text>
+              <Icon name="arrow-drop-down" size={24} color={settings.isEnabled ? "#666" : "#ccc"} />
+            </TouchableOpacity>
+          </View>
+
+          {/* End Time Selector */}
+          <View style={styles.timeRow}>
+            <Text style={[styles.timeLabel, !settings.isEnabled && styles.textDisabled]}>
+              {language === 'tr' ? 'Bitiş Saati' : 'End Time'}
+            </Text>
+            <TouchableOpacity
+              style={[styles.timeSelector, !settings.isEnabled && styles.timeSelectorDisabled]}
+              onPress={() => settings.isEnabled && setShowEndTimePicker(true)}
+              disabled={!settings.isEnabled}
+            >
+              <Text style={[styles.timeSelectorText, !settings.isEnabled && styles.textDisabled]}>
+                {settings.endTime}
+              </Text>
+              <Icon name="arrow-drop-down" size={24} color={settings.isEnabled ? "#666" : "#ccc"} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Info Box */}
+        <View style={styles.infoBox}>
+          <Icon name="info" size={20} color="#007AFF" style={styles.infoIcon} />
+          <Text style={styles.infoText}>
+            {language === 'tr'
+              ? 'Seçilen saat aralığında eşit aralıklarla hatırlatmalar yapılacaktır. Hatırlatmalar, öğrenmediğiniz kelimelerden rastgele seçilir.'
+              : 'Reminders will be sent at equal intervals within the selected time range. Reminders are randomly selected from your unlearned words.'}
+          </Text>
+        </View>
+
+        {/* Save Button */}
+        <TouchableOpacity
+          style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+          onPress={handleSave}
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Icon name="save" size={20} color="#fff" style={styles.saveIcon} />
+              <Text style={styles.saveButtonText}>
+                {language === 'tr' ? 'Ayarları Kaydet' : 'Save Settings'}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Start Time Picker Modal */}
+      <Modal
+        visible={showStartTimePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowStartTimePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {language === 'tr' ? 'Başlangıç Saati Seçin' : 'Select Start Time'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowStartTimePicker(false)}>
+                <Icon name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.timeList}>
+              {allTimeOptions.map((time) => (
+                <TouchableOpacity
+                  key={time}
+                  style={[
+                    styles.timeOption,
+                    settings.startTime === time && styles.timeOptionSelected,
+                  ]}
+                  onPress={() => handleTimeSelect(time, true)}
+                >
+                  <Text
+                    style={[
+                      styles.timeOptionText,
+                      settings.startTime === time && styles.timeOptionTextSelected,
+                    ]}
+                  >
+                    {time}
+                  </Text>
+                  {settings.startTime === time && (
+                    <Icon name="check" size={20} color="#007AFF" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* End Time Picker Modal */}
+      <Modal
+        visible={showEndTimePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEndTimePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {language === 'tr' ? 'Bitiş Saati Seçin' : 'Select End Time'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+                <Icon name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.timeList}>
+              {allTimeOptions.map((time) => (
+                <TouchableOpacity
+                  key={time}
+                  style={[
+                    styles.timeOption,
+                    settings.endTime === time && styles.timeOptionSelected,
+                  ]}
+                  onPress={() => handleTimeSelect(time, false)}
+                >
+                  <Text
+                    style={[
+                      styles.timeOptionText,
+                      settings.endTime === time && styles.timeOptionTextSelected,
+                    ]}
+                  >
+                    {time}
+                  </Text>
+                  {settings.endTime === time && (
+                    <Icon name="check" size={20} color="#007AFF" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  content: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
+  headerInfo: {
+    backgroundColor: 'white',
+    padding: 24,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  headerDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  section: {
+    backgroundColor: 'white',
+    marginTop: 20,
+    marginHorizontal: 20,
+    padding: 20,
+    borderRadius: 12,
+  },
+  sectionDisabled: {
+    opacity: 0.5,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+  },
+  textDisabled: {
+    color: '#999',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  toggleInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  toggleSwitch: {
+    width: 56,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ccc',
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleSwitchActive: {
+    backgroundColor: '#007AFF',
+  },
+  toggleThumb: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  toggleThumbActive: {
+    transform: [{ translateX: 24 }],
+  },
+  optionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  optionButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#f9f9f9',
+  },
+  optionButtonSelected: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  optionButtonDisabled: {
+    opacity: 0.5,
+  },
+  optionText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  optionTextSelected: {
+    color: '#fff',
+  },
+  timeRow: {
+    marginBottom: 20,
+  },
+  timeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  timeSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  timeSelectorText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  timeSelectorDisabled: {
+    opacity: 0.5,
+  },
+  infoBox: {
+    backgroundColor: '#E3F2FD',
+    marginHorizontal: 20,
+    marginTop: 20,
+    padding: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  infoIcon: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1976D2',
+    lineHeight: 20,
+  },
+  saveButton: {
+    backgroundColor: '#007AFF',
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 40,
+    padding: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
+  saveIcon: {
+    marginRight: 8,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  timeList: {
+    maxHeight: 400,
+  },
+  timeOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  timeOptionSelected: {
+    backgroundColor: '#f0f8ff',
+  },
+  timeOptionText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  timeOptionTextSelected: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+});
+
+export default ReminderSettingsScreen;

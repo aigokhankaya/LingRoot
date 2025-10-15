@@ -4,7 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 // import { Ionicons } from '@expo/vector-icons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { Alert, View, ActivityIndicator } from 'react-native';
+import { Alert, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Platform } from 'react-native';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -26,6 +26,10 @@ import VocabularyScreen from '../screens/VocabularyScreen';
 import MembershipScreen from '../screens/MembershipScreen';
 import ChatScreen from '../screens/ChatScreen';
 import AccountSettingsScreen from '../screens/AccountSettingsScreen';
+import PackagesScreen from '../screens/PackagesScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
+import ReminderSettingsScreen from '../screens/ReminderSettingsScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -106,9 +110,32 @@ const MainTabs = () => {
       <Tab.Screen 
         name="Create" 
         component={CreateScreen}
-        options={{ 
-          tabBarLabel: t('create.title'),
-          headerTitle: t('create.title')
+        options={({ route, navigation }) => {
+          // Check if this tab is currently focused
+          const state = navigation.getState();
+          const currentRoute = state.routes[state.index];
+          const isFocused = currentRoute.name === 'Create';
+          
+          return {
+            tabBarLabel: t('create.title'),
+            headerTitle: t('create.title'),
+            // Only apply custom button when NOT focused (to make it dim)
+            ...(isFocused ? {} : {
+              tabBarButton: ({ style, children, accessibilityState, testID, accessibilityLabel, accessibilityRole }) => (
+                <TouchableOpacity 
+                  style={[style, { opacity: 0.3 }]}
+                  disabled={true}
+                  activeOpacity={1}
+                  accessibilityState={accessibilityState}
+                  accessibilityLabel={accessibilityLabel}
+                  accessibilityRole={accessibilityRole}
+                  testID={testID}
+                >
+                  {children}
+                </TouchableOpacity>
+              )
+            })
+          };
         }}
         initialParams={{ mode: 'text' }}
         listeners={({ navigation }) => ({
@@ -132,6 +159,7 @@ const MainTabs = () => {
 
 const AppNavigator = () => {
   const { user, isLoading } = useAuth();
+  const { t, language } = useLanguage();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [navReady, setNavReady] = useState(false);
   const [initialWordId, setInitialWordId] = useState<string | null>(null);
@@ -143,17 +171,10 @@ const AppNavigator = () => {
 
   useEffect(() => {
     if (user && navigationRef.current) {
-      console.log('📱 Setting up notification handler in AppNavigator...');
-      
       // Setup notification response handler
       const subscription = NotificationService.setupNotificationResponseHandler((wordId: string) => {
-        console.log('📱 AppNavigator received wordId:', wordId);
-        console.log('📱 Current navigation state:', navigationRef.current?.getCurrentRoute());
-        
-        
         // Navigate only when nav is ready; if not, store for later
         const doNavigate = () => {
-          console.log('📱 Navigating to Vocabulary with wordId:', wordId);
           navigationRef.current?.dispatch(
             CommonActions.reset({
               index: 1,
@@ -178,11 +199,10 @@ const AppNavigator = () => {
             const initialWordId = data?.wordId ?? data?.userInfo?.wordId;
             if (initialWordId) {
               const wordId = String(initialWordId);
-              console.log('❄️ Cold start captured wordId (waiting for nav ready):', wordId);
               setInitialWordId(wordId);
             }
           } catch (e) {
-            console.log('getInitialNotification error', e);
+            // Silent error handling
           }
         })();
       }
@@ -206,7 +226,6 @@ const AppNavigator = () => {
       : null;
     const target = pending || initialWordId;
     if (target) {
-      console.log('🚀 Consuming pending/initial wordId:', target);
       navigationRef.current.dispatch(
         CommonActions.reset({
           index: 1,
@@ -233,13 +252,13 @@ const AppNavigator = () => {
             <Stack.Screen
               name="Settings"
               component={AccountSettingsScreen}
-              options={{
+              options={({ navigation }) => ({
                 headerShown: true,
                 headerStyle: { backgroundColor: '#007AFF' },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
-                headerTitle: 'Hesap Ayarları',
-              }}
+                headerTitle: t('profile.accountSettings'),
+              })}
             />
             <Stack.Screen
               name="Membership"
@@ -252,15 +271,22 @@ const AppNavigator = () => {
               }}
             />
             <Stack.Screen
+              name="Packages"
+              component={PackagesScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
               name="Chat"
               component={ChatScreen}
-              options={{
+              options={({ navigation }) => ({
                 headerShown: true,
                 headerStyle: { backgroundColor: '#007AFF' },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
-                headerTitle: 'Mesaj Gönder',
-              }}
+                headerTitle: language === 'tr' ? 'Mesaj Gönder' : 'Send Message',
+              })}
             />
             <Stack.Screen 
               name="Vocabulary" 
@@ -275,6 +301,39 @@ const AppNavigator = () => {
                   fontWeight: 'bold',
                 },
                 headerTitle: 'Vocabulary', // This will be updated by the component
+              }}
+            />
+            <Stack.Screen
+              name="PrivacyPolicy"
+              component={PrivacyPolicyScreen}
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: '#007AFF' },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: 'bold' },
+                headerTitle: language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy',
+              }}
+            />
+            <Stack.Screen
+              name="TermsOfService"
+              component={TermsOfServiceScreen}
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: '#007AFF' },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: 'bold' },
+                headerTitle: language === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service',
+              }}
+            />
+            <Stack.Screen
+              name="ReminderSettings"
+              component={ReminderSettingsScreen}
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: '#007AFF' },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: 'bold' },
+                headerTitle: language === 'tr' ? 'Hatırlatıcı Ayarları' : 'Reminder Settings',
               }}
             />
           </>

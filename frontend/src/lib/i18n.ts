@@ -119,6 +119,7 @@ export const translations: Translations = {
     default_voice: "Varsayılan Ses",
     male_voice: "Erkek Ses",
     female_voice: "Kadın Ses",
+    loading_voices: "Sesler yükleniyor...",
     generate_audio: "Sesi Oluştur",
     processing: "İşleniyor...",
     footer_tagline: "Yapay zeka destekli İngilizce öğrenme platformu",
@@ -127,6 +128,72 @@ export const translations: Translations = {
     about: "Hakkında",
     contact: "İletişim",
     privacy_policy: "Gizlilik Politikası",
+    
+    // Privacy Policy Page
+    privacy_policy_title: "Gizlilik Politikası",
+    privacy_policy_subtitle: "Kişisel verilerinizin güvenliğini en üst seviyede tutuyoruz. Bu dokümanda verilerinizin nasıl korunduğunu açıklıyoruz.",
+    privacy_last_updated: "Son Güncellenme",
+    privacy_intro_title: "Kişisel Verilerinize Saygılıyız",
+    privacy_intro_text1: "LingRoot olarak, kullanıcılarımızın gizliliğini ve veri güvenliğini en üst düzeyde korumayı taahhüt ederiz. Bu Gizlilik Politikası, kişisel verilerinizin nasıl toplandığını, kullanıldığını, saklandığını ve korunduğunu açıklar.",
+    privacy_intro_text2: "Platformumuzu kullanırken bu politikayı kabul etmiş sayılırsınız. Herhangi bir değişiklik durumunda size bildirimde bulunacağız.",
+    privacy_data_collected: "Topladığımız Veriler",
+    privacy_account_info: "Hesap Bilgileri",
+    privacy_usage_data: "Kullanım Verileri",
+    privacy_technical_data: "Teknik Veriler",
+    privacy_how_we_use: "Verileri Nasıl Kullanıyoruz",
+    privacy_service_provision: "Hizmet Sağlama",
+    privacy_communication: "İletişim",
+    privacy_development: "Geliştirme",
+    privacy_security: "Güvenlik",
+    privacy_data_protection: "Veri Korunması",
+    privacy_ssl_encryption: "SSL Şifreleme",
+    privacy_ssl_desc: "Tüm veri transferleri 256-bit SSL ile şifrelenir",
+    privacy_secure_storage: "Güvenli Saklama",
+    privacy_secure_storage_desc: "Veriler güvenli sunucularda korunur",
+    privacy_access_control: "Erişim Kontrolü",
+    privacy_access_control_desc: "Sadece yetkili personel erişebilir",
+    privacy_questions_title: "Sorularınız mı Var?",
+    privacy_questions_desc: "Gizlilik politikamız hakkında herhangi bir sorunuz varsa, bizimle iletişime geçmekten çekinmeyin.",
+    privacy_contact_us: "İletişime Geçin",
+    legal_documents: "Yasal Belgeler",
+    
+    // Privacy Policy - Account Info Items
+    privacy_account_item1: "Ad, soyad ve e-posta adresiniz",
+    privacy_account_item2: "Telefon numaranız (isteğe bağlı)",
+    privacy_account_item3: "Hesap oluşturma tarihi",
+    privacy_account_item4: "Dil öğrenme seviyeniz ve tercihleri",
+    
+    // Privacy Policy - Usage Data Items
+    privacy_usage_item1: "İşlediğiniz içerikler ve sıklığı",
+    privacy_usage_item2: "Platformda geçirdiğiniz süre",
+    privacy_usage_item3: "Öğrenme ilerlemeniz ve istatistikler",
+    privacy_usage_item4: "Tercih ettiğiniz özellikler",
+    
+    // Privacy Policy - Technical Data Items
+    privacy_technical_item1: "IP adresi ve konum bilgisi",
+    privacy_technical_item2: "Tarayıcı türü ve versiyonu",
+    privacy_technical_item3: "Cihaz bilgileri",
+    privacy_technical_item4: "Çerezler ve oturum verileri",
+    
+    // Privacy Policy - Service Provision Items
+    privacy_service_item1: "Kişiselleştirilmiş içerik oluşturma",
+    privacy_service_item2: "Hesap yönetimi ve güvenlik",
+    privacy_service_item3: "Öğrenme ilerlemesi takibi",
+    
+    // Privacy Policy - Communication Items
+    privacy_comm_item1: "Müşteri destek hizmetleri",
+    privacy_comm_item2: "Önemli güncellemeler",
+    privacy_comm_item3: "Geri bildirim toplama",
+    
+    // Privacy Policy - Development Items
+    privacy_dev_item1: "Platform performansı analizi",
+    privacy_dev_item2: "Yeni özellik geliştirme",
+    privacy_dev_item3: "Hata tespiti ve düzeltme",
+    
+    // Privacy Policy - Security Items
+    privacy_sec_item1: "Dolandırıcılık önleme",
+    privacy_sec_item2: "Hesap güvenliği",
+    privacy_sec_item3: "Sistem koruması",
     text_to_speech: "Metinden Sese",
     pronunciation: "Telaffuz",
     vocabulary: "Kelime Hazinesi",
@@ -248,6 +315,7 @@ export const translations: Translations = {
     default_voice: "Default Voice",
     male_voice: "Male Voice",
     female_voice: "Female Voice",
+    loading_voices: "Loading voices...",
     generate_audio: "Generate Audio",
     processing: "Processing...",
     footer_tagline: "AI-powered English learning platform",
@@ -256,6 +324,72 @@ export const translations: Translations = {
     about: "About",
     contact: "Contact",
     privacy_policy: "Privacy Policy",
+    
+    // Privacy Policy Page
+    privacy_policy_title: "Privacy Policy",
+    privacy_policy_subtitle: "We keep your personal data security at the highest level. This document explains how your data is protected.",
+    privacy_last_updated: "Last Updated",
+    privacy_intro_title: "We Respect Your Personal Data",
+    privacy_intro_text1: "At LingRoot, we are committed to protecting our users' privacy and data security at the highest level. This Privacy Policy explains how your personal data is collected, used, stored, and protected.",
+    privacy_intro_text2: "By using our platform, you agree to this policy. We will notify you of any changes.",
+    privacy_data_collected: "Data We Collect",
+    privacy_account_info: "Account Information",
+    privacy_usage_data: "Usage Data",
+    privacy_technical_data: "Technical Data",
+    privacy_how_we_use: "How We Use Data",
+    privacy_service_provision: "Service Provision",
+    privacy_communication: "Communication",
+    privacy_development: "Development",
+    privacy_security: "Security",
+    privacy_data_protection: "Data Protection",
+    privacy_ssl_encryption: "SSL Encryption",
+    privacy_ssl_desc: "All data transfers are encrypted with 256-bit SSL",
+    privacy_secure_storage: "Secure Storage",
+    privacy_secure_storage_desc: "Data is protected on secure servers",
+    privacy_access_control: "Access Control",
+    privacy_access_control_desc: "Only authorized personnel can access",
+    privacy_questions_title: "Have Questions?",
+    privacy_questions_desc: "If you have any questions about our privacy policy, please don't hesitate to contact us.",
+    privacy_contact_us: "Contact Us",
+    legal_documents: "Legal Documents",
+    
+    // Privacy Policy - Account Info Items
+    privacy_account_item1: "Your name, surname and email address",
+    privacy_account_item2: "Your phone number (optional)",
+    privacy_account_item3: "Account creation date",
+    privacy_account_item4: "Your language learning level and preferences",
+    
+    // Privacy Policy - Usage Data Items
+    privacy_usage_item1: "Content you process and frequency",
+    privacy_usage_item2: "Time spent on the platform",
+    privacy_usage_item3: "Your learning progress and statistics",
+    privacy_usage_item4: "Your preferred features",
+    
+    // Privacy Policy - Technical Data Items
+    privacy_technical_item1: "IP address and location information",
+    privacy_technical_item2: "Browser type and version",
+    privacy_technical_item3: "Device information",
+    privacy_technical_item4: "Cookies and session data",
+    
+    // Privacy Policy - Service Provision Items
+    privacy_service_item1: "Creating personalized content",
+    privacy_service_item2: "Account management and security",
+    privacy_service_item3: "Learning progress tracking",
+    
+    // Privacy Policy - Communication Items
+    privacy_comm_item1: "Customer support services",
+    privacy_comm_item2: "Important updates",
+    privacy_comm_item3: "Feedback collection",
+    
+    // Privacy Policy - Development Items
+    privacy_dev_item1: "Platform performance analysis",
+    privacy_dev_item2: "New feature development",
+    privacy_dev_item3: "Bug detection and fixing",
+    
+    // Privacy Policy - Security Items
+    privacy_sec_item1: "Fraud prevention",
+    privacy_sec_item2: "Account security",
+    privacy_sec_item3: "System protection",
     text_to_speech: "Text to Speech",
     pronunciation: "Pronunciation",
     vocabulary: "Vocabulary",
@@ -311,6 +445,7 @@ export const translations: Translations = {
     default_voice: "Standardstimme",
     male_voice: "Männliche Stimme",
     female_voice: "Weibliche Stimme",
+    loading_voices: "Stimmen werden geladen...",
     generate_audio: "Audio generieren",
     processing: "Wird verarbeitet...",
     footer_tagline: "KI-gestützte Englischlernplattform",
@@ -373,6 +508,7 @@ export const translations: Translations = {
     default_voice: "Voix par défaut",
     male_voice: "Voix masculine",
     female_voice: "Voix féminine",
+    loading_voices: "Chargement des voix...",
     generate_audio: "Générer l'audio",
     processing: "Traitement...",
     footer_tagline: "Plateforme d'apprentissage de l'anglais assistée par IA",
@@ -435,6 +571,7 @@ export const translations: Translations = {
     default_voice: "Voz predeterminada",
     male_voice: "Voz masculina",
     female_voice: "Voz femenina",
+    loading_voices: "Cargando voces...",
     generate_audio: "Generar audio",
     processing: "Procesando...",
     footer_tagline: "Plataforma de aprendizaje de inglés impulsada por IA",
@@ -497,6 +634,7 @@ export const translations: Translations = {
     default_voice: "Voz padrão",
     male_voice: "Voz masculina",
     female_voice: "Voz feminina",
+    loading_voices: "Carregando vozes...",
     generate_audio: "Gerar áudio",
     processing: "Processando...",
     footer_tagline: "Plataforma de aprendizagem de inglês com IA",
@@ -559,6 +697,7 @@ export const translations: Translations = {
     default_voice: "डिफ़ॉल्ट आवाज़",
     male_voice: "पुरुष आवाज़",
     female_voice: "महिला आवाज़",
+    loading_voices: "आवाज़ें लोड हो रही हैं...",
     generate_audio: "ऑडियो जनरेट करें",
     processing: "प्रसंस्करण...",
     footer_tagline: "एआई-संचालित अंग्रेजी सीखने का प्लेटफ़ॉर्म",
@@ -621,6 +760,7 @@ export const translations: Translations = {
     default_voice: "Suara Default",
     male_voice: "Suara Pria",
     female_voice: "Suara Wanita",
+    loading_voices: "Memuat suara...",
     generate_audio: "Hasilkan Audio",
     processing: "Memproses...",
     footer_tagline: "Platform pembelajaran bahasa Inggris berbasis AI",
@@ -699,7 +839,9 @@ export const getTranslation = (localeOverride?: Locale) => {
   const currentLocale = localeOverride || getCurrentLanguage();
 
   const t = (key: string): string => {
-    return translations[currentLocale]?.[key] || key;
+    const value = translations[currentLocale]?.[key] || key;
+    // Ensure we always return a string, not an array or object
+    return typeof value === 'string' ? value : String(value);
   };
 
   return { t, currentLocale };
