@@ -27,7 +27,12 @@ const LoginScreen: React.FC = () => {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [showResendUI, setShowResendUI] = useState(false);
+<<<<<<< Updated upstream
   const { signIn } = useAuth();
+=======
+  const [showAppleSignIn, setShowAppleSignIn] = useState(false);
+  const { signIn, signInWithGoogle, signInWithApple } = useAuth();
+>>>>>>> Stashed changes
   const scrollRef = useRef<ScrollView | null>(null);
   const [resendBoxY, setResendBoxY] = useState<number | null>(null);
   const navigation = useNavigation();
@@ -145,6 +150,61 @@ const LoginScreen: React.FC = () => {
     }
   };
 
+<<<<<<< Updated upstream
+=======
+  const handleGoogleSignIn = async () => {
+    if (!signInWithGoogle) return;
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      // Kullanıcı sistemde yoksa register ekranına yönlendir
+      if (error.code === 'USER_NOT_FOUND') {
+        Alert.alert(
+          language === 'tr' ? 'Kullanıcı Bulunamadı' : 'User Not Found',
+          language === 'tr' 
+            ? 'Bu Google hesabı ile kayıtlı bir kullanıcı bulunamadı. Kayıt ekranına yönlendiriliyorsunuz.' 
+            : 'No user found with this Google account. Redirecting to registration.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Register ekranına yönlendir
+                try {
+                  (navigation as any)?.navigate?.('Register', { 
+                    socialData: error.socialData 
+                  });
+                } catch (navError) {
+                  console.error('Navigation error:', navError);
+                }
+              }
+            }
+          ]
+        );
+        return;
+      }
+      
+      Alert.alert(
+        language === 'tr' ? 'Google Giriş Hatası' : 'Google Sign-In Error',
+        error.message || (language === 'tr' ? 'Google ile giriş başarısız' : 'Google sign-in failed')
+      );
+    }
+  };
+
+  // Facebook sign-in removed
+
+  const handleAppleSignIn = async () => {
+    if (!signInWithApple) return;
+    try {
+      await signInWithApple();
+    } catch (error: any) {
+      Alert.alert(
+        language === 'tr' ? 'Apple Giriş Hatası' : 'Apple Sign-In Error',
+        error.message || (language === 'tr' ? 'Apple ile giriş başarısız' : 'Apple sign-in failed')
+      );
+    }
+  };
+
+>>>>>>> Stashed changes
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -239,6 +299,31 @@ const LoginScreen: React.FC = () => {
           <TouchableOpacity style={styles.linkButton} onPress={() => { try { (navigation as any)?.navigate?.('Register'); } catch {} }}>
             <Text style={styles.linkText}>Hesabın yok mu? Kayıt ol</Text>
           </TouchableOpacity>
+<<<<<<< Updated upstream
+=======
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>{language === 'tr' ? 'veya' : 'or'}</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignIn}>
+            <Icon name="google" size={20} color="#DB4437" />
+            <Text style={styles.socialButtonText}>
+              {language === 'tr' ? 'Google ile Giriş Yap' : 'Sign in with Google'}
+            </Text>
+          </TouchableOpacity>
+
+          {showAppleSignIn && (
+            <TouchableOpacity style={[styles.socialButton, styles.appleButton]} onPress={handleAppleSignIn}>
+              <Icon name="apple" size={20} color="#000" />
+              <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                {language === 'tr' ? 'Apple ile Giriş Yap' : 'Sign in with Apple'}
+              </Text>
+            </TouchableOpacity>
+          )}
+>>>>>>> Stashed changes
           </View>
         </View>
       </ScrollView>

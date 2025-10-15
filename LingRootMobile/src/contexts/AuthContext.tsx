@@ -4,6 +4,16 @@ import { authService } from '../services/supabase';
 import { apiService, setUnauthorizedHandler } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationService from '../services/notificationService';
+<<<<<<< Updated upstream
+=======
+import { 
+  signInWithGoogle, 
+  signInWithApple,
+  signOutFromSocialProviders,
+  configureGoogleSignIn,
+  type SocialAuthResult
+} from '../services/socialAuth';
+>>>>>>> Stashed changes
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -312,6 +322,152 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+<<<<<<< Updated upstream
+=======
+  // Social authentication handler
+  const handleSocialAuth = async (socialResult: SocialAuthResult) => {
+    const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+    
+    // Determine endpoint based on provider
+    const endpoint = socialResult.provider === 'google' 
+      ? '/api/auth/google-login'
+      : '/api/auth/apple-login';
+    
+    // Prepare request body
+    const requestBody: any = { 
+      credential: socialResult.credential,
+      rememberMe: true 
+    };
+    
+    // For Apple, include email and name if available (first login only)
+    if (socialResult.provider === 'apple') {
+      if (socialResult.email) requestBody.email = socialResult.email;
+      if (socialResult.name) requestBody.name = socialResult.name;
+    }
+    
+    // Send social auth credential to backend
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'LingRootMobile/1.0',
+      },
+      mode: 'cors',
+      credentials: 'omit',
+      body: JSON.stringify(requestBody),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      
+      // Kullanıcı sistemde yoksa - register ekranına yönlendir
+      if (errorData.code === 'USER_NOT_FOUND' || errorData.code === 'USER_NOT_REGISTERED') {
+        const error: any = new Error(errorData.message || 'Kullanıcı bulunamadı. Lütfen kayıt olun.');
+        error.code = 'USER_NOT_FOUND';
+        error.socialData = socialResult; // Social auth bilgilerini sakla
+        throw error;
+      }
+      
+      // Email doğrulanmamışsa özel hata mesajı
+      if (errorData.code === 'EMAIL_NOT_VERIFIED') {
+        throw new Error(errorData.message || 'Email adresiniz doğrulanmamış. Lütfen email adresinize gönderilen doğrulama linkine tıklayın.');
+      }
+      
+      throw new Error(errorData.message || 'Sosyal giriş başarısız');
+    }
+    
+    const data = await response.json();
+    
+    if (data.success && data.data.user) {
+      const backendUser = data.data.user;
+      
+      // Backend'den isNewUser flag'i geliyorsa kontrol et
+      // Veya kullanıcının phone_number'ı yoksa yeni kullanıcıdır
+      const isNewUser = data.data.isNewUser || 
+                        data.data.justCreated || 
+                        !backendUser.phone_number || 
+                        !backendUser.phoneNumber;
+      
+      if (isNewUser) {
+        // Yeni kullanıcı - register ekranına yönlendir
+        const error: any = new Error('Kullanıcı bulunamadı. Lütfen kayıt olun.');
+        error.code = 'USER_NOT_FOUND';
+        error.socialData = socialResult;
+        throw error;
+      }
+      
+      const builtFullName = (
+        backendUser.name ||
+        backendUser.full_name ||
+        [backendUser.firstName, backendUser.lastName].filter(Boolean).join(' ') ||
+        [backendUser.firstname, backendUser.lastname].filter(Boolean).join(' ')
+      )?.toString().trim();
+
+      const appUser: User = {
+        id: backendUser.id,
+        email: backendUser.email,
+        full_name: builtFullName && builtFullName.length > 0 ? builtFullName : (backendUser.email?.split('@')[0] || ''),
+        avatar_url: backendUser.avatar_url,
+        membership_level: backendUser.membership_status || 'free',
+        role: backendUser.role,
+        created_at: backendUser.created_at,
+        updated_at: backendUser.updated_at,
+      };
+      
+      if (data.data.token) {
+        await AsyncStorage.setItem('auth_token', data.data.token);
+        await AsyncStorage.setItem('user_data', JSON.stringify(appUser));
+        try {
+          if (data.data.refreshToken) {
+            await AsyncStorage.setItem('refresh_token', data.data.refreshToken);
+          }
+        } catch {}
+      }
+      
+      setUser(appUser);
+    } else {
+      throw new Error(data.message || 'Sosyal giriş başarısız');
+    }
+  };
+
+  const signInWithGoogleProvider = async () => {
+    setIsLoading(true);
+    try {
+      const isConnected = await apiService.checkConnectivity();
+      if (!isConnected) {
+        throw new Error('Backend serveri ile bağlantı kurulamıyor. Lütfen internet bağlantınızı kontrol edin.');
+      }
+      
+      const socialResult = await signInWithGoogle();
+      await handleSocialAuth(socialResult);
+      setIsLoading(false);
+    } catch (error: any) {
+      setIsLoading(false);
+      throw error;
+    }
+  };
+
+  // Facebook sign-in removed
+
+  const signInWithAppleProvider = async () => {
+    setIsLoading(true);
+    try {
+      const isConnected = await apiService.checkConnectivity();
+      if (!isConnected) {
+        throw new Error('Backend serveri ile bağlantı kurulamıyor. Lütfen internet bağlantınızı kontrol edin.');
+      }
+      
+      const socialResult = await signInWithApple();
+      await handleSocialAuth(socialResult);
+      setIsLoading(false);
+    } catch (error: any) {
+      setIsLoading(false);
+      throw error;
+    }
+  };
+
+>>>>>>> Stashed changes
   const updateUserProfile = async (data: Partial<User> & { phoneNumber?: string; full_name?: string }) => {
     if (!user) throw new Error('Oturum bulunamadı');
     try {
@@ -335,6 +491,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signUp,
     signOut,
     updateUserProfile,
+<<<<<<< Updated upstream
+=======
+    signInWithGoogle: signInWithGoogleProvider,
+    signInWithApple: signInWithAppleProvider,
+>>>>>>> Stashed changes
   };
 
   return (

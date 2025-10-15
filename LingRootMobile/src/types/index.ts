@@ -16,6 +16,11 @@ export interface AuthContextType {
   signUp: (email: string, password: string, fullName?: string, phoneNumber?: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateUserProfile: (data: Partial<User> & { phoneNumber?: string; full_name?: string }) => Promise<void>;
+<<<<<<< Updated upstream
+=======
+  signInWithGoogle?: () => Promise<void>;
+  signInWithApple?: () => Promise<void>;
+>>>>>>> Stashed changes
 }
 
 // Membership Types
