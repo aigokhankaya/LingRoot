@@ -8,18 +8,36 @@ export const configureGoogleSignIn = () => {
   try {
     const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
     const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+    const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+    
+    console.log('[GOOGLE_SIGNIN] Configuration attempt:', {
+      hasWebClientId: !!webClientId,
+      hasIosClientId: !!iosClientId,
+      hasAndroidClientId: !!androidClientId,
+      platform: Platform.OS
+    });
     
     // Don't configure if no client IDs are provided
-    if (!webClientId && !iosClientId) {
-      console.warn('[GOOGLE_SIGNIN] No client IDs configured. Google Sign-In will not work.');
+    if (!webClientId) {
+      console.warn('[GOOGLE_SIGNIN] No web client ID configured. Google Sign-In will not work.');
+      console.warn('[GOOGLE_SIGNIN] Please add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID to .env file');
       return;
     }
     
-    GoogleSignin.configure({
-      webClientId: webClientId || undefined,
-      iosClientId: iosClientId || undefined,
-      offlineAccess: false, // Set to false to avoid server web ClientId requirement
-    });
+    // Platform-specific configuration
+    const config: any = {
+      webClientId: webClientId,
+      offlineAccess: false,
+    };
+    
+    if (Platform.OS === 'ios' && iosClientId) {
+      config.iosClientId = iosClientId;
+    }
+    
+    // Note: androidClientId is not needed in GoogleSignin.configure()
+    // Android uses the SHA-1 fingerprint registered in Google Console
+    
+    GoogleSignin.configure(config);
     
     console.log('[GOOGLE_SIGNIN] Configuration successful');
   } catch (error) {

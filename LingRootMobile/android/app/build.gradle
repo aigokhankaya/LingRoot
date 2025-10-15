@@ -133,6 +133,9 @@ dependencies {
     
     // Google Sign-In
     implementation("com.google.android.gms:play-services-auth:21.0.0")
+    
+    // Facebook SDK
+    implementation("com.facebook.android:facebook-android-sdk:16.0.0")
 
     // Optional Fresco image formats (commented out to avoid expoLibs dependency)
     // implementation("com.facebook.fresco:animated-gif:3.1.3")
