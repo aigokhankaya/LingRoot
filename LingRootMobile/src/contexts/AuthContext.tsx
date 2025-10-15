@@ -380,14 +380,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (data.success && data.data.user) {
       const backendUser = data.data.user;
       
+      console.log('[AUTH] Social auth response:', {
+        isNewUser: data.data.isNewUser,
+        justCreated: data.data.justCreated,
+        hasPhoneNumber: !!(backendUser.phone_number || backendUser.phoneNumber),
+        phoneNumber: backendUser.phone_number || backendUser.phoneNumber,
+      });
+      
       // Backend'den isNewUser flag'i geliyorsa kontrol et
       // Veya kullanıcının phone_number'ı yoksa yeni kullanıcıdır
+      const phoneNum = backendUser.phone_number || backendUser.phoneNumber;
       const isNewUser = data.data.isNewUser || 
                         data.data.justCreated || 
-                        !backendUser.phone_number || 
-                        !backendUser.phoneNumber;
+                        !phoneNum ||
+                        phoneNum === '' ||
+                        phoneNum === null;
       
       if (isNewUser) {
+        console.log('[AUTH] New user detected, redirecting to register');
         // Yeni kullanıcı - register ekranına yönlendir
         const error: any = new Error('Kullanıcı bulunamadı. Lütfen kayıt olun.');
         error.code = 'USER_NOT_FOUND';
