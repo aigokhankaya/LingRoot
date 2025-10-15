@@ -12,6 +12,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiService } from '../services/api';
@@ -29,6 +30,7 @@ const LoginScreen: React.FC = () => {
   const [showResendUI, setShowResendUI] = useState(false);
   const [showAppleSignIn, setShowAppleSignIn] = useState(false);
   const { signIn, signInWithGoogle, signInWithApple } = useAuth();
+  const { language } = useLanguage();
   const scrollRef = useRef<ScrollView | null>(null);
   const [resendBoxY, setResendBoxY] = useState<number | null>(null);
   const navigation = useNavigation();
@@ -443,6 +445,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#ddd',
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: '#666',
+    fontSize: 14,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  socialButtonText: {
+    marginLeft: 10,
+    fontSize: 16,
+    color: '#333',
+  },
+  appleButton: {
+    backgroundColor: '#000',
+  },
+  appleButtonText: {
+    color: '#fff',
+  },
 });
 
-export default LoginScreen; 
+export default LoginScreen;

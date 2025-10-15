@@ -14,6 +14,12 @@ export const configureGoogleSignIn = () => {
     const androidClientId = EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
     const iosClientId = EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
     
+    console.log('[GOOGLE_SIGNIN] Environment variables:', {
+      webClientId: webClientId ? `${webClientId.substring(0, 20)}...` : 'undefined',
+      androidClientId: androidClientId ? `${androidClientId.substring(0, 20)}...` : 'undefined',
+      iosClientId: iosClientId ? `${iosClientId.substring(0, 20)}...` : 'undefined',
+    });
+    
     // Don't configure if no client IDs are provided
     if (!webClientId && !androidClientId && !iosClientId) {
       console.warn('[GOOGLE_SIGNIN] No client IDs configured. Google Sign-In will not work.');

@@ -32,6 +32,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isBootstrappingRef = useRef(true);
 
   useEffect(() => {
+    // Configure Google Sign-In
+    configureGoogleSignIn();
+    
     // Initial auth state check
     checkAuthState();
 
