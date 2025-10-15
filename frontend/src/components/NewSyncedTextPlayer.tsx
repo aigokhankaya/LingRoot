@@ -152,7 +152,7 @@ export default function NewSyncedTextPlayer({
         sentence.toLowerCase().includes(contextMenu.word.toLowerCase())
       ) || '';
       
-      const result = await addWordWithTranslation(contextMenu.word, context, level, originalSentence);
+      const result = await addWordWithTranslation(contextMenu.word, context, '', originalSentence); // Level boş - OpenAI otomatik belirleyecek
       
       console.log('Kelime başarıyla eklendi:', result);
       alert(`"${contextMenu.word}" kelimesi kelime listenize eklendi!`);

@@ -924,7 +924,7 @@ export default function SyncedTextPlayer({
       }
       
       // OpenAI çevirisi ile kelime ekle
-      const result = await addWordWithTranslation(contextMenu.word, context, level, originalSentence);
+      const result = await addWordWithTranslation(contextMenu.word, context, '', originalSentence); // Level boş - OpenAI otomatik belirleyecek
       
       if (result.isExisting) {
         alert(`"${contextMenu.word}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${result.data.definition || 'Belirtilmemiş'}\nÖrnek: ${result.data.example_sentence || 'Belirtilmemiş'}`);

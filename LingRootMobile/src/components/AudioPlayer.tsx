@@ -20,6 +20,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, Timepoint } from '../types';
 import { useAudioContext } from '../contexts/AudioContext';
 import { addWordToVocabulary, addWordWithTranslation, apiService } from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -39,6 +40,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   words = [],
 }) => {
   const insets = useSafeAreaInsets();
+  const { language } = useLanguage();
   const { setCurrentTrack, setIsPlaying, isPlaying, currentTrack, sound, setSound, stopAllAudio } = useAudioContext();
   const [isLoading, setIsLoading] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -190,7 +192,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }
 
     } catch (error) {
-      console.error('Audio loading error:', error);
       Alert.alert('Hata', `Ses dosyası yüklenirken hata oluştu: ${error}`);
     } finally {
       setIsLoading(false);
@@ -324,6 +325,19 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       if ((currentStatus as any).isPlaying) {
         await sound.pauseAsync();
       } else {
+        // Check if audio has finished or is at the end
+        const statusAny = currentStatus as any;
+        const currentPosition = statusAny.positionMillis || 0;
+        const audioDuration = statusAny.durationMillis || duration;
+        
+        // If audio finished or is within 100ms of the end, restart from beginning
+        if (statusAny.didJustFinish || (audioDuration > 0 && currentPosition >= audioDuration - 100)) {
+          await sound.setPositionAsync(0);
+          setPosition(0);
+          setCurrentWordIndex(-1);
+          setCurrentSentenceIndex(-1);
+        }
+        
         await sound.playAsync();
       }
       
@@ -390,21 +404,23 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
 
     Alert.alert(
-      'Kelime Seçimi',
-      `"${cleanWord}" kelimesini kelime listenize eklemek istiyor musunuz?`,
+      language === 'tr' ? 'Kelime Seçimi' : 'Word Selection',
+      language === 'tr' 
+        ? `"${cleanWord}" kelimesini kelime listenize eklemek istiyor musunuz?`
+        : `Do you want to add "${cleanWord}" to your vocabulary list?`,
       [
         {
-          text: 'İptal',
+          text: language === 'tr' ? 'İptal' : 'Cancel',
           style: 'cancel',
         },
         {
-          text: 'Kelime Ekle',
+          text: language === 'tr' ? 'Kelime Ekle' : 'Add Word',
           style: 'default',
           onPress: () => handleAddWordToVocabulary(cleanWord, wordIndex),
         },
       ]
     );
-  }, []);
+  }, [language]);
 
   const handleAddWordToVocabulary = useCallback(async (word: string, wordIndex: number) => {
     const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
@@ -441,7 +457,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const result = await addWordWithTranslation(
         cleanWord,
         context, // Context for AI translation
-        track.level,
+        '', // Level boş - OpenAI otomatik belirleyecek
         originalSentence
       );
 
@@ -451,38 +467,48 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       // Show detailed success message like web version
       if (result.isExisting) {
         Alert.alert(
-          'Bilgi!',
-          `"${cleanWord}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${result.data.definition || 'Belirtilmemiş'}\nÖrnek: ${result.data.example_sentence || 'Belirtilmemiş'}`,
-          [{ text: 'Tamam' }]
+          language === 'tr' ? 'Bilgi!' : 'Info!',
+          language === 'tr'
+            ? `"${cleanWord}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${result.data.definition || 'Belirtilmemiş'}\nÖrnek: ${result.data.example_sentence || 'Belirtilmemiş'}`
+            : `"${cleanWord}" is already in your vocabulary list:\n\nMeaning: ${result.data.definition || 'Not specified'}\nExample: ${result.data.example_sentence || 'Not specified'}`,
+          [{ text: language === 'tr' ? 'Tamam' : 'OK' }]
         );
       } else if (result.translationError) {
         Alert.alert(
-          'Uyarı!',
-          `"${cleanWord}" kelimesi eklendi ancak çeviri yapılamadı. Anlamı manuel olarak ekleyebilirsiniz.`,
-          [{ text: 'Tamam' }]
+          language === 'tr' ? 'Uyarı!' : 'Warning!',
+          language === 'tr'
+            ? `"${cleanWord}" kelimesi eklendi ancak çeviri yapılamadı. Anlamı manuel olarak ekleyebilirsiniz.`
+            : `"${cleanWord}" was added but translation failed. You can add the meaning manually.`,
+          [{ text: language === 'tr' ? 'Tamam' : 'OK' }]
         );
       } else {
         Alert.alert(
-          'Başarılı!',
-          `"${cleanWord}" kelimesi başarıyla eklendi!\n\nAnlam: ${result.data.definition}\nÖrnek Cümle: ${result.data.example_sentence}\nSeviye: ${result.data.level}`,
-          [{ text: 'Tamam' }]
+          language === 'tr' ? 'Başarılı!' : 'Success!',
+          language === 'tr'
+            ? `"${cleanWord}" kelimesi başarıyla eklendi!\n\nAnlam: ${result.data.definition}\nÖrnek Cümle: ${result.data.example_sentence}\nSeviye: ${result.data.level}`
+            : `"${cleanWord}" was successfully added!\n\nMeaning: ${result.data.definition}\nExample: ${result.data.example_sentence}\nLevel: ${result.data.level}`,
+          [{ text: language === 'tr' ? 'Tamam' : 'OK' }]
         );
       }
       
     } catch (error: any) {
       if (error.message?.includes('zaten listede mevcut')) {
         Alert.alert(
-          'Bilgi',
-          `"${cleanWord}" kelimesi zaten kelime listenizdedir.`
+          language === 'tr' ? 'Bilgi' : 'Info',
+          language === 'tr'
+            ? `"${cleanWord}" kelimesi zaten kelime listenizdedir.`
+            : `"${cleanWord}" is already in your vocabulary list.`
         );
       } else {
         Alert.alert(
-          'Hata', 
-          `Kelime eklenirken bir hata oluştu: ${error.message || 'Lütfen internet bağlantınızı kontrol edin.'}`
+          language === 'tr' ? 'Hata' : 'Error',
+          language === 'tr'
+            ? `Kelime eklenirken bir hata oluştu: ${error.message || 'Lütfen internet bağlantınızı kontrol edin.'}`
+            : `An error occurred while adding the word: ${error.message || 'Please check your internet connection.'}`
         );
       }
     }
-  }, [wordsArray, textToHighlight, track.level]);
+  }, [wordsArray, textToHighlight, language]);
 
   const formatTime = (milliseconds: number) => {
     const totalSeconds = Math.floor(milliseconds / 1000);
@@ -749,6 +775,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
+          directionalLockEnabled={true}
+          scrollEventThrottle={16}
           onMomentumScrollEnd={async (e) => {
             const idx = Math.round((e.nativeEvent.contentOffset.x || 0) / screenWidth);
             setPageIndex(idx);
@@ -769,31 +797,40 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           style={{ flex: 1 }}
         >
           <View style={{ width: screenWidth, flex: 1 }}>
-            <View style={{ width: '100%', flex: 1 }}>
-              <ScrollView
-                ref={scrollViewRef}
-                style={[styles.scrollContainer, { paddingTop: 8 }]}
-                showsVerticalScrollIndicator={false}
-              >
-                <Pressable onPress={handlePage0Tap} style={styles.textWrapper}>
-                  {renderHighlightedText()}
-                </Pressable>
-              </ScrollView>
-            </View>
+            <ScrollView
+              ref={scrollViewRef}
+              style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
+              contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+              scrollEventThrottle={16}
+              removeClippedSubviews={false}
+              bounces={true}
+            >
+              <Pressable onPress={handlePage0Tap} style={styles.textWrapper}>
+                {renderHighlightedText()}
+              </Pressable>
+            </ScrollView>
           </View>
           <View style={{ width: screenWidth, flex: 1 }}>
-            <View style={{ width: '100%', flex: 1 }}>
-              <ScrollView style={[styles.scrollContainer, { paddingTop: 8 }]} showsVerticalScrollIndicator={false}>
-                <Pressable onPress={handlePage1Tap}>
-                  <Text style={styles.originalTitle}>Orijinal Türkçe Metin</Text>
-                  {originalLoading ? (
-                    <Text style={styles.originalText}>Yükleniyor...</Text>
-                  ) : (
-                    <Text style={styles.originalText}>{originalText || track.original_turkish || '—'}</Text>
-                  )}
-                </Pressable>
-              </ScrollView>
-            </View>
+            <ScrollView 
+              style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]} 
+              contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+              scrollEventThrottle={16}
+              removeClippedSubviews={false}
+              bounces={true}
+            >
+              <Pressable onPress={handlePage1Tap}>
+                <Text style={styles.originalTitle}>Orijinal Türkçe Metin</Text>
+                {originalLoading ? (
+                  <Text style={styles.originalText}>Yükleniyor...</Text>
+                ) : (
+                  <Text style={styles.originalText}>{originalText || track.original_turkish || '—'}</Text>
+                )}
+              </Pressable>
+            </ScrollView>
           </View>
         </ScrollView>
 

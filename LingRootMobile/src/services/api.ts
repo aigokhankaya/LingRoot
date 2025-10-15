@@ -374,6 +374,20 @@ export const apiService = {
     }
   },
 
+  // Current authenticated user info (used to prefill phone)
+  async getMe(): Promise<any> {
+    try {
+      await wakeBackendIfNeeded();
+      const res = await apiClient.get('/api/auth/me');
+      // Backend sometimes returns { success, user } or { success, data }
+      const user = res.data?.user || res.data?.data || res.data;
+      return user || {};
+    } catch (e: any) {
+      // Return empty object on failure to avoid breaking UI
+      return {};
+    }
+  },
+
   async saveUserFavorites(ids: string[]): Promise<boolean> {
     try {
       const response = await apiClient.post('/api/user-favorites', { ids });
@@ -504,6 +518,29 @@ export const apiService = {
     } catch (error: any) {
       // Return generic message to avoid user enumeration differences
       const msg = error.response?.data?.message || 'Eğer e-posta adresi kayıtlı ise aktivasyon maili gönderildi.';
+      throw new Error(msg);
+    }
+  },
+
+  // Apple IAP receipt verification
+  async verifyAppleReceipt(receiptData: string, productId: string): Promise<{ success: boolean; data?: any; message?: string }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post('/api/iap/apple/verify', { receiptData, productId });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Abonelik doğrulaması başarısız';
+      throw new Error(msg);
+    }
+  },
+
+  // Get subscription plans (public endpoint)
+  async getSubscriptionPlans(): Promise<{ success: boolean; data?: any[] }> {
+    try {
+      const response = await apiClient.get('/api/subscription/plans');
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Paketler yüklenemedi';
       throw new Error(msg);
     }
   },
@@ -664,4 +701,76 @@ export const saveDefaultVoiceSetting = async (voice: string): Promise<void> => {
     } catch {}
     // Do not throw to allow UI to proceed
   }
+};
+
+// Plan Features Types
+export interface PlanFeatures {
+  homepage_features?: {
+    text_input?: boolean;
+    youtube?: boolean;
+    file_upload?: boolean;
+    podcast?: boolean;
+    topic_suggestions?: boolean;
+    book?: boolean;
+  };
+  voice_categories?: {
+    standard?: boolean;
+    wavenet?: boolean;
+    neural2?: boolean;
+    studio?: boolean;
+    chirp3d?: boolean;
+  };
+  sentence_patterns?: {
+    enabled?: boolean;
+    max_patterns?: number;
+  };
+}
+
+export interface UserPlanFeatures {
+  plan_id: string | null;
+  plan_name: string | null;
+  features: PlanFeatures;
+}
+
+// Get user's plan features
+export const getMyPlanFeatures = async (): Promise<UserPlanFeatures> => {
+  try {
+    const response = await apiClient.get('/api/subscriptions/my-features');
+    if (response.data.success) {
+      return response.data.data;
+    }
+    return getDefaultPlanFeatures();
+  } catch (error) {
+    console.error('Error fetching plan features:', error);
+    return getDefaultPlanFeatures();
+  }
+};
+
+// Get default plan features (for users without active subscription)
+export const getDefaultPlanFeatures = (): UserPlanFeatures => {
+  return {
+    plan_id: null,
+    plan_name: null,
+    features: {
+      homepage_features: {
+        text_input: true,
+        youtube: false,
+        file_upload: false,
+        podcast: false,
+        topic_suggestions: true,
+        book: false
+      },
+      voice_categories: {
+        standard: true,
+        wavenet: false,
+        neural2: false,
+        studio: false,
+        chirp3d: false
+      },
+      sentence_patterns: {
+        enabled: false,
+        max_patterns: 0
+      }
+    }
+  };
 };

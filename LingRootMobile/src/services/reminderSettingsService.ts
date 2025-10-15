@@ -57,6 +57,7 @@ export class ReminderSettingsService {
 
   /**
    * Calculate notification intervals based on settings
+   * Always schedules the full number of words from current time to end time
    */
   static calculateNotificationTimes(
     settings: ReminderSettings,
@@ -74,64 +75,50 @@ export class ReminderSettingsService {
 
     // Create today's start and end times
     const now = new Date();
-    let startTime = new Date(now);
-    startTime.setHours(startHour, startMinute, 0, 0);
-    
     const endTime = new Date(now);
     endTime.setHours(endHour, endMinute, 0, 0);
 
-    // If start time is in the past, adjust to next occurrence
-    // BUT if we're within the time window (past start but before end), start from now
-    if (startTime <= now) {
-      const endTimeToday = new Date(now);
-      endTimeToday.setHours(endHour, endMinute, 0, 0);
-      
-      if (now < endTimeToday) {
-        // We're within today's window, start scheduling from now
-        startTime = new Date(now.getTime() + 60000); // Start 1 minute from now
-      } else {
-        // Window is completely past, move to next day
-        startTime.setDate(startTime.getDate() + 1);
-      }
-    }
+    // Determine actual start time (now or configured start time, whichever is later)
+    const configuredStartTime = new Date(now);
+    configuredStartTime.setHours(startHour, startMinute, 0, 0);
+    
+    // Start scheduling from now + 1 minute (minimum lead time)
+    const actualStartTime = new Date(now.getTime() + 60000);
+    
+    // If we're before the configured start time, use configured start time
+    const startTime = actualStartTime < configuredStartTime ? configuredStartTime : actualStartTime;
 
     // If end time is before start time, it means next day
     if (endTime <= startTime) {
       endTime.setDate(endTime.getDate() + 1);
     }
-    
-    console.log('🔔 Time calculation - Now:', now.toLocaleString(), 'Start:', startTime.toLocaleString(), 'End:', endTime.toLocaleString());
 
-    // Calculate total duration in minutes
+    // If we're past the end time for today, schedule for tomorrow
+    if (startTime >= endTime) {
+      startTime.setDate(startTime.getDate() + 1);
+      endTime.setDate(endTime.getDate() + 1);
+    }
+
+    // Calculate total duration from NOW (or start time) to end time
     const totalDurationMs = endTime.getTime() - startTime.getTime();
     const totalDurationMinutes = totalDurationMs / (1000 * 60);
 
-    // Always schedule desired number of reminders; word selection will fallback when needed
+    // Always schedule the full desired number of reminders
     const wordsToRemind = settings.wordsPerDay;
     
-    if (wordsToRemind <= 0) {
+    if (wordsToRemind <= 0 || totalDurationMinutes <= 0) {
       return notifications;
     }
 
-    // Calculate interval between notifications
+    // Calculate interval between notifications based on remaining time
     const intervalMinutes = totalDurationMinutes / wordsToRemind;
-
-    // Keep cadence consistent across the whole window.
-    // If user saves settings mid-window, start from the next interval boundary >= now
-    // and continue with the same cadence until end of window or desired count.
-    const minLeadMillis = 5 * 1000; // small safety margin for iOS scheduling
     const intervalMs = intervalMinutes * 60 * 1000;
 
-    // How many intervals have elapsed from startTime to now?
-    const elapsedMs = Math.max(0, now.getTime() - startTime.getTime());
-    const elapsedIntervals = elapsedMs / intervalMs;
-    const nextIntervalIndex = Math.ceil(elapsedIntervals); // first index whose time >= now
-
-    for (let i = nextIntervalIndex; i < wordsToRemind; i++) {
-      const candidate = new Date(startTime.getTime() + i * intervalMs);
-      // enforce minimal lead time for very near-future schedules
-      const earliest = new Date(now.getTime() + minLeadMillis);
-      const notificationTime = candidate < earliest ? earliest : candidate;
+    // Schedule all notifications evenly distributed from start to end
+    for (let i = 0; i < wordsToRemind; i++) {
+      const notificationTime = new Date(startTime.getTime() + i * intervalMs);
+      
+      // Only add if it's within the time window
       if (notificationTime <= endTime) {
         notifications.push(notificationTime);
       }

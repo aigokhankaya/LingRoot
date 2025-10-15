@@ -281,20 +281,62 @@ const processTtsRequest = async (req, res) => {
           const userId = req.user?.id;
           if (userId) {
             const limitState = await checkLimits(userId);
-            // If user has no active plan, block TTS and request package selection
+            // If user has no active plan or subscription expired, block TTS
             if (!limitState?.hasPlan) {
-              logger.warn(`[${requestId}] No active subscription for user ${userId}`);
-              // Return 200 to avoid mobile wrappers popping native alerts on 4xx
+              const isExpired = limitState?.isExpired;
+              const message = isExpired 
+                ? limitState.message || 'Paket süreniz dolmuştur. Lütfen yeni bir paket satın alın.'
+                : 'Aktif paketiniz yok. Lütfen paket seçin ve aboneliğinizi başlatın.';
+              
+              logger.warn(`[${requestId}] ${isExpired ? 'Subscription expired' : 'No active subscription'} for user ${userId}`);
+              
               return res.status(200).json({
                 success: false,
-                code: 'NO_ACTIVE_PLAN',
-                message: 'Aktif paketiniz yok. Lütfen paket seçin ve aboneliğinizi başlatın.',
+                code: isExpired ? 'SUBSCRIPTION_EXPIRED' : 'NO_ACTIVE_PLAN',
+                message,
+                expiredAt: limitState?.expiredAt,
               });
             }
+            
+            // Free Trial için tek ses başına 10 dk (10,000 karakter) limiti
+            if (limitState.plan?.name === 'Free Trial') {
+              const textLength = adaptedText.length;
+              const maxCharsPerAudio = 10000; // 10 dakika
+              
+              if (textLength > maxCharsPerAudio) {
+                logger.warn(`[${requestId}] Free Trial text too long: ${textLength} > ${maxCharsPerAudio}`);
+                return res.status(200).json({
+                  success: false,
+                  code: 'FREE_TRIAL_TEXT_TOO_LONG',
+                  message: `Ücretsiz deneme ile her ses maksimum ${Math.floor(maxCharsPerAudio / 1000)} dakika olabilir. Metniniz ${Math.ceil(textLength / 1000)} dakika. Lütfen metni kısaltın veya premium pakete geçin.`,
+                  details: {
+                    textLength,
+                    maxLength: maxCharsPerAudio,
+                    estimatedMinutes: Math.ceil(textLength / 1000),
+                    maxMinutes: Math.floor(maxCharsPerAudio / 1000),
+                  },
+                });
+              }
+            }
+            
             // If plan exists but limits exceeded, block
             if (limitState.isExceeded) {
               logger.warn(`[${requestId}] Usage limit exceeded for user ${userId}`);
-              // Return 200 to avoid native alerts
+              
+              // Free Trial özel mesajı
+              if (limitState.isFreeTrialExhausted) {
+                return res.status(200).json({
+                  success: false,
+                  code: 'FREE_TRIAL_EXHAUSTED',
+                  message: limitState.message || 'Ücretsiz deneme hakkınız doldu. Premium pakete geçin.',
+                  details: {
+                    audioCreationCount: limitState.audioCreationCount,
+                    maxAudioCount: limitState.maxAudioCount,
+                    planName: 'Free Trial',
+                  },
+                });
+              }
+              
               return res.status(200).json({
                 success: false,
                 code: 'USAGE_LIMIT_EXCEEDED',
@@ -1035,6 +1077,39 @@ const processTtsRequest = async (req, res) => {
                 
                 logger.info(`[${requestId}] ✅ Audio saved to contenthistory table: ${data[0]?.id}`);
                 logger.info(`[${requestId}] 📊 Saved data:`, JSON.stringify(data[0], null, 2));
+                
+                // Free Trial için ses oluşturma sayacını artır
+                try {
+                    const { data: activeSub, error: subError } = await supabase
+                        .from('subscriptions')
+                        .select('id, plantype, audio_creation_count')
+                        .eq('user_id', userId)
+                        .eq('status', 'active')
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+                    
+                    if (subError) {
+                        logger.warn(`[${requestId}] Error fetching subscription for counter update:`, subError.message);
+                    } else if (activeSub && activeSub.plantype === 'Free Trial') {
+                        const currentCount = Number(activeSub.audio_creation_count || 0);
+                        const { error: updateError } = await supabase
+                            .from('subscriptions')
+                            .update({ 
+                                audio_creation_count: currentCount + 1,
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('id', activeSub.id);
+                        
+                        if (updateError) {
+                            logger.warn(`[${requestId}] Failed to update Free Trial counter:`, updateError.message);
+                        } else {
+                            logger.info(`[${requestId}] 🎯 Free Trial counter updated: ${currentCount} -> ${currentCount + 1}`);
+                        }
+                    }
+                } catch (counterErr) {
+                    logger.warn(`[${requestId}] Failed to update Free Trial counter:`, counterErr?.message);
+                }
             } else {
                 logger.warn(`[${requestId}] ⚠️ No user ID found, skipping contenthistory save`);
                 logger.warn(`[${requestId}] 🔍 Auth header: ${authHeader ? 'present' : 'missing'}`);

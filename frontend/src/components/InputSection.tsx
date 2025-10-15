@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useTranslation } from '@/lib/i18n';
-import { ProcessInputData, getToken, API_BASE_URL, getApiUrl, getTopicDetailSuggestions, getGeneratedSuggestions, fetchYoutubeTranscript } from '../lib/api';
+import { ProcessInputData, getToken, API_BASE_URL, getApiUrl, getTopicDetailSuggestions, getGeneratedSuggestions, fetchYoutubeTranscript, getMyPlanFeatures, PlanFeatures } from '../lib/api';
 import { searchBooks, fetchBookContent } from '../services/bookService';
 import InterestManager from './InterestManager';
 import { FaCog } from 'react-icons/fa';
@@ -88,6 +88,10 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [showInterestManager, setShowInterestManager] = useState<boolean>(false);
   const [loadingTranscript, setLoadingTranscript] = useState<boolean>(false);
   const [uploadingFile, setUploadingFile] = useState<boolean>(false);
+  
+  // Plan features state
+  const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
+  const [featuresLoading, setFeaturesLoading] = useState<boolean>(true);
 
   useEffect(() => {
     setSpeakingRate(level === 'A1' ? 0.8 : 1.0);
@@ -113,6 +117,21 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       .then(res => res.json())
       .then(data => setGoogleVoices(data.voices || []))
       .catch(() => setGoogleVoices([]));
+    
+    // Fetch plan features
+    const fetchPlanFeatures = async () => {
+      try {
+        setFeaturesLoading(true);
+        const result = await getMyPlanFeatures();
+        setPlanFeatures(result.features);
+        console.log('✅ Plan features loaded:', result);
+      } catch (error) {
+        console.error('❌ Error loading plan features:', error);
+      } finally {
+        setFeaturesLoading(false);
+      }
+    };
+    fetchPlanFeatures();
   }, []);
 
   useEffect(() => {
@@ -157,12 +176,42 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   // Google TTS için tüm sesleri getir (filtreleme yok)
   const getAllGoogleVoices = () => googleVoices;
 
+  // Filter voices based on plan features
+  const getFilteredVoices = () => {
+    if (!planFeatures?.voice_categories) {
+      // If features not loaded yet, return all voices
+      return googleVoices;
+    }
+    
+    const voiceCategories = planFeatures.voice_categories;
+    
+    // Filter voices based on enabled voice categories
+    // Google TTS voices are categorized as: standard, wavenet, neural2, studio, chirp3d
+    return googleVoices.filter(voice => {
+      const voiceName = voice.name.toLowerCase();
+      
+      // Check which category this voice belongs to
+      if (voiceName.includes('wavenet') && voiceCategories.wavenet) return true;
+      if (voiceName.includes('neural2') && voiceCategories.neural2) return true;
+      if (voiceName.includes('studio') && voiceCategories.studio) return true;
+      if (voiceName.includes('chirp3d') && voiceCategories.chirp3d) return true;
+      if (voiceCategories.standard && 
+          !voiceName.includes('wavenet') && 
+          !voiceName.includes('neural2') && 
+          !voiceName.includes('studio') && 
+          !voiceName.includes('chirp3d')) return true;
+      
+      return false;
+    });
+  };
+
   // Google sesleri yüklendiğinde ilk sesi otomatik seç
   useEffect(() => {
-    if (googleVoices.length > 0 && !voice) {
-      setVoice(googleVoices[0].name);
+    const filteredVoices = getFilteredVoices();
+    if (filteredVoices.length > 0 && !voice) {
+      setVoice(filteredVoices[0].name);
     }
-  }, [googleVoices]);
+  }, [googleVoices, planFeatures]);
 
   // Kullanıcı ilgi alanlarını çekme
   useEffect(() => {
@@ -620,40 +669,54 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               {t('content_type')}
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <button
-                type="button"
-                onClick={() => setInputType('text')}
-                className={`icon-button group ${inputType === 'text' ? 'icon-button-selected' : 'icon-button-default'}`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span>{t('text')}</span>
-              </button>
+              {/* Metin - Always show (default feature) */}
+              {(planFeatures?.homepage_features?.text_input !== false) && (
+                <button
+                  type="button"
+                  onClick={() => setInputType('text')}
+                  className={`icon-button group ${inputType === 'text' ? 'icon-button-selected' : 'icon-button-default'}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>{t('text')}</span>
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => setInputType('topic')}
-                className={`icon-button group ${inputType === 'topic' ? 'icon-button-selected' : 'icon-button-default'}`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-                <span>{t('topic')}</span>
-              </button>
+              {/* Konu Önerileri - Always show (default feature) */}
+              {(planFeatures?.homepage_features?.topic_suggestions !== false) && (
+                <button
+                  type="button"
+                  onClick={() => setInputType('topic')}
+                  className={`icon-button group ${inputType === 'topic' ? 'icon-button-selected' : 'icon-button-default'}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <span>{t('topic')}</span>
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => setInputType('youtube')}
-                className={`icon-button group ${inputType === 'youtube' ? 'icon-button-selected' : 'icon-button-default'}`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>{t('youtube')}</span>
-              </button>
+              {/* YouTube - Premium feature */}
+              {(() => {
+                const shouldShow = planFeatures?.homepage_features?.youtube;
+                console.log('🔍 YouTube button check:', { planFeatures, shouldShow });
+                return shouldShow;
+              })() && (
+                <button
+                  type="button"
+                  onClick={() => setInputType('youtube')}
+                  className={`icon-button group ${inputType === 'youtube' ? 'icon-button-selected' : 'icon-button-default'}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{t('youtube')}</span>
+                </button>
+              )}
 
+              {/* Web Link - Show for now (can be controlled later) */}
               <button
                 type="button"
                 onClick={() => setInputType('weblink')}
@@ -665,39 +728,48 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                 <span>{t('web_link')}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setInputType('file')}
-                className={`icon-button group ${inputType === 'file' ? 'icon-button-selected' : 'icon-button-default'}`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                <span>{t('document')}</span>
-              </button>
+              {/* Dosya Yükleme - Premium feature */}
+              {planFeatures?.homepage_features?.file_upload && (
+                <button
+                  type="button"
+                  onClick={() => setInputType('file')}
+                  className={`icon-button group ${inputType === 'file' ? 'icon-button-selected' : 'icon-button-default'}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  <span>{t('document')}</span>
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => setInputType('spotify')}
-                className={`icon-button group ${inputType === 'spotify' ? 'icon-button-selected' : 'icon-button-default'}`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                </svg>
-                <span>{t('spotify')}</span>
-              </button>
+              {/* Podcast - Premium feature */}
+              {planFeatures?.homepage_features?.podcast && (
+                <button
+                  type="button"
+                  onClick={() => setInputType('spotify')}
+                  className={`icon-button group ${inputType === 'spotify' ? 'icon-button-selected' : 'icon-button-default'}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                  </svg>
+                  <span>{t('spotify')}</span>
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => setInputType('book')}
-                className={`icon-button group ${inputType === 'book' ? 'icon-button-selected' : 'icon-button-default'}`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth={2} stroke="currentColor" fill="none" />
-                  <path d="M8 8h8M8 12h8M8 16h4" strokeWidth={2} stroke="currentColor" />
-                </svg>
-                <span>Kitap</span>
-              </button>
+              {/* Kitap - Premium feature */}
+              {planFeatures?.homepage_features?.book && (
+                <button
+                  type="button"
+                  onClick={() => setInputType('book')}
+                  className={`icon-button group ${inputType === 'book' ? 'icon-button-selected' : 'icon-button-default'}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth={2} stroke="currentColor" fill="none" />
+                    <path d="M8 8h8M8 12h8M8 16h4" strokeWidth={2} stroke="currentColor" />
+                  </svg>
+                  <span>Kitap</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -1197,12 +1269,19 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                 {t('voice_selection')}
               </label>
               <select
-                value="en-US-Wavenet-F"
-                disabled
+                value={voice}
+                onChange={(e) => setVoice(e.target.value)}
                 className="input-field focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="en-US-Wavenet-F">en-US-Wavenet-F (Kadın)</option>
+                {getFilteredVoices().map((v) => (
+                  <option key={v.name} value={v.name}>
+                    {v.name} ({v.ssmlGender === 'FEMALE' ? t('female_voice') : t('male_voice')})
+                  </option>
+                ))}
               </select>
+              {featuresLoading && (
+                <p className="text-xs text-gray-500">{t('loading_voices')}</p>
+              )}
             </div>
           </div>
 

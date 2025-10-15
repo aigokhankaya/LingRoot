@@ -65,7 +65,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           <nav className="bg-white rounded-lg border shadow-sm overflow-hidden">
             <MenuItem href={`/admin/users/${userId}`} label="Kullanıcı Bilgileri" active={isActive(`/admin/users/${userId}`)} />
             <MenuItem href={`/admin/users/${userId}/audio`} label="Ses Kayıtları" active={isActive(`/admin/users/${userId}/audio`)} />
-            <MenuItem href={`/admin/users/${userId}/package`} label="Paket Bilgileri" active={isActive(`/admin/users/${userId}/package`)} />
+            <MenuItem href={`/admin/users/${userId}/package`} label="Kullanım Bilgileri" active={isActive(`/admin/users/${userId}/package`)} />
             <MenuItem href={`/admin/users/${userId}/logins`} label="Login Bilgileri" active={isActive(`/admin/users/${userId}/logins`)} />
           </nav>
         </aside>

@@ -14,12 +14,14 @@ import {
   Dimensions,
   Linking,
 } from 'react-native';
+import { Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { pick, keepLocalCopy } from '@react-native-documents/picker';
-import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter } from '../types';
+import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter, AudioTrack } from '../types';
 import { useRoute, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
-import { apiService, saveDefaultVoiceSetting, getUserSettings } from '../services/api';
+import { apiService, saveDefaultVoiceSetting, getUserSettings, getMyPlanFeatures, PlanFeatures } from '../services/api';
+import AudioPlayer from '../components/AudioPlayer';
 
 const CreateScreen: React.FC = () => {
   const route = useRoute<any>();
@@ -35,37 +37,26 @@ const CreateScreen: React.FC = () => {
   const [speechRate, setSpeechRate] = useState(1.0);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [createdTrack, setCreatedTrack] = useState<AudioTrack | null>(null);
+  const [showPlayer, setShowPlayer] = useState(false);
+  const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
   // Keep mode in sync when screen gains focus (e.g., navigating from Home with different params)
   useFocusEffect(
     React.useCallback(() => {
       const nextMode: 'text' | 'file' | 'book' | 'suggestion' | 'youtube' = route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : (route.params?.mode === 'youtube' ? 'youtube' : 'text')));
       setMode(nextMode);
-      if (nextMode === 'text') {
-        setSelectedFile(null);
-        // Book mode cleanup
-        setSelectedBook(null);
-        setSelectedChapterId(null);
-        setSelectedChapterText('');
-        setSuggestion('');
-        setSuggestionResults([]);
-        setYoutubeUrl('');
-        setYoutubeLoading(false);
-        setYoutubeError(null);
-      } else if (nextMode === 'youtube') {
-        setSelectedFile(null);
-        setSelectedBook(null);
-        setSelectedChapterId(null);
-        setSelectedChapterText('');
-        setSuggestion('');
-        setSuggestionResults([]);
-      } else {
-        setInputText('');
-        if (nextMode !== 'book') {
-          setSelectedBook(null);
-          setSelectedChapterId(null);
-          setSelectedChapterText('');
-        }
-      }
+      
+      // Her zaman tüm form alanlarını temizle
+      setInputText('');
+      setSelectedFile(null);
+      setSelectedBook(null);
+      setSelectedChapterId(null);
+      setSelectedChapterText('');
+      setSuggestion('');
+      setSuggestionResults([]);
+      setYoutubeUrl('');
+      setYoutubeLoading(false);
+      setYoutubeError(null);
     }, [route.params?.mode])
   );
   // --- Suggestion Mode State ---
@@ -243,14 +234,27 @@ const CreateScreen: React.FC = () => {
     return category;
   };
 
-  // Voice categories
+  // Voice categories - filtered by plan features
   const voiceCategories: VoiceCategory[] = [
     { value: 'standard', label: t('create.voice.categories.standard'), icon: 'volume-up', badge: t('create.voice.badge.free') },
     { value: 'wavenet', label: t('create.voice.categories.wavenet'), icon: 'star', badge: t('create.voice.badge.premium') },
     { value: 'neural2', label: t('create.voice.categories.neural2'), icon: 'psychology', badge: t('create.voice.badge.premium') },
     { value: 'studio', label: t('create.voice.categories.studio'), icon: 'workspace-premium', badge: t('create.voice.badge.platinum') },
     { value: 'chirp3d', label: t('create.voice.categories.chirp3d'), icon: 'diamond', badge: t('create.voice.badge.gold') },
-  ];
+  ].filter(category => {
+    // Filter categories based on plan features
+    if (!planFeatures?.voice_categories) return true; // Show all if features not loaded
+    
+    const categories = planFeatures.voice_categories;
+    switch (category.value) {
+      case 'standard': return categories.standard !== false;
+      case 'wavenet': return categories.wavenet === true;
+      case 'neural2': return categories.neural2 === true;
+      case 'studio': return categories.studio === true;
+      case 'chirp3d': return categories.chirp3d === true;
+      default: return true;
+    }
+  });
 
   // Voice filters
   const accentOptions = [
@@ -267,6 +271,19 @@ const CreateScreen: React.FC = () => {
     { value: 'male', label: t('create.voice.genders.male') },
     { value: 'female', label: t('create.voice.genders.female') },
   ];
+
+  // Fetch plan features
+  useEffect(() => {
+    const fetchPlanFeatures = async () => {
+      try {
+        const result = await getMyPlanFeatures();
+        setPlanFeatures(result.features);
+      } catch (error) {
+        console.error('Error loading plan features:', error);
+      }
+    };
+    fetchPlanFeatures();
+  }, []);
 
   // Fetch available voices
   const fetchAvailableVoices = async () => {
@@ -480,10 +497,44 @@ const CreateScreen: React.FC = () => {
   const getFilteredVoicesByCategory = () => {
     // Web'de olduğu gibi: filtre aktifse backend zaten filtrelenmiş listyi gönderiyor → doğrudan göster
     if (hasActiveFilters) {
-    return availableVoices;
+      return availableVoices;
     }
-    // Filtre yoksa local kategori/gender/aksan filtresi uygula
-    const result = filterVoices(availableVoices, selectedVoiceCategory, selectedGender, selectedAccent);
+    
+    // First apply plan-based voice category filtering
+    let voices = availableVoices;
+    console.log('🔍 [Mobile Voice Filter] Plan features:', planFeatures?.voice_categories);
+    console.log('🔍 [Mobile Voice Filter] Total voices before filter:', availableVoices.length);
+    
+    if (planFeatures?.voice_categories) {
+      voices = availableVoices.filter(voice => {
+        const voiceName = voice.name.toLowerCase();
+        const categories = planFeatures.voice_categories!;
+        
+        // Check which category this voice belongs to and if it's enabled
+        const isWavenet = voiceName.includes('wavenet') && categories.wavenet;
+        const isNeural2 = voiceName.includes('neural2') && categories.neural2;
+        const isStudio = voiceName.includes('studio') && categories.studio;
+        const isChirp = voiceName.includes('chirp') && categories.chirp3d;
+        const isStandard = categories.standard && 
+            !voiceName.includes('wavenet') && 
+            !voiceName.includes('neural2') && 
+            !voiceName.includes('studio') && 
+            !voiceName.includes('chirp');
+        
+        const shouldShow = isWavenet || isNeural2 || isStudio || isChirp || isStandard;
+        
+        if (!shouldShow) {
+          console.log(`❌ [Mobile Voice Filter] Filtered out: ${voice.name}`);
+        }
+        
+        return shouldShow;
+      });
+      console.log('🔍 [Mobile Voice Filter] Voices after plan filter:', voices.length);
+    }
+    
+    // Then apply local kategori/gender/aksan filtresi
+    const result = filterVoices(voices, selectedVoiceCategory, selectedGender, selectedAccent);
+    console.log('🔍 [Mobile Voice Filter] Final voices after all filters:', result.length);
     return result;
   };
 
@@ -596,18 +647,18 @@ const CreateScreen: React.FC = () => {
         Alert.alert(
           t('common.error'),
           sData?.hasPlan === false
-            ? 'Aktif paketiniz yok. Lütfen paket seçin ve aboneliğinizi başlatın.'
+            ? 'Aktif paketiniz yok. Lütfen Apple Store üzerinden paket satın alın.'
             : 'Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.',
           [
             {
-              text: 'Tamam',
+              text: 'Paket Al',
               onPress: () => {
-                // Delay slightly to allow Alert to dismiss on Android/iOS
-                setTimeout(() => {
-                  const next = encodeURIComponent('/dashboard?tab=paket-bilgilerim');
-                  openExternalUrl(`https://lingroot.com/login?next=${next}`);
-                }, 60);
+                navigation.navigate('Packages' as never);
               },
+            },
+            {
+              text: 'İptal',
+              style: 'cancel',
             },
           ]
         );
@@ -681,10 +732,29 @@ const CreateScreen: React.FC = () => {
         const response = await apiService.processFileToSpeech(formData);
         
         if (response.success) {
-          // Success: directly navigate to Library and refresh there
+          // Success: Create track and open player
           setInputText('');
           setSelectedFile(null);
-          navigation.navigate('Library' as never);
+          
+          // Create AudioTrack from response
+          const newTrack: AudioTrack = {
+            id: String(Date.now()), // Temporary ID
+            title: response.adapted_text || response.translated_text || selectedFile.name,
+            url: response.mp3_url || '',
+            level: response.level || selectedLevel,
+            duration: response.real_duration || 180,
+            created_at: new Date().toISOString(),
+            input_type: 'file',
+            translated_text: response.translated_text || response.translatedText,
+            adapted_text: response.adapted_text || response.adaptedText,
+            original_turkish: response.original_turkish || '',
+            mp3_url: response.mp3_url,
+            timepoints: response.timepoints || [],
+            words: response.words || [],
+          };
+          
+          setCreatedTrack(newTrack);
+          setShowPlayer(true);
         } else {
           Alert.alert(t('common.error'), response.message || t('create.alerts.fileProcessFailed'));
         }
@@ -707,25 +777,94 @@ const CreateScreen: React.FC = () => {
         const response = await apiService.processTextToSpeech(request);
         
         if (response.success) {
-          // Success: directly navigate to Library and refresh there
+          // Success: Create track and open player
           setInputText('');
-          navigation.navigate('Library' as never);
+          
+          // Create AudioTrack from response
+          const newTrack: AudioTrack = {
+            id: String(Date.now()), // Temporary ID
+            title: response.adapted_text || response.translated_text || effectiveInputText.substring(0, 50),
+            url: response.mp3_url || '',
+            level: response.level || selectedLevel,
+            duration: response.real_duration || 180,
+            created_at: new Date().toISOString(),
+            input_type: mode,
+            translated_text: response.translated_text || response.translatedText,
+            adapted_text: response.adapted_text || response.adaptedText,
+            original_turkish: response.original_turkish || effectiveInputText,
+            mp3_url: response.mp3_url,
+            timepoints: response.timepoints || [],
+            words: response.words || [],
+          };
+          
+          setCreatedTrack(newTrack);
+          setShowPlayer(true);
         } else {
           const code = (response as any)?.code;
           const msg = response.message || t('create.alerts.audioCreateFailed');
+          
+          // Free Trial limit aşımı için özel yönlendirme
+          if (code === 'FREE_TRIAL_EXHAUSTED') {
+            const details = (response as any)?.details;
+            Alert.alert(
+              language === 'tr' ? 'Ücretsiz Deneme Bitti' : 'Free Trial Ended',
+              language === 'tr'
+                ? `${details?.audioCreationCount || 3} ses oluşturma hakkınızı kullandınız.\n\nDevam etmek için premium pakete geçin.`
+                : `You've used your ${details?.audioCreationCount || 3} audio creation credits.\n\nUpgrade to premium to continue.`,
+              [
+                {
+                  text: language === 'tr' ? 'Paketleri Gör' : 'View Packages',
+                  onPress: () => {
+                    navigation.navigate('Packages' as never);
+                  },
+                },
+                {
+                  text: language === 'tr' ? 'İptal' : 'Cancel',
+                  style: 'cancel',
+                },
+              ]
+            );
+            return;
+          }
+          
+          // Free Trial için metin çok uzun hatası
+          if (code === 'FREE_TRIAL_TEXT_TOO_LONG') {
+            const details = (response as any)?.details;
+            Alert.alert(
+              language === 'tr' ? 'Metin Çok Uzun' : 'Text Too Long',
+              language === 'tr'
+                ? `Ücretsiz denemede her ses maksimum ${details?.maxMinutes || 10} dakika olabilir.\n\nMetniniz: ~${details?.estimatedMinutes || 0} dakika\n\nLütfen metni kısaltın veya premium pakete geçin.`
+                : `In free trial, each audio can be maximum ${details?.maxMinutes || 10} minutes.\n\nYour text: ~${details?.estimatedMinutes || 0} minutes\n\nPlease shorten the text or upgrade to premium.`,
+              [
+                {
+                  text: language === 'tr' ? 'Paketleri Gör' : 'View Packages',
+                  onPress: () => {
+                    navigation.navigate('Packages' as never);
+                  },
+                },
+                {
+                  text: language === 'tr' ? 'Tamam' : 'OK',
+                  style: 'cancel',
+                },
+              ]
+            );
+            return;
+          }
+          
           if (code === 'NO_ACTIVE_PLAN' || code === 'USAGE_LIMIT_EXCEEDED') {
             Alert.alert(
               t('common.error'),
               msg,
               [
                 {
-                  text: 'Tamam',
+                  text: 'Paket Al',
                   onPress: () => {
-                    setTimeout(() => {
-                      const next = encodeURIComponent('/dashboard?tab=paket-bilgilerim');
-                      openExternalUrl(`https://lingroot.com/login?next=${next}`);
-                    }, 60);
+                    navigation.navigate('Settings' as never);
                   },
+                },
+                {
+                  text: 'İptal',
+                  style: 'cancel',
                 },
               ]
             );
@@ -753,7 +892,26 @@ const CreateScreen: React.FC = () => {
           setSelectedBook(null);
           setSelectedChapterId(null);
           setSelectedChapterText('');
-          navigation.navigate('Library' as never);
+          
+          // Create AudioTrack from response
+          const newTrack: AudioTrack = {
+            id: String(Date.now()), // Temporary ID
+            title: response.adapted_text || response.translated_text || selectedBook?.title || 'Book Chapter',
+            url: response.mp3_url || '',
+            level: response.level || selectedLevel,
+            duration: response.real_duration || 180,
+            created_at: new Date().toISOString(),
+            input_type: 'book',
+            translated_text: response.translated_text || response.translatedText,
+            adapted_text: response.adapted_text || response.adaptedText,
+            original_turkish: response.original_turkish || selectedChapterText,
+            mp3_url: response.mp3_url,
+            timepoints: response.timepoints || [],
+            words: response.words || [],
+          };
+          
+          setCreatedTrack(newTrack);
+          setShowPlayer(true);
         } else {
           Alert.alert(t('common.error'), response.message || t('create.book.alerts.ttsFailed'));
         }
@@ -771,13 +929,14 @@ const CreateScreen: React.FC = () => {
           emsg,
           [
             {
-              text: 'Tamam',
+              text: 'Paket Al',
               onPress: () => {
-                setTimeout(() => {
-                  const next = encodeURIComponent('/dashboard?tab=paket-bilgilerim');
-                  openExternalUrl(`https://lingroot.com/login?next=${next}`);
-                }, 60);
+                navigation.navigate('Packages' as never);
               },
+            },
+            {
+              text: 'İptal',
+              style: 'cancel',
             },
           ]
         );
@@ -791,13 +950,24 @@ const CreateScreen: React.FC = () => {
 
   const handleFileUpload = async () => {
     try {
+
+      // Use iOS UTIs to avoid greyed-out files; use MIME types on Android
+      const pickerTypes = Platform.OS === 'ios'
+        ? [
+            'com.adobe.pdf', // PDF
+            'com.microsoft.word.doc', // DOC
+            'org.openxmlformats.wordprocessingml.document', // DOCX
+            'public.plain-text', // TXT
+          ]
+        : [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'text/plain',
+          ];
+
       const [file] = await pick({
-        type: [
-          'application/pdf',
-          'application/msword',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'text/plain',
-        ],
+        type: pickerTypes,
         presentationStyle: 'fullScreen',
       });
       if (!file) {
@@ -851,7 +1021,7 @@ const CreateScreen: React.FC = () => {
           </Text>
         </View>
 
-        {(mode === 'text' || mode === 'youtube') && (
+        {(mode === 'text' || mode === 'youtube' || mode === 'suggestion') && (
           <View style={styles.inputSection}>
             <Text style={styles.sectionTitle}>{t('create.input.title')}</Text>
             {mode === 'youtube' && (
@@ -954,7 +1124,7 @@ const CreateScreen: React.FC = () => {
                         const rr = await apiService.rewriteToNarration(s, selectedLevel);
                         const narration = rr?.data?.narration_text || s;
                         setInputText(narration);
-                        setMode('text');
+                        // Mode'u suggestion olarak bırak, metin input alanı zaten görünüyor
                         Alert.alert(t('common.success'), t('Öneri metne dönüştürüldü'));
                       } catch (e: any) {
                         Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
@@ -1366,6 +1536,22 @@ const CreateScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Audio Player Modal */}
+      {createdTrack && (
+        <AudioPlayer
+          track={createdTrack}
+          visible={showPlayer}
+          onClose={() => {
+            setShowPlayer(false);
+            setCreatedTrack(null);
+            // Navigate to Library after closing player
+            navigation.navigate('Library' as never);
+          }}
+          timepoints={createdTrack.timepoints || []}
+          words={createdTrack.words || []}
+        />
+      )}
     </SafeAreaView>
   );
 };

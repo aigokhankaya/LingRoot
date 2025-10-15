@@ -21,14 +21,14 @@ try {
           }
         }
       } catch (e) {
-        console.log('early onNotification error', e);
+        // Silent error handling
       }
     },
     popInitialNotification: true,
     requestPermissions: false,
   } as any);
 } catch (e) {
-  console.log('Early PushNotification.configure failed (iOS):', e);
+  // Silent error handling
 }
 
 try {
@@ -55,7 +55,7 @@ try {
               );
             }
           } catch (e) {
-            console.log('Direct navigation failed:', e);
+            // Silent error handling
           }
         }, 100);
         if (cb) cb(String(wordId));
@@ -63,7 +63,7 @@ try {
     }
   });
 } catch (e) {
-  console.log('Native event listener setup failed (iOS):', e);
+  // Silent error handling
 }
 
 class NotificationService {
@@ -88,10 +88,20 @@ class NotificationService {
 
   private async rescheduleDailyReminders(): Promise<void> {
     const nowMs = Date.now();
-    if (nowMs - this.lastRescheduleAt < 750) return;
-    if (this.rescheduleRunning) { this.rescheduleQueued = true; return; }
+    if (nowMs - this.lastRescheduleAt < 750) {
+      console.log('⚠️ [iOS Notifications] Skipping reschedule - too soon');
+      return;
+    }
+    if (this.rescheduleRunning) { 
+      console.log('⚠️ [iOS Notifications] Reschedule already running, queuing');
+      this.rescheduleQueued = true; 
+      return; 
+    }
     this.rescheduleRunning = true;
+    this.lastRescheduleAt = nowMs;
+    
     try {
+      console.log('🔄 [iOS Notifications] Canceling all existing notifications');
       PushNotificationIOS.cancelAllLocalNotifications();
 
       let settings: ReminderSettings;
@@ -105,7 +115,13 @@ class NotificationService {
           wordsPerDay: 5,
         } as ReminderSettings;
       }
-      if (!settings?.isEnabled) return;
+      
+      console.log('📋 [iOS Notifications] Settings:', settings);
+      
+      if (!settings?.isEnabled) {
+        console.log('⚠️ [iOS Notifications] Reminders disabled, skipping');
+        return;
+      }
 
       const words = await getVocabulary();
       const unlearned = Array.isArray(words)
@@ -114,12 +130,17 @@ class NotificationService {
       const times = ReminderSettingsService.calculateNotificationTimes(settings, unlearned.length);
       const selected = this.pickWordsForSlots(unlearned, words as any, times.length);
 
+      console.log(`📅 [iOS Notifications] Scheduling ${times.length} notifications`);
+
       for (let i = 0; i < times.length; i++) {
         const when = times[i];
         const word = selected[i];
         const title = '📚 LingRoot Hatırlatma';
         const body = word ? `Kelime: ${word.word}${word.definition ? ' — ' + word.definition : ''}` : 'Günün kelimelerini tekrar et!';
-        const requestId = `lingroot_${when.getTime()}`;
+        const requestId = `lingroot_${when.getTime()}_${i}`;
+        
+        console.log(`⏰ [iOS Notifications] Scheduling #${i + 1} at ${when.toLocaleString('tr-TR')}`);
+        
         try {
           PushNotificationIOS.addNotificationRequest({
             id: requestId,
@@ -142,9 +163,10 @@ class NotificationService {
           });
         }
       }
+      
+      console.log(`✅ [iOS Notifications] Successfully scheduled ${times.length} notifications`);
     } catch (e) {
-      console.error('rescheduleDailyReminders (iOS) error:', e);
-      Alert.alert('❌ Bildirim Hatası', 'Hatırlatmalar planlanamadı.');
+      // Silently fail - don't show alert to user
     } finally {
       this.rescheduleRunning = false;
       if (this.rescheduleQueued) { this.rescheduleQueued = false; setTimeout(() => { this.rescheduleDailyReminders().catch(() => {}); }, 150); }
@@ -174,7 +196,7 @@ class NotificationService {
                 if (this.responseCallback) { this.pendingWordId = String(wordId); this.responseCallback(String(wordId)); }
                 else { this.pendingWordId = String(wordId); }
               }
-            } catch (e) { console.log('onNotification handler error', e); }
+            } catch (e) { /* Silent error handling */ }
           },
           popInitialNotification: true,
           requestPermissions: false,
@@ -184,7 +206,6 @@ class NotificationService {
       this.isInitialized = true;
       return this.hasPermission;
     } catch (error) {
-      console.error('Notification initialization (iOS) error:', error);
       this.isInitialized = true;
       this.hasPermission = false;
       return false;

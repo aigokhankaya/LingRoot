@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 // import DocumentPicker from 'react-native-document-picker';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Attachment {
   id: string;
@@ -52,6 +53,7 @@ interface Conversation {
 }
 
 const ChatScreen: React.FC = ({ navigation }: any) => {
+  const { language } = useLanguage();
   // Resolve API base URL from env or default
   const API_URL: string = (process.env.EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com') as string;
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -103,7 +105,6 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
         setConversations(data.conversations);
       }
     } catch (error) {
-      console.error('Error fetching conversations:', error);
       Alert.alert('Hata', 'Konuşmalar yüklenemedi');
     } finally {
       setLoading(false);
@@ -125,7 +126,6 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
         setMessages(data.messages);
       }
     } catch (error) {
-      console.error('Error fetching messages:', error);
       Alert.alert('Hata', 'Mesajlar yüklenemedi');
     }
   };
@@ -165,7 +165,6 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
         Alert.alert('Hata', data.message || 'Konuşma oluşturulamadı');
       }
     } catch (error) {
-      console.error('Error creating conversation:', error);
       Alert.alert('Hata', 'Bir hata oluştu');
     } finally {
       setSending(false);
@@ -225,7 +224,6 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
         setSelectedFiles(filesToSend);
       }
     } catch (error) {
-      console.error('Error sending message:', error);
       Alert.alert('Hata', 'Bir hata oluştu');
       setNewMessage(messageToSend);
       setSelectedFiles(filesToSend);
@@ -350,7 +348,6 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
         Alert.alert('Hata', data.message || 'Konuşma yeniden açılamadı');
       }
     } catch (error) {
-      console.error('Error reopening conversation:', error);
       Alert.alert('Hata', 'Bir hata oluştu');
     }
   };
@@ -475,7 +472,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color="#374151" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Destek</Text>
+          <Text style={styles.headerTitle}>{language === 'tr' ? 'Destek' : 'Support'}</Text>
           <TouchableOpacity onPress={() => setShowNewConversation(true)}>
             <Ionicons name="add" size={24} color="#4F46E5" />
           </TouchableOpacity>
@@ -490,8 +487,8 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="chatbubbles-outline" size={64} color="#D1D5DB" />
-              <Text style={styles.emptyStateText}>Henüz konuşmanız yok</Text>
-              <Text style={styles.emptyStateSubtext}>Yeni bir destek talebi oluşturun</Text>
+              <Text style={styles.emptyStateText}>{language === 'tr' ? 'Henüz konuşmanız yok' : 'No conversations yet'}</Text>
+              <Text style={styles.emptyStateSubtext}>{language === 'tr' ? 'Yeni bir destek talebi oluşturun' : 'Create a new support request'}</Text>
             </View>
           }
         />
@@ -504,9 +501,9 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => setShowNewConversation(false)}>
-                <Text style={styles.modalCancelButton}>İptal</Text>
+                <Text style={styles.modalCancelButton}>{language === 'tr' ? 'İptal' : 'Cancel'}</Text>
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>Yeni Destek Talebi</Text>
+              <Text style={styles.modalTitle}>{language === 'tr' ? 'Yeni Destek Talebi' : 'New Support Request'}</Text>
               <TouchableOpacity 
                 onPress={createNewConversation}
                 disabled={sending || !newSubject.trim() || !newContent.trim()}
@@ -515,27 +512,30 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
                   styles.modalSaveButton,
                   (sending || !newSubject.trim() || !newContent.trim()) && styles.modalSaveButtonDisabled
                 ]}>
-                  {sending ? 'Oluşturuluyor...' : 'Oluştur'}
+                  {sending 
+                    ? (language === 'tr' ? 'Oluşturuluyor...' : 'Creating...') 
+                    : (language === 'tr' ? 'Oluştur' : 'Create')
+                  }
                 </Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.modalContent}>
-              <Text style={styles.inputLabel}>Konu</Text>
+              <Text style={styles.inputLabel}>{language === 'tr' ? 'Konu' : 'Subject'}</Text>
               <TextInput
                 style={styles.textInput}
                 value={newSubject}
                 onChangeText={setNewSubject}
-                placeholder="Talebinizin konusunu yazın"
+                placeholder={language === 'tr' ? 'Talebinizin konusunu yazın' : 'Write the subject of your request'}
                 placeholderTextColor="#9CA3AF"
               />
 
-              <Text style={styles.inputLabel}>Mesaj</Text>
+              <Text style={styles.inputLabel}>{language === 'tr' ? 'Mesaj' : 'Message'}</Text>
               <TextInput
                 style={[styles.textInput, styles.textArea]}
                 value={newContent}
                 onChangeText={setNewContent}
-                placeholder="Sorununuzu detaylı olarak açıklayın"
+                placeholder={language === 'tr' ? 'Sorununuzu detaylı olarak açıklayın' : 'Explain your issue in detail'}
                 placeholderTextColor="#9CA3AF"
                 multiline
                 numberOfLines={4}
