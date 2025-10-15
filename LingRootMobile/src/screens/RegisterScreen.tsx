@@ -102,20 +102,45 @@ const RegisterScreen: React.FC = () => {
   const handleGoogleSignIn = async () => {
     if (!signInWithGoogle) return;
     
+    console.log('[REGISTER] handleGoogleSignIn called', {
+      isSocialRegister,
+      hasSocialData: !!socialData,
+      email,
+      phoneNumber,
+    });
+    
     // Eğer zaten social register modundaysa, kullanıcıya bilgi ver
     if (isSocialRegister && socialData) {
-      Alert.alert(
-        t('common.info') || 'Bilgi',
-        'Lütfen telefon numaranızı girin ve kayıt işlemini tamamlayın.'
-      );
-      return;
+      console.log('[REGISTER] Already in social register mode, showing info');
+      const phoneDigits = extractTRLocalDigits(phoneNumber);
+      if (phoneDigits.length !== 10) {
+        Alert.alert(
+          t('common.error') || 'Hata',
+          'Lütfen telefon numaranızı girin (10 haneli)'
+        );
+        return;
+      }
+      if (!acceptTerms) {
+        Alert.alert(
+          t('common.error') || 'Hata',
+          'Lütfen kullanım şartlarını kabul edin'
+        );
+        return;
+      }
+      // Telefon ve şartlar tamam, kayıt işlemini başlat
+      return handleSocialRegister();
     }
     
+    setIsLoading(true);
     try {
-      // Google'dan bilgileri al
+      // Google'dan bilgileri al ve backend'e gönder
       await signInWithGoogle();
       // Başarılı - kullanıcı zaten kayıtlı, giriş yapıldı
+      // AuthContext otomatik olarak Login ekranına yönlendirecek
+      setIsLoading(false);
     } catch (error: any) {
+      setIsLoading(false);
+      
       // Kullanıcı sistemde yoksa, social data'yı al ve formu doldur
       if (error.code === 'USER_NOT_FOUND' && error.socialData) {
         // Social data'yı state'e set et
@@ -128,8 +153,10 @@ const RegisterScreen: React.FC = () => {
           t('common.info') || 'Bilgi',
           'Google hesabınızla kayıt olmak için lütfen telefon numaranızı girin ve şartları kabul edin.'
         );
-        return;
+        return; // Register ekranında kal
       }
+      
+      // Diğer hatalar için hata mesajı göster ama ekrandan ayrılma
       Alert.alert(t('common.error'), error.message || 'Google ile kayıt başarısız');
     }
   };
@@ -138,9 +165,50 @@ const RegisterScreen: React.FC = () => {
 
   const handleAppleSignIn = async () => {
     if (!signInWithApple) return;
+    
+    // Eğer zaten social register modundaysa, kullanıcıya bilgi ver
+    if (isSocialRegister && socialData) {
+      const phoneDigits = extractTRLocalDigits(phoneNumber);
+      if (phoneDigits.length !== 10) {
+        Alert.alert(
+          t('common.error') || 'Hata',
+          'Lütfen telefon numaranızı girin (10 haneli)'
+        );
+        return;
+      }
+      if (!acceptTerms) {
+        Alert.alert(
+          t('common.error') || 'Hata',
+          'Lütfen kullanım şartlarını kabul edin'
+        );
+        return;
+      }
+      // Telefon ve şartlar tamam, kayıt işlemini başlat
+      return handleSocialRegister();
+    }
+    
+    setIsLoading(true);
     try {
       await signInWithApple();
+      // Başarılı - kullanıcı zaten kayıtlı, giriş yapıldı
+      setIsLoading(false);
     } catch (error: any) {
+      setIsLoading(false);
+      
+      // Kullanıcı sistemde yoksa, social data'yı al ve formu doldur
+      if (error.code === 'USER_NOT_FOUND' && error.socialData) {
+        setSocialData(error.socialData);
+        setEmail(error.socialData.email || '');
+        setFullName(error.socialData.name || '');
+        setIsSocialRegister(true);
+        
+        Alert.alert(
+          t('common.info') || 'Bilgi',
+          'Apple hesabınızla kayıt olmak için lütfen telefon numaranızı girin ve şartları kabul edin.'
+        );
+        return; // Register ekranında kal
+      }
+      
       Alert.alert(t('common.error'), error.message || 'Apple ile kayıt başarısız');
     }
   };
@@ -380,35 +448,43 @@ const RegisterScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.button, (isLoading || !isFormValid) && styles.buttonDisabled]}
-            onPress={handleRegister}
-            disabled={isLoading || !isFormValid}
-          >
-            <Text style={styles.buttonText}>
-              {isLoading ? t('register.registering') : t('register.cta')}
-            </Text>
-          </TouchableOpacity>
+          {!isSocialRegister && (
+            <>
+              <TouchableOpacity
+                style={[styles.button, (isLoading || !isFormValid) && styles.buttonDisabled]}
+                onPress={handleRegister}
+                disabled={isLoading || !isFormValid}
+              >
+                <Text style={styles.buttonText}>
+                  {isLoading ? t('register.registering') : t('register.cta')}
+                </Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity style={styles.linkButton} onPress={() => { try { (navigation as any)?.navigate?.('Login'); } catch {} }}>
-            <Text style={styles.linkText}>{t('register.haveAccount')}</Text>
-          </TouchableOpacity>
+              <TouchableOpacity style={styles.linkButton} onPress={() => { try { (navigation as any)?.navigate?.('Login'); } catch {} }}>
+                <Text style={styles.linkText}>{t('register.haveAccount')}</Text>
+              </TouchableOpacity>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>veya</Text>
-            <View style={styles.dividerLine} />
-          </View>
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>veya</Text>
+                <View style={styles.dividerLine} />
+              </View>
+            </>
+          )}
 
           <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignIn}>
             <Icon name="google" size={20} color="#DB4437" />
-            <Text style={styles.socialButtonText}>Google ile Kayıt Ol</Text>
+            <Text style={styles.socialButtonText}>
+              {isSocialRegister && socialData ? 'Kayıt Ol' : 'Google ile Kayıt Ol'}
+            </Text>
           </TouchableOpacity>
 
           {showAppleSignIn && (
             <TouchableOpacity style={[styles.socialButton, styles.appleButton]} onPress={handleAppleSignIn}>
               <Icon name="apple" size={20} color="#000" />
-              <Text style={[styles.socialButtonText, styles.appleButtonText]}>Apple ile Kayıt Ol</Text>
+              <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                {isSocialRegister && socialData ? 'Kayıt Ol' : 'Apple ile Kayıt Ol'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
