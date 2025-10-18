@@ -507,7 +507,9 @@ exports.facebookLogin = async (req, res) => {
 
       user = updatedUser;
     } else {
-      // Yeni kullanıcı oluştur
+      // Yeni kullanıcı oluştur - aktivasyon gerekli
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      
       const newUserData = {
         firstname: first_name || name?.split(' ')[0] || 'Facebook',
         lastname: last_name || name?.split(' ').slice(1).join(' ') || 'User',
@@ -515,7 +517,8 @@ exports.facebookLogin = async (req, res) => {
         phonenumber: null,
         password: 'facebook-oauth',
         role: "user",
-        isverified: true,
+        isverified: false, // Aktivasyon gerekli
+        verificationtoken: verificationToken,
         dailycontentused: 0,
         lastcontentdate: null,
         stripecustomerid: null,
@@ -536,6 +539,14 @@ exports.facebookLogin = async (req, res) => {
 
       user = createdUser;
       
+      // Send verification email to new Facebook users
+      try {
+        await sendVerificationEmail(email, verificationToken);
+        logger.info(`[FACEBOOK_LOGIN] Verification email sent to ${email}`);
+      } catch (emailError) {
+        logger.error('[FACEBOOK_LOGIN] Verification email failed:', emailError);
+      }
+      
       // Send registration notification
       try {
         await sendRegistrationNotification(user);
@@ -543,33 +554,12 @@ exports.facebookLogin = async (req, res) => {
         logger.warn('[FACEBOOK_LOGIN] Registration notification failed:', notificationErr?.message);
       }
       
-      // Assign Free Trial plan
-      try {
-        const { data: trialPlan, error: planErr } = await supabase
-          .from('subscription_plans')
-          .select('*')
-          .eq('name', 'Free Trial')
-          .eq('is_active', true)
-          .maybeSingle();
-        
-        if (!planErr && trialPlan) {
-          await supabase
-            .from('subscriptions')
-            .insert([
-              {
-                user_id: user.id,
-                plan_id: trialPlan.id,
-                status: 'active',
-                current_period_end: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(),
-                cancel_at_period_end: false,
-                audio_creation_count: 0,
-              },
-            ]);
-          logger.info(`[FACEBOOK_LOGIN] Free Trial plan assigned to user ${user.id}`);
-        }
-      } catch (e2) {
-        logger.warn('[FACEBOOK_LOGIN] Failed to assign Free Trial plan:', e2?.message);
-      }
+      // Return early with verification required message
+      return res.status(403).json({ 
+        success: false, 
+        message: "Hesabınız oluşturuldu. Lütfen email adresinize gönderilen doğrulama linkine tıklayarak hesabınızı aktifleştirin.",
+        code: "EMAIL_NOT_VERIFIED"
+      });
     }
 
     const token = generateToken(user.id, user.email, user.role, rememberMe);
@@ -672,19 +662,24 @@ exports.appleLogin = async (req, res) => {
 
       user = updatedUser;
     } else {
-      // Yeni kullanıcı oluştur
+      // Yeni kullanıcı oluştur - aktivasyon gerekli
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      
       // Apple name bilgisini providedName'den al (ilk girişte mobil taraftan gönderilir)
       const firstName = providedName?.split(' ')[0] || 'Apple';
       const lastName = providedName?.split(' ').slice(1).join(' ') || 'User';
       
+      const userEmail = email || `apple_${appleSub}@lingroot.app`; // Email yoksa placeholder
+      
       const newUserData = {
         firstname: firstName,
         lastname: lastName,
-        email: email || `apple_${appleSub}@lingroot.app`, // Email yoksa placeholder
+        email: userEmail,
         phonenumber: null,
         password: 'apple-oauth',
         role: "user",
-        isverified: true,
+        isverified: false, // Aktivasyon gerekli
+        verificationtoken: verificationToken,
         dailycontentused: 0,
         lastcontentdate: null,
         stripecustomerid: null,
@@ -705,6 +700,16 @@ exports.appleLogin = async (req, res) => {
 
       user = createdUser;
       
+      // Send verification email to new Apple users (only if real email)
+      if (email) {
+        try {
+          await sendVerificationEmail(email, verificationToken);
+          logger.info(`[APPLE_LOGIN] Verification email sent to ${email}`);
+        } catch (emailError) {
+          logger.error('[APPLE_LOGIN] Verification email failed:', emailError);
+        }
+      }
+      
       // Send registration notification
       try {
         await sendRegistrationNotification(user);
@@ -712,33 +717,12 @@ exports.appleLogin = async (req, res) => {
         logger.warn('[APPLE_LOGIN] Registration notification failed:', notificationErr?.message);
       }
       
-      // Assign Free Trial plan
-      try {
-        const { data: trialPlan, error: planErr } = await supabase
-          .from('subscription_plans')
-          .select('*')
-          .eq('name', 'Free Trial')
-          .eq('is_active', true)
-          .maybeSingle();
-        
-        if (!planErr && trialPlan) {
-          await supabase
-            .from('subscriptions')
-            .insert([
-              {
-                user_id: user.id,
-                plan_id: trialPlan.id,
-                status: 'active',
-                current_period_end: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(),
-                cancel_at_period_end: false,
-                audio_creation_count: 0,
-              },
-            ]);
-          logger.info(`[APPLE_LOGIN] Free Trial plan assigned to user ${user.id}`);
-        }
-      } catch (e2) {
-        logger.warn('[APPLE_LOGIN] Failed to assign Free Trial plan:', e2?.message);
-      }
+      // Return early with verification required message
+      return res.status(403).json({ 
+        success: false, 
+        message: "Hesabınız oluşturuldu. Lütfen email adresinize gönderilen doğrulama linkine tıklayarak hesabınızı aktifleştirin.",
+        code: "EMAIL_NOT_VERIFIED"
+      });
     }
 
     const token = generateToken(user.id, user.email, user.role, rememberMe);
@@ -866,7 +850,9 @@ exports.googleLogin = async (req, res) => {
 
       user = updatedUser;
     } else {
-      // Yeni kullanıcı oluştur
+      // Yeni kullanıcı oluştur - aktivasyon gerekli
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      
       const newUserData = {
         firstname: given_name || name?.split(' ')[0] || 'Google',
         lastname: family_name || name?.split(' ').slice(1).join(' ') || 'User',
@@ -874,7 +860,8 @@ exports.googleLogin = async (req, res) => {
         phonenumber: null, // Google kullanıcıları için telefon numarası yok
         password: 'google-oauth', // Google kullanıcıları için placeholder şifre
         role: "user",
-        isverified: true, // Google hesapları doğrulanmış sayılır
+        isverified: false, // Aktivasyon gerekli
+        verificationtoken: verificationToken,
         dailycontentused: 0,
         lastcontentdate: null,
         stripecustomerid: null,
@@ -895,6 +882,14 @@ exports.googleLogin = async (req, res) => {
 
       user = createdUser;
       
+      // Send verification email to new Google users
+      try {
+        await sendVerificationEmail(email, verificationToken);
+        logger.info(`[GOOGLE_LOGIN] Verification email sent to ${email}`);
+      } catch (emailError) {
+        logger.error('[GOOGLE_LOGIN] Verification email failed:', emailError);
+      }
+      
       // Send registration notification to support team for new Google users
       try {
         await sendRegistrationNotification(user);
@@ -902,34 +897,12 @@ exports.googleLogin = async (req, res) => {
         logger.warn('[GOOGLE_LOGIN] Registration notification failed:', notificationErr?.message);
       }
       
-      // Assign Free Trial plan (3 audio creation credits) for Google new users
-      try {
-        const { data: trialPlan, error: planErr } = await supabase
-          .from('subscription_plans')
-          .select('*')
-          .eq('name', 'Free Trial')
-          .eq('is_active', true)
-          .maybeSingle();
-        
-        if (!planErr && trialPlan) {
-          // Trial süresiz - sadece 3 ses oluşturma hakkı
-          await supabase
-            .from('subscriptions')
-            .insert([
-              {
-                user_id: user.id,
-                plan_id: trialPlan.id,
-                status: 'active', // Trial değil, aktif - kullanım hakkı bazlı
-                current_period_end: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(), // 1 yıl (süresiz gibi)
-                cancel_at_period_end: false,
-                audio_creation_count: 0, // Başlangıç sayacı
-              },
-            ]);
-          logger.info(`[GOOGLE_LOGIN] Free Trial plan assigned to user ${user.id}`);
-        }
-      } catch (e2) {
-        logger.warn('[GOOGLE_LOGIN] Failed to assign Free Trial plan:', e2?.message);
-      }
+      // Return early with verification required message
+      return res.status(403).json({ 
+        success: false, 
+        message: "Hesabınız oluşturuldu. Lütfen email adresinize gönderilen doğrulama linkine tıklayarak hesabınızı aktifleştirin.",
+        code: "EMAIL_NOT_VERIFIED"
+      });
     }
 
     // JWT token oluştur
@@ -1229,6 +1202,44 @@ exports.verifyEmail = async (req, res) => {
     if (updErr) {
       logger.error('[VERIFY_EMAIL] Update error:', updErr);
       return res.status(500).json({ success: false, message: 'Doğrulama işlemi tamamlanamadı' });
+    }
+
+    // Assign Free Trial plan (3 audio creation credits) for newly verified users
+    try {
+      const { data: trialPlan, error: planErr } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .eq('name', 'Free Trial')
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (!planErr && trialPlan) {
+        // Check if user already has a subscription
+        const { data: existingSub } = await supabase
+          .from('subscriptions')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (!existingSub) {
+          // Trial süresiz - sadece 3 ses oluşturma hakkı
+          await supabase
+            .from('subscriptions')
+            .insert([
+              {
+                user_id: user.id,
+                plan_id: trialPlan.id,
+                status: 'active', // Trial değil, aktif - kullanım hakkı bazlı
+                current_period_end: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(), // 1 yıl (süresiz gibi)
+                cancel_at_period_end: false,
+                audio_creation_count: 0, // Başlangıç sayacı
+              },
+            ]);
+          logger.info(`[VERIFY_EMAIL] Free Trial plan assigned to user ${user.id}`);
+        }
+      }
+    } catch (e2) {
+      logger.warn('[VERIFY_EMAIL] Failed to assign Free Trial plan:', e2?.message);
     }
 
     return res.json({ success: true, message: 'E-posta başarıyla doğrulandı. Artık giriş yapabilirsiniz.' });
