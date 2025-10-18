@@ -8,6 +8,7 @@ const logger = require("../utils/logger");
 const { logStep } = require('../utils/stepLogger');
 const { v4: uuidv4 } = require('uuid');
 const { sendRegistrationNotification } = require('../utils/registrationNotifier');
+const { sendMail } = require('../utils/mailer');
 
 const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-development";
 // Make tokens effectively non-expiring by default (very long lifetime)
@@ -16,6 +17,51 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "lingroot-refresh-s
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "3650d"; // ~10 years
 
 logger.info('JWT_SECRET exists:', !!JWT_SECRET);
+
+// Helper function to send verification email
+const sendVerificationEmail = async (email, verificationToken, firstName = '', lastName = '') => {
+  try {
+    // Update user with verification token
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const { error: verErr } = await supabase
+      .from('users')
+      .update({
+        verification_token: verificationToken,
+        verification_expires: verificationExpires,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('email', email);
+    
+    if (verErr) {
+      logger.warn('[SEND_VERIFICATION] Failed to set verification token:', verErr);
+      throw verErr;
+    }
+    
+    // Generate verification URL
+    const frontendBaseUrl = process.env.FRONTEND_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.APP_FRONTEND_URL || '';
+    const verifyUrl = frontendBaseUrl
+      ? `${frontendBaseUrl.replace(/\/$/, '')}/verify?token=${encodeURIComponent(verificationToken)}`
+      : `https://lingloops-backend.onrender.com/api/auth/verify-email/${encodeURIComponent(verificationToken)}`;
+    
+    // Send email
+    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim() || 'LingRoot Kullanıcısı';
+    await sendMail({
+      to: email,
+      subject: 'LingRoot Hesap Aktivasyonu',
+      text: `Merhaba ${fullName},\n\nHesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:\n${verifyUrl}\n\nBağlantı 24 saat geçerlidir.\n\nTeşekkürler,\nLingRoot Ekibi`,
+      html: `<p>Merhaba ${fullName},</p>
+             <p>Hesabınızı aktifleştirmek için aşağıdaki bağlantıya tıklayın:</p>
+             <p><a href="${verifyUrl}" target="_blank" rel="noopener noreferrer">Hesabımı Doğrula</a></p>
+             <p>Bağlantı 24 saat geçerlidir.</p>
+             <p>Teşekkürler,<br/>LingRoot Ekibi</p>`
+    });
+    
+    logger.info(`[SEND_VERIFICATION] Verification email sent to ${email}`);
+  } catch (error) {
+    logger.error('[SEND_VERIFICATION] Failed to send verification email:', error);
+    throw error;
+  }
+};
 
 // Always issue a long-lived token based on env config
 const generateToken = (id, email, role, _rememberMe = false) => {
@@ -542,8 +588,7 @@ exports.facebookLogin = async (req, res) => {
       
       // Send verification email to new Facebook users
       try {
-        await sendVerificationEmail(email, verificationToken);
-        logger.info(`[FACEBOOK_LOGIN] Verification email sent to ${email}`);
+        await sendVerificationEmail(email, verificationToken, first_name || name?.split(' ')[0], last_name || name?.split(' ').slice(1).join(' '));
       } catch (emailError) {
         logger.error('[FACEBOOK_LOGIN] Verification email failed:', emailError);
       }
@@ -704,8 +749,7 @@ exports.appleLogin = async (req, res) => {
       // Send verification email to new Apple users (only if real email)
       if (email) {
         try {
-          await sendVerificationEmail(email, verificationToken);
-          logger.info(`[APPLE_LOGIN] Verification email sent to ${email}`);
+          await sendVerificationEmail(email, verificationToken, firstName, lastName);
         } catch (emailError) {
           logger.error('[APPLE_LOGIN] Verification email failed:', emailError);
         }
@@ -885,8 +929,7 @@ exports.googleLogin = async (req, res) => {
       
       // Send verification email to new Google users
       try {
-        await sendVerificationEmail(email, verificationToken);
-        logger.info(`[GOOGLE_LOGIN] Verification email sent to ${email}`);
+        await sendVerificationEmail(email, verificationToken, given_name || name?.split(' ')[0], family_name || name?.split(' ').slice(1).join(' '));
       } catch (emailError) {
         logger.error('[GOOGLE_LOGIN] Verification email failed:', emailError);
       }
