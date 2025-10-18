@@ -1267,7 +1267,7 @@ exports.verifyEmail = async (req, res) => {
         
         if (!existingSub) {
           // Trial süresiz - sadece 3 ses oluşturma hakkı
-          await supabase
+          const { data: newSub, error: subError } = await supabase
             .from('subscriptions')
             .insert([
               {
@@ -1278,8 +1278,14 @@ exports.verifyEmail = async (req, res) => {
                 cancel_at_period_end: false,
                 audio_creation_count: 0, // Başlangıç sayacı
               },
-            ]);
-          logger.info(`[VERIFY_EMAIL] Free Trial plan assigned to user ${user.id}`);
+            ])
+            .select();
+          
+          if (subError) {
+            logger.error(`[VERIFY_EMAIL] Failed to insert subscription for user ${user.id}:`, subError);
+          } else {
+            logger.info(`[VERIFY_EMAIL] Free Trial plan assigned to user ${user.id}`, newSub);
+          }
         }
       }
     } catch (e2) {
