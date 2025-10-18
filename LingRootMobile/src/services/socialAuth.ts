@@ -2,13 +2,18 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { LoginManager, AccessToken } from 'react-native-fbsdk-next';
 import appleAuth from '@invertase/react-native-apple-authentication';
 import { Platform } from 'react-native';
+import { 
+  EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID 
+} from '@env';
 
 // Google Sign-In Configuration
 export const configureGoogleSignIn = () => {
   try {
-    const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-    const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
-    const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+    const webClientId = EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+    const iosClientId = EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+    const androidClientId = EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
     
     console.log('[GOOGLE_SIGNIN] Configuration attempt:', {
       hasWebClientId: !!webClientId,
@@ -25,19 +30,40 @@ export const configureGoogleSignIn = () => {
     }
     
     // Platform-specific configuration
-    const config: any = {
-      webClientId: webClientId,
-      offlineAccess: false,
-    };
+    let config: any = {};
     
-    if (Platform.OS === 'ios' && iosClientId) {
-      config.iosClientId = iosClientId;
+    if (Platform.OS === 'android') {
+      // For Android, use Web Client ID for backend verification
+      // But the Android Client ID must be registered with correct SHA-1
+      config = {
+        webClientId: webClientId,
+        offlineAccess: true,
+        forceCodeForRefreshToken: true,
+      };
+    } else if (Platform.OS === 'ios') {
+      config = {
+        webClientId: webClientId,
+        iosClientId: iosClientId,
+        offlineAccess: true,
+        forceCodeForRefreshToken: true,
+      };
+    } else {
+      config = {
+        webClientId: webClientId,
+        offlineAccess: true,
+        forceCodeForRefreshToken: true,
+      };
     }
     
-    // Note: androidClientId is not needed in GoogleSignin.configure()
-    // Android uses the SHA-1 fingerprint registered in Google Console
+    console.log('[GOOGLE_SIGNIN] Config:', { 
+      platform: Platform.OS, 
+      webClientId: config.webClientId,
+      fullConfig: config 
+    });
     
     GoogleSignin.configure(config);
+    
+    console.log('[GOOGLE_SIGNIN] Configuration completed');
     
     console.log('[GOOGLE_SIGNIN] Configuration successful');
   } catch (error) {
@@ -59,6 +85,14 @@ export interface SocialAuthResult {
 export const signInWithGoogle = async (): Promise<SocialAuthResult> => {
   try {
     await GoogleSignin.hasPlayServices();
+    
+    // Sign out first to force account selection
+    try {
+      await GoogleSignin.signOut();
+    } catch (signOutError) {
+      // Ignore if not signed in
+    }
+    
     const userInfo = await GoogleSignin.signIn();
     
     // Get ID token for backend verification

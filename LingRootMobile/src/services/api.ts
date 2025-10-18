@@ -1,12 +1,13 @@
 import axios from 'axios';
 import { TTSRequest, TTSResponse, APIResponse, BookSearchResponse, BookChapter } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { EXPO_PUBLIC_API_URL } from '@env';
 
 // Backend URL'i environment variable'dan alacağız
 // Production API URL'si kullanılıyor
 // Web projesiyle aynı yapı: base URL + /api/ endpoint
 // Local development için .env dosyasında EXPO_PUBLIC_API_URL değişkenini ayarlayın
-const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com') as string;
+const API_BASE_URL = EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com';
 
 // Debug logs removed for production cleanliness
 
