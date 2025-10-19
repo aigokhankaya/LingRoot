@@ -9,9 +9,9 @@
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		540DC866B9F0204551275394 /* libPods-LingRootMobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4717548E356535F1059FEFEE /* libPods-LingRootMobile.a */; };
 		55971A54C515B4607415E33E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F0E2872D4471B58B154224A9 /* PrivacyInfo.xcprivacy */; };
 		594283E02E9804F4007056E1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 594283DF2E9804F4007056E1 /* StoreKit.framework */; };
+		DD8C0FE3E0563DAC07090DD1 /* libPods-LingRootMobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5B3C7B2D7BA1B0716232239E /* libPods-LingRootMobile.a */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -19,11 +19,11 @@
 		13B07F961A680F5B00A75B9A /* LingRootMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LingRootMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = LingRootMobile/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = LingRootMobile/Info.plist; sourceTree = "<group>"; };
-		4717548E356535F1059FEFEE /* libPods-LingRootMobile.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-LingRootMobile.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		58E72AD0EF757BA5538379D4 /* Pods-LingRootMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-LingRootMobile.release.xcconfig"; path = "Target Support Files/Pods-LingRootMobile/Pods-LingRootMobile.release.xcconfig"; sourceTree = "<group>"; };
 		594283DF2E9804F4007056E1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		5B3C7B2D7BA1B0716232239E /* libPods-LingRootMobile.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-LingRootMobile.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		70E10C462549CDD822BBF759 /* Pods-LingRootMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-LingRootMobile.debug.xcconfig"; path = "Target Support Files/Pods-LingRootMobile/Pods-LingRootMobile.debug.xcconfig"; sourceTree = "<group>"; };
+		9924028D5B27B5421AB86AA7 /* Pods-LingRootMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-LingRootMobile.release.xcconfig"; path = "Target Support Files/Pods-LingRootMobile/Pods-LingRootMobile.release.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = LingRootMobile/SplashScreen.storyboard; sourceTree = "<group>"; };
-		DE0A97C7D9E7E3CBF09ECF49 /* Pods-LingRootMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-LingRootMobile.debug.xcconfig"; path = "Target Support Files/Pods-LingRootMobile/Pods-LingRootMobile.debug.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F0E2872D4471B58B154224A9 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = LingRootMobile/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = LingRootMobile/AppDelegate.swift; sourceTree = "<group>"; };
@@ -35,8 +35,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				540DC866B9F0204551275394 /* libPods-LingRootMobile.a in Frameworks */,
 				594283E02E9804F4007056E1 /* StoreKit.framework in Frameworks */,
+				DD8C0FE3E0563DAC07090DD1 /* libPods-LingRootMobile.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -61,7 +61,7 @@
 			children = (
 				594283DF2E9804F4007056E1 /* StoreKit.framework */,
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				4717548E356535F1059FEFEE /* libPods-LingRootMobile.a */,
+				5B3C7B2D7BA1B0716232239E /* libPods-LingRootMobile.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -98,8 +98,8 @@
 		FAB694A1BE11A56B2BE0A499 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				DE0A97C7D9E7E3CBF09ECF49 /* Pods-LingRootMobile.debug.xcconfig */,
-				58E72AD0EF757BA5538379D4 /* Pods-LingRootMobile.release.xcconfig */,
+				70E10C462549CDD822BBF759 /* Pods-LingRootMobile.debug.xcconfig */,
+				9924028D5B27B5421AB86AA7 /* Pods-LingRootMobile.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -111,13 +111,13 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "LingRootMobile" */;
 			buildPhases = (
-				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
+				7582FE46E075BBA9CB4C2662 /* [CP] Check Pods Manifest.lock */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
-				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				F40CD2BEC732D24F3AA72C39 /* [CP] Embed Pods Frameworks */,
+				DEB6B5F2A15916917F9F5EC1 /* [CP] Embed Pods Frameworks */,
+				540B4F977050483E599AAD4E /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -193,29 +193,7 @@
 			shellPath = /bin/sh;
 			shellScript = "if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env\"\nfi\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n# The project root by default is one level up from the ios directory\nexport PROJECT_ROOT=\"$PROJECT_DIR\"/..\n\n# Run the standard React Native bundling script\n`\"$NODE_BINARY\" --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'\"`\n";
 		};
-		08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-LingRootMobile-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
+		540B4F977050483E599AAD4E /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -295,7 +273,29 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-LingRootMobile/Pods-LingRootMobile-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		F40CD2BEC732D24F3AA72C39 /* [CP] Embed Pods Frameworks */ = {
+		7582FE46E075BBA9CB4C2662 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-LingRootMobile-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		DEB6B5F2A15916917F9F5EC1 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -341,7 +341,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = DE0A97C7D9E7E3CBF09ECF49 /* Pods-LingRootMobile.debug.xcconfig */;
+			baseConfigurationReference = 70E10C462549CDD822BBF759 /* Pods-LingRootMobile.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -381,7 +381,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 58E72AD0EF757BA5538379D4 /* Pods-LingRootMobile.release.xcconfig */;
+			baseConfigurationReference = 9924028D5B27B5421AB86AA7 /* Pods-LingRootMobile.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
