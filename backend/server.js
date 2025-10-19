@@ -23,6 +23,8 @@ const topicSuggestRoutes = require("./routes/topicSuggestRoutes");
 const topicDetailRoutes = require("./routes/topicDetailRoutes");
 const booksRouter = require("./routes/books");
 const userRoutes = require("./routes/userRoutes"); // 👈 İlgi alanları burada bağlandı
+const iapRoutes = require("./routes/iapRoutes"); // Apple IAP routes
+const accountRoutes = require("./routes/accountRoutes"); // Account management
 
 // Initialize Express app
 const app = express();
@@ -110,6 +112,8 @@ app.use("/api/topic-detail", topicDetailRoutes);
 app.use("/api/books", booksRouter);
 app.use("/api", userRoutes); // ✅ user-interests endpoint burada aktif
 app.use('/auth', authRoutes);
+app.use("/api/iap", iapRoutes); // Apple IAP verification
+app.use("/api/account", accountRoutes); // Account management
 
 // Health check endpoint (Render için)
 app.get("/healthz", (req, res) => {
