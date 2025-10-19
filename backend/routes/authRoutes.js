@@ -23,5 +23,6 @@ router.post('/logout', authenticate, authController.logout);
 
 // Social login routes
 router.post('/google', authController.googleLogin);
+router.post('/apple', authController.appleLogin);
 
 module.exports = router;

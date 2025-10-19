@@ -4,6 +4,14 @@ import { authService } from '../services/supabase';
 import { apiService, setUnauthorizedHandler } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationService from '../services/notificationService';
+import { 
+  signInWithGoogle, 
+  signInWithFacebook, 
+  signInWithApple,
+  signOutFromSocialProviders,
+  configureGoogleSignIn,
+  type SocialAuthResult
+} from '../services/socialAuth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -25,6 +33,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isBootstrappingRef = useRef(true);
 
   useEffect(() => {
+    // Configure Google Sign-In on app start
+    configureGoogleSignIn();
+    
     // Initial auth state check
     checkAuthState();
 
@@ -298,12 +309,151 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await AsyncStorage.removeItem('user_data');
       try { await AsyncStorage.removeItem('refresh_token'); } catch {}
       
+      // Sign out from social providers
+      await signOutFromSocialProviders();
+      
       await authService.signOut();
       setUser(null);
       // Ensure UI leaves loading state after successful logout
       setIsLoading(false);
       // User state will be updated via onAuthStateChange
     } catch (error) {
+      setIsLoading(false);
+      throw error;
+    }
+  };
+
+  // Social authentication handler
+  const handleSocialAuth = async (socialResult: SocialAuthResult) => {
+    const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+    
+    // Determine endpoint based on provider
+    const endpoint = socialResult.provider === 'google' 
+      ? '/api/auth/google-login'
+      : socialResult.provider === 'facebook'
+      ? '/api/auth/facebook-login'
+      : '/api/auth/apple-login';
+    
+    // Prepare request body
+    const requestBody: any = { 
+      credential: socialResult.credential,
+      rememberMe: true 
+    };
+    
+    // For Apple, include email and name if available (first login only)
+    if (socialResult.provider === 'apple') {
+      if (socialResult.email) requestBody.email = socialResult.email;
+      if (socialResult.name) requestBody.name = socialResult.name;
+    }
+    
+    // Send social auth credential to backend
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'LingRootMobile/1.0',
+      },
+      mode: 'cors',
+      credentials: 'omit',
+      body: JSON.stringify(requestBody),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      
+      // Email doğrulanmamışsa özel hata mesajı
+      if (errorData.code === 'EMAIL_NOT_VERIFIED') {
+        throw new Error(errorData.message || 'Email adresiniz doğrulanmamış. Lütfen email adresinize gönderilen doğrulama linkine tıklayın.');
+      }
+      
+      throw new Error(errorData.message || 'Sosyal giriş başarısız');
+    }
+    
+    const data = await response.json();
+    
+    if (data.success && data.data.user) {
+      const backendUser = data.data.user;
+      const builtFullName = (
+        backendUser.name ||
+        backendUser.full_name ||
+        [backendUser.firstName, backendUser.lastName].filter(Boolean).join(' ') ||
+        [backendUser.firstname, backendUser.lastname].filter(Boolean).join(' ')
+      )?.toString().trim();
+
+      const appUser: User = {
+        id: backendUser.id,
+        email: backendUser.email,
+        full_name: builtFullName && builtFullName.length > 0 ? builtFullName : (backendUser.email?.split('@')[0] || ''),
+        avatar_url: backendUser.avatar_url,
+        membership_level: backendUser.membership_status || 'free',
+        role: backendUser.role,
+        created_at: backendUser.created_at,
+        updated_at: backendUser.updated_at,
+      };
+      
+      if (data.data.token) {
+        await AsyncStorage.setItem('auth_token', data.data.token);
+        await AsyncStorage.setItem('user_data', JSON.stringify(appUser));
+        try {
+          if (data.data.refreshToken) {
+            await AsyncStorage.setItem('refresh_token', data.data.refreshToken);
+          }
+        } catch {}
+      }
+      
+      setUser(appUser);
+    } else {
+      throw new Error(data.message || 'Sosyal giriş başarısız');
+    }
+  };
+
+  const signInWithGoogleProvider = async () => {
+    setIsLoading(true);
+    try {
+      const isConnected = await apiService.checkConnectivity();
+      if (!isConnected) {
+        throw new Error('Backend serveri ile bağlantı kurulamıyor. Lütfen internet bağlantınızı kontrol edin.');
+      }
+      
+      const socialResult = await signInWithGoogle();
+      await handleSocialAuth(socialResult);
+      setIsLoading(false);
+    } catch (error: any) {
+      setIsLoading(false);
+      throw error;
+    }
+  };
+
+  const signInWithFacebookProvider = async () => {
+    setIsLoading(true);
+    try {
+      const isConnected = await apiService.checkConnectivity();
+      if (!isConnected) {
+        throw new Error('Backend serveri ile bağlantı kurulamıyor. Lütfen internet bağlantınızı kontrol edin.');
+      }
+      
+      const socialResult = await signInWithFacebook();
+      await handleSocialAuth(socialResult);
+      setIsLoading(false);
+    } catch (error: any) {
+      setIsLoading(false);
+      throw error;
+    }
+  };
+
+  const signInWithAppleProvider = async () => {
+    setIsLoading(true);
+    try {
+      const isConnected = await apiService.checkConnectivity();
+      if (!isConnected) {
+        throw new Error('Backend serveri ile bağlantı kurulamıyor. Lütfen internet bağlantınızı kontrol edin.');
+      }
+      
+      const socialResult = await signInWithApple();
+      await handleSocialAuth(socialResult);
+      setIsLoading(false);
+    } catch (error: any) {
       setIsLoading(false);
       throw error;
     }
@@ -332,6 +482,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signUp,
     signOut,
     updateUserProfile,
+    signInWithGoogle: signInWithGoogleProvider,
+    signInWithFacebook: signInWithFacebookProvider,
+    signInWithApple: signInWithAppleProvider,
   };
 
   return (

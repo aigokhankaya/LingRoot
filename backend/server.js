@@ -28,6 +28,7 @@ const parameterRoutes = require("./routes/parameterRoutes");
 const vocabularyRoutes = require("./routes/vocabularyRoutes"); // 👈 Vocabulary route eklendi
 const chatRoutes = require("./routes/chat"); // Chat routes
 const iapRoutes = require("./routes/iapRoutes"); // Apple IAP routes
+const accountRoutes = require("./routes/accountRoutes"); // Account management
 
 // Initialize Express app
 const app = express();
@@ -125,9 +126,10 @@ app.use("/api/parameters", parameterRoutes);
 app.use("/api/vocabulary", vocabularyRoutes); // 👈 Vocabulary route eklendi
 app.use("/api/chat", chatRoutes); // Chat routes
 app.use('/auth', authRoutes);
-app.use("/api/iap", iapRoutes); // Apple IAP routes
+app.use("/api/iap", iapRoutes); // Apple IAP verification
+app.use("/api/account", accountRoutes); // Account management
 
-// Account deletion page
+// Account deletion page (legacy)
 app.get('/delete-account', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'delete-account.html'));
 });

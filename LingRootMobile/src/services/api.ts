@@ -544,6 +544,29 @@ export const apiService = {
       throw new Error(msg);
     }
   },
+
+  // Account deletion endpoints
+  async getAccountDeletionInfo(): Promise<{ success: boolean; data?: any }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.get('/api/account/deletion-info');
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Hesap bilgileri alınamadı';
+      throw new Error(msg);
+    }
+  },
+
+  async deleteAccount(): Promise<{ success: boolean; message?: string }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.delete('/api/account/delete');
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Hesap silme işlemi başarısız';
+      throw new Error(msg);
+    }
+  },
 };
 
 // Vocabulary API functions
