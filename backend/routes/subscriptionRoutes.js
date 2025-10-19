@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, optionalAuth } = require('../middleware/auth');
 const subscriptionController = require('../controllers/subscriptionController');
+const planController = require('../controllers/planController');
 
 // Public routes
 router.get('/plans', subscriptionController.getSubscriptionPlans);
@@ -19,5 +20,7 @@ router.post('/update', authenticate, subscriptionController.updateSubscription);
 router.post('/mock-iyzico', authenticate, subscriptionController.mockIyzicoPayment);
 // Usage summary
 router.get('/usage-summary', authenticate, subscriptionController.getUsageSummary);
+// Get user's plan features
+router.get('/my-features', authenticate, planController.getMyPlanFeatures);
 
 module.exports = router;

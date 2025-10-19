@@ -20,7 +20,7 @@ import { pick, keepLocalCopy } from '@react-native-documents/picker';
 import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter, AudioTrack } from '../types';
 import { useRoute, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
-import { apiService, saveDefaultVoiceSetting, getUserSettings } from '../services/api';
+import { apiService, saveDefaultVoiceSetting, getUserSettings, getMyPlanFeatures, PlanFeatures } from '../services/api';
 import AudioPlayer from '../components/AudioPlayer';
 
 const CreateScreen: React.FC = () => {
@@ -39,6 +39,7 @@ const CreateScreen: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [createdTrack, setCreatedTrack] = useState<AudioTrack | null>(null);
   const [showPlayer, setShowPlayer] = useState(false);
+  const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
   // Keep mode in sync when screen gains focus (e.g., navigating from Home with different params)
   useFocusEffect(
     React.useCallback(() => {
@@ -233,14 +234,27 @@ const CreateScreen: React.FC = () => {
     return category;
   };
 
-  // Voice categories
+  // Voice categories - filtered by plan features
   const voiceCategories: VoiceCategory[] = [
     { value: 'standard', label: t('create.voice.categories.standard'), icon: 'volume-up', badge: t('create.voice.badge.free') },
     { value: 'wavenet', label: t('create.voice.categories.wavenet'), icon: 'star', badge: t('create.voice.badge.premium') },
     { value: 'neural2', label: t('create.voice.categories.neural2'), icon: 'psychology', badge: t('create.voice.badge.premium') },
     { value: 'studio', label: t('create.voice.categories.studio'), icon: 'workspace-premium', badge: t('create.voice.badge.platinum') },
     { value: 'chirp3d', label: t('create.voice.categories.chirp3d'), icon: 'diamond', badge: t('create.voice.badge.gold') },
-  ];
+  ].filter(category => {
+    // Filter categories based on plan features
+    if (!planFeatures?.voice_categories) return true; // Show all if features not loaded
+    
+    const categories = planFeatures.voice_categories;
+    switch (category.value) {
+      case 'standard': return categories.standard !== false;
+      case 'wavenet': return categories.wavenet === true;
+      case 'neural2': return categories.neural2 === true;
+      case 'studio': return categories.studio === true;
+      case 'chirp3d': return categories.chirp3d === true;
+      default: return true;
+    }
+  });
 
   // Voice filters
   const accentOptions = [
@@ -257,6 +271,19 @@ const CreateScreen: React.FC = () => {
     { value: 'male', label: t('create.voice.genders.male') },
     { value: 'female', label: t('create.voice.genders.female') },
   ];
+
+  // Fetch plan features
+  useEffect(() => {
+    const fetchPlanFeatures = async () => {
+      try {
+        const result = await getMyPlanFeatures();
+        setPlanFeatures(result.features);
+      } catch (error) {
+        console.error('Error loading plan features:', error);
+      }
+    };
+    fetchPlanFeatures();
+  }, []);
 
   // Fetch available voices
   const fetchAvailableVoices = async () => {
@@ -470,10 +497,44 @@ const CreateScreen: React.FC = () => {
   const getFilteredVoicesByCategory = () => {
     // Web'de olduğu gibi: filtre aktifse backend zaten filtrelenmiş listyi gönderiyor → doğrudan göster
     if (hasActiveFilters) {
-    return availableVoices;
+      return availableVoices;
     }
-    // Filtre yoksa local kategori/gender/aksan filtresi uygula
-    const result = filterVoices(availableVoices, selectedVoiceCategory, selectedGender, selectedAccent);
+    
+    // First apply plan-based voice category filtering
+    let voices = availableVoices;
+    console.log('🔍 [Mobile Voice Filter] Plan features:', planFeatures?.voice_categories);
+    console.log('🔍 [Mobile Voice Filter] Total voices before filter:', availableVoices.length);
+    
+    if (planFeatures?.voice_categories) {
+      voices = availableVoices.filter(voice => {
+        const voiceName = voice.name.toLowerCase();
+        const categories = planFeatures.voice_categories!;
+        
+        // Check which category this voice belongs to and if it's enabled
+        const isWavenet = voiceName.includes('wavenet') && categories.wavenet;
+        const isNeural2 = voiceName.includes('neural2') && categories.neural2;
+        const isStudio = voiceName.includes('studio') && categories.studio;
+        const isChirp = voiceName.includes('chirp') && categories.chirp3d;
+        const isStandard = categories.standard && 
+            !voiceName.includes('wavenet') && 
+            !voiceName.includes('neural2') && 
+            !voiceName.includes('studio') && 
+            !voiceName.includes('chirp');
+        
+        const shouldShow = isWavenet || isNeural2 || isStudio || isChirp || isStandard;
+        
+        if (!shouldShow) {
+          console.log(`❌ [Mobile Voice Filter] Filtered out: ${voice.name}`);
+        }
+        
+        return shouldShow;
+      });
+      console.log('🔍 [Mobile Voice Filter] Voices after plan filter:', voices.length);
+    }
+    
+    // Then apply local kategori/gender/aksan filtresi
+    const result = filterVoices(voices, selectedVoiceCategory, selectedGender, selectedAccent);
+    console.log('🔍 [Mobile Voice Filter] Final voices after all filters:', result.length);
     return result;
   };
 

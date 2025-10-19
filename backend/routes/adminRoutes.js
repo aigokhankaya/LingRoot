@@ -14,6 +14,7 @@ router.get('/stats', adminController.getDashboardStats);
 
 // Subscription plan management
 router.get('/plans', planController.getAllPlans);
+router.get('/plans/:id', planController.getPlanById);
 router.post('/plans', planController.createPlan);
 router.put('/plans/:id', planController.updatePlan);
 router.post('/plans/:id/deactivate', planController.deactivatePlan);

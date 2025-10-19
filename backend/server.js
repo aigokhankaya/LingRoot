@@ -115,6 +115,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/content", contentRoutes);
 app.use(contentRoutes); // legacy fallback
 app.use("/api/subscription", subscriptionRoutes);
+app.use("/api/subscriptions", subscriptionRoutes); // Support both singular and plural
 app.use("/api/admin", adminRoutes);
 app.use("/api/tts", ttsRoutes);
 app.use("/api/topic-suggest", topicSuggestRoutes);
@@ -134,7 +135,7 @@ app.get('/delete-account', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'delete-account.html'));
 });
 
-// Account deletion endpoints
+// Legacy account deletion endpoints
 const accountDeletionController = require('./controllers/accountDeletionController');
 app.post('/api/delete-account-request', accountDeletionController.requestAccountDeletion);
 app.delete('/api/admin/users/:userId/delete-account', accountDeletionController.adminDeleteAccount);

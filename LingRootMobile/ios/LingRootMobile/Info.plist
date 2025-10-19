@@ -25,9 +25,12 @@
     <key>CFBundleURLTypes</key>
     <array>
       <dict>
+        <key>CFBundleTypeRole</key>
+        <string>Editor</string>
         <key>CFBundleURLSchemes</key>
         <array>
           <string>com.lingroot.mobile</string>
+          <string>com.googleusercontent.apps.308629480159-5elk7uigs451vdpvalcr6620la2mqa7t</string>
         </array>
       </dict>
     </array>
@@ -54,6 +57,10 @@
     <string>LingRoot needs camera access to capture images for text-to-speech conversion.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>LingRoot needs microphone access for audio recording features.</string>
+    <key>GIDClientID</key>
+    <string>308629480159-5elk7uigs451vdpvalcr6620la2mqa7t.apps.googleusercontent.com</string>
+    <key>GIDServerClientID</key>
+    <string>308629480159-43l1s64c2cei400tlnsbdtb5rurmsalt.apps.googleusercontent.com</string>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>

@@ -1,11 +1,13 @@
 import axios from 'axios';
 import { TTSRequest, TTSResponse, APIResponse, BookSearchResponse, BookChapter } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { EXPO_PUBLIC_API_URL } from '@env';
 
-// Backend URL'i expo constants'tan alacağız
+// Backend URL'i environment variable'dan alacağız
 // Production API URL'si kullanılıyor
 // Web projesiyle aynı yapı: base URL + /api/ endpoint
-const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+// Local development için .env dosyasında EXPO_PUBLIC_API_URL değişkenini ayarlayın
+const API_BASE_URL = EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com';
 
 // Debug logs removed for production cleanliness
 
@@ -724,4 +726,76 @@ export const saveDefaultVoiceSetting = async (voice: string): Promise<void> => {
     } catch {}
     // Do not throw to allow UI to proceed
   }
+};
+
+// Plan Features Types
+export interface PlanFeatures {
+  homepage_features?: {
+    text_input?: boolean;
+    youtube?: boolean;
+    file_upload?: boolean;
+    podcast?: boolean;
+    topic_suggestions?: boolean;
+    book?: boolean;
+  };
+  voice_categories?: {
+    standard?: boolean;
+    wavenet?: boolean;
+    neural2?: boolean;
+    studio?: boolean;
+    chirp3d?: boolean;
+  };
+  sentence_patterns?: {
+    enabled?: boolean;
+    max_patterns?: number;
+  };
+}
+
+export interface UserPlanFeatures {
+  plan_id: string | null;
+  plan_name: string | null;
+  features: PlanFeatures;
+}
+
+// Get user's plan features
+export const getMyPlanFeatures = async (): Promise<UserPlanFeatures> => {
+  try {
+    const response = await apiClient.get('/api/subscriptions/my-features');
+    if (response.data.success) {
+      return response.data.data;
+    }
+    return getDefaultPlanFeatures();
+  } catch (error) {
+    console.error('Error fetching plan features:', error);
+    return getDefaultPlanFeatures();
+  }
+};
+
+// Get default plan features (for users without active subscription)
+export const getDefaultPlanFeatures = (): UserPlanFeatures => {
+  return {
+    plan_id: null,
+    plan_name: null,
+    features: {
+      homepage_features: {
+        text_input: true,
+        youtube: false,
+        file_upload: false,
+        podcast: false,
+        topic_suggestions: true,
+        book: false
+      },
+      voice_categories: {
+        standard: true,
+        wavenet: false,
+        neural2: false,
+        studio: false,
+        chirp3d: false
+      },
+      sentence_patterns: {
+        enabled: false,
+        max_patterns: 0
+      }
+    }
+  };
 };

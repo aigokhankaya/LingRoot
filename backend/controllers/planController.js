@@ -118,6 +118,30 @@ exports.getAllPlans = async (req, res) => {
   }
 };
 
+exports.getPlanById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from("subscription_plans")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      logger.error("Error fetching plan by ID:", error);
+      return res.status(500).json({ success: false, message: "Error fetching plan", error: error.message });
+    }
+    if (!data) {
+      return res.status(404).json({ success: false, message: "Plan not found" });
+    }
+
+    return res.json({ success: true, data: { ...data, estimates: computeEstimates(data) } });
+  } catch (e) {
+    logger.error("Server error getPlanById:", e);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 exports.createPlan = async (req, res) => {
   try {
     const {
@@ -228,6 +252,8 @@ exports.updatePlan = async (req, res) => {
       'tts_char_limit',
       'is_trial',
       'trial_days',
+      // parametric features
+      'plan_features',
     ];
     const payload = { updated_at: new Date().toISOString() };
     for (const key of allowed) {
@@ -300,6 +326,95 @@ exports.deactivatePlan = async (req, res) => {
     return res.json({ success: true, data: { ...data, estimates: computeEstimates(data) } });
   } catch (e) {
     logger.error("Server error deactivatePlan:", e);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// Get user's plan features
+exports.getMyPlanFeatures = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    // Get user's active subscription
+    const { data: subscription, error: subError } = await supabase
+      .from("subscriptions")
+      .select("stripepriceid, status")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (subError || !subscription) {
+      logger.warn(`No active subscription for user ${userId}`);
+      // Return default free features
+      return res.json({
+        success: true,
+        data: {
+          plan_id: null,
+          plan_name: "No Active Plan",
+          features: {
+            homepage_features: {
+              text_input: true,
+              youtube: false,
+              file_upload: false,
+              podcast: false,
+              topic_suggestions: true,
+              book: false
+            },
+            voice_categories: {
+              standard: true,
+              wavenet: false,
+              neural2: false,
+              studio: false,
+              chirp3d: false
+            },
+            sentence_patterns: {
+              enabled: false,
+              max_patterns: 0
+            }
+          }
+        }
+      });
+    }
+
+    // Get plan details with features
+    // stripepriceid is varchar, need to cast to uuid
+    let planId = subscription.stripepriceid;
+    try {
+      // Validate UUID format
+      if (planId && typeof planId === 'string') {
+        planId = planId.trim();
+      }
+    } catch (e) {
+      logger.error("Invalid plan ID format:", e);
+      return res.status(500).json({ success: false, message: "Invalid plan ID" });
+    }
+
+    const { data: plan, error: planError } = await supabase
+      .from("subscription_plans")
+      .select("id, name, plan_features")
+      .eq("id", planId)
+      .single();
+
+    if (planError || !plan) {
+      logger.error("Error fetching plan features:", planError);
+      return res.status(500).json({ success: false, message: "Error fetching plan features" });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        plan_id: plan.id,
+        plan_name: plan.name,
+        features: plan.plan_features || {}
+      }
+    });
+  } catch (e) {
+    logger.error("Server error getMyPlanFeatures:", e);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };

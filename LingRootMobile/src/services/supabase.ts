@@ -1,9 +1,10 @@
 import { createClient, type AuthChangeEvent, type Session } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY, EXPO_PUBLIC_API_URL } from '@env';
 
 // Resolve from env with safe fallbacks
-const resolvedSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const resolvedSupabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const resolvedSupabaseUrl = EXPO_PUBLIC_SUPABASE_URL;
+const resolvedSupabaseAnonKey = EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 // If missing, fail gracefully without logging to console
 if (!resolvedSupabaseUrl || !resolvedSupabaseAnonKey) {
@@ -81,7 +82,7 @@ export const authService = {
 
   async signUp(email: string, password: string, fullName?: string, phoneNumber?: string) {
     // Route signup through our backend to avoid direct Supabase Auth dependency on mobile
-    const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com') as string;
+    const apiBaseUrl = EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com';
     const [firstName, ...rest] = (fullName || '').trim().split(' ');
     const lastName = rest.join(' ') || 'User';
     

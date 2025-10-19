@@ -259,4 +259,48 @@ router.get('/test-client', (req, res) => {
   }
 });
 
+// New API endpoint for text translation and audio generation
+router.post("/translate-and-speak", async (req, res) => {
+  const { text, level, speakingRate, voice } = req.body;
+  
+  if (!text || !level) {
+    return res.status(400).json({
+      success: false,
+      message: "Text and level are required parameters"
+    });
+  }
+
+  try {
+    // 1. Translate text to English
+    const translationResult = await translateToEnglish(req, res);
+    
+    // 2. Adapt to CEFR level
+    const adaptedText = await adaptToCEFR({
+      text: translationResult.text,
+      level: level
+    }, res);
+
+    // 3. Generate audio
+    const audioResult = await synthesizeChunkAPI({
+      text: adaptedText,
+      voice: voice || "en-US-Neural2-F",
+      rate: speakingRate || 1.0
+    }, res);
+
+    return res.json({
+      success: true,
+      translatedText: translationResult.text,
+      adaptedText: adaptedText,
+      audio: audioResult
+    });
+  } catch (error) {
+    logger.error(`Error in translate-and-speak: ${error.message}`);
+    return res.status(500).json({
+      success: false,
+      message: "Error processing request",
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
