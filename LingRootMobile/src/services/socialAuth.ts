@@ -192,15 +192,24 @@ export const signInWithApple = async (): Promise<SocialAuthResult> => {
     
     const { identityToken, fullName, email } = appleAuthRequestResponse;
     
+    console.log('[APPLE_SIGNIN] Full name data:', {
+      hasFullName: !!fullName,
+      givenName: fullName?.givenName,
+      familyName: fullName?.familyName,
+    });
+    
     if (!identityToken) {
       throw new Error('Apple identity token alınamadı');
     }
+    
+    const fullNameString = fullName ? `${fullName.givenName || ''} ${fullName.familyName || ''}`.trim() : undefined;
+    console.log('[APPLE_SIGNIN] Constructed name:', fullNameString);
     
     return {
       provider: 'apple',
       credential: identityToken,
       email: email || undefined,
-      name: fullName ? `${fullName.givenName || ''} ${fullName.familyName || ''}`.trim() : undefined,
+      name: fullNameString,
       given_name: fullName?.givenName || undefined,
       family_name: fullName?.familyName || undefined,
     };

@@ -895,11 +895,14 @@ exports.appleLogin = async (req, res) => {
     } else {
       // Yeni kullanıcı kaydı oluştur
       console.log('[APPLE_LOGIN] Yeni kullanıcı kaydı oluşturuluyor...');
+      console.log('[APPLE_LOGIN] providedName:', providedName);
       
       const name = providedName || 'Apple User';
       const nameParts = name.split(' ');
       const firstname = nameParts[0] || 'Apple';
       const lastname = nameParts.slice(1).join(' ') || 'User';
+      
+      console.log('[APPLE_LOGIN] Parsed name:', { firstname, lastname });
 
       const { data: newUser, error: insertError } = await supabase
         .from('users')
