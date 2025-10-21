@@ -1,5 +1,5 @@
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { LoginManager, AccessToken } from 'react-native-fbsdk-next';
+import { LoginManager, AccessToken, Settings } from 'react-native-fbsdk-next';
 import appleAuth from '@invertase/react-native-apple-authentication';
 import { Platform } from 'react-native';
 import { 
@@ -7,6 +7,20 @@ import {
   EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
   EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID 
 } from '@env';
+
+// Facebook SDK Configuration
+export const configureFacebookSDK = () => {
+  try {
+    // Initialize Facebook SDK
+    // Note: Facebook App ID and Client Token are configured in Info.plist for iOS
+    // and in AndroidManifest.xml for Android
+    Settings.initializeSDK();
+    
+    console.log('[FACEBOOK_SDK] Configuration completed');
+  } catch (error) {
+    console.error('[FACEBOOK_SDK] Configuration error:', error);
+  }
+};
 
 // Google Sign-In Configuration
 export const configureGoogleSignIn = () => {
