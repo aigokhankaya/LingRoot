@@ -115,21 +115,66 @@ exports.verifyAppleReceipt = async (req, res) => {
       });
     }
 
-    // Step 6: Check for existing subscription with same transaction
+    // Step 6: Check for existing subscription with same transaction OR original_transaction
+    // Apple uses same original_transaction_id for upgrades/downgrades
     const { data: existingSub } = await supabase
       .from('subscriptions')
-      .select('id, status, provider')
+      .select('id, status, provider, plantype, apple_transaction_id')
       .eq('user_id', userId)
       .eq('provider', 'apple')
-      .eq('apple_transaction_id', latestReceiptInfo.transaction_id)
+      .or(`apple_transaction_id.eq.${latestReceiptInfo.transaction_id},apple_original_transaction_id.eq.${latestReceiptInfo.original_transaction_id}`)
       .maybeSingle();
 
     if (existingSub) {
-      logger.info(`[IAP] Subscription already exists for transaction ${latestReceiptInfo.transaction_id}`);
+      // Check if this is the exact same transaction
+      if (existingSub.apple_transaction_id === latestReceiptInfo.transaction_id) {
+        logger.info(`[IAP] Subscription already exists for transaction ${latestReceiptInfo.transaction_id}`);
+        return res.status(200).json({
+          success: true,
+          message: 'Subscription already active',
+          data: { subscriptionId: existingSub.id }
+        });
+      }
+      
+      // Different transaction but same original = upgrade/downgrade
+      logger.info(`[IAP] Detected upgrade/downgrade from ${existingSub.plantype} to ${plan.name}`);
+      
+      // Update existing subscription instead of creating new one
+      const expiresDate = new Date(parseInt(latestReceiptInfo.expires_date_ms));
+      const purchaseDate = new Date(parseInt(latestReceiptInfo.purchase_date_ms));
+      
+      const { data: updatedSub, error: updateError } = await supabase
+        .from('subscriptions')
+        .update({
+          plantype: plan.name,
+          status: 'active',
+          startdate: purchaseDate.toISOString(),
+          enddate: expiresDate.toISOString(),
+          apple_transaction_id: latestReceiptInfo.transaction_id,
+          apple_receipt_data: receiptData,
+        })
+        .eq('id', existingSub.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        logger.error(`[IAP] Error updating subscription:`, updateError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to update subscription'
+        });
+      }
+
+      logger.info(`[IAP] Successfully upgraded/downgraded subscription ${updatedSub.id} to ${plan.name}`);
+      
       return res.status(200).json({
         success: true,
-        message: 'Subscription already active',
-        data: { subscriptionId: existingSub.id }
+        message: 'Subscription upgraded successfully',
+        data: {
+          subscriptionId: updatedSub.id,
+          planName: plan.name,
+          expiresAt: expiresDate.toISOString()
+        }
       });
     }
 
