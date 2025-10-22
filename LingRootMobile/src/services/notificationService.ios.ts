@@ -4,6 +4,7 @@ import type { VocabularyWord } from './api';
 import { getVocabulary } from './api';
 import { ReminderSettingsService, ReminderSettings } from './reminderSettingsService';
 import PushNotification from 'react-native-push-notification';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // iOS: Early configure and native listener preserved
 try {
@@ -77,6 +78,15 @@ class NotificationService {
   private lastRescheduleAt: number = 0;
   private isConfigured = false;
 
+  private async getLanguage(): Promise<'tr' | 'en'> {
+    try {
+      const lang = await AsyncStorage.getItem('app_language');
+      return (lang === 'tr' || lang === 'en') ? lang : 'en';
+    } catch {
+      return 'en';
+    }
+  }
+
   private constructor() {}
 
   public static getInstance(): NotificationService {
@@ -132,11 +142,15 @@ class NotificationService {
 
       console.log(`📅 [iOS Notifications] Scheduling ${times.length} notifications`);
 
+      const lang = await this.getLanguage();
+      
       for (let i = 0; i < times.length; i++) {
         const when = times[i];
         const word = selected[i];
-        const title = '📚 LingRoot Hatırlatma';
-        const body = word ? `Kelime: ${word.word}${word.definition ? ' — ' + word.definition : ''}` : 'Günün kelimelerini tekrar et!';
+        const title = lang === 'tr' ? '📚 LingRoot Hatırlatma' : '📚 LingRoot Reminder';
+        const body = word 
+          ? (lang === 'tr' ? `Kelime: ${word.word}${word.definition ? ' — ' + word.definition : ''}` : `Word: ${word.word}${word.definition ? ' — ' + word.definition : ''}`)
+          : (lang === 'tr' ? 'Günün kelimelerini tekrar et!' : 'Review today\'s words!');
         const requestId = `lingroot_${when.getTime()}_${i}`;
         
         console.log(`⏰ [iOS Notifications] Scheduling #${i + 1} at ${when.toLocaleString('tr-TR')}`);
@@ -224,21 +238,31 @@ class NotificationService {
 
   public async stopVocabularyReminders(): Promise<void> {
     try { PushNotificationIOS.cancelAllLocalNotifications(); } catch {}
-    Alert.alert('Bildirimler Durduruldu', 'Tüm kelime hatırlatmaları iptal edildi.');
+    const lang = await this.getLanguage();
+    Alert.alert(
+      lang === 'tr' ? 'Bildirimler Durduruldu' : 'Notifications Stopped',
+      lang === 'tr' ? 'Tüm kelime hatırlatmaları iptal edildi.' : 'All vocabulary reminders have been cancelled.'
+    );
   }
 
   public async scheduleVocabularyNotification(word: VocabularyWord): Promise<void> {
     await this.initialize();
+    const lang = await this.getLanguage();
+    
     PushNotificationIOS.presentLocalNotification({
-      alertTitle: '🎯 LingRoot Kelime',
-      alertBody: `${word.word} - ${word.definition || 'Tanım yok'}`,
+      alertTitle: lang === 'tr' ? '🎯 LingRoot Kelime' : '🎯 LingRoot Word',
+      alertBody: lang === 'tr' 
+        ? `${word.word} - ${word.definition || 'Tanım yok'}`
+        : `${word.word} - ${word.definition || 'No definition'}`,
       soundName: 'default',
       applicationIconBadgeNumber: 1,
       userInfo: { wordId: word.id?.toString() || '' },
     });
     PushNotificationIOS.scheduleLocalNotification({
-      alertTitle: '📚 LingRoot Hatırlatma',
-      alertBody: `Kelime: ${word.word} - ${word.definition || 'Tanım yok'}`,
+      alertTitle: lang === 'tr' ? '📚 LingRoot Hatırlatma' : '📚 LingRoot Reminder',
+      alertBody: lang === 'tr'
+        ? `Kelime: ${word.word} - ${word.definition || 'Tanım yok'}`
+        : `Word: ${word.word} - ${word.definition || 'No definition'}`,
       soundName: 'default',
       applicationIconBadgeNumber: 1,
       userInfo: { wordId: word.id?.toString() || '' },
