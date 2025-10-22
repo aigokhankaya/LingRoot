@@ -158,6 +158,7 @@ exports.verifyAppleReceipt = async (req, res) => {
         .from('subscriptions')
         .update({
           plantype: plan.name,
+          stripepriceid: plan.id, // Link to subscription_plans for features
           status: 'active',
           startdate: purchaseDate.toISOString(),
           enddate: expiresDate.toISOString(),
@@ -222,6 +223,7 @@ exports.verifyAppleReceipt = async (req, res) => {
     const subscriptionData = {
       user_id: userId,
       plantype: plan.name, // Use plan name as plantype
+      stripepriceid: plan.id, // Link to subscription_plans for features
       provider: 'apple',
       status: 'active',
       startdate: purchaseDate.toISOString(),
