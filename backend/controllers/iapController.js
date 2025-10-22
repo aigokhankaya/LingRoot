@@ -115,7 +115,7 @@ exports.verifyAppleReceipt = async (req, res) => {
       });
     }
 
-    // Step 6: Check for existing subscription
+    // Step 6: Check for existing subscription with same transaction
     const { data: existingSub } = await supabase
       .from('subscriptions')
       .select('id, status, provider')
@@ -133,7 +133,33 @@ exports.verifyAppleReceipt = async (req, res) => {
       });
     }
 
-    // Step 7: Create or update subscription
+    // Step 6.5: Deactivate all existing active subscriptions for this user
+    const { data: activeSubscriptions } = await supabase
+      .from('subscriptions')
+      .select('id, plantype, status')
+      .eq('user_id', userId)
+      .eq('status', 'active');
+
+    if (activeSubscriptions && activeSubscriptions.length > 0) {
+      logger.info(`[IAP] Found ${activeSubscriptions.length} active subscription(s) for user ${userId}, deactivating...`);
+      
+      const { error: deactivateError } = await supabase
+        .from('subscriptions')
+        .update({ 
+          status: 'cancelled',
+          enddate: new Date().toISOString() // Set end date to now
+        })
+        .eq('user_id', userId)
+        .eq('status', 'active');
+
+      if (deactivateError) {
+        logger.error(`[IAP] Error deactivating old subscriptions:`, deactivateError);
+      } else {
+        logger.info(`[IAP] Successfully deactivated old subscriptions for user ${userId}`);
+      }
+    }
+
+    // Step 7: Create new subscription
     const expiresDate = new Date(parseInt(latestReceiptInfo.expires_date_ms));
     const purchaseDate = new Date(parseInt(latestReceiptInfo.purchase_date_ms));
 
