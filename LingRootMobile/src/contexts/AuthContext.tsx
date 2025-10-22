@@ -36,6 +36,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Configure Google Sign-In on app start
     configureGoogleSignIn();
     
+    // Configure Facebook SDK on app start
+    const { configureFacebookSDK } = require('../services/socialAuth');
+    configureFacebookSDK();
+    
     // Initial auth state check
     checkAuthState();
 

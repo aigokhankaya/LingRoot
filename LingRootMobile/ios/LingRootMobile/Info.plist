@@ -31,8 +31,22 @@
         <array>
           <string>com.lingroot.mobile</string>
           <string>com.googleusercontent.apps.308629480159-5elk7uigs451vdpvalcr6620la2mqa7t</string>
+          <string>fb2951446548397669</string>
         </array>
       </dict>
+    </array>
+    <key>FacebookAppID</key>
+    <string>2951446548397669</string>
+    <key>FacebookClientToken</key>
+    <string>8b8ce1b127f2afea96574eca46e8b1e0</string>
+    <key>FacebookDisplayName</key>
+    <string>LingRoot</string>
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+      <string>fbapi</string>
+      <string>fb-messenger-share-api</string>
+      <string>fbauth2</string>
+      <string>fbshareextension</string>
     </array>
     <key>CFBundleVersion</key>
     <string>1</string>

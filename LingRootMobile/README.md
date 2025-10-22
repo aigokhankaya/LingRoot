@@ -103,7 +103,51 @@ example: örnek, misal
 EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 EXPO_PUBLIC_API_URL=http://localhost:5001
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your_google_web_client_id
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=your_google_ios_client_id
 ```
+
+## 🔧 Local Development (Backend ile Test)
+
+Android geliştirme yaparken backend değişikliklerini Render'a push etmeden önce lokalde test edebilirsiniz.
+
+### Hızlı Başlangıç
+
+1. **Otomatik Kurulum** (Önerilen):
+   ```powershell
+   .\setup-local-dev.ps1
+   ```
+   Bu script:
+   - Bilgisayarınızın IP adresini otomatik bulur
+   - `.env` dosyasını oluşturur
+   - Firewall ayarlarını yapar (opsiyonel)
+
+2. **Backend'i Başlatın**:
+   ```bash
+   cd ..\backend
+   npm run dev
+   ```
+
+3. **Bağlantıyı Test Edin**:
+   ```powershell
+   .\test-backend-connection.ps1
+   ```
+
+4. **Expo'yu Başlatın**:
+   ```bash
+   npx expo start -c
+   ```
+
+### Manuel Kurulum
+
+Detaylı adımlar ve sorun giderme için [LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md) dosyasına bakın.
+
+### Önemli Notlar
+
+- **Emülatör**: `10.0.2.2:5001` kullanın
+- **Fiziksel Cihaz**: Bilgisayarınızın IP'sini kullanın (örn: `192.168.1.100:5001`)
+- **Aynı Wi-Fi**: Cihaz ve bilgisayar aynı ağda olmalı
+- **Firewall**: 5001 portu açık olmalı
 
 ## Proje Yapısı
 

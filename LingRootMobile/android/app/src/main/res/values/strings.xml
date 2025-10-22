@@ -1,3 +1,6 @@
 <resources>
   <string name="app_name">lingrootmobile</string>
+  <!-- Facebook App ID - Replace with your actual Facebook App ID -->
+  <string name="facebook_app_id">0</string>
+  <string name="facebook_client_token">0</string>
 </resources>

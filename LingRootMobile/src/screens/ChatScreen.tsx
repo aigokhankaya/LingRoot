@@ -52,10 +52,12 @@ interface Conversation {
   admin_name?: string;
 }
 
+import { EXPO_PUBLIC_API_URL } from '@env';
+
 const ChatScreen: React.FC = ({ navigation }: any) => {
   const { language } = useLanguage();
   // Resolve API base URL from env or default
-  const API_URL: string = (process.env.EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com') as string;
+  const API_URL: string = EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com';
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);

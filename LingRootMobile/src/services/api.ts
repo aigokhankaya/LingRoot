@@ -1,11 +1,13 @@
 import axios from 'axios';
 import { TTSRequest, TTSResponse, APIResponse, BookSearchResponse, BookChapter } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { EXPO_PUBLIC_API_URL } from '@env';
 
-// Backend URL'i expo constants'tan alacağız
+// Backend URL'i environment variable'dan alacağız
 // Production API URL'si kullanılıyor
 // Web projesiyle aynı yapı: base URL + /api/ endpoint
-const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+// Local development için .env dosyasında EXPO_PUBLIC_API_URL değişkenini ayarlayın
+const API_BASE_URL = EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com';
 
 // Debug logs removed for production cleanliness
 
@@ -541,6 +543,29 @@ export const apiService = {
       return response.data;
     } catch (error: any) {
       const msg = error?.response?.data?.message || 'Paketler yüklenemedi';
+      throw new Error(msg);
+    }
+  },
+
+  // Account deletion endpoints
+  async getAccountDeletionInfo(): Promise<{ success: boolean; data?: any }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.get('/api/account/deletion-info');
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Hesap bilgileri alınamadı';
+      throw new Error(msg);
+    }
+  },
+
+  async deleteAccount(): Promise<{ success: boolean; message?: string }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.delete('/api/account/delete');
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Hesap silme işlemi başarısız';
       throw new Error(msg);
     }
   },
