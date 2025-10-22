@@ -121,10 +121,12 @@ exports.verifyAppleReceipt = async (req, res) => {
     
     const { data: existingSub, error: existingSubError } = await supabase
       .from('subscriptions')
-      .select('id, status, provider, plantype, apple_transaction_id, apple_original_transaction_id')
+      .select('id, status, provider, plantype, apple_transaction_id, apple_original_transaction_id, enddate')
       .eq('user_id', userId)
       .eq('provider', 'apple')
       .or(`apple_transaction_id.eq.${latestReceiptInfo.transaction_id},apple_original_transaction_id.eq.${latestReceiptInfo.original_transaction_id}`)
+      .order('enddate', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (existingSubError) {
