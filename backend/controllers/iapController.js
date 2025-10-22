@@ -117,13 +117,21 @@ exports.verifyAppleReceipt = async (req, res) => {
 
     // Step 6: Check for existing subscription with same transaction OR original_transaction
     // Apple uses same original_transaction_id for upgrades/downgrades
-    const { data: existingSub } = await supabase
+    logger.info(`[IAP] Checking for existing subscription - transaction_id: ${latestReceiptInfo.transaction_id}, original_transaction_id: ${latestReceiptInfo.original_transaction_id}`);
+    
+    const { data: existingSub, error: existingSubError } = await supabase
       .from('subscriptions')
-      .select('id, status, provider, plantype, apple_transaction_id')
+      .select('id, status, provider, plantype, apple_transaction_id, apple_original_transaction_id')
       .eq('user_id', userId)
       .eq('provider', 'apple')
       .or(`apple_transaction_id.eq.${latestReceiptInfo.transaction_id},apple_original_transaction_id.eq.${latestReceiptInfo.original_transaction_id}`)
       .maybeSingle();
+
+    if (existingSubError) {
+      logger.error(`[IAP] Error checking existing subscription:`, existingSubError);
+    }
+
+    logger.info(`[IAP] Existing subscription check result:`, existingSub ? `Found: ${JSON.stringify(existingSub)}` : 'Not found');
 
     if (existingSub) {
       // Check if this is the exact same transaction
@@ -137,7 +145,7 @@ exports.verifyAppleReceipt = async (req, res) => {
       }
       
       // Different transaction but same original = upgrade/downgrade
-      logger.info(`[IAP] Detected upgrade/downgrade from ${existingSub.plantype} to ${plan.name}`);
+      logger.info(`[IAP] 🔄 Detected upgrade/downgrade from ${existingSub.plantype} to ${plan.name}`);
       
       // Update existing subscription instead of creating new one
       const expiresDate = new Date(parseInt(latestReceiptInfo.expires_date_ms));
