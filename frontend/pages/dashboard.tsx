@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../src/components/ui/t
 import PackageInfo from '../src/components/PackageInfo';
 import { VocabularyTabContent } from './vocabulary';
 
+// .
+
 const Dashboard = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
