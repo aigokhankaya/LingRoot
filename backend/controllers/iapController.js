@@ -134,9 +134,10 @@ exports.verifyAppleReceipt = async (req, res) => {
     logger.info(`[IAP] Existing subscription check result:`, existingSub ? `Found: ${JSON.stringify(existingSub)}` : 'Not found');
 
     if (existingSub) {
-      // Check if this is the exact same transaction
-      if (existingSub.apple_transaction_id === latestReceiptInfo.transaction_id) {
-        logger.info(`[IAP] Subscription already exists for transaction ${latestReceiptInfo.transaction_id}`);
+      // Check if this is the exact same transaction AND same plan
+      if (existingSub.apple_transaction_id === latestReceiptInfo.transaction_id && 
+          existingSub.plantype === plan.name) {
+        logger.info(`[IAP] Subscription already exists for transaction ${latestReceiptInfo.transaction_id} with same plan ${plan.name}`);
         return res.status(200).json({
           success: true,
           message: 'Subscription already active',
@@ -144,7 +145,7 @@ exports.verifyAppleReceipt = async (req, res) => {
         });
       }
       
-      // Different transaction but same original = upgrade/downgrade
+      // Same transaction but different plan OR different transaction with same original = upgrade/downgrade
       logger.info(`[IAP] 🔄 Detected upgrade/downgrade from ${existingSub.plantype} to ${plan.name}`);
       
       // Update existing subscription instead of creating new one
