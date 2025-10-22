@@ -1,6 +1,7 @@
 import * as RNIap from 'react-native-iap';
 import { Platform } from 'react-native';
 import { apiService } from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Product IDs for Apple and Google Play
 // Apple uses the original IDs, Google Play uses app-specific IDs
@@ -61,6 +62,15 @@ async function verifyWithBackend(receipt: string, productId: string) {
   return apiService.verifyAppleReceipt(receipt, productId);
 }
 
+async function getLanguage(): Promise<'tr' | 'en'> {
+  try {
+    const lang = await AsyncStorage.getItem('app_language');
+    return (lang === 'tr' || lang === 'en') ? lang : 'en';
+  } catch {
+    return 'en';
+  }
+}
+
 export async function requestSubscription(productId: string): Promise<{ ok: boolean; message?: string }> {
   try {
     console.log('[IAP] ========================================');
@@ -111,26 +121,30 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
               } catch (finishErr) {
                 console.warn('[IAP] Error finishing transaction:', finishErr);
               }
-              resolve({ ok: true, message: 'Satın alma doğrulandı' });
+              const lang = await getLanguage();
+              resolve({ ok: true, message: lang === 'tr' ? 'Satın alma doğrulandı' : 'Purchase verified' });
             } catch (verErr: any) {
               console.error('[IAP] ❌ Backend verification failed:', verErr.message);
               // Still try to finish to avoid stuck state
               try { await RNIap.finishTransaction({ purchase, isConsumable: false }); } catch {}
-              resolve({ ok: false, message: verErr?.message || 'Doğrulama başarısız' });
+              const lang = await getLanguage();
+              resolve({ ok: false, message: verErr?.message || (lang === 'tr' ? 'Doğrulama başarısız' : 'Verification failed') });
             }
           }
         } catch (e: any) {
           console.error('[IAP] ❌ Purchase update error:', e.message);
-          resolve({ ok: false, message: e?.message || 'Satın alma başarısız' });
+          const lang = await getLanguage();
+          resolve({ ok: false, message: e?.message || (lang === 'tr' ? 'Satın alma başarısız' : 'Purchase failed') });
         }
       });
 
-      purchaseErrorSub = RNIap.purchaseErrorListener((error: any) => {
+      purchaseErrorSub = RNIap.purchaseErrorListener(async (error: any) => {
         console.error('[IAP] ❌ Purchase error listener triggered');
         console.error('[IAP] Error code:', error?.code);
         console.error('[IAP] Error message:', error?.message);
         console.error('[IAP] Error details:', JSON.stringify(error, null, 2));
-        resolve({ ok: false, message: error?.message || 'Satın alma hatası' });
+        const lang = await getLanguage();
+        resolve({ ok: false, message: error?.message || (lang === 'tr' ? 'Satın alma hatası' : 'Purchase error') });
       });
 
       try {
@@ -142,12 +156,14 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
         console.error('[IAP] Error:', e.message);
         console.error('[IAP] Error code:', e.code);
         console.error('[IAP] Full error:', JSON.stringify(e, null, 2));
-        resolve({ ok: false, message: e?.message || 'Satın alma başlatılamadı' });
+        const lang = await getLanguage();
+        resolve({ ok: false, message: e?.message || (lang === 'tr' ? 'Satın alma başlatılamadı' : 'Could not start purchase') });
       }
     });
   } catch (e: any) {
     console.error('[IAP] ❌ Outer catch - unexpected error:', e.message);
-    return { ok: false, message: e?.message || 'Satın alma hatası' };
+    const lang = await getLanguage();
+    return { ok: false, message: e?.message || (lang === 'tr' ? 'Satın alma hatası' : 'Purchase error') };
   }
 }
 
@@ -160,19 +176,24 @@ export async function restorePurchases(): Promise<{ ok: boolean; message?: strin
     // Sort by transactionDate desc
     subs.sort((a, b) => Number(b.transactionDate || 0) - Number(a.transactionDate || 0));
     if (subs.length === 0) {
-      return { ok: false, message: 'Geri yüklenecek satın alma bulunamadı' };
+      const lang = await getLanguage();
+      return { ok: false, message: lang === 'tr' ? 'Geri yüklenecek satın alma bulunamadı' : 'No purchases to restore' };
     }
     const latest = subs[0];
     if (!latest.transactionReceipt || !latest.productId) {
-      return { ok: false, message: 'Geçersiz makbuz' };
+      const lang = await getLanguage();
+      return { ok: false, message: lang === 'tr' ? 'Geçersiz makbuz' : 'Invalid receipt' };
     }
     try {
       await verifyWithBackend(latest.transactionReceipt, latest.productId);
-      return { ok: true, message: 'Satın alımlar geri yüklendi' };
+      const lang = await getLanguage();
+      return { ok: true, message: lang === 'tr' ? 'Satın alımlar geri yüklendi' : 'Purchases restored' };
     } catch (e: any) {
-      return { ok: false, message: e?.message || 'Doğrulama başarısız' };
+      const lang = await getLanguage();
+      return { ok: false, message: e?.message || (lang === 'tr' ? 'Doğrulama başarısız' : 'Verification failed') };
     }
   } catch (e: any) {
-    return { ok: false, message: e?.message || 'Geri yükleme hatası' };
+    const lang = await getLanguage();
+    return { ok: false, message: e?.message || (lang === 'tr' ? 'Geri yükleme hatası' : 'Restore error') };
   }
 }
