@@ -118,8 +118,9 @@ exports.verifyAppleReceipt = async (req, res) => {
     // Step 6: Check for existing subscription
     const { data: existingSub } = await supabase
       .from('subscriptions')
-      .select('id, status')
+      .select('id, status, provider')
       .eq('user_id', userId)
+      .eq('provider', 'apple')
       .eq('apple_transaction_id', latestReceiptInfo.transaction_id)
       .maybeSingle();
 
@@ -138,14 +139,15 @@ exports.verifyAppleReceipt = async (req, res) => {
 
     const subscriptionData = {
       user_id: userId,
-      plan_id: plan.id,
+      plantype: plan.name, // Use plan name as plantype
+      provider: 'apple',
       status: 'active',
-      current_period_end: expiresDate.toISOString(),
-      current_period_start: purchaseDate.toISOString(),
+      startdate: purchaseDate.toISOString(),
+      enddate: expiresDate.toISOString(),
       apple_transaction_id: latestReceiptInfo.transaction_id,
       apple_original_transaction_id: latestReceiptInfo.original_transaction_id,
       apple_receipt_data: receiptData,
-      cancel_at_period_end: false
+      audio_creation_count: 0
     };
 
     const { data: newSub, error: insertError } = await supabase
