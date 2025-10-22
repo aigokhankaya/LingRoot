@@ -3,8 +3,7 @@ To-do lists:
 
 Bu mailde kullanıcının isim, soyisim, email adresi ve register tarihi bilgileri olmalı.
 - Web Profile sayfasının tasarımı çok kötü. Düzelt
-- Kullanıcının sorunlar için bize mesaj atabilmesi için geliştirme yapılacak. Admin sayfasında "Destek" menüsü var.
-Destek kısmında mesajlaşma olacak. Admin ve kullanıcılara anlık mesaj bildirimi gidecek. Hem mobil hem web tarafında bu işlevler olacak.
+
 - Register sayfasına telefon no alanı eklenecek.
 - Kampanya Yönetimi  geliştirilecek.
 - Kullanıcı verileri işlenerek önerilerde bulunacak. Bu kısım detaylandırılacak
@@ -36,5 +35,16 @@ Login ekranında girişte aktivasyon uyarısı verdiğinde email adresi girilece
 altında bir buton olsun. Adı: "Aktivasyon maili gönder"  olmalı. 
 29.08.2025
 - Her yeni kullanıcı register olduğunda support@lingroot.com adresine mail gönderilecek.
+- Kullanıcının sorunlar için bize mesaj atabilmesi için geliştirme yapılacak. Admin sayfasında "Destek" menüsü var.
+Destek kısmında mesajlaşma olacak. Admin ve kullanıcılara anlık mesaj bildirimi gidecek. Hem mobil hem web tarafında bu işlevler olacak.
 
+
+bundleID=
+com.lingroot.mobile
+
+appleID=
+6753145745
+
+APPLE_IAP_SHARED_SECRET=
+851cd2f08bbd444483196d95c9b9b5db
 

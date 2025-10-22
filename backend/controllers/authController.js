@@ -272,24 +272,35 @@ exports.register = async (req, res) => {
         .eq('is_active', true)
         .maybeSingle();
       
-      if (!planErr && trialPlan) {
-        // Trial süresiz - sadece 3 ses oluşturma hakkı
-        await supabase
+      if (planErr) {
+        logger.error('[REGISTER] Error fetching Free Trial plan:', planErr);
+      } else if (!trialPlan) {
+        logger.error('[REGISTER] Free Trial plan not found in database');
+      } else {
+        const { data: newSub, error: subErr } = await supabase
           .from('subscriptions')
           .insert([
             {
               user_id: newUser[0].id,
-              plan_id: trialPlan.id,
-              status: 'active', // Trial değil, aktif - kullanım hakkı bazlı
-              current_period_end: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(), // 1 yıl (süresiz gibi)
-              cancel_at_period_end: false,
-              audio_creation_count: 0, // Başlangıç sayacı
+              plantype: 'Free Trial',
+              status: 'active',
+              audio_creation_count: 0,
+              startdate: new Date().toISOString(),
+              enddate: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
             },
-          ]);
-        logger.info(`[REGISTER] Free Trial plan assigned to user ${newUser[0].id}`);
+          ])
+          .select();
+        
+        if (subErr) {
+          logger.error(`[REGISTER] Error inserting subscription for user ${newUser[0].id}:`, subErr);
+        } else {
+          logger.info(`[REGISTER] Free Trial plan assigned to user ${newUser[0].id}`, newSub);
+        }
       }
     } catch (e) {
-      logger.warn('[REGISTER] Failed to assign Free Trial plan:', e?.message);
+      logger.error('[REGISTER] Failed to assign Free Trial plan:', e?.message, e);
     }
 
     // Send registration notification to support team
@@ -775,21 +786,33 @@ exports.googleLogin = async (req, res) => {
           .eq('is_active', true)
           .maybeSingle();
         
-        if (!planErr && trialPlan) {
-          await supabase
+        if (planErr) {
+          logger.error('[GOOGLE_LOGIN] Error fetching Free Trial plan:', planErr);
+        } else if (!trialPlan) {
+          logger.error('[GOOGLE_LOGIN] Free Trial plan not found in database');
+        } else {
+          const { data: newSub, error: subErr } = await supabase
             .from('subscriptions')
             .insert([{
               user_id: user.id,
-              plan_id: trialPlan.id,
+              plantype: 'Free Trial',
               status: 'active',
-              current_period_end: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(),
-              cancel_at_period_end: false,
               audio_creation_count: 0,
-            }]);
-          logger.info(`[GOOGLE_LOGIN] Free Trial plan assigned to user ${user.id}`);
+              startdate: new Date().toISOString(),
+              enddate: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }])
+            .select();
+          
+          if (subErr) {
+            logger.error(`[GOOGLE_LOGIN] Error inserting subscription for user ${user.id}:`, subErr);
+          } else {
+            logger.info(`[GOOGLE_LOGIN] Free Trial plan assigned to user ${user.id}`, newSub);
+          }
         }
       } catch (e) {
-        logger.warn('[GOOGLE_LOGIN] Failed to assign Free Trial plan:', e?.message);
+        logger.error('[GOOGLE_LOGIN] Failed to assign Free Trial plan:', e?.message, e);
       }
       
       // Send registration notification to support team for new Google users
@@ -941,21 +964,33 @@ exports.appleLogin = async (req, res) => {
           .eq('is_active', true)
           .maybeSingle();
         
-        if (!planErr && trialPlan) {
-          await supabase
+        if (planErr) {
+          logger.error('[APPLE_LOGIN] Error fetching Free Trial plan:', planErr);
+        } else if (!trialPlan) {
+          logger.error('[APPLE_LOGIN] Free Trial plan not found in database');
+        } else {
+          const { data: newSub, error: subErr } = await supabase
             .from('subscriptions')
             .insert([{
               user_id: user.id,
-              plan_id: trialPlan.id,
+              plantype: 'Free Trial',
               status: 'active',
-              current_period_end: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(),
-              cancel_at_period_end: false,
               audio_creation_count: 0,
-            }]);
-          logger.info(`[APPLE_LOGIN] Free Trial plan assigned to user ${user.id}`);
+              startdate: new Date().toISOString(),
+              enddate: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }])
+            .select();
+          
+          if (subErr) {
+            logger.error(`[APPLE_LOGIN] Error inserting subscription for user ${user.id}:`, subErr);
+          } else {
+            logger.info(`[APPLE_LOGIN] Free Trial plan assigned to user ${user.id}`, newSub);
+          }
         }
       } catch (e) {
-        logger.warn('[APPLE_LOGIN] Failed to assign Free Trial plan:', e?.message);
+        logger.error('[APPLE_LOGIN] Failed to assign Free Trial plan:', e?.message, e);
       }
 
       // Send registration notification
