@@ -40,8 +40,18 @@ export async function endIAP() {
 
 export async function getProducts() {
   const ids = [IAP_PRODUCTS.goldMonthly, IAP_PRODUCTS.platinumMonthly].filter(Boolean);
+  console.log('[IAP] Requesting products with IDs:', ids);
+  console.log('[IAP] Platform:', Platform.OS);
   // For subscriptions, prefer getSubscriptions
-  return RNIap.getSubscriptions({ skus: ids });
+  try {
+    const products = await RNIap.getSubscriptions({ skus: ids });
+    console.log('[IAP] Products received:', products.length);
+    products.forEach(p => console.log(`  - ${p.productId}: ${p.title}`));
+    return products;
+  } catch (error: any) {
+    console.error('[IAP] Error fetching products:', error.message);
+    throw error;
+  }
 }
 
 async function verifyWithBackend(receipt: string, productId: string) {
