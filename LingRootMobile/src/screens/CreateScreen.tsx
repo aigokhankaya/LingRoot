@@ -1504,15 +1504,23 @@ const CreateScreen: React.FC = () => {
                         try {
                           await saveDefaultVoiceSetting(selectedVoice);
                           setShouldPromoteSelectedVoiceTop(true);
-                          Alert.alert(t('common.success'), 'Varsayılan ses kaydedildi');
+                          Alert.alert(
+                            t('common.success'),
+                            language === 'tr' ? 'Varsayılan ses kaydedildi' : 'Default voice saved'
+                          );
                           setShowVoiceSelection(false);
                         } catch (e: any) {
-                          Alert.alert(t('common.error'), e.message || 'Kaydedilemedi');
+                          Alert.alert(
+                            t('common.error'),
+                            e.message || (language === 'tr' ? 'Kaydedilemedi' : 'Could not save')
+                          );
                         }
                       }}
                       disabled={!selectedVoice}
                     >
-                      <Text style={styles.defaultVoiceButtonText}>Varsayılan Ses Seç</Text>
+                      <Text style={styles.defaultVoiceButtonText}>
+                        {language === 'tr' ? 'Varsayılan Ses Seç' : 'Set as Default Voice'}
+                      </Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
