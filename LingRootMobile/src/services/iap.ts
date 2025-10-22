@@ -172,36 +172,29 @@ export async function restorePurchases(): Promise<{ ok: boolean; message?: strin
     await initIAP();
     const purchases = await RNIap.getAvailablePurchases();
     // Find any subscription purchase
-    const subs = purchases.filter(p => !!p.productId);
+    const subs = purchases.filter(p => !!p.productId && !!p.transactionReceipt);
     
     if (subs.length === 0) {
       const lang = await getLanguage();
       return { ok: false, message: lang === 'tr' ? 'Geri yüklenecek satın alma bulunamadı' : 'No purchases to restore' };
     }
     
-    // Try to verify all subscriptions with backend
-    // Backend will determine which one is the current active subscription
-    let successCount = 0;
-    let lastError: any = null;
+    console.log(`[IAP] Found ${subs.length} purchases to restore`);
     
-    for (const purchase of subs) {
-      if (!purchase.transactionReceipt || !purchase.productId) continue;
-      
-      try {
-        await verifyWithBackend(purchase.transactionReceipt, purchase.productId);
-        successCount++;
-      } catch (e: any) {
-        lastError = e;
-        console.warn('[IAP] Failed to verify purchase:', purchase.productId, e.message);
-      }
-    }
+    // Only send the most recent purchase to backend
+    // Sort by transactionDate (most recent first)
+    subs.sort((a, b) => Number(b.transactionDate || 0) - Number(a.transactionDate || 0));
+    const latest = subs[0];
     
-    const lang = await getLanguage();
+    console.log(`[IAP] Restoring latest purchase: ${latest.productId}`);
     
-    if (successCount > 0) {
+    try {
+      await verifyWithBackend(latest.transactionReceipt, latest.productId);
+      const lang = await getLanguage();
       return { ok: true, message: lang === 'tr' ? 'Satın alımlar geri yüklendi' : 'Purchases restored' };
-    } else {
-      return { ok: false, message: lastError?.message || (lang === 'tr' ? 'Doğrulama başarısız' : 'Verification failed') };
+    } catch (e: any) {
+      const lang = await getLanguage();
+      return { ok: false, message: e?.message || (lang === 'tr' ? 'Doğrulama başarısız' : 'Verification failed') };
     }
   } catch (e: any) {
     const lang = await getLanguage();
