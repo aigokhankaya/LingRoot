@@ -42,15 +42,41 @@ exports.verifyAppleReceipt = async (req, res) => {
       });
     }
 
-    // Step 1: Try production environment first
+    // Step 1: Try production environment first (Apple's recommended approach)
     logger.info(`[IAP] Attempting production verification for user ${userId}`);
-    let verificationResult = await verifyReceiptWithApple(receiptData, PRODUCTION_URL);
+    let verificationResult = null;
+    let usedEnvironment = 'production';
 
-    // Step 2: If production returns sandbox receipt error (21007), try sandbox
-    if (verificationResult.status === 21007) {
-      logger.info(`[IAP] Production returned sandbox receipt (21007), trying sandbox for user ${userId}`);
-      verificationResult = await verifyReceiptWithApple(receiptData, SANDBOX_URL);
+    try {
+      verificationResult = await verifyReceiptWithApple(receiptData, PRODUCTION_URL);
+      
+      // Step 2: If production returns sandbox receipt error (21007), try sandbox
+      if (verificationResult.status === 21007) {
+        logger.info(`[IAP] Production returned sandbox receipt (21007), trying sandbox for user ${userId}`);
+        verificationResult = await verifyReceiptWithApple(receiptData, SANDBOX_URL);
+        usedEnvironment = 'sandbox';
+      }
+    } catch (prodError) {
+      // If production fails with network/timeout error, try sandbox as fallback
+      logger.warn(`[IAP] Production verification failed with error, trying sandbox for user ${userId}:`, prodError.message);
+      try {
+        verificationResult = await verifyReceiptWithApple(receiptData, SANDBOX_URL);
+        usedEnvironment = 'sandbox';
+      } catch (sandboxError) {
+        logger.error(`[IAP] Both production and sandbox verification failed for user ${userId}`);
+        throw sandboxError;
+      }
     }
+
+    if (!verificationResult) {
+      logger.error(`[IAP] No verification result obtained for user ${userId}`);
+      return res.status(500).json({
+        success: false,
+        message: 'Receipt verification failed'
+      });
+    }
+
+    logger.info(`[IAP] Receipt verified using ${usedEnvironment} environment for user ${userId}`);
 
     // Step 3: Check verification status
     if (verificationResult.status !== 0) {
