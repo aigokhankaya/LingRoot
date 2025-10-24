@@ -52,6 +52,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
+  const [addingWord, setAddingWord] = useState(false); // Loading state for adding word
+  const [addingWordText, setAddingWordText] = useState(''); // Text to show while adding
   
   // Use refs to track the latest values for highlighting
   const durationRef = useRef(0);
@@ -425,6 +427,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const handleAddWordToVocabulary = useCallback(async (word: string, wordIndex: number) => {
     const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
     
+    // Show loading state
+    setAddingWord(true);
+    setAddingWordText(language === 'tr' ? `"${cleanWord}" kelimesi ekleniyor...` : `Adding "${cleanWord}"...`);
+    
     try {
       // Create context from surrounding words or text
       let context = '';
@@ -507,6 +513,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             : `An error occurred while adding the word: ${error.message || 'Please check your internet connection.'}`
         );
       }
+    } finally {
+      // Hide loading state
+      setAddingWord(false);
+      setAddingWordText('');
     }
   }, [wordsArray, textToHighlight, language]);
 
@@ -833,6 +843,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             </ScrollView>
           </View>
         </ScrollView>
+
+        {/* Loading indicator for adding word */}
+        {addingWord && (
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingCard}>
+              <Icon name="hourglass-empty" size={32} color="#007AFF" />
+              <Text style={styles.loadingText}>{addingWordText}</Text>
+            </View>
+          </View>
+        )}
 
         {/* Controls */}
         <View style={styles.controlsContainer}>
@@ -1166,6 +1186,34 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   // sentenceIndicator and number styles removed
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+  },
   testButton: {
     padding: 8,
     backgroundColor: '#ff6b35',

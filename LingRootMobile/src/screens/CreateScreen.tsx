@@ -143,6 +143,10 @@ const CreateScreen: React.FC = () => {
       const res = await apiService.getTopicSuggestions(suggestion, selectedLevel);
       if (res?.success) {
         setSuggestionResults(res.suggestions || []);
+        // Set first suggestion to input text area
+        if (res.suggestions && res.suggestions.length > 0) {
+          setInputText(res.suggestions[0]);
+        }
       } else {
         Alert.alert(t('common.error'), res?.message || t('suggestions.alerts.fetchFailed'));
       }
@@ -1021,7 +1025,56 @@ const CreateScreen: React.FC = () => {
           </Text>
         </View>
 
-        {(mode === 'text' || mode === 'youtube') && (
+        {mode === 'suggestion' && (
+          <View style={styles.inputSection}>
+            <Text style={styles.sectionTitle}>{t('suggestions.title')}</Text>
+            <TextInput
+              style={[styles.textInput]}
+              placeholder={t('suggestions.input.placeholder')}
+              value={suggestion}
+              onChangeText={setSuggestion}
+            />
+            <TouchableOpacity
+              style={[styles.searchButton, isLoadingSuggestions && styles.createButtonDisabled]}
+              onPress={handleGetSuggestions}
+              disabled={isLoadingSuggestions}
+            >
+              {isLoadingSuggestions ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <>
+                  <Icon name="lightbulb" size={20} color="#fff" />
+                  <Text style={styles.createButtonText}>{t('suggestions.buttons.getSuggestions')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            {suggestionResults.length > 0 && (
+              <View style={{ marginTop: 8 }}>
+                {suggestionResults.map((s, idx) => (
+                  <TouchableOpacity
+                    key={`${idx}-${s.substring(0,10)}`}
+                    style={styles.bookCard}
+                    onPress={async () => {
+                      try {
+                        const rr = await apiService.rewriteToNarration(s, selectedLevel);
+                        const narration = rr?.data?.narration_text || s;
+                        setInputText(narration);
+                        Alert.alert(t('common.success'), t('Öneri metne dönüştürüldü'));
+                      } catch (e: any) {
+                        Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
+                      }
+                    }}
+                  >
+                    <View style={{ marginRight: 10 }}><Icon name="description" size={20} color="#FF9500" /></View>
+                    <Text style={{ flex: 1, color: '#333' }}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {((mode === 'text' || mode === 'youtube') || (mode === 'suggestion' && (suggestionResults.length > 0 || inputText.trim().length > 0))) && (
           <View style={styles.inputSection}>
             <Text style={styles.sectionTitle}>{t('create.input.title')}</Text>
             {mode === 'youtube' && (
@@ -1089,56 +1142,6 @@ const CreateScreen: React.FC = () => {
         )}
 
         {/* Divider hidden in single-mode screens */}
-
-        {mode === 'suggestion' && (
-          <View style={styles.inputSection}>
-            <Text style={styles.sectionTitle}>{t('suggestions.title')}</Text>
-            <TextInput
-              style={[styles.textInput]}
-              placeholder={t('suggestions.input.placeholder')}
-              value={suggestion}
-              onChangeText={setSuggestion}
-            />
-            <TouchableOpacity
-              style={[styles.searchButton, isLoadingSuggestions && styles.createButtonDisabled]}
-              onPress={handleGetSuggestions}
-              disabled={isLoadingSuggestions}
-            >
-              {isLoadingSuggestions ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <>
-                  <Icon name="lightbulb" size={20} color="#fff" />
-                  <Text style={styles.createButtonText}>{t('suggestions.buttons.getSuggestions')}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            {suggestionResults.length > 0 && (
-              <View style={{ marginTop: 8 }}>
-                {suggestionResults.map((s, idx) => (
-                  <TouchableOpacity
-                    key={`${idx}-${s.substring(0,10)}`}
-                    style={styles.bookCard}
-                    onPress={async () => {
-                      try {
-                        const rr = await apiService.rewriteToNarration(s, selectedLevel);
-                        const narration = rr?.data?.narration_text || s;
-                        setInputText(narration);
-                        // Mode'u suggestion olarak bırak, metin input alanı zaten görünüyor
-                        Alert.alert(t('common.success'), t('Öneri metne dönüştürüldü'));
-                      } catch (e: any) {
-                        Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
-                      }
-                    }}
-                  >
-                    <View style={{ marginRight: 10 }}><Icon name="description" size={20} color="#FF9500" /></View>
-                    <Text style={{ flex: 1, color: '#333' }}>{s}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
 
         {mode === 'book' && (
           <View style={styles.inputSection}>
