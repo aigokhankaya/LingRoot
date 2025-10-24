@@ -554,9 +554,9 @@ const LibraryScreen: React.FC = () => {
           windowSize={5}
           removeClippedSubviews
           ListFooterComponent={
-            isLoadingMore && displayedTracks.length < filteredTracks.length ? (
-              <View style={{ paddingVertical: 12 }}>
-                <ActivityIndicator size="small" color="#007AFF" />
+            isLoadingMore ? (
+              <View style={styles.footerLoadingContainer}>
+                <ActivityIndicator size="large" color="#007AFF" style={{ opacity: 0.3 }} />
               </View>
             ) : null
           }
@@ -810,6 +810,11 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  footerLoadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
