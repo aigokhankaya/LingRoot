@@ -113,6 +113,7 @@ exports.getTopicDetailSuggestions = async (req, res) => {
     
     res.json({ 
       success: true, 
+      suggestions,
       data: { 
         topic,
         level: level || 'A1',
