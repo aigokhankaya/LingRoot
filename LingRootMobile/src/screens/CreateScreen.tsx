@@ -44,25 +44,39 @@ const CreateScreen: React.FC = () => {
   useFocusEffect(
     React.useCallback(() => {
       const nextMode: 'text' | 'file' | 'book' | 'suggestion' | 'youtube' = route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : (route.params?.mode === 'youtube' ? 'youtube' : 'text')));
+      const prevMode = mode;
       setMode(nextMode);
       
-      // Her zaman tüm form alanlarını temizle
-      setInputText('');
-      setSelectedFile(null);
-      setSelectedBook(null);
-      setSelectedChapterId(null);
-      setSelectedChapterText('');
-      setSuggestion('');
-      setSuggestionResults([]);
-      setYoutubeUrl('');
-      setYoutubeLoading(false);
-      setYoutubeError(null);
-    }, [route.params?.mode])
+      // Her zaman suggestion mode'a girerken temizle
+      if (nextMode === 'suggestion') {
+        setSuggestion('');
+        setSuggestionResults([]);
+        setInputText('');
+        setIsConvertingSuggestion(false);
+        setConvertingText('');
+      }
+      
+      // Diğer mode'lar için sadece mode değiştiğinde temizle
+      if (prevMode !== nextMode && nextMode !== 'suggestion') {
+        setInputText('');
+        setSelectedFile(null);
+        setSelectedBook(null);
+        setSelectedChapterId(null);
+        setSelectedChapterText('');
+        setSuggestion('');
+        setSuggestionResults([]);
+        setYoutubeUrl('');
+        setYoutubeLoading(false);
+        setYoutubeError(null);
+      }
+    }, [route.params?.mode, mode])
   );
   // --- Suggestion Mode State ---
   const [suggestion, setSuggestion] = useState('');
   const [suggestionResults, setSuggestionResults] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [isConvertingSuggestion, setIsConvertingSuggestion] = useState(false);
+  const [convertingText, setConvertingText] = useState('');
 
   // --- YouTube Mode State ---
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
@@ -141,17 +155,21 @@ const CreateScreen: React.FC = () => {
     setIsLoadingSuggestions(true);
     try {
       const res = await apiService.getTopicSuggestions(suggestion, selectedLevel);
+      
       if (res?.success) {
-        setSuggestionResults(res.suggestions || []);
+        const suggestions = res.suggestions || [];
+        setSuggestionResults(suggestions);
+        
         // Set first suggestion to input text area
-        if (res.suggestions && res.suggestions.length > 0) {
-          setInputText(res.suggestions[0]);
+        if (suggestions.length > 0) {
+          const firstSuggestion = suggestions[0];
+          setInputText(firstSuggestion);
         }
       } else {
         Alert.alert(t('common.error'), res?.message || t('suggestions.alerts.fetchFailed'));
       }
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
+      Alert.alert('API ERROR', e.message || t('common.unexpectedError'));
     } finally {
       setIsLoadingSuggestions(false);
     }
@@ -1013,6 +1031,16 @@ const CreateScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Loading overlay for suggestion conversion */}
+      {isConvertingSuggestion && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>{convertingText}</Text>
+          </View>
+        </View>
+      )}
+      
       <ScrollView
         style={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -1056,12 +1084,19 @@ const CreateScreen: React.FC = () => {
                     style={styles.bookCard}
                     onPress={async () => {
                       try {
+                        setIsConvertingSuggestion(true);
+                        setConvertingText(language === 'tr' ? 'Öneri metne dönüştürülüyor...' : 'Converting suggestion to text...');
+                        
                         const rr = await apiService.rewriteToNarration(s, selectedLevel);
                         const narration = rr?.data?.narration_text || s;
                         setInputText(narration);
+                        
                         Alert.alert(t('common.success'), t('Öneri metne dönüştürüldü'));
                       } catch (e: any) {
                         Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
+                      } finally {
+                        setIsConvertingSuggestion(false);
+                        setConvertingText('');
                       }
                     }}
                   >
@@ -1074,7 +1109,7 @@ const CreateScreen: React.FC = () => {
           </View>
         )}
 
-        {((mode === 'text' || mode === 'youtube') || (mode === 'suggestion' && (suggestionResults.length > 0 || inputText.trim().length > 0))) && (
+        {((mode === 'text' || mode === 'youtube') || (mode === 'suggestion' && (suggestionResults.length > 0 || inputText.length > 0))) && (
           <View style={styles.inputSection}>
             <Text style={styles.sectionTitle}>{t('create.input.title')}</Text>
             {mode === 'youtube' && (
@@ -1571,6 +1606,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
   },
   // Book search styles
   bookSearchRow: {

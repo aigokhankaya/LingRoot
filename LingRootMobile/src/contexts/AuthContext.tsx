@@ -455,6 +455,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       const socialResult = await signInWithApple();
+      
+      // Log Apple name data for debugging
+      console.log('[AUTH_CONTEXT] Apple Sign-In result:', {
+        hasName: !!socialResult.name,
+        name: socialResult.name,
+        email: socialResult.email
+      });
+      
       await handleSocialAuth(socialResult);
       setIsLoading(false);
     } catch (error: any) {
