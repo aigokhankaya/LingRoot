@@ -1021,7 +1021,7 @@ const CreateScreen: React.FC = () => {
           </Text>
         </View>
 
-        {(mode === 'text' || mode === 'youtube' || mode === 'suggestion') && (
+        {(mode === 'text' || mode === 'youtube') && (
           <View style={styles.inputSection}>
             <Text style={styles.sectionTitle}>{t('create.input.title')}</Text>
             {mode === 'youtube' && (
