@@ -14,11 +14,15 @@
   <uses-permission android:name="android.permission.WAKE_LOCK" />
   <!-- Android 13+ notification runtime permission -->
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-  <!-- Android 12+ exact alarms permission required for setExactAndAllowWhileIdle -->
-  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
   <!-- Ensure scheduled notifications can be restored after reboot -->
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+  <!-- SCHEDULE_EXACT_ALARM temporarily removed for initial upload -->
+  <!-- Will be added back after permission declaration in Play Console -->
+  <!-- <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/> -->
+  <!-- <uses-permission android:name="android.permission.USE_EXACT_ALARM"/> -->
   <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
+  <!-- Explicitly remove AD_ID permission added by third-party SDKs -->
+  <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>

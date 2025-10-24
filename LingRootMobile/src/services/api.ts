@@ -536,6 +536,18 @@ export const apiService = {
     }
   },
 
+  // Google Play IAP purchase verification
+  async verifyGooglePlayPurchase(purchaseToken: string, productId: string, packageName: string): Promise<{ success: boolean; data?: any; message?: string }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post('/api/iap/google/verify', { purchaseToken, productId, packageName });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Abonelik doğrulaması başarısız';
+      throw new Error(msg);
+    }
+  },
+
   // Get subscription plans (public endpoint)
   async getSubscriptionPlans(): Promise<{ success: boolean; data?: any[] }> {
     try {
