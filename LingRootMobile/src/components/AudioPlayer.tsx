@@ -10,6 +10,7 @@ import {
   Modal,
   Dimensions,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { Platform } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
@@ -848,7 +849,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         {addingWord && (
           <View style={styles.loadingOverlay}>
             <View style={styles.loadingCard}>
-              <Icon name="hourglass-empty" size={32} color="#007AFF" />
+              <ActivityIndicator size="large" color="#007AFF" />
               <Text style={styles.loadingText}>{addingWordText}</Text>
             </View>
           </View>

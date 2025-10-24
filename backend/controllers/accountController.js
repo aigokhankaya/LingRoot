@@ -45,19 +45,13 @@ exports.deleteAccount = async (req, res) => {
       logger.error(`[ACCOUNT] Error deleting subscriptions for user ${userId}:`, subsError);
     }
 
-    // Step 3: Delete user's content/audio history
-    const { error: contentError } = await supabase
-      .from('user_content')
-      .delete()
-      .eq('user_id', userId);
-
-    if (contentError) {
-      logger.error(`[ACCOUNT] Error deleting content for user ${userId}:`, contentError);
-    }
+    // Step 3: Delete user's content/audio history (table doesn't exist, skip)
+    // Note: user_content table doesn't exist in current schema
+    // Audio files are stored externally and referenced elsewhere
 
     // Step 4: Delete user's vocabulary
     const { error: vocabError } = await supabase
-      .from('vocabulary')
+      .from('user_vocabulary')
       .delete()
       .eq('user_id', userId);
 
@@ -105,15 +99,9 @@ exports.deleteAccount = async (req, res) => {
       }
     }
 
-    // Step 7: Delete refresh tokens
-    const { error: tokensError } = await supabase
-      .from('refresh_tokens')
-      .delete()
-      .eq('user_id', userId);
-
-    if (tokensError) {
-      logger.error(`[ACCOUNT] Error deleting tokens for user ${userId}:`, tokensError);
-    }
+    // Step 7: Delete refresh tokens (table doesn't exist, skip)
+    // Note: refresh_tokens table doesn't exist in current schema
+    // JWT tokens are stateless and expire automatically
 
     // Step 8: Finally, delete the user account
     const { error: userError } = await supabase
@@ -162,19 +150,14 @@ exports.getAccountDeletionInfo = async (req, res) => {
     }
 
     // Count user's data
-    const { count: contentCount } = await supabase
-      .from('user_content')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
-
     const { count: vocabCount } = await supabase
-      .from('vocabulary')
+      .from('user_vocabulary')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId);
 
     const { data: subscription } = await supabase
       .from('subscriptions')
-      .select('status, current_period_end')
+      .select('status, enddate')
       .eq('user_id', userId)
       .eq('status', 'active')
       .maybeSingle();
@@ -182,10 +165,9 @@ exports.getAccountDeletionInfo = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: {
-        contentCount: contentCount || 0,
         vocabularyCount: vocabCount || 0,
         hasActiveSubscription: !!subscription,
-        subscriptionEndsAt: subscription?.current_period_end || null
+        subscriptionEndsAt: subscription?.enddate || null
       }
     });
 
