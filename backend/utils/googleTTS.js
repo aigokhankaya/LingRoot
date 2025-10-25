@@ -125,6 +125,15 @@ function generateSSMLWithOptimizedMarks(text) {
     // Orijinal kelimeyi (noktalama ile birlikte) ekle
     ssml += escapeSSML(originalWord);
     
+    // Noktalama işaretlerine göre duraklama ekle
+    if (originalWord.includes('.') || originalWord.includes('!') || originalWord.includes('?')) {
+      // Cümle sonu: 500ms duraklama
+      ssml += '<break time="500ms"/>';
+    } else if (originalWord.includes(',') || originalWord.includes(';') || originalWord.includes(':')) {
+      // Virgül/noktalı virgül: 300ms duraklama
+      ssml += '<break time="300ms"/>';
+    }
+    
     // Kelimeler arası boşluk (son kelime değilse)
     if (originalIndex < originalWords.length - 1) {
       ssml += ' ';
@@ -459,8 +468,8 @@ async function synthesizeWithGoogle(options) {
       logger.info('Retrying with fallback configuration (plain text + compatible gender)...');
       
       try {
-        const { cleanWords } = cleanTextForTiming(safePlainText);
-        const plainText = cleanWords.join(' ');
+        // Fallback'te noktalama işaretlerini koruyalım (doğal duraksamalar için)
+        const plainText = safePlainText;
         
         // 🔥 ÖNEMLİ: Fallback'te de gerçek gender'ı kullan  
         logger.info(`🔄 [CHIRP FALLBACK] Getting gender for voice: ${voiceName}`);
@@ -506,11 +515,12 @@ async function synthesizeWithGoogle(options) {
         const [response] = await ttsClient.synthesizeSpeech(request);
         
         // Fallback timing - eşit dağıtım
-        const estimatedDuration = cleanWords.length * (0.5 / speakingRate);
-        const wordTimings = cleanWords.map((word, index) => ({
+        const { cleanWords: fbCleanWords, originalWords: fbOriginalWords } = cleanTextForTiming(safePlainText);
+        const estimatedDuration = fbCleanWords.length * (0.5 / speakingRate);
+        const wordTimings = fbCleanWords.map((word, index) => ({
           word: word,
-          timeSeconds: (index / cleanWords.length) * estimatedDuration,
-          endTimeSeconds: ((index + 1) / cleanWords.length) * estimatedDuration,
+          timeSeconds: (index / fbCleanWords.length) * estimatedDuration,
+          endTimeSeconds: ((index + 1) / fbCleanWords.length) * estimatedDuration,
           markName: `word_${index}`,
           hasDirectTiming: false
         }));
@@ -520,8 +530,8 @@ async function synthesizeWithGoogle(options) {
         return {
           audioContent: response.audioContent,
           wordTimings: wordTimings,
-          cleanWords: cleanWords,
-          originalWords: text.split(/\s+/).filter(word => word.length > 0),
+          cleanWords: fbCleanWords,
+          originalWords: fbOriginalWords,
           totalDuration: estimatedDuration,
           speakingRate: speakingRate,
           voiceName: effectiveVoiceName,
