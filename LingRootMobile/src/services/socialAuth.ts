@@ -98,19 +98,30 @@ export interface SocialAuthResult {
 // Google Sign-In
 export const signInWithGoogle = async (): Promise<SocialAuthResult> => {
   try {
-    await GoogleSignin.hasPlayServices();
+    console.log('[GOOGLE_SIGNIN] Starting sign-in process...');
+    
+    // Check Play Services
+    console.log('[GOOGLE_SIGNIN] Checking Play Services...');
+    const hasPlayServices = await GoogleSignin.hasPlayServices();
+    console.log('[GOOGLE_SIGNIN] Play Services available:', hasPlayServices);
     
     // Sign out first to force account selection
+    console.log('[GOOGLE_SIGNIN] Signing out previous session...');
     try {
       await GoogleSignin.signOut();
+      console.log('[GOOGLE_SIGNIN] Previous session signed out');
     } catch (signOutError) {
-      // Ignore if not signed in
+      console.log('[GOOGLE_SIGNIN] No previous session to sign out');
     }
     
+    console.log('[GOOGLE_SIGNIN] Calling GoogleSignin.signIn()...');
     const userInfo = await GoogleSignin.signIn();
+    console.log('[GOOGLE_SIGNIN] Sign-in successful, user:', userInfo.data?.user?.email);
     
     // Get ID token for backend verification
+    console.log('[GOOGLE_SIGNIN] Getting tokens...');
     const tokens = await GoogleSignin.getTokens();
+    console.log('[GOOGLE_SIGNIN] Tokens received, idToken length:', tokens.idToken?.length);
     
     return {
       provider: 'google',
@@ -122,7 +133,10 @@ export const signInWithGoogle = async (): Promise<SocialAuthResult> => {
       picture: userInfo.data?.user?.photo || undefined,
     };
   } catch (error: any) {
-    console.error('[GOOGLE_SIGNIN] Error:', error);
+    console.error('[GOOGLE_SIGNIN] ❌ Error occurred');
+    console.error('[GOOGLE_SIGNIN] Error code:', error.code);
+    console.error('[GOOGLE_SIGNIN] Error message:', error.message);
+    console.error('[GOOGLE_SIGNIN] Full error:', JSON.stringify(error, null, 2));
     throw new Error(error.message || 'Google ile giriş başarısız');
   }
 };

@@ -56,8 +56,8 @@ android {
         applicationId 'com.nsyzk.lingrootmobile'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 20
-        versionName "1.8.0"
+        versionCode 21
+        versionName "1.8.1"
         ndk {
             // Support all ABIs for maximum device compatibility
             abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"

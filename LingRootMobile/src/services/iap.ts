@@ -110,11 +110,16 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
       if (Platform.OS === 'android' && (productExists as any).subscriptionOfferDetails) {
         const offerDetails = (productExists as any).subscriptionOfferDetails;
         console.log('[IAP] Android subscription offers found:', offerDetails.length);
-        subscriptionOffers = offerDetails.map((offer: any) => ({
-          sku: productId,
-          offerToken: offer.offerToken || offer.basePlanId || '',
-        }));
-        console.log('[IAP] Subscription offers:', JSON.stringify(subscriptionOffers, null, 2));
+        
+        // Use only the first offer to avoid "duplicate products" error
+        if (offerDetails.length > 0) {
+          const firstOffer = offerDetails[0];
+          subscriptionOffers = [{
+            sku: productId,
+            offerToken: firstOffer.offerToken || firstOffer.basePlanId || '',
+          }];
+          console.log('[IAP] Using first subscription offer:', JSON.stringify(subscriptionOffers, null, 2));
+        }
       }
     } catch (error: any) {
       console.error('[IAP] ❌ Error fetching products:', error.message);
