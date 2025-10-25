@@ -15,6 +15,10 @@ const {
   getFilteredVoices,
   testVoices
 } = require("../controllers/ttsController");
+const { 
+  logSyncFeedback, 
+  analyzeSyncFeedback 
+} = require("../controllers/syncFeedbackController");
 const logger = require("../utils/logger");
 const { authenticate } = require('../middleware/auth');
 
@@ -302,5 +306,12 @@ router.post("/translate-and-speak", async (req, res) => {
     });
   }
 });
+
+// ==================== SYNC FEEDBACK ROUTES ====================
+// Kullanıcıdan senkronizasyon feedback'i al
+router.post('/sync-feedback', authenticate, logSyncFeedback);
+
+// Sync feedback analizi (admin için)
+router.get('/sync-feedback/analyze', authenticate, analyzeSyncFeedback);
 
 module.exports = router;

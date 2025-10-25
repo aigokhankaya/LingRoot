@@ -289,6 +289,26 @@ export const apiService = {
     }
   },
 
+  // Sync Feedback - Senkronizasyon test için
+  async sendSyncFeedback(feedbackData: {
+    trackId: string;
+    currentWordIndex: number;
+    currentTime: number;
+    expectedWord: string;
+    feedback: 'YES' | 'NO';
+    wordTimings: any[];
+    timestamp: string;
+  }): Promise<APIResponse<any>> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post<APIResponse<any>>('/api/tts/sync-feedback', feedbackData);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error sending sync feedback:', error);
+      throw new Error(error.response?.data?.message || 'Feedback gönderilemedi');
+    }
+  },
+
   // Kullanıcı profili güncelleme
   async updateProfile(userId: string, data: any): Promise<APIResponse> {
     try {
