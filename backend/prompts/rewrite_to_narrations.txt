@@ -22,9 +22,7 @@ The output **must be written in the same language** as the input.
 - Expand the topic deeply and clearly. Do not skip or summarize.
 
 📥 INPUT:
----
 {{input_text}}
----
 
 📤 OUTPUT:
-Return only the final narration in paragraph format — no comments, no formatting, no extra explanation. 
+Return only the final narration in paragraph format — no comments, no formatting, no extra explanation.

@@ -39,9 +39,7 @@ Rewrite the given English text into strict CEFR level A1.
 - Use paragraph format. No bullets, emojis, or formatting.
 
 📥 INPUT:
----
 {{input_text}}
----
 
 📤 OUTPUT:
 Return ONLY the rewritten text in strict CEFR A1 level.  
