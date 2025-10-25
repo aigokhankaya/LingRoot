@@ -75,3 +75,27 @@ ssml += '<break time="200ms"/>';  // Virgül
 - SSML break tag'leri sadece SSML destekleyen seslerle çalışır
 - Chirp, Journey, Studio gibi sesler SSML desteklemez, fallback mode kullanır
 - Fallback mode'da Google TTS'nin kendi doğal duraklamaları kullanılır
+
+## Optimizasyonlar
+
+### 1. Studio Sesleri İçin Otomatik Fallback
+Studio, Chirp ve Journey sesleri SSML desteklemediği için direkt fallback moduna geçiyor. Bu normal bir davranıştır.
+
+**Önemli:** Studio sesleri artık değiştirilmiyor, plain text modunda orijinal ses kullanılıyor.
+
+**Log Örneği:**
+```
+🔄 Voice en-GB-Studio-C doesn't support SSML, using fallback mode (plain text)
+🔄 Using fallback configuration (plain text + compatible gender)...
+🔄 [FALLBACK] Using original voice en-GB-Studio-C with plain text mode
+```
+
+**Not:** Sadece permission/quota hataları durumunda ses değiştirilir (Neural2/Standard'a geçilir).
+
+### 2. Voice Gender Cache
+Aynı ses için tekrarlı API çağrılarını önlemek için gender bilgisi cache'leniyor. Bu özellikle çok chunk'lı işlemlerde performansı artırıyor.
+
+**Faydası:**
+- İlk chunk: API'den gender bilgisi alınır
+- Sonraki chunk'lar: Cache'den okunur (API çağrısı yok)
+- 7 chunk için 1 API çağrısı (önceden 7 çağrı yapılıyordu)

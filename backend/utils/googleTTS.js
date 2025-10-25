@@ -4,6 +4,9 @@ const logger = require('./logger');
 // Google TTS Client
 let ttsClient;
 
+// Voice gender cache to avoid repeated API calls
+const voiceGenderCache = new Map();
+
 try {
   ttsClient = new textToSpeech.TextToSpeechClient({
     projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
@@ -250,6 +253,13 @@ async function listGoogleVoices(languageCode = 'en-US') {
  */
 async function getVoiceGender(voiceName) {
   try {
+    // Cache'de var mı kontrol et
+    if (voiceGenderCache.has(voiceName)) {
+      const cachedGender = voiceGenderCache.get(voiceName);
+      logger.debug(`🔍 [GENDER CACHE HIT] ${voiceName}: ${cachedGender}`);
+      return cachedGender;
+    }
+    
     // Voice adından language code'u çıkar
     const languageCode = voiceName.split('-').slice(0, 2).join('-');
     logger.info(`🔍 [GENDER DETECTION] Looking for ${voiceName} in language: ${languageCode}`);
@@ -263,6 +273,8 @@ async function getVoiceGender(voiceName) {
     
     if (voice && voice.ssmlGender) {
       logger.info(`🎯 [GENDER DETECTION] Found real gender for ${voiceName}: ${voice.ssmlGender}`);
+      // Cache'e kaydet
+      voiceGenderCache.set(voiceName, voice.ssmlGender);
       return voice.ssmlGender;
     } else {
       // Chirp sesler için özel debug
@@ -281,10 +293,14 @@ async function getVoiceGender(voiceName) {
       }
       
       logger.warn(`🔴 Voice ${voiceName} not found in Google API, using NEUTRAL`);
+      // Cache'e kaydet
+      voiceGenderCache.set(voiceName, 'NEUTRAL');
       return 'NEUTRAL';
     }
   } catch (error) {
     logger.error(`🔴 Error getting voice gender for ${voiceName}: ${error.message}`);
+    // Hata durumunda da cache'e kaydet
+    voiceGenderCache.set(voiceName, 'NEUTRAL');
     return 'NEUTRAL';
   }
 }
@@ -314,8 +330,8 @@ async function synthesizeWithGoogle(options) {
     const isSSMLUnsupported = ssmlUnsupportedVoices.some(unsupported => voiceName.includes(unsupported));
     
     if (isSSMLUnsupported) {
-      logger.info(`Voice ${voiceName} doesn't support SSML, using fallback immediately`);
-      throw new Error('SSML not supported for this voice');
+      logger.info(`🔄 Voice ${voiceName} doesn't support SSML, using fallback mode (plain text)`);
+      throw new Error('SSML_UNSUPPORTED');
     }
     
     // Optimized SSML ile timing marks ekle
@@ -456,7 +472,10 @@ async function synthesizeWithGoogle(options) {
     };
     
   } catch (error) {
-    logger.error(`Google TTS synthesis failed: ${error.message}`);
+    // SSML unsupported durumunda ERROR loglama, beklenen bir durum
+    if (error.message !== 'SSML_UNSUPPORTED') {
+      logger.error(`Google TTS synthesis failed: ${error.message}`);
+    }
     
     // SSML, Gender neutral veya diğer voice compatibility hatalarında fallback dene
     if (error.message.includes('SSML') || 
@@ -465,7 +484,7 @@ async function synthesizeWithGoogle(options) {
         error.message.includes('not supported') ||
         error.message.includes('INVALID_ARGUMENT')) {
       
-      logger.info('Retrying with fallback configuration (plain text + compatible gender)...');
+      logger.info('🔄 Using fallback configuration (plain text + compatible gender)...');
       
       try {
         // Fallback'te noktalama işaretlerini koruyalım (doğal duraksamalar için)
@@ -484,14 +503,15 @@ async function synthesizeWithGoogle(options) {
         logger.info(`🔄 [CHIRP FALLBACK] Final gender for ${voiceName}: ${fallbackGender}`);
         
         let effectiveVoiceName = voiceName;
-        // If original voice is known problematic or we hit permission/quota errors, switch to a safe Neural2/Standard voice
+        // Only switch voice if we hit permission/quota errors, not for SSML unsupported voices
         const errMsg = String(error.message || '').toLowerCase();
         const isPermissionOrQuota = errMsg.includes('permission') || errMsg.includes('denied') || errMsg.includes('quota') || errMsg.includes('unavailable') || errMsg.includes('resource_exhausted');
-        const isChirpOrStudio = voiceName.includes('Chirp') || voiceName.includes('Studio') || voiceName.includes('Journey');
-        if (isPermissionOrQuota || isChirpOrStudio) {
+        if (isPermissionOrQuota) {
           const lang = languageCode || deriveLanguageCodeFromVoice(voiceName, 'en-US');
           effectiveVoiceName = chooseFallbackVoiceName(lang, fallbackGender);
-          logger.warn(`🔄 [VOICE FALLBACK] Switching voice from ${voiceName} to ${effectiveVoiceName} due to ${isPermissionOrQuota ? 'permission/quota' : 'unsupported voice'} issue`);
+          logger.warn(`🔄 [VOICE FALLBACK] Switching voice from ${voiceName} to ${effectiveVoiceName} due to permission/quota issue`);
+        } else {
+          logger.info(`🔄 [FALLBACK] Using original voice ${voiceName} with plain text mode`);
         }
 
         const request = {
