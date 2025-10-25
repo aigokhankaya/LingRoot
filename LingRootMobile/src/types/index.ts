@@ -103,6 +103,7 @@ export interface AudioTrack {
   mp3_url?: string;
   timepoints?: Timepoint[];
   words?: string[];
+  wordTimings?: Timepoint[]; // Word timing data for sync feedback
 }
 
 export interface Timepoint {
