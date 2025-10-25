@@ -166,7 +166,7 @@ class NotificationService {
             title,
             message: body,
             date: when,
-            allowWhileIdle: false,
+            allowWhileIdle: true, // Android 12+ requires this
             playSound: true,
             soundName: 'default',
             userInfo: { wordId: word?.id?.toString() || '' } as any,
@@ -174,6 +174,7 @@ class NotificationService {
           });
           this.scheduledCount += 1;
         } catch (schedErr) {
+          console.warn('[Notification] Schedule error:', schedErr);
           // Silent error handling
         }
       }
@@ -221,8 +222,7 @@ class NotificationService {
       title: '📚 LingRoot Hatırlatma',
       message: `Kelime: ${word.word} - ${word.definition || 'Tanım yok'}`,
       date: new Date(Date.now() + 3000),
-      // Use inexact alarm for backup schedule
-      allowWhileIdle: false,
+      allowWhileIdle: true, // Android 12+ requires this
       playSound: true,
       soundName: 'default',
       userInfo: { wordId: word.id?.toString() || '' } as any,

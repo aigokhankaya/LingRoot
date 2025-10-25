@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -24,6 +25,7 @@ interface SubscriptionPlan {
   features?: string[];
   is_active: boolean;
   apple_product_id?: string;
+  google_product_id?: string;
   monthly_cost_limit_usd?: number;
   estimates?: {
     video_minutes?: number;
@@ -53,9 +55,10 @@ const PackagesScreen: React.FC = () => {
       
       if (response.success && Array.isArray(response.data)) {
         // Sadece aktif ve satın alınabilir paketleri göster (Free Trial hariç)
-        const purchasablePlans = response.data.filter((p: SubscriptionPlan) => 
-          p.is_active && p.apple_product_id // Sadece Apple Product ID'si olan paketler
-        );
+        const purchasablePlans = response.data.filter((p: SubscriptionPlan) => {
+          const hasProductId = Platform.OS === 'ios' ? p.apple_product_id : p.google_product_id;
+          return p.is_active && hasProductId;
+        });
         setPlans(purchasablePlans);
       } else {
         Alert.alert('Hata', 'Paket verisi alınamadı');
@@ -89,14 +92,22 @@ const PackagesScreen: React.FC = () => {
   };
 
   const handlePurchase = async (plan: SubscriptionPlan) => {
-    if (!plan.apple_product_id) {
-      Alert.alert('Hata', 'Bu paket için Apple Store satın alımı henüz aktif değil');
+    const productId = Platform.OS === 'ios' ? plan.apple_product_id : plan.google_product_id;
+    
+    if (!productId) {
+      const storeName = Platform.OS === 'ios' ? 'Apple Store' : 'Google Play';
+      Alert.alert(
+        language === 'tr' ? 'Hata' : 'Error',
+        language === 'tr' 
+          ? `Bu paket için ${storeName} satın alımı henüz aktif değil`
+          : `${storeName} purchase is not yet active for this package`
+      );
       return;
     }
 
     setPurchasingPlanId(plan.id);
     try {
-      const result = await requestSubscription(plan.apple_product_id);
+      const result = await requestSubscription(productId);
       
       if (result.ok) {
         Alert.alert(
