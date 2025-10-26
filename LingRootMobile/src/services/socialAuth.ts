@@ -1,59 +1,92 @@
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { LoginManager, AccessToken, Settings } from 'react-native-fbsdk-next';
 import appleAuth from '@invertase/react-native-apple-authentication';
 import { Platform } from 'react-native';
 import { 
-  EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, 
-  EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-  EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID 
+  EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID 
 } from '@env';
+
+// Facebook SDK Configuration
+export const configureFacebookSDK = () => {
+  try {
+    // Initialize Facebook SDK
+    // Note: Facebook App ID and Client Token are configured in Info.plist for iOS
+    // and in AndroidManifest.xml for Android
+    Settings.initializeSDK();
+    
+    console.log('[FACEBOOK_SDK] Configuration completed');
+  } catch (error) {
+    console.error('[FACEBOOK_SDK] Configuration error:', error);
+  }
+};
 
 // Google Sign-In Configuration
 export const configureGoogleSignIn = () => {
   try {
     const webClientId = EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-    const androidClientId = EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
     const iosClientId = EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+    const androidClientId = EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
     
-    console.log('[GOOGLE_SIGNIN] Environment variables:', {
-      webClientId: webClientId ? `${webClientId.substring(0, 20)}...` : 'undefined',
-      androidClientId: androidClientId ? `${androidClientId.substring(0, 20)}...` : 'undefined',
-      iosClientId: iosClientId ? `${iosClientId.substring(0, 20)}...` : 'undefined',
+    console.log('[GOOGLE_SIGNIN] Configuration attempt:', {
+      hasWebClientId: !!webClientId,
+      hasIosClientId: !!iosClientId,
+      hasAndroidClientId: !!androidClientId,
+      platform: Platform.OS
     });
     
     // Don't configure if no client IDs are provided
-    if (!webClientId && !androidClientId && !iosClientId) {
-      console.warn('[GOOGLE_SIGNIN] No client IDs configured. Google Sign-In will not work.');
+    if (!webClientId) {
+      console.warn('[GOOGLE_SIGNIN] No web client ID configured. Google Sign-In will not work.');
+      console.warn('[GOOGLE_SIGNIN] Please add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID to .env file');
       return;
     }
     
     // Platform-specific configuration
-    const config: any = {
-      webClientId: webClientId || undefined,
-      offlineAccess: false,
-    };
+    let config: any = {};
     
-    if (Platform.OS === 'android' && androidClientId) {
-      // Android uses its own Client ID
-      config.androidClientId = androidClientId;
-    } else if (Platform.OS === 'ios' && iosClientId) {
-      config.iosClientId = iosClientId;
+    if (Platform.OS === 'android') {
+      // For Android, use Web Client ID for backend verification
+      // But the Android Client ID must be registered with correct SHA-1
+      config = {
+        webClientId: webClientId,
+        offlineAccess: true,
+        forceCodeForRefreshToken: true,
+      };
+    } else if (Platform.OS === 'ios') {
+      config = {
+        webClientId: webClientId,
+        iosClientId: iosClientId,
+        offlineAccess: true,
+        forceCodeForRefreshToken: true,
+      };
+    } else {
+      config = {
+        webClientId: webClientId,
+        offlineAccess: true,
+        forceCodeForRefreshToken: true,
+      };
     }
+    
+    console.log('[GOOGLE_SIGNIN] Config:', { 
+      platform: Platform.OS, 
+      webClientId: config.webClientId,
+      fullConfig: config 
+    });
     
     GoogleSignin.configure(config);
     
-    console.log('[GOOGLE_SIGNIN] Configuration successful', {
-      platform: Platform.OS,
-      hasWebClientId: !!webClientId,
-      hasAndroidClientId: !!androidClientId,
-      hasIosClientId: !!iosClientId,
-    });
+    console.log('[GOOGLE_SIGNIN] Configuration completed');
+    
+    console.log('[GOOGLE_SIGNIN] Configuration successful');
   } catch (error) {
     console.error('[GOOGLE_SIGNIN] Configuration error:', error);
   }
 };
 
 export interface SocialAuthResult {
-  provider: 'google' | 'apple';
+  provider: 'google' | 'facebook' | 'apple';
   credential: string;
   email?: string;
   name?: string;
@@ -65,18 +98,30 @@ export interface SocialAuthResult {
 // Google Sign-In
 export const signInWithGoogle = async (): Promise<SocialAuthResult> => {
   try {
-    console.log('[GOOGLE_SIGNIN] Starting Google Sign-In...');
-    await GoogleSignin.hasPlayServices();
-    const userInfo = await GoogleSignin.signIn();
+    console.log('[GOOGLE_SIGNIN] Starting sign-in process...');
     
-    console.log('[GOOGLE_SIGNIN] User info received:', {
-      email: userInfo.data?.user?.email,
-      name: userInfo.data?.user?.name,
-    });
+    // Check Play Services
+    console.log('[GOOGLE_SIGNIN] Checking Play Services...');
+    const hasPlayServices = await GoogleSignin.hasPlayServices();
+    console.log('[GOOGLE_SIGNIN] Play Services available:', hasPlayServices);
+    
+    // Sign out first to force account selection
+    console.log('[GOOGLE_SIGNIN] Signing out previous session...');
+    try {
+      await GoogleSignin.signOut();
+      console.log('[GOOGLE_SIGNIN] Previous session signed out');
+    } catch (signOutError) {
+      console.log('[GOOGLE_SIGNIN] No previous session to sign out');
+    }
+    
+    console.log('[GOOGLE_SIGNIN] Calling GoogleSignin.signIn()...');
+    const userInfo = await GoogleSignin.signIn();
+    console.log('[GOOGLE_SIGNIN] Sign-in successful, user:', userInfo.data?.user?.email);
     
     // Get ID token for backend verification
+    console.log('[GOOGLE_SIGNIN] Getting tokens...');
     const tokens = await GoogleSignin.getTokens();
-    console.log('[GOOGLE_SIGNIN] Tokens received, returning result');
+    console.log('[GOOGLE_SIGNIN] Tokens received, idToken length:', tokens.idToken?.length);
     
     return {
       provider: 'google',
@@ -88,13 +133,50 @@ export const signInWithGoogle = async (): Promise<SocialAuthResult> => {
       picture: userInfo.data?.user?.photo || undefined,
     };
   } catch (error: any) {
-    console.error('[GOOGLE_SIGNIN] Error:', error);
+    console.error('[GOOGLE_SIGNIN] ❌ Error occurred');
+    console.error('[GOOGLE_SIGNIN] Error code:', error.code);
+    console.error('[GOOGLE_SIGNIN] Error message:', error.message);
+    console.error('[GOOGLE_SIGNIN] Full error:', JSON.stringify(error, null, 2));
     throw new Error(error.message || 'Google ile giriş başarısız');
   }
 };
 
-// Facebook Login - Removed (package uninstalled)
-// export const signInWithFacebook = async (): Promise<SocialAuthResult> => { ... }
+// Facebook Login
+export const signInWithFacebook = async (): Promise<SocialAuthResult> => {
+  try {
+    const result = await LoginManager.logInWithPermissions(['public_profile', 'email']);
+    
+    if (result.isCancelled) {
+      throw new Error('Facebook girişi iptal edildi');
+    }
+    
+    // Get access token
+    const data = await AccessToken.getCurrentAccessToken();
+    
+    if (!data) {
+      throw new Error('Facebook access token alınamadı');
+    }
+    
+    // Fetch user info from Facebook Graph API
+    const response = await fetch(
+      `https://graph.facebook.com/me?fields=id,name,email,first_name,last_name,picture.type(large)&access_token=${data.accessToken}`
+    );
+    const userInfo = await response.json();
+    
+    return {
+      provider: 'facebook',
+      credential: data.accessToken,
+      email: userInfo.email,
+      name: userInfo.name,
+      given_name: userInfo.first_name,
+      family_name: userInfo.last_name,
+      picture: userInfo.picture?.data?.url,
+    };
+  } catch (error: any) {
+    console.error('[FACEBOOK_LOGIN] Error:', error);
+    throw new Error(error.message || 'Facebook ile giriş başarısız');
+  }
+};
 
 // Apple Sign-In (iOS only)
 export const signInWithApple = async (): Promise<SocialAuthResult> => {
@@ -138,15 +220,24 @@ export const signInWithApple = async (): Promise<SocialAuthResult> => {
     
     const { identityToken, fullName, email } = appleAuthRequestResponse;
     
+    console.log('[APPLE_SIGNIN] Full name data:', {
+      hasFullName: !!fullName,
+      givenName: fullName?.givenName,
+      familyName: fullName?.familyName,
+    });
+    
     if (!identityToken) {
       throw new Error('Apple identity token alınamadı');
     }
+    
+    const fullNameString = fullName ? `${fullName.givenName || ''} ${fullName.familyName || ''}`.trim() : undefined;
+    console.log('[APPLE_SIGNIN] Constructed name:', fullNameString);
     
     return {
       provider: 'apple',
       credential: identityToken,
       email: email || undefined,
-      name: fullName ? `${fullName.givenName || ''} ${fullName.familyName || ''}`.trim() : undefined,
+      name: fullNameString,
       given_name: fullName?.givenName || undefined,
       family_name: fullName?.familyName || undefined,
     };
@@ -180,5 +271,12 @@ export const signOutFromSocialProviders = async () => {
     await GoogleSignin.signOut();
   } catch (error) {
     console.warn('[SOCIAL_AUTH] Google sign out error:', error);
+  }
+  
+  try {
+    // Facebook logout
+    LoginManager.logOut();
+  } catch (error) {
+    console.warn('[SOCIAL_AUTH] Facebook logout error:', error);
   }
 };

@@ -1,0 +1,335 @@
+﻿To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.13/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :gradle-plugin:settings-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugin:shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugin:shared:compileKotlin UP-TO-DATE
+> Task :gradle-plugin:shared:compileJava NO-SOURCE
+> Task :gradle-plugin:shared:processResources NO-SOURCE
+> Task :gradle-plugin:shared:classes UP-TO-DATE
+> Task :gradle-plugin:shared:jar UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:compileKotlin UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:compileJava NO-SOURCE
+> Task :gradle-plugin:settings-plugin:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:processResources UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:classes UP-TO-DATE
+> Task :gradle-plugin:settings-plugin:jar UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugin:react-native-gradle-plugin:compileKotlin UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:compileJava NO-SOURCE
+> Task :gradle-plugin:react-native-gradle-plugin:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:processResources UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:classes UP-TO-DATE
+> Task :gradle-plugin:react-native-gradle-plugin:jar UP-TO-DATE
+
+> Configure project :react-native-reanimated
+Android gradle plugin: 8.8.2
+Gradle: 8.13
+
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:generateAutolinkingPackageList UP-TO-DATE
+> Task :app:generateCodegenSchemaFromJavaScript SKIPPED
+> Task :app:generateCodegenArtifactsFromSchema SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :app:generateReleaseBuildConfig UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:preBuild UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:preReleaseBuild UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-async-storage_async-storage:preBuild UP-TO-DATE
+> Task :react-native-async-storage_async-storage:preReleaseBuild UP-TO-DATE
+> Task :react-native-async-storage_async-storage:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-clipboard_clipboard:preBuild UP-TO-DATE
+> Task :react-native-clipboard_clipboard:preReleaseBuild UP-TO-DATE
+> Task :react-native-clipboard_clipboard:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-documents_picker:preBuild UP-TO-DATE
+> Task :react-native-documents_picker:preReleaseBuild UP-TO-DATE
+> Task :react-native-documents_picker:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-fbsdk-next:preBuild UP-TO-DATE
+> Task :react-native-fbsdk-next:preReleaseBuild UP-TO-DATE
+> Task :react-native-fbsdk-next:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-gesture-handler:preBuild UP-TO-DATE
+> Task :react-native-gesture-handler:preReleaseBuild UP-TO-DATE
+> Task :react-native-gesture-handler:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-google-signin_google-signin:preBuild UP-TO-DATE
+> Task :react-native-google-signin_google-signin:preReleaseBuild UP-TO-DATE
+> Task :react-native-google-signin_google-signin:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-iap:preBuild UP-TO-DATE
+> Task :react-native-iap:prePlayReleaseBuild UP-TO-DATE
+> Task :react-native-iap:writePlayReleaseAarMetadata UP-TO-DATE
+> Task :react-native-image-picker:preBuild UP-TO-DATE
+> Task :react-native-image-picker:preReleaseBuild UP-TO-DATE
+> Task :react-native-image-picker:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-push-notification:preBuild UP-TO-DATE
+> Task :react-native-push-notification:preReleaseBuild UP-TO-DATE
+> Task :react-native-push-notification:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-reanimated:assertMinimalReactNativeVersionTask SKIPPED
+> Task :react-native-reanimated:prepareReanimatedHeadersForPrefabs UP-TO-DATE
+> Task :react-native-reanimated:prepareWorkletsHeadersForPrefabs UP-TO-DATE
+> Task :react-native-reanimated:preBuild UP-TO-DATE
+> Task :react-native-reanimated:preReleaseBuild UP-TO-DATE
+> Task :react-native-reanimated:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-safe-area-context:preBuild UP-TO-DATE
+> Task :react-native-safe-area-context:preReleaseBuild UP-TO-DATE
+> Task :react-native-safe-area-context:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-screens:preBuild UP-TO-DATE
+> Task :react-native-screens:preReleaseBuild UP-TO-DATE
+> Task :react-native-screens:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-track-player:preBuild UP-TO-DATE
+> Task :react-native-track-player:preReleaseBuild UP-TO-DATE
+> Task :react-native-track-player:writeReleaseAarMetadata UP-TO-DATE
+> Task :react-native-vector-icons:preBuild UP-TO-DATE
+> Task :react-native-vector-icons:preReleaseBuild UP-TO-DATE
+> Task :react-native-vector-icons:writeReleaseAarMetadata UP-TO-DATE
+> Task :app:checkReleaseAarMetadata UP-TO-DATE
+> Task :app:createBundleReleaseJsAndAssets UP-TO-DATE
+> Task :app:generateReleaseResValues UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:generateReleaseResValues UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:generateReleaseResources UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:packageReleaseResources UP-TO-DATE
+> Task :react-native-async-storage_async-storage:generateReleaseResValues UP-TO-DATE
+> Task :react-native-async-storage_async-storage:generateReleaseResources UP-TO-DATE
+> Task :react-native-async-storage_async-storage:packageReleaseResources UP-TO-DATE
+> Task :react-native-clipboard_clipboard:generateReleaseResValues UP-TO-DATE
+> Task :react-native-clipboard_clipboard:generateReleaseResources UP-TO-DATE
+> Task :react-native-clipboard_clipboard:packageReleaseResources UP-TO-DATE
+> Task :react-native-documents_picker:generateReleaseResValues UP-TO-DATE
+> Task :react-native-documents_picker:generateReleaseResources UP-TO-DATE
+> Task :react-native-documents_picker:packageReleaseResources UP-TO-DATE
+> Task :react-native-fbsdk-next:generateReleaseResValues UP-TO-DATE
+> Task :react-native-fbsdk-next:generateReleaseResources UP-TO-DATE
+> Task :react-native-fbsdk-next:packageReleaseResources UP-TO-DATE
+> Task :react-native-gesture-handler:generateReleaseResValues UP-TO-DATE
+> Task :react-native-gesture-handler:generateReleaseResources UP-TO-DATE
+> Task :react-native-gesture-handler:packageReleaseResources UP-TO-DATE
+> Task :react-native-google-signin_google-signin:generateReleaseResValues UP-TO-DATE
+> Task :react-native-google-signin_google-signin:generateReleaseResources UP-TO-DATE
+> Task :react-native-google-signin_google-signin:packageReleaseResources UP-TO-DATE
+> Task :react-native-iap:generatePlayReleaseResValues UP-TO-DATE
+> Task :react-native-iap:generatePlayReleaseResources UP-TO-DATE
+> Task :react-native-iap:packagePlayReleaseResources UP-TO-DATE
+> Task :react-native-image-picker:generateReleaseResValues UP-TO-DATE
+> Task :react-native-image-picker:generateReleaseResources UP-TO-DATE
+> Task :react-native-image-picker:packageReleaseResources UP-TO-DATE
+> Task :react-native-push-notification:generateReleaseResValues UP-TO-DATE
+> Task :react-native-push-notification:generateReleaseResources UP-TO-DATE
+> Task :react-native-push-notification:packageReleaseResources UP-TO-DATE
+> Task :react-native-reanimated:generateReleaseResValues UP-TO-DATE
+> Task :react-native-reanimated:generateReleaseResources UP-TO-DATE
+> Task :react-native-reanimated:packageReleaseResources UP-TO-DATE
+> Task :react-native-safe-area-context:generateReleaseResValues UP-TO-DATE
+> Task :react-native-safe-area-context:generateReleaseResources UP-TO-DATE
+> Task :react-native-safe-area-context:packageReleaseResources UP-TO-DATE
+> Task :react-native-screens:generateReleaseResValues UP-TO-DATE
+> Task :react-native-screens:generateReleaseResources UP-TO-DATE
+> Task :react-native-screens:packageReleaseResources UP-TO-DATE
+> Task :react-native-track-player:generateReleaseResValues UP-TO-DATE
+> Task :react-native-track-player:generateReleaseResources UP-TO-DATE
+> Task :react-native-track-player:packageReleaseResources UP-TO-DATE
+> Task :react-native-vector-icons:generateReleaseResValues UP-TO-DATE
+> Task :react-native-vector-icons:generateReleaseResources UP-TO-DATE
+> Task :react-native-vector-icons:packageReleaseResources UP-TO-DATE
+> Task :app:mapReleaseSourceSetPaths UP-TO-DATE
+> Task :app:generateReleaseResources UP-TO-DATE
+> Task :app:mergeReleaseResources UP-TO-DATE
+> Task :app:packageReleaseResources UP-TO-DATE
+> Task :app:parseReleaseLocalResources UP-TO-DATE
+> Task :app:createReleaseCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksRelease UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:extractDeepLinksRelease UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:processReleaseManifest UP-TO-DATE
+> Task :react-native-async-storage_async-storage:extractDeepLinksRelease UP-TO-DATE
+> Task :react-native-async-storage_async-storage:processReleaseManifest UP-TO-DATE
+> Task :react-native-clipboard_clipboard:extractDeepLinksRelease UP-TO-DATE
+> Task :react-native-clipboard_clipboard:processReleaseManifest UP-TO-DATE
+> Task :react-native-documents_picker:extractDeepLinksRelease UP-TO-DATE
+> Task :react-native-documents_picker:processReleaseManifest UP-TO-DATE
+> Task :react-native-fbsdk-next:extractDeepLinksRelease UP-TO-DATE
+> Task :react-native-fbsdk-next:processReleaseManifest UP-TO-DATE
+> Task :react-native-gesture-handler:extractDeepLinksRelease UP-TO-DATE
+> Task :react-native-gesture-handler:processReleaseManifest UP-TO-DATE
+> Task :react-native-google-signin_google-signin:extractDeepLinksRelease UP-TO-DATE
+> Task :react-native-google-signin_google-signin:processReleaseManifest UP-TO-DATE
+> Task :react-native-iap:extractDeepLinksPlayRelease UP-TO-DATE
+> Task :react-native-iap:processPlayReleaseManifest UP-TO-DATE
+> Task :react-native-image-picker:extractDeepLinksRelease UP-TO-DATE
+> Task :react-native-image-picker:processReleaseManifest UP-TO-DATE
+> Task :react-native-push-notification:extractDeepLinksRelease UP-TO-DATE
+> Task :react-native-push-notification:processReleaseManifest UP-TO-DATE
+> Task :react-native-reanimated:extractDeepLinksRelease UP-TO-DATE
+> Task :react-native-reanimated:processReleaseManifest UP-TO-DATE
+> Task :react-native-safe-area-context:extractDeepLinksRelease UP-TO-DATE
+> Task :react-native-safe-area-context:processReleaseManifest UP-TO-DATE
+> Task :react-native-screens:extractDeepLinksRelease UP-TO-DATE
+> Task :react-native-screens:processReleaseManifest UP-TO-DATE
+> Task :react-native-track-player:extractDeepLinksRelease UP-TO-DATE
+> Task :react-native-track-player:processReleaseManifest UP-TO-DATE
+> Task :react-native-vector-icons:extractDeepLinksRelease UP-TO-DATE
+> Task :react-native-vector-icons:processReleaseManifest UP-TO-DATE
+> Task :app:processReleaseMainManifest UP-TO-DATE
+> Task :app:processReleaseManifest UP-TO-DATE
+> Task :app:processReleaseManifestForPackage UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:compileReleaseLibraryResources UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:parseReleaseLocalResources UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:generateReleaseRFile UP-TO-DATE
+> Task :react-native-async-storage_async-storage:compileReleaseLibraryResources UP-TO-DATE
+> Task :react-native-async-storage_async-storage:parseReleaseLocalResources UP-TO-DATE
+> Task :react-native-async-storage_async-storage:generateReleaseRFile UP-TO-DATE
+> Task :react-native-clipboard_clipboard:compileReleaseLibraryResources UP-TO-DATE
+> Task :react-native-clipboard_clipboard:parseReleaseLocalResources UP-TO-DATE
+> Task :react-native-clipboard_clipboard:generateReleaseRFile UP-TO-DATE
+> Task :react-native-documents_picker:compileReleaseLibraryResources UP-TO-DATE
+> Task :react-native-documents_picker:parseReleaseLocalResources UP-TO-DATE
+> Task :react-native-documents_picker:generateReleaseRFile UP-TO-DATE
+> Task :react-native-fbsdk-next:compileReleaseLibraryResources UP-TO-DATE
+> Task :react-native-fbsdk-next:parseReleaseLocalResources UP-TO-DATE
+> Task :react-native-fbsdk-next:generateReleaseRFile UP-TO-DATE
+> Task :react-native-gesture-handler:compileReleaseLibraryResources UP-TO-DATE
+> Task :react-native-gesture-handler:parseReleaseLocalResources UP-TO-DATE
+> Task :react-native-gesture-handler:generateReleaseRFile UP-TO-DATE
+> Task :react-native-google-signin_google-signin:compileReleaseLibraryResources UP-TO-DATE
+> Task :react-native-google-signin_google-signin:parseReleaseLocalResources UP-TO-DATE
+> Task :react-native-google-signin_google-signin:generateReleaseRFile UP-TO-DATE
+> Task :react-native-iap:compilePlayReleaseLibraryResources UP-TO-DATE
+> Task :react-native-iap:parsePlayReleaseLocalResources UP-TO-DATE
+> Task :react-native-iap:generatePlayReleaseRFile UP-TO-DATE
+> Task :react-native-image-picker:compileReleaseLibraryResources UP-TO-DATE
+> Task :react-native-image-picker:parseReleaseLocalResources UP-TO-DATE
+> Task :react-native-image-picker:generateReleaseRFile UP-TO-DATE
+> Task :react-native-push-notification:compileReleaseLibraryResources UP-TO-DATE
+> Task :react-native-push-notification:parseReleaseLocalResources UP-TO-DATE
+> Task :react-native-push-notification:generateReleaseRFile UP-TO-DATE
+> Task :react-native-reanimated:compileReleaseLibraryResources UP-TO-DATE
+> Task :react-native-reanimated:parseReleaseLocalResources UP-TO-DATE
+> Task :react-native-reanimated:generateReleaseRFile UP-TO-DATE
+> Task :react-native-safe-area-context:compileReleaseLibraryResources UP-TO-DATE
+> Task :react-native-safe-area-context:parseReleaseLocalResources UP-TO-DATE
+> Task :react-native-safe-area-context:generateReleaseRFile UP-TO-DATE
+> Task :react-native-screens:compileReleaseLibraryResources UP-TO-DATE
+> Task :react-native-screens:parseReleaseLocalResources UP-TO-DATE
+> Task :react-native-screens:generateReleaseRFile UP-TO-DATE
+> Task :react-native-track-player:compileReleaseLibraryResources UP-TO-DATE
+> Task :react-native-track-player:parseReleaseLocalResources UP-TO-DATE
+> Task :react-native-track-player:generateReleaseRFile UP-TO-DATE
+> Task :react-native-vector-icons:compileReleaseLibraryResources UP-TO-DATE
+> Task :react-native-vector-icons:parseReleaseLocalResources UP-TO-DATE
+> Task :react-native-vector-icons:generateReleaseRFile UP-TO-DATE
+> Task :app:processReleaseResources UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:checkKotlinGradlePluginConfigurationErrors
+> Task :invertase_react-native-apple-authentication:generateReleaseBuildConfig UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:compileReleaseKotlin UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:javaPreCompileRelease UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :invertase_react-native-apple-authentication:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :react-native-async-storage_async-storage:generateReleaseBuildConfig UP-TO-DATE
+> Task :react-native-async-storage_async-storage:javaPreCompileRelease UP-TO-DATE
+> Task :react-native-async-storage_async-storage:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :react-native-async-storage_async-storage:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :react-native-clipboard_clipboard:generateReleaseBuildConfig UP-TO-DATE
+> Task :react-native-clipboard_clipboard:javaPreCompileRelease UP-TO-DATE
+> Task :react-native-clipboard_clipboard:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :react-native-clipboard_clipboard:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :react-native-documents_picker:checkKotlinGradlePluginConfigurationErrors
+> Task :react-native-documents_picker:generateReleaseBuildConfig UP-TO-DATE
+> Task :react-native-documents_picker:compileReleaseKotlin UP-TO-DATE
+> Task :react-native-documents_picker:javaPreCompileRelease UP-TO-DATE
+> Task :react-native-documents_picker:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :react-native-documents_picker:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :react-native-fbsdk-next:generateReleaseBuildConfig UP-TO-DATE
+> Task :react-native-fbsdk-next:javaPreCompileRelease UP-TO-DATE
+> Task :react-native-fbsdk-next:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :react-native-fbsdk-next:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :react-native-gesture-handler:checkKotlinGradlePluginConfigurationErrors
+> Task :react-native-gesture-handler:generateReleaseBuildConfig UP-TO-DATE
+> Task :react-native-reanimated:generateReleaseBuildConfig UP-TO-DATE
+> Task :react-native-reanimated:javaPreCompileRelease UP-TO-DATE
+> Task :react-native-reanimated:packageNdkLibs NO-SOURCE
+> Task :react-native-reanimated:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :react-native-reanimated:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :react-native-gesture-handler:compileReleaseKotlin UP-TO-DATE
+> Task :react-native-gesture-handler:javaPreCompileRelease UP-TO-DATE
+> Task :react-native-gesture-handler:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :react-native-gesture-handler:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :react-native-google-signin_google-signin:checkKotlinGradlePluginConfigurationErrors
+> Task :react-native-google-signin_google-signin:generateReleaseBuildConfig UP-TO-DATE
+> Task :react-native-google-signin_google-signin:compileReleaseKotlin UP-TO-DATE
+> Task :react-native-google-signin_google-signin:javaPreCompileRelease UP-TO-DATE
+> Task :react-native-google-signin_google-signin:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :react-native-google-signin_google-signin:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :react-native-iap:checkKotlinGradlePluginConfigurationErrors
+> Task :react-native-iap:generatePlayReleaseBuildConfig UP-TO-DATE
+> Task :react-native-iap:compilePlayReleaseKotlin UP-TO-DATE
+> Task :react-native-iap:javaPreCompilePlayRelease UP-TO-DATE
+> Task :react-native-iap:compilePlayReleaseJavaWithJavac UP-TO-DATE
+> Task :react-native-iap:bundleLibCompileToJarPlayRelease UP-TO-DATE
+> Task :react-native-image-picker:generateReleaseBuildConfig UP-TO-DATE
+> Task :react-native-image-picker:javaPreCompileRelease UP-TO-DATE
+> Task :react-native-image-picker:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :react-native-image-picker:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :react-native-push-notification:generateReleaseBuildConfig UP-TO-DATE
+> Task :react-native-push-notification:javaPreCompileRelease UP-TO-DATE
+> Task :react-native-push-notification:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :react-native-push-notification:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :react-native-safe-area-context:checkKotlinGradlePluginConfigurationErrors
+> Task :react-native-safe-area-context:generateReleaseBuildConfig UP-TO-DATE
+> Task :react-native-safe-area-context:compileReleaseKotlin UP-TO-DATE
+> Task :react-native-safe-area-context:javaPreCompileRelease UP-TO-DATE
+> Task :react-native-safe-area-context:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :react-native-safe-area-context:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :react-native-screens:checkKotlinGradlePluginConfigurationErrors
+> Task :react-native-screens:generateReleaseBuildConfig UP-TO-DATE
+> Task :react-native-screens:compileReleaseKotlin UP-TO-DATE
+> Task :react-native-screens:javaPreCompileRelease UP-TO-DATE
+> Task :react-native-screens:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :react-native-screens:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :react-native-track-player:checkKotlinGradlePluginConfigurationErrors
+> Task :react-native-track-player:generateReleaseBuildConfig UP-TO-DATE
+> Task :react-native-track-player:compileReleaseKotlin UP-TO-DATE
+> Task :react-native-track-player:javaPreCompileRelease UP-TO-DATE
+> Task :react-native-track-player:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :react-native-track-player:bundleLibCompileToJarRelease UP-TO-DATE
+> Task :react-native-vector-icons:generateReleaseBuildConfig UP-TO-DATE
+> Task :react-native-vector-icons:javaPreCompileRelease UP-TO-DATE
+> Task :react-native-vector-icons:compileReleaseJavaWithJavac UP-TO-DATE
+> Task :react-native-vector-icons:bundleLibCompileToJarRelease UP-TO-DATE
+
+> Task :app:compileReleaseKotlin FAILED
+.\\gradlew.bat : e: file:///F:/Main/LingRootMobile/android/app/src/main/java/com/nsyzk/lingrootm
+obile/MainApplication.kt:14:21 Unresolved reference: FacebookSdk
+At line:1 char:1
++ .\\gradlew.bat :app:compileReleaseKotlin --no-daemon --console plain  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (e: file:///F:/M...ce: FacebookSdk:String) [], Remo 
+   teException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+e: file:///F:/Main/LingRootMobile/android/app/src/main/java/com/nsyzk/lingrootmobile/MainApplica
+tion.kt:15:21 Unresolved reference: appevents
+e: file:///F:/Main/LingRootMobile/android/app/src/main/java/com/nsyzk/lingrootmobile/MainApplica
+tion.kt:42:5 Unresolved reference: FacebookSdk
+e: file:///F:/Main/LingRootMobile/android/app/src/main/java/com/nsyzk/lingrootmobile/MainApplica
+tion.kt:43:5 Unresolved reference: AppEventsLogger
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+[Incubating] Problems report is available at: file:///F:/Main/LingRootMobile/android/build/reports/problems/problems-report.html
+Execution failed for task ':app:compileReleaseKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWit
+hWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.13/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 27s
+241 actionable tasks: 10 executed, 231 up-to-date

@@ -44,25 +44,39 @@ const CreateScreen: React.FC = () => {
   useFocusEffect(
     React.useCallback(() => {
       const nextMode: 'text' | 'file' | 'book' | 'suggestion' | 'youtube' = route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : (route.params?.mode === 'youtube' ? 'youtube' : 'text')));
+      const prevMode = mode;
       setMode(nextMode);
       
-      // Her zaman tüm form alanlarını temizle
-      setInputText('');
-      setSelectedFile(null);
-      setSelectedBook(null);
-      setSelectedChapterId(null);
-      setSelectedChapterText('');
-      setSuggestion('');
-      setSuggestionResults([]);
-      setYoutubeUrl('');
-      setYoutubeLoading(false);
-      setYoutubeError(null);
-    }, [route.params?.mode])
+      // Her zaman suggestion mode'a girerken temizle
+      if (nextMode === 'suggestion') {
+        setSuggestion('');
+        setSuggestionResults([]);
+        setInputText('');
+        setIsConvertingSuggestion(false);
+        setConvertingText('');
+      }
+      
+      // Diğer mode'lar için sadece mode değiştiğinde temizle
+      if (prevMode !== nextMode && nextMode !== 'suggestion') {
+        setInputText('');
+        setSelectedFile(null);
+        setSelectedBook(null);
+        setSelectedChapterId(null);
+        setSelectedChapterText('');
+        setSuggestion('');
+        setSuggestionResults([]);
+        setYoutubeUrl('');
+        setYoutubeLoading(false);
+        setYoutubeError(null);
+      }
+    }, [route.params?.mode, mode])
   );
   // --- Suggestion Mode State ---
   const [suggestion, setSuggestion] = useState('');
   const [suggestionResults, setSuggestionResults] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [isConvertingSuggestion, setIsConvertingSuggestion] = useState(false);
+  const [convertingText, setConvertingText] = useState('');
 
   // --- YouTube Mode State ---
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
@@ -141,13 +155,21 @@ const CreateScreen: React.FC = () => {
     setIsLoadingSuggestions(true);
     try {
       const res = await apiService.getTopicSuggestions(suggestion, selectedLevel);
+      
       if (res?.success) {
-        setSuggestionResults(res.suggestions || []);
+        const suggestions = res.suggestions || [];
+        setSuggestionResults(suggestions);
+        
+        // Set first suggestion to input text area
+        if (suggestions.length > 0) {
+          const firstSuggestion = suggestions[0];
+          setInputText(firstSuggestion);
+        }
       } else {
         Alert.alert(t('common.error'), res?.message || t('suggestions.alerts.fetchFailed'));
       }
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
+      Alert.alert('API ERROR', e.message || t('common.unexpectedError'));
     } finally {
       setIsLoadingSuggestions(false);
     }
@@ -1009,6 +1031,16 @@ const CreateScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Loading overlay for suggestion conversion */}
+      {isConvertingSuggestion && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>{convertingText}</Text>
+          </View>
+        </View>
+      )}
+      
       <ScrollView
         style={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -1021,7 +1053,63 @@ const CreateScreen: React.FC = () => {
           </Text>
         </View>
 
-        {(mode === 'text' || mode === 'youtube' || mode === 'suggestion') && (
+        {mode === 'suggestion' && (
+          <View style={styles.inputSection}>
+            <Text style={styles.sectionTitle}>{t('suggestions.title')}</Text>
+            <TextInput
+              style={[styles.textInput]}
+              placeholder={t('suggestions.input.placeholder')}
+              value={suggestion}
+              onChangeText={setSuggestion}
+            />
+            <TouchableOpacity
+              style={[styles.searchButton, isLoadingSuggestions && styles.createButtonDisabled]}
+              onPress={handleGetSuggestions}
+              disabled={isLoadingSuggestions}
+            >
+              {isLoadingSuggestions ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <>
+                  <Icon name="lightbulb" size={20} color="#fff" />
+                  <Text style={styles.createButtonText}>{t('suggestions.buttons.getSuggestions')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            {suggestionResults.length > 0 && (
+              <View style={{ marginTop: 8 }}>
+                {suggestionResults.map((s, idx) => (
+                  <TouchableOpacity
+                    key={`${idx}-${s.substring(0,10)}`}
+                    style={styles.bookCard}
+                    onPress={async () => {
+                      try {
+                        setIsConvertingSuggestion(true);
+                        setConvertingText(language === 'tr' ? 'Öneri metne dönüştürülüyor...' : 'Converting suggestion to text...');
+                        
+                        const rr = await apiService.rewriteToNarration(s, selectedLevel);
+                        const narration = rr?.data?.narration_text || s;
+                        setInputText(narration);
+                        
+                        Alert.alert(t('common.success'), t('Öneri metne dönüştürüldü'));
+                      } catch (e: any) {
+                        Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
+                      } finally {
+                        setIsConvertingSuggestion(false);
+                        setConvertingText('');
+                      }
+                    }}
+                  >
+                    <View style={{ marginRight: 10 }}><Icon name="description" size={20} color="#FF9500" /></View>
+                    <Text style={{ flex: 1, color: '#333' }}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {((mode === 'text' || mode === 'youtube') || (mode === 'suggestion' && (suggestionResults.length > 0 || inputText.length > 0))) && (
           <View style={styles.inputSection}>
             <Text style={styles.sectionTitle}>{t('create.input.title')}</Text>
             {mode === 'youtube' && (
@@ -1089,56 +1177,6 @@ const CreateScreen: React.FC = () => {
         )}
 
         {/* Divider hidden in single-mode screens */}
-
-        {mode === 'suggestion' && (
-          <View style={styles.inputSection}>
-            <Text style={styles.sectionTitle}>{t('suggestions.title')}</Text>
-            <TextInput
-              style={[styles.textInput]}
-              placeholder={t('suggestions.input.placeholder')}
-              value={suggestion}
-              onChangeText={setSuggestion}
-            />
-            <TouchableOpacity
-              style={[styles.searchButton, isLoadingSuggestions && styles.createButtonDisabled]}
-              onPress={handleGetSuggestions}
-              disabled={isLoadingSuggestions}
-            >
-              {isLoadingSuggestions ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <>
-                  <Icon name="lightbulb" size={20} color="#fff" />
-                  <Text style={styles.createButtonText}>{t('suggestions.buttons.getSuggestions')}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            {suggestionResults.length > 0 && (
-              <View style={{ marginTop: 8 }}>
-                {suggestionResults.map((s, idx) => (
-                  <TouchableOpacity
-                    key={`${idx}-${s.substring(0,10)}`}
-                    style={styles.bookCard}
-                    onPress={async () => {
-                      try {
-                        const rr = await apiService.rewriteToNarration(s, selectedLevel);
-                        const narration = rr?.data?.narration_text || s;
-                        setInputText(narration);
-                        // Mode'u suggestion olarak bırak, metin input alanı zaten görünüyor
-                        Alert.alert(t('common.success'), t('Öneri metne dönüştürüldü'));
-                      } catch (e: any) {
-                        Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
-                      }
-                    }}
-                  >
-                    <View style={{ marginRight: 10 }}><Icon name="description" size={20} color="#FF9500" /></View>
-                    <Text style={{ flex: 1, color: '#333' }}>{s}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
 
         {mode === 'book' && (
           <View style={styles.inputSection}>
@@ -1504,15 +1542,23 @@ const CreateScreen: React.FC = () => {
                         try {
                           await saveDefaultVoiceSetting(selectedVoice);
                           setShouldPromoteSelectedVoiceTop(true);
-                          Alert.alert(t('common.success'), 'Varsayılan ses kaydedildi');
+                          Alert.alert(
+                            t('common.success'),
+                            language === 'tr' ? 'Varsayılan ses kaydedildi' : 'Default voice saved'
+                          );
                           setShowVoiceSelection(false);
                         } catch (e: any) {
-                          Alert.alert(t('common.error'), e.message || 'Kaydedilemedi');
+                          Alert.alert(
+                            t('common.error'),
+                            e.message || (language === 'tr' ? 'Kaydedilemedi' : 'Could not save')
+                          );
                         }
                       }}
                       disabled={!selectedVoice}
                     >
-                      <Text style={styles.defaultVoiceButtonText}>Varsayılan Ses Seç</Text>
+                      <Text style={styles.defaultVoiceButtonText}>
+                        {language === 'tr' ? 'Varsayılan Ses Seç' : 'Set as Default Voice'}
+                      </Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -1560,6 +1606,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
   },
   // Book search styles
   bookSearchRow: {

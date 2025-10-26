@@ -17,9 +17,7 @@ Rewrite the given English text into CEFR level C1.
 - Maintain at least 95% of original word count.
 
 📥 INPUT:
----
 {{input_text}}
----
 
 📤 OUTPUT:
-Return only the rewritten text in C1 level. Do not explain or comment. 
+Return only the rewritten text in C1 level. Do not explain or comment.

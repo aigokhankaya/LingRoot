@@ -1,9 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { verifyAppleReceipt } = require('../controllers/appleIAPController');
+const iapController = require('../controllers/iapController');
 
-// POST /api/iap/apple/verify
-router.post('/apple/verify', authenticate, verifyAppleReceipt);
+// Apple IAP verification endpoint
+router.post('/apple/verify', authenticate, iapController.verifyAppleReceipt);
+
+// Google Play IAP verification endpoint
+router.post('/google/verify', authenticate, iapController.verifyGooglePlayPurchase);
 
 module.exports = router;

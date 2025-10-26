@@ -56,12 +56,13 @@ android {
         applicationId 'com.nsyzk.lingrootmobile'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 15
-        versionName "1.7.10"
+        versionCode 21
+        versionName "1.8.1"
         ndk {
+            // Support all ABIs for maximum device compatibility
             abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
         }
-        // react-native-iap için Google Play variant'ını seç
+        // Specify Google Play flavor for react-native-iap
         missingDimensionStrategy 'store', 'play'
     }
     signingConfigs {
@@ -127,8 +128,14 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
-    // Google Play Services for Google Sign-In
-    implementation 'com.google.android.gms:play-services-auth:21.0.0'
+    // Google Play Billing Library for in-app purchases
+    implementation("com.android.billingclient:billing:6.1.0")
+    
+    // Google Sign-In
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
+    
+    // Facebook SDK
+    implementation("com.facebook.android:facebook-android-sdk:16.0.0")
 
     // Optional Fresco image formats (commented out to avoid expoLibs dependency)
     // implementation("com.facebook.fresco:animated-gif:3.1.3")

@@ -22,14 +22,19 @@ exports.configureSecurity = (app) => {
       const allowedOrigins = [
         'https://www.lingroot.com',
         'https://lingroot.com',
-        'https://ling-root-mjrsjcki2-gokhans-projects-11087830.vercel.app',
         'http://localhost:3000',
         'http://127.0.0.1:3000'
       ];
       
+      // Check exact match first
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
-      } else {
+      } 
+      // Allow all Vercel preview deployments
+      else if (origin.match(/^https:\/\/ling-root-[a-z0-9]+-gokhans-projects-11087830\.vercel\.app$/)) {
+        callback(null, true);
+      } 
+      else {
         console.log(`🚫 CORS blocked origin: ${origin}`);
         callback(new Error('CORS policy violation'));
       }

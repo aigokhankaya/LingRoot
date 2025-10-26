@@ -52,10 +52,12 @@ interface Conversation {
   admin_name?: string;
 }
 
+import { EXPO_PUBLIC_API_URL } from '@env';
+
 const ChatScreen: React.FC = ({ navigation }: any) => {
   const { language } = useLanguage();
   // Resolve API base URL from env or default
-  const API_URL: string = (process.env.EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com') as string;
+  const API_URL: string = EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com';
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -364,14 +366,15 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
   };
 
   const getStatusText = (status: string) => {
-    switch (status) {
-      case 'open': return 'Yeniden Açıldı';
-      case 'in_progress': return 'İşlemde';
-      case 'waiting': return 'Beklemede';
-      case 'resolved': return 'Çözüldü';
-      case 'closed': return 'Kapatıldı';
-      default: return status;
-    }
+    const statusMap: Record<string, { tr: string; en: string }> = {
+      open: { tr: 'Yeniden Açıldı', en: 'Reopened' },
+      in_progress: { tr: 'İşlemde', en: 'In Progress' },
+      waiting: { tr: 'Beklemede', en: 'Waiting' },
+      resolved: { tr: 'Çözüldü', en: 'Resolved' },
+      closed: { tr: 'Kapatıldı', en: 'Closed' },
+    };
+    
+    return statusMap[status]?.[language] || status;
   };
 
   const formatDate = (dateString: string) => {

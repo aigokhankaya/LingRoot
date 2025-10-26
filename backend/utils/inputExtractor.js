@@ -67,6 +67,8 @@ async function translateToEnglishWithOpenAI(text, requestLogger) {
             temperature: 0.2,
         });
         let translated = completion.choices[0]?.message?.content?.trim();
+        // Remove any leading/trailing --- markers that OpenAI might add
+        translated = translated.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
         translatedChunks.push(translated);
         if (completion.usage) {
             promptTokensTotal += completion.usage.prompt_tokens || 0;

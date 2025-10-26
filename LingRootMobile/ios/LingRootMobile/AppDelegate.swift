@@ -1,6 +1,7 @@
 import UIKit
 import React
 import UserNotifications
+import FBSDKCoreKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -11,6 +12,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    // Initialize Facebook SDK
+    ApplicationDelegate.shared.application(
+      application,
+      didFinishLaunchingWithOptions: launchOptions
+    )
+    
     // Set notification center delegate to receive notifications in foreground and tap responses
     UNUserNotificationCenter.current().delegate = self
     #if DEBUG
@@ -68,6 +75,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey: Any] = [:]
   ) -> Bool {
+    // Handle Facebook URL
+    if ApplicationDelegate.shared.application(app, open: url, options: options) {
+      return true
+    }
+    
     return RCTLinkingManager.application(app, open: url, options: options)
   }
 
