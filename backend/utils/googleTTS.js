@@ -362,7 +362,7 @@ async function synthesizeWithGoogle(options) {
         effectsProfileId: ['telephony-class-application']
       },
       // 🎯 Google Timepoint API - En hassas timing için
-      // SSML_MARK: SSML mark tag'leri için timing
+      // Her SSML mark için timing bilgisi al
       enableTimePointing: ['SSML_MARK']
     };
 
@@ -529,8 +529,8 @@ async function synthesizeWithGoogle(options) {
             volumeGainDb: 0.0,
             sampleRateHertz: 24000
           },
-          // 🎯 Plain text için de timepoint - Google otomatik word boundary detection
-          enableTimePointing: ['TIMEPOINT_TYPE_SSML_MARK']
+          // 🎯 Plain text için timepoint yok - Google sadece SSML mark'ları destekler
+          // Fallback: Linear estimation kullanılacak
         };
 
 
