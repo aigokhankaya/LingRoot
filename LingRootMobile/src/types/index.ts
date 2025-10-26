@@ -50,6 +50,7 @@ export interface TTSResponse {
   timepoints?: any[];
   original_turkish?: string;
   real_duration?: number;
+  estimated_duration?: number;
   speaking_rate?: number;
   word_timings_count?: number;
   audio_segments?: number;
@@ -58,6 +59,10 @@ export interface TTSResponse {
   adapted_text?: string;
   translatedText?: string;
   adaptedText?: string;
+  // Hybrid Approach - Drift Correction
+  drift_corrected?: boolean;
+  drift_amount?: number;
+  drift_percentage?: number;
 }
 
 export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
@@ -104,6 +109,12 @@ export interface AudioTrack {
   timepoints?: Timepoint[];
   words?: string[];
   wordTimings?: Timepoint[]; // Word timing data for sync feedback
+  // Hybrid Approach - Drift Correction
+  real_duration?: number;
+  estimated_duration?: number;
+  drift_corrected?: boolean;
+  drift_amount?: number;
+  drift_percentage?: number;
 }
 
 export interface Timepoint {
