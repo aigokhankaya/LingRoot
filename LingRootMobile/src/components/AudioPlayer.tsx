@@ -260,16 +260,23 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     let newWordIndex = -1;
 
     if (timepoints.length > 0) {
+      // 🎯 Google Timepoint API - Hassas senkronizasyon
+      // Timing drift tolerance: ±100ms (platform farklılıkları için)
+      const DRIFT_TOLERANCE = 0.1; // 100ms
+      
       // Find the word that should be highlighted at the current time
       // We want the latest timepoint that has started but not ended
       for (let i = timepoints.length - 1; i >= 0; i--) {
         const timepoint = timepoints[i];
-        if (currentTime >= timepoint.timeSeconds) {
-          // Check if this timepoint has ended
-          if (timepoint.endTimeSeconds && currentTime <= timepoint.endTimeSeconds) {
+        const adjustedStartTime = timepoint.timeSeconds - DRIFT_TOLERANCE;
+        const adjustedEndTime = timepoint.endTimeSeconds ? timepoint.endTimeSeconds + DRIFT_TOLERANCE : null;
+        
+        if (currentTime >= adjustedStartTime) {
+          // Check if this timepoint has ended (with tolerance)
+          if (adjustedEndTime && currentTime <= adjustedEndTime) {
             newWordIndex = i;
             break;
-          } else if (!timepoint.endTimeSeconds) {
+          } else if (!adjustedEndTime) {
             // If no endTime, assume this is the current word
             newWordIndex = i;
             break;
