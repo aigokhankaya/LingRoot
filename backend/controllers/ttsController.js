@@ -10,6 +10,7 @@ const { adaptToCEFR: adaptToCEFRFunc } = require("../utils/cefrAdapter");
 const { synthesizeWithGoogle, listGoogleVoices, getVoiceGender } = require("../utils/googleTTS");
 const { mergeAudioSegments, mergeAudioSegmentsToBuffer } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
+const { analyzeAndAdjustTimings } = require('../utils/audioAnalyzer');
 const tmp = require("tmp");
 const { logStep } = require('../utils/stepLogger');
 const { logRequestStep } = require("../utils/requestLogger");
@@ -835,6 +836,25 @@ const processTtsRequest = async (req, res) => {
 
         logger.info(`[${requestId}] Audio merged successfully - Final size: ${mergedAudioBuffer.length} bytes, ID: ${uniqueId}`);
 
+        // --- Step 7.5: Analyze Audio and Adjust Timings (Hybrid Approach) ---
+        logger.info(`[${requestId}] 🎯 Analyzing audio for drift correction...`);
+        
+        const analysisResult = await analyzeAndAdjustTimings(
+          mergedAudioBuffer,
+          allWordTimings,
+          totalRealDuration
+        );
+        
+        // Use adjusted timings if drift was detected
+        if (analysisResult.driftDetected) {
+          logger.warn(`[${requestId}] ⚠️ Drift corrected: ${analysisResult.driftAmount.toFixed(2)}s (${analysisResult.driftPercentage.toFixed(1)}%)`);
+          allWordTimings = analysisResult.wordTimings;
+        }
+        
+        // Update total duration with actual audio duration
+        const actualTotalDuration = analysisResult.actualDuration || totalRealDuration;
+        logger.info(`[${requestId}] 🎯 Final duration: ${actualTotalDuration.toFixed(2)}s (estimated: ${totalRealDuration.toFixed(2)}s)`);
+
         // --- Step 8: Create VTT with Optimized Timings ---
         logger.info(`[${requestId}] Creating VTT with optimized word timings...`);
         
@@ -851,14 +871,15 @@ const processTtsRequest = async (req, res) => {
             createdAt: new Date(),
             text: cleanTextForDisplay, // Temiz text sakla
             originalText: adaptedText, // Original text de sakla
-            duration: totalRealDuration,
+            duration: actualTotalDuration,
             words: totalWords,
             wordTimings: allWordTimings,
             cleanWords: allCleanWords,
             originalWords: allOriginalWords,
             speakingRate: speakingRate,
             isRealTiming: true,
-            isOptimized: true
+            isOptimized: true,
+            driftCorrected: analysisResult.driftDetected || false
         });
         
         const vttUrl = `/api/tts/vtt/${vttUniqueId}`;
@@ -883,8 +904,9 @@ const processTtsRequest = async (req, res) => {
             buffer: mergedAudioBuffer,
             createdAt: new Date(),
             supabaseUrl: mp3Url,
-            duration: totalRealDuration,
-            wordCount: totalWords
+            duration: actualTotalDuration,
+            wordCount: totalWords,
+            driftCorrected: analysisResult.driftDetected || false
         });
         
         logger.info(`[${requestId}] 🔄 tempAudioFiles size after: ${tempAudioFiles.size}`);
@@ -1143,7 +1165,8 @@ const processTtsRequest = async (req, res) => {
             vtt_url: vttUrl,
             original_turkish: originalTurkishText || undefined,
             // Ek bilgiler
-            real_duration: totalRealDuration,
+            real_duration: actualTotalDuration,
+            estimated_duration: totalRealDuration,
             speaking_rate: speakingRate,
             word_timings_count: allWordTimings.length,
             clean_words_count: allCleanWords.length,
@@ -1151,6 +1174,10 @@ const processTtsRequest = async (req, res) => {
             audio_segments: audioSegments.length,
             is_real_timing: true,
             is_optimized: true,
+            // Hybrid Approach - Drift Correction Info
+            drift_corrected: analysisResult.driftDetected || false,
+            drift_amount: analysisResult.driftAmount || 0,
+            drift_percentage: analysisResult.driftPercentage || 0,
             // Çeviri ve adaptasyon sonuçları (database kayıt için)
             translated_text: translationResult || '',
             adapted_text: adaptedText,
