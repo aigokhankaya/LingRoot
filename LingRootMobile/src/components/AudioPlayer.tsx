@@ -814,6 +814,30 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const progressPercentage = duration > 0 ? (position / duration) * 100 : 0;
 
+  // Sync Feedback - Test için
+  const sendSyncFeedback = async (feedback: 'YES' | 'NO') => {
+    try {
+      const currentData = {
+        trackId: track.id,
+        currentWordIndex: currentWordIndex,
+        currentTime: position,
+        expectedWord: track.wordTimings?.[currentWordIndex]?.word || '',
+        feedback: feedback,
+        wordTimings: track.wordTimings || [],
+        timestamp: new Date().toISOString()
+      };
+      
+      await apiService.sendSyncFeedback(currentData);
+      Alert.alert(
+        'Feedback Gönderildi', 
+        `Senkronizasyon: ${feedback}\nKelime: ${currentData.expectedWord}\nSüre: ${position.toFixed(2)}s`,
+        [{ text: 'Tamam' }]
+      );
+    } catch (error: any) {
+      Alert.alert('Hata', error.message || 'Feedback gönderilemedi');
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -855,6 +879,27 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         >
           <Icon name="close" size={22} color="#333" />
         </TouchableOpacity>
+
+        {/* SYNC TEST BUTTONS - Test için */}
+        <View style={styles.syncTestContainer}>
+          <TouchableOpacity
+            style={[styles.syncButton, styles.yesButton]}
+            onPress={() => sendSyncFeedback('YES')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Icon name="check-circle" size={20} color="#fff" />
+            <Text style={styles.syncButtonText}>✅ YES (Sync OK)</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.syncButton, styles.noButton]}
+            onPress={() => sendSyncFeedback('NO')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Icon name="cancel" size={20} color="#fff" />
+            <Text style={styles.syncButtonText}>❌ NO (Sync Wrong)</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Swipeable pages: current EN on page 0, original TR on page 1 */}
         <ScrollView
@@ -1294,6 +1339,40 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: '#ff6b35',
     borderRadius: 16,
+  },
+  // Sync Test Buttons
+  syncTestContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  syncButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  yesButton: {
+    backgroundColor: '#4CAF50',
+  },
+  noButton: {
+    backgroundColor: '#f44336',
+  },
+  syncButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

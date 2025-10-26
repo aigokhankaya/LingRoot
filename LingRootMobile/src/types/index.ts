@@ -108,6 +108,7 @@ export interface AudioTrack {
   mp3_url?: string;
   timepoints?: Timepoint[];
   words?: string[];
+  wordTimings?: Timepoint[]; // Word timing data for sync feedback
   // Hybrid Approach - Drift Correction
   real_duration?: number;
   estimated_duration?: number;
