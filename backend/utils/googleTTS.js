@@ -360,18 +360,17 @@ async function synthesizeWithGoogle(options) {
         volumeGainDb: 0.0,
         sampleRateHertz: 24000, // Yeterli kalite için 24kHz
         effectsProfileId: ['telephony-class-application']
-      },
-      // 🎯 Google Timepoint API - En hassas timing için
-      // Her SSML mark için timing bilgisi al
-      enableTimePointing: ['SSML_MARK']
+      }
     };
 
 
 
             const [response] = await ttsClient.synthesizeSpeech(request);
     
-    // Timing bilgilerini parse et
+    // SSML mark'lardan timing bilgilerini parse et
     const timingMarks = response.timepoints || [];
+    
+    logger.info(`🎯 Received ${timingMarks.length} timing marks from Google TTS`);
     
     // Kelime timing'lerini hesapla - temiz kelimelerle
     const wordTimings = [];
@@ -537,75 +536,16 @@ async function synthesizeWithGoogle(options) {
 
         const [response] = await ttsClient.synthesizeSpeech(request);
         
-        // 🎯 Google Timepoint API'den gelen timing'leri kullan
-        // NOT: Plain text için Google timepoint vermez, sadece SSML mark'lar için
-        const timingMarks = response.timepoints || [];
+        // Fallback timing - basit linear estimation
         const { cleanWords: fbCleanWords, originalWords: fbOriginalWords } = cleanTextForTiming(safePlainText);
-        
-        logger.info(`🎯 [FALLBACK TIMEPOINT] Received ${timingMarks.length} timepoints for ${fbCleanWords.length} words (Plain text mode - timepoints not supported)`);
-        
-        let wordTimings = [];
-        let estimatedDuration = fbCleanWords.length * (0.5 / speakingRate);
-        
-        // Eğer Google timepoint verdi ise kullan
-        if (timingMarks.length > 0) {
-          // Google'ın verdiği timepoint'leri kelimelere eşle
-          wordTimings = fbCleanWords.map((word, index) => {
-            // Google bazen her kelime için timepoint vermeyebilir, en yakın olanı bul
-            const closestMark = timingMarks[Math.min(index, timingMarks.length - 1)];
-            const nextMark = timingMarks[Math.min(index + 1, timingMarks.length - 1)];
-            
-            const startTime = closestMark ? closestMark.timeSeconds : (index / fbCleanWords.length) * estimatedDuration;
-            const endTime = nextMark ? nextMark.timeSeconds : ((index + 1) / fbCleanWords.length) * estimatedDuration;
-            
-            return {
-              word: word,
-              timeSeconds: startTime,
-              endTimeSeconds: endTime,
-              markName: `word_${index}`,
-              hasDirectTiming: !!closestMark
-            };
-          });
-          
-          // Gerçek duration'ı son timepoint'ten al
-          if (timingMarks.length > 0) {
-            const lastMark = timingMarks[timingMarks.length - 1];
-            estimatedDuration = lastMark.timeSeconds + (0.5 / speakingRate); // Son kelime için buffer
-          }
-          
-          logger.info(`🎯 [FALLBACK TIMEPOINT SUCCESS] Using ${timingMarks.length} Google timepoints, Duration: ${estimatedDuration.toFixed(2)}s`);
-        } else {
-          // Timepoint yoksa word-length-based estimation (daha hassas)
-          logger.warn(`🔄 [FALLBACK LINEAR] No timepoints received, using word-length-based estimation`);
-          
-          // Her kelimenin uzunluğuna göre süre hesapla
-          const totalChars = fbCleanWords.reduce((sum, word) => sum + word.length, 0);
-          const avgCharsPerSecond = totalChars / estimatedDuration;
-          
-          let currentTime = 0;
-          wordTimings = fbCleanWords.map((word, index) => {
-            const wordDuration = Math.max(
-              0.15 / speakingRate, // Minimum 150ms per word
-              (word.length / avgCharsPerSecond) * 1.1 // 10% buffer for natural pauses
-            );
-            
-            const timing = {
-              word: word,
-              timeSeconds: currentTime,
-              endTimeSeconds: currentTime + wordDuration,
-              markName: `word_${index}`,
-              hasDirectTiming: false
-            };
-            
-            currentTime += wordDuration;
-            return timing;
-          });
-          
-          // Total duration'ı gerçek hesaplanan süreye güncelle
-          estimatedDuration = currentTime;
-          
-          logger.info(`🔄 [IMPROVED LINEAR] Word-length-based timing: ${fbCleanWords.length} words, ${estimatedDuration.toFixed(2)}s total`);
-        }
+        const estimatedDuration = fbCleanWords.length * (0.5 / speakingRate);
+        const wordTimings = fbCleanWords.map((word, index) => ({
+          word: word,
+          timeSeconds: (index / fbCleanWords.length) * estimatedDuration,
+          endTimeSeconds: ((index + 1) / fbCleanWords.length) * estimatedDuration,
+          markName: `word_${index}`,
+          hasDirectTiming: false
+        }));
         
         logger.info(`🔄 Fallback Success - Voice: ${voiceName}, Gender: ${fallbackGender}, Audio size: ${response.audioContent.length} bytes`);
         
@@ -617,14 +557,8 @@ async function synthesizeWithGoogle(options) {
           totalDuration: estimatedDuration,
           speakingRate: speakingRate,
           voiceName: effectiveVoiceName,
-          actualGender: fallbackGender, // Gerçek kullanılan gender'ı döndür
-          timingMethod: timingMarks.length > 0 ? 'Google Timepoint (Fallback)' : 'Linear Estimation (Fallback)',
-          timingQuality: {
-            totalWords: fbCleanWords.length,
-            markedWords: wordTimings.filter(w => w.hasDirectTiming).length,
-            totalMarks: timingMarks.length,
-            markAccuracy: timingMarks.length > 0 ? (timingMarks.length / fbCleanWords.length) * 100 : 0
-          },
+          actualGender: fallbackGender,
+          timingMethod: 'Fallback Linear',
           fallbackUsed: true,
           success: true
         };
