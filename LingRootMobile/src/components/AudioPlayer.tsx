@@ -77,8 +77,25 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     driftOffsetRef.current = 0;
     lastCorrectionTimeRef.current = 0;
     driftHistoryRef.current = [];
+    
+    // Debug: Log track timing info
     console.log('🎯 Drift correction reset for new track');
-  }, [track.id, track.original_turkish]);
+    console.log('📊 Track Info:', {
+      id: track.id,
+      timepoints: timepoints?.length || 0,
+      words: words?.length || 0,
+      duration: track.real_duration || track.duration,
+      estimatedDuration: track.estimated_duration,
+      driftCorrected: track.drift_corrected,
+      driftAmount: track.drift_amount,
+      driftPercentage: track.drift_percentage
+    });
+    
+    if (timepoints && timepoints.length > 0) {
+      console.log('🎯 First 3 timepoints:', timepoints.slice(0, 3));
+      console.log('🎯 Last 3 timepoints:', timepoints.slice(-3));
+    }
+  }, [track.id, track.original_turkish, timepoints, words]);
 
   // Text parsing - Memoized to prevent unnecessary re-renders
   const textData = useMemo(() => {
@@ -307,10 +324,21 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             if (now - lastCorrectionTimeRef.current > 2000) {
               const drift = calculateDrift(currentTime, i);
               
+              console.log(`📊 Drift Analysis:`, {
+                currentTime: currentTime.toFixed(3),
+                expectedTime: timepoint.timeSeconds.toFixed(3),
+                drift: drift.toFixed(3),
+                currentOffset: driftOffsetRef.current.toFixed(3),
+                wordIndex: i,
+                word: timepoint.word || words[i]
+              });
+              
               // Only apply correction if drift is significant (>100ms)
               if (Math.abs(drift) > 0.1) {
                 driftOffsetRef.current = -drift;
                 console.log(`🎯 Drift corrected: ${drift.toFixed(3)}s, new offset: ${driftOffsetRef.current.toFixed(3)}s`);
+              } else {
+                console.log(`✅ Drift acceptable: ${drift.toFixed(3)}s (< 100ms)`);
               }
               
               lastCorrectionTimeRef.current = now;
