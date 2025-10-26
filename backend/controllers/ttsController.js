@@ -845,6 +845,15 @@ const processTtsRequest = async (req, res) => {
           totalRealDuration
         );
         
+        // DEBUG: Log analysisResult
+        logger.info(`🔍 [ANALYSIS RESULT]:`, {
+          driftDetected: analysisResult.driftDetected,
+          driftAmount: analysisResult.driftAmount,
+          driftPercentage: analysisResult.driftPercentage,
+          actualDuration: analysisResult.actualDuration,
+          estimatedDuration: analysisResult.estimatedDuration
+        });
+        
         // Use adjusted timings if drift was detected
         if (analysisResult.driftDetected) {
           logger.warn(`[${requestId}] ⚠️ Drift corrected: ${analysisResult.driftAmount.toFixed(2)}s (${analysisResult.driftPercentage.toFixed(1)}%)`);
@@ -1192,6 +1201,13 @@ const processTtsRequest = async (req, res) => {
         logger.info(`🔍 Response timepoints sample:`, responseData.timepoints?.slice(0, 3));
         logger.info(`🔍 Words in response: ${responseData.words?.length || 0}`);
         logger.info(`🔍 Response fields:`, Object.keys(responseData));
+        logger.info(`🔍 [DRIFT FIELDS IN RESPONSE]:`, {
+          drift_corrected: responseData.drift_corrected,
+          drift_amount: responseData.drift_amount,
+          drift_percentage: responseData.drift_percentage,
+          estimated_duration: responseData.estimated_duration,
+          real_duration: responseData.real_duration
+        });
         
         return res.status(200).json(responseData);
 
