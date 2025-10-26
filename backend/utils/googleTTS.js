@@ -538,10 +538,11 @@ async function synthesizeWithGoogle(options) {
         const [response] = await ttsClient.synthesizeSpeech(request);
         
         // 🎯 Google Timepoint API'den gelen timing'leri kullan
+        // NOT: Plain text için Google timepoint vermez, sadece SSML mark'lar için
         const timingMarks = response.timepoints || [];
         const { cleanWords: fbCleanWords, originalWords: fbOriginalWords } = cleanTextForTiming(safePlainText);
         
-        logger.info(`🎯 [FALLBACK TIMEPOINT] Received ${timingMarks.length} timepoints for ${fbCleanWords.length} words`);
+        logger.info(`🎯 [FALLBACK TIMEPOINT] Received ${timingMarks.length} timepoints for ${fbCleanWords.length} words (Plain text mode - timepoints not supported)`);
         
         let wordTimings = [];
         let estimatedDuration = fbCleanWords.length * (0.5 / speakingRate);
@@ -574,15 +575,36 @@ async function synthesizeWithGoogle(options) {
           
           logger.info(`🎯 [FALLBACK TIMEPOINT SUCCESS] Using ${timingMarks.length} Google timepoints, Duration: ${estimatedDuration.toFixed(2)}s`);
         } else {
-          // Timepoint yoksa linear fallback
-          logger.warn(`🔄 [FALLBACK LINEAR] No timepoints received, using linear estimation`);
-          wordTimings = fbCleanWords.map((word, index) => ({
-            word: word,
-            timeSeconds: (index / fbCleanWords.length) * estimatedDuration,
-            endTimeSeconds: ((index + 1) / fbCleanWords.length) * estimatedDuration,
-            markName: `word_${index}`,
-            hasDirectTiming: false
-          }));
+          // Timepoint yoksa word-length-based estimation (daha hassas)
+          logger.warn(`🔄 [FALLBACK LINEAR] No timepoints received, using word-length-based estimation`);
+          
+          // Her kelimenin uzunluğuna göre süre hesapla
+          const totalChars = fbCleanWords.reduce((sum, word) => sum + word.length, 0);
+          const avgCharsPerSecond = totalChars / estimatedDuration;
+          
+          let currentTime = 0;
+          wordTimings = fbCleanWords.map((word, index) => {
+            const wordDuration = Math.max(
+              0.15 / speakingRate, // Minimum 150ms per word
+              (word.length / avgCharsPerSecond) * 1.1 // 10% buffer for natural pauses
+            );
+            
+            const timing = {
+              word: word,
+              timeSeconds: currentTime,
+              endTimeSeconds: currentTime + wordDuration,
+              markName: `word_${index}`,
+              hasDirectTiming: false
+            };
+            
+            currentTime += wordDuration;
+            return timing;
+          });
+          
+          // Total duration'ı gerçek hesaplanan süreye güncelle
+          estimatedDuration = currentTime;
+          
+          logger.info(`🔄 [IMPROVED LINEAR] Word-length-based timing: ${fbCleanWords.length} words, ${estimatedDuration.toFixed(2)}s total`);
         }
         
         logger.info(`🔄 Fallback Success - Voice: ${voiceName}, Gender: ${fallbackGender}, Audio size: ${response.audioContent.length} bytes`);

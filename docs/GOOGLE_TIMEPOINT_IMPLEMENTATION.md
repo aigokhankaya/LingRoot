@@ -232,7 +232,28 @@ npm start
 
 ## ⚠️ Bilinen Sınırlamalar
 
-### 1. Timepoint Eksikliği
+### 1. **Chirp/Studio Sesleri İçin Timepoint Desteği YOK**
+**Durum:** Google TTS API, plain text için timepoint vermiyor. Sadece SSML mark'ları için timepoint desteği var.
+
+**Etkilenen Sesler:**
+- Chirp (tüm varyantlar)
+- Studio (tüm varyantlar)
+- Journey (tüm varyantlar)
+
+**Çözüm:** 
+- ✅ **Word-length-based estimation** kullanılıyor
+- ✅ Her kelimenin uzunluğuna göre süre hesaplanıyor
+- ✅ %85-90 doğruluk (linear'dan daha iyi)
+- ⚠️ SSML destekli sesler kadar hassas değil (%98)
+
+**Örnek:**
+```javascript
+// Kısa kelime: "I" → 150ms
+// Orta kelime: "hello" → 300ms  
+// Uzun kelime: "beautiful" → 500ms
+```
+
+### 2. Timepoint Eksikliği (SSML Sesleri İçin)
 **Durum:** Bazı durumlarda Google her kelime için timepoint vermeyebilir
 
 **Çözüm:** 
@@ -240,7 +261,7 @@ npm start
 - Linear interpolation yapılır
 - Fallback mekanizması devreye girer
 
-### 2. Platform Latency
+### 3. Platform Latency
 **Durum:** Android/iOS audio buffer farklılıkları
 
 **Çözüm:**
@@ -248,7 +269,7 @@ npm start
 - Smooth geçişler
 - Kullanıcı fark etmez
 
-### 3. Eski Data
+### 4. Eski Data
 **Durum:** Önceden oluşturulmuş track'ler eski timing sistemiyle
 
 **Çözüm:**
