@@ -739,7 +739,7 @@ const processTtsRequest = async (req, res) => {
 
         // Her chunk için sentez yap - optimized timing bilgileriyle
         const audioSegments = [];
-        const allWordTimings = [];
+        let allWordTimings = []; // let kullan - drift correction için reassign gerekli
         const allCleanWords = [];
         const allOriginalWords = [];
         let cumulativeTimeOffset = 0;
