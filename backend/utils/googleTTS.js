@@ -361,7 +361,8 @@ async function synthesizeWithGoogle(options) {
         sampleRateHertz: 24000, // Yeterli kalite için 24kHz
         effectsProfileId: ['telephony-class-application']
       },
-      // Timing mark'larını etkinleştir
+      // 🎯 Google Timepoint API - En hassas timing için
+      // SSML_MARK: SSML mark tag'leri için timing
       enableTimePointing: ['SSML_MARK']
     };
 
@@ -527,23 +528,62 @@ async function synthesizeWithGoogle(options) {
             pitch: 0.0,
             volumeGainDb: 0.0,
             sampleRateHertz: 24000
-          }
+          },
+          // 🎯 Plain text için de timepoint - Google otomatik word boundary detection
+          enableTimePointing: ['TIMEPOINT_TYPE_SSML_MARK']
         };
 
 
 
         const [response] = await ttsClient.synthesizeSpeech(request);
         
-        // Fallback timing - eşit dağıtım
+        // 🎯 Google Timepoint API'den gelen timing'leri kullan
+        const timingMarks = response.timepoints || [];
         const { cleanWords: fbCleanWords, originalWords: fbOriginalWords } = cleanTextForTiming(safePlainText);
-        const estimatedDuration = fbCleanWords.length * (0.5 / speakingRate);
-        const wordTimings = fbCleanWords.map((word, index) => ({
-          word: word,
-          timeSeconds: (index / fbCleanWords.length) * estimatedDuration,
-          endTimeSeconds: ((index + 1) / fbCleanWords.length) * estimatedDuration,
-          markName: `word_${index}`,
-          hasDirectTiming: false
-        }));
+        
+        logger.info(`🎯 [FALLBACK TIMEPOINT] Received ${timingMarks.length} timepoints for ${fbCleanWords.length} words`);
+        
+        let wordTimings = [];
+        let estimatedDuration = fbCleanWords.length * (0.5 / speakingRate);
+        
+        // Eğer Google timepoint verdi ise kullan
+        if (timingMarks.length > 0) {
+          // Google'ın verdiği timepoint'leri kelimelere eşle
+          wordTimings = fbCleanWords.map((word, index) => {
+            // Google bazen her kelime için timepoint vermeyebilir, en yakın olanı bul
+            const closestMark = timingMarks[Math.min(index, timingMarks.length - 1)];
+            const nextMark = timingMarks[Math.min(index + 1, timingMarks.length - 1)];
+            
+            const startTime = closestMark ? closestMark.timeSeconds : (index / fbCleanWords.length) * estimatedDuration;
+            const endTime = nextMark ? nextMark.timeSeconds : ((index + 1) / fbCleanWords.length) * estimatedDuration;
+            
+            return {
+              word: word,
+              timeSeconds: startTime,
+              endTimeSeconds: endTime,
+              markName: `word_${index}`,
+              hasDirectTiming: !!closestMark
+            };
+          });
+          
+          // Gerçek duration'ı son timepoint'ten al
+          if (timingMarks.length > 0) {
+            const lastMark = timingMarks[timingMarks.length - 1];
+            estimatedDuration = lastMark.timeSeconds + (0.5 / speakingRate); // Son kelime için buffer
+          }
+          
+          logger.info(`🎯 [FALLBACK TIMEPOINT SUCCESS] Using ${timingMarks.length} Google timepoints, Duration: ${estimatedDuration.toFixed(2)}s`);
+        } else {
+          // Timepoint yoksa linear fallback
+          logger.warn(`🔄 [FALLBACK LINEAR] No timepoints received, using linear estimation`);
+          wordTimings = fbCleanWords.map((word, index) => ({
+            word: word,
+            timeSeconds: (index / fbCleanWords.length) * estimatedDuration,
+            endTimeSeconds: ((index + 1) / fbCleanWords.length) * estimatedDuration,
+            markName: `word_${index}`,
+            hasDirectTiming: false
+          }));
+        }
         
         logger.info(`🔄 Fallback Success - Voice: ${voiceName}, Gender: ${fallbackGender}, Audio size: ${response.audioContent.length} bytes`);
         
@@ -556,7 +596,13 @@ async function synthesizeWithGoogle(options) {
           speakingRate: speakingRate,
           voiceName: effectiveVoiceName,
           actualGender: fallbackGender, // Gerçek kullanılan gender'ı döndür
-          timingMethod: 'Fallback Linear',
+          timingMethod: timingMarks.length > 0 ? 'Google Timepoint (Fallback)' : 'Linear Estimation (Fallback)',
+          timingQuality: {
+            totalWords: fbCleanWords.length,
+            markedWords: wordTimings.filter(w => w.hasDirectTiming).length,
+            totalMarks: timingMarks.length,
+            markAccuracy: timingMarks.length > 0 ? (timingMarks.length / fbCleanWords.length) * 100 : 0
+          },
           fallbackUsed: true,
           success: true
         };
