@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import MembershipBadge from '../src/components/user/MembershipBadge';
 import { useAuth } from '../src/lib/auth';
 import { useRouter } from 'next/router';
+import { getUserStats, UserStats } from '../src/lib/api';
 import { Badge } from '../src/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../src/components/ui/card';
 import { Button } from '../src/components/ui/button';
@@ -17,6 +18,8 @@ const Dashboard = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [tab, setTab] = React.useState<string>('dashboard');
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -43,6 +46,24 @@ const Dashboard = () => {
       try { console.log('[DASHBOARD] auth state', { isLoading, isAuthenticated }); } catch {}
     }
   }, [isAuthenticated, isLoading, router]);
+
+  // Fetch user stats when authenticated
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (isAuthenticated && user) {
+        setStatsLoading(true);
+        try {
+          const data = await getUserStats();
+          setStats(data);
+        } catch (error) {
+          console.error('Error fetching stats:', error);
+        } finally {
+          setStatsLoading(false);
+        }
+      }
+    };
+    fetchStats();
+  }, [isAuthenticated, user]);
 
   // Initialize tab from query (?tab=...) then hash, and keep in sync
   useEffect(() => {
@@ -162,14 +183,14 @@ const Dashboard = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-gray-500">Günlük Hedef</p>
-                        <h3 className="text-2xl font-bold text-blue-600">75%</h3>
+                        <h3 className="text-2xl font-bold text-blue-600">{statsLoading ? '...' : `${stats?.activity.dailyGoalProgress || 0}%`}</h3>
                         <p className="text-xs text-gray-500 mt-1">Hedef: 30 dakika</p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
                         <i className="fas fa-bullseye text-xl"></i>
                       </div>
                     </div>
-                    <Progress value={75} className="h-2 mt-4" />
+                    <Progress value={stats?.activity.dailyGoalProgress || 0} className="h-2 mt-4" />
                   </CardContent>
                 </Card>
 
@@ -178,18 +199,18 @@ const Dashboard = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-gray-500">Mevcut Seri</p>
-                        <h3 className="text-2xl font-bold text-green-600">12 gün</h3>
-                        <p className="text-xs text-gray-500 mt-1">En uzun: 21 gün</p>
+                        <h3 className="text-2xl font-bold text-green-600">{statsLoading ? '...' : `${stats?.activity.currentStreak || 0} gün`}</h3>
+                        <p className="text-xs text-gray-500 mt-1">En uzun: {stats?.activity.longestStreak || 0} gün</p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
                         <i className="fas fa-fire text-xl"></i>
                       </div>
                     </div>
                     <div className="flex space-x-1 mt-4">
-                      {Array.from({ length: 7 }).map((_, index) => (
+                      {(stats?.activity.weeklyActivity || Array(7).fill({ active: false })).map((day, index) => (
                         <div
                           key={index}
-                          className={`h-2 flex-1 rounded-full ${index < 5 ? 'bg-green-500' : 'bg-gray-200'}`}
+                          className={`h-2 flex-1 rounded-full ${day.active ? 'bg-green-500' : 'bg-gray-200'}`}
                         ></div>
                       ))}
                     </div>
@@ -201,11 +222,11 @@ const Dashboard = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-gray-500">Toplam Öğrenme</p>
-                        <h3 className="text-2xl font-bold text-purple-600">1250 dk</h3>
-                        <p className="text-xs text-gray-500 mt-1">Bu ay: 250 dakika</p>
+                        <h3 className="text-2xl font-bold text-purple-600">{statsLoading ? '...' : `${stats?.vocabulary.total || 0} kelime`}</h3>
+                        <p className="text-xs text-gray-500 mt-1">Öğrenildi: {stats?.vocabulary.learned || 0}</p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
-                        <i className="fas fa-clock text-xl"></i>
+                        <i className="fas fa-book text-xl"></i>
                       </div>
                     </div>
                     <div className="mt-4 grid grid-cols-7 gap-1">
@@ -228,9 +249,9 @@ const Dashboard = () => {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-500">Tamamlanan Dersler</p>
-                        <h3 className="text-2xl font-bold text-amber-600">48/120</h3>
-                        <p className="text-xs text-gray-500 mt-1">İlerleme: 40%</p>
+                        <p className="text-sm text-gray-500">Ses Oluşturma</p>
+                        <h3 className="text-2xl font-bold text-amber-600">{statsLoading ? '...' : `${stats?.subscription.audioCreationCount || 0}`}</h3>
+                        <p className="text-xs text-gray-500 mt-1">Plan: {stats?.subscription.plan || 'Free Trial'}</p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
                         <i className="fas fa-graduation-cap text-xl"></i>

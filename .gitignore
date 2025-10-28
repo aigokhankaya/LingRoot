@@ -49,6 +49,9 @@ backend/logs/requests/
 /secrets/google-tts-key.json
 
 
+
+/backend/google-credentials.json
+
 # Env files
 .env
 .env.*

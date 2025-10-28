@@ -75,12 +75,12 @@ const App: React.FC = () => {
       const params = new URLSearchParams(search);
       const raw = params.get('next') || '';
       const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
-      if (next) {
-        if (typeof window !== 'undefined' && next.includes('#')) {
-          window.location.assign(next);
-        } else {
-          router.replace(next);
-        }
+      const target = next && next.trim() ? next : '/welcome';
+      
+      if (typeof window !== 'undefined' && target.includes('#')) {
+        window.location.assign(target);
+      } else {
+        router.replace(target);
       }
     }
   }, [isAuthenticated, router]);
@@ -435,7 +435,7 @@ const App: React.FC = () => {
             <nav className="bg-white shadow-sm py-3 sticky top-0 z-50">
                 <div className="container mx-auto px-8 flex justify-between items-center">
                     <div className="flex items-center space-x-3">
-                        <img src="/logo.svg" alt="LingRoot Logo" className="w-8 h-8 md:w-10 md:h-10" />
+                        <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-10 h-10 md:w-12 md:h-12" />
                         <span className="text-xl md:text-2xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent tracking-tight">LingRoot</span>
                     </div>
                     

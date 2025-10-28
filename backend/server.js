@@ -29,6 +29,9 @@ const vocabularyRoutes = require("./routes/vocabularyRoutes"); // 👈 Vocabular
 const chatRoutes = require("./routes/chat"); // Chat routes
 const iapRoutes = require("./routes/iapRoutes"); // Apple IAP routes
 const accountRoutes = require("./routes/accountRoutes"); // Account management
+const statsRoutes = require("./routes/statsRoutes"); // User statistics
+const externalServicesRoutes = require("./routes/externalServicesRoutes"); // External services management
+const podcastRoutes = require("./routes/podcastRoutes"); // Podcast upload and management
 
 // Initialize Express app
 const app = express();
@@ -129,6 +132,9 @@ app.use("/api/chat", chatRoutes); // Chat routes
 app.use('/auth', authRoutes);
 app.use("/api/iap", iapRoutes); // Apple IAP verification
 app.use("/api/account", accountRoutes); // Account management
+app.use("/api/stats", statsRoutes); // User statistics
+app.use("/api/external-services", externalServicesRoutes); // External services management
+app.use("/api/podcast", podcastRoutes); // Podcast upload and management
 
 // Account deletion page (legacy)
 app.get('/delete-account', (req, res) => {

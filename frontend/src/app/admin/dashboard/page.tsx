@@ -575,6 +575,10 @@ const App: React.FC = () => {
                 <span>Paket Özellikleri</span>
               </Button>
               {/* Paket Bilgilerim sekmesi kaldırıldı */}
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => router.push('/admin/external-services')}>
+                <i className="fas fa-plug mr-3 text-lg"></i>
+                <span>Dış Servisler</span>
+              </Button>
               <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("icerik-yonetimi")}>
                 <i className="fas fa-file-alt mr-3 text-lg"></i>
                 <span>İçerik Yönetimi</span>

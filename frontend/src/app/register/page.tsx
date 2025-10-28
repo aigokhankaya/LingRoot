@@ -54,7 +54,8 @@ export default function RegisterPage() {
   const { register } = useAuth();
   
   const [formData, setFormData] = useState({
-    username: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phoneNumber: '',
     password: '',
@@ -85,7 +86,7 @@ export default function RegisterPage() {
     setError(null);
     
     // Validate form data
-    if (!formData.username || !formData.email || !formData.phoneNumber || !formData.password || !formData.confirmPassword) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phoneNumber || !formData.password || !formData.confirmPassword) {
       setError('Lütfen tüm alanları doldurun.');
       return;
     }
@@ -112,10 +113,10 @@ export default function RegisterPage() {
     try {
       // Backend'e kayıt isteği gönder (normalize to +90XXXXXXXXXX)
       const normalizedPhone = normalizeTRPhone(formData.phoneNumber);
-      const result = await register(formData.username, '', formData.email, normalizedPhone, formData.password);
+      const result = await register(formData.firstName, formData.lastName, formData.email, normalizedPhone, formData.password);
       if (result.success) {
-        // Başarılı kayıt sonrası dashboard'a yönlendir
-        router.push('/dashboard');
+        // Başarılı kayıt sonrası welcome (ses oluşturma) sayfasına yönlendir
+        router.push('/welcome');
       } else {
         setError(result.message || 'Kayıt olurken bir hata oluştu.');
       }
@@ -148,7 +149,7 @@ export default function RegisterPage() {
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
                           <a href="/" className="flex items-center space-x-3">
-                <img src="/logo.svg" alt="LingRoot Logo" className="w-10 h-10" />
+                <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
                 <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent tracking-tight">LingRoot</span>
               </a>
           </div>
@@ -177,18 +178,33 @@ export default function RegisterPage() {
                     </div>
                   )}
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="username">Kullanıcı Adı</Label>
-                    <Input
-                      id="username"
-                      name="username"
-                      type="text"
-                      placeholder="kullaniciadi"
-                      value={formData.username}
-                      onChange={handleChange}
-                      className="border-gray-300 focus:border-blue-500"
-                      required
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">Ad</Label>
+                      <Input
+                        id="firstName"
+                        name="firstName"
+                        type="text"
+                        placeholder="Adınız"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        className="border-gray-300 focus:border-blue-500"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Soyad</Label>
+                      <Input
+                        id="lastName"
+                        name="lastName"
+                        type="text"
+                        placeholder="Soyadınız"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        className="border-gray-300 focus:border-blue-500"
+                        required
+                      />
+                    </div>
                   </div>
                   
                   <div className="space-y-2">
@@ -458,7 +474,7 @@ export default function RegisterPage() {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
                               <div className="flex items-center space-x-3 mb-6">
-                  <img src="/logo.svg" alt="LingRoot Logo" className="w-12 h-12" />
+                  <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
                   <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent tracking-tight">LingRoot</span>
                 </div>
               <p className="text-gray-400 mb-4">

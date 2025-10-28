@@ -25,7 +25,7 @@ const LoginPage: React.FC = () => {
     if (!nextRaw) return '';
     try { return decodeURIComponent(nextRaw); } catch { return nextRaw; }
   }, [nextRaw]);
-  const debugTarget = nextDecoded && nextDecoded.trim() ? nextDecoded : '/dashboard';
+  const debugTarget = nextDecoded && nextDecoded.trim() ? nextDecoded : '/welcome';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +80,7 @@ const LoginPage: React.FC = () => {
       )}
       <header className="w-full flex justify-center items-center py-8">
         <div className="flex items-center space-x-4">
-          <img src="/logo.svg" alt="LingRoot Logo" className="w-12 h-12" />
+          <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
           <span className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent tracking-tight">LingRoot</span>
         </div>
       </header>

@@ -228,10 +228,30 @@ exports.getUserById = async (req, res) => {
       });
     }
 
-    logger.info(`Successfully fetched user ID: ${id}`);
+    // Fetch active subscription info
+    const { data: subscription, error: subError } = await supabase
+      .from('subscriptions')
+      .select('id, plantype, status, start_date, end_date, created_at')
+      .eq('user_id', id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (subError) {
+      logger.warn(`Error fetching subscription for user ID ${id}:`, subError);
+    }
+
+    // Add subscription info to response
+    const userData = {
+      ...data,
+      currentSubscription: subscription || null
+    };
+
+    logger.info(`Successfully fetched user ID: ${id} with subscription info`);
     return res.status(200).json({
       success: true,
-      data,
+      data: userData,
     });
   } catch (error) {
     logger.error(`Server error while fetching user ID ${req.params.id}:`, error);

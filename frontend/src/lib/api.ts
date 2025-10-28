@@ -142,7 +142,7 @@ export const apiRequest = async <T>(
 };
 
 export interface ProcessInputData {
-    type: "text" | "youtube" | "spotify" | "file" | "weblink" | "topic" | "book" | "subject";
+    type: "text" | "youtube" | "podcast" | "file" | "weblink" | "topic" | "book" | "subject";
     input?: string;
     text?: string;
     file?: File;
@@ -1056,5 +1056,185 @@ export const hasHomepageFeature = (features: PlanFeatures | null, featureName: k
 export const hasVoiceCategory = (features: PlanFeatures | null, categoryName: keyof NonNullable<PlanFeatures['voice_categories']>): boolean => {
   if (!features?.voice_categories) return false;
   return features.voice_categories[categoryName] === true;
+};
+
+// User Stats Types
+export interface UserStats {
+  vocabulary: {
+    total: number;
+    learned: number;
+    inProgress: number;
+  };
+  subscription: {
+    plan: string;
+    audioCreationCount: number;
+  };
+  activity: {
+    currentStreak: number;
+    longestStreak: number;
+    dailyGoalProgress: number;
+    weeklyActivity: Array<{
+      date: string;
+      active: boolean;
+    }>;
+  };
+}
+
+// Get user dashboard statistics
+export const getUserStats = async (): Promise<UserStats | null> => {
+  try {
+    const response = await api.get('/api/stats/dashboard');
+    if (response.data.success) {
+      return response.data.data;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching user stats:', error);
+    return null;
+  }
+};
+
+// Podcast API Types
+export interface PodcastCreationParams {
+  topic: string;
+  level: string;
+  duration: number;
+  styleType?: string;
+  voiceChoice?: string;
+  conversationStyle?: string;
+  personalityA?: string;
+  personalityB?: string;
+  includeHumor?: boolean;
+  includeFiller?: boolean;
+}
+
+export interface PodcastCreationResponse {
+  success: boolean;
+  message?: string;
+  status?: string;
+  podcast_url?: string;
+  transcript?: string;
+  audio_url?: string;
+  vtt_subtitles?: string;
+  srt_subtitles?: string;
+  duration_seconds?: string;
+  file_name?: string;
+  data?: any;
+}
+
+// Get external service configuration
+const getExternalServiceConfig = async (serviceName: string): Promise<any> => {
+  try {
+    const url = getApiUrl(`external-services/public/${serviceName}`);
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Service configuration not found: ${serviceName}`);
+    }
+    
+    const result = await response.json();
+    return result.data;
+  } catch (error: any) {
+    console.error('🔧 [CONFIG] Error fetching service config:', error);
+    throw error;
+  }
+};
+
+// Create podcast
+export const createPodcast = async (params: PodcastCreationParams): Promise<PodcastCreationResponse> => {
+  try {
+    console.log('🎙️ [PODCAST] Creating podcast with params:', params);
+    
+    // Get podcast service configuration from database
+    let serviceConfig;
+    try {
+      serviceConfig = await getExternalServiceConfig('podcast_generator');
+      console.log('🔧 [PODCAST] Service config loaded:', { url: serviceConfig.api_url, hasToken: !!serviceConfig.api_token });
+    } catch (configError) {
+      console.warn('🔧 [PODCAST] Could not load service config, using fallback');
+      // Fallback to default configuration
+      serviceConfig = {
+        api_url: 'https://localhost50005.app.n8n.cloud/webhook/create-podcast',
+        api_token: 'mK8vXp2Rq9Yw3Tz5Hn7Js4'
+      };
+    }
+    
+    // Use the external service URL and token
+    const url = serviceConfig.api_url;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    
+    // Add authorization header if token exists
+    if (serviceConfig.api_token) {
+      headers['Authorization'] = `Bearer ${serviceConfig.api_token}`;
+    }
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params)
+    });
+    
+    console.log('🎙️ [PODCAST] Response status:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('🎙️ [PODCAST] Error response:', errorText);
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText };
+      }
+      throw new Error(errorData.message || `Podcast oluşturma başarısız: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('🎙️ [PODCAST] Success response:', result);
+    
+    // Parse n8n response format
+    // n8n returns: { status: "success", message: "...", data: { audio: { drive_link OR public_url, file_name, duration_seconds }, subtitles: { srt, vtt } } }
+    if (result.status === 'success' && result.data?.audio) {
+      let audioUrl = result.data.audio.public_url || result.data.audio.drive_link;
+      
+      // If it's a Google Drive link, convert to direct download URL
+      if (audioUrl && audioUrl.includes('drive.google.com')) {
+        const fileIdMatch = audioUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        const fileId = fileIdMatch ? fileIdMatch[1] : null;
+        
+        if (fileId) {
+          // Convert to direct download URL
+          audioUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+          console.log('🎙️ [PODCAST] Converted Drive link to direct URL:', audioUrl);
+        }
+      } else if (audioUrl) {
+        console.log('🎙️ [PODCAST] Using direct URL from backend (Supabase):', audioUrl);
+      }
+      
+      return {
+        success: true,
+        status: result.status,
+        message: result.message,
+        podcast_url: audioUrl,
+        audio_url: audioUrl,
+        vtt_subtitles: result.data.subtitles?.vtt || '',
+        srt_subtitles: result.data.subtitles?.srt || '',
+        duration_seconds: result.data.audio.duration_seconds || '',
+        file_name: result.data.audio.file_name || '',
+        transcript: result.message || '',
+        data: result.data
+      };
+    }
+    
+    // Return original result if format is different
+    return result;
+  } catch (error: any) {
+    console.error('🎙️ [PODCAST] Error creating podcast:', error);
+    throw error;
+  }
 };
 
