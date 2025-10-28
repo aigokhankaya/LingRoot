@@ -140,6 +140,7 @@ export type RootStackParamList = {
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
   ReminderSettings: undefined;
+  TtsProviderSettings: undefined;
 };
 
 export type MainTabParamList = {

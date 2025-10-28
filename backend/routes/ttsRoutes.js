@@ -98,6 +98,30 @@ router.post("/polly", (req, res) => {
   res.status(500).json({ error: "Not implemented yet" });
 });
 
+// Get current TTS provider setting (public endpoint for mobile app)
+router.get('/provider', async (req, res) => {
+  try {
+    const { supabase } = require('../utils/supabaseClient');
+    const { data, error } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'tts_provider')
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      logger.error('Error fetching tts_provider:', error);
+      return res.status(500).json({ success: false, message: 'Error fetching tts_provider' });
+    }
+    
+    const provider = data ? data.value : 'amazon'; // default: amazon
+    logger.info(`TTS provider requested: ${provider}`);
+    return res.json({ success: true, provider });
+  } catch (err) {
+    logger.error('Server error while fetching tts_provider:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Filtrelenmiş ses listesi endpointi (önce tanımlanmalı)
 router.get('/voices/filter', getFilteredVoices);
 

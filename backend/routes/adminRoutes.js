@@ -5,7 +5,15 @@ const adminController = require('../controllers/adminController');
 const planController = require('../controllers/planController');
 const { getTtsProviderSetting, setTtsProviderSetting } = require('../controllers/adminController');
 
-// All routes require authentication and admin authorization
+// TTS provider ayarını getir (both dash and underscore for compatibility)
+// These routes are defined BEFORE middleware to ensure they work
+router.get('/settings/tts-provider', authenticate, authorizeAdmin, getTtsProviderSetting);
+router.get('/settings/tts_provider', authenticate, authorizeAdmin, getTtsProviderSetting);
+// TTS provider ayarını güncelle
+router.post('/settings/tts-provider', authenticate, authorizeAdmin, setTtsProviderSetting);
+router.put('/settings/tts_provider', authenticate, authorizeAdmin, setTtsProviderSetting);
+
+// All other routes require authentication and admin authorization
 router.use(authenticate);
 router.use(authorizeAdmin);
 
@@ -42,11 +50,6 @@ router.delete('/content/:id', adminController.deleteContent);
 // Subscription management
 router.get('/subscriptions', adminController.getAllSubscriptions);
 router.put('/subscriptions/:id', adminController.updateSubscription);
-
-// TTS provider ayarını getir
-router.get('/settings/tts-provider', getTtsProviderSetting);
-// TTS provider ayarını güncelle
-router.post('/settings/tts-provider', setTtsProviderSetting);
 
 // Removed test-google-voices endpoint per request
 

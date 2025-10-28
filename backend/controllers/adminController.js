@@ -669,8 +669,8 @@ exports.getTtsProviderSetting = async (req, res) => {
 exports.setTtsProviderSetting = async (req, res) => {
   try {
     const { tts_provider } = req.body;
-    if (!['amazon', 'google'].includes(tts_provider)) {
-      return res.status(400).json({ success: false, message: 'Invalid tts_provider value' });
+    if (!['amazon', 'google', 'azure'].includes(tts_provider)) {
+      return res.status(400).json({ success: false, message: 'Invalid tts_provider value. Must be: amazon, google, or azure' });
     }
     // Upsert
     const { error } = await supabase

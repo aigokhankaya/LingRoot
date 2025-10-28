@@ -186,6 +186,7 @@ const CreateScreen: React.FC = () => {
   const [showVoiceSelection, setShowVoiceSelection] = useState<boolean>(false);
   const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || selectedVoiceCategory !== 'standard';
   const [shouldPromoteSelectedVoiceTop, setShouldPromoteSelectedVoiceTop] = useState<boolean>(false);
+  const [currentProvider, setCurrentProvider] = useState<string>('google'); // TTS provider
 
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
@@ -256,13 +257,10 @@ const CreateScreen: React.FC = () => {
     return category;
   };
 
-  // Voice categories - filtered by plan features
+  // Voice categories - Amazon Polly categories
   const voiceCategories: VoiceCategory[] = [
-    { value: 'standard', label: t('create.voice.categories.standard'), icon: 'volume-up', badge: t('create.voice.badge.free') },
-    { value: 'wavenet', label: t('create.voice.categories.wavenet'), icon: 'star', badge: t('create.voice.badge.premium') },
-    { value: 'neural2', label: t('create.voice.categories.neural2'), icon: 'psychology', badge: t('create.voice.badge.premium') },
-    { value: 'studio', label: t('create.voice.categories.studio'), icon: 'workspace-premium', badge: t('create.voice.badge.platinum') },
-    { value: 'chirp3d', label: t('create.voice.categories.chirp3d'), icon: 'diamond', badge: t('create.voice.badge.gold') },
+    { value: 'standard', label: 'Standard', icon: 'volume-up', badge: t('create.voice.badge.free') },
+    { value: 'neural', label: 'Neural', icon: 'star', badge: t('create.voice.badge.premium') },
   ].filter(category => {
     // Filter categories based on plan features
     if (!planFeatures?.voice_categories) return true; // Show all if features not loaded
@@ -270,10 +268,7 @@ const CreateScreen: React.FC = () => {
     const categories = planFeatures.voice_categories;
     switch (category.value) {
       case 'standard': return categories.standard !== false;
-      case 'wavenet': return categories.wavenet === true;
-      case 'neural2': return categories.neural2 === true;
-      case 'studio': return categories.studio === true;
-      case 'chirp3d': return categories.chirp3d === true;
+      case 'neural': return categories.wavenet === true || categories.neural2 === true; // Map Google categories to Polly Neural
       default: return true;
     }
   });
@@ -305,6 +300,26 @@ const CreateScreen: React.FC = () => {
       }
     };
     fetchPlanFeatures();
+  }, []);
+
+  // Fetch current TTS provider
+  useEffect(() => {
+    const fetchProvider = async () => {
+      try {
+        const response = await apiService.getTtsProvider();
+        if (response?.provider) {
+          console.log('🎙️ TTS Provider from admin settings:', response.provider);
+          setCurrentProvider(response.provider);
+          // Provider değiştiğinde ses listesini yenile
+          fetchAvailableVoices();
+        }
+      } catch (error) {
+        console.error('Error fetching TTS provider:', error);
+        // Default to amazon if error
+        setCurrentProvider('amazon');
+      }
+    };
+    fetchProvider();
   }, []);
 
   // Fetch available voices
@@ -1494,7 +1509,12 @@ const CreateScreen: React.FC = () => {
           <View style={styles.voiceModalBackdrop}>
             <View style={[styles.voiceModalContent, { maxHeight: '75%', width: '92%' }]}>
               <View style={styles.voiceModalHeader}>
-                <Text style={styles.voiceModalTitle}>{t('create.voice.modal.title')}</Text>
+                <View>
+                  <Text style={styles.voiceModalTitle}>{t('create.voice.modal.title')}</Text>
+                  <Text style={styles.providerBadge}>
+                    {currentProvider === 'polly' || currentProvider === 'amazon' ? '🎙️ Amazon Polly' : currentProvider === 'azure' ? '🔷 Azure TTS' : '☁️ Google TTS'}
+                  </Text>
+                </View>
                 <TouchableOpacity onPress={() => setShowVoiceSelection(false)}>
                   <Icon name="close" size={24} color="#666" />
                 </TouchableOpacity>
@@ -2105,6 +2125,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
+  },
+  providerBadge: {
+    fontSize: 12,
+    color: '#007AFF',
+    marginTop: 4,
+    fontWeight: '500',
   },
   voiceLoader: {
     paddingVertical: 40,

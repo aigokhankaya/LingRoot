@@ -82,7 +82,7 @@ export const authService = {
 
   async signUp(email: string, password: string, fullName?: string, phoneNumber?: string) {
     // Route signup through our backend to avoid direct Supabase Auth dependency on mobile
-    const apiBaseUrl = EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com';
+    const apiBaseUrl = 'http://192.168.1.4:5001';
     const [firstName, ...rest] = (fullName || '').trim().split(' ');
     const lastName = rest.join(' ') || 'User';
     

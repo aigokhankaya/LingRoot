@@ -54,7 +54,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const lastCorrectionTimeRef = useRef(0); // Last time we corrected
   const driftHistoryRef = useRef<number[]>([]); // Track drift over time
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set()); // Seçilen kelimeler
-  const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('sentence'); // Default cümle yapıldı
+  const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('word'); // Default kelime takibi
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
@@ -178,6 +178,41 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     };
   }, [visible, track.url, track.id]);
 
+  // Fast highlighting interval - 50ms for smooth word tracking
+  useEffect(() => {
+    if (isPlaying && sound && isLoaded) {
+      // Clear any existing interval
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+
+      // Start fast interval for word highlighting
+      intervalRef.current = setInterval(async () => {
+        try {
+          const status = await sound.getStatusAsync();
+          if ((status as any).isLoaded && (status as any).isPlaying) {
+            const currentTimeInSeconds = (status as any).positionMillis / 1000;
+            updateHighlighting(currentTimeInSeconds);
+          }
+        } catch (error) {
+          // Silent error handling
+        }
+      }, 50); // 50ms = 20 updates per second for smooth tracking
+
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+      };
+    } else {
+      // Clear interval when paused
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+  }, [isPlaying, sound, isLoaded]);
+
   const loadAudio = async () => {
     try {
       setIsLoading(true);
@@ -259,11 +294,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         }
       }
 
-      if (status.isPlaying) {
-        const currentTimeInSeconds = status.positionMillis / 1000;
-        // Pass the actual duration from status instead of relying on state
-        updateHighlighting(currentTimeInSeconds);
-      }
+      // Note: Highlighting is now handled by fast interval in useEffect
     }
   };
 
