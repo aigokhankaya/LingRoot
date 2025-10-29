@@ -50,10 +50,24 @@ export default function AudioPlayer({
 
       // Update highlighted word based on timepoints
       if (showWordHighlight && timepoints.length > 0) {
-        const wordIndex = timepoints.findIndex((tp, idx) => {
-          const nextTp = timepoints[idx + 1];
-          return time >= tp.timeSeconds && (!nextTp || time < nextTp.timeSeconds);
-        });
+        let wordIndex = -1;
+        
+        // Always search through ALL timepoints to never miss any word
+        for (let i = 0; i < timepoints.length; i++) {
+          const tp = timepoints[i];
+          const nextTp = timepoints[i + 1];
+          
+          // Check if we're in this word's time range
+          if (time >= tp.timeSeconds) {
+            if (!nextTp || time < nextTp.timeSeconds) {
+              // Perfect match - we're exactly in this word's range
+              wordIndex = i;
+              break;
+            }
+            // This word has passed, but keep it as the latest word we've seen
+            wordIndex = i;
+          }
+        }
 
         if (wordIndex !== -1 && wordIndex !== currentWordIndex) {
           setCurrentWordIndex(wordIndex);

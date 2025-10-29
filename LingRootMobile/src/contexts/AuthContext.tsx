@@ -230,7 +230,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       // Web uygulaması gibi backend API'sini kullan
-      const API_BASE_URL = 'http://192.168.1.4:5001';
+      const API_BASE_URL = 'https://lingloops-backend.onrender.com';
       
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
@@ -342,7 +342,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Social authentication handler
   const handleSocialAuth = async (socialResult: SocialAuthResult) => {
-    const API_BASE_URL = 'http://192.168.1.4:5001';
+    const API_BASE_URL = 'https://lingloops-backend.onrender.com';
     
     // Determine endpoint based on provider
     const endpoint = socialResult.provider === 'google' 

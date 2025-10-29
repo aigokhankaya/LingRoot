@@ -184,7 +184,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         } catch (error) {
           // Silent error handling
         }
-      }, 50); // 50ms = 20 updates per second for smooth tracking
+      }, 20); // 20ms = 50 updates per second - balanced speed for smooth tracking
 
       return () => {
         if (intervalRef.current) {
@@ -303,19 +303,29 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   };
 
   const updateWordHighlighting = useCallback((currentTime: number) => {
-    let newWordIndex = -1;
+    if (timepoints.length === 0) return;
 
-    if (timepoints.length > 0) {
-      // Simple approach like web - find word based on time range
-      newWordIndex = timepoints.findIndex((tp, idx) => {
-        const nextTp = timepoints[idx + 1];
-        return currentTime >= tp.timeSeconds && (!nextTp || currentTime < nextTp.timeSeconds);
-      });
-    } else {
-      // Skip highlighting if no timepoints data
-      return;
+    // Always search through ALL timepoints to never miss any word
+    let newWordIndex = -1;
+    
+    // Find the word whose time range contains currentTime
+    for (let i = 0; i < timepoints.length; i++) {
+      const tp = timepoints[i];
+      const nextTp = timepoints[i + 1];
+      
+      // Check if we're in this word's time range
+      if (currentTime >= tp.timeSeconds) {
+        if (!nextTp || currentTime < nextTp.timeSeconds) {
+          // Perfect match - we're exactly in this word's range
+          newWordIndex = i;
+          break;
+        }
+        // This word has passed, but keep it as the latest word we've seen
+        newWordIndex = i;
+      }
     }
 
+    // Always update if we found a different word
     if (newWordIndex !== -1 && newWordIndex !== currentWordIndex) {
       setCurrentWordIndex(newWordIndex);
       scrollToWord(newWordIndex);
