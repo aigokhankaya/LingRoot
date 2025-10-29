@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { uploadPodcast } = require('../controllers/podcastController');
-const { authenticate } = require('../middleware/authenticate');
+const { authenticate } = require('../middleware/auth');
 
 /**
  * POST /api/podcast/upload

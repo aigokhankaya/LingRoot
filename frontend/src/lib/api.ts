@@ -1095,17 +1095,11 @@ export const getUserStats = async (): Promise<UserStats | null> => {
 };
 
 // Podcast API Types
+// n8n webhook expects: { topic, level, duration }
 export interface PodcastCreationParams {
   topic: string;
   level: string;
   duration: number;
-  styleType?: string;
-  voiceChoice?: string;
-  conversationStyle?: string;
-  personalityA?: string;
-  personalityB?: string;
-  includeHumor?: boolean;
-  includeFiller?: boolean;
 }
 
 export interface PodcastCreationResponse {
@@ -1157,7 +1151,7 @@ export const createPodcast = async (params: PodcastCreationParams): Promise<Podc
       console.warn('🔧 [PODCAST] Could not load service config, using fallback');
       // Fallback to default configuration
       serviceConfig = {
-        api_url: 'https://localhost50005.app.n8n.cloud/webhook/create-podcast',
+        api_url: 'https://lgpodcast1.app.n8n.cloud/webhook/create-podcast',
         api_token: 'mK8vXp2Rq9Yw3Tz5Hn7Js4'
       };
     }
@@ -1193,13 +1187,24 @@ export const createPodcast = async (params: PodcastCreationParams): Promise<Podc
       throw new Error(errorData.message || `Podcast oluşturma başarısız: ${response.status}`);
     }
     
-    const result = await response.json();
+    // Some webhooks may return empty body or non-JSON (e.g., misconfigured n8n). Be defensive.
+    const rawBody = await response.text();
+    if (!rawBody || rawBody.trim().length === 0) {
+      throw new Error('Podcast service returned empty response body (HTTP 200). Check n8n Respond to Webhook node and use the PRODUCTION webhook URL.');
+    }
+    let result: any;
+    try {
+      result = JSON.parse(rawBody);
+    } catch (e) {
+      console.error('🎙️ [PODCAST] Non-JSON response received:', rawBody?.slice(0, 500));
+      throw new Error('Podcast service returned non-JSON response. Ensure last node returns JSON and webhook uses production URL.');
+    }
     console.log('🎙️ [PODCAST] Success response:', result);
     
     // Parse n8n response format
-    // n8n returns: { status: "success", message: "...", data: { audio: { drive_link OR public_url, file_name, duration_seconds }, subtitles: { srt, vtt } } }
-    if (result.status === 'success' && result.data?.audio) {
-      let audioUrl = result.data.audio.public_url || result.data.audio.drive_link;
+    // New n8n workflow returns: { audioUrl, subtitlesUrl, duration, level, topic, createdAt, costs }
+    if (result.audioUrl) {
+      let audioUrl = result.audioUrl;
       
       // If it's a Google Drive link, convert to direct download URL
       if (audioUrl && audioUrl.includes('drive.google.com')) {
@@ -1212,7 +1217,49 @@ export const createPodcast = async (params: PodcastCreationParams): Promise<Podc
           console.log('🎙️ [PODCAST] Converted Drive link to direct URL:', audioUrl);
         }
       } else if (audioUrl) {
-        console.log('🎙️ [PODCAST] Using direct URL from backend (Supabase):', audioUrl);
+        console.log('🎙️ [PODCAST] Using direct URL from n8n (Supabase):', audioUrl);
+      }
+      
+      return {
+        success: true,
+        status: 'success',
+        message: `Podcast created: ${result.topic || 'Unknown topic'}`,
+        podcast_url: audioUrl,
+        audio_url: audioUrl,
+        vtt_subtitles: result.subtitlesUrl || '',
+        srt_subtitles: '',
+        duration_seconds: result.duration || '',
+        file_name: `${result.topic || 'podcast'}_${result.level || 'a1'}.mp3`,
+        transcript: result.topic || '',
+        data: {
+          audio: {
+            public_url: audioUrl,
+            duration_seconds: result.duration
+          },
+          subtitles: {
+            vtt: result.subtitlesUrl || ''
+          },
+          metadata: {
+            level: result.level,
+            topic: result.topic,
+            created_at: result.createdAt,
+            costs: result.costs
+          }
+        }
+      };
+    }
+    
+    // Fallback: Old format compatibility
+    // Old format: { status: "success", message: "...", data: { audio: { drive_link OR public_url }, subtitles: { srt, vtt } } }
+    if (result.status === 'success' && result.data?.audio) {
+      let audioUrl = result.data.audio.public_url || result.data.audio.drive_link;
+      
+      if (audioUrl && audioUrl.includes('drive.google.com')) {
+        const fileIdMatch = audioUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        const fileId = fileIdMatch ? fileIdMatch[1] : null;
+        if (fileId) {
+          audioUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+        }
       }
       
       return {

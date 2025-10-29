@@ -47,6 +47,9 @@ interface AudioResult {
   words?: string[];
   speaking_rate?: number;
   original_turkish?: string;
+  duration_seconds?: string;
+  file_name?: string;
+  topic?: string;
 }
 
 interface ContentHistoryItem {
@@ -351,18 +354,11 @@ const Welcome: React.FC = () => {
     setPodcastError(null);
     
     try {
-      // Yeni curl formatına göre güncellendi - turns parametresi kaldırıldı
+      // n8n webhook formatı: { topic, level, duration }
       const params: PodcastCreationParams = {
         topic: podcastTopic,
         level: englishLevel.toUpperCase(),
-        duration: podcastDuration,
-        styleType: podcastStyleType,
-        voiceChoice: podcastVoiceChoice,
-        conversationStyle: podcastStyleType,
-        personalityA: podcastPersonalityA,
-        personalityB: podcastPersonalityB,
-        includeHumor: podcastIncludeHumor,
-        includeFiller: podcastIncludeFiller
+        duration: podcastDuration
       };
       
       console.log('🎙️ [PODCAST] Creating podcast with params:', params);
@@ -370,25 +366,26 @@ const Welcome: React.FC = () => {
       
       if (result.success && result.podcast_url) {
         // Podcast başarıyla oluşturuldu
-        // VTT altyazılarını blob URL'ye çevir
-        let vttUrl = '';
-        if (result.vtt_subtitles) {
-          const vttBlob = new Blob([result.vtt_subtitles], { type: 'text/vtt' });
-          vttUrl = URL.createObjectURL(vttBlob);
-        }
+        // n8n'den gelen vtt_subtitles zaten Supabase URL'si
+        const vttUrl = result.vtt_subtitles || '';
+        const topic = result.data?.metadata?.topic || podcastTopic;
         
         setAudioResult({
-          message: result.transcript || result.message || podcastTopic,
+          message: result.transcript || result.message || topic,
           mp3_url: result.podcast_url,
           vtt_url: vttUrl,
           level: englishLevel,
           duration_seconds: result.duration_seconds,
-          file_name: result.file_name
+          file_name: result.file_name,
+          topic: topic
         });
         console.log('🎙️ [PODCAST] Podcast created successfully:', {
+          topic: topic,
           audio: result.podcast_url,
           vtt: vttUrl,
-          duration: result.duration_seconds
+          duration: result.duration_seconds,
+          level: englishLevel,
+          costs: result.data?.metadata?.costs
         });
       } else {
         throw new Error(result.message || 'Podcast oluşturulamadı');

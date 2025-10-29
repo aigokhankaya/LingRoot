@@ -3,6 +3,21 @@
 ## Overview
 Bu döküman, n8n workflow'unuzun podcast ses dosyasını ve altyazılarını Supabase'e yüklemek için backend API'sini nasıl kullanacağını açıklar.
 
+**⚠️ YENİ:** Supabase'e **direkt upload** için `N8N_SUPABASE_DIRECT_UPLOAD.md` dokümanına bakın.
+
+## İki Yöntem
+
+### Yöntem 1: Backend API Üzerinden (Bu Doküman)
+- n8n → Backend API → Supabase
+- Authentication kontrol
+- Database kayıt otomatik
+
+### Yöntem 2: Direkt Supabase Upload (Önerilen ⭐)
+- n8n → Supabase Storage (direkt)
+- Daha hızlı
+- Daha basit
+- Detay: `N8N_SUPABASE_DIRECT_UPLOAD.md`
+
 ## Endpoint
 ```
 POST /api/podcast/upload
