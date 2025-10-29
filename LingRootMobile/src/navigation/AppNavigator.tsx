@@ -30,6 +30,7 @@ import PackagesScreen from '../screens/PackagesScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 import ReminderSettingsScreen from '../screens/ReminderSettingsScreen';
+import TtsProviderSettingsScreen from '../screens/TtsProviderSettingsScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -334,6 +335,13 @@ const AppNavigator = () => {
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: language === 'tr' ? 'Hatırlatıcı Ayarları' : 'Reminder Settings',
+              }}
+            />
+            <Stack.Screen
+              name="TtsProviderSettings"
+              component={TtsProviderSettingsScreen}
+              options={{
+                headerShown: false,
               }}
             />
           </>

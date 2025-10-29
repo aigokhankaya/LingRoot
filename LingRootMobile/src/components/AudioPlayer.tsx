@@ -49,12 +49,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(-1);
   
-  // 🎯 Hybrid Approach - Drift Correction
-  const driftOffsetRef = useRef(0); // Accumulated drift offset
-  const lastCorrectionTimeRef = useRef(0); // Last time we corrected
-  const driftHistoryRef = useRef<number[]>([]); // Track drift over time
+  // Removed complex drift correction - using simple web-like approach
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set()); // Seçilen kelimeler
-  const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('sentence'); // Default cümle yapıldı
+  const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('word'); // Default kelime takibi
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
@@ -73,22 +70,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   useEffect(() => {
     setOriginalText(track.original_turkish || '');
     
-    // 🎯 Reset drift correction for new track
-    driftOffsetRef.current = 0;
-    lastCorrectionTimeRef.current = 0;
-    driftHistoryRef.current = [];
-    
     // Debug: Log track timing info
-    console.log('🎯 Drift correction reset for new track');
     console.log('📊 Track Info:', {
       id: track.id,
       timepoints: timepoints?.length || 0,
       words: words?.length || 0,
       duration: track.real_duration || track.duration,
-      estimatedDuration: track.estimated_duration,
-      driftCorrected: track.drift_corrected,
-      driftAmount: track.drift_amount,
-      driftPercentage: track.drift_percentage
     });
     
     if (timepoints && timepoints.length > 0) {
@@ -178,6 +165,41 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     };
   }, [visible, track.url, track.id]);
 
+  // Fast highlighting interval - 50ms for smooth word tracking
+  useEffect(() => {
+    if (isPlaying && sound && isLoaded) {
+      // Clear any existing interval
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+
+      // Start fast interval for word highlighting
+      intervalRef.current = setInterval(async () => {
+        try {
+          const status = await sound.getStatusAsync();
+          if ((status as any).isLoaded && (status as any).isPlaying) {
+            const currentTimeInSeconds = (status as any).positionMillis / 1000;
+            updateHighlighting(currentTimeInSeconds);
+          }
+        } catch (error) {
+          // Silent error handling
+        }
+      }, 20); // 20ms = 50 updates per second - balanced speed for smooth tracking
+
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+      };
+    } else {
+      // Clear interval when paused
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+  }, [isPlaying, sound, isLoaded]);
+
   const loadAudio = async () => {
     try {
       setIsLoading(true);
@@ -259,11 +281,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         }
       }
 
-      if (status.isPlaying) {
-        const currentTimeInSeconds = status.positionMillis / 1000;
-        // Pass the actual duration from status instead of relying on state
-        updateHighlighting(currentTimeInSeconds);
-      }
+      // Note: Highlighting is now handled by fast interval in useEffect
     }
   };
 
@@ -284,83 +302,35 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   };
 
-  // 🎯 Hybrid Approach - Calculate Drift
-  const calculateDrift = useCallback((currentTime: number, expectedIndex: number): number => {
-    if (expectedIndex < 0 || expectedIndex >= timepoints.length) return 0;
-    
-    const expectedTime = timepoints[expectedIndex].timeSeconds;
-    const drift = currentTime - expectedTime;
-    
-    // Add to drift history
-    driftHistoryRef.current.push(drift);
-    if (driftHistoryRef.current.length > 10) {
-      driftHistoryRef.current.shift(); // Keep last 10 samples
-    }
-    
-    // Calculate average drift
-    const avgDrift = driftHistoryRef.current.reduce((a, b) => a + b, 0) / driftHistoryRef.current.length;
-    
-    return avgDrift;
-  }, [timepoints]);
-
   const updateWordHighlighting = useCallback((currentTime: number) => {
-    let newWordIndex = -1;
+    if (timepoints.length === 0) return;
 
-    if (timepoints.length > 0) {
-      // 🎯 Hybrid Approach - Dynamic Drift Correction
-      const correctedTime = currentTime + driftOffsetRef.current;
+    // Always search through ALL timepoints to never miss any word
+    let newWordIndex = -1;
+    
+    // Find the word whose time range contains currentTime
+    for (let i = 0; i < timepoints.length; i++) {
+      const tp = timepoints[i];
+      const nextTp = timepoints[i + 1];
       
-      // Find the word that should be highlighted at the corrected time
-      for (let i = timepoints.length - 1; i >= 0; i--) {
-        const timepoint = timepoints[i];
-        
-        if (correctedTime >= timepoint.timeSeconds) {
-          // Check if this timepoint has ended
-          if (timepoint.endTimeSeconds && correctedTime <= timepoint.endTimeSeconds) {
-            newWordIndex = i;
-            
-            // Calculate drift and update offset every 2 seconds
-            const now = Date.now();
-            if (now - lastCorrectionTimeRef.current > 2000) {
-              const drift = calculateDrift(currentTime, i);
-              
-              console.log(`📊 Drift Analysis:`, {
-                currentTime: currentTime.toFixed(3),
-                expectedTime: timepoint.timeSeconds.toFixed(3),
-                drift: drift.toFixed(3),
-                currentOffset: driftOffsetRef.current.toFixed(3),
-                wordIndex: i,
-                word: timepoint.word || words[i]
-              });
-              
-              // Only apply correction if drift is significant (>100ms)
-              if (Math.abs(drift) > 0.1) {
-                driftOffsetRef.current = -drift;
-                console.log(`🎯 Drift corrected: ${drift.toFixed(3)}s, new offset: ${driftOffsetRef.current.toFixed(3)}s`);
-              } else {
-                console.log(`✅ Drift acceptable: ${drift.toFixed(3)}s (< 100ms)`);
-              }
-              
-              lastCorrectionTimeRef.current = now;
-            }
-            
-            break;
-          } else if (!timepoint.endTimeSeconds) {
-            newWordIndex = i;
-            break;
-          }
+      // Check if we're in this word's time range
+      if (currentTime >= tp.timeSeconds) {
+        if (!nextTp || currentTime < nextTp.timeSeconds) {
+          // Perfect match - we're exactly in this word's range
+          newWordIndex = i;
+          break;
         }
+        // This word has passed, but keep it as the latest word we've seen
+        newWordIndex = i;
       }
-    } else {
-      // Skip highlighting if no timepoints data
-      return;
     }
 
-    if (newWordIndex !== currentWordIndex && newWordIndex >= 0) {
+    // Always update if we found a different word
+    if (newWordIndex !== -1 && newWordIndex !== currentWordIndex) {
       setCurrentWordIndex(newWordIndex);
       scrollToWord(newWordIndex);
     }
-  }, [timepoints, duration, wordsArray, currentWordIndex]);
+  }, [timepoints, currentWordIndex]);
 
   const updateSentenceHighlighting = (currentTime: number) => {
     const totalDuration = durationRef.current / 1000;
