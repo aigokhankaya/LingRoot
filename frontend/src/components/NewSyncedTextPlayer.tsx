@@ -18,6 +18,7 @@ interface NewSyncedTextPlayerProps {
   showControls?: boolean;
   level?: string;
   originalTurkish?: string;
+  topic?: string;
   downloadUrls?: {
     mp3: string;
     vtt?: string;
@@ -45,6 +46,7 @@ export default function NewSyncedTextPlayer({
   showControls = true,
   level,
   originalTurkish,
+  topic,
   downloadUrls,
   stats
 }: NewSyncedTextPlayerProps) {
@@ -341,9 +343,14 @@ export default function NewSyncedTextPlayer({
         aria-label="Currently playing word"
       />
 
-      {/* Stats - Sadece Hız ve Seviye bilgisi kalacak */}
-      {(level || stats) && (
+      {/* Stats - Topic, Hız ve Seviye bilgisi */}
+      {(topic || level || stats) && (
         <div className="mb-4 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+          {topic && (
+            <div className="mb-2 text-base font-semibold text-gray-800">
+              🎙️ {topic}
+            </div>
+          )}
           <div className="flex justify-between">
             {level && <span>📈 Seviye: {level}</span>}
             {stats && stats.timepointsCount && <span>⏱️ Süre: {formatTime(duration)}</span>}

@@ -84,6 +84,23 @@ export default function AdminUserGeneralPage() {
   if (error) return <div className="text-red-600">Hata: {error}</div>;
   if (!user) return <div>Kullanıcı bulunamadı.</div>;
 
+  // Format dates for display
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return '-';
+    try {
+      return new Date(dateString).toLocaleDateString('tr-TR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return String(dateString);
+    }
+  };
+
+  // Get current subscription info
+  const currentSub = (user as any).currentSubscription;
+
   return (
     <div className="space-y-6">
       <div>
@@ -97,6 +114,45 @@ export default function AdminUserGeneralPage() {
           <Info label="Son Giriş" value={String(user.lastLogin || '-')} />
           {user.phoneNumber && <Info label="Telefon" value={user.phoneNumber} />}
         </div>
+      </div>
+
+      {/* Mevcut Paket Bilgisi */}
+      <div className="border-t pt-6">
+        <h2 className="text-lg font-semibold mb-4">Mevcut Paket</h2>
+        {currentSub ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs text-gray-500">Paket Adı</div>
+                <div className="text-sm font-medium text-gray-900">{currentSub.plantype || '-'}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Durum</div>
+                <div className="text-sm font-medium">
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    currentSub.status === 'active' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {currentSub.status === 'active' ? 'Aktif' : currentSub.status}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Başlangıç Tarihi</div>
+                <div className="text-sm font-medium text-gray-900">{formatDate(currentSub.start_date)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Bitiş Tarihi</div>
+                <div className="text-sm font-medium text-gray-900">{formatDate(currentSub.end_date)}</div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+            <p className="text-sm text-gray-600">Kullanıcının aktif bir paketi bulunmamaktadır.</p>
+          </div>
+        )}
       </div>
 
       {/* Paket Atama Bölümü */}
