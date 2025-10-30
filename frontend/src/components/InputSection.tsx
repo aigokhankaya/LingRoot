@@ -61,7 +61,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [topic, setTopic] = useState<string>('');
   const [youtubeLink, setYoutubeLink] = useState<string>('');
   const [webLink, setWebLink] = useState<string>('');
-  const [spotifyLink, setSpotifyLink] = useState<string>('');
+  const [podcastLink, setPodcastLink] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
   const [bookName, setBookName] = useState<string>('');
   const [bookChapter, setBookChapter] = useState<string>('');
@@ -499,7 +499,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         inputType === 'topic' ? topic :
         inputType === 'youtube' ? youtubeLink :
         inputType === 'weblink' ? webLink :
-        inputType === 'spotify' ? spotifyLink :
+        inputType === 'podcast' ? podcastLink :
         inputType === 'book' ? bookName :
         undefined,
       file: inputType === 'file' ? file || undefined : undefined,
@@ -746,13 +746,13 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               {planFeatures?.homepage_features?.podcast && (
                 <button
                   type="button"
-                  onClick={() => setInputType('spotify')}
-                  className={`icon-button group ${inputType === 'spotify' ? 'icon-button-selected' : 'icon-button-default'}`}
+                  onClick={() => setInputType('podcast')}
+                  className={`icon-button group ${inputType === 'podcast' ? 'icon-button-selected' : 'icon-button-default'}`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                   </svg>
-                  <span>{t('spotify')}</span>
+                  <span>{t('podcast')}</span>
                 </button>
               )}
 
@@ -960,10 +960,10 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               </div>
             )}
 
-            {inputType === 'spotify' && (
+            {inputType === 'podcast' && (
               <div className="space-y-2">
-                <label htmlFor="spotify-input" className="block text-sm font-semibold text-gray-700">
-                  {t('spotify_link')}
+                <label htmlFor="podcast-input" className="block text-sm font-semibold text-gray-700">
+                  {t('podcast_link')}
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -972,12 +972,12 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                     </svg>
                   </div>
                   <input
-                    id="spotify-input"
+                    id="podcast-input"
                     type="url"
-                    value={spotifyLink}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setSpotifyLink(e.target.value)}
+                    value={podcastLink}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setPodcastLink(e.target.value)}
                     className="input-field pl-10 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="https://open.spotify.com/track/... veya /episode/..."
+                    placeholder="https://open.spotify.com/episode/..."
                     required
                   />
                 </div>
