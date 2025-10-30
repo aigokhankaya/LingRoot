@@ -13,10 +13,10 @@ interface InputFormProps {
 }
 
 const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
-  const [inputType, setInputType] = useState<"text" | "youtube" | "spotify" | "file">("text");
+  const [inputType, setInputType] = useState<"text" | "youtube" | "podcast" | "file">("text");
   const [text, setText] = useState("");
   const [youtubeLink, setYoutubeLink] = useState("");
-  const [spotifyLink, setSpotifyLink] = useState("");
+  const [podcastLink, setPodcastLink] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [level, setLevel] = useState("A1");
   const [speakingRate, setSpeakingRate] = useState<number>(1.0);
@@ -36,12 +36,12 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
       level: level,
       SesHızı: speakingRate,
       text: inputType === "text" ? text : undefined,
-      input: inputType === "youtube" ? youtubeLink : (inputType === "spotify" ? spotifyLink : undefined),
+      input: inputType === "youtube" ? youtubeLink : (inputType === "podcast" ? podcastLink : undefined),
       file: inputType === "file" ? (file || undefined) : undefined,
     };
 
     if ((inputType === "text" && !data.text?.trim()) ||
-      ((inputType === "youtube" || inputType === "spotify") && !data.input?.trim()) ||
+      ((inputType === "youtube" || inputType === "podcast") && !data.input?.trim()) ||
       (inputType === "file" && !data.file)) {
       setIsError(true);
       setErrorMessage("Please provide the required input for the selected type.");
@@ -111,7 +111,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
           >
             <option value="text">Plain Text</option>
             <option value="youtube">YouTube Link</option>
-            <option value="spotify">Spotify Link</option>
+            <option value="podcast">Podcast Link</option>
             <option value="file">Upload File (PDF/Word)</option>
           </select>
         </div>
@@ -138,15 +138,15 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
             />
           </div>
         )}
-        {inputType === "spotify" && (
+        {inputType === "podcast" && (
           <div className="space-y-2">
-            <label className="block font-medium">Spotify Link</label>
+            <label className="block font-medium">Podcast Link</label>
             <input
               type="url"
               className="w-full border border-gray-300 rounded p-3"
-              value={spotifyLink}
-              onChange={(e) => setSpotifyLink(e.target.value)}
-              placeholder="https://open.spotify.com/track/..."
+              value={podcastLink}
+              onChange={(e) => setPodcastLink(e.target.value)}
+              placeholder="https://open.spotify.com/episode/..."
             />
           </div>
         )}
@@ -200,7 +200,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
         <button
           onClick={handleSubmit}
           className="bg-blue-600 text-white font-semibold py-3 px-6 rounded hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={isLoading || (inputType === 'file' && !file) || (inputType === 'text' && !text.trim()) || (inputType === 'youtube' && !youtubeLink.trim()) || (inputType === 'spotify' && !spotifyLink.trim())}
+          disabled={isLoading || (inputType === 'file' && !file) || (inputType === 'text' && !text.trim()) || (inputType === 'youtube' && !youtubeLink.trim()) || (inputType === 'podcast' && !podcastLink.trim())}
         >
           {isLoading ? "Preparing..." : "Generate Audio"}
         </button>
