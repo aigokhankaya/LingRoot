@@ -22,6 +22,8 @@ import { AudioTrack, Timepoint } from '../types';
 import { useAudioContext } from '../contexts/AudioContext';
 import { addWordToVocabulary, addWordWithTranslation, apiService } from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
+import { SkiaWordHighlight } from './SkiaWordHighlight';
+import { SkiaSentenceHighlight } from './SkiaSentenceHighlight';
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -608,7 +610,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (highlightMode === 'word') {
       return renderWordHighlighting;
     } else {
-      return renderSentenceHighlighting();
+      return renderSentenceHighlighting;
     }
   };
 
@@ -663,147 +665,44 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const renderWordHighlighting = useMemo(() => {
     return (
-      <View style={styles.textContainer}>
-        <View style={styles.wordsWrapper}>
-          {wordsArray.map((word, index) => {
-            const isHighlighted = index === currentWordIndex;
-            return (
-              <View
-                key={index}
-                ref={(ref) => {
-                  if (ref) {
-                    wordRefs.current.set(index, ref);
-                  }
-                }}
-                style={styles.wordWrapper}
-              >
-                <TouchableOpacity
-                  onPress={() => handleWordPress(index)}
-                  onLongPress={() => handleWordLongPress(word, index)}
-                  activeOpacity={0.7}
-                  style={[
-                    styles.wordTouchable,
-                    isHighlighted && styles.highlightedWordTouchable
-                  ]}
-                >
-                  <Text style={[
-                    styles.inlineWord,
-                    isHighlighted && styles.inlineHighlightedWord
-                  ]}>
-                    {word}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-        </View>
-      </View>
+      <SkiaWordHighlight
+        words={wordsArray}
+        currentWordIndex={currentWordIndex}
+        selectedWords={selectedWords}
+        fontSize={16}
+        lineHeight={24}
+        containerWidth={screenWidth - 32}
+        onWordPress={handleWordPress}
+        onWordLongPress={handleWordLongPress}
+        mode="word"
+      />
     );
-  }, [wordsArray, currentWordIndex, handleWordPress, handleWordLongPress]);
+  }, [wordsArray, currentWordIndex, selectedWords, handleWordPress, handleWordLongPress]);
 
-  const renderSentenceHighlighting = () => {
-    let lastTapTime = 0;
-    let lastSentenceIndex = -1;
-    let tapTimeout: NodeJS.Timeout;
+  const handleSentencePressCallback = useCallback((sentenceIndex: number, sentenceText: string) => {
+    const totalDuration = duration / 1000;
+    if (totalDuration > 0) {
+      const sentenceProgress = sentenceIndex / sentences.length;
+      const targetTime = sentenceProgress * totalDuration;
+      const positionMs = targetTime * 1000;
+      handleSeek(positionMs);
+    }
+  }, [duration, sentences.length, handleSeek]);
 
-    // Copy sentence to clipboard on double tap
-    const handleDoubleTap = (text: string) => {
-      Clipboard.setString(text);
-      Alert.alert(
-        language === 'tr' ? 'Kopyalandı' : 'Copied',
-        language === 'tr' ? 'Cümle panoya kopyalandı' : 'Sentence copied to clipboard'
-      );
-    };
-
-    // Cümleye tıklandığında o cümlenin başına atla
-    const handleSentencePress = (sentenceIndex: number, sentenceText: string) => {
-      const now = Date.now();
-      const DOUBLE_TAP_DELAY = 300;
-      
-      if (lastSentenceIndex === sentenceIndex && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
-        // Double tap detected
-        clearTimeout(tapTimeout);
-        handleDoubleTap(sentenceText);
-        lastTapTime = 0;
-        lastSentenceIndex = -1;
-      } else {
-        // Single tap - handle seek
-        lastTapTime = now;
-        lastSentenceIndex = sentenceIndex;
-        tapTimeout = setTimeout(() => {
-          const totalDuration = duration / 1000;
-          if (totalDuration > 0) {
-            const sentenceProgress = sentenceIndex / sentences.length;
-            const targetTime = sentenceProgress * totalDuration;
-            const positionMs = targetTime * 1000;
-            handleSeek(positionMs);
-          }
-          lastTapTime = 0;
-          lastSentenceIndex = -1;
-        }, DOUBLE_TAP_DELAY);
-      }
-    };
+  const renderSentenceHighlighting = useMemo(() => {
     return (
-      <View style={styles.textContainer}>
-        {sentences.map((sentence, sentenceIndex) => {
-          const isHighlighted = sentenceIndex === currentSentenceIndex;
-          const words = sentence.split(/\s+/).filter(word => word.length > 0);
-          const isCurrentSentence = sentenceIndex === currentSentenceIndex;
-
-          return (
-            <TouchableOpacity
-              key={sentenceIndex}
-              style={[
-                styles.sentenceContainer,
-                isCurrentSentence && styles.highlightedSentence
-              ]}
-              onPress={() => handleSentencePress(sentenceIndex, sentence)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.sentenceWordsContainer}>
-                {words.map((word, wordIndex) => {
-                  const cleanWord = word.replace(/[.,!?;:]/g, '').toLowerCase();
-                  const isWordSelected = selectedWords.has(cleanWord);
-                  
-                  return (
-                    <TouchableOpacity
-                      key={`${sentenceIndex}-${wordIndex}`}
-                      style={[
-                        styles.wordInSentence,
-                        isWordSelected && styles.selectedWord
-                      ]}
-                      onLongPress={() => handleWordLongPress(word, wordIndex)}
-                      delayLongPress={500}
-                      activeOpacity={0.8}
-                    >
-                      <Text
-                        style={[
-                          styles.sentence,
-                          isCurrentSentence && styles.highlightedSentenceText,
-                          isWordSelected && styles.selectedWordText
-                        ]}
-                      >
-                        {word}{wordIndex < words.length - 1 ? ' ' : ''}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-                <Text
-                  style={[
-                    styles.sentence,
-                    isCurrentSentence && styles.highlightedSentenceText
-                  ]}
-                >
-                  .
-                </Text>
-              </View>
-              {/* Cümle numarası göstergesi kaldırıldı */}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      <SkiaSentenceHighlight
+        sentences={sentences}
+        currentSentenceIndex={currentSentenceIndex}
+        selectedWords={selectedWords}
+        fontSize={16}
+        lineHeight={20}
+        containerWidth={screenWidth - 32}
+        onSentencePress={handleSentencePressCallback}
+        onWordLongPress={handleWordLongPress}
+      />
     );
-  };
+  }, [sentences, currentSentenceIndex, selectedWords, handleSentencePressCallback, handleWordLongPress]);
 
   const progressPercentage = duration > 0 ? (position / duration) * 100 : 0;
 
