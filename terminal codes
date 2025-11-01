@@ -24,6 +24,25 @@ git diff --name-status origin/main...HEAD
 Takipsizleri listele:
 git ls-files --others --exclude-standard
 
+#  Githubda yetki sorunu için:
+Listeler:
+cmdkey /list | Select-String "github"
+Siler:
+cmdkey /delete:LegacyGeneric:target=git:https://siteaiwebsite@github.com
+
+## ios-release deki kodları direk main e aktarır. Ezer.
+# 1. Main branch'ine geç
+git checkout main
+
+# 2. Main'i ios-release ile tamamen değiştir (hard reset)
+git reset --hard ios-release
+
+# 3. Force push ile remote main'i güncelle
+git push origin main --force
+
+
+#Mevcut branch:
+git branch --show-current
 
 
 npx react-native start --reset-cache
@@ -73,22 +92,6 @@ cd F:\Main\LingRootMobile\android
 
 # AAB konumu: F:\Main\LingRootMobile\android\app\build\outputs\bundle\release\app-release.aab
 
-
-#  Githubda yetki sorunu için:
-Listeler:
-cmdkey /list | Select-String "github"
-Siler:
-cmdkey /delete:LegacyGeneric:target=git:https://siteaiwebsite@github.com
-
-## ios-release deki kodları direk main e aktarır. Ezer.
-# 1. Main branch'ine geç
-git checkout main
-
-# 2. Main'i ios-release ile tamamen değiştir (hard reset)
-git reset --hard ios-release
-
-# 3. Force push ile remote main'i güncelle
-git push origin main --force
 
 
 #SHA-1

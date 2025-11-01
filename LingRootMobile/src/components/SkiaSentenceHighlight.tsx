@@ -5,6 +5,7 @@ import {
   Paragraph,
   RoundedRect,
   BlurMask,
+  useFont,
 } from '@shopify/react-native-skia';
 import {
   View,
@@ -56,58 +57,88 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
     currentSentenceShared.value = currentSentenceIndex;
   }, [currentSentenceIndex]);
 
+  // Load Roboto Serif font
+  const font = useFont(require('../../assets/fonts/Roboto/static/Roboto-Regular.ttf'));
+
   // STEP 1: Create Paragraph with all sentences
   const paragraph = useMemo(() => {
-    const textContent = sentences.join('.   ') + '.'; // Triple space after period
+    // Wait for font to load
+    if (!font) {
+      return null;
+    }
     
-    const paragraphStyle = {
+    const textContent = sentences.join('.   ') + '.'; // 3 spaces after period
+    
+    // Combine all styles for Make() - Use strutStyle for guaranteed line height
+    const heightMult = lineHeight / fontSize;
+    console.log(`🔧 [Sentence] lineHeight: ${lineHeight}, fontSize: ${fontSize}, heightMultiplier: ${heightMult}`);
+    
+    const combinedStyle = {
       textAlign: 0,
-      heightMultiplier: 1.4, // +40% line height for more spacing
+      strutStyle: {
+        strutEnabled: true,
+        fontSize: fontSize,
+        heightMultiplier: heightMult,
+        forceStrutHeight: true, // Force this height
+      },
+      textStyle: {
+        color: Skia.Color('#333333'),
+        fontSize: fontSize,
+        font: font,
+      },
     };
     
-    const textStyle = {
-      color: Skia.Color('#333333'),
-      fontSize: fontSize,
-      // NO letterSpacing - keeps letters normal
-    };
-    
-    const builder = Skia.ParagraphBuilder.Make(paragraphStyle);
-    builder.pushStyle(textStyle);
+    const builder = Skia.ParagraphBuilder.Make(combinedStyle);
     builder.addText(textContent);
-    builder.pop();
     
     const para = builder.build();
     para.layout(containerWidth);
+    console.log(`✅ [Sentence Paragraph] heightMultiplier: ${heightMult} | TOTAL HEIGHT: ${para.getHeight()}px`);
     
     return para;
-  }, [sentences, fontSize, containerWidth]);
+  }, [sentences, fontSize, containerWidth, font, lineHeight]);
   
   // Create white paragraph for highlighted sentence
   const whiteParagraph = useMemo(() => {
-    const textContent = sentences.join('.   ') + '.';
+    // Wait for font to load
+    if (!font) {
+      return null;
+    }
     
-    const paragraphStyle = {
+    const textContent = sentences.join('.   ') + '.'; // 3 spaces
+    
+    // Combine all styles for Make() - Use strutStyle for guaranteed line height
+    const heightMult = lineHeight / fontSize;
+    
+    const combinedStyle = {
       textAlign: 0,
-      heightMultiplier: 1.4,
+      strutStyle: {
+        strutEnabled: true,
+        fontSize: fontSize,
+        heightMultiplier: heightMult,
+        forceStrutHeight: true, // Force this height
+      },
+      textStyle: {
+        color: Skia.Color('#FFFFFF'), // White color
+        fontSize: fontSize,
+        font: font,
+      },
     };
     
-    const textStyle = {
-      color: Skia.Color('#FFFFFF'), // White color
-      fontSize: fontSize,
-    };
-    
-    const builder = Skia.ParagraphBuilder.Make(paragraphStyle);
-    builder.pushStyle(textStyle);
+    const builder = Skia.ParagraphBuilder.Make(combinedStyle);
     builder.addText(textContent);
-    builder.pop();
     
     const para = builder.build();
     para.layout(containerWidth);
+    console.log(`[White Sentence] L: ${lineHeight} F: ${fontSize} | H: ${para.getHeight()}`);
     
     return para;
-  }, [sentences, fontSize, containerWidth]);
+  }, [sentences, fontSize, containerWidth, font, lineHeight]);
   
   // STEP 2: Calculate Sentence Boundaries SYNCHRONOUSLY
+  // Horizontal offset for padding
+  const PARAGRAPH_OFFSET_X = 6;
+  
   const sentenceBoundaries = useMemo(() => {
     if (!paragraph) return [];
     
@@ -128,15 +159,15 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
         boundaries.push({
           startChar: startIndex,
           endChar: endIndex,
-          x: firstRect.x,
+          x: firstRect.x + PARAGRAPH_OFFSET_X, // Add offset
           y: firstRect.y,
-          width: containerWidth - firstRect.x,
+          width: containerWidth - firstRect.x - PARAGRAPH_OFFSET_X,
           height: lastRect.y + lastRect.height - firstRect.y,
           index,
         });
       }
       
-      charIndex = endIndex + 4; // +4 for '.   ' (period + triple space)
+      charIndex = endIndex + 4; // +4 for '.   ' (period + 3 spaces)
     });
     
     return boundaries;
@@ -174,26 +205,35 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
             
             if (!isHighlighted) return null;
             
+            // Add horizontal padding (6px left, 6px right for sentences)
+            const paddingX = 6;
+            const paddingY = 4;
+            
+            // Calculate position and width, ensuring we don't go negative
+            const rectX = Math.max(0, boundary.x - paddingX);
+            const leftPaddingUsed = boundary.x - rectX; // Actual padding used on left
+            const rectWidth = boundary.width + leftPaddingUsed + paddingX; // Add left padding used + right padding
+            
             return (
               <React.Fragment key={idx}>
                 {/* Glow effect */}
                 <RoundedRect
-                  x={Math.max(0, boundary.x - 4)} // Don't go below 0
-                  y={boundary.y - 2}
-                  width={boundary.x < 4 ? boundary.width + boundary.x + 4 : boundary.width + 8} // Adjust width if at edge
-                  height={boundary.height + 4}
-                  r={6}
+                  x={rectX}
+                  y={boundary.y - paddingY}
+                  width={rectWidth}
+                  height={boundary.height + (paddingY * 2)}
+                  r={8}
                   color="rgba(0, 122, 255, 0.3)"
                 >
-                  <BlurMask blur={6} style="normal" />
+                  <BlurMask blur={8} style="normal" />
                 </RoundedRect>
                 {/* Main background */}
                 <RoundedRect
-                  x={Math.max(0, boundary.x - 4)} // Don't go below 0
-                  y={boundary.y - 2}
-                  width={boundary.x < 4 ? boundary.width + boundary.x + 4 : boundary.width + 8} // Adjust width if at edge
-                  height={boundary.height + 4}
-                  r={6}
+                  x={rectX}
+                  y={boundary.y - paddingY}
+                  width={rectWidth}
+                  height={boundary.height + (paddingY * 2)}
+                  r={8}
                   color="rgba(0, 122, 255, 0.25)"
                 />
               </React.Fragment>
@@ -204,7 +244,7 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
           {paragraph && (
             <Paragraph
               paragraph={paragraph}
-              x={0}
+              x={PARAGRAPH_OFFSET_X}
               y={0}
               width={containerWidth}
             />
@@ -214,14 +254,14 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
           {currentSentenceIndex >= 0 && currentSentenceIndex < sentenceBoundaries.length && whiteParagraph && (
             <Paragraph
               paragraph={whiteParagraph}
-              x={0}
+              x={PARAGRAPH_OFFSET_X}
               y={0}
               width={containerWidth}
               clip={{
-                x: Math.max(0, sentenceBoundaries[currentSentenceIndex].x - 4),
-                y: sentenceBoundaries[currentSentenceIndex].y - 2,
-                width: sentenceBoundaries[currentSentenceIndex].width + 8,
-                height: sentenceBoundaries[currentSentenceIndex].height + 4,
+                x: Math.max(0, sentenceBoundaries[currentSentenceIndex].x - 8),
+                y: sentenceBoundaries[currentSentenceIndex].y - 4,
+                width: sentenceBoundaries[currentSentenceIndex].width + 16,
+                height: sentenceBoundaries[currentSentenceIndex].height + 8,
               }}
             />
           )}

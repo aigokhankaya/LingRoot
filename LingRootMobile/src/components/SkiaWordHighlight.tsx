@@ -4,6 +4,7 @@ import {
   Skia,
   Paragraph,
   RoundedRect,
+  useFont,
 } from '@shopify/react-native-skia';
 import {
   View,
@@ -41,7 +42,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   currentWordIndex,
   selectedWords,
   fontSize = 16,
-  lineHeight = 24,
+  lineHeight = 150,
   containerWidth = SCREEN_WIDTH - 32,
   onWordPress,
   onWordLongPress,
@@ -56,59 +57,89 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     currentWordShared.value = currentWordIndex;
   }, [currentWordIndex]);
 
+  // Load Roboto Serif font
+  const font = useFont(require('../../assets/fonts/Roboto/static/Roboto-Regular.ttf'));
+
   // STEP 1: Create Paragraph with Skia (ONE-TIME, SYNCHRONOUS)
   const paragraph = useMemo(() => {
+    // Wait for font to load
+    if (!font) {
+      return null;
+    }
+    
     // Add extra spaces between words ONLY (not between letters)
-    const textContent = words.join('   '); // Triple space for word spacing
+    const textContent = words.join('   '); // 3 spaces for word spacing
     
-    const paragraphStyle = {
-      textAlign: 0, // left
-      heightMultiplier: 1.4, // +40% line height for more spacing
+    // Combine all styles for Make() - Use strutStyle for guaranteed line height
+    const heightMult = lineHeight / fontSize;
+    console.log(`🔧 [Word] lineHeight: ${lineHeight}, fontSize: ${fontSize}, heightMultiplier: ${heightMult}`);
+    
+    const combinedStyle = {
+      textAlign: 0,
+      strutStyle: {
+        strutEnabled: true,
+        fontSize: fontSize,
+        heightMultiplier: heightMult,
+        forceStrutHeight: true, // Force this height
+      },
+      textStyle: {
+        color: Skia.Color('#333333'),
+        fontSize: fontSize,
+        font: font,
+      },
     };
     
-    const textStyle = {
-      color: Skia.Color('#333333'),
-      fontSize: fontSize,
-      // NO letterSpacing - keeps letters normal
-    };
-    
-    const builder = Skia.ParagraphBuilder.Make(paragraphStyle);
-    builder.pushStyle(textStyle);
+    const builder = Skia.ParagraphBuilder.Make(combinedStyle);
     builder.addText(textContent);
-    builder.pop();
     
     const para = builder.build();
     para.layout(containerWidth);
-    
+    console.log(`✅ [Word Paragraph] heightMultiplier: ${heightMult} | TOTAL HEIGHT: ${para.getHeight()}px`);
     return para;
-  }, [words, fontSize, containerWidth]);
+  }, [words, fontSize, containerWidth, font,lineHeight]);
   
   // Create white paragraph for highlighted word
   const whiteParagraph = useMemo(() => {
-    const textContent = words.join('   ');
+    // Wait for font to load
+    if (!font) {
+      return null;
+    }
     
-    const paragraphStyle = {
+    const textContent = words.join('   '); // 3 spaces
+    
+    // Combine all styles for Make() - Use strutStyle for guaranteed line height
+    const heightMult = lineHeight / fontSize;
+    
+    const combinedStyle = {
       textAlign: 0,
-      heightMultiplier: 1.4,
+      strutStyle: {
+        strutEnabled: true,
+        fontSize: fontSize,
+        heightMultiplier: heightMult,
+        forceStrutHeight: true, // Force this height
+      },
+      textStyle: {
+        color: Skia.Color('#FFFFFF'), // White color
+        fontSize: fontSize,
+        font: font,
+      },
     };
     
-    const textStyle = {
-      color: Skia.Color('#FFFFFF'), // White color
-      fontSize: fontSize,
-    };
-    
-    const builder = Skia.ParagraphBuilder.Make(paragraphStyle);
-    builder.pushStyle(textStyle);
+    const builder = Skia.ParagraphBuilder.Make(combinedStyle);
     builder.addText(textContent);
-    builder.pop();
     
     const para = builder.build();
     para.layout(containerWidth);
+    console.log(`lineHeight: ${lineHeight} | PARAGRAPH HEIGHT: ${para.getHeight()}`);
+    console.log(`[Paragraph] L: ${lineHeight} F: ${fontSize} | H: ${para.getHeight()}`);
     
     return para;
-  }, [words, fontSize, containerWidth]);
+  }, [words, fontSize, containerWidth, font,lineHeight]);
   
   // STEP 2: Calculate Word Boundaries SYNCHRONOUSLY (NO ASYNC!)
+  // Horizontal offset for padding
+  const PARAGRAPH_OFFSET_X = 6;
+  
   const wordBoundaries = useMemo(() => {
     if (!paragraph) return [];
     
@@ -124,8 +155,14 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
       
       if (rects.length > 0) {
         const rect = rects[0];
+        
+        // Debug: Log rect values for specific words
+        if (word.toLowerCase().includes('civil')) {
+          console.log(`[RECT DEBUG] Word: "${word}", x: ${rect.x}, width: ${rect.width}`);
+        }
+        
         boundaries.push({
-          x: rect.x,
+          x: rect.x + PARAGRAPH_OFFSET_X, // Add offset
           y: rect.y,
           width: rect.width,
           height: rect.height,
@@ -133,7 +170,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
         });
       }
       
-      charIndex = endIndex + 3; // +3 for triple space
+      charIndex = endIndex + 3; // +3 for 3 spaces
     });
     
     return boundaries;
@@ -199,14 +236,28 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
             
             const color = isHighlighted ? '#007AFF' : '#FFD700';
             
+            // Add horizontal padding (6px left, 6px right)
+            const paddingX = 6;
+            const paddingY = 3;
+            
+            // Calculate position and width, ensuring we don't go negative
+            const rectX = Math.max(0, boundary.x - paddingX);
+            const leftPaddingUsed = boundary.x - rectX; // Actual padding used on left
+            const rectWidth = boundary.width + leftPaddingUsed + paddingX; // Add left padding used + right padding
+            
+            // Debug first word
+            if (idx === 0) {
+              console.log(`[Word ${idx}] boundary.x: ${boundary.x}, rectX: ${rectX}, leftPadding: ${leftPaddingUsed}, width: ${boundary.width}, rectWidth: ${rectWidth}`);
+            }
+            
             return (
               <RoundedRect
                 key={idx}
-                x={Math.max(0, boundary.x - 2)} // Don't go below 0
-                y={boundary.y - 1}
-                width={boundary.x < 2 ? boundary.width + boundary.x : boundary.width + 4} // Adjust width if at edge
-                height={boundary.height + 2}
-                r={4}
+                x={rectX}
+                y={boundary.y - paddingY}
+                width={rectWidth}
+                height={boundary.height + (paddingY * 2)}
+                r={6}
                 color={color}
               />
             );
@@ -216,7 +267,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
           {paragraph && (
             <Paragraph
               paragraph={paragraph}
-              x={0}
+              x={PARAGRAPH_OFFSET_X}
               y={0}
               width={containerWidth}
             />
@@ -226,7 +277,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
           {currentWordIndex >= 0 && currentWordIndex < wordBoundaries.length && whiteParagraph && (
             <Paragraph
               paragraph={whiteParagraph}
-              x={0}
+              x={PARAGRAPH_OFFSET_X}
               y={0}
               width={containerWidth}
               clip={{
