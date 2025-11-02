@@ -262,22 +262,30 @@ async function listPollyVoices(languageCode = 'en-US') {
   try {
     logger.info(`Fetching Amazon Polly voices for language: ${languageCode}`);
     
+    // Fetch all voices (both standard and neural)
     const command = new DescribeVoicesCommand({ 
-      LanguageCode: languageCode,
-      Engine: 'neural' // Only get neural voices
+      LanguageCode: languageCode
+      // No Engine parameter - get all engines
     });
     
     const response = await polly.send(command);
-    const voices = (response.Voices || []).map(voice => ({
-      name: voice.Id,
-      displayName: voice.Name,
-      languageCode: voice.LanguageCode,
-      languageName: voice.LanguageName,
-      gender: voice.Gender,
-      engine: 'neural', // Add engine field for mobile app categorization
-      supportedEngines: voice.SupportedEngines || [],
-      additionalLanguageCodes: voice.AdditionalLanguageCodes || []
-    }));
+    const voices = (response.Voices || []).map(voice => {
+      // Determine primary engine based on supported engines
+      // Prefer neural if available, otherwise use standard
+      const supportedEngines = voice.SupportedEngines || [];
+      const primaryEngine = supportedEngines.includes('neural') ? 'neural' : 'standard';
+      
+      return {
+        name: voice.Id,
+        displayName: voice.Name,
+        languageCode: voice.LanguageCode,
+        languageName: voice.LanguageName,
+        gender: voice.Gender,
+        engine: primaryEngine, // Set based on supported engines
+        supportedEngines: supportedEngines,
+        additionalLanguageCodes: voice.AdditionalLanguageCodes || []
+      };
+    });
 
     // Sort by Gender then Name for better UX
     voices.sort((a, b) => {
