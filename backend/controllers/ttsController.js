@@ -1748,9 +1748,11 @@ const translateToEnglish = async (req, res) => {
       let allVoicesResponse;
       let allVoices;
       
+      let actualProvider = 'google'; // default fallback
       try {
         allVoicesResponse = await listVoices(mockReq, mockRes);
         allVoices = allVoicesResponse.voices;
+        actualProvider = allVoicesResponse.provider || 'google'; // Get actual provider
       } catch (voiceError) {
         logger.error(`Error fetching voices from Google API: ${voiceError.message}`);
         
@@ -2027,7 +2029,7 @@ const translateToEnglish = async (req, res) => {
       }
       
       return res.json({ 
-        provider: 'google', 
+        provider: actualProvider, // Use actual provider from listVoices
         voices: filteredVoices,
         filters: { accent, emotion, gender, category },
         totalCount: allVoices.length,
