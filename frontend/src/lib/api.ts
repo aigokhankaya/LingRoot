@@ -1220,6 +1220,49 @@ export const createPodcast = async (params: PodcastCreationParams): Promise<Podc
         console.log('🎙️ [PODCAST] Using direct URL from n8n (Supabase):', audioUrl);
       }
       
+      // Save to contenthistory via backend
+      try {
+        console.log('💾 [PODCAST] Saving to contenthistory...');
+        
+        // Download VTT content to send to backend
+        let vttContent = '';
+        if (result.subtitlesUrl) {
+          try {
+            console.log('📥 [PODCAST] Downloading VTT content from:', result.subtitlesUrl);
+            const vttResponse = await fetch(result.subtitlesUrl);
+            if (vttResponse.ok) {
+              vttContent = await vttResponse.text();
+              console.log('✅ [PODCAST] VTT content downloaded, length:', vttContent.length);
+            } else {
+              console.warn('⚠️ [PODCAST] VTT download failed:', vttResponse.status);
+            }
+          } catch (vttError) {
+            console.warn('⚠️ [PODCAST] Failed to download VTT:', vttError);
+          }
+        }
+        
+        const saveResponse = await api.post('/api/podcast/upload', {
+          audio_url: audioUrl,
+          vtt_url: result.subtitlesUrl || '',
+          subtitles: {
+            vtt: vttContent,
+            srt: ''
+          },
+          metadata: {
+            topic: result.topic,
+            level: result.level,
+            duration_seconds: result.duration,
+            speaking_rate: 1.0
+          }
+        });
+        console.log('✅ [PODCAST] Saved to contenthistory:', saveResponse.data);
+      } catch (saveError: any) {
+        console.error('⚠️ [PODCAST] Failed to save to contenthistory:', saveError);
+        console.error('⚠️ [PODCAST] Error response:', saveError.response?.data);
+        console.error('⚠️ [PODCAST] Error status:', saveError.response?.status);
+        // Don't fail the whole request if save fails
+      }
+      
       return {
         success: true,
         status: 'success',

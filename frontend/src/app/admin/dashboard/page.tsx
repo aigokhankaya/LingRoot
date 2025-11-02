@@ -27,6 +27,7 @@ import { useRouter } from 'next/navigation';
 import { deleteUser as deleteUserApi, deleteUsersBulk as deleteUsersBulkApi } from '@/services/userService';
 // Paket Bilgilerim kullanıcı dashboard'ına taşındı
 import AdminChatInterface from '@/components/AdminChatInterface';
+import TtsProviderSelector from '@/components/admin/TtsProviderSelector';
 
 const App: React.FC = () => {
   const { theme, setTheme } = useTheme();
@@ -594,6 +595,10 @@ const App: React.FC = () => {
               <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("destek")}>
                 <i className="fas fa-headset mr-3 text-lg"></i>
                 <span>Destek</span>
+              </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("test-ayarlari")}>
+                <i className="fas fa-microphone-alt mr-3 text-lg"></i>
+                <span>Test Ayarları</span>
               </Button>
               <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("ayarlar")}>
                 <i className="fas fa-cog mr-3 text-lg"></i>
@@ -1446,6 +1451,16 @@ const App: React.FC = () => {
                 conversationFilter={conversationFilter}
                 setConversationFilter={setConversationFilter}
               />
+            </div>
+          )}
+
+          {activeTab === "test-ayarlari" && (
+            <div className="p-6">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">🎙️ Test Ayarları</h2>
+                <p className="text-gray-600">TTS (Text-to-Speech) sağlayıcı ayarlarını yönetin</p>
+              </div>
+              <TtsProviderSelector />
             </div>
           )}
 

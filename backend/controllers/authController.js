@@ -283,6 +283,7 @@ exports.register = async (req, res) => {
             {
               user_id: newUser[0].id,
               plantype: 'Free Trial',
+              stripepriceid: trialPlan.id, // Link to subscription_plans for features
               status: 'active',
               audio_creation_count: 0,
               startdate: new Date().toISOString(),
@@ -796,6 +797,7 @@ exports.googleLogin = async (req, res) => {
             .insert([{
               user_id: user.id,
               plantype: 'Free Trial',
+              stripepriceid: trialPlan.id, // Link to subscription_plans for features
               status: 'active',
               audio_creation_count: 0,
               startdate: new Date().toISOString(),
@@ -974,6 +976,7 @@ exports.appleLogin = async (req, res) => {
             .insert([{
               user_id: user.id,
               plantype: 'Free Trial',
+              stripepriceid: trialPlan.id, // Link to subscription_plans for features
               status: 'active',
               audio_creation_count: 0,
               startdate: new Date().toISOString(),
@@ -1325,11 +1328,14 @@ exports.verifyEmail = async (req, res) => {
             .insert([
               {
                 user_id: user.id,
-                plan_id: trialPlan.id,
-                status: 'active', // Trial değil, aktif - kullanım hakkı bazlı
-                current_period_end: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(), // 1 yıl (süresiz gibi)
-                cancel_at_period_end: false,
-                audio_creation_count: 0, // Başlangıç sayacı
+                plantype: 'Free Trial',
+                stripepriceid: trialPlan.id, // Link to subscription_plans for features
+                status: 'active',
+                startdate: new Date().toISOString(),
+                enddate: new Date(Date.now() + (365 * 24 * 60 * 60 * 1000)).toISOString(),
+                audio_creation_count: 0,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
               },
             ])
             .select();

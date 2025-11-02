@@ -15,6 +15,10 @@ const {
   getFilteredVoices,
   testVoices
 } = require("../controllers/ttsController");
+const { 
+  logSyncFeedback, 
+  analyzeSyncFeedback 
+} = require("../controllers/syncFeedbackController");
 const logger = require("../utils/logger");
 const { authenticate } = require('../middleware/auth');
 
@@ -92,6 +96,47 @@ router.post("/mergeAudio", mergeAudioAPI);
 router.post("/polly", (req, res) => {
   // Implement your Amazon Polly TTS functionality here
   res.status(500).json({ error: "Not implemented yet" });
+});
+
+// Get current TTS provider setting (public endpoint for mobile app)
+router.get('/provider', async (req, res) => {
+  try {
+    const { supabase } = require('../utils/supabaseClient');
+    const { isPollyAvailable } = require('../utils/amazonPolly');
+    
+    const { data, error } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'tts_provider')
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      logger.error('Error fetching tts_provider:', error);
+      return res.status(500).json({ success: false, message: 'Error fetching tts_provider' });
+    }
+    
+    const provider = data ? data.value : 'amazon'; // default: amazon
+    const pollyAvailable = isPollyAvailable();
+    const hasAwsCredentials = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+    
+    logger.info(`TTS provider requested: ${provider}, Polly available: ${pollyAvailable}, AWS credentials: ${hasAwsCredentials}`);
+    
+    return res.json({ 
+      success: true, 
+      provider,
+      pollyAvailable,
+      hasAwsCredentials,
+      debug: {
+        settingsProvider: provider,
+        pollyInitialized: pollyAvailable,
+        awsKeyExists: !!process.env.AWS_ACCESS_KEY_ID,
+        awsSecretExists: !!process.env.AWS_SECRET_ACCESS_KEY
+      }
+    });
+  } catch (err) {
+    logger.error('Server error while fetching tts_provider:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
 // Filtrelenmiş ses listesi endpointi (önce tanımlanmalı)
@@ -302,5 +347,12 @@ router.post("/translate-and-speak", async (req, res) => {
     });
   }
 });
+
+// ==================== SYNC FEEDBACK ROUTES ====================
+// Kullanıcıdan senkronizasyon feedback'i al
+router.post('/sync-feedback', authenticate, logSyncFeedback);
+
+// Sync feedback analizi (admin için)
+router.get('/sync-feedback/analyze', authenticate, analyzeSyncFeedback);
 
 module.exports = router;

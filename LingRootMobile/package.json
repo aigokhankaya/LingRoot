@@ -8,7 +8,6 @@
     "ios": "react-native run-ios"
   },
   "dependencies": {
-    "@expo/vector-icons": "^15.0.2",
     "@invertase/react-native-apple-authentication": "^2.4.1",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "@react-native-clipboard/clipboard": "^1.16.3",
@@ -19,11 +18,12 @@
     "@react-navigation/bottom-tabs": "^7.3.14",
     "@react-navigation/native": "^7.1.10",
     "@react-navigation/stack": "^7.3.3",
+    "@shopify/react-native-skia": "^2.3.9",
     "@supabase/supabase-js": "^2.50.0",
     "@types/react-native-vector-icons": "^6.4.18",
     "axios": "^1.9.0",
     "lodash": "^4.17.21",
-    "react": "^19.0.0",
+    "react": "19.0.0",
     "react-native": "0.79.5",
     "react-native-fbsdk-next": "^13.4.1",
     "react-native-gesture-handler": "~2.24.0",

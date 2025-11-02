@@ -1,15 +1,34 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+
+interface WordTiming {
+  word: string;
+  timeSeconds: number;
+  endTimeSeconds: number;
+}
 
 interface AudioPlayerProps {
   audioUrl: string;
   captionsUrl?: string;
+  words?: string[];
+  timepoints?: WordTiming[];
+  text?: string;
+  showWordHighlight?: boolean;
 }
 
-export default function AudioPlayer({ audioUrl, captionsUrl }: AudioPlayerProps) {
+export default function AudioPlayer({
+  audioUrl,
+  captionsUrl,
+  words = [],
+  timepoints = [],
+  text = '',
+  showWordHighlight = true,
+}: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const highlightIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Handle audio play/pause
   const togglePlayPause = () => {
@@ -23,10 +42,37 @@ export default function AudioPlayer({ audioUrl, captionsUrl }: AudioPlayerProps)
     }
   };
 
-  // Handle time update
+  // Handle time update and word highlighting
   const handleTimeUpdate = () => {
     if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
+      const time = audioRef.current.currentTime;
+      setCurrentTime(time);
+
+      // Update highlighted word based on timepoints
+      if (showWordHighlight && timepoints.length > 0) {
+        let wordIndex = -1;
+        
+        // Always search through ALL timepoints to never miss any word
+        for (let i = 0; i < timepoints.length; i++) {
+          const tp = timepoints[i];
+          const nextTp = timepoints[i + 1];
+          
+          // Check if we're in this word's time range
+          if (time >= tp.timeSeconds) {
+            if (!nextTp || time < nextTp.timeSeconds) {
+              // Perfect match - we're exactly in this word's range
+              wordIndex = i;
+              break;
+            }
+            // This word has passed, but keep it as the latest word we've seen
+            wordIndex = i;
+          }
+        }
+
+        if (wordIndex !== -1 && wordIndex !== currentWordIndex) {
+          setCurrentWordIndex(wordIndex);
+        }
+      }
     }
   };
 
@@ -35,13 +81,6 @@ export default function AudioPlayer({ audioUrl, captionsUrl }: AudioPlayerProps)
     if (audioRef.current) {
       setDuration(audioRef.current.duration);
     }
-  };
-
-  // Format time in MM:SS
-  const formatTime = (time: number): string => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
   // Handle slider change
@@ -53,8 +92,50 @@ export default function AudioPlayer({ audioUrl, captionsUrl }: AudioPlayerProps)
     }
   };
 
+  // Format time in MM:SS
+  const formatTime = (time: number): string => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (highlightIntervalRef.current) {
+        clearInterval(highlightIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Reset word index when audio ends
+  useEffect(() => {
+    if (!isPlaying) {
+      setCurrentWordIndex(-1);
+    }
+  }, [isPlaying]);
+
   return (
     <div className="w-full bg-white rounded-lg shadow-sm p-4">
+      {/* Word highlighting display */}
+      {showWordHighlight && words.length > 0 && (
+        <div className="mb-4 p-4 bg-gray-50 rounded-lg min-h-[120px] max-h-[300px] overflow-y-auto">
+          <div className="flex flex-wrap gap-2 text-lg leading-relaxed">
+            {words.map((word, index) => (
+              <span
+                key={index}
+                className={`transition-all duration-200 px-1 rounded ${
+                  index === currentWordIndex
+                    ? 'bg-yellow-300 font-semibold text-gray-900 scale-110'
+                    : 'text-gray-700'
+                }`}
+              >
+                {word}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       {/* Hidden audio element */}
       <audio
         ref={audioRef}

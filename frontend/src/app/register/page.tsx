@@ -307,13 +307,6 @@ export default function RegisterPage() {
                   <Button 
                     variant="outline" 
                     className="w-full py-6 border-gray-300 hover:bg-gray-50"
-                    onClick={handleFacebookRegister}
-                  >
-                    <i className="fab fa-facebook mr-2 text-blue-600"></i> Facebook ile Kaydol
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full py-6 border-gray-300 hover:bg-gray-50"
                     onClick={handleAppleRegister}
                   >
                     <i className="fab fa-apple mr-2"></i> Apple ile Kaydol

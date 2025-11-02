@@ -74,7 +74,9 @@ async function adaptToCEFR(text, level, requestLogger) {
                 ],
                 temperature: 0.6,
             });
-            const adaptedText = completion.choices[0]?.message?.content?.trim();
+            let adaptedText = completion.choices[0]?.message?.content?.trim();
+            // Remove any leading/trailing --- markers that OpenAI might add
+            adaptedText = adaptedText.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
             // accumulate usage
             if (completion.usage) {
                 promptTokensTotal += completion.usage.prompt_tokens || 0;

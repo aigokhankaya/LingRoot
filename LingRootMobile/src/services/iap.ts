@@ -1,6 +1,7 @@
 import * as RNIap from 'react-native-iap';
 import { Platform } from 'react-native';
 import { apiService } from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Product IDs for Apple and Google Play
 // Apple uses the original IDs, Google Play uses app-specific IDs
@@ -56,9 +57,27 @@ export async function getProducts() {
   }
 }
 
-async function verifyWithBackend(receipt: string, productId: string) {
-  // Calls backend /api/iap/apple/verify (added in apiService)
-  return apiService.verifyAppleReceipt(receipt, productId);
+async function verifyWithBackend(receipt: string, productId: string, purchaseToken?: string) {
+  if (Platform.OS === 'ios') {
+    // Apple IAP verification
+    return apiService.verifyAppleReceipt(receipt, productId);
+  } else {
+    // Google Play IAP verification
+    if (!purchaseToken) {
+      throw new Error('Purchase token is required for Android');
+    }
+    const packageName = 'com.nsyzk.lingrootmobile'; // Your Android package name
+    return apiService.verifyGooglePlayPurchase(purchaseToken, productId, packageName);
+  }
+}
+
+async function getLanguage(): Promise<'tr' | 'en'> {
+  try {
+    const lang = await AsyncStorage.getItem('app_language');
+    return (lang === 'tr' || lang === 'en') ? lang : 'en';
+  } catch {
+    return 'en';
+  }
 }
 
 export async function requestSubscription(productId: string): Promise<{ ok: boolean; message?: string }> {
@@ -71,7 +90,8 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
     await initIAP();
     console.log('[IAP] IAP connection initialized');
 
-    // First, verify the product exists
+    // First, verify the product exists and get subscription details
+    let subscriptionOffers: any[] = [];
     try {
       console.log('[IAP] Fetching available products...');
       const products = await getProducts();
@@ -85,6 +105,22 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
         return { ok: false, message: `Product not available: ${productId}` };
       }
       console.log('[IAP] ✅ Product found:', productExists.title);
+      
+      // For Android, get subscription offers
+      if (Platform.OS === 'android' && (productExists as any).subscriptionOfferDetails) {
+        const offerDetails = (productExists as any).subscriptionOfferDetails;
+        console.log('[IAP] Android subscription offers found:', offerDetails.length);
+        
+        // Use only the first offer to avoid "duplicate products" error
+        if (offerDetails.length > 0) {
+          const firstOffer = offerDetails[0];
+          subscriptionOffers = [{
+            sku: productId,
+            offerToken: firstOffer.offerToken || firstOffer.basePlanId || '',
+          }];
+          console.log('[IAP] Using first subscription offer:', JSON.stringify(subscriptionOffers, null, 2));
+        }
+      }
     } catch (error: any) {
       console.error('[IAP] ❌ Error fetching products:', error.message);
       return { ok: false, message: `Cannot fetch products: ${error.message}` };
@@ -96,58 +132,102 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
 
       purchaseUpdateSub = RNIap.purchaseUpdatedListener(async (purchase: any) => {
         console.log('[IAP] Purchase update received:', purchase.productId);
+        console.log('[IAP] Purchase object:', JSON.stringify(purchase, null, 2));
         try {
           const receipt = purchase.transactionReceipt;
-          if (receipt) {
-            console.log('[IAP] Receipt received, verifying with backend...');
-            // Verify with backend
+          const purchaseToken = purchase.purchaseToken; // Android purchase token
+          
+          if (Platform.OS === 'ios' && receipt) {
+            console.log('[IAP] iOS receipt received, verifying with backend...');
             try {
               const result = await verifyWithBackend(receipt, productId);
               console.log('[IAP] ✅ Backend verification successful');
-              // Finish transaction
               try {
                 await RNIap.finishTransaction({ purchase, isConsumable: false });
                 console.log('[IAP] Transaction finished');
               } catch (finishErr) {
                 console.warn('[IAP] Error finishing transaction:', finishErr);
               }
-              resolve({ ok: true, message: 'Satın alma doğrulandı' });
+              const lang = await getLanguage();
+              resolve({ ok: true, message: lang === 'tr' ? 'Satın alma doğrulandı' : 'Purchase verified' });
             } catch (verErr: any) {
               console.error('[IAP] ❌ Backend verification failed:', verErr.message);
-              // Still try to finish to avoid stuck state
               try { await RNIap.finishTransaction({ purchase, isConsumable: false }); } catch {}
-              resolve({ ok: false, message: verErr?.message || 'Doğrulama başarısız' });
+              const lang = await getLanguage();
+              resolve({ ok: false, message: verErr?.message || (lang === 'tr' ? 'Doğrulama başarısız' : 'Verification failed') });
             }
+          } else if (Platform.OS === 'android' && purchaseToken) {
+            console.log('[IAP] Android purchase token received, verifying with backend...');
+            try {
+              const result = await verifyWithBackend('', productId, purchaseToken);
+              console.log('[IAP] ✅ Backend verification successful');
+              try {
+                await RNIap.finishTransaction({ purchase, isConsumable: false });
+                console.log('[IAP] Transaction finished');
+              } catch (finishErr) {
+                console.warn('[IAP] Error finishing transaction:', finishErr);
+              }
+              const lang = await getLanguage();
+              resolve({ ok: true, message: lang === 'tr' ? 'Satın alma doğrulandı' : 'Purchase verified' });
+            } catch (verErr: any) {
+              console.error('[IAP] ❌ Backend verification failed:', verErr.message);
+              try { await RNIap.finishTransaction({ purchase, isConsumable: false }); } catch {}
+              const lang = await getLanguage();
+              resolve({ ok: false, message: verErr?.message || (lang === 'tr' ? 'Doğrulama başarısız' : 'Verification failed') });
+            }
+          } else {
+            console.error('[IAP] ❌ No valid receipt or purchase token found');
+            const lang = await getLanguage();
+            resolve({ ok: false, message: lang === 'tr' ? 'Satın alma verisi bulunamadı' : 'Purchase data not found' });
           }
         } catch (e: any) {
           console.error('[IAP] ❌ Purchase update error:', e.message);
-          resolve({ ok: false, message: e?.message || 'Satın alma başarısız' });
+          const lang = await getLanguage();
+          resolve({ ok: false, message: e?.message || (lang === 'tr' ? 'Satın alma başarısız' : 'Purchase failed') });
         }
       });
 
-      purchaseErrorSub = RNIap.purchaseErrorListener((error: any) => {
+      purchaseErrorSub = RNIap.purchaseErrorListener(async (error: any) => {
         console.error('[IAP] ❌ Purchase error listener triggered');
         console.error('[IAP] Error code:', error?.code);
         console.error('[IAP] Error message:', error?.message);
         console.error('[IAP] Error details:', JSON.stringify(error, null, 2));
-        resolve({ ok: false, message: error?.message || 'Satın alma hatası' });
+        const lang = await getLanguage();
+        resolve({ ok: false, message: error?.message || (lang === 'tr' ? 'Satın alma hatası' : 'Purchase error') });
       });
 
       try {
         console.log('[IAP] Requesting subscription with SKU:', productId);
-        await RNIap.requestSubscription({ sku: productId, andDangerouslyFinishTransactionAutomaticallyIOS: false });
-        console.log('[IAP] Subscription request sent to App Store');
+        if (Platform.OS === 'ios') {
+          await RNIap.requestSubscription({ sku: productId, andDangerouslyFinishTransactionAutomaticallyIOS: false });
+          console.log('[IAP] Subscription request sent to App Store');
+        } else {
+          // Android requires subscriptionOffers for Google Play Billing Library 5.0+
+          if (subscriptionOffers.length > 0) {
+            console.log('[IAP] Using subscription offers:', subscriptionOffers);
+            await RNIap.requestSubscription({ 
+              sku: productId,
+              subscriptionOffers: subscriptionOffers
+            });
+          } else {
+            console.log('[IAP] No subscription offers found, using basic request');
+            await RNIap.requestSubscription({ sku: productId });
+          }
+          console.log('[IAP] Subscription request sent to Google Play');
+        }
       } catch (e: any) {
         console.error('[IAP] ❌ Request subscription failed');
         console.error('[IAP] Error:', e.message);
         console.error('[IAP] Error code:', e.code);
         console.error('[IAP] Full error:', JSON.stringify(e, null, 2));
-        resolve({ ok: false, message: e?.message || 'Satın alma başlatılamadı' });
+        const lang = await getLanguage();
+        resolve({ ok: false, message: e?.message || (lang === 'tr' ? 'Satın alma başlatılamadı' : 'Could not start purchase') });
       }
     });
   } catch (e: any) {
     console.error('[IAP] ❌ Outer catch - unexpected error:', e.message);
-    return { ok: false, message: e?.message || 'Satın alma hatası' };
+    const lang = await getLanguage();
+    return { ok: false, message: e?.message || (lang === 'tr' ? 'Satın alma hatası' : 'Purchase error') };
   }
 }
 
@@ -155,24 +235,37 @@ export async function restorePurchases(): Promise<{ ok: boolean; message?: strin
   try {
     await initIAP();
     const purchases = await RNIap.getAvailablePurchases();
-    // Find any subscription purchase and verify the freshest one
-    const subs = purchases.filter(p => !!p.productId);
-    // Sort by transactionDate desc
-    subs.sort((a, b) => Number(b.transactionDate || 0) - Number(a.transactionDate || 0));
+    // Find any subscription purchase
+    const subs = purchases.filter(p => !!p.productId && !!p.transactionReceipt);
+    
     if (subs.length === 0) {
-      return { ok: false, message: 'Geri yüklenecek satın alma bulunamadı' };
+      const lang = await getLanguage();
+      return { ok: false, message: lang === 'tr' ? 'Geri yüklenecek satın alma bulunamadı' : 'No purchases to restore' };
     }
+    
+    console.log(`[IAP] Found ${subs.length} purchases to restore`);
+    
+    // Only send the most recent purchase to backend
+    // Sort by transactionDate (most recent first)
+    subs.sort((a, b) => Number(b.transactionDate || 0) - Number(a.transactionDate || 0));
     const latest = subs[0];
-    if (!latest.transactionReceipt || !latest.productId) {
-      return { ok: false, message: 'Geçersiz makbuz' };
-    }
+    
+    console.log(`[IAP] Restoring latest purchase: ${latest.productId}`);
+    
     try {
-      await verifyWithBackend(latest.transactionReceipt, latest.productId);
-      return { ok: true, message: 'Satın alımlar geri yüklendi' };
+      if (Platform.OS === 'ios') {
+        await verifyWithBackend(latest.transactionReceipt, latest.productId);
+      } else {
+        await verifyWithBackend('', latest.productId, latest.purchaseToken);
+      }
+      const lang = await getLanguage();
+      return { ok: true, message: lang === 'tr' ? 'Satın alımlar geri yüklendi' : 'Purchases restored' };
     } catch (e: any) {
-      return { ok: false, message: e?.message || 'Doğrulama başarısız' };
+      const lang = await getLanguage();
+      return { ok: false, message: e?.message || (lang === 'tr' ? 'Doğrulama başarısız' : 'Verification failed') };
     }
   } catch (e: any) {
-    return { ok: false, message: e?.message || 'Geri yükleme hatası' };
+    const lang = await getLanguage();
+    return { ok: false, message: e?.message || (lang === 'tr' ? 'Geri yükleme hatası' : 'Restore error') };
   }
 }

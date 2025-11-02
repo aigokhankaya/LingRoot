@@ -314,13 +314,6 @@ const LoginScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.socialButton} onPress={handleFacebookSignIn}>
-            <Icon name="facebook" size={20} color="#4267B2" />
-            <Text style={styles.socialButtonText}>
-              {language === 'tr' ? 'Facebook ile Giriş Yap' : 'Sign in with Facebook'}
-            </Text>
-          </TouchableOpacity>
-
           {showAppleSignIn && (
             <TouchableOpacity style={[styles.socialButton, styles.appleButton]} onPress={handleAppleSignIn}>
               <Icon name="apple" size={20} color="#000" />

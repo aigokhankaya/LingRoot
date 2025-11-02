@@ -26,7 +26,7 @@ interface LanguageProviderProps {
 }
 
 export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) => {
-  const [language, setLanguageState] = useState<Language>('tr'); // Default to Turkish
+  const [language, setLanguageState] = useState<Language>('en'); // Default to English
   const [isLoading, setIsLoading] = useState(true);
 
   // Load saved language from storage

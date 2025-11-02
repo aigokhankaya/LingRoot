@@ -58,7 +58,9 @@ exports.rewriteToNarration = async (req, res) => {
       finish_reason: completion.choices[0]?.finish_reason,
     })}`);
     
-    const narrationText = completion.choices[0]?.message?.content?.trim() || "";
+    let narrationText = completion.choices[0]?.message?.content?.trim() || "";
+    // Remove any leading/trailing --- markers that OpenAI might add
+    narrationText = narrationText.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
     
     // Yanıt uzunluğunu logla
     logger.info(`OpenAI narration response length: ${narrationText.length} characters`);
