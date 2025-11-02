@@ -81,8 +81,19 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     });
     
     if (timepoints && timepoints.length > 0) {
-      console.log('🎯 First 3 timepoints:', timepoints.slice(0, 3));
+      console.log('🎯 First 10 timepoints:', timepoints.slice(0, 10));
       console.log('🎯 Last 3 timepoints:', timepoints.slice(-3));
+      
+      // Find "Furthermore" and log surrounding words
+      const furthermoreIndex = timepoints.findIndex(tp => tp?.word?.toLowerCase().includes('furthermore'));
+      if (furthermoreIndex !== -1) {
+        const start = Math.max(0, furthermoreIndex - 5);
+        const end = Math.min(timepoints.length, furthermoreIndex + 6);
+        console.log(`🔍 Found "Furthermore" at index ${furthermoreIndex}. Surrounding timepoints (${start}-${end}):`);
+        timepoints.slice(start, end).forEach((tp, idx) => {
+          console.log(`  [${start + idx}] "${tp.word}" @ ${tp.timeSeconds.toFixed(2)}s`);
+        });
+      }
     }
   }, [track.id, track.original_turkish, timepoints, words]);
 
@@ -97,6 +108,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const textToHighlight = getTextForHighlight();
     const wordsArray = words.length > 0 ? words : textToHighlight.split(' ');
     const sentences = textToHighlight.split(/[.!?]+/).filter(s => s.trim().length > 0);
+
+    // Debug: Check array lengths
+    console.log(`📊 Array lengths: wordsArray=${wordsArray.length}, words prop=${words.length}`);
+    if (wordsArray.length !== words.length && words.length > 0) {
+      console.warn(`⚠️ MISMATCH! wordsArray.length (${wordsArray.length}) !== words.length (${words.length})`);
+    }
 
     return {
       textToHighlight,
@@ -335,6 +352,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (!timepoints || timepoints.length === 0) return;
     
     const newWordIndex = findWordIndexBinarySearch(currentTime, timepoints);
+
+    // Debug: Log around "Furthermore" (assuming it's around index 50-70)
+    if (newWordIndex >= 0 && newWordIndex <= 10) {
+      const tp = timepoints[newWordIndex];
+      console.log(`[SYNC] currentTime: ${currentTime.toFixed(2)}s | wordIndex: ${newWordIndex} | word: "${tp?.word}" | timestamp: ${tp?.timeSeconds.toFixed(2)}s`);
+    }
 
     // Only update if word changed
     if (newWordIndex !== -1 && newWordIndex !== currentWordIndex) {

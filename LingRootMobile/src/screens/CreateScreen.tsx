@@ -251,9 +251,10 @@ const CreateScreen: React.FC = () => {
     return 'american';
   };
 
-  // Backend kategori paramını doğrudan kullan (backend 'neural2', 'wavenet', 'studio', 'chirp3d' bekliyor)
+  // Backend kategori paramını doğrudan kullan (backend 'neural', 'neural2', 'wavenet', 'studio', 'chirp3d' bekliyor)
   const mapCategoryForBackend = (category?: string): string | undefined => {
     if (!category || category === 'standard') return undefined;
+    // 'neural' kategorisini backend'e gönder (Amazon Polly Neural engine için)
     return category;
   };
 
@@ -339,8 +340,8 @@ const CreateScreen: React.FC = () => {
         const processedVoices = voices.map((voice: any) => {
           const name = voice.name || voice.voiceName || voice.id || voice.code;
           
-          // Kategori
-          let category = voice.category || voice.type || voice.voiceType;
+          // Kategori - Amazon Polly'nin 'engine' field'ını da kontrol et
+          let category = voice.category || voice.type || voice.voiceType || voice.engine;
           if (!category) {
             const voiceName = name || '';
             if (voiceName.includes('Chirp') || voiceName.toLowerCase().includes('chirp')) {
@@ -399,8 +400,11 @@ const CreateScreen: React.FC = () => {
     try {
       const backendCategory = mapCategoryForBackend(category);
       
+      console.log('🎙️ [FETCH FILTERED] Request params:', { accent, gender, category, backendCategory });
+      
       const response = await apiService.getFilteredVoices(accent, gender, undefined, backendCategory);
       
+      console.log('🎙️ [FETCH FILTERED] Raw response:', JSON.stringify(response, null, 2));
 
       // Response şekli: { provider, voices, ... } veya { success, data } olabilir
       const apiResponse: any = response as any;
@@ -409,6 +413,13 @@ const CreateScreen: React.FC = () => {
         apiResponse?.data?.voices ||
         (Array.isArray(apiResponse?.data) ? apiResponse.data : []) ||
         [];
+      
+      console.log('🎙️ [FETCH FILTERED] Extracted voices count:', voices.length);
+      if (voices.length > 0) {
+        console.log('🎙️ [FETCH FILTERED] First voice sample:', JSON.stringify(voices[0], null, 2));
+      } else {
+        console.log('🎙️ [FETCH FILTERED] ❌ NO VOICES RETURNED!');
+      }
 
       if (Array.isArray(voices) && voices.length >= 0) {
         // Studio + Male fallback (backend deploy beklenirken geçici çözüm)
@@ -460,8 +471,8 @@ const CreateScreen: React.FC = () => {
         const processedVoices = voices.map((voice: any) => {
           const name = voice.name || voice.voiceName || voice.id || voice.code;
 
-          // Kategori
-          let category = voice.category || voice.type || voice.voiceType;
+          // Kategori - Amazon Polly'nin 'engine' field'ını da kontrol et
+          let category = voice.category || voice.type || voice.voiceType || voice.engine;
           if (!category) {
             const voiceName = name || '';
             if (voiceName.includes('Chirp') || voiceName.toLowerCase().includes('chirp')) {
@@ -662,15 +673,15 @@ const CreateScreen: React.FC = () => {
 
   // Update filtered voices when filters change
   useEffect(() => {
-    // Eğer kategori seçiliyse ve accent/gender filtresi de varsa, backend'den filtrele
-    if (selectedVoiceCategory !== 'standard' && (selectedAccent !== 'all' || selectedGender !== 'all')) {
-      // Hem kategori hem de accent/gender filtresi varsa backend'den filtrele
+    // Kategori değiştiğinde veya filtreler değiştiğinde backend'den filtrele
+    if (selectedVoiceCategory !== 'standard') {
+      // Neural veya diğer kategoriler seçiliyse backend'den filtrele (accent/gender ile birlikte)
       fetchFilteredVoices(selectedAccent, selectedGender, selectedVoiceCategory);
     } else if (selectedAccent !== 'all' || selectedGender !== 'all') {
-      // Sadece accent/gender filtresi varsa backend'den filtrele
+      // Sadece accent/gender filtresi varsa (standard kategoride) backend'den filtrele
       fetchFilteredVoices(selectedAccent, selectedGender);
     } else {
-      // Hiç filtre yoksa veya sadece kategori filtresi varsa tüm sesleri getir
+      // Hiç filtre yoksa tüm sesleri getir
       fetchAvailableVoices();
     }
   }, [selectedAccent, selectedGender, selectedVoiceCategory]);

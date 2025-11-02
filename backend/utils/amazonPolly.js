@@ -274,6 +274,7 @@ async function listPollyVoices(languageCode = 'en-US') {
       languageCode: voice.LanguageCode,
       languageName: voice.LanguageName,
       gender: voice.Gender,
+      engine: 'neural', // Add engine field for mobile app categorization
       supportedEngines: voice.SupportedEngines || [],
       additionalLanguageCodes: voice.AdditionalLanguageCodes || []
     }));

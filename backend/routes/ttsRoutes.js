@@ -102,6 +102,8 @@ router.post("/polly", (req, res) => {
 router.get('/provider', async (req, res) => {
   try {
     const { supabase } = require('../utils/supabaseClient');
+    const { isPollyAvailable } = require('../utils/amazonPolly');
+    
     const { data, error } = await supabase
       .from('settings')
       .select('value')
@@ -114,8 +116,23 @@ router.get('/provider', async (req, res) => {
     }
     
     const provider = data ? data.value : 'amazon'; // default: amazon
-    logger.info(`TTS provider requested: ${provider}`);
-    return res.json({ success: true, provider });
+    const pollyAvailable = isPollyAvailable();
+    const hasAwsCredentials = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+    
+    logger.info(`TTS provider requested: ${provider}, Polly available: ${pollyAvailable}, AWS credentials: ${hasAwsCredentials}`);
+    
+    return res.json({ 
+      success: true, 
+      provider,
+      pollyAvailable,
+      hasAwsCredentials,
+      debug: {
+        settingsProvider: provider,
+        pollyInitialized: pollyAvailable,
+        awsKeyExists: !!process.env.AWS_ACCESS_KEY_ID,
+        awsSecretExists: !!process.env.AWS_SECRET_ACCESS_KEY
+      }
+    });
   } catch (err) {
     logger.error('Server error while fetching tts_provider:', err);
     return res.status(500).json({ success: false, message: 'Server error' });

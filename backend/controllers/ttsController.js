@@ -1886,7 +1886,10 @@ const translateToEnglish = async (req, res) => {
               break;
             case 'neural':
               // Amazon Polly: engine === 'neural'
-              matches = voice.engine === 'neural';
+              // Google TTS: Wavenet or Neural2 voices
+              matches = voice.engine === 'neural' || 
+                        voice.name.includes('Wavenet') || 
+                        voice.name.includes('Neural2');
               break;
             case 'wavenet':
               matches = voice.name.includes('Wavenet');

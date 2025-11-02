@@ -69,7 +69,11 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     }
     
     // Add extra spaces between words ONLY (not between letters)
-    const textContent = words.join('  '); // 1 spaces for word spacing
+    const textContent = words.join('  '); // 2 spaces for word spacing
+    
+    // Debug: Log first 200 chars
+    console.log(`[TEXT CONTENT] First 200 chars: "${textContent.substring(0, 200)}"`);
+    console.log(`[TEXT CONTENT] Total length: ${textContent.length}, Words count: ${words.length}`);
     
     // Combine all styles for Make() - Use strutStyle for guaranteed line height
     const heightMult = lineHeight / fontSize;
@@ -146,20 +150,23 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     const boundaries: WordBoundary[] = [];
     let charIndex = 0;
     
+    // Find "Furthermore" index first
+    const furthermoreIdx = words.findIndex(w => w.toLowerCase().includes('furthermore'));
+    
     words.forEach((word, index) => {
       const startIndex = charIndex;
       const endIndex = charIndex + word.length;
+      
+      // Debug: Log around "Furthermore" (5 before, 5 after)
+      if (furthermoreIdx !== -1 && index >= furthermoreIdx - 5 && index <= furthermoreIdx + 5) {
+        console.log(`[WORD ${index}] "${word}" | start: ${startIndex}, end: ${endIndex}, charIndex will be: ${endIndex + (index < words.length - 1 ? 2 : 0)}`);
+      }
       
       // Get SYNCHRONOUS metrics from Paragraph
       const rects = paragraph.getRectsForRange(startIndex, endIndex);
       
       if (rects.length > 0) {
         const rect = rects[0];
-        
-        // Debug: Log rect values for specific words
-        if (word.toLowerCase().includes('civil')) {
-          console.log(`[RECT DEBUG] Word: "${word}", x: ${rect.x}, width: ${rect.width}`);
-        }
         
         boundaries.push({
           x: rect.x + INTERNAL_PADDING, // Paragraph x=INTERNAL_PADDING'den başlıyor
@@ -168,9 +175,12 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
           height: rect.height,
           index,
         });
+      } else {
+        console.warn(`[WORD ${index}] "${word}" | NO RECTS FOUND! start: ${startIndex}, end: ${endIndex}`);
       }
       
-      charIndex = endIndex + 2; // +2 for 2 spaces between words 
+      // Add 2 spaces only if not the last word
+      charIndex = endIndex + (index < words.length - 1 ? 2 : 0); 
     });
     
     return boundaries;
