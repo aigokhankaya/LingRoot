@@ -1027,7 +1027,7 @@ const App: React.FC = () => {
                     <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
                         <div>
                             <div className="flex items-center space-x-2 mb-6">
-                                <i className="fas fa-language text-blue-400 text-3xl"></i>
+                                <img src="/lingroot-icon16.svg" alt="LingRoot" className="w-10 h-10" />
                                 <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent tracking-tight">LingRoot</span>
                             </div>
                             <p className="text-gray-400 mb-4">
@@ -1074,10 +1074,10 @@ const App: React.FC = () => {
                                     <i className="fas fa-envelope mr-2 text-gray-400"></i>
                                     <a href={`mailto:${t.footer.contact.email}`} className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{t.footer.contact.email}</a>
                                 </li>
-                                <li className="flex items-center">
+                                {/* <li className="flex items-center">
                                     <i className="fas fa-phone-alt mr-2 text-gray-400"></i>
                                     <a href={`tel:${t.footer.contact.phone}`} className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{t.footer.contact.phone}</a>
-                                </li>
+                                </li> */}
                                 <li className="flex items-start mt-4">
                                     <i className="fas fa-map-marker-alt mr-2 mt-1 text-gray-400"></i>
                                     <span className="text-gray-400">{t.footer.contact.address}</span>
