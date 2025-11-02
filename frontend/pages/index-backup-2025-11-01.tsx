@@ -271,11 +271,11 @@ const App: React.FC = () => {
           loginLink: "Giriş Yap"
         },
         hero: {
-          badge: "🎧 Hayatın Değişmesin, İngilizcen Gelişsin",
-          title: "Rutinlerin İngilizceye Dönsün. ",
-          titleHighlight: "Sevdiğin İçerikleri Kendi Seviyende Dinle.",
-          description: "YouTube videoları, kitaplar, podcast'ler ve güncel haberler… LingRoot, ilgilendiğin konulardaki içerikleri İngilizce seviyene göre sadeleştirir, seslendirir ve altyazı ekler. Ekstra zaman harcamadan, dinleyerek geliş.",
-          tryButton: "Ücretsiz Dene",
+          badge: "Hayatın Değişmesin, İngilizcen Gelişsin",
+          title: "Sevdiğin İçerikler, ",
+          titleHighlight: "Anlayacağın İngilizceyle",
+          description: "LingRoot, YouTube videoları, podcast'ler, blog yazıları gibi zaten takip ettiğin içerikleri seçtiğin İngilizce seviyesine (A1–C2) göre otomatik olarak sadeleştirir, seslendirir ve altyazı ekler. İngilizce öğrenmek için hayatını değiştirmene gerek yok — sadece dinlemeye devam et.",
+          tryButton: "Hemen Ücretsiz Dene",
           watchButton: "Nasıl Çalıştığını İzle"
         },
         howItWorks: {
@@ -335,11 +335,11 @@ const App: React.FC = () => {
           loginLink: "Login"
         },
         hero: {
-          badge: "🎧 Don't Change Your Life, Improve Your English",
-          title: "Turn Your Routines Into English. ",
-          titleHighlight: "Listen to Content You Love at Your Level.",
-          description: "YouTube videos, books, podcasts, and current news… LingRoot simplifies, narrates, and adds subtitles to content on topics you're interested in, according to your English level. Improve by listening, without spending extra time.",
-          tryButton: "Try Free",
+          badge: "Don't Change Your Life, Improve Your English",
+          title: "Content You Love, ",
+          titleHighlight: "In English You Understand",
+          description: "LingRoot automatically simplifies, narrates, and adds subtitles to the content you already follow—YouTube videos, podcasts, blog posts—according to your chosen English level (A1–C2). You don't need to change your life to learn English—just keep listening.",
+          tryButton: "Try It Free Now",
           watchButton: "Watch How It Works"
         },
         howItWorks: {
@@ -683,17 +683,24 @@ const App: React.FC = () => {
             </nav>
             
             {/* Hero Section */}
-            <section className="py-16 bg-gradient-to-b from-gray-50 to-white hero-section">
-                <div className="container mx-auto px-8">
-                    <div className="text-center mb-8">
+            <section className="relative overflow-hidden min-h-[700px] hero-section">
+                <div className="absolute inset-0 z-0"> 
+                    <img 
+                        src="https://readdy.ai/api/search-image?query=A%20modern%2C%20clean%2C%20minimalist%20scene%20showing%20a%20person%20relaxing%20with%20headphones%2C%20listening%20to%20content%20on%20their%20device.%20The%20background%20is%20a%20soft%20gradient%20from%20light%20blue%20to%20white%2C%20creating%20a%20calm%20and%20peaceful%20atmosphere.%20The%20scene%20suggests%20learning%20without%20effort%2C%20with%20subtle%20educational%20elements%20in%20the%20background.&width=1440&height=700&seq=hero1&orientation=landscape" 
+                        alt="Hero Background" 
+                        className="w-full h-full object-cover"
+                    /> 
+                </div>
+                <div className="container mx-auto px-8 py-20 relative z-10">
+                    <div className="max-w-4xl">
                         <Badge className="mb-4 bg-blue-100 text-blue-800 hover:bg-blue-200 border-none text-sm hero-badge">{t.hero.badge}</Badge>
-                        <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 leading-tight hero-title max-w-5xl mx-auto">
+                        <h1 className="text-6xl font-bold mb-6 text-black leading-tight hero-title">
                             {t.hero.title}<span className="text-blue-600">{t.hero.titleHighlight}</span>
                         </h1>
-                        <p className="text-lg md:text-xl lg:text-2xl text-gray-600 mb-10 leading-relaxed hero-description max-w-4xl mx-auto">
+                        <p className="text-black mb-10 leading-relaxed hero-description" style={{ fontSize: '22px !important', lineHeight: '1.6' }}>
                             {t.hero.description}
                         </p>
-                        <div className="flex flex-col sm:flex-row gap-4 hero-buttons justify-center">
+                        <div className="flex gap-4 hero-buttons">
                             <a href="/register">
                                 <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-base py-4 px-6 !rounded-button whitespace-nowrap">
                                     <i className="fas fa-rocket mr-2"></i> {t.hero.tryButton}
@@ -782,7 +789,7 @@ const App: React.FC = () => {
                             <div className="relative overflow-hidden flex justify-center items-center p-1">
                                 <div className="relative aspect-video w-full max-w-2xl">
                                     <iframe
-                                        src="https://www.youtube.com/embed/12hT5S9QuLA"
+                                        src="https://www.youtube.com/embed/fn1OKImuTsE"
                                         className="absolute inset-0 h-full w-full rounded-lg shadow-lg"
                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                         allowFullScreen>
@@ -1027,20 +1034,20 @@ const App: React.FC = () => {
                     <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
                         <div>
                             <div className="flex items-center space-x-2 mb-6">
-                                <img src="/lingroot-icon16.svg" alt="LingRoot" className="w-10 h-10" />
+                                <i className="fas fa-language text-blue-400 text-3xl"></i>
                                 <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent tracking-tight">LingRoot</span>
                             </div>
                             <p className="text-gray-400 mb-4">
                                 {t.footer.slogan}
                             </p>
                             <div className="flex space-x-4">
-                                {/* <a href="https://facebook.com/lingroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
+                                <a href="https://facebook.com/lingroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
                                     <i className="fab fa-facebook-f text-xl"></i>
-                                </a> */}
-                                {/* <a href="https://twitter.com/lingroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
+                                </a>
+                                <a href="https://twitter.com/lingroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
                                     <i className="fab fa-twitter text-xl"></i>
-                                </a> */}
-                                <a href="https://instagram.com/lingtoroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
+                                </a>
+                                <a href="https://instagram.com/lingroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
                                     <i className="fab fa-instagram text-xl"></i>
                                 </a>
                                 <a href="https://youtube.com/@lingroot" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
@@ -1074,10 +1081,10 @@ const App: React.FC = () => {
                                     <i className="fas fa-envelope mr-2 text-gray-400"></i>
                                     <a href={`mailto:${t.footer.contact.email}`} className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{t.footer.contact.email}</a>
                                 </li>
-                                {/* <li className="flex items-center">
+                                <li className="flex items-center">
                                     <i className="fas fa-phone-alt mr-2 text-gray-400"></i>
                                     <a href={`tel:${t.footer.contact.phone}`} className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">{t.footer.contact.phone}</a>
-                                </li> */}
+                                </li>
                                 <li className="flex items-start mt-4">
                                     <i className="fas fa-map-marker-alt mr-2 mt-1 text-gray-400"></i>
                                     <span className="text-gray-400">{t.footer.contact.address}</span>
