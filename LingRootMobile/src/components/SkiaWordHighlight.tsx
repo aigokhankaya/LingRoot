@@ -49,6 +49,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   mode = 'word',
 }) => {
   // Skia Paragraph API - Zero Reflow Architecture
+  const INTERNAL_PADDING = 8; // Kenarlardan 8px boşluk
   
   // Shared value for current word (60fps updates without rerender)
   const currentWordShared = useSharedValue(currentWordIndex);
@@ -68,14 +69,14 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     }
     
     // Add extra spaces between words ONLY (not between letters)
-    const textContent = words.join('   '); // 3 spaces for word spacing
+    const textContent = words.join('  '); // 1 spaces for word spacing
     
     // Combine all styles for Make() - Use strutStyle for guaranteed line height
     const heightMult = lineHeight / fontSize;
     console.log(`🔧 [Word] lineHeight: ${lineHeight}, fontSize: ${fontSize}, heightMultiplier: ${heightMult}`);
     
     const combinedStyle = {
-      textAlign: 0,
+      textAlign: 3, // 0=left, 1=right, 2=center, 3=justify
       strutStyle: {
         strutEnabled: true,
         fontSize: fontSize,
@@ -93,7 +94,8 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     builder.addText(textContent);
     
     const para = builder.build();
-    para.layout(containerWidth);
+    para.layout(containerWidth - INTERNAL_PADDING * 2); // 8px sağdan, 8px soldan
+    console.log(`✅ [Word Paragraph] containerWidth: ${containerWidth}`);
     console.log(`✅ [Word Paragraph] heightMultiplier: ${heightMult} | TOTAL HEIGHT: ${para.getHeight()}px`);
     return para;
   }, [words, fontSize, containerWidth, font,lineHeight]);
@@ -105,13 +107,13 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
       return null;
     }
     
-    const textContent = words.join('   '); // 3 spaces
+    const textContent = words.join('  '); // 2 spaces for word spacing
     
     // Combine all styles for Make() - Use strutStyle for guaranteed line height
     const heightMult = lineHeight / fontSize;
     
     const combinedStyle = {
-      textAlign: 0,
+      textAlign: 3, // 0=left, 1=right, 2=center, 3=justify
       strutStyle: {
         strutEnabled: true,
         fontSize: fontSize,
@@ -129,7 +131,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     builder.addText(textContent);
     
     const para = builder.build();
-    para.layout(containerWidth);
+    para.layout(containerWidth - INTERNAL_PADDING * 2); // 8px sağdan, 8px soldan
     console.log(`lineHeight: ${lineHeight} | PARAGRAPH HEIGHT: ${para.getHeight()}`);
     console.log(`[Paragraph] L: ${lineHeight} F: ${fontSize} | H: ${para.getHeight()}`);
     
@@ -137,8 +139,6 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   }, [words, fontSize, containerWidth, font,lineHeight]);
   
   // STEP 2: Calculate Word Boundaries SYNCHRONOUSLY (NO ASYNC!)
-  // Horizontal offset for padding
-  const PARAGRAPH_OFFSET_X = 6;
   
   const wordBoundaries = useMemo(() => {
     if (!paragraph) return [];
@@ -162,7 +162,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
         }
         
         boundaries.push({
-          x: rect.x + PARAGRAPH_OFFSET_X, // Add offset
+          x: rect.x + INTERNAL_PADDING, // Paragraph x=INTERNAL_PADDING'den başlıyor
           y: rect.y,
           width: rect.width,
           height: rect.height,
@@ -170,7 +170,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
         });
       }
       
-      charIndex = endIndex + 3; // +3 for 3 spaces
+      charIndex = endIndex + 2; // +2 for 2 spaces between words 
     });
     
     return boundaries;
@@ -237,18 +237,17 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
             const color = isHighlighted ? '#007AFF' : '#FFD700';
             
             // Add horizontal padding (6px left, 6px right)
-            const paddingX = 6;
+            const paddingX = 4;
             const paddingY = 3;
             
-            // Calculate position and width, ensuring we don't go negative
+            // Calculate position with left padding
             const rectX = Math.max(0, boundary.x - paddingX);
-            const leftPaddingUsed = boundary.x - rectX; // Actual padding used on left
-            const rectWidth = boundary.width + leftPaddingUsed + paddingX; // Add left padding used + right padding
+            const leftPaddingUsed = boundary.x - rectX;
             
-            // Debug first word
-            if (idx === 0) {
-              console.log(`[Word ${idx}] boundary.x: ${boundary.x}, rectX: ${rectX}, leftPadding: ${leftPaddingUsed}, width: ${boundary.width}, rectWidth: ${rectWidth}`);
-            }
+            // Calculate width with right padding, but don't exceed container
+            const idealWidth = boundary.width + leftPaddingUsed + paddingX;
+            const maxAllowedWidth = containerWidth - rectX;
+            const rectWidth = Math.min(idealWidth, maxAllowedWidth);
             
             return (
               <RoundedRect
@@ -267,9 +266,9 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
           {paragraph && (
             <Paragraph
               paragraph={paragraph}
-              x={PARAGRAPH_OFFSET_X}
+              x={INTERNAL_PADDING}
               y={0}
-              width={containerWidth}
+              width={containerWidth - INTERNAL_PADDING * 2}
             />
           )}
           
@@ -277,15 +276,41 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
           {currentWordIndex >= 0 && currentWordIndex < wordBoundaries.length && whiteParagraph && (
             <Paragraph
               paragraph={whiteParagraph}
-              x={PARAGRAPH_OFFSET_X}
+              x={INTERNAL_PADDING}
               y={0}
-              width={containerWidth}
-              clip={{
-                x: wordBoundaries[currentWordIndex].x - 1,
-                y: wordBoundaries[currentWordIndex].y - 1,
-                width: wordBoundaries[currentWordIndex].width + 2,
-                height: wordBoundaries[currentWordIndex].height + 2,
-              }}
+              width={containerWidth - INTERNAL_PADDING * 2}
+              clip={(() => {
+                // 1. RoundedRect'teki padding değerlerinin aynısı
+                const paddingX = 4;
+                const paddingY = 3;
+                
+                // 2. Aktif kelimenin sınırlarını al
+                const boundary = wordBoundaries[currentWordIndex];
+
+                // Hata ayıklama: boundary yoksa boş alan kliple
+                if (!boundary) {
+                  return { x: 0, y: 0, width: 0, height: 0 };
+                }
+
+                // 3. RoundedRect'teki hesaplamanın aynısı
+                const rectX = Math.max(0, boundary.x - paddingX);
+                const leftPaddingUsed = boundary.x - rectX;
+                
+                const idealWidth = boundary.width + leftPaddingUsed + paddingX;
+                const maxAllowedWidth = containerWidth - rectX;
+                const rectWidth = Math.min(idealWidth, maxAllowedWidth);
+                
+                const rectY = boundary.y - paddingY;
+                const rectHeight = boundary.height + (paddingY * 2);
+
+                // 4. Hesaplanmış klip alanını döndür
+                return {
+                  x: rectX,
+                  y: rectY,
+                  width: rectWidth,
+                  height: rectHeight,
+                };
+              })()}
             />
           )}
         </Canvas>

@@ -50,6 +50,7 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
   onWordLongPress,
 }) => {
   // Skia Paragraph API - Zero Reflow Architecture
+  const INTERNAL_PADDING = 8; // Kenarlardan 8px boşluk
   
   const currentSentenceShared = useSharedValue(currentSentenceIndex);
   
@@ -74,7 +75,7 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
     console.log(`🔧 [Sentence] lineHeight: ${lineHeight}, fontSize: ${fontSize}, heightMultiplier: ${heightMult}`);
     
     const combinedStyle = {
-      textAlign: 0,
+      textAlign: 3, // 0=left, 1=right, 2=center, 3=justify
       strutStyle: {
         strutEnabled: true,
         fontSize: fontSize,
@@ -92,7 +93,7 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
     builder.addText(textContent);
     
     const para = builder.build();
-    para.layout(containerWidth);
+    para.layout(containerWidth - INTERNAL_PADDING * 2); // 8px sağdan, 8px soldan
     console.log(`✅ [Sentence Paragraph] heightMultiplier: ${heightMult} | TOTAL HEIGHT: ${para.getHeight()}px`);
     
     return para;
@@ -111,7 +112,7 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
     const heightMult = lineHeight / fontSize;
     
     const combinedStyle = {
-      textAlign: 0,
+      textAlign: 3, // 0=left, 1=right, 2=center, 3=justify
       strutStyle: {
         strutEnabled: true,
         fontSize: fontSize,
@@ -129,15 +130,13 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
     builder.addText(textContent);
     
     const para = builder.build();
-    para.layout(containerWidth);
+    para.layout(containerWidth - INTERNAL_PADDING * 2); // 8px sağdan, 8px soldan
     console.log(`[White Sentence] L: ${lineHeight} F: ${fontSize} | H: ${para.getHeight()}`);
     
     return para;
   }, [sentences, fontSize, containerWidth, font, lineHeight]);
   
   // STEP 2: Calculate Sentence Boundaries SYNCHRONOUSLY
-  // Horizontal offset for padding
-  const PARAGRAPH_OFFSET_X = 6;
   
   const sentenceBoundaries = useMemo(() => {
     if (!paragraph) return [];
@@ -159,9 +158,9 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
         boundaries.push({
           startChar: startIndex,
           endChar: endIndex,
-          x: firstRect.x + PARAGRAPH_OFFSET_X, // Add offset
+          x: firstRect.x + INTERNAL_PADDING, // Paragraph x=INTERNAL_PADDING'den başlıyor
           y: firstRect.y,
-          width: containerWidth - firstRect.x - PARAGRAPH_OFFSET_X,
+          width: containerWidth - firstRect.x - INTERNAL_PADDING * 2,
           height: lastRect.y + lastRect.height - firstRect.y,
           index,
         });
@@ -206,13 +205,17 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
             if (!isHighlighted) return null;
             
             // Add horizontal padding (6px left, 6px right for sentences)
-            const paddingX = 6;
+            const paddingX = 9;
             const paddingY = 4;
             
-            // Calculate position and width, ensuring we don't go negative
+            // Calculate position with left padding
             const rectX = Math.max(0, boundary.x - paddingX);
-            const leftPaddingUsed = boundary.x - rectX; // Actual padding used on left
-            const rectWidth = boundary.width + leftPaddingUsed + paddingX; // Add left padding used + right padding
+            const leftPaddingUsed = boundary.x - rectX;
+            
+            // Calculate width with right padding, but don't exceed container
+            const idealWidth = boundary.width + leftPaddingUsed + paddingX;
+            const maxAllowedWidth = containerWidth - rectX;
+            const rectWidth = Math.min(idealWidth, maxAllowedWidth);
             
             return (
               <React.Fragment key={idx}>
@@ -244,9 +247,9 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
           {paragraph && (
             <Paragraph
               paragraph={paragraph}
-              x={PARAGRAPH_OFFSET_X}
+              x={INTERNAL_PADDING}
               y={0}
-              width={containerWidth}
+              width={containerWidth - INTERNAL_PADDING * 2}
             />
           )}
           
@@ -254,15 +257,41 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
           {currentSentenceIndex >= 0 && currentSentenceIndex < sentenceBoundaries.length && whiteParagraph && (
             <Paragraph
               paragraph={whiteParagraph}
-              x={PARAGRAPH_OFFSET_X}
+              x={INTERNAL_PADDING}
               y={0}
-              width={containerWidth}
-              clip={{
-                x: Math.max(0, sentenceBoundaries[currentSentenceIndex].x - 8),
-                y: sentenceBoundaries[currentSentenceIndex].y - 4,
-                width: sentenceBoundaries[currentSentenceIndex].width + 16,
-                height: sentenceBoundaries[currentSentenceIndex].height + 8,
-              }}
+              width={containerWidth - INTERNAL_PADDING * 2}
+              clip={(() => {
+                // 1. RoundedRect'teki padding değerlerinin aynısı
+                const paddingX = 6;
+                const paddingY = 4;
+                
+                // 2. Aktif cümlenin sınırlarını al
+                const boundary = sentenceBoundaries[currentSentenceIndex];
+
+                // Hata ayıklama: boundary yoksa boş alan kliple
+                if (!boundary) {
+                  return { x: 0, y: 0, width: 0, height: 0 };
+                }
+
+                // 3. RoundedRect'teki hesaplamanın aynısı
+                const rectX = Math.max(0, boundary.x - paddingX);
+                const leftPaddingUsed = boundary.x - rectX;
+                
+                const idealWidth = boundary.width + leftPaddingUsed + paddingX;
+                const maxAllowedWidth = containerWidth - rectX;
+                const rectWidth = Math.min(idealWidth, maxAllowedWidth);
+                
+                const rectY = boundary.y - paddingY;
+                const rectHeight = boundary.height + (paddingY * 2);
+
+                // 4. Hesaplanmış klip alanını döndür
+                return {
+                  x: rectX,
+                  y: rectY,
+                  width: rectWidth,
+                  height: rectHeight,
+                };
+              })()}
             />
           )}
         </Canvas>
