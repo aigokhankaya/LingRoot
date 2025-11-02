@@ -7,6 +7,7 @@ import {
   FaEnvelope, FaPhone, FaCamera, FaKey, FaInfoCircle, FaLanguage, FaHeadphones
 } from 'react-icons/fa';
 
+
 export default function Settings() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const [activeSection, setActiveSection] = useState('profile');
