@@ -15,6 +15,8 @@ export default function Profile() {
   const [contentHistory, setContentHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [locale, setLocale] = useState<string>('tr-TR');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
   const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null);
   const [estimates, setEstimates] = useState<{ remainingChars: number | null; remainingVideoMinutes: number | null; remainingA4Pages: number | null } | null>(null);
   const [perCategory, setPerCategory] = useState<CostAwarePerCategory | null>(null);
@@ -124,7 +126,19 @@ export default function Profile() {
     );
   }
 
-  const displayName = (user as any).name || user.email;
+  // Get name from localStorage or fallback to email
+  const getDisplayName = () => {
+    try {
+      const firstName = localStorage.getItem('lingroot_firstName') || '';
+      const lastName = localStorage.getItem('lingroot_lastName') || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      return fullName || (user as any).name || user.email.split('@')[0];
+    } catch {
+      return (user as any).name || user.email.split('@')[0];
+    }
+  };
+  
+  const displayName = getDisplayName();
   const avatar = (user as any).avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
   const role = user.role || 'user';
   const membershipStatus = user.membershipStatus || 'free';
@@ -153,7 +167,7 @@ export default function Profile() {
                 <span className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 text-gray-600 font-bold text-sm border border-gray-300">
                   {displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0,2)}
                 </span>
-                <span className="text-gray-700 text-sm font-medium">{user.email}</span>
+                <span className="text-gray-700 text-sm font-medium">{displayName || 'Kullanıcı'}</span>
               </Link>
               <button
                 onClick={logout}
@@ -239,7 +253,6 @@ export default function Profile() {
                 </div>
                 <div className="w-full">
                   <h2 className="text-2xl font-extrabold text-gray-900 mb-1">{displayName}</h2>
-                  <p className="text-gray-600 text-sm mb-3">{user.email}</p>
                   <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md">
                     <FaTrophy className="mr-2" />
                     {badge?.label || 'Ücretsiz'} Üyelik
@@ -459,29 +472,70 @@ export default function Profile() {
               ) : contentHistory.length === 0 ? (
                 <div className="text-gray-500 text-sm">Henüz içerik üretilmemiş.</div>
               ) : (
-                <div className="space-y-6">
-                  {contentHistory.map((item: any) => (
-                    <div key={item.id} className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-indigo-300">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="font-bold text-lg text-gray-900">{item.input_source}</div>
-                          <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-semibold">Seviye: {item.level}</span>
+                <>
+                  <div className="space-y-6">
+                    {contentHistory
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((item: any) => (
+                        <div key={item.id} className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-indigo-300">
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="font-bold text-lg text-gray-900">{item.input_source}</div>
+                              <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-semibold">Seviye: {item.level}</span>
+                            </div>
+                            <div className="text-sm text-gray-500 mb-4 flex items-center">
+                              <FaClock className="mr-2" />
+                              {new Date(item.created_at).toLocaleString('tr-TR')}
+                            </div>
+                            <audio controls src={item.mp3_url} className="w-full mb-3 rounded-lg" />
+                            {item.vtt_url && (
+                              <a href={item.vtt_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-semibold text-sm transition-colors">
+                                <FaBook className="mr-2" />
+                                Altyazı dosyasını indir
+                              </a>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-500 mb-4 flex items-center">
-                          <FaClock className="mr-2" />
-                          {new Date(item.created_at).toLocaleString('tr-TR')}
-                        </div>
-                        <audio controls src={item.mp3_url} className="w-full mb-3 rounded-lg" />
-                        {item.vtt_url && (
-                          <a href={item.vtt_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-semibold text-sm transition-colors">
-                            <FaBook className="mr-2" />
-                            Altyazı dosyasını indir
-                          </a>
-                        )}
+                      ))}
+                  </div>
+                  
+                  {/* Pagination */}
+                  {contentHistory.length > itemsPerPage && (
+                    <div className="flex items-center justify-center space-x-2 mt-6 pt-6 border-t border-indigo-100">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      >
+                        Önceki
+                      </button>
+                      
+                      <div className="flex items-center space-x-1">
+                        {Array.from({ length: Math.ceil(contentHistory.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-4 py-2 rounded-lg transition ${
+                              currentPage === page
+                                ? 'bg-indigo-600 text-white font-semibold'
+                                : 'bg-white border border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))}
                       </div>
+                      
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(Math.ceil(contentHistory.length / itemsPerPage), prev + 1))}
+                        disabled={currentPage === Math.ceil(contentHistory.length / itemsPerPage)}
+                        className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      >
+                        Sonraki
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </div>
           </div>
