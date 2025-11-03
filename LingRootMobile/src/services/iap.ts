@@ -95,16 +95,40 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
     try {
       console.log('[IAP] Fetching available products...');
       const products = await getProducts();
-      console.log('[IAP] Available products:', products.map(p => p.productId));
+      console.log('[IAP] Available products count:', products.length);
+      console.log('[IAP] Available product IDs:', products.map(p => p.productId));
+      
+      // Log detailed product information for debugging
+      products.forEach(p => {
+        console.log(`[IAP] Product: ${p.productId}`);
+        console.log(`  - Title: ${p.title}`);
+        console.log(`  - Description: ${p.description}`);
+        const price = (p as any).localizedPrice || (p as any).price || 'N/A';
+        console.log(`  - Price: ${price}`);
+      });
       
       const productExists = products.find(p => p.productId === productId);
       if (!productExists) {
         console.error('[IAP] ❌ Product ID not found in available products!');
-        console.error('[IAP] Requested:', productId);
-        console.error('[IAP] Available:', products.map(p => p.productId).join(', '));
-        return { ok: false, message: `Product not available: ${productId}` };
+        console.error('[IAP] Requested product ID:', productId);
+        console.error('[IAP] Available product IDs:', products.map(p => p.productId).join(', '));
+        console.error('[IAP] Total products available:', products.length);
+        
+        const lang = await getLanguage();
+        const availableList = products.length > 0 
+          ? products.map(p => p.productId).join(', ')
+          : 'none';
+        
+        return { 
+          ok: false, 
+          message: lang === 'tr'
+            ? `Ürün bulunamadı: ${productId}. Mevcut ürünler: ${availableList}`
+            : `Product not available: ${productId}. Available: ${availableList}`
+        };
       }
       console.log('[IAP] ✅ Product found:', productExists.title);
+      const foundPrice = (productExists as any).localizedPrice || (productExists as any).price || 'N/A';
+      console.log('[IAP] Product price:', foundPrice);
       
       // For Android, get subscription offers
       if (Platform.OS === 'android' && (productExists as any).subscriptionOfferDetails) {
@@ -123,7 +147,15 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
       }
     } catch (error: any) {
       console.error('[IAP] ❌ Error fetching products:', error.message);
-      return { ok: false, message: `Cannot fetch products: ${error.message}` };
+      console.error('[IAP] Error code:', error.code);
+      console.error('[IAP] Full error:', JSON.stringify(error, null, 2));
+      const lang = await getLanguage();
+      return { 
+        ok: false, 
+        message: lang === 'tr'
+          ? `Ürünler yüklenemedi: ${error.message}`
+          : `Cannot fetch products: ${error.message}`
+      };
     }
 
     return await new Promise(async (resolve) => {

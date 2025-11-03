@@ -85,9 +85,14 @@ exports.verifyAppleReceipt = async (req, res) => {
     const { receiptData, productId } = req.body;
     const userId = req.user?.id;
 
-    logger.info(`[IAP] Apple receipt verification started for user ${userId}, product ${productId}`);
+    logger.info(`[IAP-${requestId}] ========================================`);
+    logger.info(`[IAP-${requestId}] Apple receipt verification started`);
+    logger.info(`[IAP-${requestId}] User ID: ${userId}`);
+    logger.info(`[IAP-${requestId}] Product ID: ${productId}`);
+    logger.info(`[IAP-${requestId}] Receipt length: ${receiptData?.length || 0} chars`);
 
     if (!receiptData || !productId) {
+      logger.error(`[IAP-${requestId}] Missing required fields - receiptData: ${!!receiptData}, productId: ${!!productId}`);
       return res.status(400).json({
         success: false,
         message: 'Receipt data and product ID are required'
@@ -95,7 +100,7 @@ exports.verifyAppleReceipt = async (req, res) => {
     }
 
     if (!APPLE_IAP_SHARED_SECRET) {
-      logger.error('[IAP] APPLE_IAP_SHARED_SECRET not configured');
+      logger.error(`[IAP-${requestId}] APPLE_IAP_SHARED_SECRET not configured in environment`);
       return res.status(500).json({
         success: false,
         message: 'IAP configuration error'
@@ -103,44 +108,56 @@ exports.verifyAppleReceipt = async (req, res) => {
     }
 
     // Step 1: Try production environment first (Apple's recommended approach)
-    logger.info(`[IAP] Attempting production verification for user ${userId}`);
+    logger.info(`[IAP-${requestId}] Step 1: Attempting PRODUCTION verification`);
+    logger.info(`[IAP-${requestId}] Production URL: ${PRODUCTION_URL}`);
     let verificationResult = null;
     let usedEnvironment = 'production';
 
     try {
       verificationResult = await verifyReceiptWithApple(receiptData, PRODUCTION_URL);
+      logger.info(`[IAP-${requestId}] Production response status: ${verificationResult.status}`);
       
       // Step 2: If production returns sandbox receipt error (21007), try sandbox
       if (verificationResult.status === 21007) {
-        logger.info(`[IAP] Production returned sandbox receipt (21007), trying sandbox for user ${userId}`);
+        logger.info(`[IAP-${requestId}] ⚠️ Production returned status 21007 (sandbox receipt in production)`);
+        logger.info(`[IAP-${requestId}] Step 2: Switching to SANDBOX verification`);
+        logger.info(`[IAP-${requestId}] Sandbox URL: ${SANDBOX_URL}`);
         verificationResult = await verifyReceiptWithApple(receiptData, SANDBOX_URL);
         usedEnvironment = 'sandbox';
+        logger.info(`[IAP-${requestId}] Sandbox response status: ${verificationResult.status}`);
       }
     } catch (prodError) {
       // If production fails with network/timeout error, try sandbox as fallback
-      logger.warn(`[IAP] Production verification failed with error, trying sandbox for user ${userId}:`, prodError.message);
+      logger.error(`[IAP-${requestId}] ❌ Production verification threw error: ${prodError.message}`);
+      logger.error(`[IAP-${requestId}] Error code: ${prodError.code}`);
+      logger.error(`[IAP-${requestId}] Error stack: ${prodError.stack}`);
+      logger.info(`[IAP-${requestId}] Step 2: Attempting SANDBOX as fallback`);
       try {
         verificationResult = await verifyReceiptWithApple(receiptData, SANDBOX_URL);
         usedEnvironment = 'sandbox';
+        logger.info(`[IAP-${requestId}] ✅ Sandbox verification succeeded with status: ${verificationResult.status}`);
       } catch (sandboxError) {
-        logger.error(`[IAP] Both production and sandbox verification failed for user ${userId}`);
+        logger.error(`[IAP-${requestId}] ❌ Sandbox verification also failed: ${sandboxError.message}`);
+        logger.error(`[IAP-${requestId}] Both production and sandbox verification failed`);
         throw sandboxError;
       }
     }
 
     if (!verificationResult) {
-      logger.error(`[IAP] No verification result obtained for user ${userId}`);
+      logger.error(`[IAP-${requestId}] ❌ No verification result obtained`);
       return res.status(500).json({
         success: false,
         message: 'Receipt verification failed'
       });
     }
 
-    logger.info(`[IAP] Receipt verified using ${usedEnvironment} environment for user ${userId}`);
+    logger.info(`[IAP-${requestId}] ✅ Receipt verified using ${usedEnvironment.toUpperCase()} environment`);
 
     // Step 3: Check verification status
     if (verificationResult.status !== 0) {
-      logger.error(`[IAP] Apple verification failed with status ${verificationResult.status} for user ${userId}`);
+      logger.error(`[IAP-${requestId}] ❌ Apple verification failed with status ${verificationResult.status}`);
+      logger.error(`[IAP-${requestId}] Status message: ${getAppleStatusMessage(verificationResult.status)}`);
+      logger.error(`[IAP-${requestId}] Full response: ${JSON.stringify(verificationResult, null, 2)}`);
       return res.status(400).json({
         success: false,
         message: `Receipt verification failed: ${getAppleStatusMessage(verificationResult.status)}`,
@@ -149,18 +166,23 @@ exports.verifyAppleReceipt = async (req, res) => {
     }
 
     // Step 4: Extract latest receipt info
+    logger.info(`[IAP-${requestId}] Step 3: Extracting receipt information`);
     const latestReceiptInfo = verificationResult.latest_receipt_info?.[0] || 
                               verificationResult.receipt?.in_app?.[0];
 
     if (!latestReceiptInfo) {
-      logger.error(`[IAP] No receipt info found for user ${userId}`);
+      logger.error(`[IAP-${requestId}] ❌ No receipt info found in verification response`);
+      logger.error(`[IAP-${requestId}] Response structure: ${JSON.stringify(Object.keys(verificationResult), null, 2)}`);
       return res.status(400).json({
         success: false,
         message: 'No valid receipt information found'
       });
     }
 
+    logger.info(`[IAP-${requestId}] Receipt info extracted - transaction_id: ${latestReceiptInfo.transaction_id}`);
+
     // Step 5: Find matching subscription plan
+    logger.info(`[IAP-${requestId}] Step 4: Looking up subscription plan for product ${productId}`);
     const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
       .select('*')
@@ -168,12 +190,24 @@ exports.verifyAppleReceipt = async (req, res) => {
       .single();
 
     if (planError || !plan) {
-      logger.error(`[IAP] Plan not found for product ${productId}:`, planError);
+      logger.error(`[IAP-${requestId}] ❌ Plan not found for product ${productId}`);
+      logger.error(`[IAP-${requestId}] Database error: ${JSON.stringify(planError, null, 2)}`);
+      
+      // Log all available plans for debugging
+      const { data: allPlans } = await supabase
+        .from('subscription_plans')
+        .select('id, name, apple_product_id, is_active')
+        .eq('is_active', true);
+      
+      logger.error(`[IAP-${requestId}] Available Apple product IDs in database: ${JSON.stringify(allPlans?.map(p => p.apple_product_id), null, 2)}`);
+      
       return res.status(404).json({
         success: false,
-        message: 'Subscription plan not found'
+        message: 'Subscription plan not found for this product ID'
       });
     }
+
+    logger.info(`[IAP-${requestId}] ✅ Plan found: ${plan.name} (ID: ${plan.id})`)
 
     // Step 6: Check for existing subscription with same transaction OR original_transaction
     // Apple uses same original_transaction_id for upgrades/downgrades
