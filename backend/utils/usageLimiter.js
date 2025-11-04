@@ -88,7 +88,16 @@ async function getActiveSubscriptionWithPlan(userId) {
         .single();
       if (planRow) plan = planRow;
     }
-    // 2) Match by stripe price id
+    // 2) Match by stripepriceid as plan ID (most common case - admin assigned or IAP)
+    if (!plan && sub.stripepriceid) {
+      const { data: planRow } = await supabase
+        .from('subscription_plans')
+        .select('*')
+        .eq('id', sub.stripepriceid)
+        .maybeSingle();
+      if (planRow) plan = planRow;
+    }
+    // 3) Match by stripe price id (for Stripe subscriptions)
     if (!plan && sub.stripepriceid) {
       const { data: planRow } = await supabase
         .from('subscription_plans')
@@ -97,7 +106,7 @@ async function getActiveSubscriptionWithPlan(userId) {
         .maybeSingle();
       if (planRow) plan = planRow;
     }
-    // 3) Match by name (plantype)
+    // 4) Match by name (plantype)
     if (!plan && sub.plantype) {
       const { data: planRows } = await supabase
         .from('subscription_plans')
@@ -106,7 +115,15 @@ async function getActiveSubscriptionWithPlan(userId) {
       if (Array.isArray(planRows) && planRows.length > 0) plan = planRows[0];
     }
   } catch {}
-  return { ...sub, plan };
+  
+  // Ensure plantype field is set from plan name or existing plantype
+  const enrichedSub = {
+    ...sub,
+    plan,
+    plantype: sub.plantype || plan?.name || null
+  };
+  
+  return enrichedSub;
 }
 
 async function getUsageTotals(userId, periodStartIso, periodEndIso) {

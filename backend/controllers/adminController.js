@@ -231,7 +231,7 @@ exports.getUserById = async (req, res) => {
     // Fetch active subscription info
     const { data: subscription, error: subError } = await supabase
       .from('subscriptions')
-      .select('id, plantype, status, start_date, end_date, created_at')
+      .select('id, plantype, status, startdate, enddate, created_at')
       .eq('user_id', id)
       .eq('status', 'active')
       .order('created_at', { ascending: false })
@@ -242,10 +242,14 @@ exports.getUserById = async (req, res) => {
       logger.warn(`Error fetching subscription for user ID ${id}:`, subError);
     }
 
-    // Add subscription info to response
+    // Add subscription info to response (normalize field names for frontend)
     const userData = {
       ...data,
-      currentSubscription: subscription || null
+      currentSubscription: subscription ? {
+        ...subscription,
+        start_date: subscription.startdate,
+        end_date: subscription.enddate
+      } : null
     };
 
     logger.info(`Successfully fetched user ID: ${id} with subscription info`);

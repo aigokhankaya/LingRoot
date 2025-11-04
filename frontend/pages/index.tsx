@@ -208,6 +208,10 @@ const App: React.FC = () => {
             if (result.success) {
                 console.log('✅ Google giriş başarılı');
                 setIsLoginOpen(false);
+                
+                // Token'ın localStorage'a yazılması için kısa bir bekleme
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
                 const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
                 const raw = params.get('next') || '';
                 const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
@@ -683,7 +687,7 @@ const App: React.FC = () => {
             </nav>
             
             {/* Hero Section */}
-            <section className="py-12 bg-gradient-to-b from-gray-50 to-white hero-section">
+            <section className="pt-10 pb-12 min-h-0 h-auto bg-gradient-to-b from-gray-100 to-white">
                 <div className="container mx-auto px-8">
                     <div className="text-center">
                         <Badge className="mb-4 bg-blue-100 text-blue-800 hover:bg-blue-200 border-none text-sm hero-badge">{t.hero.badge}</Badge>
@@ -727,7 +731,7 @@ const App: React.FC = () => {
                 </div>
             </section>
             {/* Demo Section - Added before How It Works */}
-            <section className="py-20 bg-white">
+            <section className="pt-10 pb-20 bg-white">
                 <div className="container mx-auto px-8">
                     <div className="text-center mb-16">
                         <h2 className="text-4xl font-bold mb-4 text-gray-900 demo-title">{t.demo.title}</h2>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth';
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { initializeGoogleAuth, signInWithGoogle } from '../../lib/googleAuth';
 
 // Phone helpers: Turkish format +90 555 123 45 67
 function extractDigits(value: string): string {
@@ -51,7 +52,7 @@ function formatTRPhone(value: string): string {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -127,9 +128,42 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGoogleRegister = () => {
-    // Google OAuth implementasyonu
-    console.log('Google ile kayıt ol');
+  const handleGoogleRegister = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Google Auth'u başlat
+      console.log('🔄 Google Auth başlatılıyor...');
+      await initializeGoogleAuth();
+      
+      // Google Sign-In'i tetikle
+      console.log('🔄 Google Sign-In tetikleniyor...');
+      const { credential } = await signInWithGoogle();
+      console.log('✅ Google credential alındı');
+      
+      // Backend'e gönder (loginWithGoogle aynı zamanda kayıt da yapar)
+      console.log('🔄 Backend\'e gönderiliyor...');
+      const result = await loginWithGoogle(credential, false);
+      
+      if (result.success) {
+        console.log('✅ Google ile kayıt/giriş başarılı');
+        
+        // Token'ın localStorage'a yazılması için kısa bir bekleme
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Welcome sayfasına yönlendir
+        router.push('/welcome');
+      } else {
+        console.error('❌ Backend kayıt hatası:', result.message);
+        setError(result.message || 'Google ile kayıt başarısız.');
+      }
+    } catch (err: any) {
+      console.error('❌ Google register error:', err);
+      setError(err.message || 'Google ile kayıt sırasında bir hata oluştu.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFacebookRegister = () => {

@@ -34,9 +34,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       setIsLoading(true);
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-        // Her durumda /auth/me isteğini yap (cookie tabanlı oturumları desteklemek için)
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
+        
+        // Token yoksa /auth/me isteği yapma
+        if (!token) {
+          console.log('[AUTH] Token bulunamadı, oturum kontrolü atlanıyor');
+          setUser(null);
+          setIsAuthenticated(false);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Token varsa /auth/me isteğini yap
+        const headers: Record<string, string> = { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        };
         const response = await fetch(getApiUrl('auth/me'), {
           method: 'GET',
           headers,

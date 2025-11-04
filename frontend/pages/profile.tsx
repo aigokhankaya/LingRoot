@@ -6,6 +6,7 @@ import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle, FaC
 import { getContentHistory, getUsageSummary } from '../src/lib/api';
 import { computeEstimates, formatEstimate, type UsageSummary, computeCostAwareEstimates, COST_PER_1K, CHARS_PER_VIDEO_MINUTE, CHARS_PER_A4_PAGE, type VoiceCategory, type CostAwarePerCategory } from '../src/lib/usageEstimates';
 import InterestManager from '../src/components/InterestManager';
+import PackageInfo from '../src/components/PackageInfo';
 
 export default function Profile() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -297,6 +298,9 @@ export default function Profile() {
                 </div>
               </div>
             </div>
+
+            {/* Paket Bilgileri */}
+            <PackageInfo />
 
             {/* İlgi Alanları */}
             <InterestManager />
