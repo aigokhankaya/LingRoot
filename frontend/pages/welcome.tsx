@@ -142,6 +142,32 @@ const Welcome: React.FC = () => {
     } catch {}
   }, [router]);
 
+  // 🎯 Chat'ten gelen parametreleri işle
+  useEffect(() => {
+    if (!router.isReady) return;
+    
+    const { topic, action, text } = router.query;
+
+    // action: 'create' -> Konu sekmesi + topic yerleştir
+    if (action === 'create' && typeof topic === 'string') {
+      setContentType('subject');
+      setTextInput(topic);
+      console.log('📝 Chat\'ten konu alındı:', topic);
+    }
+    
+    // action: 'audio' -> Metin sekmesi + text yerleştir
+    if (action === 'audio' && typeof text === 'string') {
+      setContentType('text');
+      setTextInput(text);
+      console.log('🎵 Chat\'ten metin alındı (ses oluşturma)');
+      
+      // Otomatik scroll (opsiyonel)
+      setTimeout(() => {
+        window.scrollTo({ top: 400, behavior: 'smooth' });
+      }, 300);
+    }
+  }, [router.isReady, router.query]);
+
   // Yeni tasarım için state'ler
   const [contentType, setContentType] = useState<string>('text');
   const [englishLevel, setEnglishLevel] = useState<string>('a1');
@@ -1454,7 +1480,7 @@ const Welcome: React.FC = () => {
           <div className="container mx-auto px-6">
             <div className="max-w-2xl">
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                AI ile Güçlendirilmiş İngilizce Öğrenimi
+                Liro ile Kişiselleştirilmiş İngilizce Öğrenimi
               </h1>
               <p className="text-xl text-blue-100 mb-8">
                 Her seviyeye uygun kişiselleştirilmiş İngilizce içerik oluşturun ve ses dönüşümleriyle öğrenme deneyiminizi geliştirin.
@@ -1488,10 +1514,10 @@ const Welcome: React.FC = () => {
             <div className="p-6 flex items-center justify-between">
               <div className="flex-1">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
-                  LingRoot AI ile İçerik Oluştur
+                  Liro ile İçerik Oluştur
                 </h3>
                 <p className="text-gray-600 text-base">
-                  Yapay zekayla sohbet ederek seviyene uygun içerik oluşturmaya hemen başla.
+                  AI asistanınla sohbet ederek seviyene uygun içerik oluşturmaya hemen başla.
                 </p>
               </div>
               <div className="ml-6">

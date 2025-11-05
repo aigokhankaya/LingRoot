@@ -36,6 +36,9 @@ module.exports = {
     },
     extend: {
       colors: {
+        'sidebar-bg': '#202123',
+        'sidebar-border': '#2a2b31',
+        'sidebar-hover': '#2f3136',
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

@@ -7,6 +7,8 @@ import { ChatMessage } from '../../src/components/chat/ChatMessage';
 import { ChatInput } from '../../src/components/chat/ChatInput';
 import { TypingIndicator } from '../../src/components/chat/TypingIndicator';
 import { SmartPromptSuggester } from '../../src/components/chat/SmartPromptSuggester';
+import { ChatCTAButtons } from '../../src/components/chat/ChatCTAButtons';
+import { ActionConfirmModal } from '../../src/components/chat/ActionConfirmModal';
 import { getApiUrl } from '../../src/lib/api';
 
 interface Message {
@@ -35,8 +37,22 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [audioResult, setAudioResult] = useState<any>(null);
+  
+  // CTA butonları için state
+  const [konuSecildi, setKonuSecildi] = useState(false);
+  const [icerikNetlesti, setIcerikNetlesti] = useState(false);
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    type: 'narration' | 'podcast' | 'tts' | null;
+    topic: string;
+  }>({ isOpen: false, type: null, topic: '' });
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Butonların aktif/pasif durumu
+  const ctaDisabled = !(konuSecildi || icerikNetlesti);
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
@@ -47,10 +63,154 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages, isTyping]);
 
+  // Mesajları analiz et - konu/içerik netleşti mi?
+  useEffect(() => {
+    if (messages.length === 0) {
+      setKonuSecildi(false);
+      setIcerikNetlesti(false);
+      return;
+    }
+
+    // Son mesajları kontrol et
+    const recentMessages = messages.slice(-5);
+    const assistantMessages = recentMessages.filter(m => m.role === 'assistant');
+    
+    if (assistantMessages.length > 0) {
+      const lastAssistant = assistantMessages[assistantMessages.length - 1];
+      const content = lastAssistant.content.toLowerCase();
+      
+      // Trigger keywords
+      const topicKeywords = ['konu', 'hakkında', 'konusunda', 'üzerinde', 'ile ilgili', 'yapalım', 'yapabiliriz', 'oluşturabiliriz'];
+      const contentKeywords = ['içerik', 'anlatım', 'podcast', 'metin', 'detaylı', 'araştır'];
+      
+      const hasTopicKeyword = topicKeywords.some(kw => content.includes(kw));
+      const hasContentKeyword = contentKeywords.some(kw => content.includes(kw));
+      
+      if (hasTopicKeyword) setKonuSecildi(true);
+      if (hasContentKeyword) setIcerikNetlesti(true);
+    }
+  }, [messages]);
+
+  // Mesajdan konu çıkar
+  const extractTopicFromMessages = (): string => {
+    const assistantMessages = messages.filter(m => m.role === 'assistant');
+    if (assistantMessages.length === 0) return 'Belirlenen konu';
+    
+    const lastMessage = assistantMessages[assistantMessages.length - 1].content;
+    const match = lastMessage.match(/"([^"]+)"|'([^']+)'/);
+    if (match) return match[1] || match[2];
+    
+    const firstSentence = lastMessage.split(/[.!?]/)[0];
+    return firstSentence.slice(0, 80).trim();
+  };
+
+  // CTA buton handlers
+  const handleCTAClick = (type: 'narration' | 'podcast' | 'tts') => {
+    const topic = extractTopicFromMessages();
+    setModalState({ isOpen: true, type, topic });
+  };
+
+  const closeModal = () => {
+    if (!isProcessing) {
+      setModalState({ isOpen: false, type: null, topic: '' });
+    }
+  };
+
+  const handleConfirmCTA = async () => {
+    setIsProcessing(true);
+    try {
+      const token = localStorage.getItem('lingroot_token');
+      let result;
+      const lastMessage = messages.filter(m => m.role === 'assistant').pop()?.content || '';
+
+      if (modalState.type === 'narration') {
+        const response = await fetch(getApiUrl('/api/tts/process'), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'subject',
+            text: modalState.topic,
+            level: 'B1',
+            voice: 'en-US-Standard-C',
+            SesHızı: 0.8,
+          }),
+        });
+        result = await response.json();
+      } else if (modalState.type === 'podcast') {
+        const response = await fetch(getApiUrl('/api/tts/create-podcast'), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            topic: modalState.topic,
+            level: 'B1',
+            duration: '10',
+          }),
+        });
+        result = await response.json();
+      } else if (modalState.type === 'tts') {
+        const response = await fetch(getApiUrl('/api/tts/process'), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'text',
+            text: lastMessage,
+            level: 'B1',
+            voice: 'en-US-Standard-C',
+            SesHızı: 0.8,
+          }),
+        });
+        result = await response.json();
+      }
+
+      if (result) {
+        setAudioResult(result);
+      }
+
+      closeModal();
+    } catch (error) {
+      console.error('İşlem hatası:', error);
+      alert('Bir hata oluştu. Lütfen tekrar deneyin.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const getModalMessage = (): { title: string; message: string } => {
+    const topic = modalState.topic;
+    switch (modalState.type) {
+      case 'narration':
+        return {
+          title: 'Anlatım Oluştur',
+          message: `Belirlediğimiz "${topic}" konusu için araştırıp seslendireceğim, onaylıyor musun?`,
+        };
+      case 'podcast':
+        return {
+          title: 'Podcast Oluştur',
+          message: `Belirlediğimiz "${topic}" konusu için harika bir podcast oluşturacağım, onaylıyor musun?`,
+        };
+      case 'tts':
+        return {
+          title: 'Metni Seslendir',
+          message: `Bu metni senin için seslendireceğim, onaylıyor musun?`,
+        };
+      default:
+        return { title: '', message: '' };
+    }
+  };
+
   // Fetch conversations list
   const fetchConversations = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('lingroot_token');
       const response = await fetch(getApiUrl('/api/ai-chat/conversations'), {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -72,7 +232,7 @@ export default function ChatPage() {
     
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('lingroot_token');
       const response = await fetch(getApiUrl(`/api/ai-chat/conversations/${conversationId}/messages`), {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -94,7 +254,7 @@ export default function ChatPage() {
   // Create new conversation
   const createNewConversation = async (firstMessage: string) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('lingroot_token');
       const response = await fetch(getApiUrl('/api/ai-chat/conversations'), {
         method: 'POST',
         headers: {
@@ -117,7 +277,7 @@ export default function ChatPage() {
     }
   };
 
-  // Send message to Claude
+  // Send message to Liro
   const sendMessage = async (content: string) => {
     if (!content.trim()) return;
 
@@ -147,7 +307,7 @@ export default function ChatPage() {
     setIsTyping(true);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('lingroot_token');
       const response = await fetch(getApiUrl(`/api/ai-chat/conversations/${conversationId}/messages`), {
         method: 'POST',
         headers: {
@@ -222,8 +382,8 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-white dark:bg-gray-950">
-      {/* Main Navigation */}
-      <MainNav showBackButton={true} backUrl="/welcome" />
+      {/* Main Navigation - Back button kaldırıldı */}
+      <MainNav showBackButton={false} />
 
       {/* Content Area with Sidebar */}
       <div className="flex flex-1 overflow-hidden">
@@ -321,12 +481,81 @@ export default function ChatPage() {
                       })}
                     />
                   ))}
+                  
+                  {/* Audio/Podcast Result */}
+                  {audioResult && (
+                    <div className="mt-6 p-6 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-2xl border border-green-200 dark:border-green-800 shadow-lg">
+                      <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0 w-12 h-12 rounded-full bg-green-600 flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                            ✅ İçeriğiniz Hazır!
+                          </h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                            {audioResult.message || audioResult.topic || 'Ses dosyanız başarıyla oluşturuldu.'}
+                          </p>
+                          {audioResult.mp3_url && (
+                            <div className="space-y-3">
+                              <audio controls className="w-full" src={audioResult.mp3_url}>
+                                Tarayıcınız ses çalmayı desteklemiyor.
+                              </audio>
+                              <div className="flex gap-2">
+                                <a
+                                  href={audioResult.mp3_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                >
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                                  </svg>
+                                  İndir
+                                </a>
+                                {audioResult.vtt_url && (
+                                  <a
+                                    href={audioResult.vtt_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                  >
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                                    </svg>
+                                    Altyazı
+                                  </a>
+                                )}
+                                <button
+                                  onClick={() => setAudioResult(null)}
+                                  className="ml-auto inline-flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                                >
+                                  Kapat
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   {isTyping && <TypingIndicator />}
                   <div ref={messagesEndRef} />
                 </>
               )}
             </div>
           </div>
+
+          {/* CTA Buttons - Composer Üstünde Tek Instance */}
+          <ChatCTAButtons
+            disabled={ctaDisabled}
+            onAnlatim={() => handleCTAClick('narration')}
+            onPodcast={() => handleCTAClick('podcast')}
+            onSeslendir={() => handleCTAClick('tts')}
+          />
 
           {/* Input Area */}
           <ChatInput
@@ -336,6 +565,17 @@ export default function ChatPage() {
           />
         </main>
       </div>
+
+      {/* Confirmation Modal */}
+      <ActionConfirmModal
+        isOpen={modalState.isOpen}
+        onClose={closeModal}
+        onConfirm={handleConfirmCTA}
+        title={getModalMessage().title}
+        message={getModalMessage().message}
+        confirmText="Evet, Oluştur"
+        isLoading={isProcessing}
+      />
     </div>
   );
 }

@@ -27,7 +27,7 @@ const userRoutes = require("./routes/userRoutes"); // 👈 İlgi alanları burad
 const parameterRoutes = require("./routes/parameterRoutes");
 const vocabularyRoutes = require("./routes/vocabularyRoutes"); // 👈 Vocabulary route eklendi
 const chatRoutes = require("./routes/chat"); // Chat routes (admin-user support)
-const aiChatRoutes = require("./routes/aiChat"); // AI Chat routes (Claude assistant)
+const aiChatRoutes = require("./routes/aiChat"); // AI Chat routes (Liro assistant)
 const iapRoutes = require("./routes/iapRoutes"); // Apple IAP routes
 const accountRoutes = require("./routes/accountRoutes"); // Account management
 const statsRoutes = require("./routes/statsRoutes"); // User statistics
@@ -130,7 +130,7 @@ app.use("/api", userRoutes); // ✅ user-interests endpoint burada aktif
 app.use("/api/parameters", parameterRoutes);
 app.use("/api/vocabulary", vocabularyRoutes); // 👈 Vocabulary route eklendi
 app.use("/api/chat", chatRoutes); // Chat routes (admin-user support)
-app.use("/api/ai-chat", aiChatRoutes); // AI Chat routes (Claude assistant)
+app.use("/api/ai-chat", aiChatRoutes); // AI Chat routes (Liro assistant)
 app.use('/auth', authRoutes);
 app.use("/api/iap", iapRoutes); // Apple IAP verification
 app.use("/api/account", accountRoutes); // Account management

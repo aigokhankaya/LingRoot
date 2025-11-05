@@ -41,7 +41,7 @@ export const SmartPromptSuggester: React.FC<SmartPromptSuggesterProps> = ({
     
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('lingroot_token');
       const response = await fetch(
         getApiUrl(`ai-chat/conversations/${conversationId}/suggestions`),
         {
@@ -53,7 +53,7 @@ export const SmartPromptSuggester: React.FC<SmartPromptSuggesterProps> = ({
 
       if (response.ok) {
         const data = await response.json();
-        setSuggestions(data.suggestions);
+        setSuggestions(data.suggestions || { yourPreviousTopics: [], relatedTopics: [] });
       }
     } catch (error) {
       console.error('Failed to fetch suggestions:', error);
@@ -64,7 +64,7 @@ export const SmartPromptSuggester: React.FC<SmartPromptSuggesterProps> = ({
 
   const fetchPopularTopics = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('lingroot_token');
       const response = await fetch(
         getApiUrl('ai-chat/suggestions?limit=5'),
         {
@@ -97,8 +97,8 @@ export const SmartPromptSuggester: React.FC<SmartPromptSuggesterProps> = ({
   }
 
   const hasSmartSuggestions = 
-    suggestions.yourPreviousTopics.length > 0 || 
-    suggestions.relatedTopics.length > 0;
+    (suggestions?.yourPreviousTopics?.length || 0) > 0 || 
+    (suggestions?.relatedTopics?.length || 0) > 0;
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -134,14 +134,14 @@ export const SmartPromptSuggester: React.FC<SmartPromptSuggesterProps> = ({
       {activeTab === 'smart' && hasSmartSuggestions && (
         <div className="space-y-4">
           {/* Previous Topics */}
-          {suggestions.yourPreviousTopics.length > 0 && (
+          {(suggestions?.yourPreviousTopics?.length || 0) > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                 <History className="w-4 h-4" />
                 Daha Önce Konuştuklarınız
               </h3>
               <div className="flex flex-wrap gap-2">
-                {suggestions.yourPreviousTopics.map((topic, idx) => (
+                {suggestions?.yourPreviousTopics?.map((topic, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSuggestionClick(topic)}
@@ -155,14 +155,14 @@ export const SmartPromptSuggester: React.FC<SmartPromptSuggesterProps> = ({
           )}
 
           {/* Related Topics */}
-          {suggestions.relatedTopics.length > 0 && (
+          {(suggestions?.relatedTopics?.length || 0) > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
                 <Sparkles className="w-4 h-4" />
                 Benzer İlginç Konular
               </h3>
               <div className="space-y-2">
-                {suggestions.relatedTopics.map((topic, idx) => (
+                {suggestions?.relatedTopics?.map((topic, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSuggestionClick(topic)}
