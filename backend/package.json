@@ -16,7 +16,6 @@
   "dependencies": {
     "@aws-sdk/client-polly": "^3.806.0",
     "@google-cloud/text-to-speech": "^5.3.0",
-    "microsoft-cognitiveservices-speech-sdk": "^1.40.0",
     "@mozilla/readability": "^0.6.0",
     "@supabase/supabase-js": "^2.39.0",
     "@vitalets/google-translate-api": "^9.2.1",
@@ -40,6 +39,7 @@
     "jsdom": "^26.1.0",
     "jsonwebtoken": "^9.0.2",
     "mammoth": "^1.9.0",
+    "microsoft-cognitiveservices-speech-sdk": "^1.46.0",
     "mongoose": "^8.0.2",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.7",

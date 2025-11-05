@@ -7,6 +7,7 @@ import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+import { MessageSquare } from 'lucide-react';
 import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams } from '../src/lib/api';
 import PlanRequired from '../src/components/PlanRequired';
 import { useTranslation } from '../src/lib/i18n';
@@ -1478,6 +1479,28 @@ const Welcome: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* AI Content Entry Card */}
+          <div 
+            onClick={() => router.push('/chat/assistant')}
+            className="max-w-4xl mx-auto mb-8 bg-white rounded-xl shadow-md hover:shadow-lg cursor-pointer transition-all duration-300 group"
+          >
+            <div className="p-6 flex items-center justify-between">
+              <div className="flex-1">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                  LingRoot AI ile İçerik Oluştur
+                </h3>
+                <p className="text-gray-600 text-base">
+                  Yapay zekayla sohbet ederek seviyene uygun içerik oluşturmaya hemen başla.
+                </p>
+              </div>
+              <div className="ml-6">
+                <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                  <MessageSquare className="w-8 h-8 text-blue-600 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </div>
+          </div>
 
           <Card className="mb-8 border-none shadow-lg">
             <CardContent className="p-6">

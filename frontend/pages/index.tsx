@@ -208,6 +208,10 @@ const App: React.FC = () => {
             if (result.success) {
                 console.log('✅ Google giriş başarılı');
                 setIsLoginOpen(false);
+                
+                // Token'ın localStorage'a yazılması için kısa bir bekleme
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
                 const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
                 const raw = params.get('next') || '';
                 const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
@@ -287,7 +291,7 @@ const App: React.FC = () => {
             { icon: "fas fa-headphones", title: "Dinle ve Öğren", description: "İçerik yapay zeka tarafından seslendirilir, altyazı eklenir ve seviyene özel hale gelir. Artık sevdiğin şeyleri dinleyerek İngilizce öğrenebilirsin." }
           ]
         },
-        demo: { title: "Aynı İçerik, Senin Seviyen", description: "Seviyeni seç ve içeriğin nasıl değiştiğini gör. Dilediğin seviyede dinleyerek İngilizceni geliştir.", selectLevel: "Seviyeni Seç", originalContent: "Orijinal İçerik (C2)", yourLevel: "Senin Seviyen", tryYourContent: "Kendi İçeriğini Dene" },
+        demo: { title: "Aynı İçerik, Senin Seviyen", description: "Seviyeni seç ve içeriğin nasıl değiştiğini gör. Dilediğin seviyede dinleyerek İngilizceni geliştir.", selectLevel: "Seviyeni Seç ve Farkı Gör", originalContent: "Orijinal İçerik (C2)", yourLevel: "Senin Seviyen", tryYourContent: "Kendi İçeriğini Dene" },
         routine: { title: "Günlük Rutinin = İngilizce Dersin", description: "Ekstra zaman ayırmana gerek yok. Zaten yaptığın aktiviteler sırasında İngilizce öğren.", activities: [{ icon: "fas fa-walking", title: "Yürüyüş Yaparken", description: "Favori podcast'lerini dinlerken İngilizce öğren" }, { icon: "fas fa-dumbbell", title: "Spor Yaparken", description: "Motivasyon videolarını seviyene uygun dinle" }, { icon: "fas fa-car", title: "Araç Kullanırken", description: "Trafikteyken sevdiğin içerikleri dinle" }, { icon: "fas fa-home", title: "Ev İşleri Yaparken", description: "Temizlik ve yemek yaparken öğrenmeye devam et" }], adaptButton: "Seviyene Uyarla" },
         features: { title: "Neden LingRoot?", description: "LingRoot, İngilizce öğrenme deneyimini tamamen farklı bir seviyeye taşır.", featuresList: [{ icon: "fas fa-globe", title: "Gerçek İçerikler", description: "Ders kitapları değil, gerçek hayattan videolar ve yazılar ile öğren" }, { icon: "fas fa-user-cog", title: "Kişiselleştirilmiş Deneyim", description: "Seviyene ve ilgi alanına göre özel olarak hazırlanmış içerikler" }, { icon: "fas fa-headphones-alt", title: "Sadece Dinleyerek Öğren", description: "Kaliteli seslendirme, altyazı ve tekrar özellikleriyle pasif öğrenme" }, { icon: "fas fa-clock", title: "Ekstra Zaman Gerekmez", description: "Günlük rutinin içinde, ek bir çaba harcamadan İngilizce öğren" }] },
         testimonials: { title: "Kullanıcılarımız Ne Diyor?", description: "LingRoot ile İngilizce öğrenme deneyimlerini paylaşan kullanıcılarımızın yorumları.", users: [{ name: "Mert Y.", level: "B1 seviyesinde kullanıcı", quote: "LingRoot sayesinde artık yabancı videolardan korkmuyorum. Aynı içeriği hem A2 hem B1 seviyede dinlemek inanılmaz motive edici." }, { name: "Zeynep K.", level: "A2 seviyesinde kullanıcı", quote: "Sadece dinleyerek öğrendiğimi fark ettim. Her gün izlediğim içerikler artık İngilizce gelişimime katkı sağlıyor." }, { name: "Ahmet S.", level: "B2 seviyesinde kullanıcı", quote: "Sabah koşumda dinlediğim podcast'ler artık İngilizce öğretmenim. Hiç ekstra zaman harcamadan her gün ilerliyorum." }, { name: "Ayşe D.", level: "A1 seviyesinde kullanıcı", quote: "İngilizce öğrenmek için daha önce birçok uygulama denedim ama hiçbiri LingRoot kadar etkili olmadı. Sevdiğim içeriklerle öğrenmek çok daha keyifli." }, { name: "Emre T.", level: "C1 seviyesinde kullanıcı", quote: "İleri seviyede olmama rağmen, LingRoot ile yeni kelimeler öğrenmeye devam ediyorum. Özellikle akademik içerikleri kendi seviyemde dinlemek çok faydalı." }] },
@@ -354,7 +358,7 @@ const App: React.FC = () => {
         demo: {
           title: "Same Content, Your Level",
           description: "Choose your level and see how the content changes. Improve your English by listening at the level you prefer.",
-          selectLevel: "Select Your Level",
+          selectLevel: "Select Your Level and See the Difference",
           originalContent: "Original Content (C2)",
           yourLevel: "Your Level",
           tryYourContent: "Try Your Own Content"
@@ -683,14 +687,14 @@ const App: React.FC = () => {
             </nav>
             
             {/* Hero Section */}
-            <section className="py-16 bg-gradient-to-b from-gray-50 to-white hero-section">
+            <section className="pt-10 pb-12 min-h-0 h-auto bg-gradient-to-b from-gray-100 to-white">
                 <div className="container mx-auto px-8">
-                    <div className="text-center mb-8">
+                    <div className="text-center">
                         <Badge className="mb-4 bg-blue-100 text-blue-800 hover:bg-blue-200 border-none text-sm hero-badge">{t.hero.badge}</Badge>
                         <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 leading-tight hero-title max-w-5xl mx-auto">
                             {t.hero.title}<span className="text-blue-600">{t.hero.titleHighlight}</span>
                         </h1>
-                        <p className="text-lg md:text-xl lg:text-2xl text-gray-600 mb-10 leading-relaxed hero-description max-w-4xl mx-auto">
+                        <p className="text-lg md:text-xl lg:text-2xl text-gray-600 mb-6 leading-relaxed hero-description max-w-4xl mx-auto">
                             {t.hero.description}
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 hero-buttons justify-center">
@@ -727,7 +731,7 @@ const App: React.FC = () => {
                 </div>
             </section>
             {/* Demo Section - Added before How It Works */}
-            <section className="py-20 bg-white">
+            <section className="pt-10 pb-20 bg-white">
                 <div className="container mx-auto px-8">
                     <div className="text-center mb-16">
                         <h2 className="text-4xl font-bold mb-4 text-gray-900 demo-title">{t.demo.title}</h2>
@@ -761,23 +765,18 @@ const App: React.FC = () => {
                                 <div className="space-y-4">
                                     <div className="p-4 bg-blue-50 rounded-lg">
                                         <h4 className="font-bold mb-2">{t.demo.originalContent}</h4>
-                                        <p className="text-gray-700">The implications of artificial intelligence on modern society are profound and multifaceted, encompassing economic, ethical, and philosophical dimensions.</p>
+                                        <p className="text-gray-700">Lingroot customizes and dubs your favorite content based on your English proficiency. This way, you can engage with interesting topics while improving your skills naturally.</p>
                                     </div>
                                     <div className="p-4 bg-blue-100 rounded-lg border-2 border-blue-500">
                                         <h4 className="font-bold mb-2">{t.demo.yourLevel} ({levels[level]})</h4>
-                                        {level === 0 && <p className="text-gray-700">AI changes how we live. It helps us but also makes us think about what is right and wrong.</p>}
-                                        {level === 1 && <p className="text-gray-700">AI is changing our lives in many ways. It helps us but also makes us think about what is right and wrong in society.</p>}
-                                        {level === 2 && <p className="text-gray-700">Artificial intelligence is changing our society in many important ways. It affects our jobs and makes us think about ethics.</p>}
-                                        {level === 3 && <p className="text-gray-700">Artificial intelligence has significant effects on our modern society. It impacts our economy and raises important ethical questions.</p>}
-                                        {level === 4 && <p className="text-gray-700">The effects of artificial intelligence on modern society are significant and varied, including economic impacts and ethical considerations.</p>}
-                                        {level === 5 && <p className="text-gray-700">The implications of artificial intelligence on modern society are profound and multifaceted, encompassing economic, ethical, and philosophical dimensions.</p>}
+                                        {level === 0 && <p className="text-gray-700">Lingroot changes what you like into easy English. You can listen and understand at your level.</p>}
+                                        {level === 1 && <p className="text-gray-700">Lingroot changes and reads your favorite content in your English level. So you can listen and learn easier.</p>}
+                                        {level === 2 && <p className="text-gray-700">Lingroot turns the content you choose into your level of English and reads it for you. This helps you enjoy listening while learning.</p>}
+                                        {level === 3 && <p className="text-gray-700">Lingroot adapts and dubs the content you like according to your English level. This allows you to follow and understand what interests you more easily.</p>}
+                                        {level === 4 && <p className="text-gray-700">Lingroot customizes and dubs your favorite content based on your English proficiency. This way, you can engage with interesting topics while improving your skills naturally.</p>}
+                                        {level === 5 && <p className="text-gray-700">Lingroot transforms and professionally dubs any content of your choice to match your exact English proficiency. It enables you to consume complex information in an accessible way — tailored to your linguistic comfort zone.</p>}
                                     </div>
                                 </div>
-                                <a href="/register">
-                                    <Button className="mt-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button whitespace-nowrap">
-                                        {t.demo.tryYourContent}
-                                    </Button>
-                                </a>
                             </div>
                             <div className="relative overflow-hidden flex justify-center items-center p-1">
                                 <div className="relative aspect-video w-full max-w-2xl">
