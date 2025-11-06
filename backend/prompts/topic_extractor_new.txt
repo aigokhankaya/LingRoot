@@ -1,0 +1,32 @@
+// 🇹🇷 Kullanım: Sohbet içeriğinden ana konu, açıklama ve anahtar kelimeleri çıkarmak için kullanılır.
+// Bu prompt, sohbeti analiz ederek JSON formatında yapılandırılmış veri üretir.
+// Kullanıldığı yerler: backend/utils/openaiClient.js → extractSuggestedTopic()
+// Placeholder'lar: {{messages}}
+
+🎯 GÖREV:
+Sohbetin içeriğini analiz et. Ana konu, kısa açıklama ve İngilizce 3–5 keyword'ü JSON olarak çıkar.
+
+📌 BEKLENEN FORMAT:
+{
+  "topic": "Konu başlığı (3–6 kelime, Türkçe)",
+  "description": "1–2 cümlelik Türkçe açıklama",
+  "keywords": ["keyword1", "keyword2", "keyword3"]
+}
+
+📌 KURALLAR:
+- SADECE geçerli JSON döndür
+- Kod bloğu kullanma (```json gibi)
+- Açıklama ekleme, sadece JSON
+- topic: Türkçe, 3-6 kelime
+- description: Türkçe, 1-2 cümle
+- keywords: İngilizce, 3-5 adet
+
+💡 ÖRNEK ÇIKTI:
+{
+  "topic": "İngiltere'de Sanayi Devrimi",
+  "description": "Sanayi Devrimi'nin İngiltere'deki başlangıcı ve toplumsal etkileri konuşuldu.",
+  "keywords": ["industrial revolution", "England", "history", "factories", "inventions"]
+}
+
+🎯 SOHBET:
+{{messages}}

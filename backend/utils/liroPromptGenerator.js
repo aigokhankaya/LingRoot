@@ -1,4 +1,6 @@
 const logger = require('./logger');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * 🎯 Liro Prompt Generator
@@ -18,76 +20,55 @@ class LiroPromptGenerator {
       return this.getDefaultPrompt();
     }
 
-    const {
-      basicInfo,
-      interests,
-      conversationHistory,
-      contentHistory,
-      vocabularyStats,
-      learningProgress,
-      recommendations,
-    } = userProfile;
+    try {
+      const promptPath = path.join(__dirname, '../prompts/liro_system_personalized.txt');
+      let promptTemplate = fs.readFileSync(promptPath, 'utf-8');
+      
+      // Remove comments
+      promptTemplate = promptTemplate
+        .split('\n')
+        .filter(line => !line.trim().startsWith('//'))
+        .join('\n')
+        .trim();
 
-    const username = basicInfo?.username || 'Kullanıcı';
+      const {
+        basicInfo,
+        interests,
+        conversationHistory,
+        contentHistory,
+        vocabularyStats,
+        learningProgress,
+        recommendations,
+      } = userProfile;
 
-    // Profil durumuna göre farklı tonlamalar
-    const greetingStyle = this.determineGreetingStyle(basicInfo, learningProgress);
-    const focusAreas = this.determineFocusAreas(userProfile);
-    const avoidanceNotes = this.generateAvoidanceNotes(conversationHistory, contentHistory);
-    const suggestionStrategy = this.determineSuggestionStrategy(userProfile);
+      const username = basicInfo?.username || 'Kullanıcı';
+      const preferredLevel = contentHistory?.preferredLevel || 'B1';
 
-    return `Sen Liro'sun, ${username}'nın kişisel İngilizce öğrenme asistanı. ${greetingStyle}
+      // Profil durumuna göre farklı tonlamalar
+      const greetingStyle = this.determineGreetingStyle(basicInfo, learningProgress);
+      const focusAreas = this.determineFocusAreas(userProfile);
+      const avoidanceNotes = this.generateAvoidanceNotes(conversationHistory, contentHistory);
+      const suggestionStrategy = this.determineSuggestionStrategy(userProfile);
+      const profileSection = this.generateProfileSection(userProfile);
+      const learningPreferences = this.generateLearningPreferences(userProfile);
+      const focusSection = this.generateFocusSection(focusAreas);
+      const personalizedOpening = this.generatePersonalizedOpening(userProfile);
 
-🎯 SENİN ROLÜN:
-Sen sadece bir AI değilsin - ${username}'nın öğrenme yolculuğunda yanında olan bir arkadaş ve mentorsun. Onun ilgi alanlarını, öğrenme stilini ve tercihlerini çok iyi biliyorsun. Genel sorular sormak yerine, doğrudan spesifik ve ilginç konulara yönlendiriyorsun.
-
-📊 KULLANICI PROFİLİ:
-${this.generateProfileSection(userProfile)}
-
-🧠 KULLANICININ ÖĞRENİM TERCİHLERİ:
-${this.generateLearningPreferences(userProfile)}
-
-💡 STRATEJİK YAKLAŞIMIN:
-${suggestionStrategy}
-
-${avoidanceNotes}
-
-${this.generateFocusSection(focusAreas)}
-
-🎨 KONUŞMA STİLİN:
-- Samimi ve arkadaşça ol, ${username}'nı ismiyle çağır
-- "Ne hakkında konuşmak istersin?" gibi genel sorular SORMA
-- İlgi alanlarına göre 2-3 SPESIFIK konu öner
-- Her öneriyi ilginç bir bağlamla sun (güncel haber, trend, kişisel deneyim)
-- ${contentHistory?.preferredLevel || 'B1'} seviyesine uygun kelimeler kullan
-- Önceki sohbetlere atıfta bulun: "Geçen sefer X konusunda konuşmuştuk..."
-- Seri içerik öner: "Bu konunun 2. bölümünü yapalım mı?"
-- Emojiler kullan ama abartma (her cümlede değil)
-
-🚫 ASLA YAPMA:
-- Aynı konuyu tekrar tekrar önerme
-- Genel sorular sorma ("Ne yapmak istersin?")
-- Kullanıcının zaten bildiği şeyleri sorma
-- İlgi alanı dışında konular önerme
-- Çok basit veya çok zor içerik sun
-
-✅ HER ZAMAN YAP:
-- Kullanıcının geçmiş seçimlerini hatırla
-- İlgi alanlarına özel, derinlemesine konular sun
-- Seri halinde içerik öner
-- Güncel ve trendi yakala
-- Seviyesine mükemmel uyumlu içerik sun
-- Kişisel bağlantılar kur ("Senin ilgilendiğin X konusunda...")
-
-🎯 ÖNERİ STRATEJİSİ:
-1. ÖNCE: Kullanıcının unuttuğu/az kullandığı ilgi alanlarını hatırlat
-2. SONRA: Popüler konularının devamını sun (seri içerik)
-3. EN SON: Yeni, keşfedilmemiş ama ilgisini çekebilecek konular öner
-
-💬 ÖRNEK AÇILIŞ (Genel değil, spesifik):
-"Merhaba ${username}! ${this.generatePersonalizedOpening(userProfile)}"
-
-Unutma: Sen Liro'sun ve ${username}'yı çok iyi tanıyorsun. Genel konuşma yapma, doğrudan değer kat! 🎯`;
+      // Replace all placeholders
+      return promptTemplate
+        .replace(/{{username}}/g, username)
+        .replace(/{{greetingStyle}}/g, greetingStyle)
+        .replace(/{{profileSection}}/g, profileSection)
+        .replace(/{{learningPreferences}}/g, learningPreferences)
+        .replace(/{{suggestionStrategy}}/g, suggestionStrategy)
+        .replace(/{{avoidanceNotes}}/g, avoidanceNotes)
+        .replace(/{{focusSection}}/g, focusSection)
+        .replace(/{{personalizedOpening}}/g, personalizedOpening)
+        .replace(/{{preferredLevel}}/g, preferredLevel);
+    } catch (error) {
+      logger.error('Failed to load personalized prompt template:', error);
+      return this.getDefaultPrompt();
+    }
   }
 
   /**
@@ -363,26 +344,23 @@ Bu konuları AYNEN tekrar önerme! Ancak:
    * Varsayılan prompt (profil oluşturulamazsa)
    */
   getDefaultPrompt() {
-    return `Sen Liro'sun, LingRoot'un AI asistanı. Kullanıcılara İngilizce öğrenme içeriği oluşturmalarında yardımcı oluyorsun. Sıcak, arkadaş canlısı ve motive edici bir tonla konuşursun.
-
-🎯 GÖREV:
-1. Kullanıcıyla samimi, destekleyici bir diyalog kur
-2. Onları öğretici, derinlemesine anlatılabilir bir konu seçmeye yönlendir
-3. Çok genel konular yerine spesifik, ilgi çekici konular öner
-4. CEFR seviyeleri (A1, A2, B1, B2, C1, C2) hakkında bilgilendir
-
-🎨 YAKLAŞIM:
-- İlk mesajlarda kullanıcıyı tanımaya çalış
-- İlgi alanlarını öğren (teknoloji, spor, sanat, seyahat, vb.)
-- Belirsiz cevaplarda detay iste: "Harika! Bu konuda belirli bir olay, haber ya da deneyimin var mı?"
-- Somut, öğretici içerik fikirleri sun
-- Kullanıcının seviyesine uygun, kişiselleştirilmiş öneriler sun
-
-💬 KURALLAR:
-- Her zaman Türkçe yanıt ver (kullanıcı aksi belirtmedikçe)
-- Kısa, öz ve samimi cümleler kullan
-- Emojiler kullanabilirsin ama abartma
-- Kullanıcıyı içerik oluşturmaya teşvik et ve yönlendir`;
+    try {
+      const promptPath = path.join(__dirname, '../prompts/liro_system_default.txt');
+      let prompt = fs.readFileSync(promptPath, 'utf-8');
+      
+      // Remove comments
+      prompt = prompt
+        .split('\n')
+        .filter(line => !line.trim().startsWith('//'))
+        .join('\n')
+        .trim();
+      
+      return prompt;
+    } catch (error) {
+      logger.error('Failed to load default prompt:', error);
+      // Ultimate fallback
+      return `Sen Liro'sun, LingRoot'un AI asistanı. Kullanıcılara İngilizce öğrenme içeriği oluşturmalarında yardımcı oluyorsun.`;
+    }
   }
 }
 

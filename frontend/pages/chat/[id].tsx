@@ -131,11 +131,11 @@ export default function ChatPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            type: 'subject',
-            text: modalState.topic,
+            type: 'topic',
+            input: modalState.topic,
             level: 'B1',
             voice: 'en-US-Standard-C',
-            SesHızı: 0.8,
+            speakingRate: 0.8,
           }),
         });
         result = await response.json();
@@ -162,10 +162,10 @@ export default function ChatPage() {
           },
           body: JSON.stringify({
             type: 'text',
-            text: lastMessage,
+            input: lastMessage,
             level: 'B1',
             voice: 'en-US-Standard-C',
-            SesHızı: 0.8,
+            speakingRate: 0.8,
           }),
         });
         result = await response.json();

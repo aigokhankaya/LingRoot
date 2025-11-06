@@ -92,6 +92,41 @@ router.post("/chunkText", chunkTextAPI);
 router.post("/synthesizeChunk", synthesizeChunkAPI);
 router.post("/mergeAudio", mergeAudioAPI);
 
+// Create podcast from topic
+router.post("/create-podcast", authenticate, async (req, res) => {
+  try {
+    const { topic, level, duration } = req.body;
+    
+    if (!topic) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Topic is required" 
+      });
+    }
+    
+    logger.info(`📻 Creating podcast for topic: "${topic}", level: ${level || 'B1'}, duration: ${duration || '10'} min`);
+    
+    // Podcast oluşturma işlemini handleTTSRequest'e yönlendir
+    req.body = {
+      type: 'podcast',
+      text: topic,
+      level: level || 'B1',
+      voice: req.body.voice || 'en-US-Standard-C',
+      SesHızı: req.body.SesHızı || 0.8,
+      duration: duration || '10'
+    };
+    
+    return handleTTSRequest(req, res);
+  } catch (error) {
+    logger.error('Error creating podcast:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Failed to create podcast',
+      error: error.message 
+    });
+  }
+});
+
 // Amazon Polly TTS endpoint
 router.post("/polly", (req, res) => {
   // Implement your Amazon Polly TTS functionality here
