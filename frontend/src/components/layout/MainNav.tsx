@@ -22,7 +22,7 @@ export const MainNav: React.FC<MainNavProps> = ({
   const avatar = (user as any)?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
 
   return (
-    <div className="sticky top-0 z-50 bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800">
+    <div className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-200">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-14">
           {/* Left Side: Back Button (if needed) */}
@@ -41,7 +41,7 @@ export const MainNav: React.FC<MainNavProps> = ({
 
           {/* Center: Page Title (optional) */}
           <div className="flex-1 text-center">
-            <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+            <h1 className="text-lg font-semibold text-gray-800">
               {/* Sayfa başlığı buraya eklenebilir */}
             </h1>
           </div>

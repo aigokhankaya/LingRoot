@@ -38,7 +38,8 @@ module.exports = {
       colors: {
         'sidebar-bg': '#202123',
         'sidebar-border': '#2a2b31',
-        'sidebar-hover': '#2f3136',
+        'sidebar-hover': '#2A2B32',
+        'sidebar-active': '#343541',
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -89,7 +90,7 @@ module.exports = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ['Inter', 'Geist', 'sans-serif'],
+        sans: ['Plus Jakarta Sans', 'Inter', 'Geist', 'sans-serif'],
       },
       fontSize: {
         'xs': ['0.75rem', { lineHeight: '1rem' }],
