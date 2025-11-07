@@ -95,16 +95,40 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
     try {
       console.log('[IAP] Fetching available products...');
       const products = await getProducts();
-      console.log('[IAP] Available products:', products.map(p => p.productId));
+      console.log('[IAP] Available products count:', products.length);
+      console.log('[IAP] Available product IDs:', products.map(p => p.productId));
+      
+      // Log detailed product information for debugging
+      products.forEach(p => {
+        console.log(`[IAP] Product: ${p.productId}`);
+        console.log(`  - Title: ${p.title}`);
+        console.log(`  - Description: ${p.description}`);
+        const price = (p as any).localizedPrice || (p as any).price || 'N/A';
+        console.log(`  - Price: ${price}`);
+      });
       
       const productExists = products.find(p => p.productId === productId);
       if (!productExists) {
         console.error('[IAP] ❌ Product ID not found in available products!');
-        console.error('[IAP] Requested:', productId);
-        console.error('[IAP] Available:', products.map(p => p.productId).join(', '));
-        return { ok: false, message: `Product not available: ${productId}` };
+        console.error('[IAP] Requested product ID:', productId);
+        console.error('[IAP] Available product IDs:', products.map(p => p.productId).join(', '));
+        console.error('[IAP] Total products available:', products.length);
+        
+        const lang = await getLanguage();
+        const availableList = products.length > 0 
+          ? products.map(p => p.productId).join(', ')
+          : 'none';
+        
+        return { 
+          ok: false, 
+          message: lang === 'tr'
+            ? `Ürün bulunamadı: ${productId}. Mevcut ürünler: ${availableList}`
+            : `Product not available: ${productId}. Available: ${availableList}`
+        };
       }
       console.log('[IAP] ✅ Product found:', productExists.title);
+      const foundPrice = (productExists as any).localizedPrice || (productExists as any).price || 'N/A';
+      console.log('[IAP] Product price:', foundPrice);
       
       // For Android, get subscription offers
       if (Platform.OS === 'android' && (productExists as any).subscriptionOfferDetails) {
@@ -123,7 +147,15 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
       }
     } catch (error: any) {
       console.error('[IAP] ❌ Error fetching products:', error.message);
-      return { ok: false, message: `Cannot fetch products: ${error.message}` };
+      console.error('[IAP] Error code:', error.code);
+      console.error('[IAP] Full error:', JSON.stringify(error, null, 2));
+      const lang = await getLanguage();
+      return { 
+        ok: false, 
+        message: lang === 'tr'
+          ? `Ürünler yüklenemedi: ${error.message}`
+          : `Cannot fetch products: ${error.message}`
+      };
     }
 
     return await new Promise(async (resolve) => {
@@ -191,16 +223,42 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
         console.error('[IAP] ❌ Purchase error listener triggered');
         console.error('[IAP] Error code:', error?.code);
         console.error('[IAP] Error message:', error?.message);
-        console.error('[IAP] Error details:', JSON.stringify(error, null, 2));
+        console.error('[IAP] Error responseCode:', error?.responseCode);
+        console.error('[IAP] Error debugMessage:', error?.debugMessage);
+        console.error('[IAP] Full error object:', JSON.stringify(error, null, 2));
+        
+        // Detaylı hata mesajı oluştur
+        let detailedMessage = '';
+        if (error?.code) {
+          detailedMessage += `Code: ${error.code}`;
+        }
+        if (error?.responseCode) {
+          detailedMessage += ` | ResponseCode: ${error.responseCode}`;
+        }
+        if (error?.message) {
+          detailedMessage += ` | Message: ${error.message}`;
+        }
+        if (error?.debugMessage) {
+          detailedMessage += ` | Debug: ${error.debugMessage}`;
+        }
+        
+        console.error('[IAP] Detailed error string:', detailedMessage);
+        
         const lang = await getLanguage();
-        resolve({ ok: false, message: error?.message || (lang === 'tr' ? 'Satın alma hatası' : 'Purchase error') });
+        const userMessage = detailedMessage || error?.message || (lang === 'tr' ? 'Satın alma hatası' : 'Purchase error');
+        resolve({ ok: false, message: userMessage });
       });
 
       try {
+        console.log('[IAP] ========================================');
         console.log('[IAP] Requesting subscription with SKU:', productId);
+        console.log('[IAP] Platform:', Platform.OS);
+        console.log('[IAP] Timestamp:', new Date().toISOString());
+        
         if (Platform.OS === 'ios') {
+          console.log('[IAP] Calling RNIap.requestSubscription for iOS...');
           await RNIap.requestSubscription({ sku: productId, andDangerouslyFinishTransactionAutomaticallyIOS: false });
-          console.log('[IAP] Subscription request sent to App Store');
+          console.log('[IAP] ✅ Subscription request sent to App Store successfully');
         } else {
           // Android requires subscriptionOffers for Google Play Billing Library 5.0+
           if (subscriptionOffers.length > 0) {
@@ -216,12 +274,35 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
           console.log('[IAP] Subscription request sent to Google Play');
         }
       } catch (e: any) {
-        console.error('[IAP] ❌ Request subscription failed');
-        console.error('[IAP] Error:', e.message);
-        console.error('[IAP] Error code:', e.code);
-        console.error('[IAP] Full error:', JSON.stringify(e, null, 2));
+        console.error('[IAP] ❌ Request subscription EXCEPTION caught');
+        console.error('[IAP] Exception type:', typeof e);
+        console.error('[IAP] Exception message:', e?.message);
+        console.error('[IAP] Exception code:', e?.code);
+        console.error('[IAP] Exception responseCode:', e?.responseCode);
+        console.error('[IAP] Exception debugMessage:', e?.debugMessage);
+        console.error('[IAP] Exception stack:', e?.stack);
+        console.error('[IAP] Full exception object:', JSON.stringify(e, null, 2));
+        
+        // Detaylı hata mesajı oluştur
+        let detailedMessage = 'Request failed: ';
+        if (e?.code) {
+          detailedMessage += `Code: ${e.code}`;
+        }
+        if (e?.responseCode) {
+          detailedMessage += ` | ResponseCode: ${e.responseCode}`;
+        }
+        if (e?.message) {
+          detailedMessage += ` | Message: ${e.message}`;
+        }
+        if (e?.debugMessage) {
+          detailedMessage += ` | Debug: ${e.debugMessage}`;
+        }
+        
+        console.error('[IAP] Detailed exception string:', detailedMessage);
+        
         const lang = await getLanguage();
-        resolve({ ok: false, message: e?.message || (lang === 'tr' ? 'Satın alma başlatılamadı' : 'Could not start purchase') });
+        const userMessage = detailedMessage || e?.message || (lang === 'tr' ? 'Satın alma başlatılamadı' : 'Could not start purchase');
+        resolve({ ok: false, message: userMessage });
       }
     });
   } catch (e: any) {

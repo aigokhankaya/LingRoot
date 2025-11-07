@@ -94,8 +94,17 @@ const PackagesScreen: React.FC = () => {
   const handlePurchase = async (plan: SubscriptionPlan) => {
     const productId = Platform.OS === 'ios' ? plan.apple_product_id : plan.google_product_id;
     
+    console.log('========================================');
+    console.log('[PackagesScreen] Purchase initiated');
+    console.log('[PackagesScreen] Plan:', plan.name);
+    console.log('[PackagesScreen] Plan ID:', plan.id);
+    console.log('[PackagesScreen] Product ID:', productId);
+    console.log('[PackagesScreen] Platform:', Platform.OS);
+    console.log('[PackagesScreen] Timestamp:', new Date().toISOString());
+    
     if (!productId) {
       const storeName = Platform.OS === 'ios' ? 'Apple Store' : 'Google Play';
+      console.error('[PackagesScreen] ❌ No product ID found for this plan');
       Alert.alert(
         language === 'tr' ? 'Hata' : 'Error',
         language === 'tr' 
@@ -106,10 +115,17 @@ const PackagesScreen: React.FC = () => {
     }
 
     setPurchasingPlanId(plan.id);
+    console.log('[PackagesScreen] Calling requestSubscription...');
+    
     try {
       const result = await requestSubscription(productId);
       
+      console.log('[PackagesScreen] requestSubscription returned');
+      console.log('[PackagesScreen] Result:', JSON.stringify(result, null, 2));
+      
       if (result.ok) {
+        console.log('[PackagesScreen] ✅ Purchase successful');
+        console.log('[PackagesScreen] Success message:', result.message);
         Alert.alert(
           'Başarılı',
           result.message || `${plan.name} aboneliği başarıyla satın alındı`,
@@ -124,11 +140,36 @@ const PackagesScreen: React.FC = () => {
           ]
         );
       } else {
-        Alert.alert('Hata', result.message || 'Satın alma başarısız');
+        console.error('[PackagesScreen] ❌ Purchase failed');
+        console.error('[PackagesScreen] Error message:', result.message);
+        console.error('[PackagesScreen] Product ID:', productId);
+        console.error('[PackagesScreen] Plan name:', plan.name);
+        console.error('[PackagesScreen] Plan ID:', plan.id);
+        
+        Alert.alert(
+          language === 'tr' ? 'Satın Alma Hatası' : 'Purchase Error',
+          language === 'tr' ? 'Satın alma başarısız oldu.' : 'Purchase failed.',
+          [{ text: 'Tamam' }]
+        );
       }
     } catch (error: any) {
-      Alert.alert('Hata', error.message || 'Satın alma sırasında bir hata oluştu');
+      console.error('[PackagesScreen] ❌ Exception caught in handlePurchase');
+      console.error('[PackagesScreen] Exception type:', typeof error);
+      console.error('[PackagesScreen] Exception message:', error?.message);
+      console.error('[PackagesScreen] Exception code:', error?.code);
+      console.error('[PackagesScreen] Exception stack:', error?.stack);
+      console.error('[PackagesScreen] Full exception:', JSON.stringify(error, null, 2));
+      console.error('[PackagesScreen] Product ID:', productId);
+      console.error('[PackagesScreen] Plan name:', plan.name);
+      console.error('[PackagesScreen] Plan ID:', plan.id);
+      
+      Alert.alert(
+        language === 'tr' ? 'Hata' : 'Error',
+        language === 'tr' ? 'Satın alma sırasında bir hata oluştu.' : 'An error occurred during purchase.',
+        [{ text: 'Tamam' }]
+      );
     } finally {
+      console.log('[PackagesScreen] Purchase flow completed, resetting purchasingPlanId');
       setPurchasingPlanId(null);
     }
   };
