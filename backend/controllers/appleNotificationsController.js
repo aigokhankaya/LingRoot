@@ -1,10 +1,5 @@
 const logger = require('../utils/logger');
-const { createClient } = require('@supabase/supabase-js');
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const { supabase } = require('../config/supabase'); // Use centralized Supabase instance
 
 /**
  * Apple App Store Server Notifications V2 Handler
