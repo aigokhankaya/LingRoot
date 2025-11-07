@@ -86,10 +86,13 @@ exports.verifyAppleReceipt = async (req, res) => {
     const userId = req.user?.id;
 
     logger.info(`[IAP-${requestId}] ========================================`);
-    logger.info(`[IAP-${requestId}] Apple receipt verification started`);
+    logger.info(`[IAP-${requestId}] 🍎 APPLE IAP VERIFICATION STARTED`);
+    logger.info(`[IAP-${requestId}] Timestamp: ${new Date().toISOString()}`);
     logger.info(`[IAP-${requestId}] User ID: ${userId}`);
+    logger.info(`[IAP-${requestId}] User Email: ${req.user?.email || 'N/A'}`);
     logger.info(`[IAP-${requestId}] Product ID: ${productId}`);
     logger.info(`[IAP-${requestId}] Receipt length: ${receiptData?.length || 0} chars`);
+    logger.info(`[IAP-${requestId}] Request IP: ${req.ip || req.connection?.remoteAddress || 'N/A'}`);
 
     if (!receiptData || !productId) {
       logger.error(`[IAP-${requestId}] Missing required fields - receiptData: ${!!receiptData}, productId: ${!!productId}`);
@@ -352,7 +355,12 @@ exports.verifyAppleReceipt = async (req, res) => {
       logger.error(`[IAP] Error updating user role for user ${userId}:`, roleError);
     }
 
-    logger.info(`[IAP] Successfully created subscription ${newSub.id} for user ${userId}`);
+    logger.info(`[IAP-${requestId}] Successfully created subscription ${newSub.id} for user ${userId}`);
+    logger.info(`[IAP-${requestId}] Plan: ${plan.name}`);
+    logger.info(`[IAP-${requestId}] Expires: ${expiresDate.toISOString()}`);
+    logger.info(`[IAP-${requestId}] Environment: ${usedEnvironment}`);
+    logger.info(`[IAP-${requestId}] Transaction ID: ${latestReceiptInfo.transaction_id}`);
+    logger.info(`[IAP-${requestId}] ========================================`);
 
     return res.status(200).json({
       success: true,
@@ -365,7 +373,13 @@ exports.verifyAppleReceipt = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error(`[IAP] Server error during Apple receipt verification:`, error);
+    logger.error(`[IAP-${requestId}] ❌❌❌ CRITICAL ERROR during Apple receipt verification`);
+    logger.error(`[IAP-${requestId}] Error type: ${error.constructor.name}`);
+    logger.error(`[IAP-${requestId}] Error message: ${error.message}`);
+    logger.error(`[IAP-${requestId}] Error stack: ${error.stack}`);
+    logger.error(`[IAP-${requestId}] User ID: ${req.user?.id}`);
+    logger.error(`[IAP-${requestId}] Product ID: ${req.body?.productId}`);
+    logger.error(`[IAP-${requestId}] ========================================`);
     return res.status(500).json({
       success: false,
       message: 'Server error during verification',

@@ -22,6 +22,8 @@ import { AudioTrack, Timepoint } from '../types';
 import { useAudioContext } from '../contexts/AudioContext';
 import { addWordToVocabulary, addWordWithTranslation, apiService } from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
+import { SkiaWordHighlight } from './SkiaWordHighlight';
+import { SkiaSentenceHighlight } from './SkiaSentenceHighlight';
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -48,7 +50,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [position, setPosition] = useState(0);
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(-1);
-  const [highlightLayout, setHighlightLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   
   // Removed complex drift correction - using simple web-like approach
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set()); // Seçilen kelimeler
@@ -80,8 +81,19 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     });
     
     if (timepoints && timepoints.length > 0) {
-      console.log('🎯 First 3 timepoints:', timepoints.slice(0, 3));
+      console.log('🎯 First 10 timepoints:', timepoints.slice(0, 10));
       console.log('🎯 Last 3 timepoints:', timepoints.slice(-3));
+      
+      // Find "Furthermore" and log surrounding words
+      const furthermoreIndex = timepoints.findIndex(tp => tp?.word?.toLowerCase().includes('furthermore'));
+      if (furthermoreIndex !== -1) {
+        const start = Math.max(0, furthermoreIndex - 5);
+        const end = Math.min(timepoints.length, furthermoreIndex + 6);
+        console.log(`🔍 Found "Furthermore" at index ${furthermoreIndex}. Surrounding timepoints (${start}-${end}):`);
+        timepoints.slice(start, end).forEach((tp, idx) => {
+          console.log(`  [${start + idx}] "${tp.word}" @ ${tp.timeSeconds.toFixed(2)}s`);
+        });
+      }
     }
   }, [track.id, track.original_turkish, timepoints, words]);
 
@@ -96,6 +108,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const textToHighlight = getTextForHighlight();
     const wordsArray = words.length > 0 ? words : textToHighlight.split(' ');
     const sentences = textToHighlight.split(/[.!?]+/).filter(s => s.trim().length > 0);
+
+    // Debug: Check array lengths
+    console.log(`📊 Array lengths: wordsArray=${wordsArray.length}, words prop=${words.length}`);
+    if (wordsArray.length !== words.length && words.length > 0) {
+      console.warn(`⚠️ MISMATCH! wordsArray.length (${wordsArray.length}) !== words.length (${words.length})`);
+    }
 
     return {
       textToHighlight,
@@ -335,24 +353,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     
     const newWordIndex = findWordIndexBinarySearch(currentTime, timepoints);
 
+    // Debug: Log around "Furthermore" (assuming it's around index 50-70)
+    if (newWordIndex >= 0 && newWordIndex <= 10) {
+      const tp = timepoints[newWordIndex];
+      console.log(`[SYNC] currentTime: ${currentTime.toFixed(2)}s | wordIndex: ${newWordIndex} | word: "${tp?.word}" | timestamp: ${tp?.timeSeconds.toFixed(2)}s`);
+    }
+
     // Only update if word changed
     if (newWordIndex !== -1 && newWordIndex !== currentWordIndex) {
       setCurrentWordIndex(newWordIndex);
       scrollToWord(newWordIndex);
-      
-      // Measure word position for overlay
-      const wordRef = wordRefs.current.get(newWordIndex);
-      if (wordRef && scrollViewRef.current) {
-        wordRef.measureLayout(
-          scrollViewRef.current,
-          (x: number, y: number, width: number, height: number) => {
-            setHighlightLayout({ x, y, width, height });
-          },
-          () => {
-            // Measurement failed
-          }
-        );
-      }
     }
   }, [timepoints, currentWordIndex, findWordIndexBinarySearch]);
 
@@ -623,7 +633,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (highlightMode === 'word') {
       return renderWordHighlighting;
     } else {
-      return renderSentenceHighlighting();
+      return renderSentenceHighlighting;
     }
   };
 
@@ -678,137 +688,44 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const renderWordHighlighting = useMemo(() => {
     return (
-      <View style={styles.textContainer}>
-        <Text style={styles.textWrapper}>
-          {wordsArray.map((word, index) => {
-            const isHighlighted = index === currentWordIndex;
-            return (
-              <Text
-                key={index}
-                ref={(ref) => {
-                  if (ref) {
-                    wordRefs.current.set(index, ref);
-                  }
-                }}
-                onPress={() => handleWordPress(index)}
-                onLongPress={() => handleWordLongPress(word, index)}
-                style={[
-                  styles.finalInlineWord,
-                  isHighlighted && styles.finalInlineHighlighted
-                ]}
-              >
-                {word}{'  '}
-              </Text>
-            );
-          })}
-        </Text>
-      </View>
+      <SkiaWordHighlight
+        words={wordsArray}
+        currentWordIndex={currentWordIndex}
+        selectedWords={selectedWords}
+        fontSize={16}
+        lineHeight={28}
+        containerWidth={screenWidth - 32}
+        onWordPress={handleWordPress}
+        onWordLongPress={handleWordLongPress}
+        mode="word"
+      />
     );
-  }, [wordsArray, currentWordIndex, handleWordPress, handleWordLongPress]);
+  }, [wordsArray, currentWordIndex, selectedWords, handleWordPress, handleWordLongPress]);
 
-  const renderSentenceHighlighting = () => {
-    let lastTapTime = 0;
-    let lastSentenceIndex = -1;
-    let tapTimeout: NodeJS.Timeout;
+  const handleSentencePressCallback = useCallback((sentenceIndex: number, sentenceText: string) => {
+    const totalDuration = duration / 1000;
+    if (totalDuration > 0) {
+      const sentenceProgress = sentenceIndex / sentences.length;
+      const targetTime = sentenceProgress * totalDuration;
+      const positionMs = targetTime * 1000;
+      handleSeek(positionMs);
+    }
+  }, [duration, sentences.length, handleSeek]);
 
-    // Copy sentence to clipboard on double tap
-    const handleDoubleTap = (text: string) => {
-      Clipboard.setString(text);
-      Alert.alert(
-        language === 'tr' ? 'Kopyalandı' : 'Copied',
-        language === 'tr' ? 'Cümle panoya kopyalandı' : 'Sentence copied to clipboard'
-      );
-    };
-
-    // Cümleye tıklandığında o cümlenin başına atla
-    const handleSentencePress = (sentenceIndex: number, sentenceText: string) => {
-      const now = Date.now();
-      const DOUBLE_TAP_DELAY = 300;
-      
-      if (lastSentenceIndex === sentenceIndex && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
-        // Double tap detected
-        clearTimeout(tapTimeout);
-        handleDoubleTap(sentenceText);
-        lastTapTime = 0;
-        lastSentenceIndex = -1;
-      } else {
-        // Single tap - handle seek
-        lastTapTime = now;
-        lastSentenceIndex = sentenceIndex;
-        tapTimeout = setTimeout(() => {
-          const totalDuration = duration / 1000;
-          if (totalDuration > 0) {
-            const sentenceProgress = sentenceIndex / sentences.length;
-            const targetTime = sentenceProgress * totalDuration;
-            const positionMs = targetTime * 1000;
-            handleSeek(positionMs);
-          }
-          lastTapTime = 0;
-          lastSentenceIndex = -1;
-        }, DOUBLE_TAP_DELAY);
-      }
-    };
+  const renderSentenceHighlighting = useMemo(() => {
     return (
-      <View style={styles.textContainer}>
-        {sentences.map((sentence, sentenceIndex) => {
-          const isHighlighted = sentenceIndex === currentSentenceIndex;
-          const words = sentence.split(/\s+/).filter(word => word.length > 0);
-          const isCurrentSentence = sentenceIndex === currentSentenceIndex;
-
-          return (
-            <TouchableOpacity
-              key={sentenceIndex}
-              style={[
-                styles.sentenceContainer,
-                isCurrentSentence && styles.highlightedSentence
-              ]}
-              onPress={() => handleSentencePress(sentenceIndex, sentence)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.sentenceWordsContainer}>
-                {words.map((word, wordIndex) => {
-                  const cleanWord = word.replace(/[.,!?;:]/g, '').toLowerCase();
-                  const isWordSelected = selectedWords.has(cleanWord);
-                  
-                  return (
-                    <TouchableOpacity
-                      key={`${sentenceIndex}-${wordIndex}`}
-                      style={[
-                        styles.wordInSentence,
-                        isWordSelected && styles.selectedWord
-                      ]}
-                      onLongPress={() => handleWordLongPress(word, wordIndex)}
-                      delayLongPress={500}
-                      activeOpacity={0.8}
-                    >
-                      <Text
-                        style={[
-                          styles.sentence,
-                          isCurrentSentence && styles.highlightedSentenceText,
-                          isWordSelected && styles.selectedWordText
-                        ]}
-                      >
-                        {word}{wordIndex < words.length - 1 ? ' ' : ''}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-                <Text
-                  style={[
-                    styles.sentence,
-                    isCurrentSentence && styles.highlightedSentenceText
-                  ]}
-                >
-                  .
-                </Text>
-              </View>
-              {/* Cümle numarası göstergesi kaldırıldı */}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      <SkiaSentenceHighlight
+        sentences={sentences}
+        currentSentenceIndex={currentSentenceIndex}
+        selectedWords={selectedWords}
+        fontSize={16}
+        lineHeight={28}
+        containerWidth={screenWidth - 32}
+        onSentencePress={handleSentencePressCallback}
+        onWordLongPress={handleWordLongPress}
+      />
     );
-  };
+  }, [sentences, currentSentenceIndex, selectedWords, handleSentencePressCallback, handleWordLongPress]);
 
   const progressPercentage = duration > 0 ? (position / duration) * 100 : 0;
 
@@ -891,12 +808,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               removeClippedSubviews={false}
               bounces={true}
             >
-              <View 
-                style={styles.textWrapperView}
-                onTouchEnd={(e) => e.stopPropagation()}
-              >
+              <Pressable style={styles.textWrapper}>
                 {renderHighlightedText()}
-              </View>
+              </Pressable>
             </ScrollView>
           </View>
           <View style={{ width: screenWidth, flex: 1 }}>
@@ -909,14 +823,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               removeClippedSubviews={false}
               bounces={true}
             >
-              <View onTouchEnd={(e) => e.stopPropagation()}>
+              <Pressable>
                 <Text style={styles.originalTitle}>Orijinal Türkçe Metin</Text>
                 {originalLoading ? (
                   <Text style={styles.originalText}>Yükleniyor...</Text>
                 ) : (
                   <Text style={styles.originalText}>{originalText || track.original_turkish || '—'}</Text>
                 )}
-              </View>
+              </Pressable>
             </ScrollView>
           </View>
         </ScrollView>
@@ -1077,7 +991,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 0,
   },
-  textWrapperView: {
+  textWrapper: {
     paddingBottom: 20,
   },
   sectionTitle: {
@@ -1089,45 +1003,6 @@ const styles = StyleSheet.create({
   textContainer: {
     paddingHorizontal: 16,
     width: '100%',
-    position: 'relative',
-  },
-  textWrapper: {
-    fontSize: 16,
-    lineHeight: 35,
-    color: '#333',
-  },
-  wordsFlowContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-  },
-  wordFlowWrapper: {
-    marginRight: 6,
-    marginBottom: 6,
-  },
-  wordFlowTouchable: {
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  wordFlowHighlighted: {
-    backgroundColor: '#007AFF',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-  },
-  wordFlowText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  wordFlowHighlightedText: {
-    color: '#fff',
-    fontWeight: '600',
   },
   wordsWrapper: {
     flexDirection: 'row',
@@ -1141,8 +1016,6 @@ const styles = StyleSheet.create({
   wordTouchable: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: 'transparent',
   },
   highlightedWordTouchable: {
     backgroundColor: '#007AFF',
@@ -1156,16 +1029,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  finalInlineWord: {
+  inlineWord: {
     fontSize: 16,
     color: '#333',
+    lineHeight: 24,
   },
-  finalInlineHighlighted: {
-    backgroundColor: '#007AFF',
+  inlineHighlightedWord: {
     color: '#fff',
     fontWeight: '600',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
   },
   wordContainer: {
     paddingHorizontal: 4,
