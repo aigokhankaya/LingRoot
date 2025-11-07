@@ -1,0 +1,127 @@
+{
+  "identifier" : "LingRoot",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "tr_TR",
+    "_storefront" : "TUR",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptions" : [
+    {
+      "adHocOffers" : [
+
+      ],
+      "codeOffers" : [
+
+      ],
+      "displayPrice" : "349.99",
+      "familyShareable" : false,
+      "groupNumber" : 1,
+      "internalID" : "6753145745",
+      "introductoryOffer" : null,
+      "localizations" : [
+        {
+          "description" : "Access premium features with unlimited usage.",
+          "displayName" : "Gold Plan",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "Sınırsız kullanım ile premium özelliklere erişin.",
+          "displayName" : "Gold Plan",
+          "locale" : "tr_TR"
+        }
+      ],
+      "productID" : "com.lingroot.premium.monthly",
+      "recurringSubscriptionPeriod" : "P1M",
+      "referenceName" : "Gold Plan Monthly",
+      "subscriptionGroupID" : "21563173",
+      "type" : "RecurringSubscription"
+    },
+    {
+      "adHocOffers" : [
+
+      ],
+      "codeOffers" : [
+
+      ],
+      "displayPrice" : "599.99",
+      "familyShareable" : false,
+      "groupNumber" : 1,
+      "internalID" : "6753145746",
+      "introductoryOffer" : null,
+      "localizations" : [
+        {
+          "description" : "Access premium features with unlimited usage..",
+          "displayName" : "Platin Plan",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "Sınırsız kullanım ile premium özelliklere erişin..",
+          "displayName" : "Platin Plan",
+          "locale" : "tr_TR"
+        }
+      ],
+      "productID" : "com.lingroot.premium.monthly.platin",
+      "recurringSubscriptionPeriod" : "P1M",
+      "referenceName" : "Platin Plan Monthly",
+      "subscriptionGroupID" : "21563173",
+      "type" : "RecurringSubscription"
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

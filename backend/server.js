@@ -29,6 +29,7 @@ const vocabularyRoutes = require("./routes/vocabularyRoutes"); // 👈 Vocabular
 const chatRoutes = require("./routes/chat"); // Chat routes (admin-user support)
 const aiChatRoutes = require("./routes/aiChat"); // AI Chat routes (Claude assistant)
 const iapRoutes = require("./routes/iapRoutes"); // Apple IAP routes
+const appleNotificationsRoutes = require("./routes/appleNotificationsRoutes"); // Apple Server Notifications
 const accountRoutes = require("./routes/accountRoutes"); // Account management
 const statsRoutes = require("./routes/statsRoutes"); // User statistics
 const externalServicesRoutes = require("./routes/externalServicesRoutes"); // External services management
@@ -133,6 +134,7 @@ app.use("/api/chat", chatRoutes); // Chat routes (admin-user support)
 app.use("/api/ai-chat", aiChatRoutes); // AI Chat routes (Claude assistant)
 app.use('/auth', authRoutes);
 app.use("/api/iap", iapRoutes); // Apple IAP verification
+app.use("/api/iap/apple", appleNotificationsRoutes); // Apple Server Notifications
 app.use("/api/account", accountRoutes); // Account management
 app.use("/api/stats", statsRoutes); // User statistics
 app.use("/api/external-services", externalServicesRoutes); // External services management
