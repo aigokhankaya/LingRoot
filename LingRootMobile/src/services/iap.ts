@@ -58,16 +58,38 @@ export async function getProducts() {
 }
 
 async function verifyWithBackend(receipt: string, productId: string, purchaseToken?: string) {
-  if (Platform.OS === 'ios') {
-    // Apple IAP verification
-    return apiService.verifyAppleReceipt(receipt, productId);
-  } else {
-    // Google Play IAP verification
-    if (!purchaseToken) {
-      throw new Error('Purchase token is required for Android');
+  console.log('[IAP] 🔗 verifyWithBackend called');
+  console.log('[IAP] Platform:', Platform.OS);
+  console.log('[IAP] Product ID:', productId);
+  console.log('[IAP] Receipt length:', receipt?.length || 0);
+  console.log('[IAP] Purchase token:', purchaseToken ? 'present' : 'not present');
+  
+  try {
+    if (Platform.OS === 'ios') {
+      console.log('[IAP] Calling apiService.verifyAppleReceipt...');
+      const result = await apiService.verifyAppleReceipt(receipt, productId);
+      console.log('[IAP] ✅ Backend verification successful:', JSON.stringify(result, null, 2));
+      return result;
+    } else {
+      // Google Play IAP verification
+      if (!purchaseToken) {
+        console.error('[IAP] ❌ Purchase token missing for Android');
+        throw new Error('Purchase token is required for Android');
+      }
+      const packageName = 'com.nsyzk.lingrootmobile';
+      console.log('[IAP] Calling apiService.verifyGooglePlayPurchase...');
+      console.log('[IAP] Package name:', packageName);
+      const result = await apiService.verifyGooglePlayPurchase(purchaseToken, productId, packageName);
+      console.log('[IAP] ✅ Backend verification successful:', JSON.stringify(result, null, 2));
+      return result;
     }
-    const packageName = 'com.nsyzk.lingrootmobile'; // Your Android package name
-    return apiService.verifyGooglePlayPurchase(purchaseToken, productId, packageName);
+  } catch (error: any) {
+    console.error('[IAP] ❌ Backend verification failed');
+    console.error('[IAP] Error type:', typeof error);
+    console.error('[IAP] Error message:', error?.message);
+    console.error('[IAP] Error response:', error?.response?.data);
+    console.error('[IAP] Error status:', error?.response?.status);
+    throw error;
   }
 }
 
