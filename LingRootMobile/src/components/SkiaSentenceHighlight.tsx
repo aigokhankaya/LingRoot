@@ -172,8 +172,18 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
     return boundaries;
   }, [paragraph, sentences, containerWidth]);
 
+  // Calculate canvas height with Metal GPU limit (16384px max on iPhone 7)
   const canvasHeight = useMemo(() => {
-    return paragraph ? paragraph.getHeight() + 20 : 200;
+    if (!paragraph) return 200;
+    const calculatedHeight = paragraph.getHeight() + 20;
+    const MAX_METAL_TEXTURE_HEIGHT = 16000; // Safe limit below 16384
+    
+    if (calculatedHeight > MAX_METAL_TEXTURE_HEIGHT) {
+      console.warn(`⚠️ Canvas height ${calculatedHeight}px exceeds Metal GPU limit. Capping at ${MAX_METAL_TEXTURE_HEIGHT}px`);
+      return MAX_METAL_TEXTURE_HEIGHT;
+    }
+    
+    return calculatedHeight;
   }, [paragraph]);
   
   const handleTouch = (event: GestureResponderEvent) => {
