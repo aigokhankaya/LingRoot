@@ -1,5 +1,15 @@
 {
-  "identifier" : "LingRoot",
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "A173A866",
   "nonRenewingSubscriptions" : [
 
   ],
@@ -8,8 +18,6 @@
   ],
   "settings" : {
     "_failTransactionsEnabled" : false,
-    "_locale" : "tr_TR",
-    "_storefront" : "TUR",
     "_storeKitErrors" : [
       {
         "current" : null,
@@ -58,70 +66,75 @@
       }
     ]
   },
-  "subscriptions" : [
+  "subscriptionGroups" : [
     {
-      "adHocOffers" : [
-
-      ],
-      "codeOffers" : [
-
-      ],
-      "displayPrice" : "349.99",
-      "familyShareable" : false,
-      "groupNumber" : 1,
-      "internalID" : "6753145745",
-      "introductoryOffer" : null,
+      "id" : "7F34DAAB",
       "localizations" : [
+
+      ],
+      "name" : "Lingroot Premium",
+      "subscriptions" : [
         {
-          "description" : "Access premium features with unlimited usage.",
-          "displayName" : "Gold Plan",
-          "locale" : "en_US"
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "399.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "EB4AC4AC",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "",
+              "displayName" : "",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.lingroot.premium.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Gold Plan Monthly",
+          "subscriptionGroupID" : "7F34DAAB",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
         },
         {
-          "description" : "Sınırsız kullanım ile premium özelliklere erişin.",
-          "displayName" : "Gold Plan",
-          "locale" : "tr_TR"
-        }
-      ],
-      "productID" : "com.lingroot.premium.monthly",
-      "recurringSubscriptionPeriod" : "P1M",
-      "referenceName" : "Gold Plan Monthly",
-      "subscriptionGroupID" : "21563173",
-      "type" : "RecurringSubscription"
-    },
-    {
-      "adHocOffers" : [
+          "adHocOffers" : [
 
-      ],
-      "codeOffers" : [
+          ],
+          "codeOffers" : [
 
-      ],
-      "displayPrice" : "599.99",
-      "familyShareable" : false,
-      "groupNumber" : 1,
-      "internalID" : "6753145746",
-      "introductoryOffer" : null,
-      "localizations" : [
-        {
-          "description" : "Access premium features with unlimited usage..",
-          "displayName" : "Platin Plan",
-          "locale" : "en_US"
-        },
-        {
-          "description" : "Sınırsız kullanım ile premium özelliklere erişin..",
-          "displayName" : "Platin Plan",
-          "locale" : "tr_TR"
+          ],
+          "displayPrice" : "599.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "188501FC",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "",
+              "displayName" : "",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.lingroot.premium.monthly.platin",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Platinum Plan Monthly",
+          "subscriptionGroupID" : "7F34DAAB",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
         }
-      ],
-      "productID" : "com.lingroot.premium.monthly.platin",
-      "recurringSubscriptionPeriod" : "P1M",
-      "referenceName" : "Platin Plan Monthly",
-      "subscriptionGroupID" : "21563173",
-      "type" : "RecurringSubscription"
+      ]
     }
   ],
   "version" : {
-    "major" : 3,
+    "major" : 4,
     "minor" : 0
   }
 }
