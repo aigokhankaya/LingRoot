@@ -141,12 +141,24 @@ async function handleSubscriptionRenewal(notificationId, transactionId, productI
     }
 
     // Update expiration date
-    const newEndDate = new Date(parseInt(expiresDate));
+    let newEndDateMs = parseInt(expiresDate);
+    
+    // SANDBOX TEST: Extend expiration to 2 days for testing
+    // Apple Sandbox subscriptions expire in 5 minutes, but we extend them for testing
+    if (subscription.environment === 'Sandbox') {
+      const originalExpires = new Date(newEndDateMs);
+      const extendedExpires = new Date(Date.now() + (2 * 24 * 60 * 60 * 1000)); // 2 days from now
+      logger.info(`[${notificationId}] 🧪 SANDBOX MODE: Extending renewal from ${originalExpires.toISOString()} to ${extendedExpires.toISOString()}`);
+      newEndDateMs = extendedExpires.getTime();
+    }
+    
+    const newEndDate = new Date(newEndDateMs);
     
     const { error: updateError } = await supabase
       .from('subscriptions')
       .update({
         enddate: newEndDate.toISOString(),
+        expires_at: newEndDate.toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', subscription.id);

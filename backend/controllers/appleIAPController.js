@@ -187,7 +187,17 @@ exports.verifyAppleReceipt = async (req, res) => {
 
     const nowMs = Date.now();
     const { status } = normalizeAppleStatus(latest, nowMs);
-    const expiresMs = Number(latest.expires_date_ms || 0) || nowMs;
+    let expiresMs = Number(latest.expires_date_ms || 0) || nowMs;
+    
+    // SANDBOX TEST: Extend expiration to 2 days for testing
+    // Apple Sandbox subscriptions expire in 5 minutes, but we extend them for testing
+    if (environment === 'Sandbox') {
+      const originalExpires = new Date(expiresMs);
+      const extendedExpires = new Date(nowMs + (2 * 24 * 60 * 60 * 1000)); // 2 days from now
+      logger.info(`[${requestId}] 🧪 SANDBOX MODE: Extending expiration from ${originalExpires.toISOString()} to ${extendedExpires.toISOString()}`);
+      expiresMs = extendedExpires.getTime();
+    }
+    
     const expiresAtIso = new Date(expiresMs).toISOString();
 
     const originalTxId = latest.original_transaction_id || latest.original_transaction_identifier;
