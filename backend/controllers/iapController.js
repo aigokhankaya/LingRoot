@@ -113,41 +113,54 @@ exports.verifyAppleReceipt = async (req, res) => {
       });
     }
 
-    // Step 1: Try production environment first (Apple's recommended approach)
-    logger.info(`[IAP-${requestId}] Step 1: Attempting PRODUCTION verification`);
-    logger.info(`[IAP-${requestId}] Production URL: ${PRODUCTION_URL}`);
+    // Check if this is a StoreKit test receipt (contains "StoreKit" in the certificate)
+    const isStoreKitReceipt = receiptData.includes('U3RvcmVLaXQ'); // "StoreKit" in base64
+    
     let verificationResult = null;
     let usedEnvironment = 'production';
+    
+    // If StoreKit receipt, go directly to Sandbox
+    if (isStoreKitReceipt) {
+      logger.info(`[IAP-${requestId}] 🧪 Detected StoreKit test receipt, using SANDBOX directly`);
+      logger.info(`[IAP-${requestId}] Sandbox URL: ${SANDBOX_URL}`);
+      verificationResult = await verifyReceiptWithApple(receiptData, SANDBOX_URL);
+      usedEnvironment = 'sandbox';
+      logger.info(`[IAP-${requestId}] Sandbox response status: ${verificationResult.status}`);
+    } else {
+      // Step 1: Try production environment first (Apple's recommended approach)
+      logger.info(`[IAP-${requestId}] Step 1: Attempting PRODUCTION verification`);
+      logger.info(`[IAP-${requestId}] Production URL: ${PRODUCTION_URL}`);
 
-    try {
-      verificationResult = await verifyReceiptWithApple(receiptData, PRODUCTION_URL);
-      logger.info(`[IAP-${requestId}] Production response status: ${verificationResult.status}`);
-      
-      // Step 2: If production returns sandbox receipt error (21007), try sandbox
-      if (verificationResult.status === 21007) {
-        logger.info(`[IAP-${requestId}] ⚠️ Production returned status 21007 (sandbox receipt in production)`);
-        logger.info(`[IAP-${requestId}] Step 2: Switching to SANDBOX verification`);
-        logger.info(`[IAP-${requestId}] Sandbox URL: ${SANDBOX_URL}`);
-        verificationResult = await verifyReceiptWithApple(receiptData, SANDBOX_URL);
-        usedEnvironment = 'sandbox';
-        logger.info(`[IAP-${requestId}] Sandbox response status: ${verificationResult.status}`);
+        try {
+          verificationResult = await verifyReceiptWithApple(receiptData, PRODUCTION_URL);
+          logger.info(`[IAP-${requestId}] Production response status: ${verificationResult.status}`);
+        
+          // Step 2: If production returns sandbox receipt error (21007), try sandbox
+          if (verificationResult.status === 21007) {
+            logger.info(`[IAP-${requestId}] ⚠️ Production returned status 21007 (sandbox receipt in production)`);
+            logger.info(`[IAP-${requestId}] Step 2: Switching to SANDBOX verification`);
+            logger.info(`[IAP-${requestId}] Sandbox URL: ${SANDBOX_URL}`);
+            verificationResult = await verifyReceiptWithApple(receiptData, SANDBOX_URL);
+            usedEnvironment = 'sandbox';
+            logger.info(`[IAP-${requestId}] Sandbox response status: ${verificationResult.status}`);
+          }
+        } catch (prodError) {
+          // If production fails with network/timeout error, try sandbox as fallback
+          logger.error(`[IAP-${requestId}] ❌ Production verification threw error: ${prodError.message}`);
+          logger.error(`[IAP-${requestId}] Error code: ${prodError.code}`);
+          logger.error(`[IAP-${requestId}] Error stack: ${prodError.stack}`);
+          logger.info(`[IAP-${requestId}] Step 2: Attempting SANDBOX as fallback`);
+          try {
+            verificationResult = await verifyReceiptWithApple(receiptData, SANDBOX_URL);
+            usedEnvironment = 'sandbox';
+            logger.info(`[IAP-${requestId}] ✅ Sandbox verification succeeded with status: ${verificationResult.status}`);
+          } catch (sandboxError) {
+            logger.error(`[IAP-${requestId}] ❌ Sandbox verification also failed: ${sandboxError.message}`);
+            logger.error(`[IAP-${requestId}] Both production and sandbox verification failed`);
+            throw sandboxError;
+          }
+        }
       }
-    } catch (prodError) {
-      // If production fails with network/timeout error, try sandbox as fallback
-      logger.error(`[IAP-${requestId}] ❌ Production verification threw error: ${prodError.message}`);
-      logger.error(`[IAP-${requestId}] Error code: ${prodError.code}`);
-      logger.error(`[IAP-${requestId}] Error stack: ${prodError.stack}`);
-      logger.info(`[IAP-${requestId}] Step 2: Attempting SANDBOX as fallback`);
-      try {
-        verificationResult = await verifyReceiptWithApple(receiptData, SANDBOX_URL);
-        usedEnvironment = 'sandbox';
-        logger.info(`[IAP-${requestId}] ✅ Sandbox verification succeeded with status: ${verificationResult.status}`);
-      } catch (sandboxError) {
-        logger.error(`[IAP-${requestId}] ❌ Sandbox verification also failed: ${sandboxError.message}`);
-        logger.error(`[IAP-${requestId}] Both production and sandbox verification failed`);
-        throw sandboxError;
-      }
-    }
 
     if (!verificationResult) {
       logger.error(`[IAP-${requestId}] ❌ No verification result obtained`);
