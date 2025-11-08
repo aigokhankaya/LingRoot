@@ -91,7 +91,10 @@ exports.verifyAppleReceipt = async (req, res) => {
     logger.info(`[IAP-${requestId}] User ID: ${userId}`);
     logger.info(`[IAP-${requestId}] User Email: ${req.user?.email || 'N/A'}`);
     logger.info(`[IAP-${requestId}] Product ID: ${productId}`);
+    logger.info(`[IAP-${requestId}] Receipt type: ${typeof receiptData}`);
     logger.info(`[IAP-${requestId}] Receipt length: ${receiptData?.length || 0} chars`);
+    logger.info(`[IAP-${requestId}] Receipt preview: ${typeof receiptData === 'string' ? receiptData.substring(0, 100) + '...' : 'NOT A STRING'}`);
+    logger.info(`[IAP-${requestId}] Receipt is valid base64: ${typeof receiptData === 'string' && /^[A-Za-z0-9+/=]+$/.test(receiptData)}`);
     logger.info(`[IAP-${requestId}] Request IP: ${req.ip || req.connection?.remoteAddress || 'N/A'}`);
 
     if (!receiptData || !productId) {
