@@ -1430,6 +1430,10 @@ const Welcome: React.FC = () => {
                       <i className="fas fa-user-circle mr-2"></i>
                       Profil Bilgilerim
                     </Link>
+                    <Link href="/dashboard?tab=paket-bilgilerim" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                      <i className="fas fa-box mr-2"></i>
+                      Paket Bilgilerim
+                    </Link>
                     <Link href="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
                       <i className="fas fa-cog mr-2"></i>
                       Hesap Ayarları

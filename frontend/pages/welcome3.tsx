@@ -1424,6 +1424,10 @@ const Welcome3: React.FC = () => {
                       <i className="fas fa-user-circle mr-2"></i>
                       Profil Bilgilerim
                     </Link>
+                    <Link href="/dashboard?tab=paket-bilgilerim" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                      <i className="fas fa-box mr-2"></i>
+                      Paket Bilgilerim
+                    </Link>
                     <Link href="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
                       <i className="fas fa-cog mr-2"></i>
                       Hesap Ayarları
@@ -2264,34 +2268,34 @@ const Welcome3: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className="rounded-xl shadow-sm hover:shadow-md border-gray-100 bg-white transition-shadow">
-            <CardContent className="p-4 md:p-5">
+          <Card className="rounded-3xl shadow-lg border-gray-100 bg-white">
+            <CardContent className="p-6 md:p-10">
               {/* Başlık */}
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 text-white flex items-center justify-center text-lg font-bold">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-bold">
                   2
                 </div>
-                <h2 className="text-[1.6rem] md:text-[1.9rem] font-bold tracking-tight text-gray-900">Ses Ayarları</h2>
+                <h2 className="text-3xl font-bold text-blue-600">Ses Ayarları</h2>
               </div>
               
               {/* Grid Layout - 2 Kolon */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
                 {/* Sol Kolon */}
-                <div className="space-y-6">
+                <div className="space-y-8">
                   
                   {/* İngilizce Seviyesi */}
                   <div>
-                    <h3 className="text-sm text-gray-500 font-medium mb-2">İngilizce Seviyesi</h3>
+                    <h3 className="text-base font-semibold text-gray-700 mb-3">İngilizce Seviyesi</h3>
                     <div className="grid grid-cols-3 gap-2">
                       {levelOptions.map((level) => (
                         <button
                           key={level}
                           onClick={() => setEnglishLevel(level.toLowerCase())}
-                          className={`h-9 px-3 text-[0.9rem] font-semibold rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] ${
+                          className={`py-3 text-sm font-semibold rounded-lg transition-all ${
                             englishLevel === level.toLowerCase() 
-                              ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white' 
-                              : 'bg-white border border-gray-100 hover:bg-blue-100 text-gray-700'
+                              ? 'bg-blue-600 text-white shadow-md' 
+                              : 'bg-white border border-gray-200 hover:bg-blue-50 text-gray-700'
                           }`}
                         >
                           {level}
@@ -2302,16 +2306,16 @@ const Welcome3: React.FC = () => {
 
                   {/* Konuşma Hızı */}
                   <div>
-                    <h3 className="text-sm text-gray-500 font-medium mb-2">Konuşma Hızı</h3>
+                    <h3 className="text-base font-semibold text-gray-700 mb-3">Konuşma Hızı</h3>
                     <div className="grid grid-cols-4 gap-2">
                       {rateOptions.map((rate) => (
                         <button
                           key={rate.value}
                           onClick={() => setSpeakingRate(rate.value)}
-                          className={`h-9 px-3 text-[0.9rem] font-semibold rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] ${
+                          className={`py-3 text-sm font-semibold rounded-lg transition-all ${
                             speakingRate === rate.value 
-                              ? 'bg-gradient-to-r from-green-600 to-green-500 text-white' 
-                              : 'bg-white border border-gray-100 hover:bg-green-100 text-gray-700'
+                              ? 'bg-blue-600 text-white shadow-md' 
+                              : 'bg-white border border-gray-200 hover:bg-blue-50 text-gray-700'
                           }`}
                         >
                           {rate.label}
@@ -2322,16 +2326,16 @@ const Welcome3: React.FC = () => {
 
                   {/* Cinsiyet */}
                   <div>
-                    <h3 className="text-sm text-gray-500 font-medium mb-2">Cinsiyet</h3>
+                    <h3 className="text-base font-semibold text-gray-700 mb-3">Cinsiyet</h3>
                     <div className="grid grid-cols-3 gap-2">
                       {genderOptions.map((gender) => (
                         <button
                           key={gender.value}
                           onClick={() => setSelectedGender(gender.value)}
-                          className={`h-9 px-3 text-[0.9rem] font-semibold rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] ${
+                          className={`py-3 text-sm font-semibold rounded-lg transition-all ${
                             selectedGender === gender.value 
-                              ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white' 
-                              : 'bg-white border border-gray-100 hover:bg-blue-100 text-gray-700'
+                              ? 'bg-blue-600 text-white shadow-md' 
+                              : 'bg-white border border-gray-200 hover:bg-blue-50 text-gray-700'
                           }`}
                         >
                           {gender.label}
@@ -2342,16 +2346,16 @@ const Welcome3: React.FC = () => {
 
                   {/* Aksan */}
                   <div>
-                    <h3 className="text-sm text-gray-500 font-medium mb-2">Aksan</h3>
+                    <h3 className="text-base font-semibold text-gray-700 mb-3">Aksan</h3>
                     <div className="grid grid-cols-2 gap-2">
                       {accentVoiceOptions.map((accent) => (
                         <button
                           key={accent.value}
                           onClick={() => setSelectedAccent(accent.value)}
-                          className={`h-9 px-3 text-[0.9rem] font-semibold rounded-lg transition-all duration-200 ease-in-out hover:scale-[1.02] ${
+                          className={`py-3 text-sm font-semibold rounded-lg transition-all ${
                             selectedAccent === accent.value 
-                              ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white' 
-                              : 'bg-white border border-gray-100 hover:bg-blue-100 text-gray-700'
+                              ? 'bg-blue-600 text-white shadow-md' 
+                              : 'bg-white border border-gray-200 hover:bg-blue-50 text-gray-700'
                           }`}
                         >
                           {accent.label}
@@ -2363,7 +2367,7 @@ const Welcome3: React.FC = () => {
 
                 {/* Sağ Kolon - Ses Kategorisi */}
                 <div>
-                  <h3 className="text-sm text-gray-500 font-medium mb-2">Ses Kategorisi</h3>
+                  <h3 className="text-base font-semibold text-gray-700 mb-3">Ses Kategorisi</h3>
                   <div className="grid grid-cols-2 gap-3">
                     {voiceCategories.map((category) => (
                       <button
@@ -2375,26 +2379,24 @@ const Welcome3: React.FC = () => {
                             setVoiceType(categoryVoices[0].id);
                           }
                         }}
-                        className={`min-h-[70px] p-3 rounded-xl border transition-all duration-200 ease-in-out hover:scale-[1.02] text-left ${
+                        className={`p-4 rounded-xl border-2 transition-all text-left ${
                           selectedVoiceCategory === category.value 
                             ? 'border-blue-600 bg-blue-50' 
-                            : 'border-gray-100 hover:border-blue-300 bg-white'
+                            : 'border-gray-200 hover:border-blue-300 bg-white'
                         }`}
                       >
-                        <div className="font-semibold text-[0.9rem] mb-1">{category.label}</div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            category.badge === 'Ücretsiz' ? 'bg-green-100 text-green-700' :
-                            category.badge === 'Premium' ? 'bg-orange-100 text-orange-700' :
-                            category.badge === 'Gold' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-gray-100 text-gray-600'
-                          }`}>
-                            {category.badge}
-                          </span>
-                          {category.ssmlSupport && (
-                            <span className="text-xs text-blue-600 font-medium">SSML</span>
-                          )}
+                        <div className="font-semibold text-sm mb-1">{category.label}</div>
+                        <div className={`text-xs px-2 py-1 rounded-full inline-block font-medium ${
+                          category.badge === 'Ücretsiz' ? 'bg-green-100 text-green-700' :
+                          category.badge === 'Premium' ? 'bg-orange-100 text-orange-700' :
+                          category.badge === 'Gold' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {category.badge}
                         </div>
+                        {category.ssmlSupport && (
+                          <div className="text-xs text-blue-600 mt-1">SSML</div>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -2402,9 +2404,9 @@ const Welcome3: React.FC = () => {
               </div>
 
               {/* Mevcut Sesler - Her Zaman Açık */}
-              <div className="mt-6 pt-6 border-t border-gray-100">
-                <h3 className="text-sm text-gray-500 font-medium mb-2">Mevcut Sesler</h3>
-                <div className="mt-3">
+              <div className="mt-10 pt-8 border-t border-gray-200">
+                <h3 className="text-base font-semibold text-gray-700 mb-4">Mevcut Sesler</h3>
+                <div className="mt-4">
                   {/* Aktif Filtre Göstergesi */}
                   {(selectedAccent !== 'all' || selectedGender !== 'all' || selectedVoiceCategory !== 'standard') && (
                     <div className="flex items-center space-x-2 text-xs">
@@ -2419,8 +2421,8 @@ const Welcome3: React.FC = () => {
                     </div>
                   )}
                 
-                {/* Ses Listesi - Kompakt Tasarım */}
-                <div className="mt-3 bg-gray-50 rounded-xl p-3 max-h-72 overflow-y-auto">
+                {/* Ses Listesi - Görseldeki Gibi */}
+                <div className="mt-4 bg-gray-50 rounded-xl p-4 max-h-80 overflow-y-auto">
                   {getFilteredVoices().length > 0 ? (
                     <div className="space-y-2">
                       {getFilteredVoices().map((voice) => {
@@ -2432,12 +2434,12 @@ const Welcome3: React.FC = () => {
                         return (
                           <label
                             key={voiceId}
-                            className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all duration-200 ease-in-out hover:scale-[1.01] ${
+                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
                               isDefault 
-                                ? 'bg-green-50 border-l-4 border-green-500' 
+                                ? 'bg-green-50 border-2 border-green-400' 
                                 : isSelected
-                                ? 'bg-white border border-blue-400'
-                                : 'bg-white hover:bg-blue-50 border border-gray-100'
+                                ? 'bg-white border-2 border-blue-400'
+                                : 'bg-white hover:bg-blue-50 border-2 border-transparent'
                             }`}
                           >
                             <input
@@ -2446,11 +2448,12 @@ const Welcome3: React.FC = () => {
                               value={voiceId}
                               checked={isSelected}
                               onChange={(e) => setVoiceType(e.target.value)}
-                              className="w-4 h-4 text-blue-600 focus:ring-1 focus:ring-blue-100"
+                              className="w-4 h-4 text-blue-600 focus:ring-2 focus:ring-blue-100"
                             />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-[0.9rem] font-semibold text-gray-900 truncate">{voiceName}</span>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-gray-900">{voiceName}</span>
+                                <span className="text-xs text-gray-400 font-mono">[{voiceId}]</span>
                                 {isDefault && (
                                   <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
                                     Varsayılan
@@ -2470,7 +2473,7 @@ const Welcome3: React.FC = () => {
                       })}
                     </div>
                   ) : (
-                    <div className="text-center text-gray-500 py-6">
+                    <div className="text-center text-gray-500 py-8">
                       <p className="text-sm">Seçilen filtrelere uygun ses bulunamadı.</p>
                     </div>
                   )}
@@ -2478,7 +2481,7 @@ const Welcome3: React.FC = () => {
                 
                 {/* Varsayılan Ses Kaydet Butonu */}
                 {voiceType && (
-                  <div className="mt-3 flex justify-end">
+                  <div className="mt-4 flex justify-end">
                     <button
                       onClick={async () => {
                         try {
@@ -2489,7 +2492,7 @@ const Welcome3: React.FC = () => {
                           alert('Kaydedilemedi: ' + (e.message || 'Bilinmeyen hata'));
                         }
                       }}
-                      className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white px-5 py-2 rounded-lg text-[0.9rem] font-semibold transition-all duration-200 ease-in-out hover:scale-[1.02] shadow-sm hover:shadow-md"
+                      className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition-all shadow-md hover:shadow-lg"
                     >
                       Varsayılan Ses Olarak Kaydet
                     </button>

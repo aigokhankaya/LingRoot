@@ -90,7 +90,7 @@ module.exports = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ['Plus Jakarta Sans', 'Inter', 'Geist', 'sans-serif'],
+        sans: ['Inter', 'Geist', 'sans-serif'],
       },
       fontSize: {
         'xs': ['0.75rem', { lineHeight: '1rem' }],
