@@ -188,22 +188,49 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
         console.log('[IAP] Purchase update received:', purchase.productId);
         console.log('[IAP] Purchase object:', JSON.stringify(purchase, null, 2));
         try {
-          // iOS: transactionReceipt is base64 string
-          // Extract receipt properly - it might be nested in an object
+          // iOS: Extract receipt - react-native-iap may return it in different formats
           let receipt = purchase.transactionReceipt;
           
-          // If receipt is an object, try to extract the actual receipt string
-          if (Platform.OS === 'ios' && receipt && typeof receipt === 'object') {
-            console.log('[IAP] Receipt is an object, extracting base64 string...');
-            // Try common properties where the actual receipt might be
-            receipt = receipt.transactionReceipt || receipt.receiptData || receipt.appStoreReceipt || JSON.stringify(receipt);
+          console.log('[IAP] Raw receipt type:', typeof receipt);
+          console.log('[IAP] Raw receipt value:', receipt);
+          
+          // If receipt is an object, extract the base64 string
+          if (Platform.OS === 'ios' && receipt) {
+            if (typeof receipt === 'object') {
+              console.log('[IAP] Receipt is an object, extracting base64 string...');
+              console.log('[IAP] Receipt object keys:', Object.keys(receipt));
+              
+              // Try to find the actual receipt data in the object
+              receipt = receipt.transactionReceipt 
+                     || receipt.receiptData 
+                     || receipt.appStoreReceipt 
+                     || receipt.receipt
+                     || receipt.data
+                     || receipt.base64
+                     || JSON.stringify(receipt);
+            }
+            
+            // If still not a string, try to get the app receipt
+            if (typeof receipt !== 'string' || receipt.length < 100) {
+              console.log('[IAP] Receipt invalid, trying to get app receipt...');
+              try {
+                // forceRefresh = true to get latest receipt
+                const appReceipt = await RNIap.getReceiptIOS({ forceRefresh: true });
+                if (appReceipt) {
+                  console.log('[IAP] Got app receipt from getReceiptIOS()');
+                  receipt = appReceipt;
+                }
+              } catch (err) {
+                console.error('[IAP] Failed to get app receipt:', err);
+              }
+            }
           }
           
           const purchaseToken = purchase.purchaseToken; // Android purchase token
           
-          console.log('[IAP] Receipt type:', typeof receipt);
-          console.log('[IAP] Receipt length:', receipt?.length || 0);
-          console.log('[IAP] Receipt preview:', typeof receipt === 'string' ? receipt.substring(0, 50) + '...' : 'NOT A STRING');
+          console.log('[IAP] Final receipt type:', typeof receipt);
+          console.log('[IAP] Final receipt length:', receipt?.length || 0);
+          console.log('[IAP] Final receipt preview:', typeof receipt === 'string' ? receipt.substring(0, 100) + '...' : 'NOT A STRING');
           
           if (Platform.OS === 'ios' && receipt) {
             console.log('[IAP] iOS receipt received, verifying with backend...');
@@ -373,9 +400,31 @@ export async function restorePurchases(): Promise<{ ok: boolean; message?: strin
       if (Platform.OS === 'ios') {
         // Extract receipt properly
         let receipt: any = latest.transactionReceipt;
+        
+        console.log('[IAP] Restore - Raw receipt type:', typeof receipt);
+        
         if (receipt && typeof receipt === 'object') {
-          receipt = receipt.transactionReceipt || receipt.receiptData || receipt.appStoreReceipt || JSON.stringify(receipt);
+          console.log('[IAP] Restore - Receipt is object, extracting...');
+          receipt = receipt.transactionReceipt || receipt.receiptData || receipt.appStoreReceipt || receipt.receipt || receipt.data || receipt.base64 || JSON.stringify(receipt);
         }
+        
+        // If still not valid, get app receipt
+        if (typeof receipt !== 'string' || receipt.length < 100) {
+          console.log('[IAP] Restore - Receipt invalid, getting app receipt...');
+          try {
+            const appReceipt = await RNIap.getReceiptIOS({ forceRefresh: true });
+            if (appReceipt) {
+              console.log('[IAP] Restore - Got app receipt');
+              receipt = appReceipt;
+            }
+          } catch (err) {
+            console.error('[IAP] Restore - Failed to get app receipt:', err);
+          }
+        }
+        
+        console.log('[IAP] Restore - Final receipt type:', typeof receipt);
+        console.log('[IAP] Restore - Final receipt length:', receipt?.length || 0);
+        
         await verifyWithBackend(receipt, latest.productId);
       } else {
         await verifyWithBackend('', latest.productId, latest.purchaseToken);
