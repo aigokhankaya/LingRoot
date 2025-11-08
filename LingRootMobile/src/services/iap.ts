@@ -188,8 +188,22 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
         console.log('[IAP] Purchase update received:', purchase.productId);
         console.log('[IAP] Purchase object:', JSON.stringify(purchase, null, 2));
         try {
-          const receipt = purchase.transactionReceipt;
+          // iOS: transactionReceipt is base64 string
+          // Extract receipt properly - it might be nested in an object
+          let receipt = purchase.transactionReceipt;
+          
+          // If receipt is an object, try to extract the actual receipt string
+          if (Platform.OS === 'ios' && receipt && typeof receipt === 'object') {
+            console.log('[IAP] Receipt is an object, extracting base64 string...');
+            // Try common properties where the actual receipt might be
+            receipt = receipt.transactionReceipt || receipt.receiptData || receipt.appStoreReceipt || JSON.stringify(receipt);
+          }
+          
           const purchaseToken = purchase.purchaseToken; // Android purchase token
+          
+          console.log('[IAP] Receipt type:', typeof receipt);
+          console.log('[IAP] Receipt length:', receipt?.length || 0);
+          console.log('[IAP] Receipt preview:', typeof receipt === 'string' ? receipt.substring(0, 50) + '...' : 'NOT A STRING');
           
           if (Platform.OS === 'ios' && receipt) {
             console.log('[IAP] iOS receipt received, verifying with backend...');
@@ -357,7 +371,12 @@ export async function restorePurchases(): Promise<{ ok: boolean; message?: strin
     
     try {
       if (Platform.OS === 'ios') {
-        await verifyWithBackend(latest.transactionReceipt, latest.productId);
+        // Extract receipt properly
+        let receipt: any = latest.transactionReceipt;
+        if (receipt && typeof receipt === 'object') {
+          receipt = receipt.transactionReceipt || receipt.receiptData || receipt.appStoreReceipt || JSON.stringify(receipt);
+        }
+        await verifyWithBackend(receipt, latest.productId);
       } else {
         await verifyWithBackend('', latest.productId, latest.purchaseToken);
       }
