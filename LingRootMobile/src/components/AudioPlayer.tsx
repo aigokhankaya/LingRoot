@@ -31,6 +31,7 @@ interface AudioPlayerProps {
   onClose: () => void;
   timepoints?: Timepoint[];
   words?: string[];
+  initialHighlightMode?: 'word' | 'sentence';
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -41,6 +42,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   onClose,
   timepoints = [],
   words = [],
+  initialHighlightMode = 'word',
 }) => {
   const insets = useSafeAreaInsets();
   const { language } = useLanguage();
@@ -53,7 +55,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   
   // Removed complex drift correction - using simple web-like approach
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set()); // Seçilen kelimeler
-  const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('word'); // Default kelime takibi
+  const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>(initialHighlightMode); // Use mode from Library
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
@@ -687,6 +689,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   });
 
   const renderWordHighlighting = useMemo(() => {
+    if (pageIndex !== 0) return null; // Only render on page 0
     return (
       <SkiaWordHighlight
         words={wordsArray}
@@ -700,7 +703,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         mode="word"
       />
     );
-  }, [wordsArray, currentWordIndex, selectedWords, handleWordPress, handleWordLongPress]);
+  }, [wordsArray, currentWordIndex, selectedWords, handleWordPress, handleWordLongPress, pageIndex]);
 
   const handleSentencePressCallback = useCallback((sentenceIndex: number, sentenceText: string) => {
     const totalDuration = duration / 1000;
@@ -713,6 +716,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }, [duration, sentences.length, handleSeek]);
 
   const renderSentenceHighlighting = useMemo(() => {
+    if (pageIndex !== 0) return null; // Only render on page 0
     return (
       <SkiaSentenceHighlight
         sentences={sentences}
@@ -725,7 +729,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         onWordLongPress={handleWordLongPress}
       />
     );
-  }, [sentences, currentSentenceIndex, selectedWords, handleSentencePressCallback, handleWordLongPress]);
+  }, [sentences, currentSentenceIndex, selectedWords, handleSentencePressCallback, handleWordLongPress, pageIndex]);
 
   const progressPercentage = duration > 0 ? (position / duration) * 100 : 0;
 
@@ -801,7 +805,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             <ScrollView
               ref={scrollViewRef}
               style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
-              contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
+              contentContainerStyle={{ paddingHorizontal: 16 }}
               showsVerticalScrollIndicator={true}
               nestedScrollEnabled={true}
               scrollEventThrottle={16}
@@ -809,7 +813,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               bounces={true}
             >
               <Pressable style={styles.textWrapper}>
-                {renderHighlightedText()}
+                {pageIndex === 0 && renderHighlightedText()}
               </Pressable>
             </ScrollView>
           </View>
