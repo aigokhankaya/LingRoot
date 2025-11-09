@@ -427,7 +427,7 @@ const processTtsRequest = async (req, res) => {
         let googleTtsCallCount = 0;
         try {
             // translateToEnglishWithOpenAI may return string; we enhance to capture usage via try/catch below
-            const trResult = await translateToEnglishWithOpenAI(cleanedText);
+            const trResult = await translateToEnglishWithOpenAI(cleanedText, level);
             openaiCallCount += 1; // translate call aggregates chunk usages
             if (typeof trResult === 'object' && trResult !== null && trResult.text) {
                 translationResult = trResult.text;
@@ -521,6 +521,26 @@ const processTtsRequest = async (req, res) => {
         } catch (adaptError) {
             logger.error(`[${requestId}] Error during CEFR adaptation: ${adaptError.message}. Proceeding with untranslated text.`);
             logRequestStep(requestId, 'adaptToCEFR:error', { error: adaptError.message });
+        }
+
+        // --- Check if no_tts flag is set (text generation only) ---
+        if (req.body.no_tts === true) {
+            logger.info(`[${requestId}] no_tts flag detected. Skipping TTS synthesis, returning text only.`);
+            logRequestStep(requestId, 'tts:skipped', { reason: 'no_tts flag set' });
+            
+            return res.json({
+                success: true,
+                message: "Text generation complete. TTS synthesis skipped.",
+                data: {
+                    adapted_text: textToAdapt,
+                    translated_text: translationResult || textToAdapt,
+                    level,
+                    languageCode,
+                    openai_usage: openaiUsage,
+                    openai_call_count: openaiCallCount,
+                    usage_breakdown: usageBreakdown
+                }
+            });
         }
 
         // --- Step 3: Chunk Text (ilk, translate sonrası) ---

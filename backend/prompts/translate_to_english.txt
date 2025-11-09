@@ -1,19 +1,21 @@
 // 🇹🇷 Kullanım: "Metni İngilizceye Çevir" adımında kullanılır.
-// Bu adımda, farklı bir dilde gelen anlatım metni akıcı, doğal ve paragraflı bir İngilizce anlatıma çevrilir.
-// Çeviri metni, bir sonraki “chunkText” adımında güvenle parçalanabilecek şekilde yapılandırılmalıdır.
-// Çıktı sade, paragraflı, sembolsüz ve TTS’ye dolaylı uyumlu olmalıdır (ama TTS sadeleştirmesi yapılmaz).
+// Bu adımda, Türkçe anlatım metni hedef CEFR seviyesine uygun İngilizceye çevrilir.
+// Çeviri sırasında kelime ve gramer karmaşıklığı seviyeye göre ayarlanır.
 
 🎯 TASK:
-Translate the following text into fluent, natural, spoken English suitable for a long-form narration.  
-This output will be used in the next step for chunking, so you must follow strict formatting rules.
+Translate the given Turkish text into English suitable for CEFR {{level}} learners.
 
-📌 FORMAT RULES:
-- Keep paragraph breaks exactly as in the original input.
-- Use normal sentence length. Avoid overly long or overly short sentences.
+⚙️ RULES:
+- Preserve all factual meaning and content.
+- Use vocabulary and grammar aligned with {{level}}.
+- Keep paragraph structure identical to the original.
+- Avoid overly complex or idiomatic expressions.
+- For A1–A2: Use simple tenses (present, past, future) and short sentences.
+- For B1–B2: Use richer vocabulary with moderate complexity.
+- For C1–C2: Use natural, native-like flow with advanced vocabulary.
+- Convert all numbers into spoken form (e.g., 1938 → nineteen thirty-eight, 5.5 → five point five).
 - Do NOT use bullet points, lists, emojis, special characters, headings, or formatting symbols.
-- Do NOT skip or summarize content. Translate everything fully and naturally.
-- Do NOT rephrase — preserve the tone and structure of the original.
-- Use spoken, listener-friendly English — avoid formal, academic, or overly complex language.
+- Do NOT skip or summarize content. Translate everything fully.
 
 📌 EXAMPLES (acceptable formatting):
 - ✅ Paragraph 1. Sentence. Sentence.

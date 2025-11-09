@@ -22,6 +22,8 @@ const ttsRoutes = require("./routes/ttsRoutes");
 const topicSuggestRoutes = require("./routes/topicSuggestRoutes");
 const topicDetailRoutes = require("./routes/topicDetailRoutes");
 const narrationRoutes = require("./routes/narrationRoutes");
+const topicPipelineRoutes = require("./routes/topicPipelineRoutes");
+const hobbySuggestionsRoutes = require("./routes/hobbySuggestionsRoutes");
 const booksRouter = require("./routes/books");
 const userRoutes = require("./routes/userRoutes"); // 👈 İlgi alanları burada bağlandı
 const parameterRoutes = require("./routes/parameterRoutes");
@@ -125,6 +127,8 @@ app.use("/api/tts", ttsRoutes);
 app.use("/api/topic-suggest", topicSuggestRoutes);
 app.use("/api/topic-detail", topicDetailRoutes);
 app.use("/api/narration", narrationRoutes);
+app.use("/api/topic-pipeline", topicPipelineRoutes);
+app.use("/api/hobby-suggestions", hobbySuggestionsRoutes);
 app.use("/api/books", booksRouter);
 app.use("/api", userRoutes); // ✅ user-interests endpoint burada aktif
 app.use("/api/parameters", parameterRoutes);

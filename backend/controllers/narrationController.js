@@ -28,7 +28,7 @@ exports.rewriteToNarration = async (req, res) => {
     
     // Placeholder'ları değiştir
     const prompt = promptTemplate
-      .replace('{{input_text}}', input_text)
+      .replace('{{topic}}', input_text)
       .replace('{{level}}', level || 'A1');
     
     logger.info(`Narration rewrite request - Level: ${level || 'A1'}, Text length: ${input_text.length}`);
@@ -46,7 +46,7 @@ exports.rewriteToNarration = async (req, res) => {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: "Sen bir eğitim içeriği uzmanısın. Verilen metinleri eğitici anlatım formatına dönüştürüyorsun." },
+        { role: "system", content: "Sen profesyonel bir Türkçe içerik yazarısın. Eğitici, akıcı ve doğal anlatılar oluşturuyorsun." },
         { role: "user", content: prompt }
       ],
       temperature: 0.7,

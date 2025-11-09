@@ -34,14 +34,15 @@ try {
 /**
  * OpenAI ile metni İngilizce'ye çevirir.
  * @param {string} text
+ * @param {string} level - CEFR level (A1-C2)
  * @returns {Promise<{text: string, detectedLang: string}>}
  */
-async function translateToEnglishWithOpenAI(text, requestLogger) {
+async function translateToEnglishWithOpenAI(text, level = 'A1', requestLogger) {
     if (!openai) throw new Error("OpenAI client is not initialized.");
     const promptFile = 'translate_to_english.txt';
     const promptPath = path.join(__dirname, '../prompts/translate_to_english.txt');
-    console.log(`🎯 [INPUT EXTRACTOR] Using prompt file: ${promptFile} for text translation`);
-    logger.info(`🎯 Input Extractor - Selected prompt file: ${promptFile} for text translation`);
+    console.log(`🎯 [INPUT EXTRACTOR] Using prompt file: ${promptFile} for text translation at level ${level}`);
+    logger.info(`🎯 Input Extractor - Selected prompt file: ${promptFile} for text translation at level ${level}`);
     const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
     const { chunkText } = require('./textProcessor');
     const chunks = chunkText(text);
@@ -53,7 +54,9 @@ async function translateToEnglishWithOpenAI(text, requestLogger) {
     let completionTokensTotal = 0;
     let totalTokensTotal = 0;
     for (let i = 0; i < chunks.length; i++) {
-        const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, chunks[i]);
+        const prompt = promptTemplate
+            .replace(/\{\{input_text\}\}/g, chunks[i])
+            .replace(/\{\{level\}\}/g, level);
         if (requestLogger) {
             requestLogger.log(`[prompt:translateToEnglishWithOpenAI:chunk:${i}][input]` + JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2));
         }
@@ -61,10 +64,10 @@ async function translateToEnglishWithOpenAI(text, requestLogger) {
         const completion = await openai.chat.completions.create({
             model,
             messages: [
-                { role: "system", content: "You are a translation assistant." },
+                { role: "system", content: "You are a translation assistant specializing in educational content." },
                 { role: "user", content: prompt }
             ],
-            temperature: 0.2,
+            temperature: 0.3,
         });
         let translated = completion.choices[0]?.message?.content?.trim();
         // Remove any leading/trailing --- markers that OpenAI might add

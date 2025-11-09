@@ -1,0 +1,33 @@
+GOREV:
+Asagidaki hobi icin 200 farkli, detayli ve cekici alt konu onerisi olustur.
+
+HOBI: {{hobby}}
+DIL: {{input_language}}
+
+AMAC:
+Kullanici bu hobinin farkli yonlerini kesfetmek istiyor. Her oneri:
+- Hobinin farkli bir alanini, konusunu veya uygulamasini temsil etmeli
+- Ogretici ve ilham verici olmali
+- Baslangic, orta ve ileri seviyeleri kapsamali
+- Pratik uygulamalar, tarih, teknoloji, kultur gibi farkli perspektifleri icermeli
+
+KURALLAR:
+- Her oneri numara ile baslamali (1. 2. 3. ... 200.)
+- Her satirda bir oneri olmali
+- Oneri formati: "Baslik, aciklama."
+- Baslik kisa (3-6 kelime) olmali
+- Aciklama 1 cumle olmali
+- Markdown, kalin yazi veya ozel karakter kullanma
+- Sadece duz metin
+- 200 oneri olustur, eksik birakma
+
+ORNEK FORMAT:
+1. Baslayanlar icin temel teknikler, ilk adimlardan baslayarak temel becerileri ogrenme.
+2. Ileri seviye pratikler, uzman seviyesinde yetenekleri gelistirme yontemleri.
+3. Tarihsel gelisim, bu hobinin zaman icinde nasil evrildigini anlama.
+
+ONEMLI:
+- Tam 200 oneri olustur
+- Her oneri farkli olmali
+- Tekrar etme
+- Baska hicbir sey yazma, sadece numarali liste
