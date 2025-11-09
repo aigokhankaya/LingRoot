@@ -28,6 +28,7 @@ import { deleteUser as deleteUserApi, deleteUsersBulk as deleteUsersBulkApi } fr
 // Paket Bilgilerim kullanıcı dashboard'ına taşındı
 import AdminChatInterface from '@/components/AdminChatInterface';
 import TtsProviderSelector from '@/components/admin/TtsProviderSelector';
+import EnvironmentSelector from '@/components/admin/EnvironmentSelector';
 
 const App: React.FC = () => {
   const { theme, setTheme } = useTheme();
@@ -1461,6 +1462,10 @@ const App: React.FC = () => {
                 <p className="text-gray-600">TTS (Text-to-Speech) sağlayıcı ayarlarını yönetin</p>
               </div>
               <TtsProviderSelector />
+              
+              <div className="mt-8">
+                <EnvironmentSelector />
+              </div>
             </div>
           )}
 

@@ -1,11 +1,20 @@
 import axios from 'axios';
 import { TTSRequest, TTSResponse, APIResponse, BookSearchResponse, BookChapter } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getApiBaseUrl } from './environmentConfig';
 
-// Backend URL - Production
-const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+// Backend URL - Will be set dynamically based on environment setting
+let API_BASE_URL = 'https://lingloops-backend.onrender.com';
 
-console.log('🔗 API_BASE_URL:', API_BASE_URL);
+// Initialize API base URL from environment config
+getApiBaseUrl().then(url => {
+  API_BASE_URL = url;
+  console.log('🔗 API_BASE_URL initialized:', API_BASE_URL);
+  // Update axios client baseURL
+  apiClient.defaults.baseURL = API_BASE_URL;
+}).catch(err => {
+  console.error('❌ Failed to initialize API_BASE_URL:', err);
+});
 
 // Debug logs removed for production cleanliness
 
@@ -64,6 +73,9 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Helper to get current API base URL
+export const getCurrentApiBaseUrl = () => API_BASE_URL;
 
 // Simple single-flight refresh lock
 let refreshPromise: Promise<void> | null = null;

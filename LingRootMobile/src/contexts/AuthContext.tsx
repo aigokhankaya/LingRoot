@@ -12,6 +12,7 @@ import {
   configureGoogleSignIn,
   type SocialAuthResult
 } from '../services/socialAuth';
+import { getApiBaseUrl } from '../services/environmentConfig';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -230,7 +231,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       // Web uygulaması gibi backend API'sini kullan
-      const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+      const API_BASE_URL = await getApiBaseUrl();
       
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
@@ -342,7 +343,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Social authentication handler
   const handleSocialAuth = async (socialResult: SocialAuthResult) => {
-    const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+    const API_BASE_URL = await getApiBaseUrl();
     
     // Determine endpoint based on provider
     const endpoint = socialResult.provider === 'google' 

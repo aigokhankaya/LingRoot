@@ -13,6 +13,9 @@ router.get('/settings/tts_provider', authenticate, authorizeAdmin, getTtsProvide
 router.post('/settings/tts-provider', authenticate, authorizeAdmin, setTtsProviderSetting);
 router.put('/settings/tts_provider', authenticate, authorizeAdmin, setTtsProviderSetting);
 
+// Environment setting (admin only)
+router.put('/environment', authenticate, authorizeAdmin, adminController.updateEnvironment);
+
 // All other routes require authentication and admin authorization
 router.use(authenticate);
 router.use(authorizeAdmin);

@@ -945,3 +945,47 @@ exports.assignPlanToUser = async (req, res) => {
   }
 };
 
+// Update environment setting (ADMIN)
+exports.updateEnvironment = async (req, res) => {
+  try {
+    const { environment } = req.body;
+    
+    // Validate environment value
+    if (!environment || !['production', 'test'].includes(environment)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid environment. Must be "production" or "test"'
+      });
+    }
+
+    logger.info(`[ADMIN] Updating environment to: ${environment}`);
+
+    // Update or insert environment setting
+    const { error } = await supabase
+      .from('settings')
+      .upsert({ key: 'environment', value: environment }, { onConflict: 'key' });
+
+    if (error) {
+      logger.error('[ADMIN] Error updating environment:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update environment setting'
+      });
+    }
+
+    logger.info(`[ADMIN] Successfully updated environment to: ${environment}`);
+    return res.json({
+      success: true,
+      message: `Environment updated to ${environment}`,
+      data: { environment }
+    });
+  } catch (e) {
+    logger.error('[ADMIN] Error in updateEnvironment:', e);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: e.message
+    });
+  }
+};
+
