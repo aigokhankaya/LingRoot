@@ -13,6 +13,7 @@ const { synthesizeWithPolly, listPollyVoices, isPollyAvailable } = require("../u
 const { mergeAudioSegments, mergeAudioSegmentsToBuffer } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
 const { analyzeAndAdjustTimings } = require('../utils/audioAnalyzer');
+const { mfaAligner } = require('../utils/mfaAligner');
 const tmp = require("tmp");
 const { logStep } = require('../utils/stepLogger');
 const { logRequestStep } = require("../utils/requestLogger");
@@ -925,7 +926,41 @@ const processTtsRequest = async (req, res) => {
         
         logger.info(`[${requestId}] Optimized VTT created - ID: ${vttUniqueId}, Duration: ${totalRealDuration.toFixed(1)}s, Clean words: ${allCleanWords.length}, Original words: ${allOriginalWords.length}`);
 
-        // --- Step 9: Upload to Supabase (optional) ---
+        // --- Step 9: MFA Alignment (High-Accuracy Word Timestamps) ---
+        let mfaWordTimings = null;
+        const useMFA = process.env.USE_MFA_ALIGNMENT === 'true';
+        
+        if (useMFA) {
+            try {
+                logger.info(`[${requestId}] 🎯 Starting MFA alignment for high-accuracy timestamps...`);
+                
+                // Save merged audio to temp file for MFA processing
+                const tempAudioPath = path.join(os.tmpdir(), `mfa_audio_${uniqueId}.wav`);
+                await fs.promises.writeFile(tempAudioPath, mergedAudioBuffer);
+                
+                // Detect locale from voice name (e.g., en-US-*, en-GB-*)
+                const locale = selectedVoice?.includes('GB') ? 'en_GB' : 'en_US';
+                
+                // Run MFA alignment
+                mfaWordTimings = await mfaAligner.generateWordTimestamps(
+                    tempAudioPath,
+                    adaptedText,
+                    locale
+                );
+                
+                // Cleanup temp audio file
+                await fs.promises.unlink(tempAudioPath).catch(() => {});
+                
+                logger.info(`[${requestId}] ✅ MFA alignment complete - ${mfaWordTimings.length} words aligned`);
+                logger.info(`[${requestId}] 🔍 MFA sample timing:`, mfaWordTimings.slice(0, 3));
+                
+            } catch (mfaError) {
+                logger.warn(`[${requestId}] ⚠️ MFA alignment failed, falling back to TTS timepoints: ${mfaError.message}`);
+                // Continue with TTS timepoints if MFA fails
+            }
+        }
+
+        // --- Step 10: Upload to Supabase (optional) ---
         let mp3Url = null;
         if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
             try {
@@ -950,21 +985,38 @@ const processTtsRequest = async (req, res) => {
         
         logger.info(`[${requestId}] 🔄 tempAudioFiles size after: ${tempAudioFiles.size}`);
 
-        // --- Step 10: Return Success Response ---
-        logger.info(`[${requestId}] Processing complete with optimized timings.`);
+        // --- Step 11: Return Success Response ---
+        logger.info(`[${requestId}] Processing complete with ${mfaWordTimings ? 'MFA' : 'optimized'} timings.`);
 
         // Use Supabase URL if available, otherwise use API endpoint URL
         const finalMp3Url = mp3Url || `/api/tts/audio/${uniqueId}`;
         
-        // Match words with timings - interpolate for words without timing
-        // Use originalWords to preserve punctuation in display
+        // Use MFA timings if available, otherwise fall back to TTS timepoints
         const words = allOriginalWords; // Orijinal kelimeler (noktalama dahil)
-        const timepoints = matchWordsWithTimings(allOriginalWords, allWordTimings, totalRealDuration);
+        let timepoints;
+        
+        if (mfaWordTimings && mfaWordTimings.length > 0) {
+            // Convert MFA timings to our timepoint format
+            timepoints = mfaWordTimings.map((timing, index) => ({
+                word: timing.word,
+                timeSeconds: timing.startTime,
+                endTimeSeconds: timing.endTime,
+                index: index,
+                hasRealTiming: true,
+                source: 'mfa' // Mark as MFA-generated
+            }));
+            
+            logger.info(`✅ Using MFA timepoints - ${timepoints.length} words with acoustic alignment`);
+        } else {
+            // Fall back to TTS timepoints
+            timepoints = matchWordsWithTimings(allOriginalWords, allWordTimings, totalRealDuration);
+            logger.info(`⚠️ Using TTS timepoints - ${timepoints.length} words with estimated timing`);
+        }
         
         // DEBUG: Timepoints kontrolü
         logger.info(`🔍 FINAL TIMEPOINTS DEBUG - Total words: ${words.length}, Timepoints: ${timepoints.length}`);
         logger.info(`🔍 First 5 timepoints:`, timepoints.slice(0, 5));
-        logger.info(`🔍 All word timings count: ${allWordTimings.length}`);
+        logger.info(`🔍 Timing source: ${mfaWordTimings ? 'MFA (acoustic)' : 'TTS (estimated)'}`);
 
         // Post-process: check limits and deactivate subscription if exceeded
         try {
