@@ -162,6 +162,8 @@ exports.createPlan = async (req, res) => {
       apple_product_id,
       // google play mapping
       google_product_id,
+      // parametric features
+      plan_features,
     } = req.body || {};
 
     if (!name || price === undefined) {
@@ -211,6 +213,10 @@ exports.createPlan = async (req, res) => {
     record.is_trial = Boolean(is_trial);
     if (trial_days !== undefined && trial_days !== null && trial_days !== "") {
       record.trial_days = Number(trial_days);
+    }
+    // Plan features (parametric features)
+    if (plan_features !== undefined && plan_features !== null) {
+      record.plan_features = plan_features;
     }
 
     const insertData = [record];

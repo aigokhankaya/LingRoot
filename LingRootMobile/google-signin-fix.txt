@@ -1,0 +1,83 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    GOOGLE SIGN-IN SHA-1 YAPILANDIRMASI                       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+SORUN: DEVELOPER_ERROR hatası alıyorsunuz
+
+ÇÖZÜM: Google Cloud Console'da SHA-1 sertifika parmak izini kaydetmeniz gerekiyor
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📋 MEVCUT SHA-1 (BUNU KULLANIN):
+   8E:45:7E:79:E5:79:E9:22:99:59:27:A8:11:F0:16:73:8F:EF:57:7E
+
+📦 PACKAGE NAME:
+   com.nsyzk.lingrootmobile
+
+🌐 WEB CLIENT ID:
+   308629480159-43l1s64c2cei400tlnsbdtb5rurmsalt.apps.googleusercontent.com
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🔧 GOOGLE CLOUD CONSOLE ADIMLARI:
+
+1. https://console.cloud.google.com/ adresine gidin
+
+2. Projenizi seçin
+
+3. Sol menüden: APIs & Services → Credentials
+
+4. İKİ SEÇENEK:
+
+   A) YENİ OLUŞTURMA:
+      • "+ CREATE CREDENTIALS" → "OAuth client ID"
+      • Application type: "Android"
+      • Name: "LingRoot Android App"
+      • Package name: com.nsyzk.lingrootmobile
+      • SHA-1: 8E:45:7E:79:E5:79:E9:22:99:59:27:A8:11:F0:16:73:8F:EF:57:7E
+      • "CREATE" tıklayın
+
+   B) MEVCUT DÜZENLEME:
+      • Mevcut Android OAuth Client ID'nin yanındaki ✏️ (edit) ikonuna tıklayın
+      • SHA-1 certificate fingerprint ekleyin:
+        8E:45:7E:79:E5:79:E9:22:99:59:27:A8:11:F0:16:73:8F:EF:57:7E
+      • "SAVE" tıklayın
+
+5. 5-10 dakika bekleyin (Google'ın değişiklikleri yayması için)
+
+6. Uygulamayı force stop yapın ve yeniden başlatın
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ TEST ETME:
+
+1. Google Cloud Console'da değişiklikleri kaydedin
+2. 5-10 dakika bekleyin
+3. Uygulamayı tamamen kapatın (force stop)
+4. Uygulamayı yeniden başlatın
+5. Google Sign-In'i deneyin
+
+═══════════════════════════════════════════════════════════════════════════════
+
+⚠️ SORUN DEVAM EDİYORSA:
+
+1. Package name'in doğru olduğunu kontrol edin:
+   AndroidManifest.xml → package="com.nsyzk.lingrootmobile"
+
+2. Web Client ID'nin doğru olduğunu kontrol edin:
+   Credentials sayfasında Web application tipinde bir client ID olmalı
+
+3. Temiz build yapın:
+   cd android
+   .\gradlew clean
+   cd ..
+   npx react-native run-android
+
+4. Daha fazla bekleme süresi verin (15-20 dakika)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📚 DETAYLI TALİMATLAR:
+   GOOGLE_SIGNIN_SETUP.md dosyasına bakın
+
+═══════════════════════════════════════════════════════════════════════════════

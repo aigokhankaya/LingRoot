@@ -1,13 +1,20 @@
 import axios from 'axios';
 import { TTSRequest, TTSResponse, APIResponse, BookSearchResponse, BookChapter } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { EXPO_PUBLIC_API_URL } from '@env';
+import { getApiBaseUrl } from './environmentConfig';
 
-// Backend URL'i environment variable'dan alacağız
-// Production API URL'si kullanılıyor
-// Web projesiyle aynı yapı: base URL + /api/ endpoint
-// Local development için .env dosyasında EXPO_PUBLIC_API_URL değişkenini ayarlayın
-const API_BASE_URL = EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com';
+// Backend URL - Will be set dynamically based on environment setting
+let API_BASE_URL = 'https://lingloops-backend.onrender.com';
+
+// Initialize API base URL from environment config
+getApiBaseUrl().then(url => {
+  API_BASE_URL = url;
+  console.log('🔗 API_BASE_URL initialized:', API_BASE_URL);
+  // Update axios client baseURL
+  apiClient.defaults.baseURL = API_BASE_URL;
+}).catch(err => {
+  console.error('❌ Failed to initialize API_BASE_URL:', err);
+});
 
 // Debug logs removed for production cleanliness
 
@@ -67,6 +74,9 @@ const apiClient = axios.create({
   },
 });
 
+// Helper to get current API base URL
+export const getCurrentApiBaseUrl = () => API_BASE_URL;
+
 // Simple single-flight refresh lock
 let refreshPromise: Promise<void> | null = null;
 async function performTokenRefresh(): Promise<void> {
@@ -110,11 +120,16 @@ apiClient.interceptors.request.use(
     // Backend JWT token'ını AsyncStorage'dan al
     try {
       const token = await AsyncStorage.getItem('auth_token');
+      console.log('🔑 [API INTERCEPTOR] Token from storage:', token ? `${token.substring(0, 20)}...` : 'NOT FOUND');
+      console.log('🔑 [API INTERCEPTOR] Request URL:', config.url);
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        console.log('🔑 [API INTERCEPTOR] Authorization header set');
+      } else {
+        console.log('⚠️ [API INTERCEPTOR] No token found in AsyncStorage');
       }
     } catch (error) {
-      
+      console.error('❌ [API INTERCEPTOR] Error getting token:', error);
     }
     return config;
   },
@@ -286,6 +301,26 @@ export const apiService = {
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Dosya TTS işlemi başarısız');
+    }
+  },
+
+  // Sync Feedback - Senkronizasyon test için
+  async sendSyncFeedback(feedbackData: {
+    trackId: string;
+    currentWordIndex: number;
+    currentTime: number;
+    expectedWord: string;
+    feedback: 'YES' | 'NO';
+    wordTimings: any[];
+    timestamp: string;
+  }): Promise<APIResponse<any>> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post<APIResponse<any>>('/api/tts/sync-feedback', feedbackData);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error sending sync feedback:', error);
+      throw new Error(error.response?.data?.message || 'Feedback gönderilemedi');
     }
   },
 
@@ -536,6 +571,18 @@ export const apiService = {
     }
   },
 
+  // Google Play IAP purchase verification
+  async verifyGooglePlayPurchase(purchaseToken: string, productId: string, packageName: string): Promise<{ success: boolean; data?: any; message?: string }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post('/api/iap/google/verify', { purchaseToken, productId, packageName });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Abonelik doğrulaması başarısız';
+      throw new Error(msg);
+    }
+  },
+
   // Get subscription plans (public endpoint)
   async getSubscriptionPlans(): Promise<{ success: boolean; data?: any[] }> {
     try {
@@ -544,6 +591,52 @@ export const apiService = {
     } catch (error: any) {
       const msg = error?.response?.data?.message || 'Paketler yüklenemedi';
       throw new Error(msg);
+    }
+  },
+
+  // Account deletion endpoints
+  async getAccountDeletionInfo(): Promise<{ success: boolean; data?: any }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.get('/api/account/deletion-info');
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Hesap bilgileri alınamadı';
+      throw new Error(msg);
+    }
+  },
+
+  async deleteAccount(): Promise<{ success: boolean; message?: string }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.delete('/api/account/delete');
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Hesap silme işlemi başarısız';
+      throw new Error(msg);
+    }
+  },
+
+  // TTS Provider Settings (Public endpoint for all users)
+  async getTtsProvider(): Promise<{ provider: string }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.get('/api/tts/provider');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching TTS provider:', error);
+      // Return default provider if error
+      return { provider: 'amazon' };
+    }
+  },
+
+  // Admin-only TTS provider update (kept for backward compatibility)
+  async updateTtsProvider(provider: string): Promise<void> {
+    try {
+      await wakeBackendIfNeeded();
+      await apiClient.put('/api/admin/settings/tts_provider', { value: provider });
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'TTS provider güncellenemedi');
     }
   },
 };

@@ -12,7 +12,7 @@ const Header: React.FC = () => {
     <header className="flex items-center justify-between py-4 px-6 bg-white shadow-md">
       <Link href="/">
         <div className="flex items-center space-x-2">
-          <Image src="/logo.svg" alt="LingRoot Logo" width={40} height={40} />
+          <Image src="/lingroot-icon.svg" alt="LingRoot Logo" width={48} height={48} />
           <span className="font-bold text-xl text-blue-700">LingRoot</span>
         </div>
       </Link>

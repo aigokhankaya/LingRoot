@@ -8,8 +8,12 @@ const { extractTextFromInput, generateTopicText, generateEnglishNarrationForTopi
 const { cleanText, chunkText, chunkTextByCharLimit, preChunkTextByByteLimit, chunkTextForChirpVoices, isChirpVoice } = require("../utils/textProcessor");
 const { adaptToCEFR: adaptToCEFRFunc } = require("../utils/cefrAdapter");
 const { synthesizeWithGoogle, listGoogleVoices, getVoiceGender } = require("../utils/googleTTS");
+const { synthesizeWithAzure, listAzureVoices, isAzureTTSAvailable } = require("../utils/azureTTS");
+const { synthesizeWithPolly, listPollyVoices, isPollyAvailable } = require("../utils/amazonPolly");
 const { mergeAudioSegments, mergeAudioSegmentsToBuffer } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
+const { analyzeAndAdjustTimings } = require('../utils/audioAnalyzer');
+const { mfaAligner } = require('../utils/mfaAligner');
 const tmp = require("tmp");
 const { logStep } = require('../utils/stepLogger');
 const { logRequestStep } = require("../utils/requestLogger");
@@ -718,11 +722,11 @@ const processTtsRequest = async (req, res) => {
         const ttsProvider = await getTtsProvider();
         logger.info(`[${requestId}] 🔧 TTS Provider: ${ttsProvider} (Real Timing Mode)`);
 
-        // --- Step 6: Synthesize Audio with Google TTS ---
+        // --- Step 6: Synthesize Audio with TTS Provider (Google or Azure) ---
         // Track TTS characters and category for cost
         let ttsCharactersTotal = 0;
         let ttsCategory = 'Premium';
-        logger.info(`[${requestId}] Starting Google TTS synthesis...`);
+        logger.info(`[${requestId}] Starting ${ttsProvider} TTS synthesis...`);
         logStep({
             requestId,
             stepName: 'tts:synthesis:start',
@@ -738,7 +742,7 @@ const processTtsRequest = async (req, res) => {
 
         // Her chunk için sentez yap - optimized timing bilgileriyle
         const audioSegments = [];
-        const allWordTimings = [];
+        let allWordTimings = []; // let kullan - drift correction için reassign gerekli
         const allCleanWords = [];
         const allOriginalWords = [];
         let cumulativeTimeOffset = 0;
@@ -748,12 +752,40 @@ const processTtsRequest = async (req, res) => {
             logger.info(`[${requestId}] Synthesizing chunk ${i + 1}/${finalChunks.length} (${chunk.length} chars)...`);
             
             try {
-                const ttsResult = await synthesizeWithGoogle({
-                    text: chunk,
-                    voiceName: selectedVoice,
-                    languageCode: languageCode,
-                    speakingRate: speakingRate
-                });
+                let ttsResult;
+                
+                // Use Amazon Polly, Azure or Google based on provider setting
+                if ((ttsProvider === 'polly' || ttsProvider === 'amazon') && isPollyAvailable()) {
+                    logger.info(`[${requestId}] Using Amazon Polly for chunk ${i + 1}`);
+                    ttsResult = await synthesizeWithPolly({
+                        text: chunk,
+                        voiceName: selectedVoice,
+                        languageCode: languageCode,
+                        speakingRate: speakingRate
+                    });
+                } else if (ttsProvider === 'azure' && isAzureTTSAvailable()) {
+                    logger.info(`[${requestId}] Using Azure TTS for chunk ${i + 1}`);
+                    ttsResult = await synthesizeWithAzure({
+                        text: chunk,
+                        voiceName: selectedVoice,
+                        languageCode: languageCode,
+                        speakingRate: speakingRate
+                    });
+                } else {
+                    // Default to Google TTS
+                    if (ttsProvider === 'azure') {
+                        logger.warn(`[${requestId}] Azure TTS not available, falling back to Google TTS`);
+                    } else if (ttsProvider === 'polly' || ttsProvider === 'amazon') {
+                        logger.warn(`[${requestId}] Amazon Polly not available, falling back to Google TTS`);
+                    }
+                    logger.info(`[${requestId}] Using Google TTS for chunk ${i + 1}`);
+                    ttsResult = await synthesizeWithGoogle({
+                        text: chunk,
+                        voiceName: selectedVoice,
+                        languageCode: languageCode,
+                        speakingRate: speakingRate
+                    });
+                }
 
                 if (!ttsResult.success || !ttsResult.audioContent) {
                     throw new Error('TTS synthesis failed');
@@ -835,6 +867,34 @@ const processTtsRequest = async (req, res) => {
 
         logger.info(`[${requestId}] Audio merged successfully - Final size: ${mergedAudioBuffer.length} bytes, ID: ${uniqueId}`);
 
+        // --- Step 7.5: Analyze Audio and Adjust Timings (Hybrid Approach) ---
+        logger.info(`[${requestId}] 🎯 Analyzing audio for drift correction...`);
+        
+        const analysisResult = await analyzeAndAdjustTimings(
+          mergedAudioBuffer,
+          allWordTimings,
+          totalRealDuration
+        );
+        
+        // DEBUG: Log analysisResult
+        logger.info(`🔍 [ANALYSIS RESULT]:`, {
+          driftDetected: analysisResult.driftDetected,
+          driftAmount: analysisResult.driftAmount,
+          driftPercentage: analysisResult.driftPercentage,
+          actualDuration: analysisResult.actualDuration,
+          estimatedDuration: analysisResult.estimatedDuration
+        });
+        
+        // Use adjusted timings if drift was detected
+        if (analysisResult.driftDetected) {
+          logger.warn(`[${requestId}] ⚠️ Drift corrected: ${analysisResult.driftAmount.toFixed(2)}s (${analysisResult.driftPercentage.toFixed(1)}%)`);
+          allWordTimings = analysisResult.wordTimings;
+        }
+        
+        // Update total duration with actual audio duration
+        const actualTotalDuration = analysisResult.actualDuration || totalRealDuration;
+        logger.info(`[${requestId}] 🎯 Final duration: ${actualTotalDuration.toFixed(2)}s (estimated: ${totalRealDuration.toFixed(2)}s)`);
+
         // --- Step 8: Create VTT with Optimized Timings ---
         logger.info(`[${requestId}] Creating VTT with optimized word timings...`);
         
@@ -851,21 +911,56 @@ const processTtsRequest = async (req, res) => {
             createdAt: new Date(),
             text: cleanTextForDisplay, // Temiz text sakla
             originalText: adaptedText, // Original text de sakla
-            duration: totalRealDuration,
+            duration: actualTotalDuration,
             words: totalWords,
             wordTimings: allWordTimings,
             cleanWords: allCleanWords,
             originalWords: allOriginalWords,
             speakingRate: speakingRate,
             isRealTiming: true,
-            isOptimized: true
+            isOptimized: true,
+            driftCorrected: analysisResult.driftDetected || false
         });
         
         const vttUrl = `/api/tts/vtt/${vttUniqueId}`;
         
         logger.info(`[${requestId}] Optimized VTT created - ID: ${vttUniqueId}, Duration: ${totalRealDuration.toFixed(1)}s, Clean words: ${allCleanWords.length}, Original words: ${allOriginalWords.length}`);
 
-        // --- Step 9: Upload to Supabase (optional) ---
+        // --- Step 9: MFA Alignment (High-Accuracy Word Timestamps) ---
+        let mfaWordTimings = null;
+        const useMFA = process.env.USE_MFA_ALIGNMENT === 'true';
+        
+        if (useMFA) {
+            try {
+                logger.info(`[${requestId}] 🎯 Starting MFA alignment for high-accuracy timestamps...`);
+                
+                // Save merged audio to temp file for MFA processing
+                const tempAudioPath = path.join(os.tmpdir(), `mfa_audio_${uniqueId}.wav`);
+                await fs.promises.writeFile(tempAudioPath, mergedAudioBuffer);
+                
+                // Detect locale from voice name (e.g., en-US-*, en-GB-*)
+                const locale = selectedVoice?.includes('GB') ? 'en_GB' : 'en_US';
+                
+                // Run MFA alignment
+                mfaWordTimings = await mfaAligner.generateWordTimestamps(
+                    tempAudioPath,
+                    adaptedText,
+                    locale
+                );
+                
+                // Cleanup temp audio file
+                await fs.promises.unlink(tempAudioPath).catch(() => {});
+                
+                logger.info(`[${requestId}] ✅ MFA alignment complete - ${mfaWordTimings.length} words aligned`);
+                logger.info(`[${requestId}] 🔍 MFA sample timing:`, mfaWordTimings.slice(0, 3));
+                
+            } catch (mfaError) {
+                logger.warn(`[${requestId}] ⚠️ MFA alignment failed, falling back to TTS timepoints: ${mfaError.message}`);
+                // Continue with TTS timepoints if MFA fails
+            }
+        }
+
+        // --- Step 10: Upload to Supabase (optional) ---
         let mp3Url = null;
         if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
             try {
@@ -883,26 +978,45 @@ const processTtsRequest = async (req, res) => {
             buffer: mergedAudioBuffer,
             createdAt: new Date(),
             supabaseUrl: mp3Url,
-            duration: totalRealDuration,
-            wordCount: totalWords
+            duration: actualTotalDuration,
+            wordCount: totalWords,
+            driftCorrected: analysisResult.driftDetected || false
         });
         
         logger.info(`[${requestId}] 🔄 tempAudioFiles size after: ${tempAudioFiles.size}`);
 
-        // --- Step 10: Return Success Response ---
-        logger.info(`[${requestId}] Processing complete with optimized timings.`);
+        // --- Step 11: Return Success Response ---
+        logger.info(`[${requestId}] Processing complete with ${mfaWordTimings ? 'MFA' : 'optimized'} timings.`);
 
         // Use Supabase URL if available, otherwise use API endpoint URL
         const finalMp3Url = mp3Url || `/api/tts/audio/${uniqueId}`;
         
-        // Kullanıcıya temiz kelimeler göster, ama timing'ler kesin olsun
-        const words = allCleanWords; // Temiz kelimeler (noktalama olmadan)
-        const timepoints = createOptimizedTimepoints(allWordTimings); // Optimized timepoints
+        // Use MFA timings if available, otherwise fall back to TTS timepoints
+        const words = allOriginalWords; // Orijinal kelimeler (noktalama dahil)
+        let timepoints;
+        
+        if (mfaWordTimings && mfaWordTimings.length > 0) {
+            // Convert MFA timings to our timepoint format
+            timepoints = mfaWordTimings.map((timing, index) => ({
+                word: timing.word,
+                timeSeconds: timing.startTime,
+                endTimeSeconds: timing.endTime,
+                index: index,
+                hasRealTiming: true,
+                source: 'mfa' // Mark as MFA-generated
+            }));
+            
+            logger.info(`✅ Using MFA timepoints - ${timepoints.length} words with acoustic alignment`);
+        } else {
+            // Fall back to TTS timepoints
+            timepoints = matchWordsWithTimings(allOriginalWords, allWordTimings, totalRealDuration);
+            logger.info(`⚠️ Using TTS timepoints - ${timepoints.length} words with estimated timing`);
+        }
         
         // DEBUG: Timepoints kontrolü
         logger.info(`🔍 FINAL TIMEPOINTS DEBUG - Total words: ${words.length}, Timepoints: ${timepoints.length}`);
         logger.info(`🔍 First 5 timepoints:`, timepoints.slice(0, 5));
-        logger.info(`🔍 All word timings count: ${allWordTimings.length}`);
+        logger.info(`🔍 Timing source: ${mfaWordTimings ? 'MFA (acoustic)' : 'TTS (estimated)'}`);
 
         // Post-process: check limits and deactivate subscription if exceeded
         try {
@@ -1143,7 +1257,8 @@ const processTtsRequest = async (req, res) => {
             vtt_url: vttUrl,
             original_turkish: originalTurkishText || undefined,
             // Ek bilgiler
-            real_duration: totalRealDuration,
+            real_duration: actualTotalDuration,
+            estimated_duration: totalRealDuration,
             speaking_rate: speakingRate,
             word_timings_count: allWordTimings.length,
             clean_words_count: allCleanWords.length,
@@ -1151,6 +1266,10 @@ const processTtsRequest = async (req, res) => {
             audio_segments: audioSegments.length,
             is_real_timing: true,
             is_optimized: true,
+            // Hybrid Approach - Drift Correction Info
+            drift_corrected: analysisResult.driftDetected || false,
+            drift_amount: analysisResult.driftAmount || 0,
+            drift_percentage: analysisResult.driftPercentage || 0,
             // Çeviri ve adaptasyon sonuçları (database kayıt için)
             translated_text: translationResult || '',
             adapted_text: adaptedText,
@@ -1165,6 +1284,13 @@ const processTtsRequest = async (req, res) => {
         logger.info(`🔍 Response timepoints sample:`, responseData.timepoints?.slice(0, 3));
         logger.info(`🔍 Words in response: ${responseData.words?.length || 0}`);
         logger.info(`🔍 Response fields:`, Object.keys(responseData));
+        logger.info(`🔍 [DRIFT FIELDS IN RESPONSE]:`, {
+          drift_corrected: responseData.drift_corrected,
+          drift_amount: responseData.drift_amount,
+          drift_percentage: responseData.drift_percentage,
+          estimated_duration: responseData.estimated_duration,
+          real_duration: responseData.real_duration
+        });
         
         return res.status(200).json(responseData);
 
@@ -1461,7 +1587,73 @@ const translateToEnglish = async (req, res) => {
   // Ses listesi endpointi (dinamik) - fiyatlandırma kategorileri ile
   const listVoices = async (req, res) => {
     const ttsProvider = await getTtsProvider();
-    if (ttsProvider === 'google') {
+    
+    // Amazon Polly provider (accept both 'amazon' and 'polly')
+    if (ttsProvider === 'polly' || ttsProvider === 'amazon') {
+      if (!isPollyAvailable()) {
+        logger.warn('🎯 [VOICE LIST] Polly selected but not available - falling back to Google');
+        // Fall through to Google TTS
+      } else {
+      try {
+        const { languageCode = 'en-US' } = req.query;
+        
+        logger.info(`🎯 [VOICE LIST] Fetching voices from Amazon Polly for language: ${languageCode}`);
+        
+        const pollyVoices = await listPollyVoices(languageCode);
+        
+        logger.info(`🎯 [VOICE LIST] Retrieved ${pollyVoices.length} Polly voices`);
+        
+        return res.json({
+          provider: 'polly',
+          voices: pollyVoices,
+          stats: {
+            total: pollyVoices.length,
+            neural: pollyVoices.filter(v => v.engine === 'neural').length,
+            standard: pollyVoices.filter(v => v.engine === 'standard').length
+          }
+        });
+      } catch (error) {
+        logger.error(`🎯 [VOICE LIST] Error fetching Polly voices: ${error.message}`);
+        return res.status(500).json({ 
+          success: false, 
+          message: `Failed to fetch Polly voices: ${error.message}` 
+        });
+      }
+      }
+    }
+    
+    // Azure TTS provider
+    if (ttsProvider === 'azure' && isAzureTTSAvailable()) {
+      try {
+        const { languageCode = 'en-US' } = req.query;
+        const locale = languageCode.replace('_', '-'); // en_US -> en-US
+        
+        logger.info(`🎯 [VOICE LIST] Fetching voices from Azure API for locale: ${locale}`);
+        
+        const azureVoices = await listAzureVoices(locale);
+        
+        logger.info(`🎯 [VOICE LIST] Retrieved ${azureVoices.length} Azure voices`);
+        
+        return res.json({
+          provider: 'azure',
+          voices: azureVoices,
+          stats: {
+            total: azureVoices.length,
+            neural: azureVoices.filter(v => v.voiceType === 'Neural').length,
+            standard: azureVoices.filter(v => v.voiceType === 'Standard').length
+          }
+        });
+      } catch (error) {
+        logger.error(`🎯 [VOICE LIST] Error fetching Azure voices: ${error.message}`);
+        return res.status(500).json({ 
+          success: false, 
+          message: `Failed to fetch Azure voices: ${error.message}` 
+        });
+      }
+    }
+    
+    // Google TTS provider (default)
+    if (ttsProvider === 'google' || (!isAzureTTSAvailable() && !isPollyAvailable())) {
       try {
         const { languageCode = 'en-US' } = req.query;
         
@@ -1608,9 +1800,11 @@ const translateToEnglish = async (req, res) => {
       let allVoicesResponse;
       let allVoices;
       
+      let actualProvider = 'google'; // default fallback
       try {
         allVoicesResponse = await listVoices(mockReq, mockRes);
         allVoices = allVoicesResponse.voices;
+        actualProvider = allVoicesResponse.provider || 'google'; // Get actual provider
       } catch (voiceError) {
         logger.error(`Error fetching voices from Google API: ${voiceError.message}`);
         
@@ -1699,7 +1893,13 @@ const translateToEnglish = async (req, res) => {
             break;
         }
         
-        filteredVoices = filteredVoices.filter(voice => voice.accent === backendAccent);
+        // Amazon Polly uses languageCode (e.g., "en-GB"), Google uses accent field
+        filteredVoices = filteredVoices.filter(voice => {
+          // Check both accent field and languageCode
+          if (voice.accent === backendAccent) return true;
+          if (voice.languageCode && voice.languageCode.includes(`-${backendAccent}`)) return true;
+          return false;
+        });
         logger.info(`🎯 [VOICE FILTER] Accent filter applied - ${accent} (mapped to ${backendAccent})`);
         logger.info(`🎯 [VOICE FILTER DEBUG] Step 1 - After accent filter: ${filteredVoices.length} voices`);
       }
@@ -1710,13 +1910,16 @@ const translateToEnglish = async (req, res) => {
         logger.info(`🎯 [VOICE FILTER DEBUG] Step 2 - After emotion filter: ${filteredVoices.length} voices`);
       }
       
-      // 🔧 Gender mapping düzeltmesi
+      // 🔧 Gender mapping düzeltmesi (case-insensitive)
       if (gender && gender !== 'all') {
         // Frontend'den gelen gender'ları backend gender'larıyla eşleştir
-        let backendGender = gender.toUpperCase(); // "female" -> "FEMALE", "male" -> "MALE"
+        const targetGender = gender.toLowerCase(); // "female" -> "female", "male" -> "male"
         
-        filteredVoices = filteredVoices.filter(voice => voice.gender === backendGender);
-        logger.info(`🎯 [VOICE FILTER] Gender filter applied - ${gender} (mapped to ${backendGender})`);
+        filteredVoices = filteredVoices.filter(voice => {
+          const voiceGender = (voice.gender || '').toLowerCase();
+          return voiceGender === targetGender;
+        });
+        logger.info(`🎯 [VOICE FILTER] Gender filter applied - ${gender}`);
         logger.info(`🎯 [VOICE FILTER DEBUG] Step 3 - After gender filter: ${filteredVoices.length} voices`);
       }
       
@@ -1732,7 +1935,15 @@ const translateToEnglish = async (req, res) => {
           // Her kategori için ayrı ayrı kontrol et (yanlış pozitif sonuçları önle)
           switch (category) {
             case 'standard':
-              matches = voice.name.includes('Standard') || voice.package === 'Basic';
+              // Amazon Polly: engine === 'standard', Google: name includes 'Standard'
+              matches = voice.engine === 'standard' || voice.name.includes('Standard') || voice.package === 'Basic';
+              break;
+            case 'neural':
+              // Amazon Polly: engine === 'neural'
+              // Google TTS: Wavenet or Neural2 voices
+              matches = voice.engine === 'neural' || 
+                        voice.name.includes('Wavenet') || 
+                        voice.name.includes('Neural2');
               break;
             case 'wavenet':
               matches = voice.name.includes('Wavenet');
@@ -1870,7 +2081,7 @@ const translateToEnglish = async (req, res) => {
       }
       
       return res.json({ 
-        provider: 'google', 
+        provider: actualProvider, // Use actual provider from listVoices
         voices: filteredVoices,
         filters: { accent, emotion, gender, category },
         totalCount: allVoices.length,
@@ -1946,7 +2157,172 @@ const translateToEnglish = async (req, res) => {
     return vttContent;
   };
   
-  // Helper function to create optimized timepoints for frontend
+  // Helper function to match all words with timings (interpolate for missing)
+  const matchWordsWithTimings = (allWords, wordTimings, totalDuration) => {
+    const timepoints = [];
+    let timingIndex = 0;
+    
+    // Step 1: Sequential matching with hyphenated word handling
+    const matched = new Array(allWords.length).fill(null);
+    
+    for (let i = 0; i < allWords.length; i++) {
+      if (timingIndex >= wordTimings.length) break;
+      
+      const originalWord = allWords[i];
+      const cleanWord = originalWord.toLowerCase().replace(/[^\w-]/g, '');
+      
+      // Check if this is a hyphenated word (e.g., "solid-state")
+      if (cleanWord.includes('-')) {
+        const parts = cleanWord.split('-').filter(p => p.length > 0);
+        
+        // Check if next N timings match the parts
+        let allPartsMatch = true;
+        const matchedTimings = [];
+        
+        for (let j = 0; j < parts.length; j++) {
+          if (timingIndex + j >= wordTimings.length) {
+            allPartsMatch = false;
+            break;
+          }
+          
+          const timingWord = wordTimings[timingIndex + j].word.toLowerCase().replace(/[^\w]/g, '');
+          if (timingWord !== parts[j]) {
+            allPartsMatch = false;
+            break;
+          }
+          matchedTimings.push(wordTimings[timingIndex + j]);
+        }
+        
+        if (allPartsMatch && matchedTimings.length > 0) {
+          // Merge timings for hyphenated word
+          const firstTiming = matchedTimings[0];
+          const lastTiming = matchedTimings[matchedTimings.length - 1];
+          
+          matched[i] = {
+            timeSeconds: firstTiming.timeSeconds,
+            endTimeSeconds: lastTiming.endTimeSeconds,
+            word: originalWord,
+            index: i,
+            hasRealTiming: true
+          };
+          
+          timingIndex += matchedTimings.length;
+          continue;
+        }
+      }
+      
+      // Regular word matching
+      const timingWord = wordTimings[timingIndex].word.toLowerCase().replace(/[^\w]/g, '');
+      const cleanWordNoHyphen = cleanWord.replace(/-/g, '');
+      
+      if (timingWord === cleanWordNoHyphen || timingWord === cleanWord) {
+        matched[i] = {
+          timeSeconds: wordTimings[timingIndex].timeSeconds,
+          endTimeSeconds: wordTimings[timingIndex].endTimeSeconds,
+          word: originalWord,
+          index: i,
+          hasRealTiming: true
+        };
+        timingIndex++;
+      } else {
+        // Try to find the word in upcoming timings (skip max 3 timings)
+        let found = false;
+        for (let skip = 1; skip <= 3 && timingIndex + skip < wordTimings.length; skip++) {
+          const nextTimingWord = wordTimings[timingIndex + skip].word.toLowerCase().replace(/[^\w]/g, '');
+          if (nextTimingWord === cleanWordNoHyphen || nextTimingWord === cleanWord) {
+            // Found it - skip the mismatched timings
+            logger.warn(`⚠️ Skipped ${skip} timing(s) to match word "${originalWord}" at index ${i}`);
+            timingIndex += skip;
+            
+            matched[i] = {
+              timeSeconds: wordTimings[timingIndex].timeSeconds,
+              endTimeSeconds: wordTimings[timingIndex].endTimeSeconds,
+              word: originalWord,
+              index: i,
+              hasRealTiming: true
+            };
+            timingIndex++;
+            found = true;
+            break;
+          }
+        }
+        
+        if (!found) {
+          logger.warn(`⚠️ No timing match for word "${originalWord}" at index ${i}, timing index ${timingIndex}`);
+        }
+      }
+    }
+    
+    // Log matching statistics
+    const matchedCount = matched.filter(m => m !== null).length;
+    logger.info(`📊 Matching stats: ${matchedCount}/${allWords.length} words matched, ${wordTimings.length} timings available`);
+    
+    // Step 3: Interpolate missing timings
+    for (let i = 0; i < allWords.length; i++) {
+      if (matched[i]) {
+        timepoints.push(matched[i]);
+      } else {
+        // Find previous and next real timings
+        let prevTiming = null;
+        let nextTiming = null;
+        
+        for (let j = i - 1; j >= 0; j--) {
+          if (matched[j]) {
+            prevTiming = matched[j];
+            break;
+          }
+        }
+        
+        for (let j = i + 1; j < allWords.length; j++) {
+          if (matched[j]) {
+            nextTiming = matched[j];
+            break;
+          }
+        }
+        
+        // Interpolate based on surrounding timings
+        let startTime, endTime;
+        
+        if (prevTiming && nextTiming) {
+          // Between two real timings - linear interpolation
+          const gapWords = nextTiming.index - prevTiming.index;
+          const gapDuration = nextTiming.timeSeconds - prevTiming.endTimeSeconds;
+          const wordDuration = gapDuration / gapWords;
+          const wordsFromPrev = i - prevTiming.index;
+          
+          startTime = prevTiming.endTimeSeconds + (wordDuration * wordsFromPrev);
+          endTime = startTime + wordDuration;
+        } else if (prevTiming) {
+          // After last real timing
+          const avgDuration = 0.3; // 300ms default
+          startTime = prevTiming.endTimeSeconds + (avgDuration * (i - prevTiming.index - 1));
+          endTime = startTime + avgDuration;
+        } else if (nextTiming) {
+          // Before first real timing
+          const avgDuration = nextTiming.timeSeconds / nextTiming.index;
+          startTime = avgDuration * i;
+          endTime = startTime + avgDuration;
+        } else {
+          // No real timings at all - use average
+          const avgDuration = totalDuration / allWords.length;
+          startTime = avgDuration * i;
+          endTime = startTime + avgDuration;
+        }
+        
+        timepoints.push({
+          timeSeconds: startTime,
+          endTimeSeconds: endTime,
+          word: allWords[i],
+          index: i,
+          hasRealTiming: false
+        });
+      }
+    }
+    
+    return timepoints;
+  };
+  
+  // Helper function to create optimized timepoints for frontend (legacy)
   const createOptimizedTimepoints = (wordTimings) => {
     return wordTimings.map((timing, index) => ({
         timeSeconds: timing.timeSeconds || timing.startTime || 0,

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AuthContextType, User } from '../types';
 import { authService } from '../services/supabase';
-import { apiService, setUnauthorizedHandler } from '../services/api';
+import { apiService } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationService from '../services/notificationService';
 import { 
@@ -12,6 +12,7 @@ import {
   configureGoogleSignIn,
   type SocialAuthResult
 } from '../services/socialAuth';
+import { getApiBaseUrl } from '../services/environmentConfig';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -35,6 +36,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     // Configure Google Sign-In on app start
     configureGoogleSignIn();
+    
+    // Configure Facebook SDK on app start
+    const { configureFacebookSDK } = require('../services/socialAuth');
+    configureFacebookSDK();
     
     // Initial auth state check
     checkAuthState();
@@ -87,14 +92,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
 
     // Setup global unauthorized handler (401)
-    setUnauthorizedHandler(async () => {
-      try {
-        await AsyncStorage.removeItem('auth_token');
-        await AsyncStorage.removeItem('user_data');
-        try { await AsyncStorage.removeItem('refresh_token'); } catch {}
-      } catch {}
-      setUser(null);
-    });
+    // Note: Temporarily disabled to fix circular dependency
+    // Will be re-enabled after fixing module structure
+    // setUnauthorizedHandler(async () => {
+    //   try {
+    //     await AsyncStorage.removeItem('auth_token');
+    //     await AsyncStorage.removeItem('user_data');
+    //     try { await AsyncStorage.removeItem('refresh_token'); } catch {}
+    //   } catch {}
+    //   setUser(null);
+    // });
 
     return () => {
       subscription?.unsubscribe();
@@ -107,11 +114,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const token = await AsyncStorage.getItem('auth_token');
       const storedUser = await AsyncStorage.getItem('user_data');
       
+      console.log('🔍 [AUTH CHECK] Token exists:', !!token);
+      console.log('🔍 [AUTH CHECK] User data exists:', !!storedUser);
+      
       if (token && storedUser) {
+        console.log('✅ [AUTH CHECK] Token and user found, validating...');
         
         // Validate token by making a test API call with timeout
         try {
-          const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+          // Use the same API_BASE_URL as api.ts
+          const API_BASE_URL = 'http://192.168.1.4:5001';
+          console.log('🔍 [AUTH CHECK] Using API URL:', API_BASE_URL);
           
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
@@ -132,9 +145,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           clearTimeout(timeoutId);
           
           if (response.ok) {
+            console.log('✅ [AUTH CHECK] Token is valid');
             const appUser: User = JSON.parse(storedUser);
             // Try to refresh name from backend /auth/me
             try {
+              console.log('🔍 [AUTH CHECK] Fetching user info from /api/auth/me');
               const meRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
@@ -216,7 +231,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       // Web uygulaması gibi backend API'sini kullan
-      const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+      const API_BASE_URL = await getApiBaseUrl();
       
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
@@ -264,12 +279,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Store token and user data in AsyncStorage
         if (data.data.token) {
+          console.log('🔐 [AUTH] Saving token to AsyncStorage:', data.data.token.substring(0, 20) + '...');
           await AsyncStorage.setItem('auth_token', data.data.token);
           await AsyncStorage.setItem('user_data', JSON.stringify(appUser));
+          console.log('✅ [AUTH] Token saved successfully');
           // Store refresh token if provided by backend
           try {
             if (data.data.refreshToken) {
               await AsyncStorage.setItem('refresh_token', data.data.refreshToken);
+              console.log('✅ [AUTH] Refresh token saved');
             }
           } catch {}
         }
@@ -325,7 +343,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Social authentication handler
   const handleSocialAuth = async (socialResult: SocialAuthResult) => {
-    const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+    const API_BASE_URL = await getApiBaseUrl();
     
     // Determine endpoint based on provider
     const endpoint = socialResult.provider === 'google' 
@@ -451,6 +469,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       const socialResult = await signInWithApple();
+      
+      // Log Apple name data for debugging
+      console.log('[AUTH_CONTEXT] Apple Sign-In result:', {
+        hasName: !!socialResult.name,
+        name: socialResult.name,
+        email: socialResult.email
+      });
+      
       await handleSocialAuth(socialResult);
       setIsLoading(false);
     } catch (error: any) {

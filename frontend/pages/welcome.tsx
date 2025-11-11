@@ -7,7 +7,8 @@ import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
-import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary } from '../src/lib/api';
+import { MessageSquare } from 'lucide-react';
+import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams } from '../src/lib/api';
 import PlanRequired from '../src/components/PlanRequired';
 import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
@@ -47,6 +48,9 @@ interface AudioResult {
   words?: string[];
   speaking_rate?: number;
   original_turkish?: string;
+  duration_seconds?: string;
+  file_name?: string;
+  topic?: string;
 }
 
 interface ContentHistoryItem {
@@ -109,7 +113,7 @@ interface ExistingAudio {
 
 const Welcome: React.FC = () => {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
-  const { badge, dailyLimit, remaining } = useMembership();
+  const { badge, dailyLimit, remaining, currentPlanName } = useMembership();
   const { t } = useTranslation();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -138,14 +142,14 @@ const Welcome: React.FC = () => {
     } catch {}
   }, [router]);
 
-  // Yeni tasarım için state'ler
+  // Yeni tasarım için state'ler - Default to Emma
   const [contentType, setContentType] = useState<string>('text');
   const [englishLevel, setEnglishLevel] = useState<string>('a1');
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
-  const [voiceType, setVoiceType] = useState<string>('en-US-Standard-C');
+  const [voiceType, setVoiceType] = useState<string>('Emma');
   const [savedDefaultVoice, setSavedDefaultVoice] = useState<string | null>(null);
   const [defaultApplied, setDefaultApplied] = useState<boolean>(false);
-  const [accentType, setAccentType] = useState<string>('all');
+  const [accentType, setAccentType] = useState<string>('american');
   const [emotionType, setEmotionType] = useState<string>('all');
   const [outputFormat, setOutputFormat] = useState<string>('mp3');
   const [textInput, setTextInput] = useState<string>('');
@@ -161,13 +165,26 @@ const Welcome: React.FC = () => {
   const [selectedDetailTopic, setSelectedDetailTopic] = useState<string>('');
   const [availableVoices, setAvailableVoices] = useState<any[]>([]);
   const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
-  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('standard');
-  const [selectedGender, setSelectedGender] = useState<string>('all');
-  const [selectedAccent, setSelectedAccent] = useState<string>('all');
+  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('neural');
+  const [selectedGender, setSelectedGender] = useState<string>('female');
+  const [selectedAccent, setSelectedAccent] = useState<string>('american');
+  const [ttsProvider, setTtsProvider] = useState<string>('amazon'); // TTS provider from settings
   // YouTube altyazı çekme state'leri
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
   const [isFetchingSubtitle, setIsFetchingSubtitle] = useState<boolean>(false);
   const [subtitleError, setSubtitleError] = useState<string | null>(null);
+  
+  // Podcast state'leri
+  const [podcastTopic, setPodcastTopic] = useState<string>('');
+  const [podcastDuration, setPodcastDuration] = useState<number>(3);
+  const [podcastStyleType, setPodcastStyleType] = useState<string>('friendly_chat');
+  const [podcastVoiceChoice, setPodcastVoiceChoice] = useState<string>('english_female');
+  const [podcastPersonalityA, setPodcastPersonalityA] = useState<string>('curious_enthusiast');
+  const [podcastPersonalityB, setPodcastPersonalityB] = useState<string>('knowledgeable_friend');
+  const [podcastIncludeHumor, setPodcastIncludeHumor] = useState<boolean>(true);
+  const [podcastIncludeFiller, setPodcastIncludeFiller] = useState<boolean>(true);
+  const [isCreatingPodcast, setIsCreatingPodcast] = useState<boolean>(false);
+  const [podcastError, setPodcastError] = useState<string | null>(null);
   
   // Kitap arama ve seçim state'leri
   const [bookSearchQuery, setBookSearchQuery] = useState<string>('');
@@ -194,7 +211,7 @@ const Welcome: React.FC = () => {
     { id: 'youtube', name: 'YouTube', icon: 'fab fa-youtube' },
     { id: 'weblink', name: 'Web Bağlantısı', icon: 'fas fa-link' },
     { id: 'document', name: 'Doküman', icon: 'fas fa-file-word' },
-    { id: 'spotify', name: 'Spotify', icon: 'fab fa-spotify' },
+    { id: 'podcast', name: 'Podcast', icon: 'fas fa-podcast' },
     { id: 'book', name: 'Kitap', icon: 'fas fa-book' },
     { id: 'custom', name: 'Öneriler', icon: 'fas fa-plus' },
     { id: 'hashtag', name: 'Etiket', icon: 'fas fa-hashtag' },
@@ -229,14 +246,19 @@ const Welcome: React.FC = () => {
   ];
   const formatOptions = ['MP3', 'WAV', 'AAC', 'FLAC', 'OGG'];
 
-  // Ses kategorileri ve detaylı ses verileri
-  const voiceCategories = [
-    { value: 'standard', label: 'Standart Sesler', icon: 'fas fa-volume-up', badge: 'Ücretsiz', ssmlSupport: false },
-    { value: 'wavenet', label: 'WaveNet Sesleri', icon: 'fas fa-star', badge: 'Premium', ssmlSupport: true },
-    { value: 'neural2', label: 'Neural2 Sesleri', icon: 'fas fa-brain', badge: 'Premium', ssmlSupport: true },
-    { value: 'studio', label: 'Studio Sesleri', icon: 'fas fa-crown', badge: 'Platinium', ssmlSupport: true },
-    { value: 'chirp3d', label: 'Chirp 3D', icon: 'fas fa-gem', badge: 'Gold', ssmlSupport: true }
-  ];
+  // Ses kategorileri - TTS provider'a göre dinamik
+  const voiceCategories = ttsProvider === 'google' 
+    ? [
+        { value: 'standard', label: 'Standart Sesler', icon: 'fas fa-volume-up', badge: 'Ücretsiz', ssmlSupport: false },
+        { value: 'wavenet', label: 'WaveNet Sesleri', icon: 'fas fa-star', badge: 'Premium', ssmlSupport: true },
+        { value: 'neural2', label: 'Neural2 Sesleri', icon: 'fas fa-brain', badge: 'Premium', ssmlSupport: true },
+        { value: 'studio', label: 'Studio Sesleri', icon: 'fas fa-crown', badge: 'Platinium', ssmlSupport: true },
+        { value: 'chirp3d', label: 'Chirp 3D', icon: 'fas fa-gem', badge: 'Gold', ssmlSupport: true }
+      ]
+    : [ // Amazon Polly categories
+        { value: 'standard', label: 'Standard', icon: 'fas fa-volume-up', badge: 'Ücretsiz', ssmlSupport: false },
+        { value: 'neural', label: 'Neural', icon: 'fas fa-star', badge: 'Premium', ssmlSupport: true }
+      ];
 
   const detailedVoices = {
     wavenet: [
@@ -325,6 +347,61 @@ const Welcome: React.FC = () => {
       setSubtitleError(e?.message || 'Altyazı çekilemedi.');
     } finally {
       setIsFetchingSubtitle(false);
+    }
+  };
+
+  // Podcast oluşturma fonksiyonu
+  const handleCreatePodcast = async () => {
+    if (!podcastTopic || podcastTopic.trim().length === 0) {
+      setPodcastError('Lütfen bir podcast konusu girin.');
+      return;
+    }
+    
+    setIsCreatingPodcast(true);
+    setPodcastError(null);
+    
+    try {
+      // n8n webhook formatı: { topic, level, duration }
+      const params: PodcastCreationParams = {
+        topic: podcastTopic,
+        level: englishLevel.toUpperCase(),
+        duration: podcastDuration
+      };
+      
+      console.log('🎙️ [PODCAST] Creating podcast with params:', params);
+      const result = await createPodcast(params);
+      
+      if (result.success && result.podcast_url) {
+        // Podcast başarıyla oluşturuldu
+        // n8n'den gelen vtt_subtitles zaten Supabase URL'si
+        const vttUrl = result.vtt_subtitles || '';
+        const topic = result.data?.metadata?.topic || podcastTopic;
+        
+        setAudioResult({
+          message: result.transcript || result.message || topic,
+          mp3_url: result.podcast_url,
+          vtt_url: vttUrl,
+          level: englishLevel,
+          duration_seconds: result.duration_seconds,
+          file_name: result.file_name,
+          topic: topic
+        });
+        console.log('🎙️ [PODCAST] Podcast created successfully:', {
+          topic: topic,
+          audio: result.podcast_url,
+          vtt: vttUrl,
+          duration: result.duration_seconds,
+          level: englishLevel,
+          costs: result.data?.metadata?.costs
+        });
+      } else {
+        throw new Error(result.message || 'Podcast oluşturulamadı');
+      }
+    } catch (e: any) {
+      console.error('❌ [PODCAST] Podcast oluşturma hatası:', e);
+      setPodcastError(e?.message || 'Podcast oluşturulamadı.');
+    } finally {
+      setIsCreatingPodcast(false);
     }
   };
 
@@ -569,6 +646,30 @@ const Welcome: React.FC = () => {
       setLoadingVoices(false);
     }
   };
+
+  // Fetch TTS provider from settings
+  useEffect(() => {
+    const fetchTtsProvider = async () => {
+      try {
+        const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+          ? 'http://localhost:5001/api/admin/settings/tts-provider'
+          : '/api/admin/settings/tts-provider';
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (data.success && data.tts_provider) {
+          console.log('🎙️ TTS Provider from settings:', data.tts_provider);
+          setTtsProvider(data.tts_provider);
+        }
+      } catch (error) {
+        console.error('Error fetching TTS provider:', error);
+        setTtsProvider('amazon'); // Default to Amazon
+      }
+    };
+    
+    fetchTtsProvider();
+  }, []);
 
   // Content history ve user interests'i yüklemek için useEffect ekleyelim
   useEffect(() => {
@@ -1207,6 +1308,12 @@ const Welcome: React.FC = () => {
       return;
     }
 
+    // Limit kontrolü
+    if (remaining <= 0) {
+      setError('Ses oluşturma hakkınız bitti. Premium pakete geçerek sınırsız ses oluşturabilirsiniz.');
+      return;
+    }
+
     const inputData: InputData = {
       type: contentType as ProcessInputData['type'],
       text: textInput,
@@ -1402,6 +1509,28 @@ const Welcome: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* AI Content Entry Card */}
+          <div 
+            onClick={() => router.push('/chat/assistant')}
+            className="max-w-4xl mx-auto mb-8 bg-white rounded-xl shadow-md hover:shadow-lg cursor-pointer transition-all duration-300 group"
+          >
+            <div className="p-6 flex items-center justify-between">
+              <div className="flex-1">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                  LingRoot AI ile İçerik Oluştur
+                </h3>
+                <p className="text-gray-600 text-base">
+                  Yapay zekayla sohbet ederek seviyene uygun içerik oluşturmaya hemen başla.
+                </p>
+              </div>
+              <div className="ml-6">
+                <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                  <MessageSquare className="w-8 h-8 text-blue-600 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </div>
+          </div>
 
           <Card className="mb-8 border-none shadow-lg">
             <CardContent className="p-6">
@@ -1651,6 +1780,165 @@ const Welcome: React.FC = () => {
                         <p className="text-xs text-gray-500">
                           Not: Altyazı metni başarıyla alındığında aşağıdaki metin kutusuna otomatik olarak yapıştırılır.
                         </p>
+                      </div>
+                    )}
+
+                    {/* Podcast sekmesi */}
+                    {contentType === 'podcast' && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Podcast Konusu:
+                          </label>
+                          <textarea
+                            value={podcastTopic}
+                            onChange={(e) => setPodcastTopic(e.target.value)}
+                            placeholder="Podcast için bir konu girin (Örn: The history of the Internet)..."
+                            className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Süre (dakika):
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="30"
+                            value={podcastDuration}
+                            onChange={(e) => setPodcastDuration(parseInt(e.target.value) || 3)}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Konuşma Stili:
+                            </label>
+                            <select
+                              value={podcastStyleType}
+                              onChange={(e) => setPodcastStyleType(e.target.value)}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                            >
+                              <option value="friendly_chat">Samimi Sohbet</option>
+                              <option value="professional">Profesyonel</option>
+                              <option value="educational">Eğitici</option>
+                              <option value="casual">Rahat</option>
+                            </select>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Ses Seçimi:
+                            </label>
+                            <select
+                              value={podcastVoiceChoice}
+                              onChange={(e) => setPodcastVoiceChoice(e.target.value)}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                            >
+                              <option value="english_female">İngilizce - Kadın</option>
+                              <option value="english_male">İngilizce - Erkek</option>
+                              <option value="american_female">Amerikan - Kadın</option>
+                              <option value="american_male">Amerikan - Erkek</option>
+                              <option value="british_female">İngiliz - Kadın</option>
+                              <option value="british_male">İngiliz - Erkek</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Kişilik A:
+                            </label>
+                            <select
+                              value={podcastPersonalityA}
+                              onChange={(e) => setPodcastPersonalityA(e.target.value)}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                            >
+                              <option value="curious_enthusiast">Meraklı Coşkulu</option>
+                              <option value="skeptical_analyst">Şüpheci Analist</option>
+                              <option value="friendly_guide">Samimi Rehber</option>
+                              <option value="professional_expert">Profesyonel Uzman</option>
+                            </select>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Kişilik B:
+                            </label>
+                            <select
+                              value={podcastPersonalityB}
+                              onChange={(e) => setPodcastPersonalityB(e.target.value)}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                            >
+                              <option value="knowledgeable_friend">Bilgili Arkadaş</option>
+                              <option value="experienced_mentor">Deneyimli Mentor</option>
+                              <option value="curious_learner">Meraklı Öğrenci</option>
+                              <option value="witty_commentator">Esprili Yorumcu</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-6">
+                          <label className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={podcastIncludeHumor}
+                              onChange={(e) => setPodcastIncludeHumor(e.target.checked)}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">Mizah Ekle</span>
+                          </label>
+                          
+                          <label className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={podcastIncludeFiller}
+                              onChange={(e) => setPodcastIncludeFiller(e.target.checked)}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">Dolgu Kelimeler Ekle</span>
+                          </label>
+                        </div>
+
+                        <div className="flex justify-center pt-2">
+                          <Button
+                            type="button"
+                            onClick={handleCreatePodcast}
+                            className={`px-8 py-3 !rounded-button whitespace-nowrap ${
+                              !isCreatingPodcast && podcastTopic.trim() 
+                                ? 'bg-purple-600 hover:bg-purple-700 cursor-pointer' 
+                                : 'bg-gray-400 cursor-not-allowed'
+                            }`}
+                            disabled={isCreatingPodcast || !podcastTopic.trim()}
+                          >
+                            {isCreatingPodcast ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Podcast Oluşturuluyor...
+                              </>
+                            ) : (
+                              <>
+                                <i className="fas fa-podcast mr-2"></i>
+                                Podcast Oluştur
+                              </>
+                            )}
+                          </Button>
+                        </div>
+
+                        {podcastError && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                            {podcastError}
+                          </div>
+                        )}
+                        
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                          <i className="fas fa-info-circle mr-1"></i>
+                          Podcast oluşturma işlemi birkaç dakika sürebilir. Lütfen bekleyin.
+                        </div>
                       </div>
                     )}
 
@@ -1925,7 +2213,7 @@ const Welcome: React.FC = () => {
                     )}
 
                     {/* Diğer içerik türleri için genel textarea */}
-                    {contentType !== 'topic' && contentType !== 'subject' && contentType !== 'book' && (
+                    {contentType !== 'topic' && contentType !== 'subject' && contentType !== 'book' && contentType !== 'podcast' && (
                       <div className="relative">
                         <textarea
                           value={textInput}
@@ -2233,16 +2521,36 @@ const Welcome: React.FC = () => {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-medium text-blue-800">Mevcut Üyelik Planınız</h3>
                     <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
-                      {badge?.label || 'Ücretsiz Plan'}
+                      {currentPlanName || 'Ücretsiz Plan'}
                     </Badge>
                   </div>
-                  <div className="text-sm text-blue-600">
-                    <p className="mb-2"><i className="fas fa-info-circle mr-2"></i>Günlük {remaining}/{dailyLimit} ses dönüşümü hakkınız kaldı.</p>
+                  <div className={remaining <= 0 ? "text-sm text-red-600" : "text-sm text-blue-600"}>
+                    {remaining <= 0 ? (
+                      <>
+                        <p className="mb-2 font-semibold"><i className="fas fa-exclamation-triangle mr-2"></i>Ses oluşturma hakkınız bitti!</p>
+                        <p className="mb-3 text-xs">Premium pakete yükselterek sınırsız ses oluşturabilirsiniz.</p>
+                      </>
+                    ) : (
+                      <p className="mb-2"><i className="fas fa-info-circle mr-2"></i>Günlük {remaining}/{dailyLimit} ses dönüşümü hakkınız kaldı.</p>
+                    )}
                     <div className="flex items-center mt-3">
-                      <Button variant="outline" className="mr-3 !rounded-button whitespace-nowrap cursor-pointer">
+                      <Button 
+                        variant="outline" 
+                        className="mr-3 !rounded-button whitespace-nowrap cursor-pointer"
+                        onClick={() => router.push('/fiyatlandirma')}
+                      >
                         <i className="fas fa-crown text-yellow-500 mr-2"></i>Premium'a Yükselt
                       </Button>
-                      <a href="#" className="text-blue-600 hover:text-blue-700 text-sm">Tüm planları karşılaştır</a>
+                      <a 
+                        href="/fiyatlandirma" 
+                        className="text-blue-600 hover:text-blue-700 text-sm"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          router.push('/fiyatlandirma');
+                        }}
+                      >
+                        Tüm planları karşılaştır
+                      </a>
                     </div>
                   </div>
                 </div>

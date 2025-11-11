@@ -22,8 +22,10 @@ router.put('/change-password', authenticate, authController.changePassword);
 router.post('/logout', authenticate, authController.logout);
 
 // Social login routes
+router.post('/google', authController.googleLogin);
 router.post('/google-login', authController.googleLogin);
 router.post('/facebook-login', authController.facebookLogin);
+router.post('/apple', authController.appleLogin);
 router.post('/apple-login', authController.appleLogin);
 
 module.exports = router;

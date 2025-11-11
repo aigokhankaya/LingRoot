@@ -44,25 +44,39 @@ const CreateScreen: React.FC = () => {
   useFocusEffect(
     React.useCallback(() => {
       const nextMode: 'text' | 'file' | 'book' | 'suggestion' | 'youtube' = route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : (route.params?.mode === 'youtube' ? 'youtube' : 'text')));
+      const prevMode = mode;
       setMode(nextMode);
       
-      // Her zaman tüm form alanlarını temizle
-      setInputText('');
-      setSelectedFile(null);
-      setSelectedBook(null);
-      setSelectedChapterId(null);
-      setSelectedChapterText('');
-      setSuggestion('');
-      setSuggestionResults([]);
-      setYoutubeUrl('');
-      setYoutubeLoading(false);
-      setYoutubeError(null);
-    }, [route.params?.mode])
+      // Her zaman suggestion mode'a girerken temizle
+      if (nextMode === 'suggestion') {
+        setSuggestion('');
+        setSuggestionResults([]);
+        setInputText('');
+        setIsConvertingSuggestion(false);
+        setConvertingText('');
+      }
+      
+      // Diğer mode'lar için sadece mode değiştiğinde temizle
+      if (prevMode !== nextMode && nextMode !== 'suggestion') {
+        setInputText('');
+        setSelectedFile(null);
+        setSelectedBook(null);
+        setSelectedChapterId(null);
+        setSelectedChapterText('');
+        setSuggestion('');
+        setSuggestionResults([]);
+        setYoutubeUrl('');
+        setYoutubeLoading(false);
+        setYoutubeError(null);
+      }
+    }, [route.params?.mode, mode])
   );
   // --- Suggestion Mode State ---
   const [suggestion, setSuggestion] = useState('');
   const [suggestionResults, setSuggestionResults] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [isConvertingSuggestion, setIsConvertingSuggestion] = useState(false);
+  const [convertingText, setConvertingText] = useState('');
 
   // --- YouTube Mode State ---
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
@@ -141,29 +155,38 @@ const CreateScreen: React.FC = () => {
     setIsLoadingSuggestions(true);
     try {
       const res = await apiService.getTopicSuggestions(suggestion, selectedLevel);
+      
       if (res?.success) {
-        setSuggestionResults(res.suggestions || []);
+        const suggestions = res.suggestions || [];
+        setSuggestionResults(suggestions);
+        
+        // Set first suggestion to input text area
+        if (suggestions.length > 0) {
+          const firstSuggestion = suggestions[0];
+          setInputText(firstSuggestion);
+        }
       } else {
         Alert.alert(t('common.error'), res?.message || t('suggestions.alerts.fetchFailed'));
       }
     } catch (e: any) {
-      Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
+      Alert.alert('API ERROR', e.message || t('common.unexpectedError'));
     } finally {
       setIsLoadingSuggestions(false);
     }
   };
 
   
-  // Voice selection states
-  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('standard');
-  const [selectedVoice, setSelectedVoice] = useState<string>('en-US-Standard-C');
-  const [selectedAccent, setSelectedAccent] = useState<string>('all');
-  const [selectedGender, setSelectedGender] = useState<string>('all');
+  // Voice selection states - Default to Emma
+  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('neural');
+  const [selectedVoice, setSelectedVoice] = useState<string>('Emma');
+  const [selectedAccent, setSelectedAccent] = useState<string>('american');
+  const [selectedGender, setSelectedGender] = useState<string>('female');
   const [availableVoices, setAvailableVoices] = useState<Voice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
   const [showVoiceSelection, setShowVoiceSelection] = useState<boolean>(false);
   const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || selectedVoiceCategory !== 'standard';
   const [shouldPromoteSelectedVoiceTop, setShouldPromoteSelectedVoiceTop] = useState<boolean>(false);
+  const [currentProvider, setCurrentProvider] = useState<string>('google'); // TTS provider
 
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
@@ -228,19 +251,17 @@ const CreateScreen: React.FC = () => {
     return 'american';
   };
 
-  // Backend kategori paramını doğrudan kullan (backend 'neural2', 'wavenet', 'studio', 'chirp3d' bekliyor)
+  // Backend kategori paramını doğrudan kullan (backend 'neural', 'neural2', 'wavenet', 'studio', 'chirp3d' bekliyor)
   const mapCategoryForBackend = (category?: string): string | undefined => {
     if (!category || category === 'standard') return undefined;
+    // 'neural' kategorisini backend'e gönder (Amazon Polly Neural engine için)
     return category;
   };
 
-  // Voice categories - filtered by plan features
+  // Voice categories - Amazon Polly categories
   const voiceCategories: VoiceCategory[] = [
-    { value: 'standard', label: t('create.voice.categories.standard'), icon: 'volume-up', badge: t('create.voice.badge.free') },
-    { value: 'wavenet', label: t('create.voice.categories.wavenet'), icon: 'star', badge: t('create.voice.badge.premium') },
-    { value: 'neural2', label: t('create.voice.categories.neural2'), icon: 'psychology', badge: t('create.voice.badge.premium') },
-    { value: 'studio', label: t('create.voice.categories.studio'), icon: 'workspace-premium', badge: t('create.voice.badge.platinum') },
-    { value: 'chirp3d', label: t('create.voice.categories.chirp3d'), icon: 'diamond', badge: t('create.voice.badge.gold') },
+    { value: 'standard', label: 'Standard', icon: 'volume-up', badge: t('create.voice.badge.free') },
+    { value: 'neural', label: 'Neural', icon: 'star', badge: t('create.voice.badge.premium') },
   ].filter(category => {
     // Filter categories based on plan features
     if (!planFeatures?.voice_categories) return true; // Show all if features not loaded
@@ -248,10 +269,7 @@ const CreateScreen: React.FC = () => {
     const categories = planFeatures.voice_categories;
     switch (category.value) {
       case 'standard': return categories.standard !== false;
-      case 'wavenet': return categories.wavenet === true;
-      case 'neural2': return categories.neural2 === true;
-      case 'studio': return categories.studio === true;
-      case 'chirp3d': return categories.chirp3d === true;
+      case 'neural': return categories.wavenet === true || categories.neural2 === true; // Map Google categories to Polly Neural
       default: return true;
     }
   });
@@ -285,6 +303,26 @@ const CreateScreen: React.FC = () => {
     fetchPlanFeatures();
   }, []);
 
+  // Fetch current TTS provider
+  useEffect(() => {
+    const fetchProvider = async () => {
+      try {
+        const response = await apiService.getTtsProvider();
+        if (response?.provider) {
+          console.log('🎙️ TTS Provider from admin settings:', response.provider);
+          setCurrentProvider(response.provider);
+          // Provider değiştiğinde ses listesini yenile
+          fetchAvailableVoices();
+        }
+      } catch (error) {
+        console.error('Error fetching TTS provider:', error);
+        // Default to amazon if error
+        setCurrentProvider('amazon');
+      }
+    };
+    fetchProvider();
+  }, []);
+
   // Fetch available voices
   const fetchAvailableVoices = async () => {
     setLoadingVoices(true);
@@ -302,8 +340,8 @@ const CreateScreen: React.FC = () => {
         const processedVoices = voices.map((voice: any) => {
           const name = voice.name || voice.voiceName || voice.id || voice.code;
           
-          // Kategori
-          let category = voice.category || voice.type || voice.voiceType;
+          // Kategori - Amazon Polly'nin 'engine' field'ını da kontrol et
+          let category = voice.category || voice.type || voice.voiceType || voice.engine;
           if (!category) {
             const voiceName = name || '';
             if (voiceName.includes('Chirp') || voiceName.toLowerCase().includes('chirp')) {
@@ -362,8 +400,11 @@ const CreateScreen: React.FC = () => {
     try {
       const backendCategory = mapCategoryForBackend(category);
       
+      console.log('🎙️ [FETCH FILTERED] Request params:', { accent, gender, category, backendCategory });
+      
       const response = await apiService.getFilteredVoices(accent, gender, undefined, backendCategory);
       
+      console.log('🎙️ [FETCH FILTERED] Raw response:', JSON.stringify(response, null, 2));
 
       // Response şekli: { provider, voices, ... } veya { success, data } olabilir
       const apiResponse: any = response as any;
@@ -372,6 +413,13 @@ const CreateScreen: React.FC = () => {
         apiResponse?.data?.voices ||
         (Array.isArray(apiResponse?.data) ? apiResponse.data : []) ||
         [];
+      
+      console.log('🎙️ [FETCH FILTERED] Extracted voices count:', voices.length);
+      if (voices.length > 0) {
+        console.log('🎙️ [FETCH FILTERED] First voice sample:', JSON.stringify(voices[0], null, 2));
+      } else {
+        console.log('🎙️ [FETCH FILTERED] ❌ NO VOICES RETURNED!');
+      }
 
       if (Array.isArray(voices) && voices.length >= 0) {
         // Studio + Male fallback (backend deploy beklenirken geçici çözüm)
@@ -423,8 +471,8 @@ const CreateScreen: React.FC = () => {
         const processedVoices = voices.map((voice: any) => {
           const name = voice.name || voice.voiceName || voice.id || voice.code;
 
-          // Kategori
-          let category = voice.category || voice.type || voice.voiceType;
+          // Kategori - Amazon Polly'nin 'engine' field'ını da kontrol et
+          let category = voice.category || voice.type || voice.voiceType || voice.engine;
           if (!category) {
             const voiceName = name || '';
             if (voiceName.includes('Chirp') || voiceName.toLowerCase().includes('chirp')) {
@@ -625,15 +673,15 @@ const CreateScreen: React.FC = () => {
 
   // Update filtered voices when filters change
   useEffect(() => {
-    // Eğer kategori seçiliyse ve accent/gender filtresi de varsa, backend'den filtrele
-    if (selectedVoiceCategory !== 'standard' && (selectedAccent !== 'all' || selectedGender !== 'all')) {
-      // Hem kategori hem de accent/gender filtresi varsa backend'den filtrele
+    // Kategori değiştiğinde veya filtreler değiştiğinde backend'den filtrele
+    if (selectedVoiceCategory !== 'standard') {
+      // Neural veya diğer kategoriler seçiliyse backend'den filtrele (accent/gender ile birlikte)
       fetchFilteredVoices(selectedAccent, selectedGender, selectedVoiceCategory);
     } else if (selectedAccent !== 'all' || selectedGender !== 'all') {
-      // Sadece accent/gender filtresi varsa backend'den filtrele
+      // Sadece accent/gender filtresi varsa (standard kategoride) backend'den filtrele
       fetchFilteredVoices(selectedAccent, selectedGender);
     } else {
-      // Hiç filtre yoksa veya sadece kategori filtresi varsa tüm sesleri getir
+      // Hiç filtre yoksa tüm sesleri getir
       fetchAvailableVoices();
     }
   }, [selectedAccent, selectedGender, selectedVoiceCategory]);
@@ -1009,6 +1057,16 @@ const CreateScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Loading overlay for suggestion conversion */}
+      {isConvertingSuggestion && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>{convertingText}</Text>
+          </View>
+        </View>
+      )}
+      
       <ScrollView
         style={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -1021,7 +1079,63 @@ const CreateScreen: React.FC = () => {
           </Text>
         </View>
 
-        {(mode === 'text' || mode === 'youtube' || mode === 'suggestion') && (
+        {mode === 'suggestion' && (
+          <View style={styles.inputSection}>
+            <Text style={styles.sectionTitle}>{t('suggestions.title')}</Text>
+            <TextInput
+              style={[styles.textInput]}
+              placeholder={t('suggestions.input.placeholder')}
+              value={suggestion}
+              onChangeText={setSuggestion}
+            />
+            <TouchableOpacity
+              style={[styles.searchButton, isLoadingSuggestions && styles.createButtonDisabled]}
+              onPress={handleGetSuggestions}
+              disabled={isLoadingSuggestions}
+            >
+              {isLoadingSuggestions ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <>
+                  <Icon name="lightbulb" size={20} color="#fff" />
+                  <Text style={styles.createButtonText}>{t('suggestions.buttons.getSuggestions')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            {suggestionResults.length > 0 && (
+              <View style={{ marginTop: 8 }}>
+                {suggestionResults.map((s, idx) => (
+                  <TouchableOpacity
+                    key={`${idx}-${s.substring(0,10)}`}
+                    style={styles.bookCard}
+                    onPress={async () => {
+                      try {
+                        setIsConvertingSuggestion(true);
+                        setConvertingText(language === 'tr' ? 'Öneri metne dönüştürülüyor...' : 'Converting suggestion to text...');
+                        
+                        const rr = await apiService.rewriteToNarration(s, selectedLevel);
+                        const narration = rr?.data?.narration_text || s;
+                        setInputText(narration);
+                        
+                        Alert.alert(t('common.success'), t('Öneri metne dönüştürüldü'));
+                      } catch (e: any) {
+                        Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
+                      } finally {
+                        setIsConvertingSuggestion(false);
+                        setConvertingText('');
+                      }
+                    }}
+                  >
+                    <View style={{ marginRight: 10 }}><Icon name="description" size={20} color="#FF9500" /></View>
+                    <Text style={{ flex: 1, color: '#333' }}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {((mode === 'text' || mode === 'youtube') || (mode === 'suggestion' && (suggestionResults.length > 0 || inputText.length > 0))) && (
           <View style={styles.inputSection}>
             <Text style={styles.sectionTitle}>{t('create.input.title')}</Text>
             {mode === 'youtube' && (
@@ -1089,56 +1203,6 @@ const CreateScreen: React.FC = () => {
         )}
 
         {/* Divider hidden in single-mode screens */}
-
-        {mode === 'suggestion' && (
-          <View style={styles.inputSection}>
-            <Text style={styles.sectionTitle}>{t('suggestions.title')}</Text>
-            <TextInput
-              style={[styles.textInput]}
-              placeholder={t('suggestions.input.placeholder')}
-              value={suggestion}
-              onChangeText={setSuggestion}
-            />
-            <TouchableOpacity
-              style={[styles.searchButton, isLoadingSuggestions && styles.createButtonDisabled]}
-              onPress={handleGetSuggestions}
-              disabled={isLoadingSuggestions}
-            >
-              {isLoadingSuggestions ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <>
-                  <Icon name="lightbulb" size={20} color="#fff" />
-                  <Text style={styles.createButtonText}>{t('suggestions.buttons.getSuggestions')}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            {suggestionResults.length > 0 && (
-              <View style={{ marginTop: 8 }}>
-                {suggestionResults.map((s, idx) => (
-                  <TouchableOpacity
-                    key={`${idx}-${s.substring(0,10)}`}
-                    style={styles.bookCard}
-                    onPress={async () => {
-                      try {
-                        const rr = await apiService.rewriteToNarration(s, selectedLevel);
-                        const narration = rr?.data?.narration_text || s;
-                        setInputText(narration);
-                        // Mode'u suggestion olarak bırak, metin input alanı zaten görünüyor
-                        Alert.alert(t('common.success'), t('Öneri metne dönüştürüldü'));
-                      } catch (e: any) {
-                        Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
-                      }
-                    }}
-                  >
-                    <View style={{ marginRight: 10 }}><Icon name="description" size={20} color="#FF9500" /></View>
-                    <Text style={{ flex: 1, color: '#333' }}>{s}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
 
         {mode === 'book' && (
           <View style={styles.inputSection}>
@@ -1456,7 +1520,12 @@ const CreateScreen: React.FC = () => {
           <View style={styles.voiceModalBackdrop}>
             <View style={[styles.voiceModalContent, { maxHeight: '75%', width: '92%' }]}>
               <View style={styles.voiceModalHeader}>
-                <Text style={styles.voiceModalTitle}>{t('create.voice.modal.title')}</Text>
+                <View>
+                  <Text style={styles.voiceModalTitle}>{t('create.voice.modal.title')}</Text>
+                  <Text style={styles.providerBadge}>
+                    {currentProvider === 'polly' || currentProvider === 'amazon' ? '🎙️ Amazon Polly' : currentProvider === 'azure' ? '🔷 Azure TTS' : '☁️ Google TTS'}
+                  </Text>
+                </View>
                 <TouchableOpacity onPress={() => setShowVoiceSelection(false)}>
                   <Icon name="close" size={24} color="#666" />
                 </TouchableOpacity>
@@ -1504,15 +1573,23 @@ const CreateScreen: React.FC = () => {
                         try {
                           await saveDefaultVoiceSetting(selectedVoice);
                           setShouldPromoteSelectedVoiceTop(true);
-                          Alert.alert(t('common.success'), 'Varsayılan ses kaydedildi');
+                          Alert.alert(
+                            t('common.success'),
+                            language === 'tr' ? 'Varsayılan ses kaydedildi' : 'Default voice saved'
+                          );
                           setShowVoiceSelection(false);
                         } catch (e: any) {
-                          Alert.alert(t('common.error'), e.message || 'Kaydedilemedi');
+                          Alert.alert(
+                            t('common.error'),
+                            e.message || (language === 'tr' ? 'Kaydedilemedi' : 'Could not save')
+                          );
                         }
                       }}
                       disabled={!selectedVoice}
                     >
-                      <Text style={styles.defaultVoiceButtonText}>Varsayılan Ses Seç</Text>
+                      <Text style={styles.defaultVoiceButtonText}>
+                        {language === 'tr' ? 'Varsayılan Ses Seç' : 'Set as Default Voice'}
+                      </Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -1560,6 +1637,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
   },
   // Book search styles
   bookSearchRow: {
@@ -2031,6 +2136,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
+  },
+  providerBadge: {
+    fontSize: 12,
+    color: '#007AFF',
+    marginTop: 4,
+    fontWeight: '500',
   },
   voiceLoader: {
     paddingVertical: 40,

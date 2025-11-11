@@ -5,7 +5,22 @@ const adminController = require('../controllers/adminController');
 const planController = require('../controllers/planController');
 const { getTtsProviderSetting, setTtsProviderSetting } = require('../controllers/adminController');
 
-// All routes require authentication and admin authorization
+// TTS provider ayarını getir (both dash and underscore for compatibility)
+// These routes are defined BEFORE middleware to ensure they work
+router.get('/settings/tts-provider', authenticate, authorizeAdmin, getTtsProviderSetting);
+router.get('/settings/tts_provider', authenticate, authorizeAdmin, getTtsProviderSetting);
+// TTS provider ayarını güncelle
+router.post('/settings/tts-provider', authenticate, authorizeAdmin, setTtsProviderSetting);
+router.put('/settings/tts_provider', authenticate, authorizeAdmin, setTtsProviderSetting);
+
+// Environment setting (admin only)
+router.put('/environment', authenticate, authorizeAdmin, adminController.updateEnvironment);
+
+// Payment environment setting (admin only)
+router.get('/payment-environment', authenticate, authorizeAdmin, adminController.getPaymentEnvironment);
+router.put('/payment-environment', authenticate, authorizeAdmin, adminController.updatePaymentEnvironment);
+
+// All other routes require authentication and admin authorization
 router.use(authenticate);
 router.use(authorizeAdmin);
 
@@ -31,6 +46,7 @@ router.post('/users/:id/assign-plan', adminController.assignPlanToUser);
 
 // User audio history (admin)
 router.get('/users/:id/audio-history', adminController.getUserAudioHistoryAdmin);
+router.delete('/users/:id/audio-files', adminController.deleteAudioFiles);
 
 // Optional: single content record fetch (for modal/details)
 router.get('/content/:id', adminController.getContentById);
@@ -42,11 +58,6 @@ router.delete('/content/:id', adminController.deleteContent);
 // Subscription management
 router.get('/subscriptions', adminController.getAllSubscriptions);
 router.put('/subscriptions/:id', adminController.updateSubscription);
-
-// TTS provider ayarını getir
-router.get('/settings/tts-provider', getTtsProviderSetting);
-// TTS provider ayarını güncelle
-router.post('/settings/tts-provider', setTtsProviderSetting);
 
 // Removed test-google-voices endpoint per request
 

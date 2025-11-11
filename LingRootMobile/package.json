@@ -8,7 +8,6 @@
     "ios": "react-native run-ios"
   },
   "dependencies": {
-    "@expo/vector-icons": "^15.0.2",
     "@invertase/react-native-apple-authentication": "^2.4.1",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "@react-native-clipboard/clipboard": "^1.16.3",
@@ -19,16 +18,16 @@
     "@react-navigation/bottom-tabs": "^7.3.14",
     "@react-navigation/native": "^7.1.10",
     "@react-navigation/stack": "^7.3.3",
+    "@shopify/react-native-skia": "^2.3.9",
     "@supabase/supabase-js": "^2.50.0",
     "@types/react-native-vector-icons": "^6.4.18",
     "axios": "^1.9.0",
     "lodash": "^4.17.21",
-    "react": "^19.0.0",
+    "react": "19.0.0",
     "react-native": "0.79.5",
-    "react-native-dotenv": "^3.4.11",
     "react-native-fbsdk-next": "^13.4.1",
     "react-native-gesture-handler": "~2.24.0",
-    "react-native-iap": "^12.15.4",
+    "react-native-iap": "^12.15.6",
     "react-native-image-picker": "^8.2.1",
     "react-native-push-notification": "^8.1.1",
     "react-native-reanimated": "^3.19.1",
@@ -49,6 +48,7 @@
     "@types/react": "~19.0.10",
     "dotenv": "^17.2.1",
     "metro-react-native-babel-preset": "^0.77.0",
+    "react-native-dotenv": "^3.4.11",
     "typescript": "~5.8.3"
   },
   "private": true

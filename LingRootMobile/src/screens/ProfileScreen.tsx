@@ -142,7 +142,7 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
     { id: 3, title: language === 'tr' ? 'Kalan Kullanım' : 'Remaining Usage', icon: 'assessment', action: () => navigation.navigate('Membership') },
     { id: 3.2, title: language === 'tr' ? 'Paket Bilgileri' : 'Package Information', icon: 'inventory', action: () => navigation.navigate('Packages') },
     { id: 3.5, title: language === 'tr' ? 'Mesaj Gönder' : 'Send Message', icon: 'chat', action: () => navigation.navigate('Chat') },
-    // Admin-only menu items
+    // Admin-only menu items (TTS Provider Settings removed - admin only feature)
     ...(isAdmin ? [
       { id: 3.8, title: language === 'tr' ? 'Bildirim Ayarlarını Aç' : 'Open Notification Settings', icon: 'notifications-none', action: handleOpenNotificationSettings },
       { id: 4, title: t('profile.testNotification'), icon: 'notifications', action: handleTestNotification },

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
+import { getUserStats } from '@/lib/api';
 
 export type MembershipLevel = 0 | 1 | 2 | 3;
 
@@ -22,6 +23,7 @@ interface MembershipContextType {
     spotify: boolean;
   };
   badge: { color: string; label: string; icon: string };
+  currentPlanName: string;
   upgrade: () => void;
   refresh: () => void;
 }
@@ -32,6 +34,7 @@ const defaultValue: MembershipContextType = {
   remaining: 1,
   canUse: { text: true, youtube: false, web: false, file: false, spotify: false },
   badge: { color: 'gray', label: 'Free', icon: '⚪️' },
+  currentPlanName: 'Ücretsiz Plan',
   upgrade: () => {},
   refresh: () => {},
 };
@@ -42,12 +45,27 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
   const { user } = useAuth();
   const [level, setLevel] = useState<MembershipLevel>(0);
   const [remaining, setRemaining] = useState(1);
+  const [currentPlanName, setCurrentPlanName] = useState<string>('Ücretsiz Plan');
 
   useEffect(() => {
     if (user) {
       setLevel(getLevelFromStatus(user.membershipStatus));
-      // Günlük hak sorgusu
-      // fetchDailyRemaining(user.id).then(setRemaining);
+      // Günlük hak sorgusu - API'den çek
+      getUserStats().then((stats) => {
+        if (stats) {
+          // Free Trial için: maxAudioCount - audioCreationCount
+          const maxCount = 3; // Free Trial için sabit
+          const used = stats.subscription.audioCreationCount || 0;
+          const remainingCount = Math.max(0, maxCount - used);
+          setRemaining(remainingCount);
+          
+          // Gerçek plan adını ayarla
+          const planName = stats.subscription?.plan || 'Free Trial';
+          setCurrentPlanName(planName);
+        }
+      }).catch((err) => {
+        console.error('Error fetching stats for membership:', err);
+      });
     }
   }, [user]);
 
@@ -75,7 +93,7 @@ export const MembershipProvider = ({ children }: { children: React.ReactNode }) 
   };
 
   return (
-    <MembershipContext.Provider value={{ level, dailyLimit, remaining, canUse, badge, upgrade, refresh }}>
+    <MembershipContext.Provider value={{ level, dailyLimit, remaining, canUse, badge, currentPlanName, upgrade, refresh }}>
       {children}
     </MembershipContext.Provider>
   );

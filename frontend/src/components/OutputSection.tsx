@@ -23,6 +23,7 @@ interface TtsResponseData {
   processing_duration?: number;
   estimated_cost?: number;
   voice?: string;
+  topic?: string;
 }
 
 interface OutputSectionProps {
@@ -117,6 +118,7 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
             showControls: true,
             level: audioResult.level,
             originalTurkish: audioResult.original_turkish,
+            topic: audioResult.topic,
             downloadUrls: {
             mp3: playableAudioUrl,
             vtt: playableVttUrl
@@ -146,6 +148,7 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
               showControls={playerProps.showControls}
               level={playerProps.level}
               originalTurkish={playerProps.originalTurkish}
+              topic={playerProps.topic}
               downloadUrls={playerProps.downloadUrls}
               stats={playerProps.stats}
         />

@@ -24,7 +24,8 @@ git diff --name-status origin/main...HEAD
 Takipsizleri listele:
 git ls-files --others --exclude-standard
 
-
+MEvcut branchi göster:
+git branch --show-current
 
 npx react-native start --reset-cache
 
@@ -57,6 +58,9 @@ cd F:\Main\LingRootMobile\android
 # 2. Release APK oluştur (billing permission dahil)
 .\gradlew.bat assembleRelease --no-daemon --console plain --stacktrace
 
+# 3. Build hata alırsa logları kaydet
+.\\gradlew.bat assembleRelease --no-daemon --console plain --stacktrace 2>&1 | Tee-Object -FilePath build-error.txt
+
 # APK konumu: F:\Main\LingRootMobile\android\app\build\outputs\apk\release\app-release.apk
 
 === GOOGLE PLAY STORE İÇİN AAB (Android App Bundle) ===
@@ -69,3 +73,41 @@ cd F:\Main\LingRootMobile\android
 .\gradlew.bat bundleRelease --no-daemon --console plain
 
 # AAB konumu: F:\Main\LingRootMobile\android\app\build\outputs\bundle\release\app-release.aab
+
+
+#  Githubda yetki sorunu için:
+Listeler:
+cmdkey /list | Select-String "github"
+Siler:
+cmdkey /delete:LegacyGeneric:target=git:https://siteaiwebsite@github.com
+
+## ios-release deki kodları direk main e aktarır. Ezer.
+# 1. Main branch'ine geç
+git checkout main
+
+# 2. Main'i ios-release ile tamamen değiştir (hard reset)
+git reset --hard ios-release
+
+# 3. Force push ile remote main'i güncelle
+git push origin main --force
+
+
+#SHA-1
+Debug Keystore (Geliştirme):
+5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25
+Release Keystore (Google Play):
+8E:45:7E:79:E5:79:E9:22:99:59:27:A8:11:F0:16:73:8F:EF:57:7E
+
+
+
+Lokal test:
+
+npx react-native start --reset-cache --host 0.0.0.0
+
+
+# MAIN pull sonrası xcode run hata alırsa 
+ana dizinde: rm -rf node_modules
+npm install
+cd ios
+rm -rf Pods Podfile.lock
+pod install --repo-update

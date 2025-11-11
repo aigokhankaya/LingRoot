@@ -1,4 +1,4 @@
-const { supabase } = require("../utils/supabaseClient");
+const { supabase, bucketName } = require("../utils/supabaseClient");
 require("dotenv").config();
 const logger = require("../utils/logger"); // Import logger
 const { checkLimits } = require('../utils/usageLimiter');
@@ -228,10 +228,34 @@ exports.getUserById = async (req, res) => {
       });
     }
 
-    logger.info(`Successfully fetched user ID: ${id}`);
+    // Fetch active subscription info
+    const { data: subscription, error: subError } = await supabase
+      .from('subscriptions')
+      .select('id, plantype, status, startdate, enddate, created_at')
+      .eq('user_id', id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (subError) {
+      logger.warn(`Error fetching subscription for user ID ${id}:`, subError);
+    }
+
+    // Add subscription info to response (normalize field names for frontend)
+    const userData = {
+      ...data,
+      currentSubscription: subscription ? {
+        ...subscription,
+        start_date: subscription.startdate,
+        end_date: subscription.enddate
+      } : null
+    };
+
+    logger.info(`Successfully fetched user ID: ${id} with subscription info`);
     return res.status(200).json({
       success: true,
-      data,
+      data: userData,
     });
   } catch (error) {
     logger.error(`Server error while fetching user ID ${req.params.id}:`, error);
@@ -669,8 +693,8 @@ exports.getTtsProviderSetting = async (req, res) => {
 exports.setTtsProviderSetting = async (req, res) => {
   try {
     const { tts_provider } = req.body;
-    if (!['amazon', 'google'].includes(tts_provider)) {
-      return res.status(400).json({ success: false, message: 'Invalid tts_provider value' });
+    if (!['amazon', 'google', 'azure'].includes(tts_provider)) {
+      return res.status(400).json({ success: false, message: 'Invalid tts_provider value. Must be: amazon, google, or azure' });
     }
     // Upsert
     const { error } = await supabase
@@ -921,3 +945,255 @@ exports.assignPlanToUser = async (req, res) => {
   }
 };
 
+// Update environment setting (ADMIN)
+exports.updateEnvironment = async (req, res) => {
+  try {
+    const { environment } = req.body;
+    
+    // Validate environment value
+    if (!environment || !['production', 'test'].includes(environment)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid environment. Must be "production" or "test"'
+      });
+    }
+
+    logger.info(`[ADMIN] Updating environment to: ${environment}`);
+
+    // Update or insert environment setting
+    const { error } = await supabase
+      .from('settings')
+      .upsert({ key: 'environment', value: environment }, { onConflict: 'key' });
+
+    if (error) {
+      logger.error('[ADMIN] Error updating environment:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update environment setting'
+      });
+    }
+
+    logger.info(`[ADMIN] Successfully updated environment to: ${environment}`);
+    return res.json({
+      success: true,
+      message: `Environment updated to ${environment}`,
+      data: { environment }
+    });
+  } catch (e) {
+    logger.error('[ADMIN] Error in updateEnvironment:', e);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: e.message
+    });
+  }
+};
+
+// Get payment environment setting (ADMIN)
+exports.getPaymentEnvironment = async (req, res) => {
+  try {
+    logger.info('[ADMIN] Fetching payment environment setting');
+
+    const { data: setting, error } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'payment_environment')
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      logger.error('[ADMIN] Error fetching payment environment:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch payment environment setting'
+      });
+    }
+
+    const paymentEnvironment = setting?.value || 'production';
+    
+    logger.info(`[ADMIN] Payment environment: ${paymentEnvironment}`);
+    return res.json({
+      success: true,
+      data: { paymentEnvironment }
+    });
+  } catch (e) {
+    logger.error('[ADMIN] Error in getPaymentEnvironment:', e);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: e.message
+    });
+  }
+};
+
+// Update payment environment setting (ADMIN)
+exports.updatePaymentEnvironment = async (req, res) => {
+  try {
+    const { paymentEnvironment } = req.body;
+    
+    // Validate payment environment value
+    if (!paymentEnvironment || !['production', 'test'].includes(paymentEnvironment)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment environment. Must be "production" or "test"'
+      });
+    }
+
+    logger.info(`[ADMIN] Updating payment environment to: ${paymentEnvironment}`);
+
+    // Update or insert payment environment setting
+    const { error } = await supabase
+      .from('settings')
+      .upsert({ key: 'payment_environment', value: paymentEnvironment }, { onConflict: 'key' });
+
+    if (error) {
+      logger.error('[ADMIN] Error updating payment environment:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update payment environment setting'
+      });
+    }
+
+    logger.info(`[ADMIN] Successfully updated payment environment to: ${paymentEnvironment}`);
+    return res.json({
+      success: true,
+      message: `Payment environment updated to ${paymentEnvironment}`,
+      data: { paymentEnvironment }
+    });
+  } catch (e) {
+    logger.error('[ADMIN] Error in updatePaymentEnvironment:', e);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: e.message
+    });
+  }
+};
+
+// Delete audio files from storage and database (ADMIN)
+exports.deleteAudioFiles = async (req, res) => {
+  try {
+    const { audioIds } = req.body;
+
+    if (!Array.isArray(audioIds) || audioIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No audio IDs provided'
+      });
+    }
+
+    logger.info(`[ADMIN AUDIO DELETE] Attempting to delete ${audioIds.length} audio files`);
+
+    // Get audio records with mp3_url
+    const { data: audioRecords, error: fetchError } = await supabase
+      .from('contenthistory')
+      .select('id, mp3_url, user_id')
+      .in('id', audioIds);
+
+    if (fetchError) {
+      logger.error('[ADMIN AUDIO DELETE] Error fetching audio records:', fetchError);
+      return res.status(500).json({
+        success: false,
+        message: 'Error fetching audio records',
+        error: fetchError.message
+      });
+    }
+
+    if (!audioRecords || audioRecords.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No audio records found'
+      });
+    }
+
+    // Extract storage paths from mp3_url
+    const storagePaths = [];
+    const vttPaths = [];
+    
+    for (const record of audioRecords) {
+      if (record.mp3_url) {
+        try {
+          // Extract path from URL
+          // Example URL: https://xxx.supabase.co/storage/v1/object/public/audio/audio/user123/file.mp3
+          const url = new URL(record.mp3_url);
+          const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/[^\/]+\/(.+)/);
+          
+          if (pathMatch && pathMatch[1]) {
+            const storagePath = pathMatch[1];
+            storagePaths.push(storagePath);
+            
+            // Also add VTT file path (replace .mp3 with .vtt)
+            const vttPath = storagePath.replace(/\.mp3$/, '.vtt');
+            vttPaths.push(vttPath);
+            
+            logger.info(`[ADMIN AUDIO DELETE] Extracted paths - MP3: ${storagePath}, VTT: ${vttPath}`);
+          }
+        } catch (e) {
+          logger.warn(`[ADMIN AUDIO DELETE] Could not parse URL: ${record.mp3_url}`, e);
+        }
+      }
+    }
+
+    // Delete files from Supabase Storage
+    let deletedFromStorage = 0;
+    if (storagePaths.length > 0 && bucketName) {
+      try {
+        // Delete MP3 files
+        const { error: mp3DeleteError } = await supabase.storage
+          .from(bucketName)
+          .remove(storagePaths);
+
+        if (mp3DeleteError) {
+          logger.error('[ADMIN AUDIO DELETE] Error deleting MP3 files from storage:', mp3DeleteError);
+        } else {
+          deletedFromStorage += storagePaths.length;
+          logger.info(`[ADMIN AUDIO DELETE] Deleted ${storagePaths.length} MP3 files from storage`);
+        }
+
+        // Delete VTT files (ignore errors as they might not exist)
+        const { error: vttDeleteError } = await supabase.storage
+          .from(bucketName)
+          .remove(vttPaths);
+
+        if (vttDeleteError) {
+          logger.warn('[ADMIN AUDIO DELETE] Some VTT files could not be deleted (might not exist):', vttDeleteError);
+        } else {
+          logger.info(`[ADMIN AUDIO DELETE] Deleted ${vttPaths.length} VTT files from storage`);
+        }
+      } catch (storageError) {
+        logger.error('[ADMIN AUDIO DELETE] Exception during storage deletion:', storageError);
+      }
+    }
+
+    // Delete records from contenthistory table
+    const { error: dbDeleteError } = await supabase
+      .from('contenthistory')
+      .delete()
+      .in('id', audioIds);
+
+    if (dbDeleteError) {
+      logger.error('[ADMIN AUDIO DELETE] Error deleting from contenthistory:', dbDeleteError);
+      return res.status(500).json({
+        success: false,
+        message: 'Error deleting audio records from database',
+        error: dbDeleteError.message
+      });
+    }
+
+    logger.info(`[ADMIN AUDIO DELETE] Successfully deleted ${audioIds.length} records from database and ${deletedFromStorage} files from storage`);
+
+    return res.json({
+      success: true,
+      message: `Successfully deleted ${audioIds.length} audio records`,
+      deletedCount: audioIds.length,
+      deletedFromStorage: deletedFromStorage
+    });
+
+  } catch (error) {
+    logger.error('[ADMIN AUDIO DELETE] Server error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while deleting audio files',
+      error: error.message
+    });
+  }
+};

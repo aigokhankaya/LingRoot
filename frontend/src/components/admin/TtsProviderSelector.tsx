@@ -3,7 +3,7 @@ import axios from 'axios';
 import { supabase } from '@/lib/supabaseClient';
 
 const TtsProviderSelector: React.FC = () => {
-  const [provider, setProvider] = useState<'amazon' | 'google'>('amazon');
+  const [provider, setProvider] = useState<'amazon' | 'google' | 'azure'>('amazon');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -28,7 +28,7 @@ const TtsProviderSelector: React.FC = () => {
   }, []);
 
   const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newProvider = e.target.value as 'amazon' | 'google';
+    const newProvider = e.target.value as 'amazon' | 'google' | 'azure';
     setProvider(newProvider);
     setSaving(true);
     setError('');
@@ -49,21 +49,27 @@ const TtsProviderSelector: React.FC = () => {
   if (loading) return <div className="mb-4">TTS ayarları yükleniyor...</div>;
 
   return (
-    <div className="mb-6 p-4 bg-white rounded shadow flex items-center gap-4">
-      <label className="font-semibold">TTS Sağlayıcı:
-        <select
-          value={provider}
-          onChange={handleChange}
-          className="ml-2 border rounded px-2 py-1"
-          disabled={saving}
-        >
-          <option value="amazon">Amazon Polly</option>
-          <option value="google">Google TTS</option>
-        </select>
-      </label>
-      {saving && <span className="text-gray-500 ml-2">Kaydediliyor...</span>}
-      {success && <span className="text-green-600 ml-2">Kaydedildi!</span>}
-      {error && <span className="text-red-500 ml-2">{error}</span>}
+    <div className="mb-6 p-6 bg-white rounded-lg shadow-md">
+      <div className="flex items-center gap-4">
+        <label className="font-semibold text-gray-700">TTS Sağlayıcı:
+          <select
+            value={provider}
+            onChange={handleChange}
+            className="ml-3 border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none transition"
+            disabled={saving}
+          >
+            <option value="amazon">🔊 Amazon Polly</option>
+            <option value="google">🌐 Google TTS</option>
+            <option value="azure">☁️ Microsoft Azure TTS</option>
+          </select>
+        </label>
+        {saving && <span className="text-gray-500 ml-2 animate-pulse">⏳ Kaydediliyor...</span>}
+        {success && <span className="text-green-600 ml-2 font-semibold">✅ Kaydedildi!</span>}
+        {error && <span className="text-red-500 ml-2 font-semibold">❌ {error}</span>}
+      </div>
+      <p className="mt-3 text-sm text-gray-600">
+        Seçilen TTS sağlayıcı tüm sistem genelinde kullanılacaktır.
+      </p>
     </div>
   );
 };

@@ -26,9 +26,15 @@ const booksRouter = require("./routes/books");
 const userRoutes = require("./routes/userRoutes"); // 👈 İlgi alanları burada bağlandı
 const parameterRoutes = require("./routes/parameterRoutes");
 const vocabularyRoutes = require("./routes/vocabularyRoutes"); // 👈 Vocabulary route eklendi
-const chatRoutes = require("./routes/chat"); // Chat routes
+const chatRoutes = require("./routes/chat"); // Chat routes (admin-user support)
+const aiChatRoutes = require("./routes/aiChat"); // AI Chat routes (Claude assistant)
 const iapRoutes = require("./routes/iapRoutes"); // Apple IAP routes
+const appleNotificationsRoutes = require("./routes/appleNotificationsRoutes"); // Apple Server Notifications
 const accountRoutes = require("./routes/accountRoutes"); // Account management
+const statsRoutes = require("./routes/statsRoutes"); // User statistics
+const externalServicesRoutes = require("./routes/externalServicesRoutes"); // External services management
+const podcastRoutes = require("./routes/podcastRoutes"); // Podcast upload and management
+const configRoutes = require("./routes/configRoutes"); // Config routes (environment, etc.)
 
 // Initialize Express app
 const app = express();
@@ -125,10 +131,16 @@ app.use("/api/books", booksRouter);
 app.use("/api", userRoutes); // ✅ user-interests endpoint burada aktif
 app.use("/api/parameters", parameterRoutes);
 app.use("/api/vocabulary", vocabularyRoutes); // 👈 Vocabulary route eklendi
-app.use("/api/chat", chatRoutes); // Chat routes
+app.use("/api/chat", chatRoutes); // Chat routes (admin-user support)
+app.use("/api/ai-chat", aiChatRoutes); // AI Chat routes (Claude assistant)
 app.use('/auth', authRoutes);
 app.use("/api/iap", iapRoutes); // Apple IAP verification
+app.use("/api/iap/apple", appleNotificationsRoutes); // Apple Server Notifications
 app.use("/api/account", accountRoutes); // Account management
+app.use("/api/stats", statsRoutes); // User statistics
+app.use("/api/external-services", externalServicesRoutes); // External services management
+app.use("/api/podcast", podcastRoutes); // Podcast upload and management
+app.use("/api/config", configRoutes); // Config routes (environment, etc.)
 
 // Account deletion page (legacy)
 app.get('/delete-account', (req, res) => {

@@ -4,6 +4,7 @@ import { User } from '@/types/user';
 import Button from '../common/Button';
 import MembershipBadge from '../user/MembershipBadge';
 import { computeCostAwareEstimates, type UsageSummary, formatEstimate, CHARS_PER_VIDEO_MINUTE, CHARS_PER_A4_PAGE, type VoiceCategory } from '@/lib/usageEstimates';
+import { api } from '@/lib/api';
 
 export default function UserTable() {
   const [users, setUsers] = useState<User[]>([]);
@@ -13,10 +14,67 @@ export default function UserTable() {
   const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null);
   const [perCategory, setPerCategory] = useState<any | null>(null);
   const [loadingUsage, setLoadingUsage] = useState(false);
+  const [showAssignPlanModal, setShowAssignPlanModal] = useState(false);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
 
   useEffect(() => {
-    fetchUsers().then(setUsers).finally(() => setLoading(false));
+    fetchUsers().then((data) => {
+      setUsers(data);
+      setFilteredUsers(data);
+    }).finally(() => setLoading(false));
+    loadPlans();
   }, []);
+
+  const loadPlans = async () => {
+    try {
+      const response = await api.get('/api/admin/plans');
+      if (response.data.success) {
+        setPlans(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error loading plans:', error);
+    }
+  };
+
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    if (!value.trim()) {
+      setFilteredUsers(users);
+      return;
+    }
+    const filtered = users.filter(u => 
+      u.email.toLowerCase().includes(value.toLowerCase())
+    );
+    setFilteredUsers(filtered);
+  };
+
+  const openAssignPlanModal = (user: User) => {
+    setSelectedUser(user);
+    setSelectedPlanId('');
+    setShowAssignPlanModal(true);
+  };
+
+  const handleAssignPlan = async () => {
+    if (!selectedUser || !selectedPlanId) return;
+    try {
+      const response = await api.post(`/api/admin/users/${selectedUser.id}/assign-plan`, {
+        planId: selectedPlanId
+      });
+      if (response.data.success) {
+        alert('Paket başarıyla atandı!');
+        setShowAssignPlanModal(false);
+        fetchUsers().then((data) => {
+          setUsers(data);
+          setFilteredUsers(data);
+        });
+      }
+    } catch (error: any) {
+      alert('Paket atanamadı: ' + (error.response?.data?.message || error.message));
+    }
+  };
 
   const handleDelete = async (userId: string) => {
     await deleteUser(userId);
@@ -84,11 +142,14 @@ export default function UserTable() {
               <td className="p-2">{user.loginCount ?? '-'}</td>
               <td className="p-2">{user.contentCount ?? '-'}</td>
               <td className="p-2 space-x-2">
-                <Button variant="destructive" onClick={() => handleDelete(user.id)}>
-                  Sil
+                <Button variant="secondary" onClick={() => openAssignPlanModal(user)} title="Paket Ata">
+                  Paket Ata
                 </Button>
                 <Button variant="secondary" onClick={() => handleRoleChange(user)}>
                   {user.role === 'admin' ? 'Adminlikten Çıkar' : 'Admin Yap'}
+                </Button>
+                <Button variant="destructive" onClick={() => handleDelete(user.id)}>
+                  Sil
                 </Button>
               </td>
             </tr>
@@ -134,6 +195,43 @@ export default function UserTable() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {showAssignPlanModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full">
+            <h2 className="text-2xl font-bold mb-4">Paket Ata</h2>
+            <p className="text-gray-600 mb-4">
+              Kullanıcı: <span className="font-semibold">{selectedUser.email}</span>
+            </p>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Paket Seçin
+              </label>
+              <select
+                value={selectedPlanId}
+                onChange={(e) => setSelectedPlanId(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Seçiniz...</option>
+                {plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name} - {plan.price} ₺
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex space-x-3">
+              <Button onClick={handleAssignPlan} disabled={!selectedPlanId}>
+                Paketi Ata
+              </Button>
+              <Button variant="secondary" onClick={() => setShowAssignPlanModal(false)}>
+                İptal
+              </Button>
             </div>
           </div>
         </div>

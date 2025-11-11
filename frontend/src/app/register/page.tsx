@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth';
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { initializeGoogleAuth, signInWithGoogle } from '../../lib/googleAuth';
 
 // Phone helpers: Turkish format +90 555 123 45 67
 function extractDigits(value: string): string {
@@ -51,10 +52,11 @@ function formatTRPhone(value: string): string {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   
   const [formData, setFormData] = useState({
-    username: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phoneNumber: '',
     password: '',
@@ -85,7 +87,7 @@ export default function RegisterPage() {
     setError(null);
     
     // Validate form data
-    if (!formData.username || !formData.email || !formData.phoneNumber || !formData.password || !formData.confirmPassword) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phoneNumber || !formData.password || !formData.confirmPassword) {
       setError('Lütfen tüm alanları doldurun.');
       return;
     }
@@ -112,10 +114,10 @@ export default function RegisterPage() {
     try {
       // Backend'e kayıt isteği gönder (normalize to +90XXXXXXXXXX)
       const normalizedPhone = normalizeTRPhone(formData.phoneNumber);
-      const result = await register(formData.username, '', formData.email, normalizedPhone, formData.password);
+      const result = await register(formData.firstName, formData.lastName, formData.email, normalizedPhone, formData.password);
       if (result.success) {
-        // Başarılı kayıt sonrası dashboard'a yönlendir
-        router.push('/dashboard');
+        // Başarılı kayıt sonrası welcome (ses oluşturma) sayfasına yönlendir
+        router.push('/welcome');
       } else {
         setError(result.message || 'Kayıt olurken bir hata oluştu.');
       }
@@ -126,9 +128,42 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGoogleRegister = () => {
-    // Google OAuth implementasyonu
-    console.log('Google ile kayıt ol');
+  const handleGoogleRegister = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Google Auth'u başlat
+      console.log('🔄 Google Auth başlatılıyor...');
+      await initializeGoogleAuth();
+      
+      // Google Sign-In'i tetikle
+      console.log('🔄 Google Sign-In tetikleniyor...');
+      const { credential } = await signInWithGoogle();
+      console.log('✅ Google credential alındı');
+      
+      // Backend'e gönder (loginWithGoogle aynı zamanda kayıt da yapar)
+      console.log('🔄 Backend\'e gönderiliyor...');
+      const result = await loginWithGoogle(credential, false);
+      
+      if (result.success) {
+        console.log('✅ Google ile kayıt/giriş başarılı');
+        
+        // Token'ın localStorage'a yazılması için kısa bir bekleme
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Welcome sayfasına yönlendir
+        router.push('/welcome');
+      } else {
+        console.error('❌ Backend kayıt hatası:', result.message);
+        setError(result.message || 'Google ile kayıt başarısız.');
+      }
+    } catch (err: any) {
+      console.error('❌ Google register error:', err);
+      setError(err.message || 'Google ile kayıt sırasında bir hata oluştu.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFacebookRegister = () => {
@@ -148,7 +183,7 @@ export default function RegisterPage() {
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
                           <a href="/" className="flex items-center space-x-3">
-                <img src="/logo.svg" alt="LingRoot Logo" className="w-10 h-10" />
+                <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
                 <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent tracking-tight">LingRoot</span>
               </a>
           </div>
@@ -177,18 +212,33 @@ export default function RegisterPage() {
                     </div>
                   )}
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="username">Kullanıcı Adı</Label>
-                    <Input
-                      id="username"
-                      name="username"
-                      type="text"
-                      placeholder="kullaniciadi"
-                      value={formData.username}
-                      onChange={handleChange}
-                      className="border-gray-300 focus:border-blue-500"
-                      required
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">Ad</Label>
+                      <Input
+                        id="firstName"
+                        name="firstName"
+                        type="text"
+                        placeholder="Adınız"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        className="border-gray-300 focus:border-blue-500"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Soyad</Label>
+                      <Input
+                        id="lastName"
+                        name="lastName"
+                        type="text"
+                        placeholder="Soyadınız"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        className="border-gray-300 focus:border-blue-500"
+                        required
+                      />
+                    </div>
                   </div>
                   
                   <div className="space-y-2">
@@ -287,13 +337,6 @@ export default function RegisterPage() {
                     onClick={handleGoogleRegister}
                   >
                     <i className="fab fa-google mr-2 text-red-500"></i> Google ile Kaydol
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full py-6 border-gray-300 hover:bg-gray-50"
-                    onClick={handleFacebookRegister}
-                  >
-                    <i className="fab fa-facebook mr-2 text-blue-600"></i> Facebook ile Kaydol
                   </Button>
                   <Button 
                     variant="outline" 
@@ -458,7 +501,7 @@ export default function RegisterPage() {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
                               <div className="flex items-center space-x-3 mb-6">
-                  <img src="/logo.svg" alt="LingRoot Logo" className="w-12 h-12" />
+                  <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
                   <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent tracking-tight">LingRoot</span>
                 </div>
               <p className="text-gray-400 mb-4">

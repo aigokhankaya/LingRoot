@@ -1,16 +1,30 @@
 import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { useAuth } from '../src/lib/auth';
 import Footer from '../src/components/Footer';
 
 export default function Fiyatlandirma() {
+  const router = useRouter();
+  const { isAuthenticated } = useAuth();
+
+  const handlePlanSelect = (planId: string) => {
+    if (!isAuthenticated) {
+      // Kullanıcı giriş yapmamışsa login'e yönlendir
+      router.push(`/login?next=${encodeURIComponent('/fiyatlandirma')}`);
+      return;
+    }
+    // Giriş yapmışsa checkout sayfasına yönlendir
+    router.push(`/checkout?plan=${planId}`);
+  };
   return (
     <div className="min-h-screen flex flex-col bg-white font-['Roboto',sans-serif]">
       <Head>
         <title>Fiyatlandırma | LingRoot</title>
         <meta name="description" content="LingRoot fiyatlandırma seçenekleri. Bütçenize ve ihtiyaçlarınıza uygun planı seçin." />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href="/lingroot-icon.svg" />
         <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&family=Lato:wght@400;700&display=swap" rel="stylesheet" />
       </Head>
       
@@ -158,9 +172,18 @@ export default function Fiyatlandirma() {
                       <span>Telaffuz geri bildirimleri</span>
                     </li>
                   </ul>
-                  <Link href="/register" className="block w-full py-3 px-6 bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-800 rounded-xl text-center font-semibold transition-all duration-200 shadow-md hover:shadow-lg">
+                  <button
+                    onClick={() => {
+                      if (!isAuthenticated) {
+                        router.push('/register');
+                      } else {
+                        router.push('/welcome');
+                      }
+                    }}
+                    className="block w-full py-3 px-6 bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-800 rounded-xl text-center font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
+                  >
                     Ücretsiz Başla
-                  </Link>
+                  </button>
                 </div>
               </div>
               
@@ -209,9 +232,12 @@ export default function Fiyatlandirma() {
                       <span className="text-gray-600">Telaffuz geri bildirimleri</span>
                     </li>
                   </ul>
-                  <Link href="/register" className="block w-full py-3 px-4 bg-[#28a745] hover:bg-[#218838] text-white rounded text-center font-medium transition-colors">
+                  <button
+                    onClick={() => handlePlanSelect('monthly')}
+                    className="block w-full py-3 px-4 bg-[#28a745] hover:bg-[#218838] text-white rounded text-center font-medium transition-colors"
+                  >
                     Hemen Başla
-                  </Link>
+                  </button>
                 </div>
               </div>
               
@@ -264,9 +290,12 @@ export default function Fiyatlandirma() {
                       <span className="text-gray-600">Öncelikli destek</span>
                     </li>
                   </ul>
-                  <Link href="/register" className="block w-full py-3 px-4 bg-[#fd7e14] hover:bg-[#e76b02] text-white rounded text-center font-medium transition-colors">
+                  <button
+                    onClick={() => handlePlanSelect('yearly')}
+                    className="block w-full py-3 px-4 bg-[#fd7e14] hover:bg-[#e76b02] text-white rounded text-center font-medium transition-colors"
+                  >
                     Yıllık Abone Ol
-                  </Link>
+                  </button>
                 </div>
               </div>
             </div>

@@ -56,7 +56,7 @@ const RegisterScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showAppleSignIn, setShowAppleSignIn] = useState(false);
   const { signUp, signInWithGoogle, signInWithFacebook, signInWithApple } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -79,6 +79,15 @@ const RegisterScreen: React.FC = () => {
   }, [fullName, email, phoneNumber, password, confirmPassword, acceptTerms, emailRegex]);
 
   const handleGoogleSignIn = async () => {
+    if (!acceptTerms) {
+      Alert.alert(
+        t('common.error'),
+        language === 'tr' 
+          ? 'Devam etmek için Kullanım Koşulları ve Gizlilik Politikasını kabul etmelisiniz.'
+          : 'You must accept the Terms of Use and Privacy Policy to continue.'
+      );
+      return;
+    }
     if (!signInWithGoogle) return;
     try {
       await signInWithGoogle();
@@ -88,6 +97,15 @@ const RegisterScreen: React.FC = () => {
   };
 
   const handleFacebookSignIn = async () => {
+    if (!acceptTerms) {
+      Alert.alert(
+        t('common.error'),
+        language === 'tr' 
+          ? 'Devam etmek için Kullanım Koşulları ve Gizlilik Politikasını kabul etmelisiniz.'
+          : 'You must accept the Terms of Use and Privacy Policy to continue.'
+      );
+      return;
+    }
     if (!signInWithFacebook) return;
     try {
       await signInWithFacebook();
@@ -97,6 +115,15 @@ const RegisterScreen: React.FC = () => {
   };
 
   const handleAppleSignIn = async () => {
+    if (!acceptTerms) {
+      Alert.alert(
+        t('common.error'),
+        language === 'tr' 
+          ? 'Devam etmek için Kullanım Koşulları ve Gizlilik Politikasını kabul etmelisiniz.'
+          : 'You must accept the Terms of Use and Privacy Policy to continue.'
+      );
+      return;
+    }
     if (!signInWithApple) return;
     try {
       await signInWithApple();
@@ -235,27 +262,54 @@ const RegisterScreen: React.FC = () => {
               {acceptTerms && <Icon name="check" size={16} color="#fff" />}
             </View>
             <Text style={styles.termsText}>
-              <Text>LingRoot'un </Text>
-              <Text 
-                style={styles.linkText}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  Linking.openURL('https://www.lingroot.com/terms');
-                }}
-              >
-                Hizmet Şartları
-              </Text>
-              <Text> ve </Text>
-              <Text 
-                style={styles.linkText}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  Linking.openURL('https://www.lingroot.com/privacy-policy');
-                }}
-              >
-                Gizlilik Politikası
-              </Text>
-              <Text>'nı okudum ve kabul ediyorum.</Text>
+              {language === 'tr' ? (
+                <>
+                  <Text 
+                    style={styles.linkText}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      Linking.openURL('https://www.lingroot.com/terms');
+                    }}
+                  >
+                    Hizmet Şartları
+                  </Text>
+                  <Text> ve </Text>
+                  <Text 
+                    style={styles.linkText}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      Linking.openURL('https://www.lingroot.com/privacy-policy');
+                    }}
+                  >
+                    Gizlilik Politikası
+                  </Text>
+                  <Text>'nı okudum ve kabul ediyorum.</Text>
+                </>
+              ) : (
+                <>
+                  <Text>I have read and accept the </Text>
+                  <Text 
+                    style={styles.linkText}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      Linking.openURL('https://www.lingroot.com/terms');
+                    }}
+                  >
+                    Terms of Service
+                  </Text>
+                  <Text> and </Text>
+                  <Text 
+                    style={styles.linkText}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      Linking.openURL('https://www.lingroot.com/privacy-policy');
+                    }}
+                  >
+                    Privacy Policy
+                  </Text>
+                  <Text>.</Text>
+                </>
+              )}
             </Text>
           </TouchableOpacity>
 
@@ -275,24 +329,23 @@ const RegisterScreen: React.FC = () => {
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>veya</Text>
+            <Text style={styles.dividerText}>{language === 'tr' ? 'veya' : 'or'}</Text>
             <View style={styles.dividerLine} />
           </View>
 
           <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignIn}>
             <Icon name="google" size={20} color="#DB4437" />
-            <Text style={styles.socialButtonText}>Google ile Kayıt Ol</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.socialButton} onPress={handleFacebookSignIn}>
-            <Icon name="facebook" size={20} color="#4267B2" />
-            <Text style={styles.socialButtonText}>Facebook ile Kayıt Ol</Text>
+            <Text style={styles.socialButtonText}>
+              {language === 'tr' ? 'Google ile Kayıt Ol' : 'Sign up with Google'}
+            </Text>
           </TouchableOpacity>
 
           {showAppleSignIn && (
             <TouchableOpacity style={[styles.socialButton, styles.appleButton]} onPress={handleAppleSignIn}>
               <Icon name="apple" size={20} color="#000" />
-              <Text style={[styles.socialButtonText, styles.appleButtonText]}>Apple ile Kayıt Ol</Text>
+              <Text style={[styles.socialButtonText, styles.appleButtonText]}>
+                {language === 'tr' ? 'Apple ile Kayıt Ol' : 'Sign up with Apple'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>

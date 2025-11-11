@@ -100,19 +100,30 @@ async function upsertAppleSubscription({ userId, productId, originalTxId, latest
 }
 
 exports.verifyAppleReceipt = async (req, res) => {
+  const requestId = `APPLE-${Date.now()}`;
   const userId = req.user?.id;
   const { receiptData, productId } = req.body || {};
   const bundleIdExpected = process.env.IOS_BUNDLE_ID || 'com.lingroot.mobile';
   const sharedSecret = process.env.APPLE_IAP_SHARED_SECRET;
 
+  logger.info(`[${requestId}] ========================================`);
+  logger.info(`[${requestId}] 🍎 APPLE IAP VERIFICATION (appleIAPController)`);
+  logger.info(`[${requestId}] Timestamp: ${new Date().toISOString()}`);
+  logger.info(`[${requestId}] User ID: ${userId}`);
+  logger.info(`[${requestId}] User Email: ${req.user?.email || 'N/A'}`);
+  logger.info(`[${requestId}] Product ID: ${productId}`);
+  logger.info(`[${requestId}] Receipt length: ${receiptData?.length || 0}`);
+
   if (!userId) {
+    logger.error(`[${requestId}] ❌ Unauthorized - no user ID`);
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
   if (!receiptData || !productId) {
+    logger.error(`[${requestId}] ❌ Missing required fields - receiptData: ${!!receiptData}, productId: ${!!productId}`);
     return res.status(400).json({ success: false, message: 'receiptData and productId are required' });
   }
   if (!sharedSecret) {
-    logger.error('APPLE_IAP_SHARED_SECRET is not set');
+    logger.error(`[${requestId}] ❌ APPLE_IAP_SHARED_SECRET is not set in environment`);
     return res.status(500).json({ success: false, message: 'Server not configured for Apple IAP' });
   }
 
@@ -176,7 +187,17 @@ exports.verifyAppleReceipt = async (req, res) => {
 
     const nowMs = Date.now();
     const { status } = normalizeAppleStatus(latest, nowMs);
-    const expiresMs = Number(latest.expires_date_ms || 0) || nowMs;
+    let expiresMs = Number(latest.expires_date_ms || 0) || nowMs;
+    
+    // SANDBOX TEST: Extend expiration to 2 days for testing
+    // Apple Sandbox subscriptions expire in 5 minutes, but we extend them for testing
+    if (environment === 'Sandbox') {
+      const originalExpires = new Date(expiresMs);
+      const extendedExpires = new Date(nowMs + (2 * 24 * 60 * 60 * 1000)); // 2 days from now
+      logger.info(`[${requestId}] 🧪 SANDBOX MODE: Extending expiration from ${originalExpires.toISOString()} to ${extendedExpires.toISOString()}`);
+      expiresMs = extendedExpires.getTime();
+    }
+    
     const expiresAtIso = new Date(expiresMs).toISOString();
 
     const originalTxId = latest.original_transaction_id || latest.original_transaction_identifier;
@@ -211,6 +232,13 @@ exports.verifyAppleReceipt = async (req, res) => {
       return res.status(500).json({ success: false, message: 'Subscription update failed', error: dbRes.error.message, apple: data });
     }
 
+    logger.info(`[${requestId}] ✅ Receipt verified successfully`);
+    logger.info(`[${requestId}] Subscription ID: ${dbRes.data?.id}`);
+    logger.info(`[${requestId}] Status: ${status}`);
+    logger.info(`[${requestId}] Expires: ${expiresAtIso}`);
+    logger.info(`[${requestId}] Environment: ${environment}`);
+    logger.info(`[${requestId}] ========================================`);
+
     return res.json({
       success: true,
       message: 'Receipt verified',
@@ -223,7 +251,17 @@ exports.verifyAppleReceipt = async (req, res) => {
       },
     });
   } catch (err) {
-    logger.error('[APPLE-IAP] verify error:', err);
+    logger.error(`[${requestId}] ❌❌❌ CRITICAL ERROR in Apple IAP verification`);
+    logger.error(`[${requestId}] Error type: ${err.constructor.name}`);
+    logger.error(`[${requestId}] Error message: ${err.message}`);
+    logger.error(`[${requestId}] Error stack: ${err.stack}`);
+    logger.error(`[${requestId}] User ID: ${userId}`);
+    logger.error(`[${requestId}] Product ID: ${productId}`);
+    if (err.response) {
+      logger.error(`[${requestId}] Apple API response status: ${err.response.status}`);
+      logger.error(`[${requestId}] Apple API response data: ${JSON.stringify(err.response.data, null, 2)}`);
+    }
+    logger.error(`[${requestId}] ========================================`);
     const code = err?.response?.status || 500;
     return res.status(code).json({ success: false, message: 'Apple verify failed', error: err?.response?.data || err.message });
   }

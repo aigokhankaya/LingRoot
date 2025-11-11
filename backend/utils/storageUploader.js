@@ -29,9 +29,10 @@ if (supabaseUrl && supabaseServiceKey) {
  * Includes fallback for public URL retrieval.
  * @param {string|Buffer} localFilePathOrBuffer Path to the local file or Buffer to upload.
  * @param {string} destinationFilename Desired filename in the bucket.
+ * @param {string} contentType Optional MIME type (default: auto-detect from extension)
  * @returns {Promise<string|null>} The public URL of the uploaded file, or null on error.
  */
-async function uploadToSupabase(localFilePathOrBuffer, destinationFilename) {
+async function uploadToSupabase(localFilePathOrBuffer, destinationFilename, contentType = null) {
     if (!supabase) {
         logger.error("Supabase client is not initialized. Cannot upload file.");
         return null;
@@ -57,11 +58,28 @@ async function uploadToSupabase(localFilePathOrBuffer, destinationFilename) {
     }
 
     try {
+        // Auto-detect content type if not provided
+        if (!contentType) {
+            const ext = cleanFilename.split('.').pop().toLowerCase();
+            const mimeTypes = {
+                'mp3': 'audio/mpeg',
+                'wav': 'audio/wav',
+                'ogg': 'audio/ogg',
+                'aac': 'audio/aac',
+                'vtt': 'text/vtt',
+                'srt': 'text/plain',
+                'txt': 'text/plain',
+                'json': 'application/json'
+            };
+            contentType = mimeTypes[ext] || 'application/octet-stream';
+        }
+
+        logger.info(`Uploading with content type: ${contentType}`);
 
         const { data, error: uploadError } = await supabase.storage
             .from(bucketName)
             .upload(supabasePath, fileBuffer, {
-                contentType: "audio/mpeg",
+                contentType: contentType,
                 cacheControl: "3600",
                 upsert: true,
             });
