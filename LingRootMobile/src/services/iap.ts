@@ -58,16 +58,38 @@ export async function getProducts() {
 }
 
 async function verifyWithBackend(receipt: string, productId: string, purchaseToken?: string) {
-  if (Platform.OS === 'ios') {
-    // Apple IAP verification
-    return apiService.verifyAppleReceipt(receipt, productId);
-  } else {
-    // Google Play IAP verification
-    if (!purchaseToken) {
-      throw new Error('Purchase token is required for Android');
+  console.log('[IAP] 🔗 verifyWithBackend called');
+  console.log('[IAP] Platform:', Platform.OS);
+  console.log('[IAP] Product ID:', productId);
+  console.log('[IAP] Receipt length:', receipt?.length || 0);
+  console.log('[IAP] Purchase token:', purchaseToken ? 'present' : 'not present');
+  
+  try {
+    if (Platform.OS === 'ios') {
+      console.log('[IAP] Calling apiService.verifyAppleReceipt...');
+      const result = await apiService.verifyAppleReceipt(receipt, productId);
+      console.log('[IAP] ✅ Backend verification successful:', JSON.stringify(result, null, 2));
+      return result;
+    } else {
+      // Google Play IAP verification
+      if (!purchaseToken) {
+        console.error('[IAP] ❌ Purchase token missing for Android');
+        throw new Error('Purchase token is required for Android');
+      }
+      const packageName = 'com.nsyzk.lingrootmobile';
+      console.log('[IAP] Calling apiService.verifyGooglePlayPurchase...');
+      console.log('[IAP] Package name:', packageName);
+      const result = await apiService.verifyGooglePlayPurchase(purchaseToken, productId, packageName);
+      console.log('[IAP] ✅ Backend verification successful:', JSON.stringify(result, null, 2));
+      return result;
     }
-    const packageName = 'com.nsyzk.lingrootmobile'; // Your Android package name
-    return apiService.verifyGooglePlayPurchase(purchaseToken, productId, packageName);
+  } catch (error: any) {
+    console.error('[IAP] ❌ Backend verification failed');
+    console.error('[IAP] Error type:', typeof error);
+    console.error('[IAP] Error message:', error?.message);
+    console.error('[IAP] Error response:', error?.response?.data);
+    console.error('[IAP] Error status:', error?.response?.status);
+    throw error;
   }
 }
 
@@ -95,16 +117,40 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
     try {
       console.log('[IAP] Fetching available products...');
       const products = await getProducts();
-      console.log('[IAP] Available products:', products.map(p => p.productId));
+      console.log('[IAP] Available products count:', products.length);
+      console.log('[IAP] Available product IDs:', products.map(p => p.productId));
+      
+      // Log detailed product information for debugging
+      products.forEach(p => {
+        console.log(`[IAP] Product: ${p.productId}`);
+        console.log(`  - Title: ${p.title}`);
+        console.log(`  - Description: ${p.description}`);
+        const price = (p as any).localizedPrice || (p as any).price || 'N/A';
+        console.log(`  - Price: ${price}`);
+      });
       
       const productExists = products.find(p => p.productId === productId);
       if (!productExists) {
         console.error('[IAP] ❌ Product ID not found in available products!');
-        console.error('[IAP] Requested:', productId);
-        console.error('[IAP] Available:', products.map(p => p.productId).join(', '));
-        return { ok: false, message: `Product not available: ${productId}` };
+        console.error('[IAP] Requested product ID:', productId);
+        console.error('[IAP] Available product IDs:', products.map(p => p.productId).join(', '));
+        console.error('[IAP] Total products available:', products.length);
+        
+        const lang = await getLanguage();
+        const availableList = products.length > 0 
+          ? products.map(p => p.productId).join(', ')
+          : 'none';
+        
+        return { 
+          ok: false, 
+          message: lang === 'tr'
+            ? `Ürün bulunamadı: ${productId}. Mevcut ürünler: ${availableList}`
+            : `Product not available: ${productId}. Available: ${availableList}`
+        };
       }
       console.log('[IAP] ✅ Product found:', productExists.title);
+      const foundPrice = (productExists as any).localizedPrice || (productExists as any).price || 'N/A';
+      console.log('[IAP] Product price:', foundPrice);
       
       // For Android, get subscription offers
       if (Platform.OS === 'android' && (productExists as any).subscriptionOfferDetails) {
@@ -123,7 +169,15 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
       }
     } catch (error: any) {
       console.error('[IAP] ❌ Error fetching products:', error.message);
-      return { ok: false, message: `Cannot fetch products: ${error.message}` };
+      console.error('[IAP] Error code:', error.code);
+      console.error('[IAP] Full error:', JSON.stringify(error, null, 2));
+      const lang = await getLanguage();
+      return { 
+        ok: false, 
+        message: lang === 'tr'
+          ? `Ürünler yüklenemedi: ${error.message}`
+          : `Cannot fetch products: ${error.message}`
+      };
     }
 
     return await new Promise(async (resolve) => {
@@ -134,8 +188,49 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
         console.log('[IAP] Purchase update received:', purchase.productId);
         console.log('[IAP] Purchase object:', JSON.stringify(purchase, null, 2));
         try {
-          const receipt = purchase.transactionReceipt;
+          // iOS: Extract receipt - react-native-iap may return it in different formats
+          let receipt = purchase.transactionReceipt;
+          
+          console.log('[IAP] Raw receipt type:', typeof receipt);
+          console.log('[IAP] Raw receipt value:', receipt);
+          
+          // If receipt is an object, extract the base64 string
+          if (Platform.OS === 'ios' && receipt) {
+            if (typeof receipt === 'object') {
+              console.log('[IAP] Receipt is an object, extracting base64 string...');
+              console.log('[IAP] Receipt object keys:', Object.keys(receipt));
+              
+              // Try to find the actual receipt data in the object
+              receipt = receipt.transactionReceipt 
+                     || receipt.receiptData 
+                     || receipt.appStoreReceipt 
+                     || receipt.receipt
+                     || receipt.data
+                     || receipt.base64
+                     || JSON.stringify(receipt);
+            }
+            
+            // If still not a string, try to get the app receipt
+            if (typeof receipt !== 'string' || receipt.length < 100) {
+              console.log('[IAP] Receipt invalid, trying to get app receipt...');
+              try {
+                // forceRefresh = true to get latest receipt
+                const appReceipt = await RNIap.getReceiptIOS({ forceRefresh: true });
+                if (appReceipt) {
+                  console.log('[IAP] Got app receipt from getReceiptIOS()');
+                  receipt = appReceipt;
+                }
+              } catch (err) {
+                console.error('[IAP] Failed to get app receipt:', err);
+              }
+            }
+          }
+          
           const purchaseToken = purchase.purchaseToken; // Android purchase token
+          
+          console.log('[IAP] Final receipt type:', typeof receipt);
+          console.log('[IAP] Final receipt length:', receipt?.length || 0);
+          console.log('[IAP] Final receipt preview:', typeof receipt === 'string' ? receipt.substring(0, 100) + '...' : 'NOT A STRING');
           
           if (Platform.OS === 'ios' && receipt) {
             console.log('[IAP] iOS receipt received, verifying with backend...');
@@ -191,16 +286,42 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
         console.error('[IAP] ❌ Purchase error listener triggered');
         console.error('[IAP] Error code:', error?.code);
         console.error('[IAP] Error message:', error?.message);
-        console.error('[IAP] Error details:', JSON.stringify(error, null, 2));
+        console.error('[IAP] Error responseCode:', error?.responseCode);
+        console.error('[IAP] Error debugMessage:', error?.debugMessage);
+        console.error('[IAP] Full error object:', JSON.stringify(error, null, 2));
+        
+        // Detaylı hata mesajı oluştur
+        let detailedMessage = '';
+        if (error?.code) {
+          detailedMessage += `Code: ${error.code}`;
+        }
+        if (error?.responseCode) {
+          detailedMessage += ` | ResponseCode: ${error.responseCode}`;
+        }
+        if (error?.message) {
+          detailedMessage += ` | Message: ${error.message}`;
+        }
+        if (error?.debugMessage) {
+          detailedMessage += ` | Debug: ${error.debugMessage}`;
+        }
+        
+        console.error('[IAP] Detailed error string:', detailedMessage);
+        
         const lang = await getLanguage();
-        resolve({ ok: false, message: error?.message || (lang === 'tr' ? 'Satın alma hatası' : 'Purchase error') });
+        const userMessage = detailedMessage || error?.message || (lang === 'tr' ? 'Satın alma hatası' : 'Purchase error');
+        resolve({ ok: false, message: userMessage });
       });
 
       try {
+        console.log('[IAP] ========================================');
         console.log('[IAP] Requesting subscription with SKU:', productId);
+        console.log('[IAP] Platform:', Platform.OS);
+        console.log('[IAP] Timestamp:', new Date().toISOString());
+        
         if (Platform.OS === 'ios') {
+          console.log('[IAP] Calling RNIap.requestSubscription for iOS...');
           await RNIap.requestSubscription({ sku: productId, andDangerouslyFinishTransactionAutomaticallyIOS: false });
-          console.log('[IAP] Subscription request sent to App Store');
+          console.log('[IAP] ✅ Subscription request sent to App Store successfully');
         } else {
           // Android requires subscriptionOffers for Google Play Billing Library 5.0+
           if (subscriptionOffers.length > 0) {
@@ -216,12 +337,35 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
           console.log('[IAP] Subscription request sent to Google Play');
         }
       } catch (e: any) {
-        console.error('[IAP] ❌ Request subscription failed');
-        console.error('[IAP] Error:', e.message);
-        console.error('[IAP] Error code:', e.code);
-        console.error('[IAP] Full error:', JSON.stringify(e, null, 2));
+        console.error('[IAP] ❌ Request subscription EXCEPTION caught');
+        console.error('[IAP] Exception type:', typeof e);
+        console.error('[IAP] Exception message:', e?.message);
+        console.error('[IAP] Exception code:', e?.code);
+        console.error('[IAP] Exception responseCode:', e?.responseCode);
+        console.error('[IAP] Exception debugMessage:', e?.debugMessage);
+        console.error('[IAP] Exception stack:', e?.stack);
+        console.error('[IAP] Full exception object:', JSON.stringify(e, null, 2));
+        
+        // Detaylı hata mesajı oluştur
+        let detailedMessage = 'Request failed: ';
+        if (e?.code) {
+          detailedMessage += `Code: ${e.code}`;
+        }
+        if (e?.responseCode) {
+          detailedMessage += ` | ResponseCode: ${e.responseCode}`;
+        }
+        if (e?.message) {
+          detailedMessage += ` | Message: ${e.message}`;
+        }
+        if (e?.debugMessage) {
+          detailedMessage += ` | Debug: ${e.debugMessage}`;
+        }
+        
+        console.error('[IAP] Detailed exception string:', detailedMessage);
+        
         const lang = await getLanguage();
-        resolve({ ok: false, message: e?.message || (lang === 'tr' ? 'Satın alma başlatılamadı' : 'Could not start purchase') });
+        const userMessage = detailedMessage || e?.message || (lang === 'tr' ? 'Satın alma başlatılamadı' : 'Could not start purchase');
+        resolve({ ok: false, message: userMessage });
       }
     });
   } catch (e: any) {
@@ -254,7 +398,34 @@ export async function restorePurchases(): Promise<{ ok: boolean; message?: strin
     
     try {
       if (Platform.OS === 'ios') {
-        await verifyWithBackend(latest.transactionReceipt, latest.productId);
+        // Extract receipt properly
+        let receipt: any = latest.transactionReceipt;
+        
+        console.log('[IAP] Restore - Raw receipt type:', typeof receipt);
+        
+        if (receipt && typeof receipt === 'object') {
+          console.log('[IAP] Restore - Receipt is object, extracting...');
+          receipt = receipt.transactionReceipt || receipt.receiptData || receipt.appStoreReceipt || receipt.receipt || receipt.data || receipt.base64 || JSON.stringify(receipt);
+        }
+        
+        // If still not valid, get app receipt
+        if (typeof receipt !== 'string' || receipt.length < 100) {
+          console.log('[IAP] Restore - Receipt invalid, getting app receipt...');
+          try {
+            const appReceipt = await RNIap.getReceiptIOS({ forceRefresh: true });
+            if (appReceipt) {
+              console.log('[IAP] Restore - Got app receipt');
+              receipt = appReceipt;
+            }
+          } catch (err) {
+            console.error('[IAP] Restore - Failed to get app receipt:', err);
+          }
+        }
+        
+        console.log('[IAP] Restore - Final receipt type:', typeof receipt);
+        console.log('[IAP] Restore - Final receipt length:', receipt?.length || 0);
+        
+        await verifyWithBackend(receipt, latest.productId);
       } else {
         await verifyWithBackend('', latest.productId, latest.purchaseToken);
       }

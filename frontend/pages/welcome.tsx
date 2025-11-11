@@ -172,10 +172,10 @@ const Welcome: React.FC = () => {
   const [contentType, setContentType] = useState<string>('text');
   const [englishLevel, setEnglishLevel] = useState<string>('a1');
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
-  const [voiceType, setVoiceType] = useState<string>('en-US-Standard-C');
+  const [voiceType, setVoiceType] = useState<string>('Emma');
   const [savedDefaultVoice, setSavedDefaultVoice] = useState<string | null>(null);
   const [defaultApplied, setDefaultApplied] = useState<boolean>(false);
-  const [accentType, setAccentType] = useState<string>('all');
+  const [accentType, setAccentType] = useState<string>('american');
   const [emotionType, setEmotionType] = useState<string>('all');
   const [outputFormat, setOutputFormat] = useState<string>('mp3');
   const [textInput, setTextInput] = useState<string>('');
@@ -193,9 +193,10 @@ const Welcome: React.FC = () => {
   const [hobbyExists, setHobbyExists] = useState<boolean>(false);
   const [availableVoices, setAvailableVoices] = useState<any[]>([]);
   const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
-  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('standard');
-  const [selectedGender, setSelectedGender] = useState<string>('all');
-  const [selectedAccent, setSelectedAccent] = useState<string>('all');
+  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('neural');
+  const [selectedGender, setSelectedGender] = useState<string>('female');
+  const [selectedAccent, setSelectedAccent] = useState<string>('american');
+  const [ttsProvider, setTtsProvider] = useState<string>('amazon'); // TTS provider from settings
   // YouTube altyazı çekme state'leri
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
   const [isFetchingSubtitle, setIsFetchingSubtitle] = useState<boolean>(false);
@@ -273,14 +274,19 @@ const Welcome: React.FC = () => {
   ];
   const formatOptions = ['MP3', 'WAV', 'AAC', 'FLAC', 'OGG'];
 
-  // Ses kategorileri ve detaylı ses verileri
-  const voiceCategories = [
-    { value: 'standard', label: 'Standart Sesler', icon: 'fas fa-volume-up', badge: 'Ücretsiz', ssmlSupport: false },
-    { value: 'wavenet', label: 'WaveNet Sesleri', icon: 'fas fa-star', badge: 'Premium', ssmlSupport: true },
-    { value: 'neural2', label: 'Neural2 Sesleri', icon: 'fas fa-brain', badge: 'Premium', ssmlSupport: true },
-    { value: 'studio', label: 'Studio Sesleri', icon: 'fas fa-crown', badge: 'Platinium', ssmlSupport: true },
-    { value: 'chirp3d', label: 'Chirp 3D', icon: 'fas fa-gem', badge: 'Gold', ssmlSupport: true }
-  ];
+  // Ses kategorileri - TTS provider'a göre dinamik
+  const voiceCategories = ttsProvider === 'google' 
+    ? [
+        { value: 'standard', label: 'Standart Sesler', icon: 'fas fa-volume-up', badge: 'Ücretsiz', ssmlSupport: false },
+        { value: 'wavenet', label: 'WaveNet Sesleri', icon: 'fas fa-star', badge: 'Premium', ssmlSupport: true },
+        { value: 'neural2', label: 'Neural2 Sesleri', icon: 'fas fa-brain', badge: 'Premium', ssmlSupport: true },
+        { value: 'studio', label: 'Studio Sesleri', icon: 'fas fa-crown', badge: 'Platinium', ssmlSupport: true },
+        { value: 'chirp3d', label: 'Chirp 3D', icon: 'fas fa-gem', badge: 'Gold', ssmlSupport: true }
+      ]
+    : [ // Amazon Polly categories
+        { value: 'standard', label: 'Standard', icon: 'fas fa-volume-up', badge: 'Ücretsiz', ssmlSupport: false },
+        { value: 'neural', label: 'Neural', icon: 'fas fa-star', badge: 'Premium', ssmlSupport: true }
+      ];
 
   const detailedVoices = {
     wavenet: [
@@ -783,6 +789,30 @@ const Welcome: React.FC = () => {
       setLoadingVoices(false);
     }
   };
+
+  // Fetch TTS provider from settings
+  useEffect(() => {
+    const fetchTtsProvider = async () => {
+      try {
+        const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+          ? 'http://localhost:5001/api/admin/settings/tts-provider'
+          : '/api/admin/settings/tts-provider';
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (data.success && data.tts_provider) {
+          console.log('🎙️ TTS Provider from settings:', data.tts_provider);
+          setTtsProvider(data.tts_provider);
+        }
+      } catch (error) {
+        console.error('Error fetching TTS provider:', error);
+        setTtsProvider('amazon'); // Default to Amazon
+      }
+    };
+    
+    fetchTtsProvider();
+  }, []);
 
   // Content history ve user interests'i yüklemek için useEffect ekleyelim
   useEffect(() => {

@@ -176,11 +176,11 @@ const CreateScreen: React.FC = () => {
   };
 
   
-  // Voice selection states
-  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('standard');
-  const [selectedVoice, setSelectedVoice] = useState<string>('en-US-Standard-C');
-  const [selectedAccent, setSelectedAccent] = useState<string>('all');
-  const [selectedGender, setSelectedGender] = useState<string>('all');
+  // Voice selection states - Default to Emma
+  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('neural');
+  const [selectedVoice, setSelectedVoice] = useState<string>('Emma');
+  const [selectedAccent, setSelectedAccent] = useState<string>('american');
+  const [selectedGender, setSelectedGender] = useState<string>('female');
   const [availableVoices, setAvailableVoices] = useState<Voice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
   const [showVoiceSelection, setShowVoiceSelection] = useState<boolean>(false);
