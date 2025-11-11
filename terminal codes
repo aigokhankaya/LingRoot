@@ -75,6 +75,7 @@ cd F:\Main\LingRootMobile\android
 # AAB konumu: F:\Main\LingRootMobile\android\app\build\outputs\bundle\release\app-release.aab
 
 
+
 #  Githubda yetki sorunu için:
 Listeler:
 cmdkey /list | Select-String "github"
@@ -100,9 +101,20 @@ Release Keystore (Google Play):
 
 
 
-Lokal test:
 
+Iphone Local Test:
 npx react-native start --reset-cache --host 0.0.0.0
+
+
+Android Lokal test:
+npx react-native run-android
+
+Uygulamada açılmazsa:
+    Uygulamada "RELOAD (R, R)" butonuna basın veya telefonu sallayın
+    Dev Menu açılacak
+    Settings → Debug server host & port for device
+    Şunu girin: 192.168.1.4:8081
+    Geri dönün ve Reload yapın
 
 
 # MAIN pull sonrası xcode run hata alırsa 

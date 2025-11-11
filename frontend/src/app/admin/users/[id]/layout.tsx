@@ -36,7 +36,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
     <div className="min-h-screen bg-gray-50">
       {/* Top frame */}
       <header className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/admin/dashboard" className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded border bg-white hover:bg-gray-50 text-gray-700">
               <span className="text-lg">←</span>
@@ -59,9 +59,9 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
       </header>
 
       {/* Body with left menu and right content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 md:grid-cols-12 gap-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Left menu */}
-        <aside className="md:col-span-3 lg:col-span-2">
+        <aside className="md:col-span-2 lg:col-span-1">
           <nav className="bg-white rounded-lg border shadow-sm overflow-hidden">
             <MenuItem href={`/admin/users/${userId}`} label="Kullanıcı Bilgileri" active={isActive(`/admin/users/${userId}`)} />
             <MenuItem href={`/admin/users/${userId}/audio`} label="Ses Kayıtları" active={isActive(`/admin/users/${userId}/audio`)} />
@@ -71,7 +71,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
         </aside>
 
         {/* Right content */}
-        <main className="md:col-span-9 lg:col-span-10">
+        <main className="md:col-span-10 lg:col-span-11">
           <div className="bg-white rounded-lg border shadow-sm p-4 md:p-6">
             {children}
           </div>
