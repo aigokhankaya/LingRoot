@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 interface WordTiming {
   word: string;
   timeSeconds: number;
   endTimeSeconds: number;
+  source?: 'mfa' | 'tts'; // Track timing source
 }
 
 interface AudioPlayerProps {
@@ -28,7 +29,9 @@ export default function AudioPlayer({
   const [duration, setDuration] = useState(0);
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const highlightIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const timestampDataRef = useRef<WordTiming[]>(timepoints);
+  const currentIndexRef = useRef<number>(-1);
 
   // Handle audio play/pause
   const togglePlayPause = () => {
@@ -42,39 +45,68 @@ export default function AudioPlayer({
     }
   };
 
-  // Handle time update and word highlighting
-  const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      const time = audioRef.current.currentTime;
-      setCurrentTime(time);
+  // Update timepoints ref when prop changes
+  useEffect(() => {
+    timestampDataRef.current = timepoints;
+  }, [timepoints]);
 
-      // Update highlighted word based on timepoints
-      if (showWordHighlight && timepoints.length > 0) {
-        let wordIndex = -1;
-        
-        // Always search through ALL timepoints to never miss any word
-        for (let i = 0; i < timepoints.length; i++) {
-          const tp = timepoints[i];
-          const nextTp = timepoints[i + 1];
-          
-          // Check if we're in this word's time range
-          if (time >= tp.timeSeconds) {
-            if (!nextTp || time < nextTp.timeSeconds) {
-              // Perfect match - we're exactly in this word's range
-              wordIndex = i;
-              break;
-            }
-            // This word has passed, but keep it as the latest word we've seen
-            wordIndex = i;
-          }
-        }
+  // O(1) amortized search - advancing pointer pattern
+  // Reference: MFA-Analiz.md Section V - Performance Optimization
+  const findCurrentWordIndex = useCallback((currentTime: number): number => {
+    const data = timestampDataRef.current;
+    if (!data || data.length === 0) return -1;
 
-        if (wordIndex !== -1 && wordIndex !== currentWordIndex) {
-          setCurrentWordIndex(wordIndex);
-        }
+    let index = currentIndexRef.current;
+    
+    // Start from last known position (or beginning if reset)
+    if (index < 0) index = 0;
+
+    // Search forward from current position
+    while (index < data.length) {
+      const tp = data[index];
+      const endTime = tp.endTimeSeconds || tp.timeSeconds + 0.5;
+
+      // Check if we're in this word's time range
+      if (currentTime >= tp.timeSeconds && currentTime < endTime) {
+        return index; // Perfect match
+      }
+
+      // If current time is past this word, move to next
+      if (currentTime >= endTime) {
+        index++;
+        continue;
+      }
+
+      // Current time is before this word - we've gone too far
+      return Math.max(0, index - 1);
+    }
+
+    // Past all words - return last word
+    return data.length - 1;
+  }, []);
+
+  // High-performance animation loop using requestAnimationFrame
+  // Reference: MFA-Analiz.md Section V.2 - requestAnimationFrame approach
+  const animationLoop = useCallback(() => {
+    if (!audioRef.current) return;
+
+    const currentTime = audioRef.current.currentTime;
+    setCurrentTime(currentTime);
+
+    // Update word highlighting
+    if (showWordHighlight && timestampDataRef.current.length > 0) {
+      const newIndex = findCurrentWordIndex(currentTime);
+      
+      // Only update state if index changed (minimize re-renders)
+      if (newIndex !== currentIndexRef.current) {
+        currentIndexRef.current = newIndex;
+        setCurrentWordIndex(newIndex);
       }
     }
-  };
+
+    // Continue loop
+    animationFrameRef.current = requestAnimationFrame(animationLoop);
+  }, [showWordHighlight, findCurrentWordIndex]);
 
   // Handle audio loaded
   const handleLoadedMetadata = () => {
@@ -99,24 +131,73 @@ export default function AudioPlayer({
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
-  // Cleanup interval on unmount
+  // Start/stop animation loop based on play state
   useEffect(() => {
-    return () => {
-      if (highlightIntervalRef.current) {
-        clearInterval(highlightIntervalRef.current);
+    const audioEl = audioRef.current;
+    if (!audioEl) return;
+
+    const startLoop = () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      animationFrameRef.current = requestAnimationFrame(animationLoop);
+    };
+
+    const stopLoop = () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
-  }, []);
+
+    audioEl.addEventListener('play', startLoop);
+    audioEl.addEventListener('pause', stopLoop);
+    audioEl.addEventListener('ended', stopLoop);
+
+    // Cleanup
+    return () => {
+      stopLoop();
+      audioEl.removeEventListener('play', startLoop);
+      audioEl.removeEventListener('pause', stopLoop);
+      audioEl.removeEventListener('ended', stopLoop);
+    };
+  }, [animationLoop]);
 
   // Reset word index when audio ends
   useEffect(() => {
     if (!isPlaying) {
       setCurrentWordIndex(-1);
+      currentIndexRef.current = -1;
     }
   }, [isPlaying]);
 
+  // Detect timing source from timepoints
+  const timingSource = timepoints.length > 0 && timepoints[0]?.source === 'mfa' ? 'mfa' : 'tts';
+  const isMFATiming = timingSource === 'mfa';
+
   return (
     <div className="w-full bg-white rounded-lg shadow-sm p-4">
+      {/* Timing Source Indicator */}
+      {showWordHighlight && timepoints.length > 0 && (
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-600">Sync Quality:</span>
+            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+              isMFATiming 
+                ? 'bg-green-100 text-green-700' 
+                : 'bg-yellow-100 text-yellow-700'
+            }`}>
+              {isMFATiming ? '✓ Acoustic (MFA)' : '⚠ Estimated (TTS)'}
+            </span>
+          </div>
+          {isMFATiming && (
+            <span className="text-xs text-gray-500">
+              Millisecond precision
+            </span>
+          )}
+        </div>
+      )}
+      
       {/* Word highlighting display */}
       {showWordHighlight && words.length > 0 && (
         <div className="mb-4 p-4 bg-gray-50 rounded-lg min-h-[120px] max-h-[300px] overflow-y-auto">
@@ -140,7 +221,6 @@ export default function AudioPlayer({
       <audio
         ref={audioRef}
         src={audioUrl}
-        onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={() => setIsPlaying(false)}
       >

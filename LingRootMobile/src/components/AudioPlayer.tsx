@@ -31,6 +31,7 @@ interface AudioPlayerProps {
   onClose: () => void;
   timepoints?: Timepoint[];
   words?: string[];
+  initialHighlightMode?: 'word' | 'sentence';
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -41,6 +42,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   onClose,
   timepoints = [],
   words = [],
+  initialHighlightMode = 'word',
 }) => {
   const insets = useSafeAreaInsets();
   const { language } = useLanguage();
@@ -53,12 +55,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   
   // Removed complex drift correction - using simple web-like approach
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set()); // Seçilen kelimeler
-  const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('word'); // Default kelime takibi
+  const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>(initialHighlightMode); // Use mode from Library
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [addingWord, setAddingWord] = useState(false); // Loading state for adding word
   const [addingWordText, setAddingWordText] = useState(''); // Text to show while adding
+  const [elapsedTime, setElapsedTime] = useState(0); // Elapsed time since play started
+  const elapsedTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const playStartTimeRef = useRef<number>(0);
+  const accumulatedTimeRef = useRef<number>(0);
   
   // Use refs to track the latest values for highlighting
   const durationRef = useRef(0);
@@ -137,32 +143,34 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Debug timepoints data - GİZLENDİ  
   // GIZLENDİ - Debug console.log mesajları
 
-  // Initialize audio
   useEffect(() => {
+    // Only load if visible - prevent duplicate loads
     if (visible) {
-      // Only load audio if it's not the current track or no sound is loaded
-      if (!sound || currentTrack?.id !== track.id) {
-        loadAudio();
-      } else {
-        // Get current status from existing sound
-        if (sound) {
-          sound.getStatusAsync().then((status) => {
-            if (status.isLoaded) {
-              const statusAny = status as any;
-              const actualDuration = statusAny.durationMillis || track.duration * 1000;
-              const actualPosition = statusAny.positionMillis || 0;
-              setDuration(actualDuration);
-              setPosition(actualPosition);
-              setIsLoaded(true);
-              
-              // Update refs as well
-              durationRef.current = actualDuration;
-              isLoadedRef.current = true;
-            }
-          });
-        }
+      loadAudio();
+      // Reset elapsed time when new track loads
+      setElapsedTime(0);
+      accumulatedTimeRef.current = 0;
+      if (elapsedTimerRef.current) {
+        clearInterval(elapsedTimerRef.current);
+        elapsedTimerRef.current = null;
       }
-    } else {
+    }
+  }, [track.id, visible]);
+
+  useEffect(() => {
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+      // Cleanup elapsed timer
+      if (elapsedTimerRef.current) {
+        clearInterval(elapsedTimerRef.current);
+      }
+    };
+  }, [sound]);
+
+  useEffect(() => {
+    if (!visible) {
       // Reset states when modal closes but DON'T unload audio
       setIsLoaded(false);
       setDuration(0);
@@ -182,7 +190,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         clearInterval(intervalRef.current);
       }
     };
-  }, [visible, track.url, track.id]);
+  }, [visible]);
 
   // Fast highlighting interval - 50ms for smooth word tracking
   useEffect(() => {
@@ -203,7 +211,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         } catch (error) {
           // Silent error handling
         }
-      }, 20); // 20ms = 50 updates per second - balanced speed for smooth tracking
+      }, 20); // 20ms = 50 updates per second
 
       return () => {
         if (intervalRef.current) {
@@ -321,42 +329,50 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   };
 
-  // Binary search for better performance on long texts
-  const findWordIndexBinarySearch = useCallback((currentTime: number, timepoints: Timepoint[]): number => {
+  // Linear search with lookahead - handles overlapping timepoints
+  const findWordIndexLinear = useCallback((currentTime: number, timepoints: Timepoint[]): number => {
     if (timepoints.length === 0) return -1;
     
-    let left = 0;
-    let right = timepoints.length - 1;
-    let result = -1;
+    // Start from current word for efficiency
+    const startIndex = Math.max(0, currentWordIndex);
     
-    while (left <= right) {
-      const mid = Math.floor((left + right) / 2);
-      const tp = timepoints[mid];
-      const nextTp = timepoints[mid + 1];
+    // Search forward from current position
+    for (let i = startIndex; i < timepoints.length; i++) {
+      const tp = timepoints[i];
+      const nextTp = timepoints[i + 1];
+      const endTime = tp.endTimeSeconds || tp.timeSeconds + 0.5;
       
-      if (currentTime >= tp.timeSeconds) {
-        result = mid;
-        if (!nextTp || currentTime < nextTp.timeSeconds) {
-          return mid; // Perfect match
-        }
-        left = mid + 1; // Search right half
-      } else {
-        right = mid - 1; // Search left half
+      // Check if we're in this word's time range
+      if (currentTime >= tp.timeSeconds && currentTime < endTime) {
+        return i;
+      }
+      
+      // If we're between this word and next, choose the closer one
+      if (nextTp && currentTime >= endTime && currentTime < nextTp.timeSeconds) {
+        const distToCurrent = currentTime - tp.timeSeconds;
+        const distToNext = nextTp.timeSeconds - currentTime;
+        return distToCurrent < distToNext ? i : i + 1;
+      }
+      
+      // If current time is before this word, we've gone too far
+      if (currentTime < tp.timeSeconds) {
+        return Math.max(0, i - 1);
       }
     }
     
-    return result;
-  }, []);
+    // If we're past all words, return last word
+    return timepoints.length - 1;
+  }, [currentWordIndex]);
 
   const updateWordHighlighting = useCallback((currentTime: number) => {
     if (!timepoints || timepoints.length === 0) return;
     
-    const newWordIndex = findWordIndexBinarySearch(currentTime, timepoints);
+    const newWordIndex = findWordIndexLinear(currentTime, timepoints);
 
-    // Debug: Log around "Furthermore" (assuming it's around index 50-70)
-    if (newWordIndex >= 0 && newWordIndex <= 10) {
+    // Debug: Log every 30 seconds to check sync
+    if (Math.floor(currentTime) % 30 === 0 && Math.floor(currentTime * 10) % 10 === 0) {
       const tp = timepoints[newWordIndex];
-      console.log(`[SYNC] currentTime: ${currentTime.toFixed(2)}s | wordIndex: ${newWordIndex} | word: "${tp?.word}" | timestamp: ${tp?.timeSeconds.toFixed(2)}s`);
+      console.log(`[SYNC CHECK] Time: ${currentTime.toFixed(2)}s | Index: ${newWordIndex} | Word: "${tp?.word}" | WordStart: ${tp?.timeSeconds.toFixed(2)}s | WordEnd: ${tp?.endTimeSeconds?.toFixed(2)}s | Drift: ${(currentTime - tp?.timeSeconds).toFixed(2)}s`);
     }
 
     // Only update if word changed
@@ -364,7 +380,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setCurrentWordIndex(newWordIndex);
       scrollToWord(newWordIndex);
     }
-  }, [timepoints, currentWordIndex, findWordIndexBinarySearch]);
+  }, [timepoints, currentWordIndex, findWordIndexLinear]);
 
   const updateSentenceHighlighting = (currentTime: number) => {
     const totalDuration = durationRef.current / 1000;
@@ -418,58 +434,56 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }, []);
 
   const handlePlayPause = async () => {
-    if (!sound) {
+    if (!sound || !isLoaded) {
+      console.warn('⚠️ Sound not loaded yet');
       return;
     }
 
     try {
-      // Get actual sound status before making decision
-      const currentStatus = await sound.getStatusAsync();
-
-      if ((currentStatus as any).isPlaying) {
+      if (isPlaying) {
         await sound.pauseAsync();
+        setIsPlaying(false);
+        
+        // Stop elapsed timer and save accumulated time
+        if (elapsedTimerRef.current) {
+          clearInterval(elapsedTimerRef.current);
+          elapsedTimerRef.current = null;
+        }
+        accumulatedTimeRef.current = elapsedTime;
       } else {
-        // Check if audio has finished or is at the end
-        const statusAny = currentStatus as any;
-        const currentPosition = statusAny.positionMillis || 0;
-        const audioDuration = statusAny.durationMillis || duration;
-        
-        // If audio finished or is within 100ms of the end, restart from beginning
-        if (statusAny.didJustFinish || (audioDuration > 0 && currentPosition >= audioDuration - 100)) {
-          await sound.setPositionAsync(0);
-          setPosition(0);
-          setCurrentWordIndex(-1);
-          setCurrentSentenceIndex(-1);
-        }
-        
+        console.log('▶️ Playing audio...');
         await sound.playAsync();
+        console.log('✅ Audio playing');
+        setIsPlaying(true);
+        
+        // Start elapsed timer
+        playStartTimeRef.current = Date.now();
+        elapsedTimerRef.current = setInterval(() => {
+          const elapsed = Math.floor((Date.now() - playStartTimeRef.current) / 1000);
+          setElapsedTime(accumulatedTimeRef.current + elapsed);
+        }, 100);
       }
-      
-      // Wait a bit and verify the status change
-      setTimeout(async () => {
-        try {
-          const verifyStatus = await sound.getStatusAsync();
-        } catch (verifyError) {
-          // silent in production
-        }
-      }, 100);
-      
     } catch (error) {
-      Alert.alert('Hata', 'Ses oynatılırken hata oluştu');
+      console.error('Play/Pause error:', error);
+      Alert.alert('Hata', 'Ses çalıştırılırken hata oluştu');
     }
   };
 
-  const handleSeek = useCallback(async (newPosition: number) => {
-    if (!sound) {
-      return;
-    }
-
+  const handleSeek = async (positionMs: number) => {
+    if (!sound) return;
     try {
-      await sound.setPositionAsync(newPosition);
+      await sound.setPositionAsync(positionMs);
+      setPosition(positionMs);
+      
+      // Reset elapsed timer when seeking
+      if (isPlaying) {
+        playStartTimeRef.current = Date.now();
+        accumulatedTimeRef.current = elapsedTime;
+      }
     } catch (error) {
-      // silent in production
+      console.error('Seek error:', error);
     }
-  }, [sound]);
+  };
 
   const handleSpeedChange = async () => {
     const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
@@ -687,6 +701,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   });
 
   const renderWordHighlighting = useMemo(() => {
+    console.log('🎨 renderWordHighlighting called');
     return (
       <SkiaWordHighlight
         words={wordsArray}
@@ -713,6 +728,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }, [duration, sentences.length, handleSeek]);
 
   const renderSentenceHighlighting = useMemo(() => {
+    console.log('🎨 renderSentenceHighlighting called');
     return (
       <SkiaSentenceHighlight
         sentences={sentences}
@@ -749,9 +765,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           >
             <Icon name="close" size={24} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.title} numberOfLines={1}>
-            {track.title}
-          </Text>
+          <View style={styles.timeDisplay}>
+            <Text style={styles.timeDisplayText}>
+              {formatTime(elapsedTime * 1000)} --- {currentWordIndex >= 0 && timepoints[currentWordIndex] ? formatTime(timepoints[currentWordIndex].timeSeconds * 1000) : '0:00'}
+            </Text>
+          </View>
           <View style={styles.levelBadge}>
             <Text style={styles.levelText}>{track.level}</Text>
           </View>
@@ -801,7 +819,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             <ScrollView
               ref={scrollViewRef}
               style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
-              contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
+              contentContainerStyle={{ paddingHorizontal: 16 }}
               showsVerticalScrollIndicator={true}
               nestedScrollEnabled={true}
               scrollEventThrottle={16}
@@ -809,7 +827,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               bounces={true}
             >
               <Pressable style={styles.textWrapper}>
-                {renderHighlightedText()}
+                {pageIndex === 0 && renderHighlightedText()}
               </Pressable>
             </ScrollView>
           </View>
@@ -955,6 +973,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
+  },
+  timeDisplay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timeDisplayText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo-Regular' : 'monospace',
   },
   originalBox: {
     backgroundColor: '#fff',

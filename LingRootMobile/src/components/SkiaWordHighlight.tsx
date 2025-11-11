@@ -186,18 +186,38 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     return boundaries;
   }, [paragraph, words]);
 
-  // Calculate canvas height with Metal GPU limit (16384px max on iPhone 7)
-  const canvasHeight = useMemo(() => {
-    if (!paragraph) return 200;
-    const calculatedHeight = paragraph.getHeight() + 20;
-    const MAX_METAL_TEXTURE_HEIGHT = 16000; // Safe limit below 16384
+  // Calculate total height and chunk configuration
+  const { totalHeight, chunks } = useMemo(() => {
+    if (!paragraph) return { totalHeight: 200, chunks: [] };
     
-    if (calculatedHeight > MAX_METAL_TEXTURE_HEIGHT) {
-      console.warn(`⚠️ Canvas height ${calculatedHeight}px exceeds Metal GPU limit. Capping at ${MAX_METAL_TEXTURE_HEIGHT}px`);
-      return MAX_METAL_TEXTURE_HEIGHT;
+    const fullHeight = paragraph.getHeight() + 20;
+    
+    // Metal applies 3x scale on some devices, so we need to account for that
+    // Max Metal texture: 16384px, with 3x scale = 5461px logical pixels
+    // Use 5000px to be safe
+    const CHUNK_HEIGHT = 5000; // Safe chunk size accounting for 3x scale
+    
+    // Safety check: if height is too large, split into chunks
+    if (fullHeight > CHUNK_HEIGHT) {
+      console.warn(`⚠️ [Word] Paragraph too tall (${fullHeight}px), splitting into chunks`);
     }
     
-    return calculatedHeight;
+    // Calculate number of chunks needed
+    const numChunks = Math.ceil(fullHeight / CHUNK_HEIGHT);
+    
+    if (numChunks > 1) {
+      console.log(`📦 Splitting ${fullHeight}px into ${numChunks} chunks of ${CHUNK_HEIGHT}px each`);
+    }
+    
+    // Create chunk definitions
+    const chunkList = Array.from({ length: numChunks }, (_, i) => ({
+      index: i,
+      startY: i * CHUNK_HEIGHT,
+      endY: Math.min((i + 1) * CHUNK_HEIGHT, fullHeight),
+      height: Math.min(CHUNK_HEIGHT, fullHeight - i * CHUNK_HEIGHT),
+    }));
+    
+    return { totalHeight: fullHeight, chunks: chunkList };
   }, [paragraph]);
   
   // Handle touch for word selection
@@ -234,106 +254,118 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   };
 
 
-  // STEP 3 & 4: Static Paragraph + Dynamic Highlight (ZERO REFLOW)
+  // Filter word boundaries for each chunk
+  const getChunkWordBoundaries = (chunk: { startY: number; endY: number }) => {
+    return wordBoundaries.filter(
+      (boundary) => boundary.y >= chunk.startY && boundary.y < chunk.endY
+    );
+  };
+
+  // STEP 3 & 4: Render chunks with Static Paragraph + Dynamic Highlight
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        activeOpacity={1}
-        onPress={handleTouch}
-        onLongPress={handleLongPress}
-        delayLongPress={500}
-      >
-        <Canvas style={{ width: containerWidth, height: canvasHeight }}>
-          {/* STEP 4: Dynamic Highlight - 60fps, NO RERENDER */}
-          {wordBoundaries.map((boundary, idx) => {
-            const isHighlighted = idx === currentWordIndex;
-            const isSelected = selectedWords.has(
-              words[idx].replace(/[.,!?;:]/g, '').toLowerCase()
-            );
-            
-            if (!isHighlighted && !isSelected) return null;
-            
-            const color = isHighlighted ? '#007AFF' : '#FFD700';
-            
-            // Add horizontal padding (6px left, 6px right)
-            const paddingX = 4;
-            const paddingY = 3;
-            
-            // Calculate position with left padding
-            const rectX = Math.max(0, boundary.x - paddingX);
-            const leftPaddingUsed = boundary.x - rectX;
-            
-            // Calculate width with right padding, but don't exceed container
-            const idealWidth = boundary.width + leftPaddingUsed + paddingX;
-            const maxAllowedWidth = containerWidth - rectX;
-            const rectWidth = Math.min(idealWidth, maxAllowedWidth);
-            
-            return (
-              <RoundedRect
-                key={idx}
-                x={rectX}
-                y={boundary.y - paddingY}
-                width={rectWidth}
-                height={boundary.height + (paddingY * 2)}
-                r={6}
-                color={color}
-              />
-            );
-          })}
-          
-          {/* STEP 3: Static Black Paragraph */}
-          {paragraph && (
-            <Paragraph
-              paragraph={paragraph}
-              x={INTERNAL_PADDING}
-              y={0}
-              width={containerWidth - INTERNAL_PADDING * 2}
-            />
-          )}
-          
-          {/* White Paragraph (only visible on highlighted word) */}
-          {currentWordIndex >= 0 && currentWordIndex < wordBoundaries.length && whiteParagraph && (
-            <Paragraph
-              paragraph={whiteParagraph}
-              x={INTERNAL_PADDING}
-              y={0}
-              width={containerWidth - INTERNAL_PADDING * 2}
-              clip={(() => {
-                // 1. RoundedRect'teki padding değerlerinin aynısı
-                const paddingX = 4;
-                const paddingY = 3;
+      {chunks.map((chunk) => {
+        const chunkBoundaries = getChunkWordBoundaries(chunk);
+        
+        return (
+          <View key={chunk.index} style={{ height: chunk.height }}>
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={handleTouch}
+              onLongPress={handleLongPress}
+              delayLongPress={500}
+            >
+              <Canvas style={{ width: containerWidth, height: chunk.height }}>
+                {/* STEP 4: Dynamic Highlight - 60fps, NO RERENDER */}
+                {chunkBoundaries.map((boundary, idx) => {
+                  const isHighlighted = boundary.index === currentWordIndex;
+                  const isSelected = selectedWords.has(
+                    words[boundary.index].replace(/[.,!?;:]/g, '').toLowerCase()
+                  );
+                  
+                  if (!isHighlighted && !isSelected) return null;
+                  
+                  const color = isHighlighted ? '#007AFF' : '#FFD700';
+                  
+                  // Add horizontal padding
+                  const paddingX = 4;
+                  const paddingY = 3;
+                  
+                  // Adjust Y position relative to chunk
+                  const relativeY = boundary.y - chunk.startY;
+                  
+                  // Calculate position with left padding
+                  const rectX = Math.max(0, boundary.x - paddingX);
+                  const leftPaddingUsed = boundary.x - rectX;
+                  
+                  // Calculate width with right padding
+                  const idealWidth = boundary.width + leftPaddingUsed + paddingX;
+                  const maxAllowedWidth = containerWidth - rectX;
+                  const rectWidth = Math.min(idealWidth, maxAllowedWidth);
+                  
+                  return (
+                    <RoundedRect
+                      key={boundary.index}
+                      x={rectX}
+                      y={relativeY - paddingY}
+                      width={rectWidth}
+                      height={boundary.height + (paddingY * 2)}
+                      r={6}
+                      color={color}
+                    />
+                  );
+                })}
                 
-                // 2. Aktif kelimenin sınırlarını al
-                const boundary = wordBoundaries[currentWordIndex];
-
-                // Hata ayıklama: boundary yoksa boş alan kliple
-                if (!boundary) {
-                  return { x: 0, y: 0, width: 0, height: 0 };
-                }
-
-                // 3. RoundedRect'teki hesaplamanın aynısı
-                const rectX = Math.max(0, boundary.x - paddingX);
-                const leftPaddingUsed = boundary.x - rectX;
+                {/* STEP 3: Static Black Paragraph - clipped to chunk */}
+                {paragraph && (
+                  <Paragraph
+                    paragraph={paragraph}
+                    x={INTERNAL_PADDING}
+                    y={-chunk.startY}
+                    width={containerWidth - INTERNAL_PADDING * 2}
+                  />
+                )}
                 
-                const idealWidth = boundary.width + leftPaddingUsed + paddingX;
-                const maxAllowedWidth = containerWidth - rectX;
-                const rectWidth = Math.min(idealWidth, maxAllowedWidth);
-                
-                const rectY = boundary.y - paddingY;
-                const rectHeight = boundary.height + (paddingY * 2);
-
-                // 4. Hesaplanmış klip alanını döndür
-                return {
-                  x: rectX,
-                  y: rectY,
-                  width: rectWidth,
-                  height: rectHeight,
-                };
-              })()}
-            />
-          )}
-        </Canvas>
-      </TouchableOpacity>
+                {/* White Paragraph (only visible on highlighted word in this chunk) */}
+                {currentWordIndex >= 0 && currentWordIndex < wordBoundaries.length && whiteParagraph && (() => {
+                  const highlightedBoundary = wordBoundaries[currentWordIndex];
+                  const isInChunk = highlightedBoundary && 
+                    highlightedBoundary.y >= chunk.startY && 
+                    highlightedBoundary.y < chunk.endY;
+                  
+                  if (!isInChunk) return null;
+                  
+                  const paddingX = 4;
+                  const paddingY = 3;
+                  const rectX = Math.max(0, highlightedBoundary.x - paddingX);
+                  const leftPaddingUsed = highlightedBoundary.x - rectX;
+                  const idealWidth = highlightedBoundary.width + leftPaddingUsed + paddingX;
+                  const maxAllowedWidth = containerWidth - rectX;
+                  const rectWidth = Math.min(idealWidth, maxAllowedWidth);
+                  const relativeY = highlightedBoundary.y - chunk.startY;
+                  const rectY = relativeY - paddingY;
+                  const rectHeight = highlightedBoundary.height + (paddingY * 2);
+                  
+                  return (
+                    <Paragraph
+                      paragraph={whiteParagraph}
+                      x={INTERNAL_PADDING}
+                      y={-chunk.startY}
+                      width={containerWidth - INTERNAL_PADDING * 2}
+                      clip={{
+                        x: rectX,
+                        y: rectY,
+                        width: rectWidth,
+                        height: rectHeight,
+                      }}
+                    />
+                  );
+                })()}
+              </Canvas>
+            </TouchableOpacity>
+          </View>
+        );
+      })}
     </View>
   );
 });
