@@ -524,9 +524,9 @@ export const saveDefaultVoice = async (voice: string): Promise<void> => {
   }
 };
 
-// Detaylı konu önerileri için API isteği gönderen fonksiyon
+// Detaylı konu önerileri için API isteği gönderen fonksiyon (yeni pipeline endpoint)
 export const getTopicDetailSuggestions = async (topic: string, level: string): Promise<any> => {
-  const apiUrl = `${getApiUrl("topic-detail/suggestions")}`;
+  const apiUrl = `${getApiUrl("topic-pipeline/suggestions")}`;
   
   console.log("🔗 API URL:", apiUrl);
   console.log("📝 Request data:", { topic, level });
@@ -561,6 +561,91 @@ export const getTopicDetailSuggestions = async (topic: string, level: string): P
     return result;
   } catch (error) {
     console.error('🚨 Konu önerileri alınırken hata oluştu:', error);
+    throw error;
+  }
+};
+
+// Hobi için 200 öneri oluştur ve kaydet
+export const generateHobbySuggestions = async (hobby: string): Promise<any> => {
+  const apiUrl = `${getApiUrl("hobby-suggestions/generate")}`;
+  
+  try {
+    const headers = createHeaders('application/json');
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ hobby }),
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      let error;
+      try {
+        error = JSON.parse(errorText);
+      } catch {
+        error = { message: errorText };
+      }
+      throw new Error(error.message || 'Hobi önerileri oluşturulamadı');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('🚨 Hobi önerileri oluşturulurken hata:', error);
+    throw error;
+  }
+};
+
+// Hobi için rastgele 5 öneri getir
+export const getRandomHobbySuggestions = async (hobby: string): Promise<any> => {
+  const apiUrl = `${getApiUrl("hobby-suggestions/random")}`;
+  
+  try {
+    const headers = createHeaders('application/json');
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ hobby }),
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      let error;
+      try {
+        error = JSON.parse(errorText);
+      } catch {
+        error = { message: errorText };
+      }
+      throw new Error(error.message || 'Hobi önerileri getirilemedi');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('🚨 Hobi önerileri getirilirken hata:', error);
+    throw error;
+  }
+};
+
+// Hobi önerilerinin var olup olmadığını kontrol et
+export const checkHobbyExists = async (hobby: string): Promise<any> => {
+  const apiUrl = `${getApiUrl("hobby-suggestions/check")}?hobby=${encodeURIComponent(hobby)}`;
+  
+  try {
+    const headers = createHeaders('application/json');
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers,
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Hobi kontrol edilemedi');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('🚨 Hobi kontrol edilirken hata:', error);
     throw error;
   }
 };

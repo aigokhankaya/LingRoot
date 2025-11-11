@@ -1,0 +1,39 @@
+// 🇹🇷 Kullanım: Kullanıcının sohbet geçmişinden ilgi alanlarını çıkarmak için kullanılır.
+// Bu prompt, kullanıcının ilgi duyduğu konuları, hobilerini ve tercihlerini analiz eder.
+// Kullanıldığı yerler: backend/utils/userProfileAnalyzer.js (gelecekte eklenecek)
+// Placeholder'lar: {{userMessages}}
+
+🎯 GÖREV:
+Kullanıcının mesajlarını analiz et. İlgi alanlarını, konu tercihlerini ve öğrenme tarzını JSON olarak çıkar.
+
+📌 BEKLENEN FORMAT:
+{
+  "interests": ["teknoloji", "spor", "sanat"],
+  "topics": ["yapay zeka", "Galatasaray", "dijital pazarlama"],
+  "preferredLevel": "B2",
+  "learningStyle": "Analitik, örneklerle öğreniyor"
+}
+
+📌 KURALLAR:
+- SADECE geçerli JSON döndür
+- Kod bloğu kullanma (```json gibi)
+- Açıklama ekleme, sadece JSON
+- interests: Genel kategoriler (3-5 adet)
+- topics: Spesifik konular (3-7 adet)
+- preferredLevel: CEFR seviyesi (A1, A2, B1, B2, C1, C2)
+  * Belirgin değilse B1 veya B2 öner
+  * Basit konular → A2/B1
+  * Orta karmaşıklık → B1/B2
+  * Karmaşık konular → B2/C1
+- learningStyle: Kısa tanım (1 cümle, genelleme yapma)
+
+💡 ÖRNEK ÇIKTI:
+{
+  "interests": ["teknoloji", "spor", "girişimcilik"],
+  "topics": ["yapay zeka", "machine learning", "Galatasaray", "startup ekosistemi"],
+  "preferredLevel": "B2",
+  "learningStyle": "Detaylı açıklamalar tercih ediyor, örneklerle öğreniyor"
+}
+
+🎯 KULLANICI MESAJLARI:
+{{userMessages}}

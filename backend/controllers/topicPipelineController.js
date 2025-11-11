@@ -1,0 +1,371 @@
+const fs = require('fs');
+const path = require('path');
+const OpenAI = require("openai");
+let openai = null;
+if (process.env.OPENAI_API_KEY) {
+  try {
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  } catch {}
+}
+const { logRequestStep } = require('../utils/requestLogger');
+const { v4: uuidv4 } = require('uuid');
+const logger = require('../utils/logger');
+const { chunkText } = require('../utils/textProcessor');
+const { simplifyLexically, getComplexWordStats } = require('../utils/lexicalSimplifier');
+const { auditSemanticPreservation } = require('../utils/semanticAudit');
+
+/**
+ * Complete pipeline: Topic → Suggestions → Narration → Translation → CEFR Adaptation
+ * Returns final leveled English text without triggering TTS
+ */
+exports.processTopicToEnglishText = async (req, res) => {
+  const { topic, level, selected_subtopic } = req.body;
+  const requestId = req.headers['x-request-id'] || uuidv4();
+  let stepSequence = 1;
+  
+  if (!topic) {
+    logRequestStep(requestId, 'topic-pipeline:error', { error: 'No topic provided.' });
+    return res.status(400).json({ success: false, message: "Lütfen bir konu belirtin." });
+  }
+  
+  if (!level || !['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(level)) {
+    return res.status(400).json({ success: false, message: "Geçerli bir CEFR seviyesi belirtin (A1-C2)." });
+  }
+  
+  try {
+    logger.info(`[${requestId}] Starting topic pipeline: "${topic}" at level ${level}`);
+    logRequestStep(requestId, 'topic-pipeline:start', { topic, level, selected_subtopic });
+    
+    const result = {
+      topic,
+      level,
+      selected_subtopic: selected_subtopic || topic,
+      suggestions: [],
+      narration_tr: '',
+      translation_en: '',
+      adapted_text: '',
+      usage: {
+        suggestions: null,
+        narration: null,
+        translation: null,
+        adaptation: null
+      }
+    };
+    
+    // ==========================================
+    // STEP 1: Generate Topic Suggestions
+    // ==========================================
+    if (!selected_subtopic) {
+      logger.info(`[${requestId}] Step 1: Generating topic suggestions`);
+      const suggestionsPromptPath = path.join(__dirname, '../prompts/topic_detail_suggestions.txt');
+      const suggestionsTemplate = fs.readFileSync(suggestionsPromptPath, 'utf8');
+      
+      const suggestionsPrompt = suggestionsTemplate
+        .split('{{topic}}').join(topic)
+        .split('{{level}}').join(level)
+        .split('{{input_language}}').join('Türkçe');
+      
+      const suggestionsCompletion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: "Sen bir içerik oluşturma uzmanısın. Verilen konularla ilgili detaylı alt başlıklar öneriyorsun." },
+          { role: "user", content: suggestionsPrompt }
+        ],
+        temperature: 0.6,
+      });
+      
+      const suggestionsText = suggestionsCompletion.choices[0]?.message?.content?.trim() || "";
+      result.usage.suggestions = suggestionsCompletion.usage;
+      
+      // DEBUG: GPT yanıtını logla
+      logger.info(`[${requestId}] GPT-4o raw response:\n${suggestionsText}`);
+      
+      // Parse suggestions - Format: "1. **Başlık**: Açıklama"
+      const lines = suggestionsText.split('\n').filter(line => line.trim());
+      
+      for (const line of lines) {
+        const trimmed = line.trim();
+        const match = trimmed.match(/^(\d+)\.\s+(.+)$/);
+        if (match) {
+          result.suggestions.push(match[2].trim());
+        }
+      }
+      
+      logger.info(`[${requestId}] Step 1 complete: ${result.suggestions.length} suggestions generated`);
+      logRequestStep(requestId, 'topic-pipeline:suggestions:end', { count: result.suggestions.length });
+      
+      // Use first suggestion as selected_subtopic if not provided
+      result.selected_subtopic = result.suggestions[0] || topic;
+    }
+    
+    // ==========================================
+    // STEP 2: Generate Turkish Narration
+    // ==========================================
+    logger.info(`[${requestId}] Step 2: Generating Turkish narration`);
+    const narrationPromptPath = path.join(__dirname, '../prompts/rewrite_to_narrations.txt');
+    let narrationTemplate = fs.readFileSync(narrationPromptPath, 'utf8');
+    
+    const narrationPrompt = narrationTemplate
+      .replace('{{topic}}', result.selected_subtopic)
+      .replace('{{level}}', level);
+    
+    const narrationCompletion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "Sen profesyonel bir Türkçe içerik yazarısın. Eğitici, akıcı ve doğal anlatılar oluşturuyorsun." },
+        { role: "user", content: narrationPrompt }
+      ],
+      temperature: 0.7,
+    });
+    
+    result.narration_tr = narrationCompletion.choices[0]?.message?.content?.trim() || "";
+    result.narration_tr = result.narration_tr.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
+    result.usage.narration = narrationCompletion.usage;
+    
+    logger.info(`[${requestId}] Step 2 complete: ${result.narration_tr.length} characters Turkish narration`);
+    logRequestStep(requestId, 'topic-pipeline:narration:end', { length: result.narration_tr.length });
+    
+    // ==========================================
+    // STEP 3: Translate to English
+    // ==========================================
+    logger.info(`[${requestId}] Step 3: Translating to English`);
+    const translatePromptPath = path.join(__dirname, '../prompts/translate_to_english.txt');
+    let translateTemplate = fs.readFileSync(translatePromptPath, 'utf8');
+    
+    // Chunk the Turkish text for translation
+    const translationChunks = chunkText(result.narration_tr);
+    let translatedChunks = [];
+    let translationUsageTotal = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+    
+    for (let i = 0; i < translationChunks.length; i++) {
+      const translatePrompt = translateTemplate
+        .replace('{{input_text}}', translationChunks[i])
+        .replace('{{level}}', level);
+      
+      const translateCompletion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: "You are a translation assistant specializing in educational content." },
+          { role: "user", content: translatePrompt }
+        ],
+        temperature: 0.3,
+      });
+      
+      let translated = translateCompletion.choices[0]?.message?.content?.trim() || "";
+      translated = translated.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
+      translatedChunks.push(translated);
+      
+      if (translateCompletion.usage) {
+        translationUsageTotal.prompt_tokens += translateCompletion.usage.prompt_tokens || 0;
+        translationUsageTotal.completion_tokens += translateCompletion.usage.completion_tokens || 0;
+        translationUsageTotal.total_tokens += translateCompletion.usage.total_tokens || 0;
+      }
+    }
+    
+    result.translation_en = translatedChunks.join('\n\n');
+    result.usage.translation = translationUsageTotal;
+    
+    logger.info(`[${requestId}] Step 3 complete: ${result.translation_en.length} characters English translation`);
+    logRequestStep(requestId, 'topic-pipeline:translation:end', { length: result.translation_en.length });
+    
+    // ==========================================
+    // STEP 4: CEFR Adaptation
+    // ==========================================
+    logger.info(`[${requestId}] Step 4: Adapting to CEFR ${level}`);
+    const cefrPromptPath = path.join(__dirname, `../prompts/cefr_${level}.txt`);
+    let cefrTemplate = fs.readFileSync(cefrPromptPath, 'utf8');
+    
+    // Chunk the English text for adaptation
+    const adaptationChunks = chunkText(result.translation_en);
+    let adaptedChunks = [];
+    let adaptationUsageTotal = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+    
+    const cefrModel = process.env.OPENAI_CEFR_MODEL || "gpt-4-turbo";
+    
+    for (let i = 0; i < adaptationChunks.length; i++) {
+      const cefrPrompt = cefrTemplate.replace('{{input_text}}', adaptationChunks[i]);
+      
+      const cefrCompletion = await openai.chat.completions.create({
+        model: cefrModel,
+        messages: [
+          { role: "system", content: "You are a professional English teacher specializing in CEFR-leveled content." },
+          { role: "user", content: cefrPrompt }
+        ],
+        temperature: 0.6,
+      });
+      
+      let adapted = cefrCompletion.choices[0]?.message?.content?.trim() || "";
+      adapted = adapted.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
+      adaptedChunks.push(adapted);
+      
+      if (cefrCompletion.usage) {
+        adaptationUsageTotal.prompt_tokens += cefrCompletion.usage.prompt_tokens || 0;
+        adaptationUsageTotal.completion_tokens += cefrCompletion.usage.completion_tokens || 0;
+        adaptationUsageTotal.total_tokens += cefrCompletion.usage.total_tokens || 0;
+      }
+    }
+    
+    result.adapted_text = adaptedChunks.join('\n\n');
+    result.usage.adaptation = adaptationUsageTotal;
+    
+    logger.info(`[${requestId}] Step 4 complete: ${result.adapted_text.length} characters adapted text`);
+    logRequestStep(requestId, 'topic-pipeline:adaptation:end', { length: result.adapted_text.length });
+    
+    // ==========================================
+    // STEP 5: Post-Processing (Lexical Simplification + Semantic Audit)
+    // ==========================================
+    logger.info(`[${requestId}] Step 5: Applying post-processors`);
+    
+    // Store pre-processed text for audit
+    const preProcessedText = result.adapted_text;
+    
+    // Apply lexical simplification for A1-A2 levels
+    if (['A1', 'A2'].includes(level)) {
+      const complexWordStats = getComplexWordStats(result.adapted_text);
+      logger.info(`[${requestId}] Found ${complexWordStats.count} complex words before simplification`);
+      
+      result.adapted_text = simplifyLexically(result.adapted_text, level);
+      
+      logger.info(`[${requestId}] Lexical simplification applied`);
+      logRequestStep(requestId, 'topic-pipeline:lexical-simplification:end', { 
+        complexWordsFound: complexWordStats.count,
+        level 
+      });
+    }
+    
+    // Semantic audit for A1-A2 levels
+    if (['A1', 'A2'].includes(level)) {
+      const semanticAudit = auditSemanticPreservation(
+        result.translation_en,  // Compare against translation (before adaptation)
+        result.adapted_text,
+        level
+      );
+      
+      result.semanticAudit = semanticAudit;
+      
+      logger.info(`[${requestId}] Semantic audit: Score ${semanticAudit.semanticScore}%, Regeneration needed: ${semanticAudit.needsRegeneration}`);
+      logRequestStep(requestId, 'topic-pipeline:semantic-audit:end', { 
+        score: semanticAudit.semanticScore,
+        needsRegeneration: semanticAudit.needsRegeneration
+      });
+      
+      // Warn if information loss is too high
+      if (semanticAudit.needsRegeneration) {
+        logger.warn(`[${requestId}] ⚠️ Semantic preservation below threshold. Consider regeneration.`);
+      }
+    }
+    
+    logger.info(`[${requestId}] Step 5 complete: Post-processing finished`);
+    
+    // ==========================================
+    // Final Response
+    // ==========================================
+    logRequestStep(requestId, 'topic-pipeline:complete', { 
+      topic,
+      level,
+      narrationLength: result.narration_tr.length,
+      translationLength: result.translation_en.length,
+      adaptedLength: result.adapted_text.length,
+      totalTokens: (result.usage.narration?.total_tokens || 0) + 
+                   (result.usage.translation?.total_tokens || 0) + 
+                   (result.usage.adaptation?.total_tokens || 0)
+    });
+    
+    res.json({ 
+      success: true, 
+      data: result
+    });
+    
+  } catch (err) {
+    logger.error(`[${requestId}] Topic pipeline error: ${err.message}`, { 
+      topic, 
+      level,
+      stack: err.stack
+    });
+    
+    logRequestStep(requestId, 'topic-pipeline:error', { error: err.message });
+    res.status(500).json({ 
+      success: false, 
+      message: "Metin oluşturma işlemi sırasında bir hata oluştu.", 
+      error: err.message 
+    });
+  }
+};
+
+/**
+ * Step 1 only: Generate topic suggestions
+ */
+exports.getTopicSuggestions = async (req, res) => {
+  const { topic, level } = req.body;
+  const requestId = req.headers['x-request-id'] || uuidv4();
+  
+  if (!topic) {
+    return res.status(400).json({ success: false, message: "Lütfen bir konu belirtin." });
+  }
+  
+  try {
+    logger.info(`[${requestId}] Generating topic suggestions for: "${topic}"`);
+    
+    const promptPath = path.join(__dirname, '../prompts/topic_detail_suggestions.txt');
+    const promptTemplate = fs.readFileSync(promptPath, 'utf8');
+    
+    const prompt = promptTemplate
+      .split('{{topic}}').join(topic)
+      .split('{{level}}').join(level || 'A1')
+      .split('{{input_language}}').join('Türkçe');
+    
+    logger.info(`[${requestId}] Final prompt sent to GPT:\n${prompt}`);
+    
+    if (!openai) {
+      return res.status(503).json({ success: false, message: "Service unavailable (missing OPENAI_API_KEY)." });
+    }
+    
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "Sen bir içerik oluşturma uzmanısın. Verilen konularla ilgili detaylı alt başlıklar öneriyorsun." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.6,
+    });
+    
+    const text = completion.choices[0]?.message?.content?.trim() || "";
+    
+    // DEBUG: GPT yanıtını logla
+    logger.info(`[${requestId}] GPT-4o raw response:\n${text}`);
+    
+    // Parse suggestions - Format: "1. **Başlık**: Açıklama"
+    let suggestions = [];
+    
+    // Önce numaralı satırları bul
+    const lines = text.split('\n').filter(line => line.trim());
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // "1. " ile başlayan satırları al
+      const match = trimmed.match(/^(\d+)\.\s+(.+)$/);
+      if (match) {
+        suggestions.push(match[2].trim());
+      }
+    }
+    
+    logger.info(`[${requestId}] Generated ${suggestions.length} suggestions`);
+    
+    res.json({ 
+      success: true, 
+      data: {
+        topic,
+        level: level || 'A1',
+        suggestions
+      }
+    });
+    
+  } catch (err) {
+    logger.error(`[${requestId}] Topic suggestions error: ${err.message}`, { topic, level, stack: err.stack });
+    res.status(500).json({ 
+      success: false, 
+      message: "Konu önerileri oluşturulurken bir hata oluştu.", 
+      error: err.message 
+    });
+  }
+};

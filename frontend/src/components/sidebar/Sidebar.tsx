@@ -47,10 +47,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <aside
         className={`
           fixed md:static inset-y-0 left-0 z-40
-          w-72 md:w-80 
+          w-64 md:w-72 lg:w-80 
           transform transition-transform duration-300 ease-in-out
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-          md:border-r md:border-gray-200 dark:md:border-gray-800
+          md:border-r md:border-sidebar-border
         `}
       >
         <ConversationList

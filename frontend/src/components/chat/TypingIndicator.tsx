@@ -22,7 +22,7 @@ export const TypingIndicator: React.FC = () => {
           </div>
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 px-2">
-          Claude yazıyor...
+          Liro yazıyor...
         </p>
       </div>
     </div>

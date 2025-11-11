@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import MembershipBadge from '../src/components/user/MembershipBadge';
 import { useAuth } from '../src/lib/auth';
 import { useRouter } from 'next/router';
@@ -87,6 +88,19 @@ const Dashboard = () => {
     };
   }, []);
 
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const menu = document.getElementById('dashboard-profile-menu');
+      const target = event.target as HTMLElement;
+      if (menu && !menu.contains(target) && !target.closest('.cursor-pointer')) {
+        menu.classList.add('hidden');
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
   if (isLoading) {
     return <div className="p-8 text-center text-lg">Yükleniyor...</div>;
   }
@@ -105,6 +119,89 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      {/* Top Navigation Header */}
+      <div className="bg-white shadow-sm border-b sticky top-0 z-50">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center h-16">
+            {/* Left: Logo & Navigation */}
+            <div className="flex items-center space-x-6">
+              <Link href="/welcome3" className="flex items-center space-x-2">
+                <img src="/LingRoot_MainLogo.png" alt="LingRoot" className="h-8" />
+              </Link>
+              <Link href="/welcome3">
+                <button className="text-gray-700 hover:text-blue-600 transition-colors text-sm font-medium">
+                  <i className="fas fa-home mr-2"></i>
+                  Ana Sayfa
+                </button>
+              </Link>
+            </div>
+
+            {/* Right: Profile Menu */}
+            <div className="flex items-center space-x-4">
+              {isAuthenticated && (
+                <div className="relative">
+                  <div
+                    className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 rounded-lg px-3 py-2 transition-colors"
+                    onClick={() => {
+                      const menu = document.getElementById('dashboard-profile-menu');
+                      if (menu) menu.classList.toggle('hidden');
+                    }}
+                  >
+                    <img
+                      src={profileImageUrl}
+                      alt={displayName}
+                      className="w-9 h-9 rounded-full object-cover border-2 border-gray-200"
+                    />
+                    <div className="text-sm hidden md:block">
+                      <div className="font-medium text-gray-900">{displayName}</div>
+                      <div className="text-gray-500 text-xs">{user.email}</div>
+                    </div>
+                    <i className="fas fa-chevron-down text-gray-400 text-xs"></i>
+                  </div>
+                  
+                  {/* Dropdown Menu */}
+                  <div
+                    id="dashboard-profile-menu"
+                    className="hidden absolute right-0 w-56 mt-2 bg-white rounded-lg shadow-lg py-2 border border-gray-100 z-50"
+                  >
+                    <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                      <i className="fas fa-user-circle mr-2 w-4 text-center"></i>
+                      Profil Bilgilerim
+                    </Link>
+                    <Link href="/dashboard?tab=paket-bilgilerim" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                      <i className="fas fa-box mr-2 w-4 text-center"></i>
+                      Paket Bilgilerim
+                    </Link>
+                    <Link href="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                      <i className="fas fa-cog mr-2 w-4 text-center"></i>
+                      Hesap Ayarları
+                    </Link>
+                    <Link href="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                      <i className="fas fa-history mr-2 w-4 text-center"></i>
+                      Okuma Geçmişim
+                    </Link>
+                    <div className="border-t border-gray-100 mt-2 pt-2">
+                      <button
+                        onClick={() => {
+                          if (typeof window !== 'undefined') {
+                            localStorage.removeItem('lingroot_token');
+                            window.location.href = '/';
+                          }
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer"
+                      >
+                        <i className="fas fa-sign-out-alt mr-2 w-4 text-center"></i>
+                        Çıkış Yap
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Profile Header */}
       <div className="relative w-full h-[220px] md:h-[250px] overflow-hidden mb-8">
         <div

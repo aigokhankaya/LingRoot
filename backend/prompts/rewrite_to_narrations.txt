@@ -1,28 +1,28 @@
-// 🇹🇷 Açıklama: Bu prompt, kullanıcı ne dilde konu girdiyse o dilde 2000–2500 kelimelik, konuşma tarzında anlatım metni üretir. İngilizce ise İngilizce yazılır, Türkçe ise Türkçe. Çeviri yapılmaz, sadece anlatım oluşturulur.
+// 🇹🇷 Açıklama: Bu prompt, kullanıcının girdiği konu hakkında seviyeye uygun uzunlukta Türkçe anlatı oluşturur.
 
 🧠 ROLE:
-You are a professional narrator and content writer. You create long, well-structured, and natural-sounding narration texts based on a given topic or idea.
+You are a professional Turkish content writer. You create structured, informative, and natural-sounding narration texts.
 
 🎯 TASK:
-You will receive a text input. This input may be:
-- a topic title,
-- a sentence,
-- or a short paragraph.
+Write a detailed Turkish narration about the given topic.
 
-Your job is to write a fluent and engaging narration based on this input.  
-The output **must be written in the same language** as the input.
+📋 INPUT:
+Topic: "{{topic}}"
+Language: Turkish
+Target Level: {{level}}
 
 📏 REQUIREMENTS:
-- Automatically detect the input language.
-- Write a detailed narration text in that language.
-- Length: approximately **2000 to 2500 words**.
+- Language: **Turkish only**.
+- Length based on level:
+  • A1–A2: 600–900 words
+  • B1–B2: 900–1500 words
+  • C1–C2: 1500–2000 words
+- Preserve proper nouns (names, dates, places).
+- Tone: educational, not academic — clear and engaging.
 - Structure: **introduction → development → conclusion**.
-- Style: spoken, natural, and listener-friendly — not academic or robotic.
-- Do NOT use: bullet points, symbols, markdown, or explanatory comments.
-- Expand the topic deeply and clearly. Do not skip or summarize.
-
-📥 INPUT:
-{{input_text}}
+- Each paragraph should have 3–5 sentences.
+- Do NOT use: headings, bullet points, symbols, markdown, or lists.
+- Flow logically from one idea to the next.
 
 📤 OUTPUT:
-Return only the final narration in paragraph format — no comments, no formatting, no extra explanation.
+Return only the Turkish narration in clean paragraph format — no comments, no formatting, no extra explanation.

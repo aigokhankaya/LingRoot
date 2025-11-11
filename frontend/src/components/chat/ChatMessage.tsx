@@ -11,6 +11,8 @@ interface ChatMessageProps {
 export const ChatMessage: React.FC<ChatMessageProps> = ({ role, content, timestamp }) => {
   const isUser = role === 'user';
 
+  // Butonlar artık mesajlarda görünmeyecek - composer üstüne taşındı
+
   return (
     <div className={`flex gap-3 py-2 ${isUser ? 'flex-row-reverse' : ''}`}>
       {/* Avatar */}
@@ -42,6 +44,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ role, content, timesta
             {timestamp}
           </p>
         )}
+        
+        {/* Butonlar artık burada görünmeyecek - ChatPage'de composer üstünde tek instance */}
       </div>
     </div>
   );

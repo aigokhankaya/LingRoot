@@ -119,6 +119,57 @@ async function getTtsProvider() {
   return data.value;
 }
 
+// Yardımcı: Provider'a göre varsayılan sesi getir (ses listesinin ilk sesi)
+async function getDefaultVoiceForProvider(ttsProvider, languageCode = 'en-US') {
+  try {
+    if (ttsProvider === 'polly' || ttsProvider === 'amazon') {
+      // Amazon Polly için ilk sesi al
+      if (isPollyAvailable()) {
+        const pollyVoices = await listPollyVoices(languageCode);
+        if (pollyVoices && pollyVoices.length > 0) {
+          logger.info(`🎯 Default voice for Polly: ${pollyVoices[0].name}`);
+          return pollyVoices[0].name;
+        }
+      }
+      // Fallback
+      return 'Joanna';
+    } else if (ttsProvider === 'azure') {
+      // Azure için ilk sesi al
+      if (isAzureTTSAvailable()) {
+        const locale = languageCode.replace('_', '-');
+        const azureVoices = await listAzureVoices(locale);
+        if (azureVoices && azureVoices.length > 0) {
+          logger.info(`🎯 Default voice for Azure: ${azureVoices[0].name}`);
+          return azureVoices[0].name;
+        }
+      }
+      // Fallback
+      return 'en-US-JennyNeural';
+    } else {
+      // Google TTS için ilk sesi al
+      const googleVoices = await listGoogleVoices(languageCode);
+      if (googleVoices && googleVoices.length > 0) {
+        // Basic paket seslerini önceliklendir
+        const basicVoices = googleVoices.filter(v => v.package === 'Basic');
+        if (basicVoices.length > 0) {
+          logger.info(`🎯 Default voice for Google: ${basicVoices[0].name}`);
+          return basicVoices[0].name;
+        }
+        logger.info(`🎯 Default voice for Google: ${googleVoices[0].name}`);
+        return googleVoices[0].name;
+      }
+      // Fallback
+      return 'en-US-Standard-C';
+    }
+  } catch (error) {
+    logger.error(`Error getting default voice for ${ttsProvider}: ${error.message}`);
+    // Provider'a göre fallback
+    if (ttsProvider === 'polly' || ttsProvider === 'amazon') return 'Joanna';
+    if (ttsProvider === 'azure') return 'en-US-JennyNeural';
+    return 'en-US-Standard-C';
+  }
+}
+
 function enforceTTSByteLimit(text, maxBytes = 4500) {
   if (Buffer.byteLength(text, "utf-8") <= maxBytes) return [text];
 
@@ -376,7 +427,7 @@ const processTtsRequest = async (req, res) => {
         let googleTtsCallCount = 0;
         try {
             // translateToEnglishWithOpenAI may return string; we enhance to capture usage via try/catch below
-            const trResult = await translateToEnglishWithOpenAI(cleanedText);
+            const trResult = await translateToEnglishWithOpenAI(cleanedText, level);
             openaiCallCount += 1; // translate call aggregates chunk usages
             if (typeof trResult === 'object' && trResult !== null && trResult.text) {
                 translationResult = trResult.text;
@@ -472,6 +523,26 @@ const processTtsRequest = async (req, res) => {
             logRequestStep(requestId, 'adaptToCEFR:error', { error: adaptError.message });
         }
 
+        // --- Check if no_tts flag is set (text generation only) ---
+        if (req.body.no_tts === true) {
+            logger.info(`[${requestId}] no_tts flag detected. Skipping TTS synthesis, returning text only.`);
+            logRequestStep(requestId, 'tts:skipped', { reason: 'no_tts flag set' });
+            
+            return res.json({
+                success: true,
+                message: "Text generation complete. TTS synthesis skipped.",
+                data: {
+                    adapted_text: textToAdapt,
+                    translated_text: translationResult || textToAdapt,
+                    level,
+                    languageCode,
+                    openai_usage: openaiUsage,
+                    openai_call_count: openaiCallCount,
+                    usage_breakdown: usageBreakdown
+                }
+            });
+        }
+
         // --- Step 3: Chunk Text (ilk, translate sonrası) ---
         if (!textToAdapt || textToAdapt.trim() === "") {
             logger.error(`[${requestId}] textToAdapt is empty, chunkText will not be called.`);
@@ -511,8 +582,17 @@ const processTtsRequest = async (req, res) => {
 
         // --- Get and validate voice BEFORE chunking ---
         const requestedVoice = req.body.voice || req.body.voiceName;
-        let selectedVoice = requestedVoice || 'en-US-Neural2-D';
-        logger.info(`[${requestId}] 🎯 Requested voice: ${requestedVoice || 'undefined'} | Initial selected: ${selectedVoice}`);
+        
+        // Eğer ses seçilmemişse, provider'a göre varsayılan sesi al
+        let selectedVoice;
+        if (!requestedVoice) {
+            const ttsProvider = await getTtsProvider();
+            selectedVoice = await getDefaultVoiceForProvider(ttsProvider, languageCode);
+            logger.info(`[${requestId}] 🎯 No voice requested, using default for ${ttsProvider}: ${selectedVoice}`);
+        } else {
+            selectedVoice = requestedVoice;
+            logger.info(`[${requestId}] 🎯 Requested voice: ${requestedVoice} | Selected: ${selectedVoice}`);
+        }
         
         // Trust client-selected voice and defer fallback to synthesis stage
         logger.info(`[${requestId}] 🎙️ Using selected voice (no pre-validation): ${selectedVoice}`);
@@ -1554,6 +1634,7 @@ const translateToEnglish = async (req, res) => {
         return res.json({
           provider: 'polly',
           voices: pollyVoices,
+          defaultVoice: pollyVoices.length > 0 ? pollyVoices[0].name : 'Joanna',
           stats: {
             total: pollyVoices.length,
             neural: pollyVoices.filter(v => v.engine === 'neural').length,
@@ -1585,6 +1666,7 @@ const translateToEnglish = async (req, res) => {
         return res.json({
           provider: 'azure',
           voices: azureVoices,
+          defaultVoice: azureVoices.length > 0 ? azureVoices[0].name : 'en-US-JennyNeural',
           stats: {
             total: azureVoices.length,
             neural: azureVoices.filter(v => v.voiceType === 'Neural').length,
@@ -1635,9 +1717,14 @@ const translateToEnglish = async (req, res) => {
         logger.info(`🎯 [VOICE LIST] SSML supported: ${ssmlSupportedCount}, unsupported: ${ssmlUnsupportedCount}`);
         logger.info(`🎯 [VOICE LIST] Categories:`, categoryStats);
         
+        // İlk sesi bul (Basic paket öncelikli)
+        const basicVoices = googleVoices.filter(v => v.package === 'Basic');
+        const defaultVoice = basicVoices.length > 0 ? basicVoices[0].name : (googleVoices.length > 0 ? googleVoices[0].name : 'en-US-Standard-C');
+        
         return res.json({ 
           provider: 'google', 
           voices: googleVoices,
+          defaultVoice: defaultVoice,
           stats: {
             total: googleVoices.length,
             ssmlSupported: ssmlSupportedCount,

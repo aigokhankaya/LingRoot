@@ -33,9 +33,10 @@ Rewrite the given English text into strict CEFR level A1.
 - Do not try to make it academic, poetic, or descriptive.
 
 📌 STRUCTURE:
-- Keep the same number of paragraphs and sentences as the input.
-- Keep all ideas and facts. Do NOT skip, merge, or summarize.
-- Output should be at least 95% of the original word count.
+- Keep the same number of paragraphs as the input.
+- Keep all ideas and facts. Do NOT skip important content.
+- Output may be 65-100% of the original word count (compression allowed for clarity).
+- Simplify abstract ideas into concrete, basic examples.
 - Use paragraph format. No bullets, emojis, or formatting.
 
 📥 INPUT:

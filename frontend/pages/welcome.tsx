@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 import { MessageSquare } from 'lucide-react';
-import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams } from '../src/lib/api';
+import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams, generateHobbySuggestions, getRandomHobbySuggestions, checkHobbyExists } from '../src/lib/api';
 import PlanRequired from '../src/components/PlanRequired';
 import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
@@ -142,7 +142,33 @@ const Welcome: React.FC = () => {
     } catch {}
   }, [router]);
 
-  // Yeni tasarım için state'ler - Default to Emma
+  // 🎯 Chat'ten gelen parametreleri işle
+  useEffect(() => {
+    if (!router.isReady) return;
+    
+    const { topic, action, text } = router.query;
+
+    // action: 'create' -> Konu sekmesi + topic yerleştir
+    if (action === 'create' && typeof topic === 'string') {
+      setContentType('subject');
+      setTextInput(topic);
+      console.log('📝 Chat\'ten konu alındı:', topic);
+    }
+    
+    // action: 'audio' -> Metin sekmesi + text yerleştir
+    if (action === 'audio' && typeof text === 'string') {
+      setContentType('text');
+      setTextInput(text);
+      console.log('🎵 Chat\'ten metin alındı (ses oluşturma)');
+      
+      // Otomatik scroll (opsiyonel)
+      setTimeout(() => {
+        window.scrollTo({ top: 400, behavior: 'smooth' });
+      }, 300);
+    }
+  }, [router.isReady, router.query]);
+
+  // Yeni tasarım için state'ler
   const [contentType, setContentType] = useState<string>('text');
   const [englishLevel, setEnglishLevel] = useState<string>('a1');
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
@@ -163,6 +189,8 @@ const Welcome: React.FC = () => {
   const [topicDetailSuggestions, setTopicDetailSuggestions] = useState<string[]>([]);
   const [isLoadingTopicSuggestions, setIsLoadingTopicSuggestions] = useState<boolean>(false);
   const [selectedDetailTopic, setSelectedDetailTopic] = useState<string>('');
+  const [isGeneratingHobbySuggestions, setIsGeneratingHobbySuggestions] = useState<boolean>(false);
+  const [hobbyExists, setHobbyExists] = useState<boolean>(false);
   const [availableVoices, setAvailableVoices] = useState<any[]>([]);
   const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
   const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('neural');
@@ -404,6 +432,121 @@ const Welcome: React.FC = () => {
       setIsCreatingPodcast(false);
     }
   };
+
+  // Konu önerileri alma fonksiyonu
+  const handleGetTopicSuggestions = async () => {
+    if (!textInput || textInput.trim().length === 0) {
+      setError('Lütfen bir konu girin.');
+      return;
+    }
+
+    setIsLoadingTopicSuggestions(true);
+    setTopicDetailSuggestions([]);
+    setSelectedDetailTopic('');
+    setError(null);
+
+    try {
+      console.log('📝 Konu önerileri alınıyor:', textInput);
+      
+      const result = await getTopicDetailSuggestions(textInput, englishLevel.toUpperCase());
+      
+      if (result.success && result.data?.suggestions) {
+        setTopicDetailSuggestions(result.data.suggestions);
+        console.log('✅ Konu önerileri alındı:', result.data.suggestions.length);
+      } else {
+        throw new Error(result.message || 'Konu önerileri alınamadı');
+      }
+    } catch (e: any) {
+      console.error('❌ Konu önerileri hatası:', e);
+      setError(e?.message || 'Konu önerileri alınamadı.');
+      setTopicDetailSuggestions([]);
+    } finally {
+      setIsLoadingTopicSuggestions(false);
+    }
+  };
+
+  // Hobi için 200 öneri oluştur
+  const handleGenerateHobbySuggestions = async () => {
+    if (!selectedInterest) {
+      setError('Lütfen bir hobi seçin.');
+      return;
+    }
+
+    setIsGeneratingHobbySuggestions(true);
+    setError(null);
+
+    try {
+      console.log('🎨 Hobi önerileri oluşturuluyor:', selectedInterest);
+      const result = await generateHobbySuggestions(selectedInterest);
+      
+      if (result.success) {
+        console.log('✅ Hobi önerileri oluşturuldu:', result.data.count);
+        setHobbyExists(true);
+        // Otomatik olarak 5 rastgele getir
+        await handleGetRandomHobbySuggestions();
+      } else {
+        throw new Error(result.message || 'Hobi önerileri oluşturulamadı');
+      }
+    } catch (e: any) {
+      console.error('❌ Hobi önerileri oluşturma hatası:', e);
+      setError(e?.message || 'Hobi önerileri oluşturulamadı.');
+    } finally {
+      setIsGeneratingHobbySuggestions(false);
+    }
+  };
+
+  // Hobi için rastgele 5 öneri getir
+  const handleGetRandomHobbySuggestions = async () => {
+    if (!selectedInterest) {
+      setError('Lütfen bir hobi seçin.');
+      return;
+    }
+
+    setIsLoadingTopicSuggestions(true);
+    setTopicDetailSuggestions([]);
+    setSelectedDetailTopic('');
+    setError(null);
+
+    try {
+      console.log('🎲 Rastgele hobi önerileri getiriliyor:', selectedInterest);
+      const result = await getRandomHobbySuggestions(selectedInterest);
+      
+      if (result.success && result.data?.suggestions) {
+        setTopicDetailSuggestions(result.data.suggestions);
+        console.log('✅ Rastgele hobi önerileri geldi:', result.data.suggestions.length);
+      } else if (result.needsGeneration) {
+        // Öneri yok, oluştur
+        console.log('⚠️ Öneri bulunamadı, oluşturuluyor...');
+        await handleGenerateHobbySuggestions();
+      } else {
+        throw new Error(result.message || 'Hobi önerileri getirilemedi');
+      }
+    } catch (e: any) {
+      console.error('❌ Hobi önerileri getirme hatası:', e);
+      setError(e?.message || 'Hobi önerileri getirilemedi.');
+      setTopicDetailSuggestions([]);
+    } finally {
+      setIsLoadingTopicSuggestions(false);
+    }
+  };
+
+  // Hobi seçildiğinde varlık kontrolü
+  useEffect(() => {
+    if (contentType === 'topic' && selectedInterest) {
+      checkHobbyExists(selectedInterest).then(result => {
+        if (result.success) {
+          setHobbyExists(result.data.exists);
+          if (result.data.exists) {
+            // Otomatik olarak 5 rastgele öneri getir
+            handleGetRandomHobbySuggestions();
+          }
+        }
+      }).catch(err => {
+        console.error('Hobi kontrolü hatası:', err);
+        setHobbyExists(false);
+      });
+    }
+  }, [selectedInterest, contentType]);
 
   const genderOptions = [
     { value: 'all', label: 'Tümü' },
@@ -1434,6 +1577,10 @@ const Welcome: React.FC = () => {
                       <i className="fas fa-user-circle mr-2"></i>
                       Profil Bilgilerim
                     </Link>
+                    <Link href="/dashboard?tab=paket-bilgilerim" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                      <i className="fas fa-box mr-2"></i>
+                      Paket Bilgilerim
+                    </Link>
                     <Link href="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
                       <i className="fas fa-cog mr-2"></i>
                       Hesap Ayarları
@@ -1484,7 +1631,7 @@ const Welcome: React.FC = () => {
           <div className="container mx-auto px-6">
             <div className="max-w-2xl">
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                AI ile Güçlendirilmiş İngilizce Öğrenimi
+                Liro ile Kişiselleştirilmiş İngilizce Öğrenimi
               </h1>
               <p className="text-xl text-blue-100 mb-8">
                 Her seviyeye uygun kişiselleştirilmiş İngilizce içerik oluşturun ve ses dönüşümleriyle öğrenme deneyiminizi geliştirin.
@@ -1518,10 +1665,10 @@ const Welcome: React.FC = () => {
             <div className="p-6 flex items-center justify-between">
               <div className="flex-1">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
-                  LingRoot AI ile İçerik Oluştur
+                  Liro ile İçerik Oluştur
                 </h3>
                 <p className="text-gray-600 text-base">
-                  Yapay zekayla sohbet ederek seviyene uygun içerik oluşturmaya hemen başla.
+                  AI asistanınla sohbet ederek seviyene uygun içerik oluşturmaya hemen başla.
                 </p>
               </div>
               <div className="ml-6">
@@ -1534,11 +1681,30 @@ const Welcome: React.FC = () => {
 
           <Card className="mb-8 border-none shadow-lg">
             <CardContent className="p-6">
-              <div className="flex items-center mb-6">
-                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold mr-4">
-                  1
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold mr-4">
+                    1
+                  </div>
+                  <h2 className="text-2xl font-bold text-blue-600">İçerik Türü ve Giriş</h2>
                 </div>
-                <h2 className="text-2xl font-bold text-blue-600">İçerik Türü ve Giriş</h2>
+                <Button
+                  onClick={handleGenerate}
+                  disabled={isLoading}
+                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 flex items-center space-x-2 !rounded-button whitespace-nowrap cursor-pointer"
+                >
+                  {isLoading ? (
+                    <>
+                      <i className="fas fa-circle-notch fa-spin"></i>
+                      <span>Ses Oluşturuluyor...</span>
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-volume-up"></i>
+                      <span>Ses Oluştur</span>
+                    </>
+                  )}
+                </Button>
               </div>
               <div className="mb-8">
                 <h3 className="text-lg font-medium text-gray-700 mb-3">İçerik Türü</h3>
@@ -1665,22 +1831,33 @@ const Welcome: React.FC = () => {
                               <Button 
                                 type="button"
                                 className={`px-6 py-3 !rounded-button whitespace-nowrap ${
-                                  selectedInterest && !isLoadingTopicSuggestions
+                                  selectedInterest && !isLoadingTopicSuggestions && !isGeneratingHobbySuggestions
                                     ? 'bg-green-600 hover:bg-green-700 cursor-pointer' 
                                     : 'bg-gray-400 cursor-not-allowed'
                                 }`}
-                                disabled={!selectedInterest || isLoadingTopicSuggestions}
-                                onClick={handleTopicSuggestion}
+                                disabled={!selectedInterest || isLoadingTopicSuggestions || isGeneratingHobbySuggestions}
+                                onClick={() => {
+                                  if (!hobbyExists) {
+                                    handleGenerateHobbySuggestions();
+                                  } else {
+                                    handleGetRandomHobbySuggestions();
+                                  }
+                                }}
                               >
-                                {isLoadingTopicSuggestions ? (
+                                {isGeneratingHobbySuggestions ? (
                                   <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
+                                    200 Öneri Oluşturuluyor...
+                                  </>
+                                ) : isLoadingTopicSuggestions ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
                                     Yükleniyor...
                                   </>
                                 ) : (
                                   <>
-                                    <i className="fas fa-magic mr-2"></i>
-                                    Hobi Öner
+                                    <i className={`fas ${hobbyExists ? 'fa-random' : 'fa-plus'} mr-2`}></i>
+                                    {hobbyExists ? 'Başka Öneriler Göster' : 'Hobi Öner'}
                                   </>
                                 )}
                               </Button>
@@ -1697,9 +1874,28 @@ const Welcome: React.FC = () => {
                         {/* Detaylı öneriler combobox'ı */}
                         {topicDetailSuggestions.length > 0 && (
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Detaylı Öneriler:
-                            </label>
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="block text-sm font-medium text-gray-700">
+                                Detaylı Öneriler:
+                              </label>
+                              {hobbyExists && (
+                                <Button
+                                  type="button"
+                                  onClick={handleGetRandomHobbySuggestions}
+                                  disabled={isLoadingTopicSuggestions}
+                                  className="px-3 py-1 text-xs !rounded-button bg-blue-600 hover:bg-blue-700"
+                                >
+                                  {isLoadingTopicSuggestions ? (
+                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                  ) : (
+                                    <>
+                                      <i className="fas fa-sync-alt mr-1"></i>
+                                      Yenile
+                                    </>
+                                  )}
+                                </Button>
+                              )}
+                            </div>
                             <select
                               className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
                               value={selectedDetailTopic}
@@ -1719,7 +1915,7 @@ const Welcome: React.FC = () => {
 
                     {/* Yeni Konu sekmesi - sadece metin kutusu */}
                     {contentType === 'subject' && (
-                      <div>
+                      <div className="space-y-4">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Konu:
                         </label>
@@ -1734,6 +1930,59 @@ const Welcome: React.FC = () => {
                             <i className="fas fa-edit text-xl"></i>
                           </button>
                         </div>
+
+                        {/* Konu Öner Butonu */}
+                        <Button
+                          type="button"
+                          onClick={handleGetTopicSuggestions}
+                          disabled={isLoadingTopicSuggestions || !textInput.trim()}
+                          className={`w-full py-3 !rounded-button ${
+                            !isLoadingTopicSuggestions && textInput.trim()
+                              ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
+                              : 'bg-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          {isLoadingTopicSuggestions ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
+                              Konu önerileri yükleniyor...
+                            </>
+                          ) : (
+                            <>
+                              <i className="fas fa-lightbulb mr-2"></i>
+                              Konu Öner
+                            </>
+                          )}
+                        </Button>
+
+                        {/* Konu Önerileri Listesi */}
+                        {topicDetailSuggestions.length > 0 && (
+                          <div className="mt-4 space-y-2">
+                            <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                              Önerilen Alt Konular:
+                            </h3>
+                            <div className="grid grid-cols-1 gap-2">
+                              {topicDetailSuggestions.map((suggestion, index) => (
+                                <button
+                                  key={index}
+                                  onClick={() => {
+                                    setSelectedDetailTopic(suggestion);
+                                    setTextInput(suggestion);
+                                  }}
+                                  className={`text-left p-3 rounded-lg border-2 transition-all ${
+                                    selectedDetailTopic === suggestion
+                                      ? 'border-blue-500 bg-blue-50'
+                                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                                  }`}
+                                >
+                                  <div className="text-sm">
+                                    {index + 1}. {suggestion}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                     

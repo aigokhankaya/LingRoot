@@ -22,12 +22,14 @@ const ttsRoutes = require("./routes/ttsRoutes");
 const topicSuggestRoutes = require("./routes/topicSuggestRoutes");
 const topicDetailRoutes = require("./routes/topicDetailRoutes");
 const narrationRoutes = require("./routes/narrationRoutes");
+const topicPipelineRoutes = require("./routes/topicPipelineRoutes");
+const hobbySuggestionsRoutes = require("./routes/hobbySuggestionsRoutes");
 const booksRouter = require("./routes/books");
 const userRoutes = require("./routes/userRoutes"); // 👈 İlgi alanları burada bağlandı
 const parameterRoutes = require("./routes/parameterRoutes");
 const vocabularyRoutes = require("./routes/vocabularyRoutes"); // 👈 Vocabulary route eklendi
 const chatRoutes = require("./routes/chat"); // Chat routes (admin-user support)
-const aiChatRoutes = require("./routes/aiChat"); // AI Chat routes (Claude assistant)
+const aiChatRoutes = require("./routes/aiChat"); // AI Chat routes (Liro assistant)
 const iapRoutes = require("./routes/iapRoutes"); // Apple IAP routes
 const appleNotificationsRoutes = require("./routes/appleNotificationsRoutes"); // Apple Server Notifications
 const accountRoutes = require("./routes/accountRoutes"); // Account management
@@ -126,12 +128,14 @@ app.use("/api/tts", ttsRoutes);
 app.use("/api/topic-suggest", topicSuggestRoutes);
 app.use("/api/topic-detail", topicDetailRoutes);
 app.use("/api/narration", narrationRoutes);
+app.use("/api/topic-pipeline", topicPipelineRoutes);
+app.use("/api/hobby-suggestions", hobbySuggestionsRoutes);
 app.use("/api/books", booksRouter);
 app.use("/api", userRoutes); // ✅ user-interests endpoint burada aktif
 app.use("/api/parameters", parameterRoutes);
 app.use("/api/vocabulary", vocabularyRoutes); // 👈 Vocabulary route eklendi
 app.use("/api/chat", chatRoutes); // Chat routes (admin-user support)
-app.use("/api/ai-chat", aiChatRoutes); // AI Chat routes (Claude assistant)
+app.use("/api/ai-chat", aiChatRoutes); // AI Chat routes (Liro assistant)
 app.use('/auth', authRoutes);
 app.use("/api/iap", iapRoutes); // Apple IAP verification
 app.use("/api/iap/apple", appleNotificationsRoutes); // Apple Server Notifications

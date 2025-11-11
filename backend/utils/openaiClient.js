@@ -1,4 +1,6 @@
 const logger = require('./logger');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * OpenAI Client for Chat and Embeddings
@@ -20,48 +22,43 @@ class OpenAIClient {
   }
 
   /**
-   * Get system prompt for LingRoot AI Assistant
+   * Get system prompt for Liro (LingRoot AI Assistant)
    * @param {Object} context - Additional context (user preferences, history)
    * @returns {string}
    */
   getSystemPrompt(context = {}) {
-    const { userLevel, interests, previousTopics } = context;
-    
-    let systemPrompt = `Sen LingRoot AI Assistant'sın. Kullanıcılara İngilizce öğrenme içeriği oluşturmalarında yardımcı oluyorsun.
+    try {
+      const promptPath = path.join(__dirname, '../prompts/liro_system_default.txt');
+      let systemPrompt = fs.readFileSync(promptPath, 'utf-8');
+      
+      // Remove comments (lines starting with //)
+      systemPrompt = systemPrompt
+        .split('\n')
+        .filter(line => !line.trim().startsWith('//'))
+        .join('\n')
+        .trim();
 
-GÖREVIN:
-1. Kullanıcıyla sıcak, motive edici bir tonla konuş
-2. Onları öğretici, derinlemesine anlatılabilir bir konu seçmeye yönlendir
-3. Çok genel konular yerine spesifik, ilgi çekici konular öner
-4. CEFR seviyeleri (A1, A2, B1, B2, C1, C2) hakkında bilgilendir
+      const { userLevel, interests, previousTopics } = context;
+      
+      // Add user context if available
+      if (userLevel) {
+        systemPrompt += `\n\nKullanıcının İngilizce seviyesi: ${userLevel}`;
+      }
+      
+      if (interests && interests.length > 0) {
+        systemPrompt += `\nKullanıcının ilgi alanları: ${interests.join(', ')}`;
+      }
+      
+      if (previousTopics && previousTopics.length > 0) {
+        systemPrompt += `\n\nDaha önce şu konular hakkında konuşmuş: ${previousTopics.join(', ')}`;
+      }
 
-YAKLAŞIMIN:
-- İlk mesajlarda kullanıcıyı tanımaya çalış
-- İlgi alanlarını öğren (teknoloji, spor, sanat, seyahat, vb.)
-- Belirsiz cevaplarda detay iste: "Güzel! Bu konuda belirli bir olay, haber ya da kişisel anın var mı?"
-- Somut, öğretici içerik fikirleri sun
-- Kullanıcının seviyesine uygun içerik öner
-
-ÖNEMLİ KURALLAR:
-- Her zaman Türkçe yanıt ver (kullanıcı aksi belirtmedikçe)
-- Kısa, öz ve samimi cümleler kullan
-- Emojiler kullanabilirsin ama abartma
-- Kullanıcıyı içerik oluşturmaya teşvik et`;
-
-    // Add user context if available
-    if (userLevel) {
-      systemPrompt += `\n\nKullanıcının İngilizce seviyesi: ${userLevel}`;
+      return systemPrompt;
+    } catch (error) {
+      logger.error('Failed to load system prompt:', error);
+      // Fallback to hardcoded prompt
+      return `Sen Liro'sun, LingRoot'un AI asistanı. Kullanıcılara İngilizce öğrenme içeriği oluşturmalarında yardımcı oluyorsun.`;
     }
-    
-    if (interests && interests.length > 0) {
-      systemPrompt += `\nKullanıcının ilgi alanları: ${interests.join(', ')}`;
-    }
-    
-    if (previousTopics && previousTopics.length > 0) {
-      systemPrompt += `\n\nDaha önce şu konular hakkında konuşmuş: ${previousTopics.join(', ')}`;
-    }
-
-    return systemPrompt;
   }
 
   /**
@@ -209,15 +206,29 @@ YAKLAŞIMIN:
    */
   async extractSuggestedTopic(messages) {
     try {
-      const extractionPrompt = `Aşağıdaki sohbetten ana konuyu, kısa açıklamasını ve anahtar kelimeleri çıkar.
-JSON formatında döndür: {"topic": "...", "description": "...", "keywords": ["...", "..."]}`;
+      const promptPath = path.join(__dirname, '../prompts/topic_extractor.txt');
+      let promptTemplate = fs.readFileSync(promptPath, 'utf-8');
+      
+      // Remove comments
+      promptTemplate = promptTemplate
+        .split('\n')
+        .filter(line => !line.trim().startsWith('//'))
+        .join('\n')
+        .trim();
+      
+      // Format messages
+      const messagesText = messages
+        .map(m => `${m.role === 'user' ? 'USER' : 'LIRO'}: ${m.content}`)
+        .join('\n\n');
+      
+      const extractionPrompt = promptTemplate.replace('{{messages}}', messagesText);
 
       const response = await this.generateChatCompletion([
-        ...messages,
         { role: 'user', content: extractionPrompt }
       ], {
         temperature: 0.3,
         maxTokens: 200,
+        systemPrompt: 'You are a helpful assistant that extracts structured information from conversations.',
       });
 
       const parsed = JSON.parse(response.content);

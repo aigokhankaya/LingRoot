@@ -1,11 +1,38 @@
-const { exec } = require('child_process');
+const { exec, execSync } = require('child_process');
 const { promisify } = require('util');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const os = require('os');
 const logger = require('./logger');
 
 const execPromise = promisify(exec);
+
+// Try to find ffprobe path dynamically
+let ffprobePath = 'ffprobe'; // default
+try {
+    const foundPath = execSync('where ffprobe', { encoding: 'utf8' }).trim().split('\n')[0];
+    if (foundPath) {
+        ffprobePath = foundPath;
+        logger.info(`✅ ffprobe path set: ${ffprobePath}`);
+    }
+} catch (err) {
+    logger.warn('⚠️ ffprobe not found in PATH, trying common locations');
+    // Try common installation paths
+    const commonPaths = [
+        'C:\\ffmpeg\\bin\\ffprobe.exe',
+        'C:\\Program Files\\ffmpeg\\bin\\ffprobe.exe',
+        process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.0-full_build\\bin\\ffprobe.exe') : null
+    ].filter(Boolean);
+    
+    for (const testPath of commonPaths) {
+        if (fsSync.existsSync(testPath)) {
+            ffprobePath = testPath;
+            logger.info(`✅ ffprobe found at: ${testPath}`);
+            break;
+        }
+    }
+}
 
 /**
  * Get actual audio duration using ffprobe
@@ -25,7 +52,7 @@ async function getAudioDuration(audioBuffer) {
     
     // Use ffprobe to get duration
     const { stdout } = await execPromise(
-      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${tempFilePath}"`
+      `"${ffprobePath}" -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${tempFilePath}"`
     );
     
     const duration = parseFloat(stdout.trim());

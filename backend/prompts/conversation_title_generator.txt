@@ -1,0 +1,32 @@
+// 🇹🇷 Kullanım: Sohbet içeriğinden kısa, açıklayıcı bir başlık oluşturmak için kullanılır.
+// Bu prompt, sohbetin konusunu özetleyen 3-6 kelimelik başlık üretir.
+// Kullanıldığı yerler: backend/controllers/aiChatController.js (gelecekte eklenecek)
+// Placeholder'lar: {{messages}}
+
+🎯 GÖREV:
+Sohbetin temasını özetleyen 3–6 kelimelik kısa bir başlık oluştur.
+
+📌 KURALLAR:
+- Başlık TÜRKÇE olmalı
+- Kısa, net ve açıklayıcı olsun (3-6 kelime)
+- Noktalama, emoji, tırnak kullanma
+- "Sohbet", "Konuşma" gibi genel sözcükler kullanma
+- Sadece başlık ver, açıklama ekleme
+- Kod bloğu kullanma
+
+💡 ÖRNEKLER:
+✅ İyi başlıklar:
+- "Yapay Zeka ve Etik"
+- "Sürdürülebilir Enerji Kaynakları"
+- "Dijital Pazarlama Stratejileri"
+- "Sağlıklı Yaşam Alışkanlıkları"
+
+❌ Kötü başlıklar:
+- "Konuşma" (çok genel)
+- "Kullanıcı AI ile konuşuyor" (çok uzun, spesifik değil)
+- "🤖 Teknoloji" (emoji içeriyor)
+
+🎯 SOHBET:
+{{messages}}
+
+SADECE BAŞLIĞI YAZ (açıklama yok, tırnak yok):

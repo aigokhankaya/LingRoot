@@ -3,6 +3,32 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const logger = require("./logger"); // Winston logger
+const { execSync } = require("child_process");
+
+// Try to find FFmpeg path dynamically
+try {
+    const ffmpegPath = execSync('where ffmpeg', { encoding: 'utf8' }).trim().split('\n')[0];
+    if (ffmpegPath) {
+        ffmpeg.setFfmpegPath(ffmpegPath);
+        logger.info(`✅ FFmpeg path set: ${ffmpegPath}`);
+    }
+} catch (err) {
+    logger.warn('⚠️ FFmpeg not found in PATH, will try default locations');
+    // Try common installation paths
+    const commonPaths = [
+        'C:\\ffmpeg\\bin\\ffmpeg.exe',
+        'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',
+        process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.0-full_build\\bin\\ffmpeg.exe') : null
+    ].filter(Boolean);
+    
+    for (const testPath of commonPaths) {
+        if (fs.existsSync(testPath)) {
+            ffmpeg.setFfmpegPath(testPath);
+            logger.info(`✅ FFmpeg found at: ${testPath}`);
+            break;
+        }
+    }
+}
 
 /**
  * Merges multiple MP3 audio segments (Buffers) into a single MP3 file using ffmpeg.

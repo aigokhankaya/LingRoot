@@ -57,7 +57,8 @@ async function adaptToCEFR(text, level, requestLogger) {
     let promptTokensTotal = 0;
     let completionTokensTotal = 0;
     let totalTokensTotal = 0;
-    const model = process.env.OPENAI_MODEL || "gpt-4o";
+    // Use GPT-4-Turbo for CEFR adaptations (A1-C2)
+    const model = process.env.OPENAI_CEFR_MODEL || "gpt-4-turbo";
     for (let i = 0; i < chunks.length; i++) {
         const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, chunks[i]);
         logger.info({ promptName: promptFile, promptText: prompt }, 'adaptToCEFR: Kullanılan prompt');

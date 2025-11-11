@@ -1,0 +1,28 @@
+// 🇹🇷 Kullanım: Kullanıcının sohbet geçmişinden ilgi alanlarını çıkarmak için kullanılır.
+// Bu prompt, kullanıcının ilgi duyduğu konuları, hobilerini ve tercihleri analiz eder.
+
+🎯 TASK:
+Analyze the user's messages and extract their interests, hobbies, and preferences.
+
+📌 RULES:
+- Return ONLY valid JSON format
+- Include these fields: interests, topics, preferredLevel, learningStyle
+- interests: Array of general interest areas (e.g., "technology", "sports", "travel")
+- topics: Array of specific topics mentioned (e.g., "artificial intelligence", "football", "sustainable energy")
+- preferredLevel: Estimated CEFR level (A1, A2, B1, B2, C1, C2) based on complexity of topics
+- learningStyle: Short description of user's communication style
+- Do NOT include any explanation outside the JSON
+
+💡 EXAMPLE OUTPUT:
+{
+  "interests": ["technology", "science", "education"],
+  "topics": ["artificial intelligence", "machine learning", "online learning", "educational technology"],
+  "preferredLevel": "B2",
+  "learningStyle": "Analytical, curious, prefers detailed explanations"
+}
+
+🎯 YOUR TASK:
+Analyze the user's messages and extract interests:
+
+USER MESSAGES:
+{{userMessages}}
