@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { useWordSync } from '../hooks/useWordSync';
 import { addWordWithTranslation } from '../lib/api';
 
@@ -7,6 +7,24 @@ interface Timepoint {
   endTimeSeconds?: number;
   word?: string;
   markName?: string;
+}
+
+interface UseWordSyncReturn {
+  activeWordIndex: number;
+  isPlaying: boolean;
+  isBuffering: boolean;
+  isLoading: boolean;
+  currentTime: number;
+  duration: number;
+  wordTimestamps: Array<{
+    word: string;
+    startTime: number;
+    endTime: number;
+  }>;
+  play: () => void;
+  pause: () => void;
+  seek: (time: number) => void;
+  setPlaybackRate: (rate: number) => void;
 }
 
 interface NewSyncedTextPlayerProps {
@@ -37,7 +55,7 @@ interface ContextMenu {
   wordIndex: number;
 }
 
-export default function NewSyncedTextPlayer({
+const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   audioUrl,
   words,
   timepoints,
@@ -51,18 +69,7 @@ export default function NewSyncedTextPlayer({
   stats
 }: NewSyncedTextPlayerProps) {
   
-  // DEBUG: Log what NewSyncedTextPlayer receives
-  console.log('🎭 [NEW SYNCED PLAYER DEBUG] Component initialized with:', {
-    audioUrl,
-    wordsLength: words?.length || 0,
-    timepointsLength: timepoints?.length || 0,
-    hasOriginalText: !!originalText,
-    originalTextLength: originalText?.length || 0,
-    showControls,
-    words: words?.slice(0, 5) || 'NO_WORDS',
-    timepoints: timepoints?.slice(0, 3) || 'NO_TIMEPOINTS'
-  });
-  // Yeni useWordSync hook'unu kullan
+  // Use useWordSync hook directly in component
   const {
     activeWordIndex,
     isPlaying,
@@ -230,7 +237,9 @@ export default function NewSyncedTextPlayer({
                 }`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (timestamp) handleWordClick(index);
+                  if (timestamp) {
+                    handleWordClick(index);
+                  }
                 }}
                 onContextMenu={(e) => handleWordRightClick(e, word, index)}
                 title={timestamp ? 
@@ -324,7 +333,9 @@ export default function NewSyncedTextPlayer({
               }`}
               onClick={(e) => {
                 e.stopPropagation();
-                if (timestamp) handleWordClick(index);
+                if (timestamp) {
+                  handleWordClick(index);
+                }
               }}
               onContextMenu={(e) => handleWordRightClick(e, word, index)}
               title={timestamp ? 
@@ -508,4 +519,6 @@ export default function NewSyncedTextPlayer({
       {/* GIZLENDI - div class="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-600" olan alanı kaldır */}
     </div>
   );
-} 
+});
+
+export default NewSyncedTextPlayer; 

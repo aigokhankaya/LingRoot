@@ -461,12 +461,45 @@ export const submitContent = async (
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Submit Content Error Response:', errorText);
+            
+            // Supabase 500 hatası için özel mesaj
+            if (response.status === 500 || response.status === 503) {
+                if (errorText.includes('Cloudflare') || errorText.includes('Internal server error')) {
+                    throw new Error(`Veritabanı geçici olarak erişilemez durumda. Lütfen birkaç dakika sonra tekrar deneyin. (${response.status})`);
+                }
+            }
+            
             throw new Error(`Submit Content failed: ${response.status} ${response.statusText} - ${errorText}`);
         }
         
         return await handleApiResponse(response);
     } catch (error) {
         console.error("Submit Content API call error:", error);
+        throw error;
+    }
+};
+
+// Function to test Supabase connection
+export const testSupabaseConnection = async (): Promise<ApiResponse> => {
+    try {
+        const url = getApiUrl('/content/test-db');
+        const response = await fetch(url, {
+            method: "GET",
+            headers: createHeaders(),
+            credentials: 'include'
+        });
+        
+        console.log('Supabase Test Response Status:', response.status, response.statusText);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Supabase Test Error Response:', errorText);
+            throw new Error(`Supabase test failed: ${response.status} ${response.statusText} - ${errorText}`);
+        }
+        
+        return await handleApiResponse(response);
+    } catch (error) {
+        console.error("Supabase connection test error:", error);
         throw error;
     }
 };

@@ -217,27 +217,39 @@ export default function AudioPlayer({
     timestampDataRef.current = timepoints;
   }, [timepoints]);
 
-  // Simplified word finding with aggressive compensation
+  // Simple word finding - no compensation, just direct matching
   const findCurrentWordIndex = useCallback((currentTime: number): number => {
     const data = timestampDataRef.current;
     if (!data || data.length === 0) return -1;
 
-    // Apply aggressive compensation
-    const compensatedTime = currentTime + 0.2; // 200ms compensation
-    
-    // Simple linear search with lookahead
+    // Direct time matching without compensation
     for (let i = 0; i < data.length; i++) {
       const tp = data[i];
       const endTime = tp.endTimeSeconds || tp.timeSeconds + 0.3;
       
-      // Wide timing window for better sync
-      if (compensatedTime >= (tp.timeSeconds - 0.1) && compensatedTime < (endTime + 0.1)) {
-        console.log(`🎯 Found word ${i}: "${tp.word}" at audio=${currentTime.toFixed(3)}s, compensated=${compensatedTime.toFixed(3)}s, target=${tp.timeSeconds?.toFixed(3)}s-${endTime.toFixed(3)}s`);
+      // Simple range check
+      if (currentTime >= tp.timeSeconds && currentTime < endTime) {
         return i;
       }
     }
     
-    return -1;
+    // If no exact match, find closest word
+    let closestIndex = -1;
+    let closestDistance = Infinity;
+    
+    for (let i = 0; i < data.length; i++) {
+      const tp = data[i];
+      const wordCenter = tp.timeSeconds + ((tp.endTimeSeconds || tp.timeSeconds + 0.3) - tp.timeSeconds) / 2;
+      const distance = Math.abs(currentTime - wordCenter);
+      
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = i;
+      }
+    }
+    
+    // Return closest if within 1 second
+    return closestDistance < 1.0 ? closestIndex : -1;
   }, []);
 
   // Ultra-high-performance animation loop with Canvas rendering
@@ -265,15 +277,19 @@ export default function AudioPlayer({
     if (showWordHighlight && timestampDataRef.current.length > 0) {
       const newIndex = findCurrentWordIndex(preciseTime);
       
-      // Direct React state update for immediate DOM changes
-      if (newIndex !== currentWordIndex) {
-        setCurrentWordIndex(newIndex);
+      // Log word changes for debugging
+      if (newIndex !== currentWordIndex && newIndex !== -1) {
+        console.log(`🔄 Animation loop: word ${currentWordIndex} → ${newIndex} at ${preciseTime.toFixed(3)}s`);
       }
+      
+      // Always update the word index, regardless of previous value
+      // This ensures proper sync after word clicks
+      setCurrentWordIndex(newIndex);
     }
 
     // Continue loop
     animationFrameRef.current = requestAnimationFrame(animationLoop);
-  }, [showWordHighlight, findCurrentWordIndex, currentWordIndex]);
+  }, [showWordHighlight, findCurrentWordIndex]);
 
   // Handle audio loaded
   const handleLoadedMetadata = () => {
@@ -289,6 +305,39 @@ export default function AudioPlayer({
     if (audioRef.current) {
       audioRef.current.currentTime = newTime;
     }
+  };
+
+  // Handle word click - jump to word timing
+  const handleWordClick = (wordIndex: number) => {
+    console.log(`🚨 WORD CLICK TRIGGERED! Index: ${wordIndex}`);
+    
+    if (!audioRef.current) {
+      console.log(`🚨 No audio ref!`);
+      return;
+    }
+    
+    if (!timestampDataRef.current[wordIndex]) {
+      console.log(`🚨 No timepoint data for index ${wordIndex}!`);
+      return;
+    }
+    
+    const targetTimepoint = timestampDataRef.current[wordIndex];
+    const targetTime = targetTimepoint.timeSeconds;
+    
+    console.log(`🎯 Word clicked: "${targetTimepoint.word}" at ${targetTime}s - FORCING JUMP`);
+    
+    // Jump audio to word timing
+    audioRef.current.currentTime = targetTime;
+    setCurrentTime(targetTime);
+    
+    // If audio is not playing, start playing
+    if (!isPlaying) {
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+    
+    // DON'T interfere with animation loop - let it run naturally
+    console.log(`🎯 Audio jumped to ${targetTime}s, animation loop will catch up`);
   };
 
   // Format time in MM:SS
@@ -357,7 +406,7 @@ export default function AudioPlayer({
   const isMFATiming = timingSource === 'mfa';
   
   // Calculate timing precision for display
-  const timingPrecision = isMFATiming ? 'DOM Rendering (+200ms compensation)' : 'Estimated timing';
+  const timingPrecision = isMFATiming ? 'DOM Rendering (Direct Timing)' : 'Estimated timing';
   const syncQuality = isMFATiming ? '✓ Acoustic (MFA)' : '⚠ Estimated (TTS)';
   
   // Debug: Log timing info
@@ -381,6 +430,14 @@ export default function AudioPlayer({
       })));
     }
   }, [timepoints, timingSource, isMFATiming]);
+
+  // Debug: Log word rendering
+  useEffect(() => {
+    console.log(`🔍 Words rendering: ${words.length} words, showWordHighlight: ${showWordHighlight}`);
+    if (words.length > 0) {
+      console.log(`🔍 First 5 words:`, words.slice(0, 5));
+    }
+  }, [words, showWordHighlight]);
 
   return (
     <div className="w-full bg-white rounded-lg shadow-sm p-4">
@@ -417,7 +474,11 @@ export default function AudioPlayer({
             {words.map((word, index) => (
               <span
                 key={index}
-                className={`transition-all duration-100 px-2 py-1 rounded ${
+                onClick={() => {
+                  console.log(`🖱️ SPAN CLICKED! Word: "${word}", Index: ${index}`);
+                  handleWordClick(index);
+                }}
+                className={`transition-all duration-100 px-2 py-1 rounded cursor-pointer ${
                   index === currentWordIndex
                     ? 'bg-red-400 font-bold text-white scale-110 shadow-lg'
                     : 'text-gray-700 hover:bg-gray-200'
@@ -429,6 +490,7 @@ export default function AudioPlayer({
                   fontWeight: index === currentWordIndex ? 'bold' : 'normal',
                   transition: 'all 0.1s ease-in-out'
                 }}
+                title={`Kelimeye atla: "${word}" (${timestampDataRef.current[index]?.timeSeconds?.toFixed(1)}s)`}
               >
                 {word}
               </span>
