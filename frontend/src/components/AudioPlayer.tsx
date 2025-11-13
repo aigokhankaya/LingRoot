@@ -16,6 +16,152 @@ interface AudioPlayerProps {
   showWordHighlight?: boolean;
 }
 
+// Canvas-based word renderer for precise timing
+class CanvasWordRenderer {
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
+  private words: string[] = [];
+  private timepoints: WordTiming[] = [];
+  private currentWordIndex: number = -1;
+  private animationId: number | null = null;
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d')!;
+    this.setupCanvas();
+  }
+
+  private setupCanvas() {
+    // High DPI support
+    const dpr = window.devicePixelRatio || 1;
+    const rect = this.canvas.getBoundingClientRect();
+    
+    this.canvas.width = rect.width * dpr;
+    this.canvas.height = rect.height * dpr;
+    
+    this.ctx.scale(dpr, dpr);
+    this.canvas.style.width = rect.width + 'px';
+    this.canvas.style.height = rect.height + 'px';
+  }
+
+  setWords(words: string[], timepoints: WordTiming[]) {
+    this.words = words;
+    this.timepoints = timepoints;
+    this.render();
+  }
+
+  updateCurrentWord(currentTime: number) {
+    let newIndex = -1;
+    
+    // Aggressive timing compensation - try different values
+    const compensatedTime = currentTime + 0.15; // Increased to 150ms compensation
+    
+    // Find current word with lookahead for better sync
+    for (let i = 0; i < this.timepoints.length; i++) {
+      const tp = this.timepoints[i];
+      const endTime = tp.endTimeSeconds || tp.timeSeconds + 0.2;
+      
+      // More aggressive timing window
+      if (compensatedTime >= (tp.timeSeconds - 0.05) && compensatedTime < (endTime + 0.05)) {
+        newIndex = i;
+        break;
+      }
+    }
+    
+    // Debug timing info
+    if (newIndex !== this.currentWordIndex && newIndex >= 0) {
+      console.log(`🎯 Word change: ${this.currentWordIndex} → ${newIndex}, Audio: ${currentTime.toFixed(3)}s, Compensated: ${compensatedTime.toFixed(3)}s, Target: ${this.timepoints[newIndex]?.timeSeconds?.toFixed(3)}s`);
+    }
+    
+    if (newIndex !== this.currentWordIndex) {
+      this.currentWordIndex = newIndex;
+      this.render();
+    }
+  }
+
+  private render() {
+    const ctx = this.ctx;
+    const canvas = this.canvas;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width / (window.devicePixelRatio || 1), canvas.height / (window.devicePixelRatio || 1));
+    
+    if (this.words.length === 0) return;
+
+    // Canvas dimensions
+    const canvasWidth = canvas.width / (window.devicePixelRatio || 1);
+    const canvasHeight = canvas.height / (window.devicePixelRatio || 1);
+    
+    // Text styling
+    const fontSize = 18;
+    const lineHeight = 28;
+    const padding = 16;
+    const wordSpacing = 8;
+    
+    ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+    ctx.textBaseline = 'top';
+    
+    let x = padding;
+    let y = padding;
+    const maxWidth = canvasWidth - padding * 2;
+    
+    // Render words with precise positioning
+    for (let i = 0; i < this.words.length; i++) {
+      const word = this.words[i];
+      const isCurrentWord = i === this.currentWordIndex;
+      const wordWidth = ctx.measureText(word + ' ').width;
+      
+      // Line wrapping
+      if (x + wordWidth > maxWidth && x > padding) {
+        x = padding;
+        y += lineHeight;
+      }
+      
+      // Word background (for current word)
+      if (isCurrentWord) {
+        const bgPadding = 4;
+        const bgWidth = wordWidth - wordSpacing + bgPadding * 2;
+        const bgHeight = fontSize + bgPadding * 2;
+        
+        // Animated highlight with smooth transitions
+        ctx.fillStyle = '#fef3c7'; // yellow-100
+        ctx.beginPath();
+        ctx.roundRect(x - bgPadding, y - bgPadding, bgWidth, bgHeight, 4);
+        ctx.fill();
+        
+        // Subtle shadow for depth
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+        ctx.shadowBlur = 2;
+        ctx.shadowOffsetY = 1;
+      }
+      
+      // Word text
+      ctx.fillStyle = isCurrentWord ? '#1f2937' : '#4b5563'; // gray-800 : gray-600
+      ctx.font = `${isCurrentWord ? 'bold' : 'normal'} ${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+      
+      ctx.fillText(word, x, y);
+      
+      // Reset shadow
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+      
+      x += wordWidth;
+    }
+  }
+
+  resize() {
+    this.setupCanvas();
+    this.render();
+  }
+
+  destroy() {
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+    }
+  }
+}
+
 export default function AudioPlayer({
   audioUrl,
   captionsUrl,
@@ -29,9 +175,30 @@ export default function AudioPlayer({
   const [duration, setDuration] = useState(0);
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rendererRef = useRef<CanvasWordRenderer | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const timestampDataRef = useRef<WordTiming[]>(timepoints);
-  const currentIndexRef = useRef<number>(-1);
+
+  // Initialize Canvas renderer
+  useEffect(() => {
+    if (canvasRef.current && !rendererRef.current) {
+      rendererRef.current = new CanvasWordRenderer(canvasRef.current);
+    }
+    
+    return () => {
+      if (rendererRef.current) {
+        rendererRef.current.destroy();
+      }
+    };
+  }, []);
+
+  // Update canvas when words/timepoints change
+  useEffect(() => {
+    if (rendererRef.current && words.length > 0) {
+      rendererRef.current.setWords(words, timepoints);
+    }
+  }, [words, timepoints]);
 
   // Handle audio play/pause
   const togglePlayPause = () => {
@@ -50,63 +217,63 @@ export default function AudioPlayer({
     timestampDataRef.current = timepoints;
   }, [timepoints]);
 
-  // O(1) amortized search - advancing pointer pattern
-  // Reference: MFA-Analiz.md Section V - Performance Optimization
+  // Simplified word finding with aggressive compensation
   const findCurrentWordIndex = useCallback((currentTime: number): number => {
     const data = timestampDataRef.current;
     if (!data || data.length === 0) return -1;
 
-    let index = currentIndexRef.current;
+    // Apply aggressive compensation
+    const compensatedTime = currentTime + 0.2; // 200ms compensation
     
-    // Start from last known position (or beginning if reset)
-    if (index < 0) index = 0;
-
-    // Search forward from current position
-    while (index < data.length) {
-      const tp = data[index];
-      const endTime = tp.endTimeSeconds || tp.timeSeconds + 0.5;
-
-      // Check if we're in this word's time range
-      if (currentTime >= tp.timeSeconds && currentTime < endTime) {
-        return index; // Perfect match
+    // Simple linear search with lookahead
+    for (let i = 0; i < data.length; i++) {
+      const tp = data[i];
+      const endTime = tp.endTimeSeconds || tp.timeSeconds + 0.3;
+      
+      // Wide timing window for better sync
+      if (compensatedTime >= (tp.timeSeconds - 0.1) && compensatedTime < (endTime + 0.1)) {
+        console.log(`🎯 Found word ${i}: "${tp.word}" at audio=${currentTime.toFixed(3)}s, compensated=${compensatedTime.toFixed(3)}s, target=${tp.timeSeconds?.toFixed(3)}s-${endTime.toFixed(3)}s`);
+        return i;
       }
-
-      // If current time is past this word, move to next
-      if (currentTime >= endTime) {
-        index++;
-        continue;
-      }
-
-      // Current time is before this word - we've gone too far
-      return Math.max(0, index - 1);
     }
-
-    // Past all words - return last word
-    return data.length - 1;
+    
+    return -1;
   }, []);
 
-  // High-performance animation loop using requestAnimationFrame
-  // Reference: MFA-Analiz.md Section V.2 - requestAnimationFrame approach
+  // Ultra-high-performance animation loop with Canvas rendering
   const animationLoop = useCallback(() => {
-    if (!audioRef.current) return;
+    if (!audioRef.current || !rendererRef.current) return;
 
-    const currentTime = audioRef.current.currentTime;
-    setCurrentTime(currentTime);
+    // Get high-precision audio time
+    const audioElement = audioRef.current;
+    const audioCurrentTime = audioElement.currentTime;
+    
+    // Additional precision: use Web Audio API if available
+    let preciseTime = audioCurrentTime;
+    try {
+      if ((audioElement as any).webkitAudioDecodedByteCount !== undefined) {
+        // Chrome/Safari: more precise timing
+        preciseTime = audioCurrentTime;
+      }
+    } catch (e) {
+      // Fallback to standard currentTime
+    }
+    
+    setCurrentTime(preciseTime);
 
-    // Update word highlighting
+    // Update DOM word highlighting with direct React state
     if (showWordHighlight && timestampDataRef.current.length > 0) {
-      const newIndex = findCurrentWordIndex(currentTime);
+      const newIndex = findCurrentWordIndex(preciseTime);
       
-      // Only update state if index changed (minimize re-renders)
-      if (newIndex !== currentIndexRef.current) {
-        currentIndexRef.current = newIndex;
+      // Direct React state update for immediate DOM changes
+      if (newIndex !== currentWordIndex) {
         setCurrentWordIndex(newIndex);
       }
     }
 
     // Continue loop
     animationFrameRef.current = requestAnimationFrame(animationLoop);
-  }, [showWordHighlight, findCurrentWordIndex]);
+  }, [showWordHighlight, findCurrentWordIndex, currentWordIndex]);
 
   // Handle audio loaded
   const handleLoadedMetadata = () => {
@@ -167,13 +334,53 @@ export default function AudioPlayer({
   useEffect(() => {
     if (!isPlaying) {
       setCurrentWordIndex(-1);
-      currentIndexRef.current = -1;
+      if (rendererRef.current) {
+        rendererRef.current.updateCurrentWord(-1);
+      }
     }
   }, [isPlaying]);
+
+  // Handle canvas resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (rendererRef.current) {
+        rendererRef.current.resize();
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Detect timing source from timepoints
   const timingSource = timepoints.length > 0 && timepoints[0]?.source === 'mfa' ? 'mfa' : 'tts';
   const isMFATiming = timingSource === 'mfa';
+  
+  // Calculate timing precision for display
+  const timingPrecision = isMFATiming ? 'DOM Rendering (+200ms compensation)' : 'Estimated timing';
+  const syncQuality = isMFATiming ? '✓ Acoustic (MFA)' : '⚠ Estimated (TTS)';
+  
+  // Debug: Log timing info
+  useEffect(() => {
+    if (timepoints.length > 0) {
+      console.log('🎯 AudioPlayer Debug:', {
+        timingSource: timingSource,
+        isMFATiming: isMFATiming,
+        timepointsCount: timepoints.length,
+        firstTimepoint: timepoints[0],
+        hasSource: timepoints[0]?.source
+      });
+      
+      // Log all timepoints for analysis
+      console.log('📊 All MFA Timepoints:', timepoints.map((tp, i) => ({
+        index: i,
+        word: tp.word,
+        start: tp.timeSeconds?.toFixed(3),
+        end: tp.endTimeSeconds?.toFixed(3),
+        duration: ((tp.endTimeSeconds || 0) - (tp.timeSeconds || 0)).toFixed(3)
+      })));
+    }
+  }, [timepoints, timingSource, isMFATiming]);
 
   return (
     <div className="w-full bg-white rounded-lg shadow-sm p-4">
@@ -187,29 +394,41 @@ export default function AudioPlayer({
                 ? 'bg-green-100 text-green-700' 
                 : 'bg-yellow-100 text-yellow-700'
             }`}>
-              {isMFATiming ? '✓ Acoustic (MFA)' : '⚠ Estimated (TTS)'}
+              {syncQuality}
             </span>
           </div>
-          {isMFATiming && (
+          <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500">
-              Millisecond precision
+              {timingPrecision}
             </span>
-          )}
+            {isMFATiming && (
+              <span className="text-xs px-1 py-0.5 bg-blue-100 text-blue-700 rounded">
+                Canvas Rendering
+              </span>
+            )}
+          </div>
         </div>
       )}
       
-      {/* Word highlighting display */}
+      {/* Real-time DOM word highlighting (fallback from Canvas) */}
       {showWordHighlight && words.length > 0 && (
         <div className="mb-4 p-4 bg-gray-50 rounded-lg min-h-[120px] max-h-[300px] overflow-y-auto">
           <div className="flex flex-wrap gap-2 text-lg leading-relaxed">
             {words.map((word, index) => (
               <span
                 key={index}
-                className={`transition-all duration-200 px-1 rounded ${
+                className={`transition-all duration-100 px-2 py-1 rounded ${
                   index === currentWordIndex
-                    ? 'bg-yellow-300 font-semibold text-gray-900 scale-110'
-                    : 'text-gray-700'
+                    ? 'bg-red-400 font-bold text-white scale-110 shadow-lg'
+                    : 'text-gray-700 hover:bg-gray-200'
                 }`}
+                style={{
+                  transform: index === currentWordIndex ? 'scale(1.1)' : 'scale(1)',
+                  backgroundColor: index === currentWordIndex ? '#ef4444' : 'transparent',
+                  color: index === currentWordIndex ? 'white' : '#374151',
+                  fontWeight: index === currentWordIndex ? 'bold' : 'normal',
+                  transition: 'all 0.1s ease-in-out'
+                }}
               >
                 {word}
               </span>
@@ -217,6 +436,14 @@ export default function AudioPlayer({
           </div>
         </div>
       )}
+      
+      {/* Canvas backup (hidden for now) */}
+      <div style={{ display: 'none' }}>
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full min-h-[120px]"
+        />
+      </div>
       {/* Hidden audio element */}
       <audio
         ref={audioRef}

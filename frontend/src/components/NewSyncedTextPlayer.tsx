@@ -83,7 +83,10 @@ export default function NewSyncedTextPlayer({
 
   // Component local state
   const [playbackRate, setLocalPlaybackRate] = useState<number>(1.0);
-  const [highlightType, setHighlightType] = useState<'word' | 'sentence'>('sentence'); // Sadece cümle aktif
+  const [highlightType, setHighlightType] = useState<'word' | 'sentence'>('word'); // Kelime vurgusu aktif
+  
+  // Text processing
+  const textWords = originalText.split(/\s+/).filter(word => word.length > 0);
   const [contextMenu, setContextMenu] = useState<ContextMenu>({ 
     show: false, x: 0, y: 0, word: '', wordIndex: -1 
   });
@@ -211,60 +214,89 @@ export default function NewSyncedTextPlayer({
         }}
         onClick={hideContextMenu}
       >
-        {sentences.map((sentence, sentenceIndex) => {
-          const isCurrentSentence = sentenceIndex === currentSentenceIndex;
-          const words = sentence.split(/\s+/).filter(word => word.length > 0);
-          
-          return (
-            <span
-              key={sentenceIndex}
-              className={`inline-block mx-1 my-1 transition-all duration-200 font-normal ${
-                isCurrentSentence 
-                  ? 'bg-blue-200 text-blue-900 px-3 py-2 rounded-lg shadow-lg border-2 border-blue-400' 
-                  : 'text-gray-800 px-2 py-1 hover:bg-gray-100 rounded'
-              }`}
-              title={`Cümle ${sentenceIndex + 1}`}
-              style={{
-                minHeight: '2rem',
-                display: 'inline-block',
-                whiteSpace: 'normal',
-                verticalAlign: 'top',
-                boxShadow: isCurrentSentence ? '0 0 12px rgba(59, 130, 246, 0.6)' : 'none',
-                transform: 'none',
-                wordBreak: 'normal'
-              }}
-            >
-              {words.map((word, wordIndex) => {
-                const globalWordIndex = getWordIndexInText(sentenceIndex, wordIndex);
-                return (
-                  <span
-                    key={`${sentenceIndex}-${wordIndex}`}
-                    className="inline inline-block cursor-pointer hover:bg-yellow-200 rounded px-1 transition-colors duration-150"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Cümleye tıklandığında o cümlenin başına atla
-                      const sentenceProgress = sentenceIndex / sentences.length;
-                      const targetTime = sentenceProgress * duration;
-                      seek(targetTime);
-                    }}
-                    onContextMenu={(e) => handleWordRightClick(e, word, globalWordIndex)}
-                    title={`Kelime: ${word} (Cümle ${sentenceIndex + 1})`}
-                  >
-                    {word}{wordIndex < words.length - 1 ? ' ' : ''}
-                  </span>
-                );
-              })}
-              .
-            </span>
-          );
-        })}
+        {highlightType === 'word' ? (
+          // Kelime bazında vurgulama
+          textWords.map((word, index) => {
+            const isCurrentWord = index === activeWordIndex;
+            const timestamp = wordTimestamps[index];
+            
+            return (
+              <span
+                key={index}
+                className={`inline-block cursor-pointer transition-all duration-200 mx-1 px-2 py-1 rounded ${
+                  isCurrentWord 
+                    ? 'bg-yellow-300 text-yellow-900 font-semibold shadow-md scale-105' 
+                    : 'text-gray-800 hover:bg-gray-100'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (timestamp) handleWordClick(index);
+                }}
+                onContextMenu={(e) => handleWordRightClick(e, word, index)}
+                title={timestamp ? 
+                  `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s` : 
+                  `Kelime ${index + 1}`
+                }
+              >
+                {word}
+              </span>
+            );
+          })
+        ) : (
+          // Cümle bazında vurgulama (eski kod)
+          sentences.map((sentence, sentenceIndex) => {
+            const isCurrentSentence = sentenceIndex === currentSentenceIndex;
+            const words = sentence.split(/\s+/).filter(word => word.length > 0);
+            
+            return (
+              <span
+                key={sentenceIndex}
+                className={`inline-block mx-1 my-1 transition-all duration-200 font-normal ${
+                  isCurrentSentence 
+                    ? 'bg-blue-200 text-blue-900 px-3 py-2 rounded-lg shadow-lg border-2 border-blue-400' 
+                    : 'text-gray-800 px-2 py-1 hover:bg-gray-100 rounded'
+                }`}
+                title={`Cümle ${sentenceIndex + 1}`}
+                style={{
+                  minHeight: '2rem',
+                  display: 'inline-block',
+                  whiteSpace: 'normal',
+                  verticalAlign: 'top',
+                  boxShadow: isCurrentSentence ? '0 0 12px rgba(59, 130, 246, 0.6)' : 'none',
+                  transform: 'none',
+                  wordBreak: 'normal'
+                }}
+              >
+                {words.map((word, wordIndex) => {
+                  const globalWordIndex = getWordIndexInText(sentenceIndex, wordIndex);
+                  return (
+                    <span
+                      key={`${sentenceIndex}-${wordIndex}`}
+                      className="inline inline-block cursor-pointer hover:bg-yellow-200 rounded px-1 transition-colors duration-150"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const sentenceProgress = sentenceIndex / sentences.length;
+                        const targetTime = sentenceProgress * duration;
+                        seek(targetTime);
+                      }}
+                      onContextMenu={(e) => handleWordRightClick(e, word, globalWordIndex)}
+                      title={`Kelime: ${word} (Cümle ${sentenceIndex + 1})`}
+                    >
+                      {word}{wordIndex < words.length - 1 ? ' ' : ''}
+                    </span>
+                  );
+                })}
+                .
+              </span>
+            );
+          })
+        )}
       </div>
     );
   };
 
   // Render words with highlighting (endtime bilgileri kaldırıldı)
   const renderWords = () => {
-    const textWords = originalText.split(/\s+/).filter(word => word.length > 0);
     
     return (
       <div 
