@@ -23,7 +23,9 @@ exports.configureSecurity = (app) => {
         'https://www.lingroot.com',
         'https://lingroot.com',
         'http://localhost:3000',
-        'http://127.0.0.1:3000'
+        'http://127.0.0.1:3000',
+        'https://api.booklevel.store',  // Cloudflare Tunnel for MFA
+        'http://localhost:19006'  // Expo development
       ];
       
       // Check exact match first

@@ -58,6 +58,7 @@ google-play-service-account.json
 # Env files
 .env
 .env.*
+.env.local
 
 # Exceptions
 !public/animations/language-learn.json

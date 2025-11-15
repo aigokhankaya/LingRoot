@@ -2,6 +2,7 @@
 declare const process: {
   env: {
     NEXT_PUBLIC_API_URL?: string;
+    NEXT_PUBLIC_MFA_API_URL?: string;
     NEXT_PUBLIC_TRANSCRIPT_SERVICE_URL?: string;
     NODE_ENV?: string;
     [key: string]: string | undefined;
@@ -23,8 +24,28 @@ export const getApiBaseUrl = (): string => {
   return process.env.NEXT_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com';
 };
 
+// Get the base URL for MFA API requests (separate backend for MFA)
+export const getMfaApiBaseUrl = (): string => {
+  // If MFA URL is explicitly set, use it
+  if (process.env.NEXT_PUBLIC_MFA_API_URL) {
+    if (typeof window !== 'undefined') {
+      console.log('🔐 MFA_API_BASE_URL:', process.env.NEXT_PUBLIC_MFA_API_URL);
+      console.log('📍 MFA requests will go to: CLOUDFLARE TUNNEL');
+    }
+    return process.env.NEXT_PUBLIC_MFA_API_URL;
+  }
+  
+  // Otherwise, use the same as main API
+  if (typeof window !== 'undefined') {
+    console.log('🔐 MFA_API_BASE_URL: using default (same as API_BASE_URL)');
+    console.log('📍 MFA requests will go to: NORMAL BACKEND');
+  }
+  return getApiBaseUrl();
+};
+
 // API_BASE_URL for backward compatibility
 export const API_BASE_URL = getApiBaseUrl();
+export const MFA_API_BASE_URL = getMfaApiBaseUrl();
 
 export const TRANSCRIPT_SERVICE_URL = process.env.NEXT_PUBLIC_TRANSCRIPT_SERVICE_URL || 'http://localhost:8001';
 
@@ -86,6 +107,14 @@ export const api = axios.create({
   },
 });
 
+// Create a separate axios instance for MFA API
+export const mfaApi = axios.create({
+  baseURL: getMfaApiBaseUrl(),
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 // Add request interceptor for authentication
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -96,6 +125,37 @@ api.interceptors.request.use(
     if (token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    // Log normal API requests (only for non-health endpoints to reduce noise)
+    if (typeof window !== 'undefined' && config.url && !config.url.includes('/health')) {
+      console.log(`🌐 [API REQUEST] ${config.method?.toUpperCase()} ${config.url}`);
+      console.log(`📍 [API REQUEST] Target: ${getApiBaseUrl()}`);
+    }
+    
+    return config;
+  },
+  (error: AxiosError) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add request interceptor for MFA API authentication
+mfaApi.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    // Get token from localStorage if available
+    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+    
+    // If token exists, add to headers
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    // Log MFA request destination
+    if (typeof window !== 'undefined') {
+      console.log(`🔐 [MFA REQUEST] ${config.method?.toUpperCase()} ${config.url}`);
+      console.log(`📍 [MFA REQUEST] Target: ${getMfaApiBaseUrl()}`);
     }
     
     return config;
@@ -1359,5 +1419,88 @@ export const createPodcast = async (params: PodcastCreationParams): Promise<Podc
     console.error('🎙️ [PODCAST] Error creating podcast:', error);
     throw error;
   }
+};
+
+// ============================================
+// MFA API Functions (uses separate MFA backend)
+// ============================================
+
+export const mfaService = {
+  // Setup MFA - Generate QR code
+  async setupMfa(): Promise<{ success: boolean; qrCode?: string; secret?: string; message?: string }> {
+    try {
+      const response = await mfaApi.post('/api/mfa/setup');
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'MFA kurulumu başarısız';
+      throw new Error(msg);
+    }
+  },
+
+  // Verify MFA setup with token
+  async verifyMfaSetup(token: string): Promise<{ success: boolean; backupCodes?: string[]; message?: string }> {
+    try {
+      const response = await mfaApi.post('/api/mfa/verify-setup', { token });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'MFA doğrulama başarısız';
+      throw new Error(msg);
+    }
+  },
+
+  // Verify MFA token during login
+  async verifyMfaLogin(token: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await mfaApi.post('/api/mfa/verify-login', { token });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'MFA doğrulama başarısız';
+      throw new Error(msg);
+    }
+  },
+
+  // Disable MFA
+  async disableMfa(password: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await mfaApi.post('/api/mfa/disable', { password });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'MFA devre dışı bırakılamadı';
+      throw new Error(msg);
+    }
+  },
+
+  // Get MFA status
+  async getMfaStatus(): Promise<{ success: boolean; mfaEnabled?: boolean; message?: string }> {
+    try {
+      const response = await mfaApi.get('/api/mfa/status');
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'MFA durumu alınamadı';
+      throw new Error(msg);
+    }
+  },
+
+  // Regenerate backup codes
+  async regenerateBackupCodes(password: string): Promise<{ success: boolean; backupCodes?: string[]; message?: string }> {
+    try {
+      const response = await mfaApi.post('/api/mfa/regenerate-backup-codes', { password });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Yedek kodlar oluşturulamadı';
+      throw new Error(msg);
+    }
+  },
+
+  // Verify backup code
+  async verifyBackupCode(code: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await mfaApi.post('/api/mfa/verify-backup-code', { code });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Yedek kod doğrulaması başarısız';
+      throw new Error(msg);
+    }
+  },
 };
 

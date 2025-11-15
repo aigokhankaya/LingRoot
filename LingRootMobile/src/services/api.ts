@@ -2,9 +2,11 @@ import axios from 'axios';
 import { TTSRequest, TTSResponse, APIResponse, BookSearchResponse, BookChapter } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApiBaseUrl } from './environmentConfig';
+import { EXPO_PUBLIC_MFA_API_URL } from '@env';
 
 // Backend URL - Will be set dynamically based on environment setting
 let API_BASE_URL = 'https://lingloops-backend.onrender.com';
+let MFA_API_BASE_URL = 'https://lingloops-backend.onrender.com'; // Default to same as main API
 
 // Initialize API base URL from environment config
 getApiBaseUrl().then(url => {
@@ -15,6 +17,16 @@ getApiBaseUrl().then(url => {
 }).catch(err => {
   console.error('❌ Failed to initialize API_BASE_URL:', err);
 });
+
+// Initialize MFA API base URL from environment config (if separate URL is provided)
+if (EXPO_PUBLIC_MFA_API_URL) {
+  MFA_API_BASE_URL = EXPO_PUBLIC_MFA_API_URL;
+  console.log('🔐 MFA_API_BASE_URL initialized:', MFA_API_BASE_URL);
+  console.log('📍 MFA requests will go to: CLOUDFLARE TUNNEL');
+} else {
+  console.log('🔐 MFA_API_BASE_URL using default (same as API_BASE_URL)');
+  console.log('📍 MFA requests will go to: NORMAL BACKEND');
+}
 
 // Debug logs removed for production cleanliness
 
@@ -74,8 +86,18 @@ const apiClient = axios.create({
   },
 });
 
+// MFA API client - uses separate base URL for MFA operations
+const mfaApiClient = axios.create({
+  baseURL: MFA_API_BASE_URL,
+  timeout: 60000, // 1 dakika timeout (lokal tunnel için)
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 // Helper to get current API base URL
 export const getCurrentApiBaseUrl = () => API_BASE_URL;
+export const getMfaApiBaseUrl = () => MFA_API_BASE_URL;
 
 // Simple single-flight refresh lock
 let refreshPromise: Promise<void> | null = null;
@@ -132,6 +154,11 @@ apiClient.interceptors.request.use(
           console.log('⚠️ [API INTERCEPTOR] No token found - user may need to login');
           tokenWarningShown = true;
         }
+      }
+      // Log normal API requests (only for non-health endpoints to reduce noise)
+      if (config.url && !config.url.includes('/health')) {
+        console.log(`🌐 [API REQUEST] ${config.method?.toUpperCase()} ${config.url}`);
+        console.log(`📍 [API REQUEST] Target: ${API_BASE_URL}`);
       }
     } catch (error) {
       console.error('❌ [API INTERCEPTOR] Error getting token:', error);
@@ -200,6 +227,62 @@ apiClient.interceptors.response.use(
         try {
           if (unauthorizedHandler) unauthorizedHandler();
         } catch {}
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
+// MFA API client interceptors - same auth logic as main API
+mfaApiClient.interceptors.request.use(
+  async (config) => {
+    try {
+      const token = await AsyncStorage.getItem('auth_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      // Log MFA request destination
+      console.log(`🔐 [MFA REQUEST] ${config.method?.toUpperCase()} ${config.url}`);
+      console.log(`📍 [MFA REQUEST] Target: ${MFA_API_BASE_URL}`);
+    } catch (error) {
+      console.error('❌ [MFA API INTERCEPTOR] Error getting token:', error);
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+mfaApiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    // Token error handling for MFA
+    if (error.response?.status === 401) {
+      const msg = (error.response?.data?.message || '').toString();
+      const isExplicitTokenProblem =
+        msg.toLowerCase().includes('token expired') ||
+        msg.toLowerCase().includes('invalid token');
+
+      if (isExplicitTokenProblem && error.config && !(error.config as any).__retryAfterRefresh) {
+        try {
+          await performTokenRefresh();
+          const newToken = await AsyncStorage.getItem('auth_token');
+          if (newToken) {
+            (error.config as any).__retryAfterRefresh = true;
+            error.config.headers = error.config.headers || {};
+            error.config.headers.Authorization = `Bearer ${newToken}`;
+            return await mfaApiClient.request(error.config);
+          }
+        } catch (refreshErr) {
+          try {
+            await AsyncStorage.removeItem('auth_token');
+            await AsyncStorage.removeItem('user_data');
+            await AsyncStorage.removeItem('refresh_token');
+          } catch {}
+          try {
+            if (unauthorizedHandler) unauthorizedHandler();
+          } catch {}
+        }
       }
     }
     
@@ -873,4 +956,87 @@ export const getDefaultPlanFeatures = (): UserPlanFeatures => {
       }
     }
   };
+};
+
+// ============================================
+// MFA API Functions (uses separate MFA backend)
+// ============================================
+
+export const mfaService = {
+  // Setup MFA - Generate QR code
+  async setupMfa(): Promise<{ success: boolean; qrCode?: string; secret?: string; message?: string }> {
+    try {
+      const response = await mfaApiClient.post('/api/mfa/setup');
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'MFA kurulumu başarısız';
+      throw new Error(msg);
+    }
+  },
+
+  // Verify MFA setup with token
+  async verifyMfaSetup(token: string): Promise<{ success: boolean; backupCodes?: string[]; message?: string }> {
+    try {
+      const response = await mfaApiClient.post('/api/mfa/verify-setup', { token });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'MFA doğrulama başarısız';
+      throw new Error(msg);
+    }
+  },
+
+  // Verify MFA token during login
+  async verifyMfaLogin(token: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await mfaApiClient.post('/api/mfa/verify-login', { token });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'MFA doğrulama başarısız';
+      throw new Error(msg);
+    }
+  },
+
+  // Disable MFA
+  async disableMfa(password: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await mfaApiClient.post('/api/mfa/disable', { password });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'MFA devre dışı bırakılamadı';
+      throw new Error(msg);
+    }
+  },
+
+  // Get MFA status
+  async getMfaStatus(): Promise<{ success: boolean; mfaEnabled?: boolean; message?: string }> {
+    try {
+      const response = await mfaApiClient.get('/api/mfa/status');
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'MFA durumu alınamadı';
+      throw new Error(msg);
+    }
+  },
+
+  // Regenerate backup codes
+  async regenerateBackupCodes(password: string): Promise<{ success: boolean; backupCodes?: string[]; message?: string }> {
+    try {
+      const response = await mfaApiClient.post('/api/mfa/regenerate-backup-codes', { password });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Yedek kodlar oluşturulamadı';
+      throw new Error(msg);
+    }
+  },
+
+  // Verify backup code
+  async verifyBackupCode(code: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await mfaApiClient.post('/api/mfa/verify-backup-code', { code });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Yedek kod doğrulaması başarısız';
+      throw new Error(msg);
+    }
+  },
 };
