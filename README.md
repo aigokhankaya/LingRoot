@@ -174,11 +174,50 @@ Create a `.env.local` file in the `frontend/` directory:
 
 ## Deployment
 
-*   **Backend (e.g., Render):**
-    *   Ensure `ffmpeg` is available in the build environment.
-    *   Set environment variables in the Render service settings.
-    *   Use `npm start` as the start command.
-*   **Frontend (e.g., Vercel):**
+### Backend Deployment Options
+
+#### Option 1: Cloudflare Tunnel (Recommended for Local Development)
+
+Cloudflare Tunnel ile backend'inizi lokal bilgisayarınızdan internete açabilirsiniz. Render'e deploy etmeye gerek kalmaz.
+
+**Avantajları:**
+- ✅ Ücretsiz ve sınırsız trafik
+- ✅ Otomatik HTTPS
+- ✅ Lokal geliştirme ortamınızdan çalışır
+- ✅ Hızlı test ve debug
+
+**Hızlı Başlangıç:**
+
+```powershell
+# 1. Cloudflared kur
+choco install cloudflared
+
+# 2. Otomatik kurulum script'ini çalıştır
+cd f:\Main
+.\setup-cloudflare-tunnel.ps1
+
+# 3. Backend'i başlat
+cd backend
+npm run dev
+
+# 4. Tunnel'ı başlat
+cloudflared tunnel run lingroot-mfa
+```
+
+**Detaylı Rehberler:**
+- 📚 **Detaylı Kurulum**: `CLOUDFLARE_TUNNEL_SETUP.md`
+- 🚀 **Hızlı Başlangıç**: `CLOUDFLARE_TUNNEL_QUICKSTART.md`
+- 🧪 **Test Script'i**: `test-cloudflare-tunnel.ps1`
+
+#### Option 2: Render (Cloud Deployment)
+
+*   Ensure `ffmpeg` is available in the build environment.
+*   Set environment variables in the Render service settings.
+*   Use `npm start` as the start command.
+
+### Frontend Deployment
+
+*   **Vercel:**
     *   Set the `NEXT_PUBLIC_API_URL` environment variable in Vercel to the deployed backend URL.
     *   Vercel should automatically detect and build the Next.js application.
 

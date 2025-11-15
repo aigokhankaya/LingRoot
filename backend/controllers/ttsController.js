@@ -929,8 +929,8 @@ const processTtsRequest = async (req, res) => {
         // --- Step 9: MFA Alignment (High-Accuracy Word Timestamps) ---
         let mfaWordTimings = null;
         // const useMFA = false; // Temporarily disabled for debugging
-        const useMFA = true; // Force enable for debugging
-        // const useMFA = process.env.USE_MFA_ALIGNMENT === 'true';
+        //const useMFA = true; // Force enable for debugging
+        const useMFA = process.env.USE_MFA_ALIGNMENT;
         
         if (useMFA) {
             try {

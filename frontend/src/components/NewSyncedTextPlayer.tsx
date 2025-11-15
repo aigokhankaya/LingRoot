@@ -122,7 +122,30 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   // Handle word click
   const handleWordClick = (wordIndex: number) => {
     const timestamp = wordTimestamps[wordIndex];
+    const clickedWord = textWords[wordIndex];
+    
+    console.log(`📍 [WEB WORD PRESS] Clicked word index: ${wordIndex}, word: "${clickedWord}"`);
+    console.log(`📍 [WEB WORD PRESS] Timepoints length: ${wordTimestamps.length}, Words length: ${textWords.length}`);
+    
     if (timestamp) {
+      console.log(`📍 [WEB WORD PRESS] Clicked word from array: "${clickedWord}"`);
+      console.log(`📍 [WEB WORD PRESS] Timepoint word: "${timestamp.word}", time=${timestamp.startTime.toFixed(2)}s`);
+      
+      // Find "idea" words near clicked word (within 30 words)
+      const nearbyIdeas = wordTimestamps
+        .map((tp, idx) => ({ tp, idx }))
+        .filter(({ tp, idx }) => 
+          tp.word.toLowerCase() === 'idea' && 
+          Math.abs(idx - wordIndex) < 30
+        );
+      
+      if (nearbyIdeas.length > 0) {
+        console.log(`🔍 [WEB DEBUG] Found ${nearbyIdeas.length} "idea" word(s) near index ${wordIndex}:`);
+        nearbyIdeas.forEach(({ tp, idx }) => {
+          console.log(`  - Index ${idx}: time=${tp.startTime.toFixed(2)}s (distance: ${idx - wordIndex})`);
+        });
+      }
+      
       seek(timestamp.startTime);
     }
   };

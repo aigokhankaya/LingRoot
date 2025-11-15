@@ -114,19 +114,24 @@ async function performTokenRefresh(): Promise<void> {
   return refreshPromise;
 }
 
+// Track if we've shown the token warning to avoid spam
+let tokenWarningShown = false;
+
 // Request interceptor - authentication token eklemek için
 apiClient.interceptors.request.use(
   async (config) => {
     // Backend JWT token'ını AsyncStorage'dan al
     try {
       const token = await AsyncStorage.getItem('auth_token');
-      console.log('🔑 [API INTERCEPTOR] Token from storage:', token ? `${token.substring(0, 20)}...` : 'NOT FOUND');
-      console.log('🔑 [API INTERCEPTOR] Request URL:', config.url);
+      // Reduced logging - only log when token is missing
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log('🔑 [API INTERCEPTOR] Authorization header set');
       } else {
-        console.log('⚠️ [API INTERCEPTOR] No token found in AsyncStorage');
+        // Only log once per session to avoid spam
+        if (!tokenWarningShown) {
+          console.log('⚠️ [API INTERCEPTOR] No token found - user may need to login');
+          tokenWarningShown = true;
+        }
       }
     } catch (error) {
       console.error('❌ [API INTERCEPTOR] Error getting token:', error);
