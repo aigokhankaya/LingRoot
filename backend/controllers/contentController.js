@@ -427,6 +427,22 @@ exports.submitContent = async (req, res) => {
 
     if (error) {
       logger.error(`Supabase database upsert error for content history (user ID ${user_id || 'anon'}):`, error);
+      logger.error(`Error details:`, {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      
+      // Supabase connection hatası için özel handling
+      if (error.message?.includes('500') || error.message?.includes('Internal server error')) {
+        return res.status(503).json({
+          success: false,
+          message: "Veritabanı geçici olarak erişilemez durumda. Lütfen birkaç dakika sonra tekrar deneyin.",
+          error: "Database temporarily unavailable"
+        });
+      }
+      
       return res.status(500).json({
         success: false,
         message: "Kayıt sırasında hata oluştu.",
@@ -474,6 +490,49 @@ exports.submitContent = async (req, res) => {
       success: false,
       message: "İşlem sırasında beklenmeyen bir hata oluştu.",
       error: error.message,
+    });
+  }
+};
+
+/**
+ * Supabase bağlantısını test eden fonksiyon
+ */
+exports.testSupabaseConnection = async (req, res) => {
+  try {
+    logger.info('Testing Supabase connection...');
+    
+    // Basit bir query ile bağlantıyı test et
+    const { data, error } = await supabase
+      .from('contenthistory')
+      .select('id')
+      .limit(1);
+    
+    if (error) {
+      logger.error('Supabase connection test failed:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Supabase connection failed',
+        error: error.message,
+        details: {
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        }
+      });
+    }
+    
+    logger.info('Supabase connection test successful');
+    return res.status(200).json({
+      success: true,
+      message: 'Supabase connection is working',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Unexpected error during Supabase connection test:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Connection test failed',
+      error: error.message
     });
   }
 };

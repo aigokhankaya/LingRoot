@@ -131,3 +131,21 @@ export const getUserAudioHistoryAdmin = async (
   }
   return response.json();
 };
+
+// Delete audio files (admin-only)
+export const deleteAudioFiles = async (
+  userId: string,
+  audioIds: string[]
+): Promise<ApiResponse<{ deletedCount: number; deletedFromStorage: number }>> => {
+  const response = await fetch(getApiUrl(`admin/users/${userId}/audio-files`), {
+    method: 'DELETE',
+    headers: createHeaders('application/json'),
+    credentials: 'include',
+    body: JSON.stringify({ audioIds }),
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.message || 'Failed to delete audio files');
+  }
+  return response.json();
+};

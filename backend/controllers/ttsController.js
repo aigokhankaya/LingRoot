@@ -1008,7 +1008,9 @@ const processTtsRequest = async (req, res) => {
 
         // --- Step 9: MFA Alignment (High-Accuracy Word Timestamps) ---
         let mfaWordTimings = null;
-        const useMFA = process.env.USE_MFA_ALIGNMENT === 'true';
+        // const useMFA = false; // Temporarily disabled for debugging
+        //const useMFA = true; // Force enable for debugging
+        const useMFA = process.env.USE_MFA_ALIGNMENT;
         
         if (useMFA) {
             try {
@@ -1072,7 +1074,8 @@ const processTtsRequest = async (req, res) => {
         const finalMp3Url = mp3Url || `/api/tts/audio/${uniqueId}`;
         
         // Use MFA timings if available, otherwise fall back to TTS timepoints
-        const words = allOriginalWords; // Orijinal kelimeler (noktalama dahil)
+        // Ensure words is always an array
+        const words = Array.isArray(allOriginalWords) ? allOriginalWords : allOriginalWords.split(/\s+/).filter(w => w.length > 0);
         let timepoints;
         
         if (mfaWordTimings && mfaWordTimings.length > 0) {
@@ -1350,6 +1353,9 @@ const processTtsRequest = async (req, res) => {
             drift_corrected: analysisResult.driftDetected || false,
             drift_amount: analysisResult.driftAmount || 0,
             drift_percentage: analysisResult.driftPercentage || 0,
+            // Timing Source Info
+            timing_source: mfaWordTimings ? 'MFA' : 'TTS',
+            timing_accuracy: mfaWordTimings ? 'high' : 'estimated',
             // Çeviri ve adaptasyon sonuçları (database kayıt için)
             translated_text: translationResult || '',
             adapted_text: adaptedText,
@@ -1362,8 +1368,12 @@ const processTtsRequest = async (req, res) => {
         // DEBUG: Final response'u kontrol et
         logger.info(`🔍 RESPONSE DEBUG - Timepoints in response: ${responseData.timepoints?.length || 0}`);
         logger.info(`🔍 Response timepoints sample:`, responseData.timepoints?.slice(0, 3));
-        logger.info(`🔍 Words in response: ${responseData.words?.length || 0}`);
+        logger.info(`🔍 Words in response: ${responseData.words?.length || 0}, Type: ${typeof responseData.words}, Is Array: ${Array.isArray(responseData.words)}`);
         logger.info(`🔍 Response fields:`, Object.keys(responseData));
+        logger.info(`🔍 [TIMING SOURCE IN RESPONSE]:`, {
+          timing_source: responseData.timing_source,
+          timing_accuracy: responseData.timing_accuracy
+        });
         logger.info(`🔍 [DRIFT FIELDS IN RESPONSE]:`, {
           drift_corrected: responseData.drift_corrected,
           drift_amount: responseData.drift_amount,

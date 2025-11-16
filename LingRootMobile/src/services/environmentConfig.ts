@@ -2,8 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Environment configuration
 const PRODUCTION_URL = 'https://lingloops-backend.onrender.com';
-// Use Mac's local IP for both Simulator and real device
-const LOCAL_URL = 'http://192.168.1.6:5001';
+// Use computer's local IP for both Emulator and real device
+const LOCAL_URL = 'http://192.168.1.4:5001';
+//IOS için bu:
+//const LOCAL_URL = 'http://192.168.1.6:5001';
 
 // Cache key for environment setting
 const ENV_CACHE_KEY = 'app_environment';

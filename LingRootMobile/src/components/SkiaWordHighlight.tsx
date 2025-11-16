@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   GestureResponderEvent,
 } from 'react-native';
-import { useSharedValue } from 'react-native-reanimated';
+import { useSharedValue, useDerivedValue } from 'react-native-reanimated';
 
 interface WordBoundary {
   x: number;
@@ -30,6 +30,7 @@ interface SkiaWordHighlightProps {
   fontSize?: number;
   lineHeight?: number;
   containerWidth?: number;
+  scrollOffsetRef?: React.RefObject<number>;
   onWordPress?: (index: number) => void;
   onWordLongPress?: (word: string, index: number) => void;
   mode?: 'word' | 'sentence';
@@ -44,6 +45,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   fontSize = 16,
   lineHeight = 150,
   containerWidth = SCREEN_WIDTH - 32,
+  scrollOffsetRef,
   onWordPress,
   onWordLongPress,
   mode = 'word',
@@ -194,19 +196,15 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     
     // Metal applies 3x scale on some devices, so we need to account for that
     // Max Metal texture: 16384px, with 3x scale = 5461px logical pixels
-    // Use 5000px to be safe
-    const CHUNK_HEIGHT = 5000; // Safe chunk size accounting for 3x scale
-    
-    // Safety check: if height is too large, split into chunks
-    if (fullHeight > CHUNK_HEIGHT) {
-      console.warn(`⚠️ [Word] Paragraph too tall (${fullHeight}px), splitting into chunks`);
-    }
+    // Use 3000px to be extra safe and avoid crashes with very long texts
+    const CHUNK_HEIGHT = 3000; // Conservative chunk size to prevent crashes
     
     // Calculate number of chunks needed
     const numChunks = Math.ceil(fullHeight / CHUNK_HEIGHT);
     
-    if (numChunks > 1) {
-      console.log(`📦 Splitting ${fullHeight}px into ${numChunks} chunks of ${CHUNK_HEIGHT}px each`);
+    // Only log for very large texts (more than 4 chunks)
+    if (numChunks > 4) {
+      console.log(`📦 [Skia] Large text (${fullHeight}px) split into ${numChunks} chunks`);
     }
     
     // Create chunk definitions
@@ -220,32 +218,54 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     return { totalHeight: fullHeight, chunks: chunkList };
   }, [paragraph]);
   
-  // Handle touch for word selection
-  const handleTouch = (event: GestureResponderEvent) => {
+  // Handle touch for word selection - needs chunk context
+  const createTouchHandler = (chunk: { startY: number; endY: number; index: number }) => (event: GestureResponderEvent) => {
     const { locationX, locationY } = event.nativeEvent;
     
-    const touchedWord = wordBoundaries.find(
-      (boundary) =>
-        locationX >= boundary.x &&
-        locationX <= boundary.x + boundary.width &&
-        locationY >= boundary.y &&
-        locationY <= boundary.y + boundary.height
+    // Get boundaries for THIS chunk only
+    const chunkBoundaries = wordBoundaries.filter(
+      (boundary) => boundary.y >= chunk.startY && boundary.y < chunk.endY
     );
     
-    if (touchedWord && onWordPress) {
-      onWordPress(touchedWord.index);
+    // Y coordinate is relative to chunk, so just use locationY directly
+    const relativeY = locationY;
+    
+    console.log(`👆 [TOUCH START] Chunk ${chunk.index}, localY: ${locationY.toFixed(1)}, chunkStart: ${chunk.startY}, chunkBoundaries: ${chunkBoundaries.length}`);
+    
+    // Find word in THIS chunk's boundaries
+    const touchedWord = chunkBoundaries.find(
+      (boundary) => {
+        const boundaryRelativeY = boundary.y - chunk.startY;
+        return locationX >= boundary.x &&
+               locationX <= boundary.x + boundary.width &&
+               relativeY >= boundaryRelativeY &&
+               relativeY <= boundaryRelativeY + boundary.height;
+      }
+    );
+    
+    if (touchedWord) {
+      console.log(`🎯 [TOUCH] Word "${words[touchedWord.index]}" at index ${touchedWord.index}, localY: ${locationY.toFixed(1)}, boundary.y: ${touchedWord.y}, relativeY: ${(touchedWord.y - chunk.startY).toFixed(1)}`);
+      if (onWordPress) {
+        onWordPress(touchedWord.index);
+      }
+    } else {
+      console.log(`❌ [TOUCH] No word found at X: ${locationX.toFixed(1)}, localY: ${locationY.toFixed(1)}`);
     }
   };
   
-  const handleLongPress = (event: GestureResponderEvent) => {
+  const createLongPressHandler = (chunkStartY: number) => (event: GestureResponderEvent) => {
     const { locationX, locationY } = event.nativeEvent;
+    
+    // Adjust Y coordinate: chunk-relative Y + chunk offset - scroll offset (scroll moves content up)
+    const scrollOffset = scrollOffsetRef?.current || 0;
+    const adjustedY = locationY + chunkStartY - scrollOffset;
     
     const touchedWord = wordBoundaries.find(
       (boundary) =>
         locationX >= boundary.x &&
         locationX <= boundary.x + boundary.width &&
-        locationY >= boundary.y &&
-        locationY <= boundary.y + boundary.height
+        adjustedY >= boundary.y &&
+        adjustedY <= boundary.y + boundary.height
     );
     
     if (touchedWord && onWordLongPress) {
@@ -271,13 +291,13 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
           <View key={chunk.index} style={{ height: chunk.height }}>
             <TouchableOpacity
               activeOpacity={1}
-              onPress={handleTouch}
-              onLongPress={handleLongPress}
+              onPress={createTouchHandler(chunk)}
+              onLongPress={createLongPressHandler(chunk.startY)}
               delayLongPress={500}
             >
               <Canvas style={{ width: containerWidth, height: chunk.height }}>
-                {/* STEP 4: Dynamic Highlight - 60fps, NO RERENDER */}
-                {chunkBoundaries.map((boundary, idx) => {
+                {/* Highlights - render before text */}
+                {chunkBoundaries.map((boundary) => {
                   const isHighlighted = boundary.index === currentWordIndex;
                   const isSelected = selectedWords.has(
                     words[boundary.index].replace(/[.,!?;:]/g, '').toLowerCase()
@@ -285,30 +305,22 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
                   
                   if (!isHighlighted && !isSelected) return null;
                   
-                  const color = isHighlighted ? '#007AFF' : '#FFD700';
+                  // Removed excessive logging - was causing performance issues
+                  // if (isHighlighted) {
+                  //   console.log(`✨ [HIGHLIGHT] Rendering Skia highlight for word "${words[boundary.index]}" at index ${boundary.index}, chunk ${chunk.index}, y: ${boundary.y}, relativeY: ${boundary.y - chunk.startY}`);
+                  // }
                   
-                  // Add horizontal padding
+                  const color = isHighlighted ? '#007AFF' : '#FFD700';
                   const paddingX = 4;
                   const paddingY = 3;
-                  
-                  // Adjust Y position relative to chunk
                   const relativeY = boundary.y - chunk.startY;
-                  
-                  // Calculate position with left padding
-                  const rectX = Math.max(0, boundary.x - paddingX);
-                  const leftPaddingUsed = boundary.x - rectX;
-                  
-                  // Calculate width with right padding
-                  const idealWidth = boundary.width + leftPaddingUsed + paddingX;
-                  const maxAllowedWidth = containerWidth - rectX;
-                  const rectWidth = Math.min(idealWidth, maxAllowedWidth);
                   
                   return (
                     <RoundedRect
-                      key={boundary.index}
-                      x={rectX}
+                      key={`highlight-${boundary.index}`}
+                      x={Math.max(0, boundary.x - paddingX)}
                       y={relativeY - paddingY}
-                      width={rectWidth}
+                      width={boundary.width + (paddingX * 2)}
                       height={boundary.height + (paddingY * 2)}
                       r={6}
                       color={color}

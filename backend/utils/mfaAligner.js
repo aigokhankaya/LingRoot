@@ -8,263 +8,194 @@ const logger = require('./logger');
 
 const execAsync = promisify(exec);
 
-/**
- * MFA (Montreal Forced Aligner) Integration for High-Accuracy Word Alignment
- * 
- * This service uses MFA to generate precise word-level timestamps by analyzing
- * the actual audio waveform, eliminating the drift issues from TTS API timepoints.
- * 
- * Reference: MFA-Analiz.md - Section IV & V
- */
-
 class MFAAligner {
   constructor() {
-    // MFA model names for English (US)
-    this.models = {
-      en_US: {
-        acoustic: 'english_mfa',
-        dictionary: 'english_mfa',
-        g2p: 'english_mfa'
-      },
-      en_GB: {
-        acoustic: 'english_mfa', // Multi-dialect model
-        dictionary: 'english_uk_mfa',
-        g2p: 'english_uk_mfa'
-      }
+    // Local model paths based on your setup
+    this.localModelPaths = {
+      dictFile: 'C:\\Users\\enesy\\mfa-models-main\\mfa-models-main\\dictionary\\english.dict',
+      acousticDir: 'C:\\Users\\enesy\\mfa-models-main\\mfa-models-main\\acoustic\\english\\english'
     };
+    this.useDocker = true; // Always use Docker with local models
+    this.modelsReady = false;
   }
 
-  /**
-   * Check if MFA is installed and available
-   */
   async checkMFAAvailability() {
     try {
-      const { stdout } = await execAsync('mfa version');
-      logger.info(`✅ MFA available: ${stdout.trim()}`);
+      const { stdout } = await execAsync('docker run --rm mmcauliffe/montreal-forced-aligner mfa version');
+      logger.info(`✅ MFA available via Docker: ${stdout.trim()}`);
       return true;
     } catch (error) {
-      logger.warn('⚠️ MFA not available:', error.message);
+      logger.error('❌ MFA Docker not available:', error.message);
       return false;
     }
   }
 
-  /**
-   * Ensure required MFA models are downloaded
-   * @param {string} locale - Language locale (e.g., 'en_US', 'en_GB')
-   */
-  async ensureModels(locale = 'en_US') {
-    const models = this.models[locale] || this.models.en_US;
-    
+  async checkLocalModels() {
     try {
-      // Download acoustic model
-      logger.info(`📥 Downloading MFA acoustic model: ${models.acoustic}`);
-      await execAsync(`mfa model download acoustic ${models.acoustic}`);
+      // Check if local model files exist
+      const fs = require('fs');
+      const dictExists = fs.existsSync(this.localModelPaths.dictFile);
+      const acousticExists = fs.existsSync(path.join(this.localModelPaths.acousticDir, 'final.mdl'));
       
-      // Download dictionary
-      logger.info(`📥 Downloading MFA dictionary: ${models.dictionary}`);
-      await execAsync(`mfa model download dictionary ${models.dictionary}`);
-      
-      // Download G2P model
-      logger.info(`📥 Downloading MFA G2P model: ${models.g2p}`);
-      await execAsync(`mfa model download g2p ${models.g2p}`);
-      
-      logger.info('✅ All MFA models ready');
-      return true;
+      if (dictExists && acousticExists) {
+        logger.info('✅ MFA acoustic model already available: english');
+        logger.info('✅ MFA dictionary already available: english.dict');
+        logger.info('✅ All MFA models ready');
+        this.modelsReady = true;
+        return true;
+      } else {
+        logger.error('❌ Local MFA models not found');
+        logger.error(`Dictionary: ${this.localModelPaths.dictFile} - ${dictExists ? 'OK' : 'MISSING'}`);
+        logger.error(`Acoustic: ${path.join(this.localModelPaths.acousticDir, 'final.mdl')} - ${acousticExists ? 'OK' : 'MISSING'}`);
+        return false;
+      }
     } catch (error) {
-      logger.error('❌ Failed to download MFA models:', error);
+      logger.error('Error checking local models:', error.message);
       return false;
     }
   }
 
-  /**
-   * Prepare corpus directory structure for MFA
-   * MFA requires: corpus_dir/audio.wav and corpus_dir/audio.txt
-   * 
-   * @param {string} audioPath - Path to audio file (.wav or .mp3)
-   * @param {string} transcript - Text transcript
-   * @returns {Promise<string>} - Path to corpus directory
-   */
+  async ensureModels() {
+    logger.info('🎯 Pre-cached common MFA models for Docker');
+    return await this.checkLocalModels();
+  }
+
   async prepareCorpus(audioPath, transcript) {
     const corpusDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mfa-corpus-'));
     const baseName = 'audio';
-    
-    // Copy audio file
     const audioExt = path.extname(audioPath);
     const corpusAudioPath = path.join(corpusDir, `${baseName}${audioExt}`);
     await fs.copyFile(audioPath, corpusAudioPath);
-    
-    // Create transcript file (clean text, no punctuation for better alignment)
+
     const cleanTranscript = this.cleanTranscript(transcript);
     const transcriptPath = path.join(corpusDir, `${baseName}.txt`);
     await fs.writeFile(transcriptPath, cleanTranscript, 'utf-8');
-    
-    logger.info(`📁 Corpus prepared: ${corpusDir}`);
+
+    logger.info(`Corpus prepared: ${corpusDir}`);
     return corpusDir;
   }
 
-  /**
-   * Clean transcript for MFA alignment
-   * Remove punctuation, keep only spoken words
-   */
   cleanTranscript(text) {
     return text
-      .replace(/[.,!?;:"""''—–-]/g, '') // Remove punctuation
-      .replace(/\s+/g, ' ') // Normalize whitespace
+      .replace(/[.,!?;:"""''—–-]/g, '')
+      .replace(/\s+/g, ' ')
       .trim();
   }
 
-  /**
-   * Generate comprehensive dictionary using G2P model
-   * This handles OOV (out-of-vocabulary) words
-   * 
-   * @param {string} corpusDir - Corpus directory path
-   * @param {string} locale - Language locale
-   * @returns {Promise<string>} - Path to generated dictionary
-   */
-  async generateDictionary(corpusDir, locale = 'en_US') {
-    const models = this.models[locale] || this.models.en_US;
-    const dictPath = path.join(corpusDir, 'custom_dict.txt');
+  async prepareDictionary(corpusDir) {
+    const dictPath = path.join(corpusDir, 'english.dict');
     
     try {
-      const command = `mfa g2p ${corpusDir} ${models.g2p} ${dictPath}`;
-      logger.info(`🔤 Generating dictionary: ${command}`);
-      
-      await execAsync(command, { maxBuffer: 10 * 1024 * 1024 }); // 10MB buffer
-      
-      logger.info(`✅ Dictionary generated: ${dictPath}`);
+      // Copy the local english.dict to corpus directory
+      await fs.copyFile(this.localModelPaths.dictFile, dictPath);
+      logger.info(`✅ Dictionary copied: ${dictPath}`);
       return dictPath;
     } catch (error) {
-      logger.error('❌ Dictionary generation failed:', error);
+      logger.error('❌ Failed to copy dictionary:', error.message);
       throw error;
     }
   }
 
-  /**
-   * Run MFA alignment
-   * 
-   * @param {string} corpusDir - Corpus directory
-   * @param {string} dictPath - Dictionary path
-   * @param {string} outputDir - Output directory for alignment results
-   * @param {string} locale - Language locale
-   * @returns {Promise<string>} - Path to output directory
-   */
-  async align(corpusDir, dictPath, outputDir, locale = 'en_US') {
-    const models = this.models[locale] || this.models.en_US;
+  async align(corpusDir, dictPath, outputDir) {
+    // Convert Windows paths to Docker format
+    const dockerCorpusDir = '//' + corpusDir.replace(/\\/g, '/').replace(/^([A-Z]):/, (m, d) => `${d.toLowerCase()}`);
+    const dockerOutputDir = '//' + outputDir.replace(/\\/g, '/').replace(/^([A-Z]):/, (m, d) => `${d.toLowerCase()}`);
+    const dockerDictDir = '//' + path.dirname(this.localModelPaths.dictFile).replace(/\\/g, '/').replace(/^([A-Z]):/, (m, d) => `${d.toLowerCase()}`);
+    const dockerAcousticDir = '//' + this.localModelPaths.acousticDir.replace(/\\/g, '/').replace(/^([A-Z]):/, (m, d) => `${d.toLowerCase()}`);
+
+    const command = `docker run --rm ` +
+      `-v "${dockerCorpusDir}:/corpus" ` +
+      `-v "${dockerOutputDir}:/output" ` +
+      `-v "${dockerDictDir}:/dict" ` +
+      `-v "${dockerAcousticDir}:/acoustic" ` +
+      `mmcauliffe/montreal-forced-aligner ` +
+      `mfa align /corpus /dict/english.dict /acoustic /output --clean --output_format long_textgrid --verbose`;
+
+    logger.info(`🎯 Running MFA alignment: ${command}`);
     
     try {
-      const command = `mfa align ${corpusDir} ${dictPath} ${models.acoustic} ${outputDir} --output_format json --clean`;
-      logger.info(`🎯 Running MFA alignment: ${command}`);
-      
-      const { stdout, stderr } = await execAsync(command, { 
-        maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large outputs
-        timeout: 300000 // 5 minute timeout
-      });
-      
-      if (stderr) {
-        logger.warn('MFA stderr:', stderr);
-      }
-      
+      const { stderr } = await execAsync(command, { maxBuffer: 50 * 1024 * 1024, timeout: 300000 });
+      if (stderr) logger.warn('MFA stderr:', stderr);
       logger.info('✅ MFA alignment completed');
       return outputDir;
     } catch (error) {
-      logger.error('❌ MFA alignment failed:', error);
+      logger.error('❌ MFA alignment failed:', error.message);
       throw error;
     }
   }
 
-  /**
-   * Parse MFA JSON output to extract word-level timestamps
-   * 
-   * @param {string} jsonPath - Path to MFA JSON output
-   * @returns {Promise<Array>} - Array of {word, startTime, endTime}
-   */
-  async parseAlignmentJSON(jsonPath) {
+  async parseTextGrid(textGridPath) {
     try {
-      const jsonContent = await fs.readFile(jsonPath, 'utf-8');
-      const data = JSON.parse(jsonContent);
+      const content = await fs.readFile(textGridPath, 'utf-8');
+      const words = [];
+      const lines = content.split('\n');
       
-      // Extract word tier
-      const wordTier = data.tiers?.words;
-      if (!wordTier || !wordTier.entries) {
-        throw new Error('Invalid MFA JSON format: missing word tier');
+      let inWords = false;
+      let start = null, end = null, text = null;
+      
+      for (const line of lines) {
+        const trimmed = line.trim();
+        
+        if (trimmed.includes('name = "words"')) {
+          inWords = true;
+          continue;
+        }
+        if (trimmed.includes('name = "phones"')) {
+          inWords = false;
+          continue;
+        }
+        
+        if (inWords) {
+          const xminMatch = trimmed.match(/xmin = ([\d.]+)/);
+          const xmaxMatch = trimmed.match(/xmax = ([\d.]+)/);
+          const textMatch = trimmed.match(/text = "([^"]+)"/);
+          
+          if (xminMatch) start = parseFloat(xminMatch[1]);
+          if (xmaxMatch) end = parseFloat(xmaxMatch[1]);
+          if (textMatch) {
+            text = textMatch[1];
+            if (start !== null && end !== null && text && text !== '' && text !== 'sil' && text !== 'sp') {
+              words.push({
+                word: text,
+                startTime: start,
+                endTime: end
+              });
+            }
+            start = null; end = null; text = null;
+          }
+        }
       }
       
-      // Convert to our format: {word, startTime, endTime}
-      const wordTimings = wordTier.entries
-        .filter(entry => entry[2] !== 'sil' && entry[2] !== 'sp') // Filter out silence markers
-        .map(entry => ({
-          word: entry[2],
-          startTime: parseFloat(entry[0]),
-          endTime: parseFloat(entry[1])
-        }));
-      
-      logger.info(`✅ Parsed ${wordTimings.length} word timings from MFA output`);
-      return wordTimings;
+      logger.info(`✅ Parsed ${words.length} words from TextGrid`);
+      return words;
     } catch (error) {
-      logger.error('❌ Failed to parse MFA JSON:', error);
+      logger.error('❌ Failed to parse TextGrid:', error.message);
       throw error;
     }
   }
 
-  /**
-   * Main pipeline: Generate accurate word-level timestamps using MFA
-   * 
-   * @param {string} audioPath - Path to audio file
-   * @param {string} transcript - Text transcript
-   * @param {string} locale - Language locale (default: en_US)
-   * @returns {Promise<Array>} - Array of {word, startTime, endTime}
-   */
   async generateWordTimestamps(audioPath, transcript, locale = 'en_US') {
-    let corpusDir = null;
-    let outputDir = null;
-    
+    let corpusDir = null, outputDir = null;
     try {
-      // Step 1: Check MFA availability
-      const isAvailable = await this.checkMFAAvailability();
-      if (!isAvailable) {
-        throw new Error('MFA is not installed. Please install MFA first.');
-      }
-      
-      // Step 2: Ensure models are downloaded
-      await this.ensureModels(locale);
-      
-      // Step 3: Prepare corpus
+      if (!await this.checkMFAAvailability()) throw new Error('MFA not available');
+      await this.ensureModels();
       corpusDir = await this.prepareCorpus(audioPath, transcript);
-      
-      // Step 4: Generate dictionary with G2P
-      const dictPath = await this.generateDictionary(corpusDir, locale);
-      
-      // Step 5: Create output directory
+      const dictPath = await this.prepareDictionary(corpusDir);
+
       outputDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mfa-output-'));
-      
-      // Step 6: Run alignment
-      await this.align(corpusDir, dictPath, outputDir, locale);
-      
-      // Step 7: Parse results
-      const jsonPath = path.join(outputDir, 'audio.json');
-      const wordTimings = await this.parseAlignmentJSON(jsonPath);
-      
-      return wordTimings;
-      
+      await this.align(corpusDir, dictPath, outputDir);
+
+      const textGridPath = path.join(outputDir, 'audio.TextGrid');
+      return await this.parseTextGrid(textGridPath);
     } catch (error) {
-      logger.error('❌ MFA pipeline failed:', error);
+      logger.error('MFA pipeline failed:', error);
       throw error;
     } finally {
-      // Cleanup temporary directories
-      if (corpusDir) {
-        await fs.rm(corpusDir, { recursive: true, force: true }).catch(() => {});
-      }
-      if (outputDir) {
-        await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {});
-      }
+      if (corpusDir) await fs.rm(corpusDir, { recursive: true, force: true }).catch(() => {});
+      if (outputDir) await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {});
     }
   }
 }
 
-// Singleton instance
 const mfaAligner = new MFAAligner();
-
-module.exports = {
-  mfaAligner,
-  MFAAligner
-};
+module.exports = { mfaAligner, MFAAligner };

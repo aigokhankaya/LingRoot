@@ -163,6 +163,7 @@ export const useWordSync = ({
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const animationFrameId = useRef<number | null>(null);
   const isInitializedRef = useRef<boolean>(false);
+  const lastSeekTimeRef = useRef<number>(-1);
 
   // ARIA Live Region güncellemesi için callback
   const updateLiveRegion = useCallback((wordIndex: number, word: string) => {
@@ -181,8 +182,10 @@ export const useWordSync = ({
 
     // Check actual audio element state instead of just React state to avoid race conditions
     const isActuallyPlaying = !audioRef.current.paused && !audioRef.current.ended;
+    console.log(`🎵 [AUDIO STATE DEBUG] React isPlaying: ${isPlaying}, Audio paused: ${audioRef.current.paused}, Audio ended: ${audioRef.current.ended}, isActuallyPlaying: ${isActuallyPlaying}`);
+    
     if (!isActuallyPlaying) {
-      // console removed
+      console.log(`🛑 [SYNC LOOP DEBUG] Stopping - audio not actually playing`);
       return;
     }
 
@@ -196,13 +199,21 @@ export const useWordSync = ({
     // DEBUG: Log current sync state every 10 frames (not too spammy)
     if (false) {}
 
+    // Check if we're in a seek operation - if so, don't override the word index
+    if (lastSeekTimeRef.current !== -1) {
+      console.log(`🚫 Skipping sync loop update - seek in progress to ${lastSeekTimeRef.current}s`);
+      return;
+    }
+    
+    console.log(`🔄 [SYNC DEBUG] Sync loop running - currentTime: ${currentAudioTime.toFixed(3)}s, isPlaying: ${isPlaying}`);
+
     // Sadece aktif kelime değiştiğinde state'i güncelle - gereksiz render'ları önler
     setActiveWordIndex(prevIndex => {
       if (newIndex !== prevIndex) {
         const prevWord = prevIndex >= 0 ? wordTimestamps[prevIndex]?.word : 'NONE';
         const newWord = newIndex >= 0 ? wordTimestamps[newIndex]?.word : 'NONE';
         
-        // console removed
+        console.log(`🔄 Sync loop: word ${prevIndex} → ${newIndex} at ${currentAudioTime.toFixed(3)}s`);
         
         if (newIndex >= 0) {
           const { startTime, endTime } = wordTimestamps[newIndex];
@@ -279,18 +290,33 @@ export const useWordSync = ({
 
   // Belirli bir zamana atlama fonksiyonu
   const seek = useCallback((time: number) => {
+    console.log(`🎯 SEEK CALLED! Jumping to time: ${time}s`);
     if (audioRef.current) {
+      // Store seek time to prevent sync loop from overriding
+      lastSeekTimeRef.current = time;
+      
       audioRef.current.currentTime = time;
       
       // Seek sonrası anında senkronizasyon için kelimeyi bul
       const newIndex = findCurrentWordIndex(wordTimestamps, time);
+      console.log(`🔍 After seek, found word index: ${newIndex} for time ${time}s`);
       setActiveWordIndex(newIndex);
       setCurrentTime(time);
       
       if (newIndex >= 0) {
         const word = wordTimestamps[newIndex]?.word || '';
+        console.log(`🎯 Setting active word: "${word}" at index ${newIndex}`);
         updateLiveRegion(newIndex, word);
       }
+      
+      // Clear seek flag after a short delay to allow sync loop to resume
+      setTimeout(() => {
+        lastSeekTimeRef.current = -1;
+        console.log('🔓 [SEEK DEBUG] Seek protection cleared, sync loop can resume');
+        if (audioRef.current && !audioRef.current.paused) {
+      startSync();
+        }
+      }, 100);
     }
   }, [wordTimestamps, updateLiveRegion]);
 
@@ -350,6 +376,7 @@ export const useWordSync = ({
     console.log(`📊 [TIMESTAMPS DEBUG] Word Timestamps Created: ${calculatedTimestamps.length} words, Duration: ${duration}s`);
     console.log('🔍 [TIMESTAMPS DEBUG] First 3 timestamps:', calculatedTimestamps.slice(0, 3));
     console.log('🔍 [TIMESTAMPS DEBUG] Last 3 timestamps:', calculatedTimestamps.slice(-3));
+    console.log('🔍 [TIMESTAMPS DEBUG] Sample timestamp structure:', calculatedTimestamps[0]);
   }, [timepoints, originalText, duration]);
 
   // Audio kurulum ve temizlik
@@ -398,12 +425,21 @@ export const useWordSync = ({
 
     const handlePlay = () => {
       console.log('▶️ [AUDIO DEBUG] handlePlay called');
+      console.log('🔧 [PLAY DEBUG] Setting isPlaying to TRUE');
       setIsPlaying(true);
       startSync();
     };
 
     const handlePause = () => {
       console.log('⏸️ [AUDIO DEBUG] handlePause called');
+      
+      // Ignore pause events during seek operations
+      if (lastSeekTimeRef.current !== -1) {
+        console.log('🚫 [PAUSE DEBUG] Ignoring pause during seek operation');
+        return;
+      }
+      
+      console.log('🔧 [PAUSE DEBUG] Setting isPlaying to FALSE');
       setIsPlaying(false);
       stopSync();
     };
@@ -424,10 +460,10 @@ export const useWordSync = ({
 
     const handlePlaying = () => {
       console.log('🎮 [AUDIO DEBUG] handlePlaying called');
+      console.log('🔧 [PLAYING DEBUG] Setting isPlaying to TRUE');
       setIsBuffering(false);
-      if (isPlaying) {
-        startSync(); // Buffering bittikten sonra sync'i yeniden başlat
-      }
+      setIsPlaying(true); // CRITICAL FIX: Set isPlaying to true when audio starts playing
+      startSync(); // Start sync when audio is playing
     };
 
     const handleError = (e: Event) => {
