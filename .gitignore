@@ -59,6 +59,8 @@ google-play-service-account.json
 .env
 .env.*
 .env.local
+start-backend.ps1
+start-cloudflared.ps1
 
 # Exceptions
 !public/animations/language-learn.json

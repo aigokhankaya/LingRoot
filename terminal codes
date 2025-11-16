@@ -133,3 +133,21 @@ npm install
 cd ios
 rm -rf Pods Podfile.lock
 pod install --repo-update
+
+
+### Tünnel ve backend başladı kontrolleri
+
+# Tunnel Durumu
+Get-Process cloudflared veya
+cloudflared tunnel list veya
+cloudflared tunnel info booklevel-backend
+curl https://api.booklevel.store/api/health
+
+# Backend durumu kontrolü
+curl http://localhost:5001/api/health
+
+# Açık olan backendi kapatıyoruz:
+etstat -ano | findstr ":5001"
+    gelen çıktı:TCP    0.0.0.0:5001           0.0.0.0:0              LISTENING       34580
+Stop-Process -Id 34580
+
