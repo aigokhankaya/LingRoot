@@ -1261,7 +1261,7 @@ export interface UserStats {
 // Get user dashboard statistics
 export const getUserStats = async (): Promise<UserStats | null> => {
   try {
-    const response = await api.get('/api/stats/dashboard');
+    const response = await api.get('/stats/dashboard');
     if (response.data.success) {
       return response.data.data;
     }
