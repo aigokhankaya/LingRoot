@@ -177,20 +177,53 @@ exports.getAllUsers = async (req, res) => {
 
     logger.info(`[ADMIN USERS] Found ${users?.length || 0} users in users table`);
 
-    // Transform users data to match frontend format
-    const transformedUsers = (users || []).map(user => ({
-      id: user.id,
-      name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'N/A',
-      email: user.email,
-      status: user.isverified ? 'aktif' : 'pasif',
-      package: 'Ücretsiz', // Default package, can be enhanced later
-      registrationDate: new Date(user.created_at).toLocaleDateString('tr-TR'),
-      lastLogin: user.updated_at ? new Date(user.updated_at).toLocaleDateString('tr-TR') : 'Hiç',
-      role: user.role || 'user',
-      phone: user.phonenumber
-    }));
+    // Fetch active subscriptions for all users
+    const userIds = (users || []).map(u => u.id);
+    let subscriptionsMap = {};
+    
+    if (userIds.length > 0) {
+      const { data: subscriptions, error: subError } = await supabase
+        .from('subscriptions')
+        .select('user_id, plantype, status, enddate')
+        .in('user_id', userIds)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+      
+      if (subError) {
+        logger.warn('[ADMIN USERS] Error fetching subscriptions:', subError);
+      } else {
+        // Create a map of user_id to their active subscription
+        (subscriptions || []).forEach(sub => {
+          if (!subscriptionsMap[sub.user_id]) {
+            subscriptionsMap[sub.user_id] = sub;
+          }
+        });
+      }
+    }
 
-    logger.info(`[ADMIN USERS] Successfully transformed ${transformedUsers.length} users`);
+    // Transform users data to match frontend format with real subscription data
+    const transformedUsers = (users || []).map(user => {
+      const activeSub = subscriptionsMap[user.id];
+      let packageName = 'Ücretsiz'; // Default
+      
+      if (activeSub && activeSub.plantype) {
+        packageName = activeSub.plantype;
+      }
+      
+      return {
+        id: user.id,
+        name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'N/A',
+        email: user.email,
+        status: user.isverified ? 'aktif' : 'pasif',
+        package: packageName,
+        registrationDate: new Date(user.created_at).toLocaleDateString('tr-TR'),
+        lastLogin: user.updated_at ? new Date(user.updated_at).toLocaleDateString('tr-TR') : 'Hiç',
+        role: user.role || 'user',
+        phone: user.phonenumber
+      };
+    });
+
+    logger.info(`[ADMIN USERS] Successfully transformed ${transformedUsers.length} users with subscription data`);
     
     return res.status(200).json({
       success: true,
@@ -847,11 +880,18 @@ exports.getUserUsageSummaryAdmin = async (req, res) => {
       data: {
         hasPlan: true,
         subscription: state.subscription,
+        plan: state.plan,
+        plantype: state.plan?.name,
         periodStart: state.periodStart,
         usage: state.usage,
         limits: state.limits,
         exceeded: state.exceeded,
         isExceeded: state.isExceeded,
+        // Free Trial özel alanları
+        isFreeTrialExhausted: state.isFreeTrialExhausted || false,
+        audioCreationCount: state.audioCreationCount,
+        maxAudioCount: state.maxAudioCount,
+        remainingAudioCount: state.remainingAudioCount,
       },
     });
   } catch (e) {

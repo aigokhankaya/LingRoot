@@ -125,50 +125,61 @@ async function extractFromWebLink(url) {
 }
 
 /**
- * Konu başlığından, girilen dilde ve seviye bağımsız olarak detaylı anlatım üretir.
- * rewrite_to_narration.txt promptu ile başlıktan ~2000 kelimelik anlatım üretir.
- * Seviye veya dil parametresi gönderilmez, sadece input_text kullanılır.
+ * Konu başlığından, belirtilen seviye ve dilde detaylı anlatım üretir.
+ * content_generation_*.txt promptlarını kullanarak seviyeye uygun içerik üretir.
  * Eğer OpenAI başlıktan içerik üretemezse, hata döner.
  */
-async function generateNarrationForTopic(topic, requestLogger) {
+async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'Turkish', requestLogger) {
     if (!openai) {
         logger.error("OpenAI API key not found. Cannot generate narration for topic.");
         return null;
     }
-    logger.info(`Generating narration for topic: ${topic}`);
-    const promptFile = 'rewrite_to_narration.txt';
-    const promptPath = path.join(__dirname, '../prompts/rewrite_to_narration.txt');
-    console.log(`🎯 [INPUT EXTRACTOR] Using prompt file: ${promptFile} for topic: "${topic}"`);
-    logger.info(`🎯 Input Extractor - Selected prompt file: ${promptFile} for topic: "${topic}"`);
+    logger.info(`Generating narration for topic: ${topic} at level ${level} in ${inputLanguage}`);
+    
+    // Seviyeye göre content_generation prompt dosyasını seç
+    const promptFile = `content_generation_${level.toUpperCase()}.txt`;
+    const promptPath = path.join(__dirname, `../prompts/content/${promptFile}`);
+    console.log(`🎯 [INPUT EXTRACTOR] Using prompt file: ${promptFile} for topic: "${topic}" (Level: ${level}, Language: ${inputLanguage})`);
+    logger.info(`🎯 Input Extractor - Selected prompt file: ${promptFile} for topic: "${topic}" (Level: ${level}, Language: ${inputLanguage})`);
     let promptTemplate = fs.readFileSync(promptPath, 'utf-8');
-    const { chunkText } = require('./textProcessor');
-    const chunks = chunkText(topic);
-    let narrationChunks = [];
-    for (let i = 0; i < chunks.length; i++) {
-        const prompt = promptTemplate.replace(/\{\{input_text\}\}/g, chunks[i]);
+    // content_generation prompt'ları için placeholder'ları değiştir
+    const prompt = promptTemplate
+        .replace(/\{\{topic\}\}/g, topic)
+        .replace(/\{\{level\}\}/g, level.toUpperCase())
+        .replace(/\{\{input_language\}\}/g, inputLanguage);
+    
+    try {
         if (requestLogger) {
-            requestLogger.log(`[prompt:generateNarrationForTopic:chunk:${i}][input]` + JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2));
+            requestLogger.log(`[prompt:generateNarrationForTopic][input]` + JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2));
         }
         logger.info({ promptName: promptFile, promptText: prompt }, 'generateNarrationForTopic: Kullanılan prompt');
+        
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
-                { role: "system", content: "You are a professional narrator and content writer." },
+                { role: "system", content: `You are a professional language educator specializing in creating educational content at CEFR ${level} level.` },
                 { role: "user", content: prompt },
             ],
-            temperature: 0.6,
+            temperature: 0.7,
         });
+        
         const generatedText = completion.choices[0]?.message?.content?.trim();
-        narrationChunks.push(generatedText);
+        // Remove any leading/trailing markers
+        const cleanedText = generatedText.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
+        
+        logger.info(`Generated ${cleanedText.length} characters for topic at level ${level}`);
+        return cleanedText;
+    } catch (error) {
+        logger.error(`Error generating narration for topic: ${error.message}`);
+        return null;
     }
-    return narrationChunks.join('\n\n');
 }
 
 /**
- * Konu başlığından detaylı İngilizce anlatım üretir ve metin pipeline'ına gönderir.
- * 1. rewrite_to_narration.txt promptu ile başlıktan ~2000 kelimelik anlatım üretir.
- * 2. Dönen metni pipeline'ın kalan adımlarında metin gibi işle
- * Eğer OpenAI başlıktan içerik üretemezse, hata döner.
+ * Girdi tipine göre metin çıkarır ve işler.
+ * Topic tipi için: content_generation_*.txt promptu ile seviyeye uygun içerik üretir.
+ * Text tipi için: Doğrudan metni döndürür.
+ * File, weblink ve chapter tipleri için ilgili extraction fonksiyonlarını çağırır.
  */
 async function extractTextFromInput(inputData, inputType, file, chapter, level = "A1", detectedLanguage = "en", requestLogger) {
     logger.info(`Extracting text for input type: ${inputType}`);
@@ -183,8 +194,9 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
             }
         case "topic":
             if (typeof inputData === "string") {
-                // rewrite_to_narration.txt promptu ile detaylı anlatım üret (seviye ve dil bağımsız)
-                const narration = await generateNarrationForTopic(inputData, requestLogger);
+                // content_generation prompt'u ile seviyeye uygun detaylı anlatım üret
+                const inputLanguage = detectedLanguage === 'tr' || detectedLanguage === 'tr-TR' ? 'Turkish' : 'English';
+                const narration = await generateNarrationForTopic(inputData, level, inputLanguage, requestLogger);
                 if (!narration || narration.toLowerCase().includes("i need the text") || narration.toLowerCase().includes("please provide")) {
                     logger.error("OpenAI could not generate narration from topic. User should provide a more descriptive topic.");
                     return null;

@@ -6,12 +6,29 @@ function mapUserFromApi(apiUser: any): User {
   const first = apiUser.firstname ?? apiUser.first_name ?? apiUser.firstName ?? '';
   const last = apiUser.lastname ?? apiUser.last_name ?? apiUser.lastName ?? '';
   const composedName = `${first} ${last}`.trim();
+  
+  // Backend'den gelen 'package' alanını membershipStatus'a çevir
+  let membershipStatus = apiUser.membership_status || apiUser.membershipStatus;
+  if (apiUser.package) {
+    // Plan adına göre membership status belirle
+    const packageLower = apiUser.package.toLowerCase();
+    if (packageLower.includes('free') || packageLower.includes('ücretsiz') || packageLower.includes('trial')) {
+      membershipStatus = 'free';
+    } else if (packageLower.includes('premium') || packageLower.includes('gold') || packageLower.includes('platin')) {
+      membershipStatus = 'premium';
+    } else if (packageLower.includes('enterprise') || packageLower.includes('kurumsal')) {
+      membershipStatus = 'enterprise';
+    } else {
+      membershipStatus = 'free'; // Default
+    }
+  }
+  
   return {
     id: apiUser.id,
     name: apiUser.name ?? (composedName || undefined),
     email: apiUser.email,
     role: apiUser.role,
-    membershipStatus: apiUser.membership_status || apiUser.membershipStatus,
+    membershipStatus: membershipStatus || 'free',
     avatar: apiUser.avatar,
     createdAt: apiUser.created_at || apiUser.createdAt,
     updatedAt: apiUser.updated_at || apiUser.updatedAt,
@@ -55,7 +72,8 @@ export const fetchUsers = async (): Promise<User[]> => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const result = await response.json();
-    return Array.isArray(result.data) ? result.data.map(mapUserFromApi) : [];
+    // Backend'den 'users' alanı döner
+    return Array.isArray(result.users) ? result.users.map(mapUserFromApi) : [];
   } catch (error) {
     console.error('Error fetching users:', error);
     throw error;

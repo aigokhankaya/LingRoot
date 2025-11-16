@@ -15,11 +15,26 @@ const { simplifyLexically, getComplexWordStats } = require('../utils/lexicalSimp
 const { auditSemanticPreservation } = require('../utils/semanticAudit');
 
 /**
+ * Helper function to get the correct content generation prompt file by CEFR level
+ */
+function getPromptFileByLevel(level) {
+  switch(level) {
+    case 'A1': return 'content_generation_A1.txt';
+    case 'A2': return 'content_generation_A2.txt';
+    case 'B1': return 'content_generation_B1.txt';
+    case 'B2': return 'content_generation_B2.txt';
+    case 'C1': return 'content_generation_C1.txt';
+    case 'C2': return 'content_generation_C2.txt';
+    default: throw new Error(`Invalid CEFR level: ${level}`);
+  }
+}
+
+/**
  * Complete pipeline: Topic → Suggestions → Narration → Translation → CEFR Adaptation
  * Returns final leveled English text without triggering TTS
  */
 exports.processTopicToEnglishText = async (req, res) => {
-  const { topic, level, selected_subtopic } = req.body;
+  const { topic, level, selected_subtopic, input_language } = req.body;
   const requestId = req.headers['x-request-id'] || uuidv4();
   let stepSequence = 1;
   
@@ -58,12 +73,16 @@ exports.processTopicToEnglishText = async (req, res) => {
     if (!selected_subtopic) {
       logger.info(`[${requestId}] Step 1: Generating topic suggestions`);
       const suggestionsPromptPath = path.join(__dirname, '../prompts/topic_detail_suggestions.txt');
+      logger.info(`[${requestId}] 📄 Using prompt file: topic_detail_suggestions.txt`);
+      
       const suggestionsTemplate = fs.readFileSync(suggestionsPromptPath, 'utf8');
       
       const suggestionsPrompt = suggestionsTemplate
         .split('{{topic}}').join(topic)
         .split('{{level}}').join(level)
         .split('{{input_language}}').join('Türkçe');
+      
+      logger.info(`[${requestId}] 📋 Prompt: ${suggestionsPrompt.substring(0, 500)}${suggestionsPrompt.length > 500 ? '...' : ''}`);
       
       const suggestionsCompletion = await openai.chat.completions.create({
         model: "gpt-4o",
@@ -99,20 +118,29 @@ exports.processTopicToEnglishText = async (req, res) => {
     }
     
     // ==========================================
-    // STEP 2: Generate Turkish Narration
+    // STEP 2: Generate Content (Level-Specific)
     // ==========================================
-    logger.info(`[${requestId}] Step 2: Generating Turkish narration`);
-    const narrationPromptPath = path.join(__dirname, '../prompts/rewrite_to_narrations.txt');
-    let narrationTemplate = fs.readFileSync(narrationPromptPath, 'utf8');
+    logger.info(`[${requestId}] Step 2: Generating ${input_language || 'Turkish'} narration for level ${level}`);
     
-    const narrationPrompt = narrationTemplate
-      .replace('{{topic}}', result.selected_subtopic)
-      .replace('{{level}}', level);
+    // Use level-specific content generation prompt
+    const contentPromptFile = getPromptFileByLevel(level);
+    const contentPromptPath = path.join(__dirname, '../prompts/content', contentPromptFile);
+    logger.info(`[${requestId}] 📄 Using prompt file: ${contentPromptFile}`);
+    
+    let contentTemplate = fs.readFileSync(contentPromptPath, 'utf8');
+    
+    const narrationPrompt = contentTemplate
+      .replace(/{{topic}}/g, result.selected_subtopic)
+      .replace(/{{level}}/g, level)
+      .replace(/{{input_language}}/g, input_language || 'Turkish');
+    
+    // Log the full prompt being sent to OpenAI
+    logger.info(`[${requestId}] 📋 Prompt: ${narrationPrompt.substring(0, 500)}${narrationPrompt.length > 500 ? '...' : ''}`);
     
     const narrationCompletion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: "Sen profesyonel bir Türkçe içerik yazarısın. Eğitici, akıcı ve doğal anlatılar oluşturuyorsun." },
+        { role: "system", content: `You are a professional language educator specializing in creating educational content at CEFR ${level} level.` },
         { role: "user", content: narrationPrompt }
       ],
       temperature: 0.7,
@@ -122,7 +150,7 @@ exports.processTopicToEnglishText = async (req, res) => {
     result.narration_tr = result.narration_tr.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
     result.usage.narration = narrationCompletion.usage;
     
-    logger.info(`[${requestId}] Step 2 complete: ${result.narration_tr.length} characters Turkish narration`);
+    logger.info(`[${requestId}] Step 2 complete: ${result.narration_tr.length} characters in ${input_language || 'Turkish'} (Level ${level})`);
     logRequestStep(requestId, 'topic-pipeline:narration:end', { length: result.narration_tr.length });
     
     // ==========================================
@@ -130,6 +158,8 @@ exports.processTopicToEnglishText = async (req, res) => {
     // ==========================================
     logger.info(`[${requestId}] Step 3: Translating to English`);
     const translatePromptPath = path.join(__dirname, '../prompts/translate_to_english.txt');
+    logger.info(`[${requestId}] 📄 Using prompt file: translate_to_english.txt`);
+    
     let translateTemplate = fs.readFileSync(translatePromptPath, 'utf8');
     
     // Chunk the Turkish text for translation
@@ -141,6 +171,8 @@ exports.processTopicToEnglishText = async (req, res) => {
       const translatePrompt = translateTemplate
         .replace('{{input_text}}', translationChunks[i])
         .replace('{{level}}', level);
+      
+      logger.info(`[${requestId}] 📋 Prompt (Translation Chunk ${i+1}/${translationChunks.length}): ${translatePrompt.substring(0, 300)}${translatePrompt.length > 300 ? '...' : ''}`);
       
       const translateCompletion = await openai.chat.completions.create({
         model: "gpt-4o",
@@ -173,6 +205,8 @@ exports.processTopicToEnglishText = async (req, res) => {
     // ==========================================
     logger.info(`[${requestId}] Step 4: Adapting to CEFR ${level}`);
     const cefrPromptPath = path.join(__dirname, `../prompts/cefr_${level}.txt`);
+    logger.info(`[${requestId}] 📄 Using prompt file: cefr_${level}.txt`);
+    
     let cefrTemplate = fs.readFileSync(cefrPromptPath, 'utf8');
     
     // Chunk the English text for adaptation
@@ -184,6 +218,8 @@ exports.processTopicToEnglishText = async (req, res) => {
     
     for (let i = 0; i < adaptationChunks.length; i++) {
       const cefrPrompt = cefrTemplate.replace('{{input_text}}', adaptationChunks[i]);
+      
+      logger.info(`[${requestId}] 📋 Prompt (CEFR Adaptation Chunk ${i+1}/${adaptationChunks.length}): ${cefrPrompt.substring(0, 300)}${cefrPrompt.length > 300 ? '...' : ''}`);
       
       const cefrCompletion = await openai.chat.completions.create({
         model: cefrModel,
@@ -307,6 +343,8 @@ exports.getTopicSuggestions = async (req, res) => {
     logger.info(`[${requestId}] Generating topic suggestions for: "${topic}"`);
     
     const promptPath = path.join(__dirname, '../prompts/topic_detail_suggestions.txt');
+    logger.info(`[${requestId}] 📄 Using prompt file: topic_detail_suggestions.txt`);
+    
     const promptTemplate = fs.readFileSync(promptPath, 'utf8');
     
     const prompt = promptTemplate
@@ -314,7 +352,7 @@ exports.getTopicSuggestions = async (req, res) => {
       .split('{{level}}').join(level || 'A1')
       .split('{{input_language}}').join('Türkçe');
     
-    logger.info(`[${requestId}] Final prompt sent to GPT:\n${prompt}`);
+    logger.info(`[${requestId}] 📋 Prompt: ${prompt}`);
     
     if (!openai) {
       return res.status(503).json({ success: false, message: "Service unavailable (missing OPENAI_API_KEY)." });

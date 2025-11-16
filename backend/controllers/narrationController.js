@@ -9,8 +9,23 @@ const { logRequestStep } = require('../utils/requestLogger');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../utils/logger');
 
+/**
+ * Helper function to get the correct content generation prompt file by CEFR level
+ */
+function getPromptFileByLevel(level) {
+  switch(level) {
+    case 'A1': return 'content_generation_A1.txt';
+    case 'A2': return 'content_generation_A2.txt';
+    case 'B1': return 'content_generation_B1.txt';
+    case 'B2': return 'content_generation_B2.txt';
+    case 'C1': return 'content_generation_C1.txt';
+    case 'C2': return 'content_generation_C2.txt';
+    default: return 'rewrite_to_narrations.txt'; // Fallback to old prompt
+  }
+}
+
 exports.rewriteToNarration = async (req, res) => {
-  const { input_text, level } = req.body;
+  const { input_text, level, input_language } = req.body;
   const requestId = req.headers['x-request-id'] || uuidv4();
   
   if (!input_text) {
@@ -19,17 +34,26 @@ exports.rewriteToNarration = async (req, res) => {
   }
   
   try {
-    // Prompt dosyasını oku
-    const promptFile = 'rewrite_to_narrations.txt';
-    const promptPath = path.join(__dirname, '../prompts/rewrite_to_narrations.txt');
+    // Seviyeye göre doğru prompt dosyasını seç
+    const promptFile = getPromptFileByLevel(level || 'A1');
+    const promptPath = promptFile === 'rewrite_to_narrations.txt' 
+      ? path.join(__dirname, '../prompts/rewrite_to_narrations.txt')
+      : path.join(__dirname, '../prompts/content', promptFile);
+    
     console.log(`🎯 [NARRATION CONTROLLER] Using prompt file: ${promptFile} for level: ${level || 'A1'}`);
     logger.info(`🎯 Narration Controller - Selected prompt file: ${promptFile} for level: ${level || 'A1'}`);
+    logger.info(`[${requestId}] 📄 Using prompt file: ${promptFile}`);
+    
     let promptTemplate = fs.readFileSync(promptPath, 'utf8');
     
     // Placeholder'ları değiştir
     const prompt = promptTemplate
-      .replace('{{topic}}', input_text)
-      .replace('{{level}}', level || 'A1');
+      .replace(/{{topic}}/g, input_text)
+      .replace(/{{level}}/g, level || 'A1')
+      .replace(/{{input_language}}/g, input_language || 'Turkish');
+    
+    // Log the full prompt being sent to OpenAI
+    logger.info(`[${requestId}] 📋 Prompt: ${prompt.substring(0, 500)}${prompt.length > 500 ? '...' : ''}`);
     
     logger.info(`Narration rewrite request - Level: ${level || 'A1'}, Text length: ${input_text.length}`);
     logRequestStep(requestId, 'narration-rewrite:start', { 
@@ -46,7 +70,7 @@ exports.rewriteToNarration = async (req, res) => {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: "Sen profesyonel bir Türkçe içerik yazarısın. Eğitici, akıcı ve doğal anlatılar oluşturuyorsun." },
+        { role: "system", content: `You are a professional language educator specializing in creating educational content at CEFR ${level || 'A1'} level.` },
         { role: "user", content: prompt }
       ],
       temperature: 0.7,
