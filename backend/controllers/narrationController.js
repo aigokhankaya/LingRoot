@@ -13,14 +13,15 @@ const logger = require('../utils/logger');
  * Helper function to get the correct content generation prompt file by CEFR level
  */
 function getPromptFileByLevel(level) {
-  switch(level) {
+  switch((level || '').toUpperCase()) {
     case 'A1': return 'content_generation_A1.txt';
     case 'A2': return 'content_generation_A2.txt';
     case 'B1': return 'content_generation_B1.txt';
     case 'B2': return 'content_generation_B2.txt';
     case 'C1': return 'content_generation_C1.txt';
     case 'C2': return 'content_generation_C2.txt';
-    default: return 'rewrite_to_narrations.txt'; // Fallback to old prompt
+    default:
+      throw new Error(`Invalid or missing CEFR level: ${level}`);
   }
 }
 
@@ -32,13 +33,15 @@ exports.rewriteToNarration = async (req, res) => {
     logRequestStep(requestId, 'narration-rewrite:error', { error: 'No input text provided.' });
     return res.status(400).json({ success: false, message: "Lütfen bir metin girin." });
   }
+  if (!level) {
+    logRequestStep(requestId, 'narration-rewrite:error', { error: 'No CEFR level provided.' });
+    return res.status(400).json({ success: false, message: "Lütfen bir CEFR seviyesi seçin (A1-C2)." });
+  }
   
   try {
     // Seviyeye göre doğru prompt dosyasını seç
-    const promptFile = getPromptFileByLevel(level || 'A1');
-    const promptPath = promptFile === 'rewrite_to_narrations.txt' 
-      ? path.join(__dirname, '../prompts/rewrite_to_narrations.txt')
-      : path.join(__dirname, '../prompts/content', promptFile);
+    const promptFile = getPromptFileByLevel(level);
+    const promptPath = path.join(__dirname, '../prompts/content', promptFile);
     
     console.log(`🎯 [NARRATION CONTROLLER] Using prompt file: ${promptFile} for level: ${level || 'A1'}`);
     logger.info(`🎯 Narration Controller - Selected prompt file: ${promptFile} for level: ${level || 'A1'}`);

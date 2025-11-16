@@ -240,10 +240,13 @@ const processTtsRequest = async (req, res) => {
         });
         let inputData, inputType, level, speakingRate, file;
 
+        // Debug: Log full request body
+        logger.info(`[${requestId}] 🔍 FULL REQUEST BODY:`, JSON.stringify(req.body, null, 2));
+
         if (req.is("multipart/form-data")) {
             logger.info(`[${requestId}] Processing multipart/form-data request.`);
             inputData = req.body.input;
-            inputType = req.body.type;
+            inputType = req.body.type || req.body.input_type;
             level = req.body.level || "A1";
             speakingRate = parseFloat(req.body.speakingRate || (level === "A1" ? "0.8" : "1.0"));
             file = req.file;
@@ -251,7 +254,7 @@ const processTtsRequest = async (req, res) => {
         } else if (req.is("application/json")) {
             logger.info(`[${requestId}] Processing application/json request.`);
             inputData = req.body.input;
-            inputType = req.body.type || "text";
+            inputType = req.body.type || req.body.input_type || "text";
             level = req.body.level || "A1";
             speakingRate = parseFloat(req.body.speakingRate || (level === "A1" ? "0.8" : "1.0"));
             file = undefined;
@@ -262,10 +265,25 @@ const processTtsRequest = async (req, res) => {
             return res.status(415).json({ success: false, message: `Unsupported Content-Type: ${contentType}` });
         }
 
+        // Normalize input type: 'subject' -> 'topic'
+        logger.info(`[${requestId}] 🔍 RAW INPUT TYPE BEFORE NORMALIZATION: "${inputType}"`);
+        if (inputType === 'subject') {
+            inputType = 'topic';
+            logger.info(`[${requestId}] ✅ Normalized input type from 'subject' to 'topic'`);
+        }
+        logger.info(`[${requestId}] 🔍 FINAL INPUT TYPE AFTER NORMALIZATION: "${inputType}"`);
+
         // Validate essential parameters
         if (!inputType || (inputType !== "file" && !inputData) || (inputType === "file" && !file)) {
             logger.error(`[${requestId}] Missing required input parameters. inputType=${inputType}, inputData=${inputData}, file=${file?.originalname}`);
             return res.status(400).json({ success: false, message: "Missing required input parameters (type, input/file, level)" });
+        }
+
+        // Detect language for topic input (check for Turkish characters)
+        if (inputType === "topic" && inputData) {
+            const hasTurkishChars = /[ğüşıöçĞÜŞİÖÇ]/g.test(inputData);
+            detectedLang = hasTurkishChars ? 'tr' : 'en';
+            logger.info(`[${requestId}] Detected language for topic: ${detectedLang}`);
         }
 
         // --- Step 1: Extract Text ---
@@ -279,16 +297,23 @@ const processTtsRequest = async (req, res) => {
             inputData: { inputData, inputType, file, level, detectedLang }
         });
         let rawText;
-        let originalTurkishText = null;
+        let translatedText = null; // For display/storage (topic only)
         let englishNarration = null;
+        
+        logger.info(`[${requestId}] 🔍 CHECKING IF TOPIC: inputType="${inputType}" (comparing with "topic")`);
         if (inputType === "topic") {
-            // Konu başlığından doğrudan İngilizce anlatım metni oluştur (yeni prompt ile)
-            rawText = await extractTextFromInput(inputData, inputType, file, undefined, level, detectedLang);
-            if (!rawText) {
+            logger.info(`[${requestId}] ✅ TOPIC FLOW ACTIVATED!`);
+            // Topic input returns {englishText, translatedText}
+            const topicResult = await extractTextFromInput(inputData, inputType, file, undefined, level, detectedLang);
+            if (!topicResult || !topicResult.englishText) {
                 logger.error(`[${requestId}] Failed to generate narration for topic.`);
                 return res.status(500).json({ success: false, message: "Failed to generate narration for topic." });
             }
+            rawText = topicResult.englishText; // English text for TTS
+            translatedText = topicResult.translatedText; // Translated text for display/storage
+            logger.info(`[${requestId}] Topic processing: English text for TTS (${rawText.length} chars), Translated text for storage (${translatedText.length} chars)`);
         } else {
+            logger.info(`[${requestId}] ❌ NON-TOPIC FLOW: Using old translate+adapt flow for inputType="${inputType}"`);
             rawText = await extractTextFromInput(inputData, inputType, file, undefined, level, detectedLang);
         }
         if (rawText === null) {
@@ -329,6 +354,13 @@ const processTtsRequest = async (req, res) => {
             outputData: { cleanedText }
         });
         logger.info(`[${requestId}] Text cleaned successfully.`);
+        
+        // For topic input, text is already in target language at correct CEFR level
+        // Skip translate and adapt steps
+        let skipTranslateAndAdapt = (inputType === "topic");
+        if (skipTranslateAndAdapt) {
+            logger.info(`[${requestId}] Topic input detected - skipping translate/adapt (already processed in extractTextFromInput).`);
+        }
 
         // Enforce subscription usage limits before heavy operations
         try {
@@ -354,7 +386,7 @@ const processTtsRequest = async (req, res) => {
             
             // Free Trial için tek ses başına 10 dk (10,000 karakter) limiti
             if (limitState.plan?.name === 'Free Trial') {
-              const textLength = adaptedText.length;
+              const textLength = cleanedText.length;
               const maxCharsPerAudio = 10000; // 10 dakika
               
               if (textLength > maxCharsPerAudio) {
@@ -406,121 +438,130 @@ const processTtsRequest = async (req, res) => {
           logger.error(`[${requestId}] Failed to check usage limits: ${limitErr?.message}`);
         }
 
-        // --- Step 2.5: Detect Language and Translate if Necessary ---
-        logRequestStep(requestId, 'translate:start', { cleanedText });
-        logStep({
-            requestId,
-            stepName: 'tts:translate:openai:start',
-            stepSequence: stepSequence++,
-            serviceName: 'OpenAI',
-            endpoint: 'https://api.openai.com/v1/completions',
-            promptName: 'translateToEnglishWithOpenAI',
-            promptText: cleanedText
-        });
-        let textToAdapt = cleanedText;
-        let translationResult = '';
         // Track OpenAI usage/cost
         let openaiUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
         /** @type {{model: string, prompt_tokens: number, completion_tokens: number, total_tokens: number}[]} */
         const usageBreakdown = [];
         let openaiCallCount = 0;
         let googleTtsCallCount = 0;
-        try {
-            // translateToEnglishWithOpenAI may return string; we enhance to capture usage via try/catch below
-            const trResult = await translateToEnglishWithOpenAI(cleanedText, level);
-            openaiCallCount += 1; // translate call aggregates chunk usages
-            if (typeof trResult === 'object' && trResult !== null && trResult.text) {
-                translationResult = trResult.text;
-                if (trResult.usage) {
-                    openaiUsage = {
-                        prompt_tokens: trResult.usage.prompt_tokens || 0,
-                        completion_tokens: trResult.usage.completion_tokens || 0,
-                        total_tokens: trResult.usage.total_tokens || (trResult.usage.prompt_tokens || 0) + (trResult.usage.completion_tokens || 0)
-                    };
-                    if (trResult.model) {
-                        usageBreakdown.push({ model: trResult.model, ...openaiUsage });
-                    }
-                }
-            } else {
-                translationResult = String(trResult || '');
-            }
-            if (!translationResult || translationResult.trim() === "") {
-                logger.error(`[${requestId}] Translation result is empty, chunkText will not be called.`);
-                logRequestStep(requestId, 'translate:error', { error: 'Translation result is empty.' });
-                return res.status(400).json({ success: false, message: "Translation result is empty." });
-            }
-            textToAdapt = translationResult;
-            logger.info(`[${requestId}] Translation successful.`);
-            logRequestStep(requestId, 'translate:success', { translationResult });
+        let textToAdapt = cleanedText;
+        let translationResult = '';
 
-            // Restore the removed console.log statements
-            console.log("📄 Gelen dosya:", req.file);
-            console.log("✏️  Text input:", req.body.input);
-            console.log("📥  Input type:", req.body.input_type);
-            console.log("[DEBUG] Translated result:", translationResult);
-        } catch (translateError) {
-            logger.error(`[${requestId}] Error during language detection/translation: ${translateError.message}.`);
-            logRequestStep(requestId, 'translate:error', { error: translateError.message });
-            // Return 4xx instead of silently continuing with original text
-            const status = translateError?.status || translateError?.code === 'insufficient_quota' ? 429 : 422;
-            return res.status(status).json({
-                success: false,
-                message: 'Translation failed',
-                error: translateError.message,
-                code: translateError?.code
-            });
-        }
-        logStep({
-            requestId,
-            stepName: 'tts:translate:openai:end',
-            stepSequence: stepSequence++,
-            serviceName: 'OpenAI',
-            endpoint: 'https://api.openai.com/v1/completions',
-            outputData: { textToAdapt }
-        });
-        logRequestStep(requestId, 'translate:end', { textToAdapt });
-
-        // --- Step 2.6: Adapt to CEFR Level ---
-        logRequestStep(requestId, 'adaptToCEFR:start', { textToAdapt, level });
-        logStep({
-            requestId,
-            stepName: 'tts:adaptToCEFR:start',
-            stepSequence: stepSequence++,
-            serviceName: 'LocalFunction',
-            endpoint: 'adaptToCEFR',
-            inputData: { text: textToAdapt, level }
-        });
-
-        try {
-            const adaptedResult = await adaptToCEFRFunc(textToAdapt, level);
-            openaiCallCount += 1; // adapt call aggregates chunk usages
-            if (typeof adaptedResult === 'object' && adaptedResult !== null && adaptedResult.text) {
-                textToAdapt = adaptedResult.text;
-                // accumulate CEFR usage into openaiUsage as well
-                if (adaptedResult.usage) {
-                    openaiUsage.prompt_tokens = (openaiUsage.prompt_tokens || 0) + (adaptedResult.usage.prompt_tokens || 0);
-                    openaiUsage.completion_tokens = (openaiUsage.completion_tokens || 0) + (adaptedResult.usage.completion_tokens || 0);
-                    openaiUsage.total_tokens = (openaiUsage.total_tokens || 0) + (adaptedResult.usage.total_tokens || 0);
-                    if (adaptedResult.model) {
-                        usageBreakdown.push({ model: adaptedResult.model, ...adaptedResult.usage });
-                    }
-                }
-            } else {
-                textToAdapt = adaptedResult;
-            }
-            logger.info(`[${requestId}] CEFR adaptation successful.`);
-            logRequestStep(requestId, 'adaptToCEFR:end', { adaptedResult });
+        if (!skipTranslateAndAdapt) {
+            // --- Step 2.5: Detect Language and Translate if Necessary (for non-topic inputs) ---
+            logRequestStep(requestId, 'translate:start', { cleanedText });
             logStep({
                 requestId,
-                stepName: 'tts:adaptToCEFR:end',
+                stepName: 'tts:translate:openai:start',
+                stepSequence: stepSequence++,
+                serviceName: 'OpenAI',
+                endpoint: 'https://api.openai.com/v1/completions',
+                promptName: 'translateToEnglishWithOpenAI',
+                promptText: cleanedText
+            });
+            
+            try {
+                // translateToEnglishWithOpenAI may return string; we enhance to capture usage via try/catch below
+                const trResult = await translateToEnglishWithOpenAI(cleanedText, level);
+                openaiCallCount += 1; // translate call aggregates chunk usages
+                if (typeof trResult === 'object' && trResult !== null && trResult.text) {
+                    translationResult = trResult.text;
+                    if (trResult.usage) {
+                        openaiUsage = {
+                            prompt_tokens: trResult.usage.prompt_tokens || 0,
+                            completion_tokens: trResult.usage.completion_tokens || 0,
+                            total_tokens: trResult.usage.total_tokens || (trResult.usage.prompt_tokens || 0) + (trResult.usage.completion_tokens || 0)
+                        };
+                        if (trResult.model) {
+                            usageBreakdown.push({ model: trResult.model, ...openaiUsage });
+                        }
+                    }
+                } else {
+                    translationResult = String(trResult || '');
+                }
+                if (!translationResult || translationResult.trim() === "") {
+                    logger.error(`[${requestId}] Translation result is empty, chunkText will not be called.`);
+                    logRequestStep(requestId, 'translate:error', { error: 'Translation result is empty.' });
+                    return res.status(400).json({ success: false, message: "Translation result is empty." });
+                }
+                textToAdapt = translationResult;
+                logger.info(`[${requestId}] Translation successful.`);
+                logRequestStep(requestId, 'translate:success', { translationResult });
+
+                // Debug output
+                console.log("📄 Gelen dosya:", req.file);
+                console.log("✏️  Text input:", req.body.input);
+                console.log("📥  Input type:", req.body.input_type);
+                console.log("[DEBUG] Translated result:", translationResult);
+            } catch (translateError) {
+                logger.error(`[${requestId}] Error during language detection/translation: ${translateError.message}.`);
+                logRequestStep(requestId, 'translate:error', { error: translateError.message });
+                // Return 4xx instead of silently continuing with original text
+                const status = translateError?.status || translateError?.code === 'insufficient_quota' ? 429 : 422;
+                return res.status(status).json({
+                    success: false,
+                    message: 'Translation failed',
+                    error: translateError.message,
+                    code: translateError?.code
+                });
+            }
+            logStep({
+                requestId,
+                stepName: 'tts:translate:openai:end',
+                stepSequence: stepSequence++,
+                serviceName: 'OpenAI',
+                endpoint: 'https://api.openai.com/v1/completions',
+                outputData: { textToAdapt }
+            });
+            logRequestStep(requestId, 'translate:end', { textToAdapt });
+
+            // --- Step 2.6: Adapt to CEFR Level ---
+            logRequestStep(requestId, 'adaptToCEFR:start', { textToAdapt, level });
+            logStep({
+                requestId,
+                stepName: 'tts:adaptToCEFR:start',
                 stepSequence: stepSequence++,
                 serviceName: 'LocalFunction',
                 endpoint: 'adaptToCEFR',
-                outputData: { textToAdapt }
+                inputData: { text: textToAdapt, level }
             });
-        } catch (adaptError) {
-            logger.error(`[${requestId}] Error during CEFR adaptation: ${adaptError.message}. Proceeding with untranslated text.`);
-            logRequestStep(requestId, 'adaptToCEFR:error', { error: adaptError.message });
+
+            try {
+                const adaptedResult = await adaptToCEFRFunc(textToAdapt, level);
+                openaiCallCount += 1; // adapt call aggregates chunk usages
+                if (typeof adaptedResult === 'object' && adaptedResult !== null && adaptedResult.text) {
+                    textToAdapt = adaptedResult.text;
+                    // accumulate CEFR usage into openaiUsage as well
+                    if (adaptedResult.usage) {
+                        openaiUsage.prompt_tokens = (openaiUsage.prompt_tokens || 0) + (adaptedResult.usage.prompt_tokens || 0);
+                        openaiUsage.completion_tokens = (openaiUsage.completion_tokens || 0) + (adaptedResult.usage.completion_tokens || 0);
+                        openaiUsage.total_tokens = (openaiUsage.total_tokens || 0) + (adaptedResult.usage.total_tokens || 0);
+                        if (adaptedResult.model) {
+                            usageBreakdown.push({ model: adaptedResult.model, ...adaptedResult.usage });
+                        }
+                    }
+                } else {
+                    textToAdapt = adaptedResult;
+                }
+                logger.info(`[${requestId}] CEFR adaptation successful.`);
+                logRequestStep(requestId, 'adaptToCEFR:end', { adaptedResult });
+                logStep({
+                    requestId,
+                    stepName: 'tts:adaptToCEFR:end',
+                    stepSequence: stepSequence++,
+                    serviceName: 'LocalFunction',
+                    endpoint: 'adaptToCEFR',
+                    outputData: { textToAdapt }
+                });
+            } catch (adaptError) {
+                logger.error(`[${requestId}] Error during CEFR adaptation: ${adaptError.message}. Proceeding with untranslated text.`);
+                logRequestStep(requestId, 'adaptToCEFR:error', { error: adaptError.message });
+            }
+        } else {
+            // Topic input: text is already in target language at correct CEFR level
+            translationResult = cleanedText;
+            logger.info(`[${requestId}] Skipped translate/adapt for topic input.`);
+            logRequestStep(requestId, 'topic:skip_translate_adapt', { reason: 'Topic input already processed' });
         }
 
         // --- Check if no_tts flag is set (text generation only) ---
@@ -533,7 +574,7 @@ const processTtsRequest = async (req, res) => {
                 message: "Text generation complete. TTS synthesis skipped.",
                 data: {
                     adapted_text: textToAdapt,
-                    translated_text: translationResult || textToAdapt,
+                    translated_text: translatedText || translationResult || textToAdapt,
                     level,
                     languageCode,
                     openai_usage: openaiUsage,
@@ -989,7 +1030,7 @@ const processTtsRequest = async (req, res) => {
             content: vttContent,
             createdAt: new Date(),
             text: cleanTextForDisplay, // Temiz text sakla
-            originalText: adaptedText, // Original text de sakla
+            originalText: translatedText || textToAdapt, // Topic için çevrilmiş metin (kullanıcıya gösterilen)
             duration: actualTotalDuration,
             words: totalWords,
             wordTimings: allWordTimings,
@@ -1163,9 +1204,9 @@ const processTtsRequest = async (req, res) => {
                     user_id: userId,
                     level: level || 'B1',
                     mp3_url: finalMp3Url,
-                    input: originalTurkishText || req.body.input || '',
-                    translated_text: translationResult || '',
-                    adapted_text: adaptedText || '',
+                    input: req.body.input || '',
+                    translated_text: translatedText || translationResult || '',
+                    adapted_text: textToAdapt || '',
                     input_type: req.body.type || 'text',
                     created_at: new Date().toISOString(),
                     words: words && words.length > 0 ? JSON.stringify(words) : null,
@@ -1276,14 +1317,13 @@ const processTtsRequest = async (req, res) => {
         const responseData = {
             success: true,
             message: cleanTextForDisplay, // Kullanıcıya temiz text göster (noktalama olmadan)
-            originalMessage: adaptedText, // Original adapted text de gönder (reference için)
+            originalMessage: translatedText || textToAdapt, // Topic için çevrilmiş metin (kullanıcıya gösterilen)
             level: level,
             input_language: detectedLang,
             mp3_url: finalMp3Url,
             words: words, // Temiz kelimeler (allCleanWords)
             timepoints: timepoints, // Optimized timing'ler
             vtt_url: vttUrl,
-            original_turkish: originalTurkishText || undefined,
             // Ek bilgiler
             real_duration: actualTotalDuration,
             estimated_duration: totalRealDuration,
@@ -1298,12 +1338,14 @@ const processTtsRequest = async (req, res) => {
             drift_corrected: analysisResult.driftDetected || false,
             drift_amount: analysisResult.driftAmount || 0,
             drift_percentage: analysisResult.driftPercentage || 0,
-            // Çeviri ve adaptasyon sonuçları (database kayıt için)
-            translated_text: translationResult || '',
-            adapted_text: adaptedText,
+            // Çeviri ve adaptasyon sonuçları
+            // Topic için: translated_text = Türkçe (kullanıcıya gösterilen), adapted_text = İngilizce (TTS'e gönderilen)
+            // Text için: translated_text = İngilizce çeviri, adapted_text = CEFR uyarlanmış İngilizce
+            translated_text: translatedText || translationResult || '',
+            adapted_text: textToAdapt || '',
             // Frontend için camelCase versiyonları da ekle
-            translatedText: translationResult || '',
-            adaptedText: adaptedText || '',
+            translatedText: translatedText || translationResult || '',
+            adaptedText: textToAdapt || '',
             cleanText: cleanTextForDisplay // Temiz text ayrı field olarak da gönder
         };
         

@@ -1,0 +1,47 @@
+🎯 TASK:
+Translate the given B2 level English text into {{input_language}} while maintaining the CEFR B2 upper-intermediate level.
+
+⚠️ CRITICAL RULES:
+
+📋 TRANSLATION REQUIREMENTS:
+- Translate the entire English text into {{input_language}}
+- Keep the upper-intermediate style
+- Preserve all key information and facts
+- Do NOT skip any content
+- Maintain B2 level in the target language
+
+🟢 VOCABULARY RULES FOR {{input_language}}:
+- Use A1-B2 vocabulary (wide range with some specialized vocabulary)
+- Allow technical terms when appropriate
+- Use varied and precise vocabulary
+- Include some abstract concepts
+
+🔤 GRAMMAR RULES FOR {{input_language}}:
+- Use complex but clear sentence structures
+- Allow moderate to advanced connectors
+- Use varied tenses and grammatical structures
+- Keep sentences coherent and well-structured
+
+🚫 DO NOT USE IN {{input_language}}:
+- Extremely rare or archaic vocabulary
+- Overly literary or poetic language
+- Unnecessarily convoluted structures
+
+📌 STYLE:
+- Sound natural and fluent in {{input_language}}
+- Use informative, coherent language
+- Write for upper-intermediate learners
+- Ensure smooth transitions between ideas
+
+📌 STRUCTURE:
+- Keep the same paragraph structure as the input
+- Maintain the same number of paragraphs (4-6 sentences each)
+- Keep all facts and information
+- Use plain paragraph format (no bullets, lists, or formatting)
+
+📥 INPUT (B2 English text):
+{{input_text}}
+
+📤 OUTPUT:
+Return ONLY the translated text in {{input_language}}.
+Do not explain, comment, or add anything.

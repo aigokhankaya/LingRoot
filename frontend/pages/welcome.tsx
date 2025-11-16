@@ -1162,32 +1162,20 @@ const Welcome: React.FC = () => {
         };
       }
 
-      // "subject" (Konu) ve "topic" (Hobi) type'ları için özel işlem
+      // "subject" (Konu) ve "topic" (Hobi) type'ları için backend'e direkt gönder
       if (inputData.type === 'subject' || inputData.type === 'topic') {
         const typeLabel = inputData.type === 'subject' ? 'Subject (Konu)' : 'Topic (Hobi)';
-        console.log(`${typeLabel} type detected, rewriting to narration...`);
+        console.log(`${typeLabel} type detected, sending directly to backend for content generation...`);
         
-        // Metni anlatım formatına dönüştür
-        const narrationResult = await rewriteToNarration(
-          inputData.text || inputData.input || '', 
-          inputData.level
-        );
+        // Backend'de content_generation ve translate_from_english promptları kullanılacak
+        // Type'ı olduğu gibi bırak, backend normalize edecek
+        processInput = {
+          ...processInput,
+          type: inputData.type, // 'subject' veya 'topic' olarak kalsın
+          input: inputData.text || inputData.input || ''
+        };
         
-        if (narrationResult.success && narrationResult.data.narration_text) {
-          // Dönüştürülmüş metni kullan ve type'ı text olarak değiştir
-          processInput = {
-            ...processInput,
-            type: 'text',
-            input: narrationResult.data.narration_text
-          };
-          
-          console.log(`${typeLabel} text rewritten to narration format:`, {
-            originalLength: (inputData.text || inputData.input || '').length,
-            narrationLength: narrationResult.data.narration_text.length
-          });
-        } else {
-          throw new Error('Metin anlatım formatına dönüştürülemedi.');
-        }
+        console.log(`${typeLabel} will be processed by backend with content_generation prompts`);
       }
 
       // Kullanım/abonelik kontrolü

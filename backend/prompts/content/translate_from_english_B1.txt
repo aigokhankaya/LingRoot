@@ -1,0 +1,48 @@
+🎯 TASK:
+Translate the given B1 level English text into {{input_language}} while maintaining the CEFR B1 intermediate level.
+
+⚠️ CRITICAL RULES:
+
+📋 TRANSLATION REQUIREMENTS:
+- Translate the entire English text into {{input_language}}
+- Keep the intermediate-level style
+- Preserve all key information and facts
+- Do NOT skip any content
+- Maintain B1 level in the target language
+
+🟢 VOCABULARY RULES FOR {{input_language}}:
+- Use A1-B1 vocabulary (common words plus less common vocabulary)
+- Allow some specialized terms when necessary
+- Avoid highly technical or academic jargon
+- Use mostly familiar, everyday language
+
+🔤 GRAMMAR RULES FOR {{input_language}}:
+- Use simple present, simple past, and limited future tense
+- Keep sentences clear (8–15 words)
+- Use standard connectors
+- Use clear, coherent sentence structures
+
+🚫 DO NOT USE IN {{input_language}}:
+- Overly abstract academic terms
+- Complex literary language
+- Highly technical jargon
+- Very long, convoluted sentences
+
+📌 STYLE:
+- Sound natural and clear in {{input_language}}
+- Use explanatory, informative language
+- Write for intermediate learners
+- Keep it clearly structured
+
+📌 STRUCTURE:
+- Keep the same paragraph structure as the input
+- Maintain the same number of paragraphs (4-6 sentences each)
+- Keep all facts and information
+- Use plain paragraph format (no bullets, lists, or formatting)
+
+📥 INPUT (B1 English text):
+{{input_text}}
+
+📤 OUTPUT:
+Return ONLY the translated text in {{input_language}}.
+Do not explain, comment, or add anything.
