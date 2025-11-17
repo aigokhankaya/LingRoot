@@ -1,0 +1,37 @@
+// 🇹🇷 Kullanım: CEFR sonrası nihai İngilizce metinden günlük kullanım kalıpları çıkarma adımı.
+// Bu prompt, kullanıcıya sunulan son İngilizce anlatım içerisinde pratik, günlük ifadeleri JSON formatında listeler.
+
+🎯 TASK:
+Analyze the CEFR {{level}} English narration below and extract the most useful daily-use expressions that actually appear in the text.
+
+⚙️ RULES:
+- Focus on phrases, short sentences, or collocations that a learner can reuse in everyday situations.
+- Ignore overly specific names, dates, or niche terminology.
+- Group similar phrases into one pattern to avoid duplicates.
+- Prefer actionable phrases (greetings, requests, suggestions, opinions, daily routines, advice, social interactions, etc.).
+- Return at most 8 patterns; minimum 3 if fewer exist.
+- Explanations must be concise (max 2 sentences) and learner-friendly.
+- Provide Turkish translations for both the pattern and the example sentence.
+- Only return JSON. Do not include commentary, markdown, or code fences.
+
+📦 OUTPUT JSON SCHEMA:
+{
+  "level": "{{level}}",
+  "daily_patterns": [
+    {
+      "pattern": "string (exact phrase as it appears)",
+      "category": "one of: greeting | request | offer | advice | routine | opinion | social | other",
+      "explanation_en": "brief reason why this pattern is useful",
+      "example_sentence": "quote the full sentence that uses the pattern",
+      "example_sentence_tr": "Turkish translation of the example",
+      "pattern_tr": "Turkish translation of the pattern",
+      "why_learners_need_it": "max 1 sentence linking to daily communication"
+    }
+  ]
+}
+
+📥 INPUT TEXT:
+{{adapted_text}}
+
+📤 OUTPUT:
+Return valid minified JSON matching the schema. If no patterns exist, return {"level":"{{level}}","daily_patterns":[]}.

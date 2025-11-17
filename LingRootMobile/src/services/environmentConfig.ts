@@ -1,17 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXPO_PUBLIC_API_URL } from '@env';
 
-const resolvedProductionUrl = (EXPO_PUBLIC_API_URL || '').trim();
+// Read from .env or use defaults
+const resolvedApiUrl = (EXPO_PUBLIC_API_URL || '').trim();
+const resolvedProductionUrl = resolvedApiUrl.startsWith('http') ? resolvedApiUrl : '';
+
 if (resolvedProductionUrl) {
-  console.log('🌐 [ENV CONFIG] Using EXPO_PUBLIC_API_URL for production base:', resolvedProductionUrl);
+  console.log('🌐 [ENV CONFIG] Using EXPO_PUBLIC_API_URL:', resolvedProductionUrl);
 } else {
-  console.log('🌐 [ENV CONFIG] EXPO_PUBLIC_API_URL missing, falling back to default backend');
+  console.log('🌐 [ENV CONFIG] EXPO_PUBLIC_API_URL missing, using defaults');
 }
 
 // Environment configuration
 const PRODUCTION_URL = resolvedProductionUrl || 'https://lingloops-backend.onrender.com';
-// Use computer's local IP for both Emulator and real device
-const LOCAL_URL = 'http://192.168.1.4:5001';
+// Local URL - can be overridden by EXPO_PUBLIC_API_URL in .env
+const LOCAL_URL = resolvedProductionUrl || 'http://192.168.1.4:5001';
 //IOS için bu:
 //const LOCAL_URL = 'http://192.168.1.6:5001';
 
@@ -33,8 +36,25 @@ let cachedConfig: EnvironmentConfig | null = null;
 /**
  * Fetches environment configuration from backend
  * Tries local URL first, then production URL
+ * Sends user token if available to determine test user status
  */
 async function fetchEnvironmentFromBackend(): Promise<'production' | 'test'> {
+  // Get user token from AsyncStorage (try both possible keys)
+  let token: string | null = null;
+  try {
+    token = await AsyncStorage.getItem('auth_token');
+    if (!token) {
+      token = await AsyncStorage.getItem('userToken'); // Fallback for older versions
+    }
+    if (token) {
+      console.log('🔐 [ENV CONFIG] Found user token in storage');
+    } else {
+      console.log('⚠️ [ENV CONFIG] No user token found in storage');
+    }
+  } catch (error) {
+    console.log('⚠️ [ENV CONFIG] Failed to get user token from storage:', error);
+  }
+
   // Try each URL in order (local first, then production)
   for (const baseUrl of CONFIG_URLS) {
     try {
@@ -44,11 +64,19 @@ async function fetchEnvironmentFromBackend(): Promise<'production' | 'test'> {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000); // Shorter timeout for local
 
+      // Build headers with optional Authorization
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+        console.log('🔐 [ENV CONFIG] Sending request with user token');
+      }
+
       const response = await fetch(`${baseUrl}/api/config/environment`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         signal: controller.signal,
       });
 

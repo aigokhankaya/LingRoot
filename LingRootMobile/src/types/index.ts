@@ -137,6 +137,7 @@ export type RootStackParamList = {
   Packages: undefined;
   Chat: undefined;
   Vocabulary: { wordId?: string } | undefined;
+  PatternList: undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
   ReminderSettings: undefined;

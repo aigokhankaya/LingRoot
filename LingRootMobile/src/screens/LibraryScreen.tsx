@@ -516,6 +516,7 @@ const LibraryScreen: React.FC = () => {
           <TextInput
             style={styles.searchInput}
             placeholder={language === 'tr' ? 'Ses dosyalarında ara...' : 'Search in audio files...'}
+            placeholderTextColor="#999"
             value={searchText}
             onChangeText={setSearchText}
           />
@@ -704,13 +705,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderRadius: 12,
     paddingHorizontal: 15,
-    paddingVertical: 12,
+    paddingVertical: 8,
+    height: 44,
   },
   searchInput: {
     flex: 1,
     marginLeft: 10,
     fontSize: 16,
     color: '#333',
+    padding: 0,
   },
   levelFilter: {
     paddingHorizontal: 20,

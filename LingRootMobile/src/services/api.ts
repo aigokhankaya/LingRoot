@@ -358,10 +358,33 @@ export const apiService = {
       });
       return response.data;
     } catch (error: any) {
+      // Detaylı hata logu
+      console.error('🔴 [TTS ERROR] Full error:', {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        hasResponse: !!error.response,
+        isTimeout: error.code === 'ECONNABORTED',
+        isNetworkError: error.message === 'Network Error'
+      });
+      
       const code = error?.response?.data?.code;
       if (code === 'USAGE_LIMIT_EXCEEDED') {
         throw new Error('Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.');
       }
+      
+      // Timeout hatası
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('TTS işlemi zaman aşımına uğradı. Lütfen daha kısa bir metin deneyin.');
+      }
+      
+      // Network hatası
+      if (error.message === 'Network Error') {
+        throw new Error('Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.');
+      }
+      
       throw new Error(error.response?.data?.message || 'TTS işlemi başarısız');
     }
   },
@@ -725,6 +748,40 @@ export const apiService = {
       await apiClient.put('/api/admin/settings/tts_provider', { value: provider });
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'TTS provider güncellenemedi');
+    }
+  },
+
+  // Daily Usage Patterns API
+  async getPatternsByLevel(level: string): Promise<{ success: boolean; patterns: any[]; count: number }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.get(`/api/patterns/level/${level}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching patterns by level:', error);
+      throw new Error(error.response?.data?.message || 'Pattern verisi alınamadı');
+    }
+  },
+
+  async findPatternsInText(text: string, level: string): Promise<{ success: boolean; patterns: any[]; count: number }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post('/api/patterns/find', { text, level });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error finding patterns in text:', error);
+      throw new Error(error.response?.data?.message || 'Pattern eşleştirme başarısız');
+    }
+  },
+
+  async getUserPatternHistory(): Promise<{ success: boolean; patterns: any[]; count: number }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.get('/api/patterns/history');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching user pattern history:', error);
+      throw new Error(error.response?.data?.message || 'Pattern geçmişi yüklenemedi');
     }
   },
 };

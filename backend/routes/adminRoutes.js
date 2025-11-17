@@ -40,6 +40,7 @@ router.get('/users/:id', adminController.getUserById);
 router.get('/users/:id/usage', adminController.getUserUsageSummaryAdmin);
 router.get('/users/:id/logins', adminController.getUserLoginHistoryAdmin);
 router.put('/users/:id', adminController.updateUser);
+router.put('/users/:id/test-status', adminController.updateUserTestStatus);
 router.delete('/users/:id', adminController.deleteUser);
 router.post('/users/bulk-delete', adminController.deleteUsersBulk);
 router.post('/users/:id/assign-plan', adminController.assignPlanToUser);
