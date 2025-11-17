@@ -14,6 +14,7 @@ const { mergeAudioSegments, mergeAudioSegmentsToBuffer } = require("../utils/aud
 const { uploadToSupabase } = require("../utils/storageUploader");
 const { analyzeAndAdjustTimings } = require('../utils/audioAnalyzer');
 const { mfaAligner } = require('../utils/mfaAligner');
+const { extractDailyUsagePatterns } = require('../utils/dailyPatternExtractor');
 const tmp = require("tmp");
 const { logStep } = require('../utils/stepLogger');
 const { logRequestStep } = require("../utils/requestLogger");
@@ -438,6 +439,9 @@ const processTtsRequest = async (req, res) => {
                         completion_tokens: trResult.usage.completion_tokens || 0,
                         total_tokens: trResult.usage.total_tokens || (trResult.usage.prompt_tokens || 0) + (trResult.usage.completion_tokens || 0)
                     };
+                    // Detailed token log for Translation
+                    console.log(`[${requestId}] 📊 TRANSLATION OpenAI Call - Model: ${trResult.model || 'unknown'}, Input: ${openaiUsage.prompt_tokens} tokens, Output: ${openaiUsage.completion_tokens} tokens, Total: ${openaiUsage.total_tokens} tokens`);
+                    logger.info(`[${requestId}] Translation token usage: input=${openaiUsage.prompt_tokens}, output=${openaiUsage.completion_tokens}, total=${openaiUsage.total_tokens}`);
                     if (trResult.model) {
                         usageBreakdown.push({ model: trResult.model, ...openaiUsage });
                     }
@@ -499,6 +503,10 @@ const processTtsRequest = async (req, res) => {
                 textToAdapt = adaptedResult.text;
                 // accumulate CEFR usage into openaiUsage as well
                 if (adaptedResult.usage) {
+                    // Detailed token log for CEFR Adaptation
+                    console.log(`[${requestId}] 📊 CEFR ADAPTATION OpenAI Call - Model: ${adaptedResult.model || 'unknown'}, Input: ${adaptedResult.usage.prompt_tokens || 0} tokens, Output: ${adaptedResult.usage.completion_tokens || 0} tokens, Total: ${adaptedResult.usage.total_tokens || 0} tokens`);
+                    logger.info(`[${requestId}] CEFR adaptation token usage: input=${adaptedResult.usage.prompt_tokens}, output=${adaptedResult.usage.completion_tokens}, total=${adaptedResult.usage.total_tokens}`);
+                    
                     openaiUsage.prompt_tokens = (openaiUsage.prompt_tokens || 0) + (adaptedResult.usage.prompt_tokens || 0);
                     openaiUsage.completion_tokens = (openaiUsage.completion_tokens || 0) + (adaptedResult.usage.completion_tokens || 0);
                     openaiUsage.total_tokens = (openaiUsage.total_tokens || 0) + (adaptedResult.usage.total_tokens || 0);
@@ -524,6 +532,83 @@ const processTtsRequest = async (req, res) => {
             logRequestStep(requestId, 'adaptToCEFR:error', { error: adaptError.message });
         }
 
+        // --- Step 2.7: Extract Daily Usage Patterns ---
+        console.log(`[${requestId}] 🎯 STEP 2.7: Starting daily pattern extraction...`);
+        let dailyUsagePatterns = [];
+        let patternUsage = null;
+        try {
+            console.log(`[${requestId}] 🎯 About to call extractDailyUsagePatterns with text length: ${textToAdapt.length}`);
+            logger.info(`[${requestId}] Extracting daily usage patterns from adapted text...`);
+            logRequestStep(requestId, 'dailyPatterns:start', { textLength: textToAdapt.length });
+            
+            const patternExtraction = await extractDailyUsagePatterns(textToAdapt, level, requestId);
+            dailyUsagePatterns = patternExtraction.parsed?.daily_patterns || [];
+            patternUsage = patternExtraction.usage;
+            
+            // Check if extraction was skipped
+            if (patternExtraction.skipped) {
+                console.log(`[${requestId}] ⏭️  Daily pattern extraction skipped: ${patternExtraction.reason} (existing: ${patternExtraction.existingCount || 0})`);
+                logger.info(`[${requestId}] Daily pattern extraction skipped: ${patternExtraction.reason}`);
+            } else if (patternUsage) {
+                // Detailed token log for Daily Pattern Extraction
+                console.log(`[${requestId}] 📊 DAILY PATTERNS OpenAI Call - Model: ${patternUsage.model || 'gpt-4o-mini'}, Input: ${patternUsage.prompt_tokens || 0} tokens, Output: ${patternUsage.completion_tokens || 0} tokens, Total: ${patternUsage.total_tokens || 0} tokens`);
+                logger.info(`[${requestId}] Daily patterns token usage: input=${patternUsage.prompt_tokens}, output=${patternUsage.completion_tokens}, total=${patternUsage.total_tokens}`);
+            }
+            
+            logger.info(`[${requestId}] Daily usage patterns extracted: ${dailyUsagePatterns.length} patterns`);
+            logRequestStep(requestId, 'dailyPatterns:end', { count: dailyUsagePatterns.length, skipped: patternExtraction.skipped || false });
+            
+            // Persist to database if supabase is available
+            if (supabase && dailyUsagePatterns.length > 0) {
+                const insertPayload = {
+                    user_id: req.user?.id || null,
+                    topic: req.body.input?.substring(0, 200) || 'TTS Request',
+                    level,
+                    request_id: requestId,
+                    pattern_count: dailyUsagePatterns.length,
+                    patterns: dailyUsagePatterns,
+                    raw_response: patternExtraction.rawResponse,
+                    adapted_text_length: textToAdapt?.length || 0
+                };
+
+                const { error: insertError } = await supabase
+                    .from('daily_usage_patterns')
+                    .insert([insertPayload]);
+
+                if (insertError) {
+                    logger.error(`[${requestId}] Failed to persist daily usage patterns`, {
+                        error: insertError.message
+                    });
+                } else {
+                    logger.info(`[${requestId}] Daily usage patterns persisted successfully`);
+                }
+            }
+            
+            // Add pattern usage to OpenAI usage tracking
+            if (patternUsage) {
+                openaiUsage.prompt_tokens = (openaiUsage.prompt_tokens || 0) + (patternUsage.prompt_tokens || 0);
+                openaiUsage.completion_tokens = (openaiUsage.completion_tokens || 0) + (patternUsage.completion_tokens || 0);
+                openaiUsage.total_tokens = (openaiUsage.total_tokens || 0) + (patternUsage.total_tokens || 0);
+                openaiCallCount += 1;
+                if (patternUsage.model) {
+                    usageBreakdown.push({ model: patternUsage.model || 'gpt-4o', ...patternUsage });
+                }
+            }
+            
+            // Summary log for all OpenAI calls
+            console.log(`[${requestId}] 📊 TOTAL OpenAI Usage - Calls: ${openaiCallCount}, Total Input: ${openaiUsage.prompt_tokens} tokens, Total Output: ${openaiUsage.completion_tokens} tokens, Grand Total: ${openaiUsage.total_tokens} tokens`);
+            logger.info(`[${requestId}] Total OpenAI usage summary: calls=${openaiCallCount}, input=${openaiUsage.prompt_tokens}, output=${openaiUsage.completion_tokens}, total=${openaiUsage.total_tokens}`);
+        } catch (patternError) {
+            console.error(`[${requestId}] ❌ PATTERN EXTRACTION ERROR:`, patternError);
+            logger.error(`[${requestId}] Daily usage pattern extraction failed: ${patternError.message}`, {
+                stack: patternError.stack,
+                name: patternError.name
+            });
+            logRequestStep(requestId, 'dailyPatterns:error', { error: patternError.message });
+            // Continue with TTS even if pattern extraction fails
+        }
+        console.log(`[${requestId}] 🎯 Pattern extraction complete. Patterns found: ${dailyUsagePatterns.length}`);
+
         // --- Check if no_tts flag is set (text generation only) ---
         if (req.body.no_tts === true) {
             logger.info(`[${requestId}] no_tts flag detected. Skipping TTS synthesis, returning text only.`);
@@ -537,6 +622,7 @@ const processTtsRequest = async (req, res) => {
                     translated_text: translationResult || textToAdapt,
                     level,
                     languageCode,
+                    daily_usage_patterns: dailyUsagePatterns,
                     openai_usage: openaiUsage,
                     openai_call_count: openaiCallCount,
                     usage_breakdown: usageBreakdown
@@ -1362,7 +1448,8 @@ const processTtsRequest = async (req, res) => {
             // Frontend için camelCase versiyonları da ekle
             translatedText: translationResult || '',
             adaptedText: adaptedText || '',
-            cleanText: cleanTextForDisplay // Temiz text ayrı field olarak da gönder
+            cleanText: cleanTextForDisplay, // Temiz text ayrı field olarak da gönder
+            daily_usage_patterns: dailyUsagePatterns // Günlük kullanım kalıpları
         };
         
         // DEBUG: Final response'u kontrol et
@@ -1387,6 +1474,12 @@ const processTtsRequest = async (req, res) => {
     } catch (error) {
         logRequestStep(requestId, 'error', { error: error.message, stack: error.stack });
         logger.error(`[${requestId}] Uncaught error: ${error.message}`, { stack: error.stack });
+        logger.error(`[${requestId}] Full error details:`, {
+            name: error.name,
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
         logStep({
             requestId,
             stepName: 'tts:error',
@@ -1395,7 +1488,20 @@ const processTtsRequest = async (req, res) => {
             error: error.message,
             stack: error.stack
         });
-        return res.status(500).json({ success: false, message: "An internal server error occurred." });
+        
+        // Return more detailed error message in development
+        const errorMessage = process.env.NODE_ENV === 'development' 
+            ? `TTS Error: ${error.message}` 
+            : "An internal server error occurred.";
+        
+        return res.status(500).json({ 
+            success: false, 
+            message: errorMessage,
+            ...(process.env.NODE_ENV === 'development' && { 
+                errorDetails: error.message,
+                errorName: error.name 
+            })
+        });
     } finally {
         // --- Final Step: Ensure Temporary File Cleanup ---
         logger.info(`[${requestId}] Performing final cleanup.`);

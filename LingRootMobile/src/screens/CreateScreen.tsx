@@ -822,7 +822,9 @@ const CreateScreen: React.FC = () => {
           accent: selectedAccent as any,
         };
 
+        console.log('🎯 [CREATE] Calling processTextToSpeech...');
         const response = await apiService.processTextToSpeech(request);
+        console.log('🎯 [CREATE] Response received:', { success: response.success, hasUrl: !!response.mp3_url });
         
         if (response.success) {
           // Success: Create track and open player
@@ -965,6 +967,18 @@ const CreateScreen: React.FC = () => {
         }
       }
     } catch (error: any) {
+      console.error('🔴 [CREATE] Error caught:', {
+        message: error?.message,
+        name: error?.name,
+        code: error?.code,
+        response: error?.response?.data,
+        fullError: JSON.stringify(error, null, 2)
+      });
+      
+      // Log the full error object for debugging
+      console.error('🔴 [CREATE] Full error object:', error);
+      console.error('🔴 [CREATE] Error stack:', error?.stack);
+      
       const emsg = error?.message || '';
       if (
         emsg.includes('Aktif paketiniz yok') ||

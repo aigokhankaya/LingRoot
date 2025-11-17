@@ -69,6 +69,15 @@ const HomeScreen: React.FC = () => {
       featureKey: null, // Always show
     },
     {
+      id: 9,
+      title: language === 'tr' ? 'Günlük Kullanım Kalıpları' : 'Daily Usage Patterns',
+      description: language === 'tr' ? 'İçeriklerinizdeki kalıpları keşfedin' : 'Discover patterns in your content',
+      icon: 'auto-awesome',
+      color: '#F59E0B',
+      screenName: 'PatternList',
+      featureKey: null, // Always show
+    },
+    {
       id: 4,
       title: t('home.topicSuggestions'),
       description: t('home.topicSuggestionsDesc'),

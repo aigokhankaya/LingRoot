@@ -24,6 +24,7 @@ import LibraryScreen from '../screens/LibraryScreen';
 import CreateScreen from '../screens/CreateScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import VocabularyScreen from '../screens/VocabularyScreen';
+import PatternListScreen from '../screens/PatternListScreen';
 import MembershipScreen from '../screens/MembershipScreen';
 import ChatScreen from '../screens/ChatScreen';
 import AccountSettingsScreen from '../screens/AccountSettingsScreen';
@@ -334,6 +335,13 @@ const AppNavigator = () => {
                   fontWeight: 'bold',
                 },
                 headerTitle: 'Vocabulary', // This will be updated by the component
+              }}
+            />
+            <Stack.Screen 
+              name="PatternList" 
+              component={PatternListScreen}
+              options={{
+                headerShown: false,
               }}
             />
             <Stack.Screen

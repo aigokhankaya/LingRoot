@@ -213,20 +213,22 @@ exports.getUserById = async (req, res) => {
     const { id } = req.params;
     logger.info(`Fetching user by ID: ${id}`);
 
-    const { data, error } = await supabase
-      .from("users")
-      .select("id, firstname, lastname, email, role, created_at, updated_at, phonenumber, isverified")
-      .eq("id", id)
-      .single();
+    // Use pool to get is_test_user field (not available in Supabase schema yet)
+    const pool = require('../config/db');
+    const result = await pool.query(
+      'SELECT id, firstname, lastname, email, role, created_at, updated_at, phonenumber, isverified, is_test_user FROM users WHERE id = $1',
+      [id]
+    );
 
-    if (error) {
-      logger.warn(`User not found or error fetching user ID ${id}:`, error);
+    if (result.rows.length === 0) {
+      logger.warn(`User not found: ${id}`);
       return res.status(404).json({
         success: false,
         message: "User not found",
-        error: error.message,
       });
     }
+
+    const data = result.rows[0];
 
     // Fetch active subscription info
     const { data: subscription, error: subError } = await supabase
@@ -324,6 +326,53 @@ exports.updateUser = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error while updating user",
+      error: error.message,
+    });
+  }
+};
+
+// Update user test status
+exports.updateUserTestStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isTestUser } = req.body;
+    logger.info(`Attempting to update test status for user ID: ${id} to ${isTestUser}`);
+
+    // Validate input
+    if (typeof isTestUser !== 'boolean') {
+      logger.warn(`Update test status failed for user ID ${id}: Invalid isTestUser value.`);
+      return res.status(400).json({
+        success: false,
+        message: "isTestUser must be a boolean value",
+      });
+    }
+
+    // Update using pool (direct PostgreSQL query)
+    const pool = require('../config/db');
+    const result = await pool.query(
+      'UPDATE users SET is_test_user = $1 WHERE id = $2 RETURNING id, email, is_test_user',
+      [isTestUser, id]
+    );
+
+    if (result.rows.length === 0) {
+      logger.warn(`Update test status failed: User ID ${id} not found.`);
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    logger.info(`User ID ${id} test status updated successfully to ${isTestUser}.`);
+    return res.status(200).json({
+      success: true,
+      message: "User test status updated successfully",
+      data: result.rows[0],
+    });
+  } catch (error) {
+    logger.error(`Server error while updating test status for user ID ${req.params.id}:`, error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while updating user test status",
       error: error.message,
     });
   }

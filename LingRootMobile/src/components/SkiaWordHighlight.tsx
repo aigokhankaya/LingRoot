@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   Canvas,
   Skia,
@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   GestureResponderEvent,
   Text,
+  Modal,
 } from 'react-native';
 import { useSharedValue, useDerivedValue } from 'react-native-reanimated';
 
@@ -35,7 +36,14 @@ interface SkiaWordHighlightProps {
   onWordPress?: (index: number) => void;
   onWordLongPress?: (word: string, index: number) => void;
   mode?: 'word' | 'sentence';
-  onWordPositionChange?: (info: { index: number; top: number; bottom: number; height: number }) => void;
+  onWordPositionChange?: (index: number, top: number, bottom: number, height: number) => void;
+  patternData?: Array<{
+    pattern: string;
+    pattern_tr: string;
+    example_sentence: string;
+    example_sentence_tr: string;
+  }>; // Full pattern data with translations
+  showPatterns?: boolean; // Whether to show pattern highlighting
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -52,7 +60,72 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   onWordLongPress,
   mode = 'word',
   onWordPositionChange,
+  patternData = [],
+  showPatterns = false,
 }) => {
+  console.log(`🎨 [SkiaWordHighlight] Received props - showPatterns: ${showPatterns}, patternData.length: ${patternData.length}`);
+  if (showPatterns && patternData.length > 0) {
+    console.log(`🎨 [SkiaWordHighlight] Pattern data:`, patternData.map(p => p.pattern));
+  }
+  
+  // State for pattern popup
+  const [selectedPattern, setSelectedPattern] = useState<typeof patternData[0] | null>(null);
+  
+  // Calculate pattern phrase ranges (startIndex, endIndex)
+  const patternRanges = useMemo(() => {
+    if (!showPatterns || patternData.length === 0) return [];
+    
+    const ranges: Array<{ startIndex: number; endIndex: number; patternData: typeof patternData[0] }> = [];
+    
+    // Check each pattern
+    for (const pData of patternData) {
+      const phrase = pData.pattern;
+      const phraseWords = phrase.split(/\s+/);
+      const phraseLength = phraseWords.length;
+      
+      // Scan through words to find matches
+      for (let startIdx = 0; startIdx <= words.length - phraseLength; startIdx++) {
+        const candidateWords = words.slice(startIdx, startIdx + phraseLength);
+        const candidatePhrase = candidateWords.map(w => w.toLowerCase().replace(/[.,!?;:]/g, '')).join(' ');
+        
+        if (candidatePhrase === phrase) {
+          ranges.push({
+            startIndex: startIdx,
+            endIndex: startIdx + phraseLength - 1,
+            patternData: pData
+          });
+          console.log(`🎯 [SkiaWordHighlight] Found pattern "${phrase}" at indices ${startIdx}-${startIdx + phraseLength - 1}`);
+        }
+      }
+    }
+    
+    return ranges;
+  }, [words, showPatterns, patternData]);
+  
+  // Helper: Check if a word at index is part of a pattern phrase
+  const isWordInPattern = useCallback((wordIndex: number): boolean => {
+    return patternRanges.some(range => 
+      wordIndex >= range.startIndex && wordIndex <= range.endIndex
+    );
+  }, [patternRanges]);
+  
+  // Helper: Get pattern data for a word index
+  const getPatternForWord = useCallback((wordIndex: number) => {
+    const range = patternRanges.find(r => 
+      wordIndex >= r.startIndex && wordIndex <= r.endIndex
+    );
+    return range?.patternData || null;
+  }, [patternRanges]);
+  
+  // Handle pattern click
+  const handlePatternClick = useCallback((wordIndex: number) => {
+    const pattern = getPatternForWord(wordIndex);
+    if (pattern) {
+      console.log(`🎯 [Pattern Click] Opening popup for: "${pattern.pattern}"`);
+      setSelectedPattern(pattern);
+    }
+  }, [getPatternForWord]);
+  
   // Skia Paragraph API - Zero Reflow Architecture
   const INTERNAL_PADDING = 8; // Kenarlardan 8px boşluk
   const [isFontReady, setIsFontReady] = useState(false);
@@ -287,7 +360,14 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     
     if (touchedWord) {
       console.log(`🎯 [TOUCH] Word "${words[touchedWord.index]}" at index ${touchedWord.index}, localY: ${locationY.toFixed(1)}, boundary.y: ${touchedWord.y}, relativeY: ${(touchedWord.y - chunk.startY).toFixed(1)}`);
-      if (onWordPress) {
+      
+      // Check if this word is part of a pattern
+      const pattern = getPatternForWord(touchedWord.index);
+      if (pattern) {
+        // Pattern word clicked - show popup
+        handlePatternClick(touchedWord.index);
+      } else if (onWordPress) {
+        // Regular word clicked - normal behavior
         onWordPress(touchedWord.index);
       }
     } else {
@@ -328,8 +408,10 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     return (
       <View style={fallbackStyles.container}>
         {words.map((word, index) => {
+          const cleanWord = word.replace(/[.,!?;:]/g, '').toLowerCase();
           const isHighlighted = index === currentWordIndex;
-          const isSelected = selectedWords.has(word.replace(/[.,!?;:]/g, '').toLowerCase());
+          const isSelected = selectedWords.has(cleanWord);
+          const isPattern = isWordInPattern(index);
           return (
             <TouchableOpacity
               key={index}
@@ -340,6 +422,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
                 fallbackStyles.word,
                 isHighlighted && fallbackStyles.highlightedWord,
                 isSelected && fallbackStyles.selectedWord,
+                isPattern && fallbackStyles.patternWord,
               ]}
             >
               <Text
@@ -347,6 +430,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
                   fallbackStyles.wordText,
                   isHighlighted && fallbackStyles.highlightedWordText,
                   isSelected && fallbackStyles.selectedWordText,
+                  isPattern && fallbackStyles.patternWordText,
                 ]}
               >
                 {word}
@@ -372,20 +456,84 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
               delayLongPress={500}
             >
               <Canvas style={{ width: containerWidth, height: chunk.height }}>
-                {/* Highlights - render before text */}
-                {chunkBoundaries.map((boundary) => {
-                  const isHighlighted = boundary.index === currentWordIndex;
-                  const isSelected = selectedWords.has(
-                    words[boundary.index].replace(/[.,!?;:]/g, '').toLowerCase()
+                {/* Pattern phrase highlights - render first (lowest priority) */}
+                {patternRanges.map((range, rangeIdx) => {
+                  // Get boundaries for all words in this phrase
+                  const phraseBoundaries = chunkBoundaries.filter(b => 
+                    b.index >= range.startIndex && b.index <= range.endIndex
                   );
                   
+                  if (phraseBoundaries.length === 0) return null;
+                  
+                  // Calculate bounding box for entire phrase
+                  const firstBoundary = phraseBoundaries[0];
+                  const lastBoundary = phraseBoundaries[phraseBoundaries.length - 1];
+                  
+                  const paddingX = 4;
+                  const paddingY = 3;
+                  const relativeY = firstBoundary.y - chunk.startY;
+                  
+                  // Check if phrase spans multiple lines
+                  const isSameLine = firstBoundary.y === lastBoundary.y;
+                  
+                  if (isSameLine) {
+                    // Single line: one rectangle
+                    const phraseX = firstBoundary.x;
+                    const phraseWidth = (lastBoundary.x + lastBoundary.width) - firstBoundary.x;
+                    
+                    return (
+                      <RoundedRect
+                        key={`pattern-${rangeIdx}`}
+                        x={Math.max(0, phraseX - paddingX)}
+                        y={relativeY - paddingY}
+                        width={phraseWidth + (paddingX * 2)}
+                        height={firstBoundary.height + (paddingY * 2)}
+                        r={6}
+                        color="rgba(255, 215, 0, 0.4)"
+                      />
+                    );
+                  } else {
+                    // Multi-line: draw rectangle for each line segment
+                    const lineGroups = new Map<number, typeof phraseBoundaries>();
+                    phraseBoundaries.forEach(b => {
+                      if (!lineGroups.has(b.y)) {
+                        lineGroups.set(b.y, []);
+                      }
+                      lineGroups.get(b.y)!.push(b);
+                    });
+                    
+                    return Array.from(lineGroups.entries()).map(([lineY, lineBoundaries], lineIdx) => {
+                      const first = lineBoundaries[0];
+                      const last = lineBoundaries[lineBoundaries.length - 1];
+                      const lineRelativeY = lineY - chunk.startY;
+                      const lineWidth = (last.x + last.width) - first.x;
+                      
+                      return (
+                        <RoundedRect
+                          key={`pattern-${rangeIdx}-line-${lineIdx}`}
+                          x={Math.max(0, first.x - paddingX)}
+                          y={lineRelativeY - paddingY}
+                          width={lineWidth + (paddingX * 2)}
+                          height={first.height + (paddingY * 2)}
+                          r={6}
+                          color="rgba(255, 215, 0, 0.4)"
+                        />
+                      );
+                    });
+                  }
+                })}
+                
+                {/* Word highlights - render on top (current word & selected words) */}
+                {chunkBoundaries.map((boundary) => {
+                  const word = words[boundary.index];
+                  const cleanWord = word.replace(/[.,!?;:]/g, '').toLowerCase();
+                  const isHighlighted = boundary.index === currentWordIndex;
+                  const isSelected = selectedWords.has(cleanWord);
+                  
+                  // Skip pattern words - they're already drawn above
                   if (!isHighlighted && !isSelected) return null;
                   
-                  // Removed excessive logging - was causing performance issues
-                  // if (isHighlighted) {
-                  //   console.log(`✨ [HIGHLIGHT] Rendering Skia highlight for word "${words[boundary.index]}" at index ${boundary.index}, chunk ${chunk.index}, y: ${boundary.y}, relativeY: ${boundary.y - chunk.startY}`);
-                  // }
-                  
+                  // Priority: current word (blue) > selected word (gold)
                   const color = isHighlighted ? '#007AFF' : '#FFD700';
                   const paddingX = 4;
                   const paddingY = 3;
@@ -454,6 +602,61 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
           </View>
         );
       })}
+      
+      {/* Pattern Popup Modal */}
+      <Modal
+        visible={selectedPattern !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedPattern(null)}
+      >
+        <TouchableOpacity 
+          style={popupStyles.overlay}
+          activeOpacity={1}
+          onPress={() => setSelectedPattern(null)}
+        >
+          <View style={popupStyles.popup}>
+            <TouchableOpacity activeOpacity={1}>
+              {/* Header with pattern */}
+              <View style={popupStyles.header}>
+                <Text style={popupStyles.patternText}>{selectedPattern?.pattern}</Text>
+                <TouchableOpacity onPress={() => setSelectedPattern(null)} style={popupStyles.closeButtonContainer}>
+                  <Text style={popupStyles.closeButton}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <View style={popupStyles.content}>
+                {/* Anlamı - Yellow card */}
+                <View style={[popupStyles.card, popupStyles.meaningCard]}>
+                  <View style={popupStyles.cardHeader}>
+                    <Text style={popupStyles.cardIcon}>🇹🇷</Text>
+                    <Text style={popupStyles.cardTitle}>Anlamı</Text>
+                  </View>
+                  <Text style={popupStyles.cardValue}>{selectedPattern?.pattern_tr || '-'}</Text>
+                </View>
+                
+                {/* Örnek Cümle - Blue card */}
+                <View style={[popupStyles.card, popupStyles.exampleCard]}>
+                  <View style={popupStyles.cardHeader}>
+                    <Text style={popupStyles.cardIcon}>🇬🇧</Text>
+                    <Text style={popupStyles.cardTitle}>Örnek Cümle</Text>
+                  </View>
+                  <Text style={popupStyles.cardValue}>{selectedPattern?.example_sentence || '-'}</Text>
+                </View>
+                
+                {/* Örnek Cümle Çeviri - Green card */}
+                <View style={[popupStyles.card, popupStyles.translationCard]}>
+                  <View style={popupStyles.cardHeader}>
+                    <Text style={popupStyles.cardIcon}>💬</Text>
+                    <Text style={popupStyles.cardTitle}>Çeviri</Text>
+                  </View>
+                  <Text style={popupStyles.cardValue}>{selectedPattern?.example_sentence_tr || '-'}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 });
@@ -495,7 +698,105 @@ const fallbackStyles = StyleSheet.create({
     backgroundColor: '#fde68a',
   },
   selectedWordText: {
-    color: '#78350f',
+    color: '#92400e',
     fontWeight: '600',
+  },
+  patternWord: {
+    backgroundColor: 'rgba(255, 215, 0, 0.3)',
+  },
+  patternWordText: {
+    color: '#333',
+  },
+});
+
+const popupStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  popup: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: '90%',
+    maxWidth: 420,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: '#e2e8f0',
+  },
+  patternText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e293b',
+    flex: 1,
+  },
+  closeButtonContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#e2e8f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButton: {
+    fontSize: 18,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  content: {
+    padding: 16,
+  },
+  card: {
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 2,
+  },
+  meaningCard: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#fbbf24',
+  },
+  exampleCard: {
+    backgroundColor: '#dbeafe',
+    borderColor: '#3b82f6',
+  },
+  translationCard: {
+    backgroundColor: '#d1fae5',
+    borderColor: '#10b981',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  cardIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  cardTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#374151',
+  },
+  cardValue: {
+    fontSize: 14,
+    color: '#1f2937',
+    lineHeight: 20,
+    fontWeight: '400',
   },
 });

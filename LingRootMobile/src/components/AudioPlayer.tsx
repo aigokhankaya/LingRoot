@@ -1,18 +1,19 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
-  Alert,
-  Animated,
-  ScrollView,
+  TouchableOpacity,
   Modal,
   Dimensions,
-  Pressable,
+  ScrollView,
+  PanResponder,
   ActivityIndicator,
+  Pressable,
   TextInput,
+  Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,6 +26,7 @@ import { addWordToVocabulary, addWordWithTranslation, apiService } from '../serv
 import { useLanguage } from '../contexts/LanguageContext';
 import { SkiaWordHighlight } from './SkiaWordHighlight';
 import { SkiaSentenceHighlight } from './SkiaSentenceHighlight';
+import { getEnvironmentConfig } from '../services/environmentConfig';
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -56,10 +58,59 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   
   // Removed complex drift correction - using simple web-like approach
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set()); // Seçilen kelimeler
-  const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>(initialHighlightMode); // Use mode from Library
+  const [highlightMode, setHighlightMode] = useState<'word' | 'sentence' | 'pattern'>(initialHighlightMode); // Use mode from Library
+  const [showPatterns, setShowPatterns] = useState(false); // Toggle pattern highlighting
+  const [patterns, setPatterns] = useState<Array<{ pattern: string; meaning: string }>>([]);
+  const [loadingPatterns, setLoadingPatterns] = useState(false);
+  
+  // Debug: Log showPatterns changes
+  useEffect(() => {
+    console.log(`🎨 [AudioPlayer] showPatterns changed to: ${showPatterns}`);
+    if (showPatterns && patterns.length === 0) {
+      loadPatterns();
+    }
+  }, [showPatterns]);
+  
+  // Load patterns from backend
+  const loadPatterns = async () => {
+    if (loadingPatterns || !textToHighlight || !track.level) return;
+    
+    try {
+      setLoadingPatterns(true);
+      console.log(`🔍 [AudioPlayer] Loading patterns for level: ${track.level}`);
+      
+      const apiUrl = await getEnvironmentConfig().then(config => config.baseUrl);
+      const token = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
+      
+      const response = await fetch(`${apiUrl}/api/patterns/find`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: textToHighlight, level: track.level })
+      });
+      
+      const data = await response.json();
+      console.log(`📊 [AudioPlayer] Found ${data.patterns?.length || 0} patterns`);
+      
+      if (data.success && data.patterns) {
+        setPatterns(data.patterns);
+      }
+    } catch (error) {
+      console.error('❌ [AudioPlayer] Error loading patterns:', error);
+    } finally {
+      setLoadingPatterns(false);
+    }
+  };
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
+  
+  // Debug: Log pageIndex changes
+  useEffect(() => {
+    console.log(`📄 [AudioPlayer] pageIndex changed to: ${pageIndex}`);
+  }, [pageIndex]);
   const [addingWord, setAddingWord] = useState(false); // Loading state for adding word
   const [addingWordText, setAddingWordText] = useState(''); // Text to show while adding
   const [elapsedTime, setElapsedTime] = useState(0); // Elapsed time since play started
@@ -73,6 +124,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const durationRef = useRef(0);
   const isLoadedRef = useRef(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const horizontalScrollRef = useRef<ScrollView>(null);
   const wordRefs = useRef<Map<number, any>>(new Map());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastAutoScrollTsRef = useRef(0);
@@ -82,6 +134,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [originalText, setOriginalText] = useState<string>(track.original_turkish || '');
   const [manualSeconds, setManualSeconds] = useState('');
   const [manualMillis, setManualMillis] = useState('');
+  const [isTestEnvironment, setIsTestEnvironment] = useState(false);
+  
+  // Check if app is in test environment
+  useEffect(() => {
+    getEnvironmentConfig().then(config => {
+      setIsTestEnvironment(config.environment === 'test');
+    });
+  }, []);
+  
   useEffect(() => {
     setOriginalText(track.original_turkish || '');
     
@@ -808,11 +869,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   };
 
   const renderHighlightedText = () => {
+    console.log(`🎨 [AudioPlayer] renderHighlightedText - showPatterns: ${showPatterns}, level: ${track.level}`);
+    
+    // Always render word/sentence highlighting (Skia-based)
     if (highlightMode === 'word') {
       return renderWordHighlighting;
     } else {
       return renderSentenceHighlighting;
     }
+    
+    // Note: Pattern highlighting is currently disabled because it conflicts with Skia rendering
+    // TODO: Integrate pattern highlighting into Skia components for better performance
   };
 
   // Memoize individual word components for better performance
@@ -864,8 +931,28 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     );
   });
 
+  // Calculate pattern data with full info
+  const patternData = useMemo(() => {
+    console.log(`🎨 [AudioPlayer] Calculating pattern data - showPatterns: ${showPatterns}, patterns.length: ${patterns.length}`);
+    
+    if (!showPatterns || patterns.length === 0) {
+      console.log(`⚠️ [AudioPlayer] No patterns to highlight`);
+      return [];
+    }
+    
+    const data = patterns.map(p => ({
+      pattern: p.pattern.toLowerCase().trim(),
+      pattern_tr: p.pattern_tr || '',
+      example_sentence: p.example_sentence || '',
+      example_sentence_tr: p.example_sentence_tr || ''
+    }));
+    
+    console.log(`🎨 [AudioPlayer] Total pattern data: ${data.length}`);
+    return data;
+  }, [showPatterns, patterns]);
+
   const renderWordHighlighting = useMemo(() => {
-    // TEMPORARY: Use Skia but add extra logging
+    console.log(`🔄 [AudioPlayer] renderWordHighlighting useMemo - showPatterns: ${showPatterns}, patternData.length: ${patternData.length}`);
     return (
       <SkiaWordHighlight
         words={wordsArray}
@@ -879,6 +966,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         onWordLongPress={handleWordLongPress}
         mode="word"
         onWordPositionChange={handleWordPositionChange}
+        patternData={patternData}
+        showPatterns={showPatterns}
       />
     );
     
@@ -897,7 +986,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     //     mode="word"
     //   />
     // );
-  }, [wordsArray, currentWordIndex, selectedWords, handleWordPress, handleWordLongPress]);
+  }, [wordsArray, currentWordIndex, selectedWords, handleWordPress, handleWordLongPress, patternData, showPatterns]);
 
   const handleSentencePressCallback = useCallback((sentenceIndex: number, sentenceText: string) => {
     const totalDuration = duration / 1000;
@@ -946,14 +1035,44 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           >
             <Icon name="close" size={24} color="#333" />
           </TouchableOpacity>
-          <View style={styles.timeDisplay}>
-            <Text style={styles.timeDisplayText}>
-              {formatTime(elapsedTime * 1000)} --- {currentWordIndex >= 0 && timepoints[currentWordIndex] ? formatTime(timepoints[currentWordIndex].timeSeconds * 1000) : '0:00'}
-            </Text>
+          <View style={styles.centerBadge}>
+            <TouchableOpacity
+              onPress={() => {
+                console.log(`🔄 [AudioPlayer] Toggling patterns: ${showPatterns} -> ${!showPatterns}, pageIndex: ${pageIndex}`);
+                setShowPatterns(!showPatterns);
+              }}
+              style={[styles.patternToggle, showPatterns && styles.patternToggleActive]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Icon name="highlight" size={18} color={showPatterns ? '#FFF' : '#666'} />
+              <Text style={[styles.patternToggleText, showPatterns && styles.patternToggleTextActive]}>
+                Patterns
+              </Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.levelBadge}>
-            <Text style={styles.levelText}>{track.level}</Text>
-          </View>
+          {pageIndex === 0 ? (
+            <TouchableOpacity 
+              style={styles.originalTextButton}
+              onPress={() => {
+                horizontalScrollRef.current?.scrollTo({ x: screenWidth, animated: true });
+              }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Text style={styles.originalTextButtonText}>Orijinal Metin</Text>
+              <Icon name="chevron-right" size={20} color="#007AFF" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.originalTextButton}
+              onPress={() => {
+                horizontalScrollRef.current?.scrollTo({ x: 0, animated: true });
+              }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Icon name="chevron-left" size={20} color="#007AFF" />
+              <Text style={styles.originalTextButtonText}>Geri Dön</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Extra floating close button to guarantee tappable area */}
@@ -972,6 +1091,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
         {/* Swipeable pages: current EN on page 0, original TR on page 1 */}
         <ScrollView
+          ref={horizontalScrollRef}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -1081,38 +1201,40 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           {/* Debug Button - GİZLENDİ */}
           {/* GIZLENDI - Debug butonu kaldırıldı */}
 
-          {/* Manual Seek Time Input */}
-          <View style={styles.manualSeekContainer}>
-            <TextInput
-              style={styles.timeInput}
-              placeholder="Sn"
-              keyboardType="numeric"
-              maxLength={4}
-              value={manualSeconds}
-              onChangeText={setManualSeconds}
-            />
-            <Text style={styles.timeSeparator}>.</Text>
-            <TextInput
-              style={styles.timeInput}
-              placeholder="Ms"
-              keyboardType="numeric"
-              maxLength={3}
-              value={manualMillis}
-              onChangeText={setManualMillis}
-            />
-            <TouchableOpacity
-              style={styles.seekButton}
-              onPress={() => {
-                const seconds = parseFloat(manualSeconds || '0');
-                const millis = parseFloat(manualMillis || '0');
-                const totalMs = (seconds * 1000) + millis;
-                console.log(`🎯 [MANUAL SEEK] Seeking to ${seconds}.${millis}s (${totalMs}ms)`);
-                handleSeek(totalMs);
-              }}
-            >
-              <Text style={styles.seekButtonText}>Git</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Manual Seek Time Input - Only visible in TEST environment */}
+          {isTestEnvironment && (
+            <View style={styles.manualSeekContainer}>
+              <TextInput
+                style={styles.timeInput}
+                placeholder="Sn"
+                keyboardType="numeric"
+                maxLength={4}
+                value={manualSeconds}
+                onChangeText={setManualSeconds}
+              />
+              <Text style={styles.timeSeparator}>.</Text>
+              <TextInput
+                style={styles.timeInput}
+                placeholder="Ms"
+                keyboardType="numeric"
+                maxLength={3}
+                value={manualMillis}
+                onChangeText={setManualMillis}
+              />
+              <TouchableOpacity
+                style={styles.seekButton}
+                onPress={() => {
+                  const seconds = parseFloat(manualSeconds || '0');
+                  const millis = parseFloat(manualMillis || '0');
+                  const totalMs = (seconds * 1000) + millis;
+                  console.log(`🎯 [MANUAL SEEK] Seeking to ${seconds}.${millis}s (${totalMs}ms)`);
+                  handleSeek(totalMs);
+                }}
+              >
+                <Text style={styles.seekButtonText}>Git</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Progress Bar */}
           <View style={styles.progressContainer}>
@@ -1172,23 +1294,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               <Icon name="info" size={24} color="#666" />
             </TouchableOpacity>
 
-            {/* Test Button - Cümle vurgusu test etmek için */}
-            <TouchableOpacity
-              style={styles.testButton}
-              onPress={() => {
-                const nextIndex = (currentSentenceIndex + 1) % sentences.length;
-                setCurrentSentenceIndex(nextIndex);
-                Alert.alert('Debug Info', 
-                  `Aktif Cümle: ${nextIndex + 1}/${sentences.length}\n` +
-                  `Süre: ${formatTime(duration)}\n` +
-                  `Pozisyon: ${formatTime(position)}\n` +
-                  `Yüklü: ${isLoaded ? 'Evet' : 'Hayır'}\n` +
-                  `Oynatılıyor: ${isPlaying ? 'Evet' : 'Hayır'}`
-                );
-              }}
-            >
-              <Icon name="bug-report" size={20} color="#ff6b35" />
-            </TouchableOpacity>
+            {/* Level Badge */}
+            <View style={styles.levelBadgeBottom}>
+              <Text style={styles.levelText}>{track.level}</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -1224,22 +1333,61 @@ const styles = StyleSheet.create({
   closeButton: {
     marginRight: 12,
   },
+  patternToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+    gap: 4,
+  },
+  patternToggleActive: {
+    backgroundColor: '#FFD700',
+  },
+  patternToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+  },
+  patternToggleTextActive: {
+    color: '#333',
+  },
+  patternListContainer: {
+    marginTop: 24,
+    paddingTop: 16,
+    borderTopWidth: 2,
+    borderTopColor: '#FFD700',
+    backgroundColor: '#FFFEF0',
+    borderRadius: 8,
+    padding: 16,
+  },
+  patternListTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 12,
+  },
   title: {
     flex: 1,
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
   },
-  timeDisplay: {
+  centerBadge: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  timeDisplayText: {
+  originalTextButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  originalTextButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#007AFF',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo-Regular' : 'monospace',
   },
   originalBox: {
     backgroundColor: '#fff',
@@ -1266,15 +1414,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   originalText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 28,
     color: '#374151',
+    textAlign: 'justify',
+    letterSpacing: 0.3,
   },
   levelBadge: {
     backgroundColor: '#007AFF',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+  },
+  levelBadgeBottom: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    minWidth: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   levelText: {
     color: '#fff',
@@ -1451,10 +1610,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#e0e0e0',
     borderRadius: 4,
     marginHorizontal: 12,
-    paddingVertical: 8,
+    overflow: 'hidden',
   },
   progressFill: {
-    height: 8,
+    height: '100%',
     backgroundColor: '#007AFF',
     borderRadius: 4,
   },
