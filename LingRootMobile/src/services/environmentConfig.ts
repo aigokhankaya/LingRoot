@@ -1,8 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXPO_PUBLIC_API_URL } from '@env';
 
+const resolvedProductionUrl = (EXPO_PUBLIC_API_URL || '').trim();
+if (resolvedProductionUrl) {
+  console.log('🌐 [ENV CONFIG] Using EXPO_PUBLIC_API_URL for production base:', resolvedProductionUrl);
+} else {
+  console.log('🌐 [ENV CONFIG] EXPO_PUBLIC_API_URL missing, falling back to default backend');
+}
+
 // Environment configuration
-const PRODUCTION_URL = EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com';
+const PRODUCTION_URL = resolvedProductionUrl || 'https://lingloops-backend.onrender.com';
 // Use computer's local IP for both Emulator and real device
 const LOCAL_URL = 'http://192.168.1.4:5001';
 //IOS için bu:

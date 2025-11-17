@@ -63,6 +63,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [addingWord, setAddingWord] = useState(false); // Loading state for adding word
   const [addingWordText, setAddingWordText] = useState(''); // Text to show while adding
   const [elapsedTime, setElapsedTime] = useState(0); // Elapsed time since play started
+  const [textViewportHeight, setTextViewportHeight] = useState(0);
   const scrollOffsetRef = useRef<number>(0); // Track scroll position for touch events (use ref to avoid re-renders)
   const elapsedTimerRef = useRef<NodeJS.Timeout | null>(null);
   const playStartTimeRef = useRef<number>(0);
@@ -74,6 +75,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const scrollViewRef = useRef<ScrollView>(null);
   const wordRefs = useRef<Map<number, any>>(new Map());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastAutoScrollTsRef = useRef(0);
+  const latestWordPositionRef = useRef<{ top: number; bottom: number; height: number } | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [originalLoading, setOriginalLoading] = useState(false);
   const [originalText, setOriginalText] = useState<string>(track.original_turkish || '');
@@ -411,6 +414,41 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       );
     }
   }, []);
+
+  const ensureHighlightedWordVisible = useCallback((position: { top: number; bottom: number; height: number }) => {
+    if (pageIndex !== 0) return; // Only auto-scroll on translated text page
+    if (!scrollViewRef.current || textViewportHeight <= 0) return;
+
+    const currentScroll = scrollOffsetRef.current || 0;
+    const visibleBottom = currentScroll + textViewportHeight;
+    const alignPadding = 16; // Small offset so text isn't glued to the top
+    const bottomTrigger = visibleBottom - alignPadding;
+
+    if (position.bottom < bottomTrigger) {
+      return; // Highlight still comfortably inside viewport
+    }
+
+    const desiredOffset = Math.max(0, position.top - alignPadding);
+
+    // Avoid micro-adjustments that cause oscillation
+    if (Math.abs(desiredOffset - currentScroll) < 4) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastAutoScrollTsRef.current < 150) {
+      return; // Throttle auto-scroll updates
+    }
+    lastAutoScrollTsRef.current = now;
+
+    scrollViewRef.current.scrollTo({ y: desiredOffset, animated: true });
+    scrollOffsetRef.current = desiredOffset;
+  }, [pageIndex, textViewportHeight]);
+
+  const handleWordPositionChange = useCallback((info: { index: number; top: number; bottom: number; height: number }) => {
+    latestWordPositionRef.current = info;
+    ensureHighlightedWordVisible(info);
+  }, [ensureHighlightedWordVisible]);
 
   const updateWordHighlighting = useCallback((currentTime: number) => {
     if (!timepoints || timepoints.length === 0) return;
@@ -840,6 +878,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         onWordPress={handleWordPress}
         onWordLongPress={handleWordLongPress}
         mode="word"
+        onWordPositionChange={handleWordPositionChange}
       />
     );
     
@@ -967,6 +1006,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               scrollEventThrottle={16}
               removeClippedSubviews={false}
               bounces={true}
+              onLayout={(event) => {
+                const { height } = event.nativeEvent.layout;
+                setTextViewportHeight(height);
+              }}
               onScroll={(event) => {
                 const offsetY = event.nativeEvent.contentOffset.y;
                 scrollOffsetRef.current = offsetY;

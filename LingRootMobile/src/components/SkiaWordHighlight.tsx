@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import {
   Canvas,
   Skia,
@@ -12,6 +12,7 @@ import {
   Dimensions,
   TouchableOpacity,
   GestureResponderEvent,
+  Text,
 } from 'react-native';
 import { useSharedValue, useDerivedValue } from 'react-native-reanimated';
 
@@ -34,6 +35,7 @@ interface SkiaWordHighlightProps {
   onWordPress?: (index: number) => void;
   onWordLongPress?: (word: string, index: number) => void;
   mode?: 'word' | 'sentence';
+  onWordPositionChange?: (info: { index: number; top: number; bottom: number; height: number }) => void;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -49,9 +51,12 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   onWordPress,
   onWordLongPress,
   mode = 'word',
+  onWordPositionChange,
 }) => {
   // Skia Paragraph API - Zero Reflow Architecture
   const INTERNAL_PADDING = 8; // Kenarlardan 8px boşluk
+  const [isFontReady, setIsFontReady] = useState(false);
+  const fallbackLayouts = useRef<Map<number, { top: number; bottom: number; height: number }>>(new Map());
   
   // Shared value for current word (60fps updates without rerender)
   const currentWordShared = useSharedValue(currentWordIndex);
@@ -62,6 +67,28 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
 
   // Load Roboto Serif font
   const font = useFont(require('../../assets/fonts/Roboto/static/Roboto-Regular.ttf'));
+
+  useEffect(() => {
+    if (font && !isFontReady) {
+      setIsFontReady(true);
+    }
+  }, [font, isFontReady]);
+
+  const maybeEmitFallbackPosition = (index: number) => {
+    if (!onWordPositionChange) return;
+    const layout = fallbackLayouts.current.get(index);
+    if (!layout) return;
+    onWordPositionChange({ index, ...layout });
+  };
+
+  const handleFallbackLayout = (index: number) => (event: any) => {
+    const { y, height } = event.nativeEvent.layout;
+    const layout = { top: y, bottom: y + height, height };
+    fallbackLayouts.current.set(index, layout);
+    if (index === currentWordIndex) {
+      maybeEmitFallbackPosition(index);
+    }
+  };
 
   // STEP 1: Create Paragraph with Skia (ONE-TIME, SYNCHRONOUS)
   const paragraph = useMemo(() => {
@@ -188,6 +215,21 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     return boundaries;
   }, [paragraph, words]);
 
+  useEffect(() => {
+    if (!onWordPositionChange) return;
+    if (currentWordIndex < 0 || currentWordIndex >= wordBoundaries.length) return;
+
+    const boundary = wordBoundaries[currentWordIndex];
+    if (!boundary) return;
+
+    onWordPositionChange({
+      index: currentWordIndex,
+      top: boundary.y,
+      bottom: boundary.y + boundary.height,
+      height: boundary.height,
+    });
+  }, [currentWordIndex, wordBoundaries, onWordPositionChange]);
+
   // Calculate total height and chunk configuration
   const { totalHeight, chunks } = useMemo(() => {
     if (!paragraph) return { totalHeight: 200, chunks: [] };
@@ -282,6 +324,40 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   };
 
   // STEP 3 & 4: Render chunks with Static Paragraph + Dynamic Highlight
+  if (!isFontReady || !paragraph) {
+    return (
+      <View style={fallbackStyles.container}>
+        {words.map((word, index) => {
+          const isHighlighted = index === currentWordIndex;
+          const isSelected = selectedWords.has(word.replace(/[.,!?;:]/g, '').toLowerCase());
+          return (
+            <TouchableOpacity
+              key={index}
+              onPress={() => onWordPress?.(index)}
+              onLongPress={() => onWordLongPress?.(word, index)}
+              onLayout={handleFallbackLayout(index)}
+              style={[
+                fallbackStyles.word,
+                isHighlighted && fallbackStyles.highlightedWord,
+                isSelected && fallbackStyles.selectedWord,
+              ]}
+            >
+              <Text
+                style={[
+                  fallbackStyles.wordText,
+                  isHighlighted && fallbackStyles.highlightedWordText,
+                  isSelected && fallbackStyles.selectedWordText,
+                ]}
+              >
+                {word}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {chunks.map((chunk) => {
@@ -385,5 +461,41 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+});
+
+const fallbackStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  word: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#f2f2f2',
+  },
+  wordText: {
+    fontSize: 16,
+    color: '#374151',
+  },
+  highlightedWord: {
+    backgroundColor: '#007AFF',
+    shadowColor: '#007AFF',
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  highlightedWordText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  selectedWord: {
+    backgroundColor: '#fde68a',
+  },
+  selectedWordText: {
+    color: '#78350f',
+    fontWeight: '600',
   },
 });
