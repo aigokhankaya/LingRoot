@@ -175,6 +175,14 @@ class MFAAligner {
   }
 
   async generateWordTimestamps(audioPath, transcript, locale = 'en_US') {
+    // Check if we should use remote MFA service (production)
+    const useRemoteMFA = process.env.USE_REMOTE_MFA === 'true' || process.env.NODE_ENV === 'production';
+    
+    if (useRemoteMFA) {
+      return await this.generateWordTimestampsRemote(audioPath, transcript, locale);
+    }
+    
+    // Local MFA processing
     let corpusDir = null, outputDir = null;
     try {
       if (!await this.checkMFAAvailability()) throw new Error('MFA not available');
@@ -193,6 +201,49 @@ class MFAAligner {
     } finally {
       if (corpusDir) await fs.rm(corpusDir, { recursive: true, force: true }).catch(() => {});
       if (outputDir) await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {});
+    }
+  }
+
+  async generateWordTimestampsRemote(audioPath, transcript, locale = 'en_US') {
+    try {
+      const axios = require('axios');
+      const FormData = require('form-data');
+      const fsSync = require('fs');
+      
+      const MFA_SERVICE_URL = process.env.MFA_SERVICE_URL || 'https://api.booklevel.store';
+      
+      logger.info(`🌐 Using remote MFA service: ${MFA_SERVICE_URL}`);
+      
+      // Read audio file
+      const audioBuffer = await fs.readFile(audioPath);
+      
+      // Create form data
+      const formData = new FormData();
+      formData.append('audio', audioBuffer, {
+        filename: 'audio.mp3',
+        contentType: 'audio/mpeg'
+      });
+      formData.append('transcript', transcript);
+      formData.append('locale', locale);
+      
+      // Send request to remote MFA service
+      const response = await axios.post(`${MFA_SERVICE_URL}/api/mfa/align`, formData, {
+        headers: formData.getHeaders(),
+        timeout: 120000, // 2 minutes
+        maxContentLength: 50 * 1024 * 1024, // 50MB
+        maxBodyLength: 50 * 1024 * 1024
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Remote MFA alignment failed');
+      }
+      
+      logger.info(`✅ Remote MFA alignment completed: ${response.data.wordCount} words`);
+      return response.data.timepoints;
+      
+    } catch (error) {
+      logger.error('❌ Remote MFA alignment failed:', error.message);
+      throw new Error(`Remote MFA not available: ${error.message}`);
     }
   }
 }
