@@ -125,10 +125,10 @@ const Dashboard = () => {
           <div className="flex justify-between items-center h-16">
             {/* Left: Logo & Navigation */}
             <div className="flex items-center space-x-6">
-              <Link href="/welcome3" className="flex items-center space-x-2">
+              <Link href="/welcome" className="flex items-center space-x-2">
                 <img src="/LingRoot_MainLogo.png" alt="LingRoot" className="h-8" />
               </Link>
-              <Link href="/welcome3">
+              <Link href="/welcome">
                 <button className="text-gray-700 hover:text-blue-600 transition-colors text-sm font-medium">
                   <i className="fas fa-home mr-2"></i>
                   Ana Sayfa
