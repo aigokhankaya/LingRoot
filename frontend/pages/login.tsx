@@ -6,10 +6,11 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '../src/lib/auth';
 import { resendVerificationEmail } from '../src/lib/api';
+import { initializeGoogleAuth, signInWithGoogle } from '../src/lib/googleAuth';
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -18,6 +19,7 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const debug = (router.query.debug as string) === '1';
   const nextRaw = (router.query.next as string) || '';
@@ -66,6 +68,38 @@ const LoginPage: React.FC = () => {
       setResendMessage(e?.message || 'İşlem sırasında bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
     } finally {
       setResendLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError(null);
+    setErrorCode(null);
+    setGoogleLoading(true);
+    try {
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+      if (!clientId || clientId === 'your-google-client-id-here.apps.googleusercontent.com') {
+        throw new Error('Google Client ID yapılandırılmamış. Lütfen NEXT_PUBLIC_GOOGLE_CLIENT_ID değerini kontrol edin.');
+      }
+
+      await initializeGoogleAuth();
+      const { credential } = await signInWithGoogle();
+      const result = await loginWithGoogle(credential, rememberMe);
+
+      if (result.success) {
+        let target = nextDecoded && nextDecoded.trim() ? nextDecoded : '/welcome';
+        try { sessionStorage.removeItem('postLoginNext'); } catch {}
+        if (target.includes('#')) {
+          window.location.assign(target);
+        } else {
+          router.replace(target);
+        }
+      } else {
+        setError(result.message || 'Google ile giriş başarısız.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Google ile giriş sırasında bir hata oluştu.');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -134,16 +168,20 @@ const LoginPage: React.FC = () => {
                 <input id="password" name="password" type="password" autoComplete="current-password" required className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Şifrenizi girin" value={password} onChange={(e) => setPassword(e.target.value)} />
               </div>
 
-              <div className="flex items-center p-4 bg-yellow-50 rounded-lg border-2 border-yellow-300" style={{ backgroundColor: '#fefce8', borderColor: '#facc15', minHeight: '60px' }}>
-                <input id="remember-me" name="remember-me" type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} style={{ width: '20px', height: '20px', accentColor: '#2563eb', cursor: 'pointer' }} />
-                <label htmlFor="remember-me" className="ml-4 text-base font-bold text-gray-900 cursor-pointer" style={{ fontSize: '16px', fontWeight: 'bold', color: '#1f2937' }}>
-                  🔒 BENİ HATIRLA (30 gün boyunca oturum açık kalsın)
-                </label>
-              </div>
-
-              <div className="text-sm text-center p-2 bg-blue-100 rounded">
-                <strong>Debug:</strong> Beni hatırla durumu = <span className="font-bold text-blue-600">{rememberMe ? 'SEÇİLİ ✅' : 'SEÇİLİ DEĞİL ❌'}</span>
-              </div>
+              <label
+                htmlFor="remember-me"
+                className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none"
+              >
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span>Beni hatırla (30 gün boyunca oturum açık kalsın)</span>
+              </label>
             </div>
 
             <div className="flex justify-end">
@@ -152,9 +190,30 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            <div>
+            <div className="space-y-3">
               <button type="submit" disabled={loading} className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
                 {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
+              </button>
+
+              <div className="flex items-center gap-3">
+                <span className="flex-1 h-px bg-gray-200" />
+                <span className="text-xs uppercase text-gray-400">veya</span>
+                <span className="flex-1 h-px bg-gray-200" />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={googleLoading}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="#EA4335" d="M12 10.2v3.6h5.09c-.22 1.18-.88 2.18-1.87 2.86l3.02 2.34c1.76-1.62 2.78-4 2.78-6.8 0-.66-.06-1.3-.18-1.9H12z" />
+                  <path fill="#34A853" d="M5.27 14.29l-3.2 2.45C3.5 19.72 7.45 22 12 22c2.7 0 4.96-.9 6.62-2.44l-3.02-2.34C14.64 18.32 13.4 18.8 12 18.8c-3.02 0-5.57-2.03-6.73-4.89z" />
+                  <path fill="#4A90E2" d="M2.07 7.71A9.98 9.98 0 0 0 2 12c0 1.61.38 3.13 1.05 4.47l3.22-2.49A5.94 5.94 0 0 1 6 12c0-.94.22-1.82.62-2.6l-3.55-2.69z" />
+                  <path fill="#FBBC05" d="M12 5.2c1.47 0 2.79.51 3.83 1.52l2.86-2.86C16.96 1.83 14.7 1 12 1 7.45 1 3.5 3.28 2.07 7.71l3.55 2.69C6.43 7.54 8.98 5.51 12 5.2z" />
+                </svg>
+                {googleLoading ? 'Google ile bağlanılıyor...' : 'Google ile Giriş Yap'}
               </button>
             </div>
           </form>
