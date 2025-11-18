@@ -12,6 +12,7 @@ import {
   configureGoogleSignIn,
   type SocialAuthResult
 } from '../services/socialAuth';
+import { getApiBaseUrl } from '../services/environmentConfig';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -121,8 +122,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Validate token by making a test API call with timeout
         try {
-          // Use the same API_BASE_URL as api.ts
-          const API_BASE_URL = 'http://192.168.1.4:5001';
+          // Get API base URL from environment config
+          const { getApiBaseUrl } = require('../services/environmentConfig');
+          const API_BASE_URL = await getApiBaseUrl();
           console.log('🔍 [AUTH CHECK] Using API URL:', API_BASE_URL);
           
           const controller = new AbortController();
@@ -230,7 +232,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       // Web uygulaması gibi backend API'sini kullan
-      const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+      const API_BASE_URL = await getApiBaseUrl();
       
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
@@ -292,6 +294,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         
         setUser(appUser);
+        
+        // Refresh environment config after login to check user's test status
+        try {
+          const { refreshEnvironmentConfig } = require('../services/environmentConfig');
+          await refreshEnvironmentConfig();
+          console.log('✅ [AUTH] Environment config refreshed after login');
+        } catch (envError) {
+          console.log('⚠️ [AUTH] Failed to refresh environment config:', envError);
+        }
+        
         setIsLoading(false);
       } else {
         const err = new Error(data.message || 'Login failed');
@@ -342,7 +354,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Social authentication handler
   const handleSocialAuth = async (socialResult: SocialAuthResult) => {
-    const API_BASE_URL = 'https://lingloops-backend.onrender.com';
+    const API_BASE_URL = await getApiBaseUrl();
     
     // Determine endpoint based on provider
     const endpoint = socialResult.provider === 'google' 

@@ -25,9 +25,10 @@ export const configureFacebookSDK = () => {
 // Google Sign-In Configuration
 export const configureGoogleSignIn = () => {
   try {
-    const webClientId = EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+    // Temporary hardcode for debugging
+    const webClientId = EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '308629480159-43l1s64c2cei400tlnsbdtb5rurmsalt.apps.googleusercontent.com';
     const iosClientId = EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
-    const androidClientId = EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+    const androidClientId = EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '308629480159-43l1s64c2cei400tlnsbdtb5rurmsalt.apps.googleusercontent.com';
     
     console.log('[GOOGLE_SIGNIN] Configuration attempt:', {
       hasWebClientId: !!webClientId,

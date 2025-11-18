@@ -87,8 +87,9 @@ async function buildStatus(forceFinished = false) {
     TrackPlayer.getDuration(),
     TrackPlayer.getState(),
   ]);
-  const isPlaying = state === State.Playing;
+  const isPlaying = state === State.Playing || state === State.Buffering;
   const didJustFinish = forceFinished || (duration > 0 && position >= duration);
+  
   return {
     isLoaded: true,
     isPlaying,
@@ -113,12 +114,33 @@ export async function createSound(url: string): Promise<SoundLike> {
     };
     
     await TrackPlayer.add([track]);
+    
+    // Wait for track to be ready
+    let attempts = 0;
+    while (attempts < 20) {
+      const state = await TrackPlayer.getState();
+      
+      if (state !== State.None && state !== State.Loading) {
+        break;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
   } catch (error) {
     throw error;
   }
 
   const soundLike: SoundLike = {
     playAsync: async () => {
+      // Wait for track to be ready
+      const state = await TrackPlayer.getState();
+      
+      if (state === State.None || state === State.Stopped) {
+        // Give it a moment to load
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
       await TrackPlayer.play();
     },
     pauseAsync: async () => {

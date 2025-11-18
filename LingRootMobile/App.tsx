@@ -9,6 +9,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { useAuth } from './src/contexts/AuthContext';
 import TrackPlayer from 'react-native-track-player';
 import NotificationService from './src/services/notificationService';
+import { clearEnvironmentCache } from './src/services/environmentConfig';
 
 export default function App() {
   const appState = useRef<AppStateStatus>(AppState.currentState);
@@ -17,6 +18,10 @@ export default function App() {
     // Initialize services when app starts
     const initializeServices = async () => {
       try {
+        // TEMPORARY: Clear environment cache to force refresh
+        // Remove this after testing
+        await clearEnvironmentCache();
+        console.log('🧹 [APP] Environment cache cleared on startup');
         // iOS: perform full init on launch
         if (Platform.OS === 'ios') {
           await TrackPlayer.setupPlayer();

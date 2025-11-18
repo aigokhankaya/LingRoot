@@ -31,17 +31,8 @@ interface OutputSectionProps {
   isLoggedIn: boolean;
 }
 
+
 export default function OutputSection({ audioResult, isLoggedIn }: OutputSectionProps) {
-  // DEBUG: Log what OutputSection receives
-  console.log('🔧 [OUTPUT SECTION DEBUG] Received audioResult:', {
-    hasAudioResult: !!audioResult,
-    audioResultType: typeof audioResult,
-    hasMp3Url: !!audioResult?.mp3_url,
-    mp3UrlValue: audioResult?.mp3_url,
-    firstValidationResult: !!(audioResult && audioResult.mp3_url),
-    secondValidationResult: !!audioResult?.mp3_url,
-    allKeys: audioResult ? Object.keys(audioResult) : 'NO_OBJECT'
-  });
   
   // URL conversion for different environments
   const convertToPlayableUrl = (url: string): string => {
@@ -91,14 +82,6 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
   const playableAudioUrl = convertToPlayableUrl(audioResult.mp3_url);
   const playableVttUrl = audioResult.vtt_url ? convertToPlayableUrl(audioResult.vtt_url) : undefined;
 
-  console.log('🎯 [RENDER DEBUG] About to render OutputSection main content:', {
-    playableAudioUrl,
-    playableVttUrl,
-    hasMessage: !!audioResult.message,
-    hasWords: !!audioResult.words,
-    wordsLength: audioResult.words?.length
-  });
-
   return (
     <div className="w-full max-w-6xl mx-auto mt-8">
       {/* Processing Info - GİZLENDİ */}
@@ -108,52 +91,25 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
       <div className="mb-6">
         {/* GIZLENDI - Hassas Senkronizasyon ve Web Audio API + Binary Search yazısı kaldırılacak */}
         
-        {(() => {
-          const playerProps = {
-            audioUrl: playableAudioUrl,
-            words: audioResult.words || [],
-            timepoints: audioResult.timepoints || [],
-            originalText: audioResult.message,
-            className: "",
-            showControls: true,
-            level: audioResult.level,
-            originalTurkish: audioResult.original_turkish,
-            topic: audioResult.topic,
-            downloadUrls: {
+        <NewSyncedTextPlayer
+          audioUrl={playableAudioUrl}
+          words={audioResult.words || []}
+          timepoints={audioResult.timepoints || []}
+          originalText={audioResult.message}
+          className=""
+          showControls={true}
+          level={audioResult.level}
+          originalTurkish={audioResult.original_turkish}
+          topic={audioResult.topic}
+          downloadUrls={{
             mp3: playableAudioUrl,
             vtt: playableVttUrl
-            },
-            stats: {
+          }}
+          stats={{
             wordsCount: audioResult.words?.length,
             timepointsCount: audioResult.timepoints?.length
-            }
-          };
-          
-          console.log('🎵 [PLAYER DEBUG] About to render NewSyncedTextPlayer with:', {
-            audioUrl: playerProps.audioUrl,
-            wordsLength: playerProps.words.length,
-            timepointsLength: playerProps.timepoints.length,
-            hasOriginalText: !!playerProps.originalText,
-            originalTextLength: playerProps.originalText?.length || 0,
-            showControls: playerProps.showControls
-          });
-          
-          return (
-            <NewSyncedTextPlayer
-              audioUrl={playerProps.audioUrl}
-              words={playerProps.words}
-              timepoints={playerProps.timepoints}
-              originalText={playerProps.originalText}
-              className={playerProps.className}
-              showControls={playerProps.showControls}
-              level={playerProps.level}
-              originalTurkish={playerProps.originalTurkish}
-              topic={playerProps.topic}
-              downloadUrls={playerProps.downloadUrls}
-              stats={playerProps.stats}
+          }}
         />
-          );
-        })()}
       </div>
 
       {/* Text Processing Results */}

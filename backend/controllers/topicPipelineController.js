@@ -13,6 +13,8 @@ const logger = require('../utils/logger');
 const { chunkText } = require('../utils/textProcessor');
 const { simplifyLexically, getComplexWordStats } = require('../utils/lexicalSimplifier');
 const { auditSemanticPreservation } = require('../utils/semanticAudit');
+const { extractDailyUsagePatterns } = require('../utils/dailyPatternExtractor');
+const { supabase } = require('../utils/supabaseClient');
 
 /**
  * Helper function to get the correct content generation prompt file by CEFR level
@@ -63,8 +65,10 @@ exports.processTopicToEnglishText = async (req, res) => {
         suggestions: null,
         narration: null,
         translation: null,
-        adaptation: null
-      }
+        adaptation: null,
+        daily_patterns: null
+      },
+      daily_usage_patterns: []
     };
     
     // ==========================================
@@ -292,7 +296,52 @@ exports.processTopicToEnglishText = async (req, res) => {
     }
     
     logger.info(`[${requestId}] Step 5 complete: Post-processing finished`);
-    
+
+    // ==========================================
+    // STEP 6: Extract Daily Usage Patterns
+    // ==========================================
+    logger.info(`[${requestId}] Step 6: Extracting daily usage patterns`);
+    try {
+      const patternExtraction = await extractDailyUsagePatterns(result.adapted_text, level, requestId);
+      result.daily_usage_patterns = patternExtraction.parsed?.daily_patterns || [];
+      result.usage.daily_patterns = patternExtraction.usage;
+      logRequestStep(requestId, 'topic-pipeline:daily-patterns:end', {
+        count: result.daily_usage_patterns.length
+      });
+
+      if (supabase) {
+        const insertPayload = {
+          user_id: req.user?.id || null,
+          topic: result.selected_subtopic,
+          level,
+          request_id: requestId,
+          pattern_count: result.daily_usage_patterns.length,
+          patterns: result.daily_usage_patterns,
+          raw_response: patternExtraction.rawResponse,
+          adapted_text_length: result.adapted_text?.length || 0
+        };
+
+        const { error: insertError } = await supabase
+          .from('daily_usage_patterns')
+          .insert([insertPayload]);
+
+        if (insertError) {
+          logger.error(`[${requestId}] Failed to persist daily usage patterns`, {
+            error: insertError.message
+          });
+        } else {
+          logger.info(`[${requestId}] Daily usage patterns persisted successfully`);
+        }
+      } else {
+        logger.warn('[DailyPatternExtractor] Supabase client is unavailable; skipping persistence.');
+      }
+    } catch (patternError) {
+      logger.error(`[${requestId}] Daily usage pattern extraction failed: ${patternError.message}`);
+      logRequestStep(requestId, 'topic-pipeline:daily-patterns:error', {
+        error: patternError.message
+      });
+    }
+
     // ==========================================
     // Final Response
     // ==========================================

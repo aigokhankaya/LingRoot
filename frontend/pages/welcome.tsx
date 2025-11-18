@@ -2944,8 +2944,22 @@ const Welcome: React.FC = () => {
                                 mp3_url: item.mp3_url,
                                 vtt_url: item.mp3_url.replace('.mp3', '.vtt'), // Assume VTT exists
                                 level: item.level,
-                                timepoints: item.timepoints || [], // Use real timepoints from database
-                                words: item.words || (item.adapted_text || item.input).split(/\s+/).filter(word => word.length > 0),
+                                timepoints: (() => {
+                                  try {
+                                    return Array.isArray(item.timepoints) ? item.timepoints : (item.timepoints ? JSON.parse(item.timepoints) : []);
+                                  } catch (e) {
+                                    console.warn('Failed to parse timepoints:', e);
+                                    return [];
+                                  }
+                                })(),
+                                words: (() => {
+                                  try {
+                                    return Array.isArray(item.words) ? item.words : (item.words ? JSON.parse(item.words) : (item.adapted_text || item.input).split(/\s+/).filter(word => word.length > 0));
+                                  } catch (e) {
+                                    console.warn('Failed to parse words:', e);
+                                    return (item.adapted_text || item.input).split(/\s+/).filter(word => word.length > 0);
+                                  }
+                                })(),
                                 original_turkish: item.input,
                                 speaking_rate: 1.0
                               };

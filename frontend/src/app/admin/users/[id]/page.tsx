@@ -24,6 +24,8 @@ export default function AdminUserGeneralPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   const [assigning, setAssigning] = useState(false);
+  const [isTestUser, setIsTestUser] = useState(false);
+  const [updatingTestStatus, setUpdatingTestStatus] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -32,6 +34,7 @@ export default function AdminUserGeneralPage() {
         setLoading(true);
         const u = await getUserById(userId);
         setUser(u);
+        setIsTestUser((u as any).is_test_user || false);
         
         // Fetch available plans
         const plansRes = await fetch(getApiUrl('admin/plans'), {
@@ -80,6 +83,33 @@ export default function AdminUserGeneralPage() {
     }
   };
 
+  const handleTestStatusChange = async (checked: boolean) => {
+    if (!userId) return;
+    
+    try {
+      setUpdatingTestStatus(true);
+      const response = await fetch(getApiUrl(`admin/users/${userId}/test-status`), {
+        method: 'PUT',
+        headers: createHeaders('application/json'),
+        credentials: 'include',
+        body: JSON.stringify({ isTestUser: checked }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setIsTestUser(checked);
+        alert(`Test kullanıcısı durumu başarıyla ${checked ? 'aktif' : 'pasif'} edildi!`);
+      } else {
+        alert(data.message || 'Test durumu güncellenemedi');
+      }
+    } catch (e: any) {
+      alert(e?.message || 'Bir hata oluştu');
+    } finally {
+      setUpdatingTestStatus(false);
+    }
+  };
+
   if (loading) return <div>Yükleniyor...</div>;
   if (error) return <div className="text-red-600">Hata: {error}</div>;
   if (!user) return <div>Kullanıcı bulunamadı.</div>;
@@ -113,6 +143,35 @@ export default function AdminUserGeneralPage() {
           <Info label="Kayıt Tarihi" value={String(user.createdAt || '-')} />
           <Info label="Son Giriş" value={String(user.lastLogin || '-')} />
           {user.phoneNumber && <Info label="Telefon" value={user.phoneNumber} />}
+        </div>
+        
+        {/* Test Kullanıcısı Ayarı */}
+        <div className="mt-4 p-4 border rounded-lg bg-yellow-50 border-yellow-200">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isTestUser}
+                  onChange={(e) => handleTestStatusChange(e.target.checked)}
+                  disabled={updatingTestStatus}
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-900">Test Kullanıcısı</span>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Bu kullanıcı için test ortamını aktif et. Admin panelinde "Mobil Uygulama Ortamı" TEST moduna alındığında, 
+                    sadece test kullanıcıları mobilde test backend'e bağlanır.
+                  </p>
+                </div>
+              </label>
+            </div>
+            {updatingTestStatus && (
+              <div className="ml-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

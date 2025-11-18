@@ -41,6 +41,7 @@ const LibraryScreen: React.FC = () => {
   const [isHydratingFavorites, setIsHydratingFavorites] = useState(false);
   const audioTracksRef = useRef<AudioTrack[]>([]);
   const pageRef = useRef<number>(1);
+  const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('word');
 
   const levels: (CEFRLevel | 'all')[] = ['all', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
@@ -487,15 +488,26 @@ const LibraryScreen: React.FC = () => {
         <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
           <Icon name="refresh" size={24} color="#007AFF" />
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]} 
-          onPress={handleToggleFavorites}
-        >
-          <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#E91E63' : '#007AFF'} />
-          <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>
-            {language === 'tr' ? 'Favorilerim' : 'My Favorites'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            style={[styles.modeToggle, highlightMode === 'sentence' && styles.modeToggleActive]} 
+            onPress={() => setHighlightMode(highlightMode === 'word' ? 'sentence' : 'word')}
+          >
+            <Icon name="text-fields" size={18} color={highlightMode === 'sentence' ? '#FF9800' : '#007AFF'} />
+            <Text style={[styles.modeToggleText, highlightMode === 'sentence' && styles.modeToggleTextActive]}>
+              {highlightMode === 'word' ? (language === 'tr' ? 'Kelime' : 'Word') : (language === 'tr' ? 'Cümle' : 'Sentence')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]} 
+            onPress={handleToggleFavorites}
+          >
+            <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#E91E63' : '#007AFF'} />
+            <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>
+              {language === 'tr' ? 'Favorilerim' : 'My Favorites'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.searchContainer}>
@@ -504,6 +516,7 @@ const LibraryScreen: React.FC = () => {
           <TextInput
             style={styles.searchInput}
             placeholder={language === 'tr' ? 'Ses dosyalarında ara...' : 'Search in audio files...'}
+            placeholderTextColor="#999"
             value={searchText}
             onChangeText={setSearchText}
           />
@@ -593,6 +606,7 @@ const LibraryScreen: React.FC = () => {
           onClose={handleClosePlayer}
           timepoints={selectedTrack.timepoints || []}
           words={selectedTrack.words || []}
+          initialHighlightMode={highlightMode}
         />
       )}
     </SafeAreaView>
@@ -631,6 +645,34 @@ const styles = StyleSheet.create({
   refreshButton: {
     padding: 8,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    borderRadius: 20,
+  },
+  modeToggleActive: {
+    borderColor: '#FF9800',
+    backgroundColor: '#FFF8E1',
+  },
+  modeToggleText: {
+    marginLeft: 6,
+    color: '#007AFF',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  modeToggleTextActive: {
+    color: '#FF9800',
+  },
   favoritesToggle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -663,13 +705,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderRadius: 12,
     paddingHorizontal: 15,
-    paddingVertical: 12,
+    paddingVertical: 8,
+    height: 44,
   },
   searchInput: {
     flex: 1,
     marginLeft: 10,
     fontSize: 16,
     color: '#333',
+    padding: 0,
   },
   levelFilter: {
     paddingHorizontal: 20,

@@ -1,17 +1,19 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
-  Alert,
-  Animated,
-  ScrollView,
+  TouchableOpacity,
   Modal,
   Dimensions,
-  Pressable,
+  ScrollView,
+  PanResponder,
   ActivityIndicator,
+  Pressable,
+  TextInput,
+  Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +26,7 @@ import { addWordToVocabulary, addWordWithTranslation, apiService } from '../serv
 import { useLanguage } from '../contexts/LanguageContext';
 import { SkiaWordHighlight } from './SkiaWordHighlight';
 import { SkiaSentenceHighlight } from './SkiaSentenceHighlight';
+import { getEnvironmentConfig } from '../services/environmentConfig';
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -31,6 +34,7 @@ interface AudioPlayerProps {
   onClose: () => void;
   timepoints?: Timepoint[];
   words?: string[];
+  initialHighlightMode?: 'word' | 'sentence';
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -41,6 +45,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   onClose,
   timepoints = [],
   words = [],
+  initialHighlightMode = 'word',
 }) => {
   const insets = useSafeAreaInsets();
   const { language } = useLanguage();
@@ -53,22 +58,91 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   
   // Removed complex drift correction - using simple web-like approach
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set()); // Seçilen kelimeler
-  const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('word'); // Default kelime takibi
+  const [highlightMode, setHighlightMode] = useState<'word' | 'sentence' | 'pattern'>(initialHighlightMode); // Use mode from Library
+  const [showPatterns, setShowPatterns] = useState(false); // Toggle pattern highlighting
+  const [patterns, setPatterns] = useState<Array<{ pattern: string; meaning: string }>>([]);
+  const [loadingPatterns, setLoadingPatterns] = useState(false);
+  
+  // Debug: Log showPatterns changes
+  useEffect(() => {
+    console.log(`🎨 [AudioPlayer] showPatterns changed to: ${showPatterns}`);
+    if (showPatterns && patterns.length === 0) {
+      loadPatterns();
+    }
+  }, [showPatterns]);
+  
+  // Load patterns from backend
+  const loadPatterns = async () => {
+    if (loadingPatterns || !textToHighlight || !track.level) return;
+    
+    try {
+      setLoadingPatterns(true);
+      console.log(`🔍 [AudioPlayer] Loading patterns for level: ${track.level}`);
+      
+      const apiUrl = await getEnvironmentConfig().then(config => config.baseUrl);
+      const token = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
+      
+      const response = await fetch(`${apiUrl}/api/patterns/find`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: textToHighlight, level: track.level })
+      });
+      
+      const data = await response.json();
+      console.log(`📊 [AudioPlayer] Found ${data.patterns?.length || 0} patterns`);
+      
+      if (data.success && data.patterns) {
+        setPatterns(data.patterns);
+      }
+    } catch (error) {
+      console.error('❌ [AudioPlayer] Error loading patterns:', error);
+    } finally {
+      setLoadingPatterns(false);
+    }
+  };
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
+  
+  // Debug: Log pageIndex changes
+  useEffect(() => {
+    console.log(`📄 [AudioPlayer] pageIndex changed to: ${pageIndex}`);
+  }, [pageIndex]);
   const [addingWord, setAddingWord] = useState(false); // Loading state for adding word
   const [addingWordText, setAddingWordText] = useState(''); // Text to show while adding
+  const [elapsedTime, setElapsedTime] = useState(0); // Elapsed time since play started
+  const [textViewportHeight, setTextViewportHeight] = useState(0);
+  const scrollOffsetRef = useRef<number>(0); // Track scroll position for touch events (use ref to avoid re-renders)
+  const elapsedTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const playStartTimeRef = useRef<number>(0);
+  const accumulatedTimeRef = useRef<number>(0);
   
   // Use refs to track the latest values for highlighting
   const durationRef = useRef(0);
   const isLoadedRef = useRef(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const horizontalScrollRef = useRef<ScrollView>(null);
   const wordRefs = useRef<Map<number, any>>(new Map());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastAutoScrollTsRef = useRef(0);
+  const latestWordPositionRef = useRef<{ top: number; bottom: number; height: number } | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [originalLoading, setOriginalLoading] = useState(false);
   const [originalText, setOriginalText] = useState<string>(track.original_turkish || '');
+  const [manualSeconds, setManualSeconds] = useState('');
+  const [manualMillis, setManualMillis] = useState('');
+  const [isTestEnvironment, setIsTestEnvironment] = useState(false);
+  
+  // Check if app is in test environment
+  useEffect(() => {
+    getEnvironmentConfig().then(config => {
+      setIsTestEnvironment(config.environment === 'test');
+    });
+  }, []);
+  
   useEffect(() => {
     setOriginalText(track.original_turkish || '');
     
@@ -137,32 +211,34 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Debug timepoints data - GİZLENDİ  
   // GIZLENDİ - Debug console.log mesajları
 
-  // Initialize audio
   useEffect(() => {
+    // Only load if visible - prevent duplicate loads
     if (visible) {
-      // Only load audio if it's not the current track or no sound is loaded
-      if (!sound || currentTrack?.id !== track.id) {
-        loadAudio();
-      } else {
-        // Get current status from existing sound
-        if (sound) {
-          sound.getStatusAsync().then((status) => {
-            if (status.isLoaded) {
-              const statusAny = status as any;
-              const actualDuration = statusAny.durationMillis || track.duration * 1000;
-              const actualPosition = statusAny.positionMillis || 0;
-              setDuration(actualDuration);
-              setPosition(actualPosition);
-              setIsLoaded(true);
-              
-              // Update refs as well
-              durationRef.current = actualDuration;
-              isLoadedRef.current = true;
-            }
-          });
-        }
+      loadAudio();
+      // Reset elapsed time when new track loads
+      setElapsedTime(0);
+      accumulatedTimeRef.current = 0;
+      if (elapsedTimerRef.current) {
+        clearInterval(elapsedTimerRef.current);
+        elapsedTimerRef.current = null;
       }
-    } else {
+    }
+  }, [track.id, visible]);
+
+  useEffect(() => {
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+      // Cleanup elapsed timer
+      if (elapsedTimerRef.current) {
+        clearInterval(elapsedTimerRef.current);
+      }
+    };
+  }, [sound]);
+
+  useEffect(() => {
+    if (!visible) {
       // Reset states when modal closes but DON'T unload audio
       setIsLoaded(false);
       setDuration(0);
@@ -182,7 +258,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         clearInterval(intervalRef.current);
       }
     };
-  }, [visible, track.url, track.id]);
+  }, [visible]);
 
   // Fast highlighting interval - 50ms for smooth word tracking
   useEffect(() => {
@@ -203,7 +279,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         } catch (error) {
           // Silent error handling
         }
-      }, 20); // 20ms = 50 updates per second - balanced speed for smooth tracking
+      }, 20); // 20ms = 50 updates per second
 
       return () => {
         if (intervalRef.current) {
@@ -228,6 +304,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       
       // Stop any existing audio first
       await stopAllAudio();
+      
+      // CRITICAL: Log audio URL to verify which file is being loaded
+      console.log(`🎵 [AUDIO LOAD] Loading audio from URL: ${track.url}`);
+      console.log(`🎵 [AUDIO LOAD] Track ID: ${track.id}, Title: ${track.adapted_text?.substring(0, 50)}...`);
+      
       // Create TrackPlayer-backed sound
       const newSound = await createSound(track.url);
       setSound(newSound);
@@ -321,60 +402,38 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   };
 
-  // Binary search for better performance on long texts
-  const findWordIndexBinarySearch = useCallback((currentTime: number, timepoints: Timepoint[]): number => {
+  // Binary search for accurate word finding - matches web implementation
+  const findWordIndexLinear = useCallback((currentTime: number, timepoints: Timepoint[]): number => {
     if (timepoints.length === 0) return -1;
     
+    // Binary search for efficiency
     let left = 0;
     let right = timepoints.length - 1;
-    let result = -1;
     
     while (left <= right) {
       const mid = Math.floor((left + right) / 2);
       const tp = timepoints[mid];
-      const nextTp = timepoints[mid + 1];
+      const endTime = tp.endTimeSeconds || tp.timeSeconds + 0.5;
       
-      if (currentTime >= tp.timeSeconds) {
-        result = mid;
-        if (!nextTp || currentTime < nextTp.timeSeconds) {
-          return mid; // Perfect match
-        }
-        left = mid + 1; // Search right half
+      // Check if we're in this word's time range
+      if (currentTime >= tp.timeSeconds && currentTime < endTime) {
+        return mid;
+      }
+      
+      if (currentTime < tp.timeSeconds) {
+        right = mid - 1;
       } else {
-        right = mid - 1; // Search left half
+        left = mid + 1;
       }
     }
     
-    return result;
+    // Fallback: find closest word
+    return timepoints.reduce((closest, tp, idx) => {
+      const currentDist = Math.abs(currentTime - tp.timeSeconds);
+      const closestDist = Math.abs(currentTime - timepoints[closest].timeSeconds);
+      return currentDist < closestDist ? idx : closest;
+    }, 0);
   }, []);
-
-  const updateWordHighlighting = useCallback((currentTime: number) => {
-    if (!timepoints || timepoints.length === 0) return;
-    
-    const newWordIndex = findWordIndexBinarySearch(currentTime, timepoints);
-
-    // Debug: Log around "Furthermore" (assuming it's around index 50-70)
-    if (newWordIndex >= 0 && newWordIndex <= 10) {
-      const tp = timepoints[newWordIndex];
-      console.log(`[SYNC] currentTime: ${currentTime.toFixed(2)}s | wordIndex: ${newWordIndex} | word: "${tp?.word}" | timestamp: ${tp?.timeSeconds.toFixed(2)}s`);
-    }
-
-    // Only update if word changed
-    if (newWordIndex !== -1 && newWordIndex !== currentWordIndex) {
-      setCurrentWordIndex(newWordIndex);
-      scrollToWord(newWordIndex);
-    }
-  }, [timepoints, currentWordIndex, findWordIndexBinarySearch]);
-
-  const updateSentenceHighlighting = (currentTime: number) => {
-    const totalDuration = durationRef.current / 1000;
-    const progress = totalDuration > 0 ? currentTime / totalDuration : 0;
-    const newSentenceIndex = Math.floor(progress * sentences.length);
-    const boundedIndex = Math.min(Math.max(0, newSentenceIndex), sentences.length - 1);
-    if (boundedIndex !== currentSentenceIndex && boundedIndex >= 0) {
-      setCurrentSentenceIndex(boundedIndex);
-    }
-  };
 
   // Scroll in chunks of 5 lines instead of every word
   const lastScrollTime = useRef(0);
@@ -417,59 +476,163 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   }, []);
 
-  const handlePlayPause = async () => {
-    if (!sound) {
+  const ensureHighlightedWordVisible = useCallback((position: { top: number; bottom: number; height: number }) => {
+    if (pageIndex !== 0) return; // Only auto-scroll on translated text page
+    if (!scrollViewRef.current || textViewportHeight <= 0) return;
+
+    const currentScroll = scrollOffsetRef.current || 0;
+    const visibleBottom = currentScroll + textViewportHeight;
+    const alignPadding = 16; // Small offset so text isn't glued to the top
+    const bottomTrigger = visibleBottom - alignPadding;
+
+    if (position.bottom < bottomTrigger) {
+      return; // Highlight still comfortably inside viewport
+    }
+
+    const desiredOffset = Math.max(0, position.top - alignPadding);
+
+    // Avoid micro-adjustments that cause oscillation
+    if (Math.abs(desiredOffset - currentScroll) < 4) {
       return;
     }
 
-    try {
-      // Get actual sound status before making decision
-      const currentStatus = await sound.getStatusAsync();
+    const now = Date.now();
+    if (now - lastAutoScrollTsRef.current < 150) {
+      return; // Throttle auto-scroll updates
+    }
+    lastAutoScrollTsRef.current = now;
 
-      if ((currentStatus as any).isPlaying) {
-        await sound.pauseAsync();
-      } else {
-        // Check if audio has finished or is at the end
-        const statusAny = currentStatus as any;
-        const currentPosition = statusAny.positionMillis || 0;
-        const audioDuration = statusAny.durationMillis || duration;
-        
-        // If audio finished or is within 100ms of the end, restart from beginning
-        if (statusAny.didJustFinish || (audioDuration > 0 && currentPosition >= audioDuration - 100)) {
-          await sound.setPositionAsync(0);
-          setPosition(0);
-          setCurrentWordIndex(-1);
-          setCurrentSentenceIndex(-1);
-        }
-        
-        await sound.playAsync();
-      }
-      
-      // Wait a bit and verify the status change
-      setTimeout(async () => {
-        try {
-          const verifyStatus = await sound.getStatusAsync();
-        } catch (verifyError) {
-          // silent in production
-        }
-      }, 100);
-      
-    } catch (error) {
-      Alert.alert('Hata', 'Ses oynatılırken hata oluştu');
+    scrollViewRef.current.scrollTo({ y: desiredOffset, animated: true });
+    scrollOffsetRef.current = desiredOffset;
+  }, [pageIndex, textViewportHeight]);
+
+  const handleWordPositionChange = useCallback((info: { index: number; top: number; bottom: number; height: number }) => {
+    latestWordPositionRef.current = info;
+    ensureHighlightedWordVisible(info);
+  }, [ensureHighlightedWordVisible]);
+
+  const updateWordHighlighting = useCallback((currentTime: number) => {
+    if (!timepoints || timepoints.length === 0) return;
+    
+    const newWordIndex = findWordIndexLinear(currentTime, timepoints);
+
+    // Debug: Log every 30 seconds to check sync
+    if (Math.floor(currentTime) % 30 === 0 && Math.floor(currentTime * 10) % 10 === 0) {
+      const tp = timepoints[newWordIndex];
+      console.log(`[SYNC CHECK] Time: ${currentTime.toFixed(2)}s | Index: ${newWordIndex} | Word: "${tp?.word}" | WordStart: ${tp?.timeSeconds.toFixed(2)}s | WordEnd: ${tp?.endTimeSeconds?.toFixed(2)}s | Drift: ${(currentTime - tp?.timeSeconds).toFixed(2)}s`);
+    }
+
+    // Only update if word changed
+    if (newWordIndex !== -1 && newWordIndex !== currentWordIndex) {
+      setCurrentWordIndex(newWordIndex);
+      scrollToWord(newWordIndex);
+    }
+  }, [timepoints, currentWordIndex, findWordIndexLinear, scrollToWord]);
+
+  const updateSentenceHighlighting = (currentTime: number) => {
+    const totalDuration = durationRef.current / 1000;
+    const progress = totalDuration > 0 ? currentTime / totalDuration : 0;
+    const newSentenceIndex = Math.floor(progress * sentences.length);
+    const boundedIndex = Math.min(Math.max(0, newSentenceIndex), sentences.length - 1);
+    if (boundedIndex !== currentSentenceIndex && boundedIndex >= 0) {
+      setCurrentSentenceIndex(boundedIndex);
     }
   };
 
-  const handleSeek = useCallback(async (newPosition: number) => {
-    if (!sound) {
+  const handlePlayPause = async () => {
+    if (!sound || !isLoaded) {
+      console.warn('⚠️ Sound not loaded yet');
       return;
     }
 
     try {
-      await sound.setPositionAsync(newPosition);
+      if (isPlaying) {
+        await sound.pauseAsync();
+        setIsPlaying(false);
+        
+        // Stop elapsed timer and save accumulated time
+        if (elapsedTimerRef.current) {
+          clearInterval(elapsedTimerRef.current);
+          elapsedTimerRef.current = null;
+        }
+        accumulatedTimeRef.current = elapsedTime;
+      } else {
+        console.log('▶️ Playing audio...');
+        await sound.playAsync();
+        console.log('✅ Audio playing');
+        setIsPlaying(true);
+        
+        // Start elapsed timer
+        playStartTimeRef.current = Date.now();
+        elapsedTimerRef.current = setInterval(() => {
+          const elapsed = Math.floor((Date.now() - playStartTimeRef.current) / 1000);
+          setElapsedTime(accumulatedTimeRef.current + elapsed);
+        }, 100);
+      }
     } catch (error) {
-      // silent in production
+      console.error('Play/Pause error:', error);
+      Alert.alert('Hata', 'Ses çalıştırılırken hata oluştu');
     }
-  }, [sound]);
+  };
+
+  const handleSeek = useCallback(async (positionMs: number, knownWordIndex?: number) => {
+    if (!sound) return;
+    try {
+      console.log(`🎯 [SEEK START] Seeking to ${positionMs}ms (${(positionMs / 1000).toFixed(2)}s)`);
+      
+      await sound.setPositionAsync(positionMs);
+      setPosition(positionMs);
+      
+      // CRITICAL: Verify actual position after seek
+      const statusImmediate = await sound.getStatusAsync();
+      if (statusImmediate.isLoaded) {
+        const immediatePosition = statusImmediate.positionMillis;
+        console.log(`🔊 [AUDIO IMMEDIATE] Position right after seek: ${(immediatePosition / 1000).toFixed(2)}s (expected: ${(positionMs / 1000).toFixed(2)}s)`);
+      }
+      
+      // CRITICAL: Wait 500ms and check again - audio buffer might need time
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const statusDelayed = await sound.getStatusAsync();
+      if (statusDelayed.isLoaded) {
+        const delayedPosition = statusDelayed.positionMillis;
+        console.log(`🔊 [AUDIO DELAYED] Position after 500ms: ${(delayedPosition / 1000).toFixed(2)}s (expected: ${(positionMs / 1000).toFixed(2)}s)`);
+        
+        if (Math.abs(delayedPosition - positionMs) > 500) {
+          console.error(`❌ [SEEK ERROR] Position mismatch after 500ms! Expected ${(positionMs / 1000).toFixed(2)}s but got ${(delayedPosition / 1000).toFixed(2)}s (diff: ${Math.abs(delayedPosition - positionMs)}ms)`);
+        }
+      }
+      
+      // If we already know the word index (from word press), use it directly
+      if (knownWordIndex !== undefined) {
+        console.log(`🎯 [SEEK] Using known word index ${knownWordIndex}`);
+        setCurrentWordIndex(knownWordIndex);
+        scrollToWord(knownWordIndex);
+      } else {
+        // Otherwise, find word index from time
+        const currentTimeInSeconds = positionMs / 1000;
+        if (timepoints && timepoints.length > 0) {
+          const newWordIndex = findWordIndexLinear(currentTimeInSeconds, timepoints);
+          if (newWordIndex !== -1) {
+            const foundWord = timepoints[newWordIndex];
+            console.log(`🎯 [SEEK] Seeked to ${currentTimeInSeconds.toFixed(2)}s → Found word index ${newWordIndex}: "${foundWord?.word}" (${foundWord?.timeSeconds.toFixed(2)}s - ${foundWord?.endTimeSeconds?.toFixed(2)}s)`);
+            setCurrentWordIndex(newWordIndex);
+            scrollToWord(newWordIndex);
+          } else {
+            console.warn(`⚠️ [SEEK] No word found for time ${currentTimeInSeconds.toFixed(2)}s`);
+          }
+        }
+      }
+      
+      // Reset elapsed timer when seeking
+      if (isPlaying) {
+        playStartTimeRef.current = Date.now();
+        accumulatedTimeRef.current = elapsedTime;
+      }
+    } catch (error) {
+      console.error('Seek error:', error);
+    }
+  }, [sound, timepoints, findWordIndexLinear, scrollToWord, isPlaying, elapsedTime]);
 
   const handleSpeedChange = async () => {
     const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
@@ -489,20 +652,96 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   };
 
   const handleWordPress = useCallback(async (wordIndex: number) => {
+    console.log(`📍 [WORD PRESS] Clicked word index: ${wordIndex}, word: "${wordsArray[wordIndex]}"`);
+    console.log(`📍 [WORD PRESS] Timepoints length: ${timepoints.length}, Words length: ${wordsArray.length}`);
+    
+    // CRITICAL: Update currentWordIndex immediately for instant highlight
+    setCurrentWordIndex(wordIndex);
+    
     if (timepoints.length > 0 && timepoints[wordIndex]) {
       const timepoint = timepoints[wordIndex];
+      const clickedWord = wordsArray[wordIndex];
+      
+      console.log(`📍 [WORD PRESS] Clicked word from array: "${clickedWord}"`);
+      console.log(`📍 [WORD PRESS] Timepoint word: "${timepoint.word}", time=${timepoint.timeSeconds.toFixed(2)}s`);
+      
+      // Find "idea" words near clicked word (within 30 words)
+      const nearbyIdeas = timepoints
+        .map((tp, idx) => ({ tp, idx }))
+        .filter(({ tp, idx }) => 
+          tp.word.toLowerCase() === 'idea' && 
+          Math.abs(idx - wordIndex) < 30
+        );
+      
+      if (nearbyIdeas.length > 0) {
+        console.log(`🔍 [DEBUG] Found ${nearbyIdeas.length} "idea" word(s) near index ${wordIndex}:`);
+        nearbyIdeas.forEach(({ tp, idx }) => {
+          console.log(`  - Index ${idx}: time=${tp.timeSeconds.toFixed(2)}s (distance: ${idx - wordIndex})`);
+        });
+      }
+      
+      // CRITICAL: Check if words match!
+      // Remove punctuation AND hyphens for comparison
+      const clickedClean = clickedWord.toLowerCase().replace(/[.,!?;:\-]/g, '');
+      const timepointClean = timepoint.word.toLowerCase().replace(/[.,!?;:\-]/g, '');
+      if (clickedClean !== timepointClean) {
+        console.error(`❌ [WORD MISMATCH] Clicked "${clickedWord}" (index ${wordIndex}) but timepoint says "${timepoint.word}"`);
+        console.error(`   Cleaned: "${clickedClean}" vs "${timepointClean}"`);
+      }
+      
+      // Debug: Check previous words to see if timing is correct
+      if (wordIndex > 0) {
+        const prevWord = timepoints[wordIndex - 1];
+        console.log(`📍 [WORD PRESS] Previous word: "${prevWord.word}" at ${prevWord.timeSeconds.toFixed(2)}s`);
+      }
+      if (wordIndex > 1) {
+        const prevWord2 = timepoints[wordIndex - 2];
+        console.log(`📍 [WORD PRESS] 2 words before: "${prevWord2.word}" at ${prevWord2.timeSeconds.toFixed(2)}s`);
+      }
+      
       const positionMs = timepoint.timeSeconds * 1000;
-      await handleSeek(positionMs);
+      
+      // 1. Seek to position (pass wordIndex to avoid recalculation)
+      await handleSeek(positionMs, wordIndex);
+      
+      // 2. Verify actual audio position after seek
+      if (sound) {
+        const status = await sound.getStatusAsync();
+        if (status.isLoaded) {
+          const actualPositionMs = status.positionMillis;
+          const actualPositionS = actualPositionMs / 1000;
+          console.log(`🔊 [AUDIO] Actual position after seek: ${actualPositionS.toFixed(2)}s (expected: ${timepoint.timeSeconds.toFixed(2)}s)`);
+        }
+      }
+      
+      // 3. Play audio if not already playing
+      if (!isPlaying && sound) {
+        console.log('▶️ [WORD PRESS] Starting playback from clicked word');
+        await sound.playAsync();
+        setIsPlaying(true);
+        playStartTimeRef.current = Date.now();
+        accumulatedTimeRef.current = elapsedTime;
+      }
     } else {
+      console.warn(`⚠️ [WORD PRESS] No timepoint for index ${wordIndex}, using fallback estimation`);
       // Fallback: estimate position based on word index
       const totalDuration = duration / 1000;
       if (totalDuration > 0 && wordsArray.length > 0) {
         const estimatedTime = (wordIndex / wordsArray.length) * totalDuration;
         const positionMs = estimatedTime * 1000;
-        await handleSeek(positionMs);
+        console.log(`📍 [WORD PRESS] Estimated time: ${estimatedTime.toFixed(2)}s`);
+        await handleSeek(positionMs, wordIndex);
+        
+        // Play audio if not already playing
+        if (!isPlaying && sound) {
+          await sound.playAsync();
+          setIsPlaying(true);
+          playStartTimeRef.current = Date.now();
+          accumulatedTimeRef.current = elapsedTime;
+        }
       }
     }
-  }, [wordsArray, timepoints, duration, handleSeek]);
+  }, [wordsArray, timepoints, duration, handleSeek, isPlaying, sound, elapsedTime]);
 
   const handleWordLongPress = useCallback((word: string, wordIndex: number) => {
     const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
@@ -630,11 +869,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   };
 
   const renderHighlightedText = () => {
+    console.log(`🎨 [AudioPlayer] renderHighlightedText - showPatterns: ${showPatterns}, level: ${track.level}`);
+    
+    // Always render word/sentence highlighting (Skia-based)
     if (highlightMode === 'word') {
       return renderWordHighlighting;
     } else {
       return renderSentenceHighlighting;
     }
+    
+    // Note: Pattern highlighting is currently disabled because it conflicts with Skia rendering
+    // TODO: Integrate pattern highlighting into Skia components for better performance
   };
 
   // Memoize individual word components for better performance
@@ -686,7 +931,28 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     );
   });
 
+  // Calculate pattern data with full info
+  const patternData = useMemo(() => {
+    console.log(`🎨 [AudioPlayer] Calculating pattern data - showPatterns: ${showPatterns}, patterns.length: ${patterns.length}`);
+    
+    if (!showPatterns || patterns.length === 0) {
+      console.log(`⚠️ [AudioPlayer] No patterns to highlight`);
+      return [];
+    }
+    
+    const data = patterns.map(p => ({
+      pattern: p.pattern.toLowerCase().trim(),
+      pattern_tr: p.pattern_tr || '',
+      example_sentence: p.example_sentence || '',
+      example_sentence_tr: p.example_sentence_tr || ''
+    }));
+    
+    console.log(`🎨 [AudioPlayer] Total pattern data: ${data.length}`);
+    return data;
+  }, [showPatterns, patterns]);
+
   const renderWordHighlighting = useMemo(() => {
+    console.log(`🔄 [AudioPlayer] renderWordHighlighting useMemo - showPatterns: ${showPatterns}, patternData.length: ${patternData.length}`);
     return (
       <SkiaWordHighlight
         words={wordsArray}
@@ -695,12 +961,32 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         fontSize={16}
         lineHeight={28}
         containerWidth={screenWidth - 32}
+        scrollOffsetRef={scrollOffsetRef}
         onWordPress={handleWordPress}
         onWordLongPress={handleWordLongPress}
         mode="word"
+        onWordPositionChange={handleWordPositionChange}
+        patternData={patternData}
+        showPatterns={showPatterns}
       />
     );
-  }, [wordsArray, currentWordIndex, selectedWords, handleWordPress, handleWordLongPress]);
+    
+    // SKIA VERSION (disabled for debugging)
+    // return (
+    //   <SkiaWordHighlight
+    //     words={wordsArray}
+    //     currentWordIndex={currentWordIndex}
+    //     selectedWords={selectedWords}
+    //     fontSize={16}
+    //     lineHeight={28}
+    //     containerWidth={screenWidth - 32}
+    //     scrollOffsetRef={scrollOffsetRef}
+    //     onWordPress={handleWordPress}
+    //     onWordLongPress={handleWordLongPress}
+    //     mode="word"
+    //   />
+    // );
+  }, [wordsArray, currentWordIndex, selectedWords, handleWordPress, handleWordLongPress, patternData, showPatterns]);
 
   const handleSentencePressCallback = useCallback((sentenceIndex: number, sentenceText: string) => {
     const totalDuration = duration / 1000;
@@ -749,12 +1035,44 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           >
             <Icon name="close" size={24} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.title} numberOfLines={1}>
-            {track.title}
-          </Text>
-          <View style={styles.levelBadge}>
-            <Text style={styles.levelText}>{track.level}</Text>
+          <View style={styles.centerBadge}>
+            <TouchableOpacity
+              onPress={() => {
+                console.log(`🔄 [AudioPlayer] Toggling patterns: ${showPatterns} -> ${!showPatterns}, pageIndex: ${pageIndex}`);
+                setShowPatterns(!showPatterns);
+              }}
+              style={[styles.patternToggle, showPatterns && styles.patternToggleActive]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Icon name="highlight" size={18} color={showPatterns ? '#FFF' : '#666'} />
+              <Text style={[styles.patternToggleText, showPatterns && styles.patternToggleTextActive]}>
+                Patterns
+              </Text>
+            </TouchableOpacity>
           </View>
+          {pageIndex === 0 ? (
+            <TouchableOpacity 
+              style={styles.originalTextButton}
+              onPress={() => {
+                horizontalScrollRef.current?.scrollTo({ x: screenWidth, animated: true });
+              }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Text style={styles.originalTextButtonText}>Orijinal Metin</Text>
+              <Icon name="chevron-right" size={20} color="#007AFF" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.originalTextButton}
+              onPress={() => {
+                horizontalScrollRef.current?.scrollTo({ x: 0, animated: true });
+              }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <Icon name="chevron-left" size={20} color="#007AFF" />
+              <Text style={styles.originalTextButtonText}>Geri Dön</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Extra floating close button to guarantee tappable area */}
@@ -773,6 +1091,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
         {/* Swipeable pages: current EN on page 0, original TR on page 1 */}
         <ScrollView
+          ref={horizontalScrollRef}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -801,16 +1120,28 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             <ScrollView
               ref={scrollViewRef}
               style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
-              contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
+              contentContainerStyle={{ paddingHorizontal: 16 }}
               showsVerticalScrollIndicator={true}
               nestedScrollEnabled={true}
               scrollEventThrottle={16}
               removeClippedSubviews={false}
               bounces={true}
+              onLayout={(event) => {
+                const { height } = event.nativeEvent.layout;
+                setTextViewportHeight(height);
+              }}
+              onScroll={(event) => {
+                const offsetY = event.nativeEvent.contentOffset.y;
+                scrollOffsetRef.current = offsetY;
+                // Debug: Log scroll position occasionally
+                if (Math.floor(offsetY) % 100 === 0) {
+                  console.log(`📜 [SCROLL] Offset: ${offsetY.toFixed(0)}px`);
+                }
+              }}
             >
-              <Pressable style={styles.textWrapper}>
-                {renderHighlightedText()}
-              </Pressable>
+              <View style={styles.textWrapper}>
+                {pageIndex === 0 && renderHighlightedText()}
+              </View>
             </ScrollView>
           </View>
           <View style={{ width: screenWidth, flex: 1 }}>
@@ -824,7 +1155,25 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               bounces={true}
             >
               <Pressable>
-                <Text style={styles.originalTitle}>Orijinal Türkçe Metin</Text>
+                <View style={styles.originalHeader}>
+                  <Text style={styles.originalTitle}>Orijinal Türkçe Metin</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const textToCopy = originalText || track.original_turkish || '';
+                      if (textToCopy) {
+                        Clipboard.setString(textToCopy);
+                        Alert.alert(
+                          language === 'tr' ? 'Kopyalandı!' : 'Copied!',
+                          language === 'tr' ? 'Türkçe metin panoya kopyalandı.' : 'Turkish text copied to clipboard.',
+                          [{ text: language === 'tr' ? 'Tamam' : 'OK' }]
+                        );
+                      }
+                    }}
+                    style={styles.copyButton}
+                  >
+                    <Icon name="content-copy" size={20} color="#007AFF" />
+                  </TouchableOpacity>
+                </View>
                 {originalLoading ? (
                   <Text style={styles.originalText}>Yükleniyor...</Text>
                 ) : (
@@ -852,17 +1201,64 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           {/* Debug Button - GİZLENDİ */}
           {/* GIZLENDI - Debug butonu kaldırıldı */}
 
+          {/* Manual Seek Time Input - Only visible in TEST environment */}
+          {isTestEnvironment && (
+            <View style={styles.manualSeekContainer}>
+              <TextInput
+                style={styles.timeInput}
+                placeholder="Sn"
+                keyboardType="numeric"
+                maxLength={4}
+                value={manualSeconds}
+                onChangeText={setManualSeconds}
+              />
+              <Text style={styles.timeSeparator}>.</Text>
+              <TextInput
+                style={styles.timeInput}
+                placeholder="Ms"
+                keyboardType="numeric"
+                maxLength={3}
+                value={manualMillis}
+                onChangeText={setManualMillis}
+              />
+              <TouchableOpacity
+                style={styles.seekButton}
+                onPress={() => {
+                  const seconds = parseFloat(manualSeconds || '0');
+                  const millis = parseFloat(manualMillis || '0');
+                  const totalMs = (seconds * 1000) + millis;
+                  console.log(`🎯 [MANUAL SEEK] Seeking to ${seconds}.${millis}s (${totalMs}ms)`);
+                  handleSeek(totalMs);
+                }}
+              >
+                <Text style={styles.seekButtonText}>Git</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Progress Bar */}
           <View style={styles.progressContainer}>
             <Text style={styles.timeText}>{formatTime(position)}</Text>
-            <View style={styles.progressBar}>
+            <TouchableOpacity 
+              style={styles.progressBar}
+              activeOpacity={0.8}
+              hitSlop={{ top: 12, bottom: 12, left: 0, right: 0 }}
+              onPress={(e) => {
+                const { locationX } = e.nativeEvent;
+                const progressBarWidth = screenWidth - 32 - 100; // Total width minus padding and time text
+                const percentage = locationX / progressBarWidth;
+                const seekPosition = percentage * duration;
+                console.log(`📊 [PROGRESS BAR] Clicked at ${locationX}px, seeking to ${(seekPosition / 1000).toFixed(2)}s`);
+                handleSeek(seekPosition);
+              }}
+            >
               <View
                 style={[
                   styles.progressFill,
                   { width: `${progressPercentage}%` }
                 ]}
               />
-            </View>
+            </TouchableOpacity>
             <Text style={styles.timeText}>{formatTime(duration)}</Text>
           </View>
 
@@ -898,23 +1294,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               <Icon name="info" size={24} color="#666" />
             </TouchableOpacity>
 
-            {/* Test Button - Cümle vurgusu test etmek için */}
-            <TouchableOpacity
-              style={styles.testButton}
-              onPress={() => {
-                const nextIndex = (currentSentenceIndex + 1) % sentences.length;
-                setCurrentSentenceIndex(nextIndex);
-                Alert.alert('Debug Info', 
-                  `Aktif Cümle: ${nextIndex + 1}/${sentences.length}\n` +
-                  `Süre: ${formatTime(duration)}\n` +
-                  `Pozisyon: ${formatTime(position)}\n` +
-                  `Yüklü: ${isLoaded ? 'Evet' : 'Hayır'}\n` +
-                  `Oynatılıyor: ${isPlaying ? 'Evet' : 'Hayır'}`
-                );
-              }}
-            >
-              <Icon name="bug-report" size={20} color="#ff6b35" />
-            </TouchableOpacity>
+            {/* Level Badge */}
+            <View style={styles.levelBadgeBottom}>
+              <Text style={styles.levelText}>{track.level}</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -950,11 +1333,61 @@ const styles = StyleSheet.create({
   closeButton: {
     marginRight: 12,
   },
+  patternToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+    gap: 4,
+  },
+  patternToggleActive: {
+    backgroundColor: '#FFD700',
+  },
+  patternToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+  },
+  patternToggleTextActive: {
+    color: '#333',
+  },
+  patternListContainer: {
+    marginTop: 24,
+    paddingTop: 16,
+    borderTopWidth: 2,
+    borderTopColor: '#FFD700',
+    backgroundColor: '#FFFEF0',
+    borderRadius: 8,
+    padding: 16,
+  },
+  patternListTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 12,
+  },
   title: {
     flex: 1,
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
+  },
+  centerBadge: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  originalTextButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  originalTextButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   originalBox: {
     backgroundColor: '#fff',
@@ -964,22 +1397,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
+  originalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
   originalTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 6,
+  },
+  copyButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
   },
   originalText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 28,
     color: '#374151',
+    textAlign: 'justify',
+    letterSpacing: 0.3,
   },
   levelBadge: {
     backgroundColor: '#007AFF',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+  },
+  levelBadgeBottom: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    minWidth: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   levelText: {
     color: '#fff',
@@ -1152,15 +1606,16 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     flex: 1,
-    height: 4,
+    height: 8,
     backgroundColor: '#e0e0e0',
-    borderRadius: 2,
+    borderRadius: 4,
     marginHorizontal: 12,
+    overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: '#007AFF',
-    borderRadius: 2,
+    borderRadius: 4,
   },
   playbackControls: {
     flexDirection: 'row',
@@ -1246,6 +1701,41 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: '#ff6b35',
     borderRadius: 16,
+  },
+  manualSeekContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  timeInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 8,
+    width: 60,
+    fontSize: 14,
+    textAlign: 'center',
+    backgroundColor: '#fff',
+  },
+  timeSeparator: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginHorizontal: 4,
+    color: '#333',
+  },
+  seekButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginLeft: 12,
+  },
+  seekButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

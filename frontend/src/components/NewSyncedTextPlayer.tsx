@@ -1,12 +1,37 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, memo, useMemo } from 'react';
 import { useWordSync } from '../hooks/useWordSync';
-import { addWordWithTranslation } from '../lib/api';
+import { addWordWithTranslation, getApiUrl } from '../lib/api';
 
 interface Timepoint {
   timeSeconds: number;
   endTimeSeconds?: number;
   word?: string;
   markName?: string;
+}
+
+interface PatternInfo {
+  pattern: string;
+  pattern_tr: string;
+  example_sentence: string;
+  example_sentence_tr: string;
+}
+
+interface UseWordSyncReturn {
+  activeWordIndex: number;
+  isPlaying: boolean;
+  isBuffering: boolean;
+  isLoading: boolean;
+  currentTime: number;
+  duration: number;
+  wordTimestamps: Array<{
+    word: string;
+    startTime: number;
+    endTime: number;
+  }>;
+  play: () => void;
+  pause: () => void;
+  seek: (time: number) => void;
+  setPlaybackRate: (rate: number) => void;
 }
 
 interface NewSyncedTextPlayerProps {
@@ -37,7 +62,7 @@ interface ContextMenu {
   wordIndex: number;
 }
 
-export default function NewSyncedTextPlayer({
+const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   audioUrl,
   words,
   timepoints,
@@ -51,18 +76,7 @@ export default function NewSyncedTextPlayer({
   stats
 }: NewSyncedTextPlayerProps) {
   
-  // DEBUG: Log what NewSyncedTextPlayer receives
-  console.log('🎭 [NEW SYNCED PLAYER DEBUG] Component initialized with:', {
-    audioUrl,
-    wordsLength: words?.length || 0,
-    timepointsLength: timepoints?.length || 0,
-    hasOriginalText: !!originalText,
-    originalTextLength: originalText?.length || 0,
-    showControls,
-    words: words?.slice(0, 5) || 'NO_WORDS',
-    timepoints: timepoints?.slice(0, 3) || 'NO_TIMEPOINTS'
-  });
-  // Yeni useWordSync hook'unu kullan
+  // Use useWordSync hook directly in component
   const {
     activeWordIndex,
     isPlaying,
@@ -83,11 +97,50 @@ export default function NewSyncedTextPlayer({
 
   // Component local state
   const [playbackRate, setLocalPlaybackRate] = useState<number>(1.0);
-  const [highlightType, setHighlightType] = useState<'word' | 'sentence'>('sentence'); // Sadece cümle aktif
+  const [highlightType, setHighlightType] = useState<'word' | 'sentence'>('word'); // Kelime vurgusu aktif
+  const [showPatterns, setShowPatterns] = useState(false);
+  const [patterns, setPatterns] = useState<PatternInfo[]>([]);
+  const [loadingPatterns, setLoadingPatterns] = useState(false);
+  const [selectedPattern, setSelectedPattern] = useState<PatternInfo | null>(null);
+  
+  // Text processing
+  const textWords = originalText.split(/\s+/).filter(word => word.length > 0);
   const [contextMenu, setContextMenu] = useState<ContextMenu>({ 
     show: false, x: 0, y: 0, word: '', wordIndex: -1 
   });
   const [isAddingWord, setIsAddingWord] = useState(false);
+
+  // Load patterns from backend
+  const loadPatterns = async () => {
+    if (loadingPatterns || !originalText || !level) return;
+    
+    try {
+      setLoadingPatterns(true);
+      console.log(`🔍 [Pattern] Loading patterns for level: ${level}`);
+      
+      const token = localStorage.getItem('lingroot_token') || localStorage.getItem('auth_token') || localStorage.getItem('userToken');
+      const apiUrl = getApiUrl('patterns/find');
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: originalText, level })
+      });
+      
+      const data = await response.json();
+      console.log(`📊 [Pattern] Found ${data.patterns?.length || 0} patterns`);
+      
+      if (data.success && data.patterns) {
+        setPatterns(data.patterns);
+      }
+    } catch (error) {
+      console.error('❌ [Pattern] Error loading patterns:', error);
+    } finally {
+      setLoadingPatterns(false);
+    }
+  };
 
   // Format time helper
   const formatTime = (seconds: number) => {
@@ -112,7 +165,30 @@ export default function NewSyncedTextPlayer({
   // Handle word click
   const handleWordClick = (wordIndex: number) => {
     const timestamp = wordTimestamps[wordIndex];
+    const clickedWord = textWords[wordIndex];
+    
+    console.log(`📍 [WEB WORD PRESS] Clicked word index: ${wordIndex}, word: "${clickedWord}"`);
+    console.log(`📍 [WEB WORD PRESS] Timepoints length: ${wordTimestamps.length}, Words length: ${textWords.length}`);
+    
     if (timestamp) {
+      console.log(`📍 [WEB WORD PRESS] Clicked word from array: "${clickedWord}"`);
+      console.log(`📍 [WEB WORD PRESS] Timepoint word: "${timestamp.word}", time=${timestamp.startTime.toFixed(2)}s`);
+      
+      // Find "idea" words near clicked word (within 30 words)
+      const nearbyIdeas = wordTimestamps
+        .map((tp, idx) => ({ tp, idx }))
+        .filter(({ tp, idx }) => 
+          tp.word.toLowerCase() === 'idea' && 
+          Math.abs(idx - wordIndex) < 30
+        );
+      
+      if (nearbyIdeas.length > 0) {
+        console.log(`🔍 [WEB DEBUG] Found ${nearbyIdeas.length} "idea" word(s) near index ${wordIndex}:`);
+        nearbyIdeas.forEach(({ tp, idx }) => {
+          console.log(`  - Index ${idx}: time=${tp.startTime.toFixed(2)}s (distance: ${idx - wordIndex})`);
+        });
+      }
+      
       seek(timestamp.startTime);
     }
   };
@@ -211,60 +287,220 @@ export default function NewSyncedTextPlayer({
         }}
         onClick={hideContextMenu}
       >
-        {sentences.map((sentence, sentenceIndex) => {
-          const isCurrentSentence = sentenceIndex === currentSentenceIndex;
-          const words = sentence.split(/\s+/).filter(word => word.length > 0);
-          
-          return (
-            <span
-              key={sentenceIndex}
-              className={`inline-block mx-1 my-1 transition-all duration-200 font-normal ${
-                isCurrentSentence 
-                  ? 'bg-blue-200 text-blue-900 px-3 py-2 rounded-lg shadow-lg border-2 border-blue-400' 
-                  : 'text-gray-800 px-2 py-1 hover:bg-gray-100 rounded'
-              }`}
-              title={`Cümle ${sentenceIndex + 1}`}
-              style={{
-                minHeight: '2rem',
-                display: 'inline-block',
-                whiteSpace: 'normal',
-                verticalAlign: 'top',
-                boxShadow: isCurrentSentence ? '0 0 12px rgba(59, 130, 246, 0.6)' : 'none',
-                transform: 'none',
-                wordBreak: 'normal'
-              }}
-            >
-              {words.map((word, wordIndex) => {
-                const globalWordIndex = getWordIndexInText(sentenceIndex, wordIndex);
-                return (
-                  <span
-                    key={`${sentenceIndex}-${wordIndex}`}
-                    className="inline inline-block cursor-pointer hover:bg-yellow-200 rounded px-1 transition-colors duration-150"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Cümleye tıklandığında o cümlenin başına atla
-                      const sentenceProgress = sentenceIndex / sentences.length;
-                      const targetTime = sentenceProgress * duration;
-                      seek(targetTime);
-                    }}
-                    onContextMenu={(e) => handleWordRightClick(e, word, globalWordIndex)}
-                    title={`Kelime: ${word} (Cümle ${sentenceIndex + 1})`}
-                  >
-                    {word}{wordIndex < words.length - 1 ? ' ' : ''}
-                  </span>
-                );
-              })}
-              .
-            </span>
-          );
-        })}
+        {highlightType === 'word' ? (
+          // Kelime bazında vurgulama
+          textWords.map((word, index) => {
+            const isCurrentWord = index === activeWordIndex;
+            const timestamp = wordTimestamps[index];
+            
+            return (
+              <span
+                key={index}
+                className={`inline-block cursor-pointer transition-all duration-200 mx-1 px-2 py-1 rounded ${
+                  isCurrentWord 
+                    ? 'bg-yellow-300 text-yellow-900 font-semibold shadow-md scale-105' 
+                    : 'text-gray-800 hover:bg-gray-100'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (timestamp) {
+                    handleWordClick(index);
+                  }
+                }}
+                onContextMenu={(e) => handleWordRightClick(e, word, index)}
+                title={timestamp ? 
+                  `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s` : 
+                  `Kelime ${index + 1}`
+                }
+              >
+                {word}
+              </span>
+            );
+          })
+        ) : (
+          // Cümle bazında vurgulama (eski kod)
+          sentences.map((sentence, sentenceIndex) => {
+            const isCurrentSentence = sentenceIndex === currentSentenceIndex;
+            const words = sentence.split(/\s+/).filter(word => word.length > 0);
+            
+            return (
+              <span
+                key={sentenceIndex}
+                className={`inline-block mx-1 my-1 transition-all duration-200 font-normal ${
+                  isCurrentSentence 
+                    ? 'bg-blue-200 text-blue-900 px-3 py-2 rounded-lg shadow-lg border-2 border-blue-400' 
+                    : 'text-gray-800 px-2 py-1 hover:bg-gray-100 rounded'
+                }`}
+                title={`Cümle ${sentenceIndex + 1}`}
+                style={{
+                  minHeight: '2rem',
+                  display: 'inline-block',
+                  whiteSpace: 'normal',
+                  verticalAlign: 'top',
+                  boxShadow: isCurrentSentence ? '0 0 12px rgba(59, 130, 246, 0.6)' : 'none',
+                  transform: 'none',
+                  wordBreak: 'normal'
+                }}
+              >
+                {words.map((word, wordIndex) => {
+                  const globalWordIndex = getWordIndexInText(sentenceIndex, wordIndex);
+                  return (
+                    <span
+                      key={`${sentenceIndex}-${wordIndex}`}
+                      className="inline inline-block cursor-pointer hover:bg-yellow-200 rounded px-1 transition-colors duration-150"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const sentenceProgress = sentenceIndex / sentences.length;
+                        const targetTime = sentenceProgress * duration;
+                        seek(targetTime);
+                      }}
+                      onContextMenu={(e) => handleWordRightClick(e, word, globalWordIndex)}
+                      title={`Kelime: ${word} (Cümle ${sentenceIndex + 1})`}
+                    >
+                      {word}{wordIndex < words.length - 1 ? ' ' : ''}
+                    </span>
+                  );
+                })}
+                .
+              </span>
+            );
+          })
+        )}
       </div>
     );
   };
 
+  // Calculate pattern ranges with useMemo
+  const patternRanges = useMemo(() => {
+    console.log(`🎨 [Pattern Ranges] showPatterns: ${showPatterns}, patterns.length: ${patterns.length}`);
+    
+    if (!showPatterns || patterns.length === 0) {
+      console.log(`⚠️ [Pattern Ranges] Returning empty - showPatterns: ${showPatterns}, patterns: ${patterns.length}`);
+      return [];
+    }
+    
+    const ranges: Array<{ startIndex: number; endIndex: number; patternData: PatternInfo }> = [];
+    
+    for (const pData of patterns) {
+      const phrase = pData.pattern.toLowerCase();
+      const phraseWords = phrase.split(/\s+/);
+      const phraseLength = phraseWords.length;
+      
+      console.log(`🔍 [Pattern] Searching for: "${phrase}" (${phraseLength} words)`);
+      
+      for (let startIdx = 0; startIdx <= textWords.length - phraseLength; startIdx++) {
+        const candidateWords = textWords.slice(startIdx, startIdx + phraseLength);
+        const candidatePhrase = candidateWords.map(w => w.toLowerCase().replace(/[.,!?;:]/g, '')).join(' ');
+        
+        if (candidatePhrase === phrase) {
+          console.log(`✅ [Pattern] Found "${phrase}" at index ${startIdx}-${startIdx + phraseLength - 1}`);
+          ranges.push({
+            startIndex: startIdx,
+            endIndex: startIdx + phraseLength - 1,
+            patternData: pData
+          });
+        }
+      }
+    }
+    
+    console.log(`📊 [Pattern Ranges] Total ranges found: ${ranges.length}`);
+    return ranges;
+  }, [showPatterns, patterns, textWords]);
+
+  const patternStartMap = useMemo(() => {
+    const map = new Map<number, { endIndex: number; patternData: PatternInfo }>();
+    patternRanges.forEach(range => {
+      map.set(range.startIndex, {
+        endIndex: range.endIndex,
+        patternData: range.patternData,
+      });
+    });
+    return map;
+  }, [patternRanges]);
+
   // Render words with highlighting (endtime bilgileri kaldırıldı)
   const renderWords = () => {
-    const textWords = originalText.split(/\s+/).filter(word => word.length > 0);
+    const elements: React.ReactNode[] = [];
+    let index = 0;
+    
+    while (index < textWords.length) {
+      const patternEntry = patternStartMap.get(index);
+      
+      if (patternEntry) {
+        const { endIndex, patternData } = patternEntry;
+        const phraseWords = textWords.slice(index, endIndex + 1);
+        const phraseText = phraseWords.join(' ');
+        const patternStartIndex = index;
+        const isActive = activeWordIndex >= patternStartIndex && activeWordIndex <= endIndex;
+        
+        elements.push(
+          <span
+            key={`pattern-${patternStartIndex}`}
+            className={`inline-flex cursor-pointer transition-all duration-150 px-3 py-1 rounded-xl border-2 ${
+              isActive ? 'bg-yellow-300 border-yellow-500 shadow-lg' : 'bg-yellow-100 border-yellow-300'
+            }`}
+            style={{
+              margin: '0.1rem 0.25rem',
+              alignItems: 'center',
+              gap: '0.3rem',
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedPattern(patternData);
+            }}
+            title={`Pattern: ${patternData.pattern}`}
+          >
+            <span className="text-gray-900 font-medium">{phraseText}</span>
+          </span>
+        );
+        
+        index = endIndex + 1;
+        continue;
+      }
+      
+      const word = textWords[index];
+      const isCurrentWord = index === activeWordIndex;
+      const timestamp = wordTimestamps[index];
+      
+      elements.push(
+        <span
+          key={`word-${index}`}
+          className={`inline-block cursor-pointer transition-all duration-75 hover:text-blue-600 font-normal ${
+            isCurrentWord 
+              ? 'bg-yellow-300 text-yellow-900 rounded-md shadow-md scale-105' 
+              : 'text-gray-800'
+          }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (timestamp) {
+              handleWordClick(index);
+            }
+          }}
+          onContextMenu={(e) => handleWordRightClick(e, word, index)}
+          title={timestamp ? 
+            `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s` : 
+            'Timing bilgisi yok'
+          }
+          style={{
+            minHeight: '1.8rem',
+            padding: '0.2rem 0.3rem',
+            margin: '0.1rem 0.2rem',
+            display: 'inline-flex',
+            alignItems: 'center',
+            verticalAlign: 'top',
+            boxSizing: 'border-box',
+            border: isCurrentWord ? '2px solid #fbbf24' : '2px solid transparent',
+            transform: isCurrentWord ? 'scale(1.05)' : 'scale(1)',
+            transformOrigin: 'center',
+            willChange: isCurrentWord ? 'transform' : 'auto'
+          }}
+        >
+          {word}
+        </span>
+      );
+      
+      index += 1;
+    }
     
     return (
       <div 
@@ -278,46 +514,7 @@ export default function NewSyncedTextPlayer({
         }}
         onClick={hideContextMenu}
       >
-        {textWords.map((word, index) => {
-          const isCurrentWord = index === activeWordIndex;
-          const timestamp = wordTimestamps[index];
-          
-          return (
-            <span
-              key={index}
-              className={`inline-block cursor-pointer transition-all duration-75 hover:text-blue-600 font-normal ${
-                isCurrentWord 
-                  ? 'bg-yellow-300 text-yellow-900 rounded-md shadow-md scale-105' 
-                  : 'text-gray-800'
-              }`}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (timestamp) handleWordClick(index);
-              }}
-              onContextMenu={(e) => handleWordRightClick(e, word, index)}
-              title={timestamp ? 
-                `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s` : 
-                'Timing bilgisi yok'
-              }
-              style={{
-                // Fixed dimensions to prevent layout shifts
-                minHeight: '1.8rem',
-                padding: '0.2rem 0.3rem',
-                margin: '0.1rem 0.2rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                verticalAlign: 'top',
-                boxSizing: 'border-box',
-                border: isCurrentWord ? '2px solid #fbbf24' : '2px solid transparent',
-                transform: isCurrentWord ? 'scale(1.05)' : 'scale(1)',
-                transformOrigin: 'center',
-                willChange: isCurrentWord ? 'transform' : 'auto'
-              }}
-            >
-              {word}
-            </span>
-          );
-        })}
+        {elements}
       </div>
     );
   };
@@ -407,6 +604,37 @@ export default function NewSyncedTextPlayer({
               <option value={1.5}>1.5x</option>
               <option value={2.0}>2.0x</option>
             </select>
+
+            {/* Pattern Toggle Button */}
+            {level && (
+              <button
+                onClick={() => {
+                  if (!showPatterns && patterns.length === 0) {
+                    loadPatterns();
+                  }
+                  setShowPatterns(!showPatterns);
+                }}
+                disabled={loadingPatterns}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  showPatterns 
+                    ? 'bg-yellow-500 hover:bg-yellow-600 text-white' 
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                }`}
+                title="Günlük kullanım kalıplarını göster"
+              >
+                {loadingPatterns ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Yükleniyor...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>✨</span>
+                    <span>Patterns</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
           {/* Progress Bar */}
@@ -469,6 +697,60 @@ export default function NewSyncedTextPlayer({
         </>
       )}
 
+      {/* Pattern Popup Modal */}
+      {selectedPattern && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black bg-opacity-60"
+          onClick={() => setSelectedPattern(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center p-5 bg-gray-50 border-b-2 border-gray-200 rounded-t-2xl">
+              <h3 className="text-lg font-bold text-gray-800">{selectedPattern.pattern}</h3>
+              <button
+                onClick={() => setSelectedPattern(null)}
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 text-gray-600 font-semibold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-4 space-y-3">
+              {/* Anlamı - Yellow Card */}
+              <div className="p-4 bg-yellow-50 border-2 border-yellow-400 rounded-xl">
+                <div className="flex items-center mb-2">
+                  <span className="text-base mr-2">🇹🇷</span>
+                  <span className="text-xs font-bold text-gray-700">Anlamı</span>
+                </div>
+                <p className="text-sm text-gray-800 leading-5">{selectedPattern.pattern_tr || '-'}</p>
+              </div>
+
+              {/* Örnek Cümle - Blue Card */}
+              <div className="p-4 bg-blue-50 border-2 border-blue-400 rounded-xl">
+                <div className="flex items-center mb-2">
+                  <span className="text-base mr-2">🇬🇧</span>
+                  <span className="text-xs font-bold text-gray-700">Örnek Cümle</span>
+                </div>
+                <p className="text-sm text-gray-800 leading-5">{selectedPattern.example_sentence || '-'}</p>
+              </div>
+
+              {/* Çeviri - Green Card */}
+              <div className="p-4 bg-green-50 border-2 border-green-400 rounded-xl">
+                <div className="flex items-center mb-2">
+                  <span className="text-base mr-2">💬</span>
+                  <span className="text-xs font-bold text-gray-700">Çeviri</span>
+                </div>
+                <p className="text-sm text-gray-800 leading-5">{selectedPattern.example_sentence_tr || '-'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Usage Instructions - GİZLENDİ */}
       {/* GIZLENDI - "Yeni Senkronizasyon Mimarisi" başlıklı alanı kaldır */}
 
@@ -476,4 +758,6 @@ export default function NewSyncedTextPlayer({
       {/* GIZLENDI - div class="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-600" olan alanı kaldır */}
     </div>
   );
-} 
+});
+
+export default NewSyncedTextPlayer; 

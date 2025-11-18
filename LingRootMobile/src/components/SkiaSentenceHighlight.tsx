@@ -68,7 +68,7 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
       return null;
     }
     
-    const textContent = sentences.join('.   ') + '.'; // 3 spaces after period
+    const textContent = sentences.join('.   ') + '.'; // 3 spaces after period 
     
     // Combine all styles for Make() - Use strutStyle for guaranteed line height
     const heightMult = lineHeight / fontSize;
@@ -172,18 +172,33 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
     return boundaries;
   }, [paragraph, sentences, containerWidth]);
 
-  // Calculate canvas height with Metal GPU limit (16384px max on iPhone 7)
-  const canvasHeight = useMemo(() => {
-    if (!paragraph) return 200;
-    const calculatedHeight = paragraph.getHeight() + 20;
-    const MAX_METAL_TEXTURE_HEIGHT = 16000; // Safe limit below 16384
+  // Calculate total height and chunk configuration
+  const { totalHeight, chunks } = useMemo(() => {
+    if (!paragraph) return { totalHeight: 200, chunks: [] };
     
-    if (calculatedHeight > MAX_METAL_TEXTURE_HEIGHT) {
-      console.warn(`⚠️ Canvas height ${calculatedHeight}px exceeds Metal GPU limit. Capping at ${MAX_METAL_TEXTURE_HEIGHT}px`);
-      return MAX_METAL_TEXTURE_HEIGHT;
+    const fullHeight = paragraph.getHeight() + 20;
+    
+    // Metal applies 3x scale on some devices, so we need to account for that
+    // Max Metal texture: 16384px, with 3x scale = 5461px logical pixels
+    // Use 5000px to be safe
+    const CHUNK_HEIGHT = 5000; // Safe chunk size accounting for 3x scale
+    
+    // Calculate number of chunks needed
+    const numChunks = Math.ceil(fullHeight / CHUNK_HEIGHT);
+    
+    if (numChunks > 1) {
+      console.log(`📦 [Sentence] Splitting ${fullHeight}px into ${numChunks} chunks of ${CHUNK_HEIGHT}px each`);
     }
     
-    return calculatedHeight;
+    // Create chunk definitions
+    const chunkList = Array.from({ length: numChunks }, (_, i) => ({
+      index: i,
+      startY: i * CHUNK_HEIGHT,
+      endY: Math.min((i + 1) * CHUNK_HEIGHT, fullHeight),
+      height: Math.min(CHUNK_HEIGHT, fullHeight - i * CHUNK_HEIGHT),
+    }));
+    
+    return { totalHeight: fullHeight, chunks: chunkList };
   }, [paragraph]);
   
   const handleTouch = (event: GestureResponderEvent) => {
@@ -200,112 +215,123 @@ export const SkiaSentenceHighlight: React.FC<SkiaSentenceHighlightProps> = React
     }
   };
 
+  // Filter sentence boundaries for each chunk
+  const getChunkSentenceBoundaries = (chunk: { startY: number; endY: number }) => {
+    return sentenceBoundaries.filter(
+      (boundary) => boundary.y >= chunk.startY && boundary.y < chunk.endY
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        activeOpacity={1}
-        onPress={handleTouch}
-      >
-        <Canvas style={{ width: containerWidth, height: canvasHeight }}>
-          {/* Dynamic Highlight with Glow Effect */}
-          {sentenceBoundaries.map((boundary, idx) => {
-            const isHighlighted = idx === currentSentenceIndex;
-            
-            if (!isHighlighted) return null;
-            
-            // Add horizontal padding (6px left, 6px right for sentences)
-            const paddingX = 9;
-            const paddingY = 4;
-            
-            // Calculate position with left padding
-            const rectX = Math.max(0, boundary.x - paddingX);
-            const leftPaddingUsed = boundary.x - rectX;
-            
-            // Calculate width with right padding, but don't exceed container
-            const idealWidth = boundary.width + leftPaddingUsed + paddingX;
-            const maxAllowedWidth = containerWidth - rectX;
-            const rectWidth = Math.min(idealWidth, maxAllowedWidth);
-            
-            return (
-              <React.Fragment key={idx}>
-                {/* Glow effect */}
-                <RoundedRect
-                  x={rectX}
-                  y={boundary.y - paddingY}
-                  width={rectWidth}
-                  height={boundary.height + (paddingY * 2)}
-                  r={8}
-                  color="rgba(0, 122, 255, 0.3)"
-                >
-                  <BlurMask blur={8} style="normal" />
-                </RoundedRect>
-                {/* Main background */}
-                <RoundedRect
-                  x={rectX}
-                  y={boundary.y - paddingY}
-                  width={rectWidth}
-                  height={boundary.height + (paddingY * 2)}
-                  r={8}
-                  color="rgba(0, 122, 255, 0.25)"
-                />
-              </React.Fragment>
-            );
-          })}
-          
-          {/* Static Black Paragraph */}
-          {paragraph && (
-            <Paragraph
-              paragraph={paragraph}
-              x={INTERNAL_PADDING}
-              y={0}
-              width={containerWidth - INTERNAL_PADDING * 2}
-            />
-          )}
-          
-          {/* White Paragraph (only visible on highlighted sentence) */}
-          {currentSentenceIndex >= 0 && currentSentenceIndex < sentenceBoundaries.length && whiteParagraph && (
-            <Paragraph
-              paragraph={whiteParagraph}
-              x={INTERNAL_PADDING}
-              y={0}
-              width={containerWidth - INTERNAL_PADDING * 2}
-              clip={(() => {
-                // 1. RoundedRect'teki padding değerlerinin aynısı
-                const paddingX = 6;
-                const paddingY = 4;
+      {chunks.map((chunk) => {
+        const chunkBoundaries = getChunkSentenceBoundaries(chunk);
+        
+        return (
+          <View key={chunk.index} style={{ height: chunk.height }}>
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={handleTouch}
+            >
+              <Canvas style={{ width: containerWidth, height: chunk.height }}>
+                {/* Dynamic Highlight with Glow Effect */}
+                {chunkBoundaries.map((boundary, idx) => {
+                  const isHighlighted = boundary.index === currentSentenceIndex;
+                  
+                  if (!isHighlighted) return null;
+                  
+                  // Add horizontal padding
+                  const paddingX = 9;
+                  const paddingY = 4;
+                  
+                  // Adjust Y position relative to chunk
+                  const relativeY = boundary.y - chunk.startY;
+                  
+                  // Calculate position with left padding
+                  const rectX = Math.max(0, boundary.x - paddingX);
+                  const leftPaddingUsed = boundary.x - rectX;
+                  
+                  // Calculate width with right padding
+                  const idealWidth = boundary.width + leftPaddingUsed + paddingX;
+                  const maxAllowedWidth = containerWidth - rectX;
+                  const rectWidth = Math.min(idealWidth, maxAllowedWidth);
+                  
+                  return (
+                    <React.Fragment key={boundary.index}>
+                      {/* Glow effect */}
+                      <RoundedRect
+                        x={rectX}
+                        y={relativeY - paddingY}
+                        width={rectWidth}
+                        height={boundary.height + (paddingY * 2)}
+                        r={8}
+                        color="rgba(0, 122, 255, 0.3)"
+                      >
+                        <BlurMask blur={8} style="normal" />
+                      </RoundedRect>
+                      {/* Main background */}
+                      <RoundedRect
+                        x={rectX}
+                        y={relativeY - paddingY}
+                        width={rectWidth}
+                        height={boundary.height + (paddingY * 2)}
+                        r={8}
+                        color="rgba(0, 122, 255, 0.25)"
+                      />
+                    </React.Fragment>
+                  );
+                })}
                 
-                // 2. Aktif cümlenin sınırlarını al
-                const boundary = sentenceBoundaries[currentSentenceIndex];
-
-                // Hata ayıklama: boundary yoksa boş alan kliple
-                if (!boundary) {
-                  return { x: 0, y: 0, width: 0, height: 0 };
-                }
-
-                // 3. RoundedRect'teki hesaplamanın aynısı
-                const rectX = Math.max(0, boundary.x - paddingX);
-                const leftPaddingUsed = boundary.x - rectX;
+                {/* Static Black Paragraph - clipped to chunk */}
+                {paragraph && (
+                  <Paragraph
+                    paragraph={paragraph}
+                    x={INTERNAL_PADDING}
+                    y={-chunk.startY}
+                    width={containerWidth - INTERNAL_PADDING * 2}
+                  />
+                )}
                 
-                const idealWidth = boundary.width + leftPaddingUsed + paddingX;
-                const maxAllowedWidth = containerWidth - rectX;
-                const rectWidth = Math.min(idealWidth, maxAllowedWidth);
-                
-                const rectY = boundary.y - paddingY;
-                const rectHeight = boundary.height + (paddingY * 2);
-
-                // 4. Hesaplanmış klip alanını döndür
-                return {
-                  x: rectX,
-                  y: rectY,
-                  width: rectWidth,
-                  height: rectHeight,
-                };
-              })()}
-            />
-          )}
-        </Canvas>
-      </TouchableOpacity>
+                {/* White Paragraph (only visible on highlighted sentence in this chunk) */}
+                {currentSentenceIndex >= 0 && currentSentenceIndex < sentenceBoundaries.length && whiteParagraph && (() => {
+                  const highlightedBoundary = sentenceBoundaries[currentSentenceIndex];
+                  const isInChunk = highlightedBoundary && 
+                    highlightedBoundary.y >= chunk.startY && 
+                    highlightedBoundary.y < chunk.endY;
+                  
+                  if (!isInChunk) return null;
+                  
+                  const paddingX = 6;
+                  const paddingY = 4;
+                  const rectX = Math.max(0, highlightedBoundary.x - paddingX);
+                  const leftPaddingUsed = highlightedBoundary.x - rectX;
+                  const idealWidth = highlightedBoundary.width + leftPaddingUsed + paddingX;
+                  const maxAllowedWidth = containerWidth - rectX;
+                  const rectWidth = Math.min(idealWidth, maxAllowedWidth);
+                  const relativeY = highlightedBoundary.y - chunk.startY;
+                  const rectY = relativeY - paddingY;
+                  const rectHeight = highlightedBoundary.height + (paddingY * 2);
+                  
+                  return (
+                    <Paragraph
+                      paragraph={whiteParagraph}
+                      x={INTERNAL_PADDING}
+                      y={-chunk.startY}
+                      width={containerWidth - INTERNAL_PADDING * 2}
+                      clip={{
+                        x: rectX,
+                        y: rectY,
+                        width: rectWidth,
+                        height: rectHeight,
+                      }}
+                    />
+                  );
+                })()}
+              </Canvas>
+            </TouchableOpacity>
+          </View>
+        );
+      })}
     </View>
   );
 });

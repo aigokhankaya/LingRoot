@@ -27,6 +27,9 @@ router.post('/process-hashtag', contentController.processHashtag);
 // ✅ Yeni eklenen route:
 router.post('/submit', authenticate, contentController.submitContent);
 
+// Supabase connection test route
+router.get('/test-db', contentController.testSupabaseConnection);
+
 // Content history routes
 router.get('/history', authenticate, contentController.getContentHistory);
 router.get('/history/:id', authenticate, contentController.getContentById);

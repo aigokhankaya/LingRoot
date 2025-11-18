@@ -610,7 +610,24 @@ exports.verifyGooglePlayPurchase = async (req, res) => {
     // Step 4: Create new subscription
     // Use actual dates from Google Play API
     const startDate = new Date(parseInt(purchaseData.startTimeMillis));
-    const endDate = new Date(parseInt(purchaseData.expiryTimeMillis));
+    let endDate = new Date(parseInt(purchaseData.expiryTimeMillis));
+    
+    // Check payment environment setting
+    const { data: paymentEnvSetting } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'payment_environment')
+      .single();
+    
+    const paymentEnvironment = paymentEnvSetting?.value || 'production';
+    
+    // If test environment, add 1 month to expiry date
+    if (paymentEnvironment === 'test') {
+      logger.info(`[IAP] Test environment detected, adding 1 month to expiry date`);
+      endDate = new Date(endDate.getTime() + (30 * 24 * 60 * 60 * 1000)); // Add 30 days
+      logger.info(`[IAP] Original expiry: ${new Date(parseInt(purchaseData.expiryTimeMillis)).toISOString()}`);
+      logger.info(`[IAP] Adjusted expiry: ${endDate.toISOString()}`);
+    }
 
     const subscriptionData = {
       user_id: userId,

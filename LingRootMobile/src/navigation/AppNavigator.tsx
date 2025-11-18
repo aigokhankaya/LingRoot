@@ -4,8 +4,9 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 // import { Ionicons } from '@expo/vector-icons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { Alert, View, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Alert, View, ActivityIndicator, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Platform } from 'react-native';
+import { getEnvironmentConfig } from '../services/environmentConfig';
 
 import { useAuth } from '../contexts/AuthContext';
 import NotificationService from '../services/notificationService';
@@ -23,6 +24,7 @@ import LibraryScreen from '../screens/LibraryScreen';
 import CreateScreen from '../screens/CreateScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import VocabularyScreen from '../screens/VocabularyScreen';
+import PatternListScreen from '../screens/PatternListScreen';
 import MembershipScreen from '../screens/MembershipScreen';
 import ChatScreen from '../screens/ChatScreen';
 import AccountSettingsScreen from '../screens/AccountSettingsScreen';
@@ -54,6 +56,21 @@ const AuthStack = () => {
 
 const MainTabs = () => {
   const { t } = useLanguage();
+  const [isTestEnv, setIsTestEnv] = useState(false);
+
+  useEffect(() => {
+    getEnvironmentConfig().then(config => {
+      setIsTestEnv(config.environment === 'test');
+    });
+  }, []);
+
+  const TestBadge = () => (
+    isTestEnv ? (
+      <View style={styles.testBadge}>
+        <Text style={styles.testBadgeText}>TEST</Text>
+      </View>
+    ) : null
+  );
   
   return (
     <Tab.Navigator
@@ -90,6 +107,7 @@ const MainTabs = () => {
         headerTitleStyle: {
           fontWeight: 'bold',
         },
+        headerRight: () => <TestBadge />,
       })}
     >
       <Tab.Screen 
@@ -157,6 +175,21 @@ const MainTabs = () => {
     </Tab.Navigator>
   );
 };
+
+const styles = StyleSheet.create({
+  testBadge: {
+    backgroundColor: '#FF3B30',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  testBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+});
 
 const AppNavigator = () => {
   const { user, isLoading } = useAuth();
@@ -302,6 +335,13 @@ const AppNavigator = () => {
                   fontWeight: 'bold',
                 },
                 headerTitle: 'Vocabulary', // This will be updated by the component
+              }}
+            />
+            <Stack.Screen 
+              name="PatternList" 
+              component={PatternListScreen}
+              options={{
+                headerShown: false,
               }}
             />
             <Stack.Screen

@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    ports:
+      - "5001:5001"
+    environment:
+      - NODE_ENV=production
+      - USE_MFA_ALIGNMENT=true
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - mfa-models:/root/.mfa  # Cache MFA models
+    restart: unless-stopped
+
+volumes:
+  mfa-models:
+    driver: local

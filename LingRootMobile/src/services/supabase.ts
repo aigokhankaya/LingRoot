@@ -1,6 +1,7 @@
 import { createClient, type AuthChangeEvent, type Session } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY, EXPO_PUBLIC_API_URL } from '@env';
+import { getApiBaseUrl } from './environmentConfig';
 
 // Resolve from env with safe fallbacks
 const resolvedSupabaseUrl = EXPO_PUBLIC_SUPABASE_URL;
@@ -82,7 +83,7 @@ export const authService = {
 
   async signUp(email: string, password: string, fullName?: string, phoneNumber?: string) {
     // Route signup through our backend to avoid direct Supabase Auth dependency on mobile
-    const apiBaseUrl = EXPO_PUBLIC_API_URL || 'https://lingloops-backend.onrender.com';
+    const apiBaseUrl = await getApiBaseUrl();
     const [firstName, ...rest] = (fullName || '').trim().split(' ');
     const lastName = rest.join(' ') || 'User';
     

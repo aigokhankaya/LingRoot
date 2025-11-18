@@ -13,6 +13,8 @@ const { synthesizeWithPolly, listPollyVoices, isPollyAvailable } = require("../u
 const { mergeAudioSegments, mergeAudioSegmentsToBuffer } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
 const { analyzeAndAdjustTimings } = require('../utils/audioAnalyzer');
+const { mfaAligner } = require('../utils/mfaAligner');
+const { extractDailyUsagePatterns } = require('../utils/dailyPatternExtractor');
 const tmp = require("tmp");
 const { logStep } = require('../utils/stepLogger');
 const { logRequestStep } = require("../utils/requestLogger");
@@ -564,6 +566,83 @@ const processTtsRequest = async (req, res) => {
             logRequestStep(requestId, 'topic:skip_translate_adapt', { reason: 'Topic input already processed' });
         }
 
+        // --- Step 2.7: Extract Daily Usage Patterns ---
+        console.log(`[${requestId}] 🎯 STEP 2.7: Starting daily pattern extraction...`);
+        let dailyUsagePatterns = [];
+        let patternUsage = null;
+        try {
+            console.log(`[${requestId}] 🎯 About to call extractDailyUsagePatterns with text length: ${textToAdapt.length}`);
+            logger.info(`[${requestId}] Extracting daily usage patterns from adapted text...`);
+            logRequestStep(requestId, 'dailyPatterns:start', { textLength: textToAdapt.length });
+            
+            const patternExtraction = await extractDailyUsagePatterns(textToAdapt, level, requestId);
+            dailyUsagePatterns = patternExtraction.parsed?.daily_patterns || [];
+            patternUsage = patternExtraction.usage;
+            
+            // Check if extraction was skipped
+            if (patternExtraction.skipped) {
+                console.log(`[${requestId}] ⏭️  Daily pattern extraction skipped: ${patternExtraction.reason} (existing: ${patternExtraction.existingCount || 0})`);
+                logger.info(`[${requestId}] Daily pattern extraction skipped: ${patternExtraction.reason}`);
+            } else if (patternUsage) {
+                // Detailed token log for Daily Pattern Extraction
+                console.log(`[${requestId}] 📊 DAILY PATTERNS OpenAI Call - Model: ${patternUsage.model || 'gpt-4o-mini'}, Input: ${patternUsage.prompt_tokens || 0} tokens, Output: ${patternUsage.completion_tokens || 0} tokens, Total: ${patternUsage.total_tokens || 0} tokens`);
+                logger.info(`[${requestId}] Daily patterns token usage: input=${patternUsage.prompt_tokens}, output=${patternUsage.completion_tokens}, total=${patternUsage.total_tokens}`);
+            }
+            
+            logger.info(`[${requestId}] Daily usage patterns extracted: ${dailyUsagePatterns.length} patterns`);
+            logRequestStep(requestId, 'dailyPatterns:end', { count: dailyUsagePatterns.length, skipped: patternExtraction.skipped || false });
+            
+            // Persist to database if supabase is available
+            if (supabase && dailyUsagePatterns.length > 0) {
+                const insertPayload = {
+                    user_id: req.user?.id || null,
+                    topic: req.body.input?.substring(0, 200) || 'TTS Request',
+                    level,
+                    request_id: requestId,
+                    pattern_count: dailyUsagePatterns.length,
+                    patterns: dailyUsagePatterns,
+                    raw_response: patternExtraction.rawResponse,
+                    adapted_text_length: textToAdapt?.length || 0
+                };
+
+                const { error: insertError } = await supabase
+                    .from('daily_usage_patterns')
+                    .insert([insertPayload]);
+
+                if (insertError) {
+                    logger.error(`[${requestId}] Failed to persist daily usage patterns`, {
+                        error: insertError.message
+                    });
+                } else {
+                    logger.info(`[${requestId}] Daily usage patterns persisted successfully`);
+                }
+            }
+            
+            // Add pattern usage to OpenAI usage tracking
+            if (patternUsage) {
+                openaiUsage.prompt_tokens = (openaiUsage.prompt_tokens || 0) + (patternUsage.prompt_tokens || 0);
+                openaiUsage.completion_tokens = (openaiUsage.completion_tokens || 0) + (patternUsage.completion_tokens || 0);
+                openaiUsage.total_tokens = (openaiUsage.total_tokens || 0) + (patternUsage.total_tokens || 0);
+                openaiCallCount += 1;
+                if (patternUsage.model) {
+                    usageBreakdown.push({ model: patternUsage.model || 'gpt-4o', ...patternUsage });
+                }
+            }
+            
+            // Summary log for all OpenAI calls
+            console.log(`[${requestId}] 📊 TOTAL OpenAI Usage - Calls: ${openaiCallCount}, Total Input: ${openaiUsage.prompt_tokens} tokens, Total Output: ${openaiUsage.completion_tokens} tokens, Grand Total: ${openaiUsage.total_tokens} tokens`);
+            logger.info(`[${requestId}] Total OpenAI usage summary: calls=${openaiCallCount}, input=${openaiUsage.prompt_tokens}, output=${openaiUsage.completion_tokens}, total=${openaiUsage.total_tokens}`);
+        } catch (patternError) {
+            console.error(`[${requestId}] ❌ PATTERN EXTRACTION ERROR:`, patternError);
+            logger.error(`[${requestId}] Daily usage pattern extraction failed: ${patternError.message}`, {
+                stack: patternError.stack,
+                name: patternError.name
+            });
+            logRequestStep(requestId, 'dailyPatterns:error', { error: patternError.message });
+            // Continue with TTS even if pattern extraction fails
+        }
+        console.log(`[${requestId}] 🎯 Pattern extraction complete. Patterns found: ${dailyUsagePatterns.length}`);
+
         // --- Check if no_tts flag is set (text generation only) ---
         if (req.body.no_tts === true) {
             logger.info(`[${requestId}] no_tts flag detected. Skipping TTS synthesis, returning text only.`);
@@ -577,6 +656,7 @@ const processTtsRequest = async (req, res) => {
                     translated_text: translatedText || translationResult || textToAdapt,
                     level,
                     languageCode,
+                    daily_usage_patterns: dailyUsagePatterns,
                     openai_usage: openaiUsage,
                     openai_call_count: openaiCallCount,
                     usage_breakdown: usageBreakdown
@@ -1046,7 +1126,43 @@ const processTtsRequest = async (req, res) => {
         
         logger.info(`[${requestId}] Optimized VTT created - ID: ${vttUniqueId}, Duration: ${totalRealDuration.toFixed(1)}s, Clean words: ${allCleanWords.length}, Original words: ${allOriginalWords.length}`);
 
-        // --- Step 9: Upload to Supabase (optional) ---
+        // --- Step 9: MFA Alignment (High-Accuracy Word Timestamps) ---
+        let mfaWordTimings = null;
+        // const useMFA = false; // Temporarily disabled for debugging
+        //const useMFA = true; // Force enable for debugging
+        const useMFA = process.env.USE_MFA_ALIGNMENT;
+        
+        if (useMFA) {
+            try {
+                logger.info(`[${requestId}] 🎯 Starting MFA alignment for high-accuracy timestamps...`);
+                
+                // Save merged audio to temp file for MFA processing
+                const tempAudioPath = path.join(os.tmpdir(), `mfa_audio_${uniqueId}.wav`);
+                await fs.promises.writeFile(tempAudioPath, mergedAudioBuffer);
+                
+                // Detect locale from voice name (e.g., en-US-*, en-GB-*)
+                const locale = selectedVoice?.includes('GB') ? 'en_GB' : 'en_US';
+                
+                // Run MFA alignment
+                mfaWordTimings = await mfaAligner.generateWordTimestamps(
+                    tempAudioPath,
+                    adaptedText,
+                    locale
+                );
+                
+                // Cleanup temp audio file
+                await fs.promises.unlink(tempAudioPath).catch(() => {});
+                
+                logger.info(`[${requestId}] ✅ MFA alignment complete - ${mfaWordTimings.length} words aligned`);
+                logger.info(`[${requestId}] 🔍 MFA sample timing:`, mfaWordTimings.slice(0, 3));
+                
+            } catch (mfaError) {
+                logger.warn(`[${requestId}] ⚠️ MFA alignment failed, falling back to TTS timepoints: ${mfaError.message}`);
+                // Continue with TTS timepoints if MFA fails
+            }
+        }
+
+        // --- Step 10: Upload to Supabase (optional) ---
         let mp3Url = null;
         if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
             try {
@@ -1071,21 +1187,39 @@ const processTtsRequest = async (req, res) => {
         
         logger.info(`[${requestId}] 🔄 tempAudioFiles size after: ${tempAudioFiles.size}`);
 
-        // --- Step 10: Return Success Response ---
-        logger.info(`[${requestId}] Processing complete with optimized timings.`);
+        // --- Step 11: Return Success Response ---
+        logger.info(`[${requestId}] Processing complete with ${mfaWordTimings ? 'MFA' : 'optimized'} timings.`);
 
         // Use Supabase URL if available, otherwise use API endpoint URL
         const finalMp3Url = mp3Url || `/api/tts/audio/${uniqueId}`;
         
-        // Match words with timings - interpolate for words without timing
-        // Use originalWords to preserve punctuation in display
-        const words = allOriginalWords; // Orijinal kelimeler (noktalama dahil)
-        const timepoints = matchWordsWithTimings(allOriginalWords, allWordTimings, totalRealDuration);
+        // Use MFA timings if available, otherwise fall back to TTS timepoints
+        // Ensure words is always an array
+        const words = Array.isArray(allOriginalWords) ? allOriginalWords : allOriginalWords.split(/\s+/).filter(w => w.length > 0);
+        let timepoints;
+        
+        if (mfaWordTimings && mfaWordTimings.length > 0) {
+            // Convert MFA timings to our timepoint format
+            timepoints = mfaWordTimings.map((timing, index) => ({
+                word: timing.word,
+                timeSeconds: timing.startTime,
+                endTimeSeconds: timing.endTime,
+                index: index,
+                hasRealTiming: true,
+                source: 'mfa' // Mark as MFA-generated
+            }));
+            
+            logger.info(`✅ Using MFA timepoints - ${timepoints.length} words with acoustic alignment`);
+        } else {
+            // Fall back to TTS timepoints
+            timepoints = matchWordsWithTimings(allOriginalWords, allWordTimings, totalRealDuration);
+            logger.info(`⚠️ Using TTS timepoints - ${timepoints.length} words with estimated timing`);
+        }
         
         // DEBUG: Timepoints kontrolü
         logger.info(`🔍 FINAL TIMEPOINTS DEBUG - Total words: ${words.length}, Timepoints: ${timepoints.length}`);
         logger.info(`🔍 First 5 timepoints:`, timepoints.slice(0, 5));
-        logger.info(`🔍 All word timings count: ${allWordTimings.length}`);
+        logger.info(`🔍 Timing source: ${mfaWordTimings ? 'MFA (acoustic)' : 'TTS (estimated)'}`);
 
         // Post-process: check limits and deactivate subscription if exceeded
         try {
@@ -1338,22 +1472,28 @@ const processTtsRequest = async (req, res) => {
             drift_corrected: analysisResult.driftDetected || false,
             drift_amount: analysisResult.driftAmount || 0,
             drift_percentage: analysisResult.driftPercentage || 0,
-            // Çeviri ve adaptasyon sonuçları
-            // Topic için: translated_text = Türkçe (kullanıcıya gösterilen), adapted_text = İngilizce (TTS'e gönderilen)
-            // Text için: translated_text = İngilizce çeviri, adapted_text = CEFR uyarlanmış İngilizce
-            translated_text: translatedText || translationResult || '',
-            adapted_text: textToAdapt || '',
+            // Timing Source Info
+            timing_source: mfaWordTimings ? 'MFA' : 'TTS',
+            timing_accuracy: mfaWordTimings ? 'high' : 'estimated',
+            // Çeviri ve adaptasyon sonuçları (database kayıt için)
+            translated_text: translationResult || '',
+            adapted_text: adaptedText,
             // Frontend için camelCase versiyonları da ekle
-            translatedText: translatedText || translationResult || '',
-            adaptedText: textToAdapt || '',
-            cleanText: cleanTextForDisplay // Temiz text ayrı field olarak da gönder
+            translatedText: translationResult || '',
+            adaptedText: adaptedText || '',
+            cleanText: cleanTextForDisplay, // Temiz text ayrı field olarak da gönder
+            daily_usage_patterns: dailyUsagePatterns // Günlük kullanım kalıpları
         };
         
         // DEBUG: Final response'u kontrol et
         logger.info(`🔍 RESPONSE DEBUG - Timepoints in response: ${responseData.timepoints?.length || 0}`);
         logger.info(`🔍 Response timepoints sample:`, responseData.timepoints?.slice(0, 3));
-        logger.info(`🔍 Words in response: ${responseData.words?.length || 0}`);
+        logger.info(`🔍 Words in response: ${responseData.words?.length || 0}, Type: ${typeof responseData.words}, Is Array: ${Array.isArray(responseData.words)}`);
         logger.info(`🔍 Response fields:`, Object.keys(responseData));
+        logger.info(`🔍 [TIMING SOURCE IN RESPONSE]:`, {
+          timing_source: responseData.timing_source,
+          timing_accuracy: responseData.timing_accuracy
+        });
         logger.info(`🔍 [DRIFT FIELDS IN RESPONSE]:`, {
           drift_corrected: responseData.drift_corrected,
           drift_amount: responseData.drift_amount,
@@ -1367,6 +1507,12 @@ const processTtsRequest = async (req, res) => {
     } catch (error) {
         logRequestStep(requestId, 'error', { error: error.message, stack: error.stack });
         logger.error(`[${requestId}] Uncaught error: ${error.message}`, { stack: error.stack });
+        logger.error(`[${requestId}] Full error details:`, {
+            name: error.name,
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+        });
         logStep({
             requestId,
             stepName: 'tts:error',
@@ -1375,7 +1521,20 @@ const processTtsRequest = async (req, res) => {
             error: error.message,
             stack: error.stack
         });
-        return res.status(500).json({ success: false, message: "An internal server error occurred." });
+        
+        // Return more detailed error message in development
+        const errorMessage = process.env.NODE_ENV === 'development' 
+            ? `TTS Error: ${error.message}` 
+            : "An internal server error occurred.";
+        
+        return res.status(500).json({ 
+            success: false, 
+            message: errorMessage,
+            ...(process.env.NODE_ENV === 'development' && { 
+                errorDetails: error.message,
+                errorName: error.name 
+            })
+        });
     } finally {
         // --- Final Step: Ensure Temporary File Cleanup ---
         logger.info(`[${requestId}] Performing final cleanup.`);

@@ -56,12 +56,9 @@ android {
         applicationId 'com.nsyzk.lingrootmobile'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 21
-        versionName "1.8.1"
-        ndk {
-            // Support all ABIs for maximum device compatibility
-            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
-        }
+        versionCode 27
+        versionName "1.8.2"
+        // ABI support is now handled by splits.abi configuration below
         // Specify Google Play flavor for react-native-iap
         missingDimensionStrategy 'store', 'play'
     }
@@ -81,6 +78,7 @@ android {
             }
         }
     }
+    // No splits configuration needed for AAB - Google Play automatically optimizes
     buildTypes {
         debug {
             signingConfig signingConfigs.debug

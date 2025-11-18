@@ -452,6 +452,17 @@ export default function Profile() {
                   </div>
                 </div>
               </Link>
+              <Link href="/patterns" className="group bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 p-8 border-2 border-amber-200 hover:border-amber-400 transform hover:-translate-y-1">
+                <div className="flex items-start space-x-4">
+                  <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-lg group-hover:scale-110 transition-transform">
+                    <span className="text-2xl">✨</span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-amber-700 transition-colors">Günlük Kullanım Kalıpları</h3>
+                    <p className="text-gray-700 text-sm">İçeriklerinizdeki kalıpları keşfedin</p>
+                  </div>
+                </div>
+              </Link>
               <Link href="/profile" className="group bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 p-8 border-2 border-purple-200 hover:border-purple-400 transform hover:-translate-y-1">
                 <div className="flex items-start space-x-4">
                   <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg group-hover:scale-110 transition-transform">
