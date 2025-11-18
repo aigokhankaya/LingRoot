@@ -38,6 +38,7 @@ const externalServicesRoutes = require("./routes/externalServicesRoutes"); // Ex
 const podcastRoutes = require("./routes/podcastRoutes"); // Podcast upload and management
 const configRoutes = require("./routes/configRoutes"); // Config routes (environment, etc.)
 const patternRoutes = require("./routes/patternRoutes"); // Daily usage patterns
+const mfaRoutes = require("./routes/mfaRoutes"); // MFA alignment routes
 
 // Initialize Express app
 const app = express();
@@ -147,6 +148,7 @@ app.use("/api/external-services", externalServicesRoutes); // External services 
 app.use("/api/podcast", podcastRoutes); // Podcast upload and management
 app.use("/api/config", configRoutes); // Config routes (environment, etc.)
 app.use("/api/patterns", patternRoutes); // Daily usage patterns
+app.use("/api/mfa", mfaRoutes); // MFA alignment routes
 
 // Account deletion page (legacy)
 app.get('/delete-account', (req, res) => {
