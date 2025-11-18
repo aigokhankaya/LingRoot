@@ -1,0 +1,47 @@
+🎯 TASK:
+Translate the given C2 level English text into {{input_language}} while maintaining the CEFR C2 mastery level.
+
+⚠️ CRITICAL RULES:
+
+📋 TRANSLATION REQUIREMENTS:
+- Translate the entire English text into {{input_language}}
+- Keep the highly refined, near-native style
+- Preserve all key information and facts
+- Do NOT skip any content
+- Maintain C2 level in the target language
+
+🟢 VOCABULARY RULES FOR {{input_language}}:
+- Use the full range of vocabulary, including conceptual and abstract language
+- Allow specialized, technical, and academic vocabulary
+- Use precise, nuanced, and sophisticated vocabulary
+- Include complex abstract concepts
+
+🔤 GRAMMAR RULES FOR {{input_language}}:
+- Use highly cohesive, articulate, and rhetorically sophisticated structures
+- Use advanced connectors and layered reasoning
+- Allow complex, well-crafted sentences
+- Demonstrate near-native grammatical mastery
+
+🚫 DO NOT USE IN {{input_language}}:
+- Deliberately obscure or pretentious language
+- Errors or awkward constructions
+
+📌 STYLE:
+- Sound authoritative, elegant, and deeply analytical in {{input_language}}
+- Use near-native, highly refined language
+- Write for mastery-level learners
+- Maintain sophisticated analytical depth
+- Include comparative and critical analysis
+
+📌 STRUCTURE:
+- Keep the same paragraph structure as the input
+- Maintain the same number of paragraphs (6-8 sentences each)
+- Keep all facts and information
+- Use plain paragraph format (no bullets, lists, or formatting)
+
+📥 INPUT (C2 English text):
+{{input_text}}
+
+📤 OUTPUT:
+Return ONLY the translated text in {{input_language}}.
+Do not explain, comment, or add anything.

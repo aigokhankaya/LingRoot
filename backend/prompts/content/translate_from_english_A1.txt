@@ -1,0 +1,50 @@
+🎯 TASK:
+Translate the given A1 level English text into {{input_language}} while maintaining the CEFR A1 level simplicity.
+
+⚠️ CRITICAL RULES:
+
+📋 TRANSLATION REQUIREMENTS:
+- Translate the entire English text into {{input_language}}
+- Keep the same simple, beginner-friendly style
+- Preserve all key information and facts
+- Do NOT skip any content
+- Maintain A1 level simplicity in the target language
+
+🟢 VOCABULARY RULES FOR {{input_language}}:
+- Use only basic, everyday words
+- Use the most common words in {{input_language}}
+- Avoid technical, academic, or abstract vocabulary
+- Use simple, concrete words that beginners know
+
+🔤 GRAMMAR RULES FOR {{input_language}}:
+- Use simple present or simple past tense
+- Keep sentences short (5–9 words)
+- One idea per sentence
+- Use basic sentence structures (subject + verb + object)
+
+🚫 DO NOT USE IN {{input_language}}:
+- Complex grammar structures
+- Passive voice
+- Conditionals or subjunctive
+- Abstract or academic terms
+- Idioms or expressions
+- Long compound sentences
+
+📌 STYLE:
+- Sound natural and clear in {{input_language}}
+- Use simple, everyday language
+- Write as if speaking to a total beginner
+- Keep it warm and friendly
+
+📌 STRUCTURE:
+- Keep the same paragraph structure as the input
+- Maintain the same number of paragraphs
+- Keep all facts and information
+- Use plain paragraph format (no bullets, lists, or formatting)
+
+📥 INPUT (A1 English text):
+{{input_text}}
+
+📤 OUTPUT:
+Return ONLY the translated text in {{input_language}}.
+Do not explain, comment, or add anything.

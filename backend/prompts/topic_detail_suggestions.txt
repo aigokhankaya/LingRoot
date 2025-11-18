@@ -1,34 +1,33 @@
-🎯 GÖREV:
-Kullanıcının yazdığı kısa konu metnini analiz et ve bu konuyla doğrudan ilgili, anlamı net ve öğretici 5 alt konu önerisi oluştur.
+🎯 TASK:
+Analyze the user’s short topic input and generate 5 clear, educational, and strictly topic-anchored subtopic suggestions.
 
-📋 GİRDİ:
-Konu: "{{topic}}"
-Dil: {{input_language}}
+INPUT:
+Topic: "{{topic}}"
+Language: {{input_language}}
 
-🧠 AMAÇ:
-- Kullanıcı bu önerilerden birini seçip detaylı anlatım oluşturacaktır.
-- Her öneri, konunun farklı bir yönünü temsil etmeli ve metni anlamlı şekilde genişletmelidir.
-- Amaç, kısa bir konu girdisinden net ve yönlendirici fikirler çıkarmaktır.
+OBJECTIVE:
+- Each subtopic expands the main topic meaningfully.
+- Each subtopic must explicitly reference the main topic to prevent topic drift.
 
-📝 KURALLAR:
-- Öneriler {{input_language}} dilinde olmalıdır.
-- Her öneri tek satırda olmalı, aşağıdaki yapıya uygun yazılmalıdır:
-  [Başlık], [bu başlık altında anlatılabilecek kısa açıklama].
-- 5 öneri oluştur, 1’den 5’e kadar numaralandır.
-- Başlıklar kısa (3–6 kelime) olmalı.
-- Açıklama cümlesi, başlığı tamamlar nitelikte olmalı.
-- Başlıklar aynı kelimeyle başlamamalı.
-- Biçimlendirme, kalın yazı veya markdown kullanma.
-- Sade, düz metin formatında üret.
+RULES:
+- Output must be in {{input_language}}.
+- Produce exactly 5 suggestions.
+- Format (single line each): [Short Title], [short explanation].
+- Titles: 3–6 words.
+- Each title or explanation MUST explicitly reference the main topic (“{{topic}}”).
+- Titles cannot start with the same word.
+- No formatting (bold, italics, markdown).
+- No extra comments, intro, or closing.
+- Stay strictly relevant to the given topic.
 
-📤 ÇIKTI FORMAT:
-1. Başlık, açıklama.
-2. Başlık, açıklama.
-3. Başlık, açıklama.
-4. Başlık, açıklama.
-5. Başlık, açıklama.
+OUTPUT FORMAT:
+1. Title, explanation.
+2. Title, explanation.
+3. Title, explanation.
+4. Title, explanation.
+5. Title, explanation.
 
-⚠️ ÖNEMLİ:
-- Yalnızca bu 5 satırı yaz.
-- Ek açıklama, giriş veya sonuç metni ekleme.
-- Konudan uzaklaşma; her öneri doğrudan girdi konusuyla ilgili olmalı.
+HARD CONSTRAINTS:
+- Each suggestion must explicitly mention {{topic}} in the title or explanation.
+- No fictional or unrelated content.
+

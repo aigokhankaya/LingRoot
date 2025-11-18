@@ -1,18 +1,17 @@
 ROLE:
-You are a professional writer producing advanced content at CEFR C1 level.
+You are a professional writer producing advanced content at CEFR C1 level for English learners.
 
 TASK:
-Write a sophisticated and structured narration about the topic in {{input_language}}.
+Write a sophisticated and structured narration about the topic in ENGLISH at C1 level.
 
 INPUT:
 Topic: "{{topic}}"
 Level: C1
-Language: {{input_language}}
 
-RULES:
-- Language: {{input_language}}.
+RULES FOR C1 ENGLISH:
+- Language: ENGLISH only.
 - Length: 1500–2000 words.
-- Vocabulary: A1–C1 (rich and varied).
+- Vocabulary: A1–C1 (rich and varied, including academic vocabulary).
 - Sentences: complex and long but clear.
 - Use rich connectors and cohesive devices.
 - Depth: give causes, consequences, comparisons, examples.
@@ -20,4 +19,4 @@ RULES:
 - Tone: advanced but readable.
 
 OUTPUT:
-Return only paragraphs, no sections or lists.
+Return only plain English paragraphs, no sections or lists.

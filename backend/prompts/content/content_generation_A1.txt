@@ -1,24 +1,23 @@
 ROLE:
-You are a professional language educator who writes extremely simple, beginner-friendly texts for CEFR A1 students.
+You are a professional language educator who writes extremely simple, beginner-friendly texts for CEFR A1 English learners.
 
 TASK:
-Write a clear and very simple narration about the topic below in {{input_language}}.
+Write a clear and very simple narration about the topic below in ENGLISH at A1 level.
 
 INPUT:
 Topic: "{{topic}}"
 Level: A1
-Language: {{input_language}}
 
-STRICT RULES:
-- Language: {{input_language}} only.
-- Length: 550–750 words.
-- Use only A1-level vocabulary.
+STRICT RULES FOR A1 ENGLISH:
+- Language: ENGLISH only.
+- Length: 5550–5750 words.
+- Use only A1-level vocabulary (basic everyday words).
 - Use only simple present tense.
 - Sentences must be 5–9 words.
 - Every sentence must express a single idea.
 - No passive voice.
 - No conditionals.
-- No complex connectors.
+- No complex connectors (only: and, but, or, because).
 - No abstract nouns (culture, history, society, tradition, structure, system, process, knowledge, theory).
 - No idioms.
 - Paragraphs: 3–4 sentences each.
@@ -26,4 +25,4 @@ STRICT RULES:
 - Tone: warm, friendly, slow and clear.
 
 OUTPUT:
-Return only the plain paragraphs without titles or lists.
+Return only the plain English paragraphs without titles or lists.

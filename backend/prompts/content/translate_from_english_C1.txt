@@ -1,0 +1,47 @@
+🎯 TASK:
+Translate the given C1 level English text into {{input_language}} while maintaining the CEFR C1 advanced level.
+
+⚠️ CRITICAL RULES:
+
+📋 TRANSLATION REQUIREMENTS:
+- Translate the entire English text into {{input_language}}
+- Keep the advanced, sophisticated style
+- Preserve all key information and facts
+- Do NOT skip any content
+- Maintain C1 level in the target language
+
+🟢 VOCABULARY RULES FOR {{input_language}}:
+- Use A1-C1 vocabulary (rich and varied, including academic vocabulary)
+- Allow specialized and technical terms
+- Use precise, nuanced vocabulary
+- Include abstract and conceptual language
+
+🔤 GRAMMAR RULES FOR {{input_language}}:
+- Use complex and sophisticated sentence structures
+- Use rich connectors and cohesive devices
+- Allow long, well-structured sentences
+- Demonstrate advanced grammatical control
+
+🚫 DO NOT USE IN {{input_language}}:
+- Overly archaic or obsolete terms
+- Unnecessarily obscure language
+
+📌 STYLE:
+- Sound sophisticated and natural in {{input_language}}
+- Use advanced but readable language
+- Write for advanced learners
+- Maintain depth and analytical quality
+- Include causes, consequences, comparisons, examples
+
+📌 STRUCTURE:
+- Keep the same paragraph structure as the input
+- Maintain the same number of paragraphs (5-7 sentences each)
+- Keep all facts and information
+- Use plain paragraph format (no bullets, lists, or formatting)
+
+📥 INPUT (C1 English text):
+{{input_text}}
+
+📤 OUTPUT:
+Return ONLY the translated text in {{input_language}}.
+Do not explain, comment, or add anything.

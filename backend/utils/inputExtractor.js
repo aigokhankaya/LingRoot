@@ -1,15 +1,15 @@
 // backend/utils/inputExtractor.js
 const fs = require("fs");
 const path = require("path");
+const OpenAI = require("openai");
+require("dotenv").config();
 const logger = require("./logger");
-const { JSDOM } = require("jsdom");
+const { translateFromEnglish } = require("./translateFromEnglish");
 const { Readability } = require("@mozilla/readability");
 const pdf = require("pdf-parse");
 const mammoth = require("mammoth");
-const OpenAI = require("openai"); // Added for topic generation
 const fetch = require('node-fetch');
 const { fetchYoutubeTranscript } = require('./youtubeTranscriptService');
-require("dotenv").config();
 
 // Initialize OpenAI client (similar to cefrAdapter, consider refactoring to a shared client)
 let openai;
@@ -125,59 +125,73 @@ async function extractFromWebLink(url) {
 }
 
 /**
-* Konu başlığından, belirtilen seviye ve dilde detaylı anlatım üretir.
- * content_generation_*.txt promptlarını kullanarak seviyeye uygun içerik üretir.
- * Eğer OpenAI başlıktan içerik üretemezse, hata döner.
+ * Konu başlığından İki adımda içerik üretir:
+ * 1. content_generation_*.txt ile İngilizce içerik üretir (hedef CEFR seviyesinde)
+ * 2. translate_from_english_*.txt ile kullanıcı diline çevirir (seviye korunarak)
+ * @returns {{englishText: string, translatedText: string}} - İngilizce içerik (TTS için) ve çevrilmiş içerik (kayıt için)
  */
 async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'Turkish', requestLogger) {
     if (!openai) {
         logger.error("OpenAI API key not found. Cannot generate narration for topic.");
         return null;
     }
+    logger.info(`Generating narration for topic: ${topic} at level ${level} for target language ${inputLanguage}`);
     
-    logger.info(`Generating narration for topic: ${topic} at level ${level} in ${inputLanguage}`);
-    // Seviyeye göre content_generation prompt dosyasını seç
+    // STEP 1: Generate English content at target CEFR level
     const promptFile = `content_generation_${level.toUpperCase()}.txt`;
     const promptPath = path.join(__dirname, `../prompts/content/${promptFile}`);
-    console.log(`🎯 [INPUT EXTRACTOR] Using prompt file: ${promptFile} for topic: "${topic}" (Level: ${level}, Language: ${inputLanguage})`);
-    logger.info(`🎯 Input Extractor - Selected prompt file: ${promptFile} for topic: "${topic}" (Level: ${level}, Language: ${inputLanguage})`);
+    console.log(`🎯 [INPUT EXTRACTOR - STEP 1] Using prompt file: ${promptFile} to generate English content for topic: "${topic}" (Level: ${level})`);
+    logger.info(`🎯 Input Extractor Step 1 - Selected prompt file: ${promptFile} for topic: "${topic}" (Level: ${level})`);
     
     let promptTemplate = fs.readFileSync(promptPath, 'utf-8');
-     // content_generation prompt'ları için placeholder'ları değiştir
     const prompt = promptTemplate
         .replace(/\{\{topic\}\}/g, topic)
-        .replace(/\{\{level\}\}/g, level.toUpperCase())
-        .replace(/\{\{input_language\}\}/g, inputLanguage);
-
+        .replace(/\{\{level\}\}/g, level.toUpperCase());
+    
     try {
         if (requestLogger) {
-            requestLogger.log(`[prompt:generateNarrationForTopic][input]` + JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2));
+            requestLogger.log(`[prompt:generateNarrationForTopic:step1][input]` + JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2));
         }
-        logger.info({ promptName: promptFile, promptText: prompt }, 'generateNarrationForTopic: Kullanılan prompt');
+        logger.info({ promptName: promptFile, promptText: prompt }, 'generateNarrationForTopic Step 1: Generating English content');
+        
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
-                { role: "system", content: `You are a professional language educator specializing in creating educational content at CEFR ${level} level.` },
+                { role: "system", content: `You are a professional language educator specializing in creating CEFR ${level} level English educational content.` },
                 { role: "user", content: prompt },
             ],
             temperature: 0.7,
         });
-        const generatedText = completion.choices[0]?.message?.content?.trim();
-        narrationChunks.push(generatedText);
-        // Remove any leading/trailing markers
-        const cleanedText = generatedText.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
-
-        logger.info(`Generated ${cleanedText.length} characters for topic at level ${level}`);
-        return cleanedText;
+        
+        const englishText = completion.choices[0]?.message?.content?.trim();
+        const cleanedEnglishText = englishText.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
+        
+        logger.info(`Generated ${cleanedEnglishText.length} characters of English content at ${level} level`);
+        console.log(`✅ [INPUT EXTRACTOR - STEP 1] Generated English content (${cleanedEnglishText.length} chars)`);
+        
+        // STEP 2: Translate English content to target language (maintaining CEFR level)
+        console.log(`🎯 [INPUT EXTRACTOR - STEP 2] Translating English to ${inputLanguage} (Level: ${level})`);
+        logger.info(`🎯 Input Extractor Step 2 - Translating to ${inputLanguage} at ${level} level`);
+        
+        const translationResult = await translateFromEnglish(cleanedEnglishText, inputLanguage, level, requestLogger);
+        const finalText = translationResult.text;
+        
+        logger.info(`Translation to ${inputLanguage} complete: ${finalText.length} characters`);
+        console.log(`✅ [INPUT EXTRACTOR - STEP 2] Translation complete (${finalText.length} chars)`);
+        
+        // Return both English (for TTS) and translated text (for display/storage)
+        return {
+            englishText: cleanedEnglishText,
+            translatedText: finalText
+        };
     } catch (error) {
         logger.error(`Error generating narration for topic: ${error.message}`);
         return null;
     }
-    return narrationChunks.join('\n\n');
 }
 
 /**
-* Girdi tipine göre metin çıkarır ve işler.
+ * Girdi tipine göre metin çıkarır ve işler.
  * Topic tipi için: content_generation_*.txt promptu ile seviyeye uygun içerik üretir.
  * Text tipi için: Doğrudan metni döndürür.
  * File, weblink ve chapter tipleri için ilgili extraction fonksiyonlarını çağırır.
@@ -198,10 +212,11 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
                 // content_generation prompt'u ile seviyeye uygun detaylı anlatım üret
                 const inputLanguage = detectedLanguage === 'tr' || detectedLanguage === 'tr-TR' ? 'Turkish' : 'English';
                 const narration = await generateNarrationForTopic(inputData, level, inputLanguage, requestLogger);
-                if (!narration || narration.toLowerCase().includes("i need the text") || narration.toLowerCase().includes("please provide")) {
+                if (!narration || !narration.englishText) {
                     logger.error("OpenAI could not generate narration from topic. User should provide a more descriptive topic.");
                     return null;
                 }
+                // Return object with both English (for TTS) and translated text (for display/storage)
                 return narration;
             } else {
                 logger.error("Input data (topic) is not a string.");

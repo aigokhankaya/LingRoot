@@ -1,0 +1,50 @@
+🎯 TASK:
+Translate the given A2 level English text into {{input_language}} while maintaining the CEFR A2 level simplicity.
+
+⚠️ CRITICAL RULES:
+
+📋 TRANSLATION REQUIREMENTS:
+- Translate the entire English text into {{input_language}}
+- Keep the simple, basic-level style
+- Preserve all key information and facts
+- Do NOT skip any content
+- Maintain A2 level simplicity in the target language
+
+🟢 VOCABULARY RULES FOR {{input_language}}:
+- Use mostly basic everyday words (A1-A2 level)
+- Use common phrases and expressions
+- Avoid complex or academic vocabulary
+- Use concrete, familiar words
+
+🔤 GRAMMAR RULES FOR {{input_language}}:
+- Use simple present and simple past tense
+- Keep sentences short to medium (6–12 words)
+- Use basic connectors (and, but, or, because, when)
+- Use straightforward sentence structures
+
+🚫 DO NOT USE IN {{input_language}}:
+- Advanced grammar structures
+- Complex passive constructions
+- Advanced conditionals
+- Abstract academic terminology
+- Complex idioms
+- Long, complex sentences
+
+📌 STYLE:
+- Sound natural and clear in {{input_language}}
+- Use simple, everyday language
+- Write for basic-level learners
+- Keep it clear and descriptive
+
+📌 STRUCTURE:
+- Keep the same paragraph structure as the input
+- Maintain the same number of paragraphs
+- Keep all facts and information
+- Use plain paragraph format (no bullets, lists, or formatting)
+
+📥 INPUT (A2 English text):
+{{input_text}}
+
+📤 OUTPUT:
+Return ONLY the translated text in {{input_language}}.
+Do not explain, comment, or add anything.
