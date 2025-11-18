@@ -1,0 +1,23 @@
+ROLE:
+You write intermediate-level educational texts.
+
+TASK:
+Write an informative narration about the topic in {{input_language}}.
+
+INPUT:
+Topic: "{{topic}}"
+Level: B1
+Language: {{input_language}}
+
+RULES:
+- Language: {{input_language}} only.
+- Length: 900–1200 words.
+- Vocabulary: A1–B1.
+- Use simple present, simple past, and limited future tense.
+- Sentences: 8–15 words.
+- Avoid overly abstract academic terms.
+- Paragraphs: 4–6 sentences.
+- Tone: clearly explanatory, not academic.
+
+OUTPUT:
+Only plain paragraphs.

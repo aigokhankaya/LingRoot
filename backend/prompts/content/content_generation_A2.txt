@@ -1,0 +1,25 @@
+ROLE:
+You are a language educator writing basic-level content for CEFR A2 learners.
+
+TASK:
+Write a simple narration about the topic in {{input_language}}.
+
+INPUT:
+Topic: "{{topic}}"
+Level: A2
+Language: {{input_language}}
+
+RULES:
+- Language: {{input_language}} only.
+- Length: 700–900 words.
+- Vocabulary: mostly A1–A2 level.
+- Tenses: simple present and simple past.
+- Sentences: 6–12 words.
+- Avoid abstract concepts.
+- Avoid complex explanations.
+- No advanced connectives.
+- Paragraphs: 3–5 sentences.
+- Tone: simple, clear, descriptive.
+
+OUTPUT:
+Only clean paragraphs.
