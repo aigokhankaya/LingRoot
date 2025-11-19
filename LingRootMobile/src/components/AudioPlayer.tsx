@@ -60,7 +60,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set()); // Seçilen kelimeler
   const [highlightMode, setHighlightMode] = useState<'word' | 'sentence' | 'pattern'>(initialHighlightMode); // Use mode from Library
   const [showPatterns, setShowPatterns] = useState(false); // Toggle pattern highlighting
-  const [patterns, setPatterns] = useState<Array<{ pattern: string; meaning: string }>>([]);
+  const [patterns, setPatterns] = useState<Array<{ 
+    pattern: string; 
+    meaning?: string;
+    pattern_tr?: string;
+    example_sentence?: string;
+    example_sentence_tr?: string;
+  }>>([]);
   const [loadingPatterns, setLoadingPatterns] = useState(false);
   
   // Debug: Log showPatterns changes
@@ -669,7 +675,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const nearbyIdeas = timepoints
         .map((tp, idx) => ({ tp, idx }))
         .filter(({ tp, idx }) => 
-          tp.word.toLowerCase() === 'idea' && 
+          tp.word?.toLowerCase() === 'idea' && 
           Math.abs(idx - wordIndex) < 30
         );
       
@@ -683,7 +689,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       // CRITICAL: Check if words match!
       // Remove punctuation AND hyphens for comparison
       const clickedClean = clickedWord.toLowerCase().replace(/[.,!?;:\-]/g, '');
-      const timepointClean = timepoint.word.toLowerCase().replace(/[.,!?;:\-]/g, '');
+      const timepointClean = timepoint.word?.toLowerCase().replace(/[.,!?;:\-]/g, '') || '';
       if (clickedClean !== timepointClean) {
         console.error(`❌ [WORD MISMATCH] Clicked "${clickedWord}" (index ${wordIndex}) but timepoint says "${timepoint.word}"`);
         console.error(`   Cleaned: "${clickedClean}" vs "${timepointClean}"`);

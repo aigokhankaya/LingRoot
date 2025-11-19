@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXPO_PUBLIC_API_URL } from '@env';
 
 // Read from .env or use defaults
@@ -12,19 +11,7 @@ if (resolvedProductionUrl) {
 }
 
 // Environment configuration
-const PRODUCTION_URL = resolvedProductionUrl || 'https://lingloops-backend.onrender.com';
-// Local URL - can be overridden by EXPO_PUBLIC_API_URL in .env
-const LOCAL_URL = resolvedProductionUrl || 'http://192.168.1.4:5001';
-//IOS için bu:
-//const LOCAL_URL = 'http://192.168.1.6:5001';
-
-// Cache key for environment setting
-const ENV_CACHE_KEY = 'app_environment';
-const ENV_CACHE_TIMESTAMP_KEY = 'app_environment_timestamp';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
-// Try both local and production URLs to fetch environment setting
-const CONFIG_URLS = [LOCAL_URL, PRODUCTION_URL];
+const PRODUCTION_URL = 'https://lingloops-backend.onrender.com';
 
 interface EnvironmentConfig {
   environment: 'production' | 'test';
@@ -34,74 +21,9 @@ interface EnvironmentConfig {
 let cachedConfig: EnvironmentConfig | null = null;
 
 /**
- * Fetches environment configuration from backend
- * Tries local URL first, then production URL
- * Sends user token if available to determine test user status
- */
-async function fetchEnvironmentFromBackend(): Promise<'production' | 'test'> {
-  // Get user token from AsyncStorage (try both possible keys)
-  let token: string | null = null;
-  try {
-    token = await AsyncStorage.getItem('auth_token');
-    if (!token) {
-      token = await AsyncStorage.getItem('userToken'); // Fallback for older versions
-    }
-    if (token) {
-      console.log('🔐 [ENV CONFIG] Found user token in storage');
-    } else {
-      console.log('⚠️ [ENV CONFIG] No user token found in storage');
-    }
-  } catch (error) {
-    console.log('⚠️ [ENV CONFIG] Failed to get user token from storage:', error);
-  }
-
-  // Try each URL in order (local first, then production)
-  for (const baseUrl of CONFIG_URLS) {
-    try {
-      console.log(`🌍 [ENV CONFIG] Trying ${baseUrl}...`);
-      
-      // Create manual timeout for React Native compatibility
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // Shorter timeout for local
-
-      // Build headers with optional Authorization
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-        console.log('🔐 [ENV CONFIG] Sending request with user token');
-      }
-
-      const response = await fetch(`${baseUrl}/api/config/environment`, {
-        method: 'GET',
-        headers,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const data = await response.json();
-        const env = data?.data?.environment || 'production';
-        console.log(`✅ [ENV CONFIG] Fetched from ${baseUrl}:`, env);
-        return env === 'test' ? 'test' : 'production';
-      }
-    } catch (error) {
-      console.log(`⚠️ [ENV CONFIG] Failed to fetch from ${baseUrl}`);
-      // Continue to next URL
-    }
-  }
-
-  // Default to production if all URLs fail
-  console.log('🌍 [ENV CONFIG] All URLs failed, defaulting to production');
-  return 'production';
-}
-
-/**
  * Gets the current environment configuration
- * Uses caching to avoid excessive API calls
+ * For mobile APK: Always use production URL unless .env explicitly sets a different URL
+ * This prevents test users from being redirected to local development URLs
  */
 export async function getEnvironmentConfig(): Promise<EnvironmentConfig> {
   // Return cached config if available and fresh
@@ -109,64 +31,40 @@ export async function getEnvironmentConfig(): Promise<EnvironmentConfig> {
     return cachedConfig;
   }
 
-  try {
-    // Check AsyncStorage cache
-    const cachedEnv = await AsyncStorage.getItem(ENV_CACHE_KEY);
-    const cachedTimestamp = await AsyncStorage.getItem(ENV_CACHE_TIMESTAMP_KEY);
-
-    if (cachedEnv && cachedTimestamp) {
-      const timestamp = parseInt(cachedTimestamp, 10);
-      const now = Date.now();
-
-      // Use cache if it's still fresh
-      if (now - timestamp < CACHE_DURATION) {
-        const environment = cachedEnv as 'production' | 'test';
-        const baseUrl = environment === 'test' ? LOCAL_URL : PRODUCTION_URL;
-        
-        cachedConfig = { environment, baseUrl };
-        console.log('🌍 [ENV CONFIG] Using cached config:', cachedConfig);
-        return cachedConfig;
-      }
-    }
-
-    // Fetch fresh config from backend
-    const environment = await fetchEnvironmentFromBackend();
-    const baseUrl = environment === 'test' ? LOCAL_URL : PRODUCTION_URL;
-
-    // Cache the result
-    await AsyncStorage.setItem(ENV_CACHE_KEY, environment);
-    await AsyncStorage.setItem(ENV_CACHE_TIMESTAMP_KEY, Date.now().toString());
-
-    cachedConfig = { environment, baseUrl };
-    console.log('🌍 [ENV CONFIG] Fresh config:', cachedConfig);
-    return cachedConfig;
-  } catch (error) {
-    console.error('❌ [ENV CONFIG] Error getting config:', error);
-    
-    // Return production as safe default
-    const defaultConfig: EnvironmentConfig = {
+  // If .env has a URL set, use it directly (for local development)
+  if (resolvedProductionUrl) {
+    const config: EnvironmentConfig = {
       environment: 'production',
-      baseUrl: PRODUCTION_URL,
+      baseUrl: resolvedProductionUrl,
     };
-    
-    cachedConfig = defaultConfig;
-    return defaultConfig;
+    cachedConfig = config;
+    console.log('🌍 [ENV CONFIG] Using .env URL:', config);
+    return config;
   }
+
+  // For APK builds without .env: Always use production URL
+  // Don't fetch from backend to avoid test user redirects
+  const config: EnvironmentConfig = {
+    environment: 'production',
+    baseUrl: PRODUCTION_URL,
+  };
+  
+  cachedConfig = config;
+  console.log('🌍 [ENV CONFIG] Using production URL (APK default):', config);
+  return config;
 }
 
 /**
  * Forces a refresh of the environment configuration
- * Useful when you want to check for updates immediately
+ * Clears cache and re-evaluates config
  */
 export async function refreshEnvironmentConfig(): Promise<EnvironmentConfig> {
   console.log('🔄 [ENV CONFIG] Force refreshing environment config...');
   
   // Clear cache
   cachedConfig = null;
-  await AsyncStorage.removeItem(ENV_CACHE_KEY);
-  await AsyncStorage.removeItem(ENV_CACHE_TIMESTAMP_KEY);
 
-  // Fetch fresh config
+  // Re-evaluate config
   return getEnvironmentConfig();
 }
 
@@ -185,7 +83,5 @@ export async function getApiBaseUrl(): Promise<string> {
  */
 export async function clearEnvironmentCache(): Promise<void> {
   cachedConfig = null;
-  await AsyncStorage.removeItem(ENV_CACHE_KEY);
-  await AsyncStorage.removeItem(ENV_CACHE_TIMESTAMP_KEY);
   console.log('🧹 [ENV CONFIG] Cache cleared');
 }
