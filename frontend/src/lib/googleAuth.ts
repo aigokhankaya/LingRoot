@@ -9,18 +9,58 @@ declare global {
 export const initializeGoogleAuth = (): Promise<boolean> => {
   return new Promise((resolve, reject) => {
     // Google Identity Services script'ini yükle
-    if (document.getElementById('google-identity-script')) {
+    const existingScript = document.getElementById('google-identity-script');
+    
+    // Script zaten yüklüyse ve window.google mevcutsa
+    if (existingScript && window.google) {
+      console.log('✅ Google Identity Services zaten yüklü');
       resolve(true);
       return;
     }
+    
+    // Script elementi var ama window.google yok - script yeniden yüklenecek
+    if (existingScript) {
+      console.log('⚠️ Script elementi var ama window.google yok, yeniden yükleniyor...');
+      existingScript.remove();
+    }
 
+    console.log('🔄 Google Identity Services script yükleniyor...');
     const script = document.createElement('script');
     script.id = 'google-identity-script';
     script.src = 'https://accounts.google.com/gsi/client';
     script.async = true;
     script.defer = true;
-    script.onload = () => resolve(true);
-    script.onerror = () => reject(new Error('Google Identity Services yüklenemedi'));
+    
+    // Timeout ekle (10 saniye)
+    const timeoutId = setTimeout(() => {
+      reject(new Error('Google Identity Services yükleme zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edin.'));
+    }, 10000);
+    
+    script.onload = () => {
+      clearTimeout(timeoutId);
+      // Script yüklendi, window.google'ın hazır olmasını bekle
+      const checkGoogle = setInterval(() => {
+        if (window.google) {
+          clearInterval(checkGoogle);
+          console.log('✅ Google Identity Services başarıyla yüklendi');
+          resolve(true);
+        }
+      }, 100);
+      
+      // Maksimum 3 saniye bekle
+      setTimeout(() => {
+        clearInterval(checkGoogle);
+        if (!window.google) {
+          reject(new Error('Google Identity Services yüklendi ama window.google başlatılamadı'));
+        }
+      }, 3000);
+    };
+    
+    script.onerror = () => {
+      clearTimeout(timeoutId);
+      reject(new Error('Google Identity Services yüklenemedi. Lütfen internet bağlantınızı kontrol edin veya VPN kullanıyorsanız kapatın.'));
+    };
+    
     document.head.appendChild(script);
   });
 };

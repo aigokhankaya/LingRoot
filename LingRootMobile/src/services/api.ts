@@ -63,7 +63,7 @@ async function wakeBackendIfNeeded(force: boolean = false): Promise<boolean> {
           lastBackendAwakeAt = Date.now();
           return true;
         }
-      } catch {}
+      } catch { }
     }
     return false;
   } catch {
@@ -174,7 +174,7 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    
+
     // If backend hibernated (Render 503), try waking and retry once
     if (error.response?.status === 503 && error.config && !(error.config as any).__wakeRetry) {
       const woke = await wakeBackendIfNeeded(true);
@@ -183,11 +183,11 @@ apiClient.interceptors.response.use(
         try {
           return await apiClient.request(error.config);
         } catch (retryErr: any) {
-          
+
         }
       }
     }
-    
+
     // Token error handling: only act on explicit token problems
     if (error.response?.status === 401) {
       const msg = (error.response?.data?.message || '').toString();
@@ -212,10 +212,10 @@ apiClient.interceptors.response.use(
             await AsyncStorage.removeItem('auth_token');
             await AsyncStorage.removeItem('user_data');
             await AsyncStorage.removeItem('refresh_token');
-          } catch {}
+          } catch { }
           try {
             if (unauthorizedHandler) unauthorizedHandler();
-          } catch {}
+          } catch { }
         }
       } else if (isExplicitTokenProblem) {
         // Already retried or no config -> clear and notify
@@ -223,13 +223,13 @@ apiClient.interceptors.response.use(
           await AsyncStorage.removeItem('auth_token');
           await AsyncStorage.removeItem('user_data');
           await AsyncStorage.removeItem('refresh_token');
-        } catch {}
+        } catch { }
         try {
           if (unauthorizedHandler) unauthorizedHandler();
-        } catch {}
+        } catch { }
       }
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -278,14 +278,14 @@ mfaApiClient.interceptors.response.use(
             await AsyncStorage.removeItem('auth_token');
             await AsyncStorage.removeItem('user_data');
             await AsyncStorage.removeItem('refresh_token');
-          } catch {}
+          } catch { }
           try {
             if (unauthorizedHandler) unauthorizedHandler();
-          } catch {}
+          } catch { }
         }
       }
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -294,7 +294,7 @@ export const apiService = {
   // Network connectivity check
   async checkConnectivity(): Promise<boolean> {
     try {
-      
+
       // Attempt to wake backend if sleeping
       const woke = await wakeBackendIfNeeded(false);
       if (woke) {
@@ -306,7 +306,7 @@ export const apiService = {
       const timeoutId = setTimeout(() => {
         controller.abort();
       }, 60000);
-      
+
       const response = await fetch(`${API_BASE_URL}/api/health`, {
         method: 'GET',
         signal: controller.signal,
@@ -318,31 +318,31 @@ export const apiService = {
         mode: 'cors',
         credentials: 'omit',
       });
-      
+
       clearTimeout(timeoutId);
-      
-      
-      
+
+
+
       if (response.ok) {
         const responseText = await response.text();
-        
+
         return true;
       } else {
         const errorText = await response.text();
         return false;
       }
     } catch (error: any) {
-      
-      
+
+
       // Provide specific error messages for common issues
       if (error.name === 'AbortError') {
-        
+
       } else if (error.message.includes('Network request failed')) {
-        
+
       } else if (error.message.includes('fetch')) {
-        
+
       } else if (error.message.includes('TypeError')) {
-        
+
       }
       return false;
     }
@@ -358,33 +358,40 @@ export const apiService = {
       });
       return response.data;
     } catch (error: any) {
-      // Detaylı hata logu
-      console.error('🔴 [TTS ERROR] Full error:', {
-        message: error.message,
-        code: error.code,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        hasResponse: !!error.response,
-        isTimeout: error.code === 'ECONNABORTED',
-        isNetworkError: error.message === 'Network Error'
-      });
-      
+      // Network hatası kontrolü - detaylı log öncesi
+      const isNetworkError = error.message === 'Network Error' || error.code === 'ERR_NETWORK';
+
+      if (isNetworkError) {
+        console.log('⚠️ [TTS] Network connection interrupted (likely backgrounded). Server processing may continue.');
+      } else {
+        // Detaylı hata logu (sadece network hatası değilse)
+        console.error('🔴 [TTS ERROR] Full error:', {
+          message: error.message,
+          code: error.code,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          hasResponse: !!error.response,
+          isTimeout: error.code === 'ECONNABORTED',
+          isNetworkError: error.message === 'Network Error'
+        });
+      }
+
       const code = error?.response?.data?.code;
       if (code === 'USAGE_LIMIT_EXCEEDED') {
         throw new Error('Paket kullanım sınırınız aşıldı. Lütfen paket yükseltin veya sonraki dönemi bekleyin.');
       }
-      
+
       // Timeout hatası
       if (error.code === 'ECONNABORTED') {
         throw new Error('TTS işlemi zaman aşımına uğradı. Lütfen daha kısa bir metin deneyin.');
       }
-      
+
       // Network hatası
       if (error.message === 'Network Error') {
         throw new Error('Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.');
       }
-      
+
       throw new Error(error.response?.data?.message || 'TTS işlemi başarısız');
     }
   },
@@ -430,11 +437,16 @@ export const apiService = {
   },
 
   // Get unread notifications
+  // Get unread notifications
   async getUnreadNotifications(): Promise<any[]> {
     try {
       const response = await apiClient.get('/api/tts/notifications/unread');
       return response.data.notifications || [];
     } catch (error: any) {
+      // If 404, it likely means no notifications found or endpoint not ready for this user
+      if (error.response && error.response.status === 404) {
+        return [];
+      }
       console.error('Error fetching notifications:', error);
       return [];
     }
@@ -867,15 +879,15 @@ export const getVocabulary = async (): Promise<VocabularyWord[]> => {
     const response = await apiClient.get('/api/vocabulary');
     return response.data.success ? response.data.data : [];
   } catch (error) {
-    
+
     throw error;
   }
 };
 
 export const addWordToVocabulary = async (
-  word: string, 
-  definition?: string, 
-  sentence?: string, 
+  word: string,
+  definition?: string,
+  sentence?: string,
   level?: string
 ): Promise<VocabularyWord> => {
   try {
@@ -887,15 +899,15 @@ export const addWordToVocabulary = async (
     });
     return response.data.data;
   } catch (error) {
-    
+
     throw error;
   }
 };
 
 // Kelime çevirisi ile birlikte ekleme (Web tarafındaki gibi)
 export const addWordWithTranslation = async (
-  word: string, 
-  context: string, 
+  word: string,
+  context: string,
   level?: string,
   originalSentence?: string
 ): Promise<{
@@ -913,7 +925,7 @@ export const addWordWithTranslation = async (
     });
     return response.data;
   } catch (error) {
-    
+
     throw error;
   }
 };
@@ -922,20 +934,20 @@ export const deleteWordFromVocabulary = async (wordId: number): Promise<void> =>
   try {
     const response = await apiClient.delete(`/api/vocabulary/${wordId}`);
   } catch (error) {
-    
+
     throw error;
   }
 };
 
 export const updateWordInVocabulary = async (
-  wordId: number, 
+  wordId: number,
   updates: Partial<VocabularyWord>
 ): Promise<VocabularyWord> => {
   try {
     const response = await apiClient.put(`/api/vocabulary/${wordId}`, updates);
     return response.data.data;
   } catch (error) {
-    
+
     throw error;
   }
 };
@@ -953,7 +965,7 @@ export const getReminderSettings = async (): Promise<ReminderSettings> => {
     const response = await apiClient.get('/api/reminder-settings');
     return response.data.data;
   } catch (error) {
-    
+
     // Return default settings if API fails
     return {
       wordsPerDay: 5,
@@ -968,10 +980,10 @@ export const saveReminderSettings = async (settings: ReminderSettings): Promise<
   try {
     await apiClient.post('/api/reminder-settings', settings);
   } catch (error) {
-    
+
     throw new Error('Ayarlar kaydedilemedi');
   }
-}; 
+};
 
 // User settings API
 export const getUserSettings = async (): Promise<{ default_voice?: string; settings?: any }> => {
@@ -979,14 +991,14 @@ export const getUserSettings = async (): Promise<{ default_voice?: string; setti
     const response = await apiClient.get('/api/user-settings');
     return response.data.data || {};
   } catch (error) {
-    
+
     // Local fallback: read from AsyncStorage if backend route missing/unavailable
     try {
       const localDefaultVoice = await AsyncStorage.getItem('default_voice_local');
       if (localDefaultVoice) {
         return { default_voice: localDefaultVoice } as any;
       }
-    } catch {}
+    } catch { }
     return {};
   }
 };
@@ -998,7 +1010,7 @@ export const saveDefaultVoiceSetting = async (voice: string): Promise<void> => {
     // Store locally so UX works even if backend route missing
     try {
       await AsyncStorage.setItem('default_voice_local', voice);
-    } catch {}
+    } catch { }
     // Do not throw to allow UI to proceed
   }
 };
