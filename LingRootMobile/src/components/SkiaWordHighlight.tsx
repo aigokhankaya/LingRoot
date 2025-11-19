@@ -36,7 +36,7 @@ interface SkiaWordHighlightProps {
   onWordPress?: (index: number) => void;
   onWordLongPress?: (word: string, index: number) => void;
   mode?: 'word' | 'sentence';
-  onWordPositionChange?: (index: number, top: number, bottom: number, height: number) => void;
+  onWordPositionChange?: (info: { index: number; top: number; bottom: number; height: number }) => void;
   patternData?: Array<{
     pattern: string;
     pattern_tr: string;
