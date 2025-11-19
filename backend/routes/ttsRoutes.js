@@ -21,6 +21,8 @@ const {
 } = require("../controllers/syncFeedbackController");
 const logger = require("../utils/logger");
 const { authenticate } = require('../middleware/auth');
+const jobQueue = require('../utils/jobQueue');
+const { sendPushNotification, getUnreadNotifications, markNotificationAsRead } = require('../utils/pushNotification');
 
 const router = express.Router();
 
@@ -46,7 +48,7 @@ const upload = multer({
   }
 });
 
-// POST /api/tts/process – Handles both JSON and multipart/form-data
+// POST /api/tts/process – Handles both JSON and multipart/form-data (SYNC)
 router.post(
   "/process",
   authenticate,
@@ -69,6 +71,179 @@ router.post(
     next();
   }
 );
+
+// POST /api/tts/process-async – Async TTS processing with notification
+router.post(
+  "/process-async",
+  authenticate,
+  upload.single("file"),
+  async (req, res, next) => {
+    try {
+      if (req.fileValidationError) {
+        logger.error(`File validation error: ${req.fileValidationError.message}`);
+        return res.status(400).json({ success: false, message: req.fileValidationError.message });
+      }
+
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+      }
+
+      // Create job
+      const job = jobQueue.createJob(userId, {
+        requestBody: req.body,
+        file: req.file ? {
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          buffer: req.file.buffer
+        } : null
+      });
+
+      // Return job ID immediately
+      res.json({
+        success: true,
+        jobId: job.id,
+        message: 'Audio creation started. You will receive a notification when it\'s ready.',
+        estimatedTime: '2-5 minutes'
+      });
+
+      // Process in background
+      setImmediate(async () => {
+        try {
+          jobQueue.updateJob(job.id, { status: 'processing', progress: 10 });
+
+          // Create a mock request/response for handleTTSRequest
+          const mockReq = {
+            ...req,
+            body: job.data.requestBody,
+            file: job.data.file ? {
+              originalname: job.data.file.originalname,
+              mimetype: job.data.file.mimetype,
+              buffer: job.data.file.buffer
+            } : null,
+            user: req.user
+          };
+
+          let ttsResult = null;
+          const mockRes = {
+            status: (code) => mockRes,
+            json: (data) => {
+              ttsResult = data;
+              return mockRes;
+            }
+          };
+
+          // Call the actual TTS handler
+          await handleTTSRequest(mockReq, mockRes, () => {});
+
+          if (ttsResult && ttsResult.success) {
+            // Update job as completed
+            jobQueue.updateJob(job.id, {
+              status: 'completed',
+              progress: 100,
+              result: ttsResult
+            });
+
+            // Send push notification
+            await sendPushNotification(userId, {
+              title: '🎵 Ses Oluşturuldu!',
+              body: 'Sesiniz hazır. Dinlemek için tıklayın.',
+              type: 'audio_created',
+              data: {
+                jobId: job.id,
+                audioId: ttsResult.id || job.id,
+                mp3_url: ttsResult.mp3_url,
+                title: ttsResult.adapted_text || ttsResult.translated_text || 'Yeni Ses',
+                level: ttsResult.level,
+                duration: ttsResult.real_duration
+              }
+            });
+
+            logger.info(`[AsyncTTS] Job ${job.id} completed successfully`);
+          } else {
+            // Update job as failed
+            jobQueue.updateJob(job.id, {
+              status: 'failed',
+              error: ttsResult?.message || 'TTS processing failed'
+            });
+
+            // Send failure notification
+            await sendPushNotification(userId, {
+              title: '❌ Ses Oluşturulamadı',
+              body: ttsResult?.message || 'Bir hata oluştu. Lütfen tekrar deneyin.',
+              type: 'audio_failed',
+              data: {
+                jobId: job.id,
+                error: ttsResult?.message
+              }
+            });
+
+            logger.error(`[AsyncTTS] Job ${job.id} failed:`, ttsResult?.message);
+          }
+        } catch (error) {
+          logger.error(`[AsyncTTS] Job ${job.id} error:`, error);
+          
+          jobQueue.updateJob(job.id, {
+            status: 'failed',
+            error: error.message
+          });
+
+          // Send failure notification
+          await sendPushNotification(userId, {
+            title: '❌ Ses Oluşturulamadı',
+            body: 'Bir hata oluştu. Lütfen tekrar deneyin.',
+            type: 'audio_failed',
+            data: {
+              jobId: job.id,
+              error: error.message
+            }
+          });
+        }
+      });
+    } catch (error) {
+      logger.error(`[AsyncTTS] Error creating job:`, error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  },
+  (error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+      logger.error(`Multer error: ${error.message}`, { code: error.code });
+      return res.status(400).json({ success: false, message: `File upload error: ${error.message}` });
+    } else if (error) {
+      logger.error(`File filter error: ${error.message}`);
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    next();
+  }
+);
+
+// GET /api/tts/job/:jobId – Get job status
+router.get("/job/:jobId", authenticate, (req, res) => {
+  const { jobId } = req.params;
+  const job = jobQueue.getJob(jobId);
+
+  if (!job) {
+    return res.status(404).json({ success: false, message: 'Job not found' });
+  }
+
+  // Check if user owns this job
+  if (job.userId !== req.user?.id) {
+    return res.status(403).json({ success: false, message: 'Unauthorized' });
+  }
+
+  res.json({
+    success: true,
+    job: {
+      id: job.id,
+      status: job.status,
+      progress: job.progress,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      result: job.result,
+      error: job.error
+    }
+  });
+});
 
 // Add route to serve audio files
 router.get("/audio/:id", (req, res, next) => {
@@ -380,6 +555,45 @@ router.post("/translate-and-speak", async (req, res) => {
       message: "Error processing request",
       error: error.message
     });
+  }
+});
+
+// ==================== NOTIFICATION ROUTES ====================
+// Get unread notifications
+router.get('/notifications/unread', authenticate, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const result = await getUnreadNotifications(userId);
+    
+    if (!result.success) {
+      return res.status(500).json({ success: false, message: 'Failed to fetch notifications' });
+    }
+
+    res.json({ success: true, notifications: result.data });
+  } catch (error) {
+    logger.error('[Notifications] Error fetching unread notifications:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Mark notification as read
+router.post('/notifications/:notificationId/read', authenticate, async (req, res) => {
+  try {
+    const { notificationId } = req.params;
+    const result = await markNotificationAsRead(notificationId);
+    
+    if (!result.success) {
+      return res.status(500).json({ success: false, message: 'Failed to mark notification as read' });
+    }
+
+    res.json({ success: true, notification: result.data });
+  } catch (error) {
+    logger.error('[Notifications] Error marking notification as read:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

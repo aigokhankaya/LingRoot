@@ -28,11 +28,25 @@ class NotificationService {
   private async ensureChannel() {
     return new Promise<void>((resolve) => {
       try {
+        // Reminder channel
         PushNotification.createChannel(
           {
             channelId: 'lingroot-reminders',
             channelName: 'LingRoot Reminders',
             channelDescription: 'Günlük kelime hatırlatma bildirimleri',
+            importance: 4,
+            vibrate: true,
+            soundName: 'default',
+          },
+          () => {}
+        );
+        
+        // Audio creation channel
+        PushNotification.createChannel(
+          {
+            channelId: 'lingroot-audio',
+            channelName: 'LingRoot Audio',
+            channelDescription: 'Ses oluşturma bildirimleri',
             importance: 4,
             vibrate: true,
             soundName: 'default',
@@ -52,6 +66,20 @@ class NotificationService {
         onNotification: (notification: any) => {
           try {
             const userInfo = notification?.userInfo || notification?.data || {};
+            
+            // Handle audio creation notification
+            if (userInfo.type === 'audio_created') {
+              const audioData = typeof userInfo.audioData === 'string' 
+                ? JSON.parse(userInfo.audioData) 
+                : userInfo.audioData;
+              
+              if (this.responseCallback && audioData) {
+                this.responseCallback(JSON.stringify({ type: 'audio_created', data: audioData }));
+              }
+              return;
+            }
+            
+            // Handle vocabulary word notification
             const wordId = userInfo.wordId || userInfo?.item?.wordId;
             if (wordId) {
               if (this.responseCallback) {
@@ -62,7 +90,7 @@ class NotificationService {
               }
             }
           } catch (e) {
-            // Silent error handling
+            console.error('[NotificationService] Error handling notification:', e);
           }
         },
         popInitialNotification: true,
@@ -259,6 +287,31 @@ class NotificationService {
     try {
       return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount: this.scheduledCount };
     } catch { return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount: this.scheduledCount }; }
+  }
+
+  /**
+   * Show audio creation notification
+   * @param audioData - Audio track data from notification
+   */
+  public async showAudioCreatedNotification(audioData: any): Promise<void> {
+    await this.initialize();
+    if (!this.hasPermission) return;
+
+    try {
+      PushNotification.localNotification({
+        channelId: 'lingroot-audio',
+        title: '🎵 Ses Oluşturuldu!',
+        message: audioData.title || 'Sesiniz hazır. Dinlemek için tıklayın.',
+        playSound: true,
+        soundName: 'default',
+        userInfo: { 
+          type: 'audio_created',
+          audioData: JSON.stringify(audioData)
+        } as any,
+      });
+    } catch (error) {
+      console.error('[NotificationService] Error showing audio notification:', error);
+    }
   }
 }
 

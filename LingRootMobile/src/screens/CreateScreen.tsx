@@ -716,6 +716,29 @@ const CreateScreen: React.FC = () => {
       
     }
 
+    // Show async processing alert
+    Alert.alert(
+      language === 'tr' ? '⏳ Ses Oluşturuluyor' : '⏳ Creating Audio',
+      language === 'tr' 
+        ? 'İşleminiz birkaç dakika sürebilir. Ses oluşturulduktan sonra bildirim alacaksınız.\n\nUygulamayı kapatabilirsiniz, işlem arka planda devam edecektir.' 
+        : 'Your request may take a few minutes. You will receive a notification when the audio is ready.\n\nYou can close the app, the process will continue in the background.',
+      [
+        {
+          text: language === 'tr' ? 'Tamam' : 'OK',
+          onPress: () => {
+            // Continue with async processing
+            handleAsyncAudioCreation();
+          }
+        },
+        {
+          text: language === 'tr' ? 'İptal' : 'Cancel',
+          style: 'cancel'
+        }
+      ]
+    );
+  };
+
+  const handleAsyncAudioCreation = async () => {
     // Suggestion mode: if no input yet, rewrite the topic/suggestion into narration text first
     let effectiveInputText = inputText;
     if (mode === 'suggestion' && !effectiveInputText.trim()) {
@@ -732,6 +755,7 @@ const CreateScreen: React.FC = () => {
         const narration = rr?.data?.narration_text || base;
         effectiveInputText = narration;
         setInputText(narration);
+        setIsLoading(false);
       } catch (e: any) {
         setIsLoading(false);
         Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
@@ -754,9 +778,7 @@ const CreateScreen: React.FC = () => {
       let request: TTSRequest;
       
       if (selectedFile) {
-        // File upload process
-        
-        // Create FormData for file upload
+        // File upload process - ASYNC
         const formData = new FormData();
         formData.append('file', {
           uri: selectedFile.uri,
@@ -764,166 +786,60 @@ const CreateScreen: React.FC = () => {
           name: selectedFile.name,
         } as any);
         
-        // Required parameters that backend expects
         formData.append('type', 'file');
-        formData.append('input', selectedFile.name); // File name as input
+        formData.append('input', selectedFile.name);
         formData.append('level', selectedLevel);
-        // Backend controller 'speakingRate' ve 'voice' alanlarını okuyor
         formData.append('speakingRate', speechRate.toString());
         formData.append('voice', selectedVoice);
-        // Eski alanları da geriye dönük uyumluluk için gönderelim
         formData.append('sesHizi', speechRate.toString());
         formData.append('voiceName', selectedVoice);
         formData.append('gender', selectedGender);
         formData.append('accent', selectedAccent);
         
-        const response = await apiService.processFileToSpeech(formData);
+        const response = await apiService.processFileToSpeechAsync(formData);
         
         if (response.success) {
-          // Success: Create track and open player
           setInputText('');
           setSelectedFile(null);
-          
-          // Create AudioTrack from response
-          const newTrack: AudioTrack = {
-            id: String(Date.now()), // Temporary ID
-            title: response.adapted_text || response.translated_text || selectedFile.name,
-            url: response.mp3_url || '',
-            level: response.level || selectedLevel,
-            duration: response.real_duration || 180,
-            created_at: new Date().toISOString(),
-            input_type: 'file',
-            translated_text: response.translated_text || response.translatedText,
-            adapted_text: response.adapted_text || response.adaptedText,
-            original_turkish: response.original_turkish || '',
-            mp3_url: response.mp3_url,
-            timepoints: response.timepoints || [],
-            words: response.words || [],
-          };
-          
-          setCreatedTrack(newTrack);
-          setShowPlayer(true);
+          Alert.alert(
+            language === 'tr' ? '✅ İşlem Başlatıldı' : '✅ Processing Started',
+            language === 'tr' 
+              ? `Sesiniz arka planda oluşturuluyor. ${response.estimatedTime} içinde bildirim alacaksınız.`
+              : `Your audio is being created in the background. You'll receive a notification in ${response.estimatedTime}.`
+          );
         } else {
-          Alert.alert(t('common.error'), response.message || t('create.alerts.fileProcessFailed'));
+          Alert.alert(t('common.error'), t('create.alerts.fileProcessFailed'));
         }
       } else if (mode === 'text' || mode === 'suggestion' || mode === 'youtube') {
-        // Text processing
+        // Text processing - ASYNC
         request = {
           type: 'text',
           input: effectiveInputText,
           level: selectedLevel,
-          // Backend 'voice' ve 'speakingRate' bekliyor
           speakingRate: speechRate,
           voice: selectedVoice,
-          // Geriye dönük
           sesHizi: speechRate,
           voiceName: selectedVoice,
           gender: selectedGender as any,
           accent: selectedAccent as any,
         };
 
-        console.log('🎯 [CREATE] Calling processTextToSpeech...');
-        const response = await apiService.processTextToSpeech(request);
-        console.log('🎯 [CREATE] Response received:', { success: response.success, hasUrl: !!response.mp3_url });
+        console.log('🎯 [CREATE] Calling processTextToSpeechAsync...');
+        const response = await apiService.processTextToSpeechAsync(request);
         
         if (response.success) {
-          // Success: Create track and open player
           setInputText('');
-          
-          // Create AudioTrack from response
-          const newTrack: AudioTrack = {
-            id: String(Date.now()), // Temporary ID
-            title: response.adapted_text || response.translated_text || effectiveInputText.substring(0, 50),
-            url: response.mp3_url || '',
-            level: response.level || selectedLevel,
-            duration: response.real_duration || 180,
-            created_at: new Date().toISOString(),
-            input_type: mode,
-            translated_text: response.translated_text || response.translatedText,
-            adapted_text: response.adapted_text || response.adaptedText,
-            original_turkish: response.original_turkish || effectiveInputText,
-            mp3_url: response.mp3_url,
-            timepoints: response.timepoints || [],
-            words: response.words || [],
-          };
-          
-          setCreatedTrack(newTrack);
-          setShowPlayer(true);
+          Alert.alert(
+            language === 'tr' ? '✅ İşlem Başlatıldı' : '✅ Processing Started',
+            language === 'tr' 
+              ? `Sesiniz arka planda oluşturuluyor. ${response.estimatedTime} içinde bildirim alacaksınız.`
+              : `Your audio is being created in the background. You'll receive a notification in ${response.estimatedTime}.`
+          );
         } else {
-          const code = (response as any)?.code;
-          const msg = response.message || t('create.alerts.audioCreateFailed');
-          
-          // Free Trial limit aşımı için özel yönlendirme
-          if (code === 'FREE_TRIAL_EXHAUSTED') {
-            const details = (response as any)?.details;
-            Alert.alert(
-              language === 'tr' ? 'Ücretsiz Deneme Bitti' : 'Free Trial Ended',
-              language === 'tr'
-                ? `${details?.audioCreationCount || 3} ses oluşturma hakkınızı kullandınız.\n\nDevam etmek için premium pakete geçin.`
-                : `You've used your ${details?.audioCreationCount || 3} audio creation credits.\n\nUpgrade to premium to continue.`,
-              [
-                {
-                  text: language === 'tr' ? 'Paketleri Gör' : 'View Packages',
-                  onPress: () => {
-                    navigation.navigate('Packages' as never);
-                  },
-                },
-                {
-                  text: language === 'tr' ? 'İptal' : 'Cancel',
-                  style: 'cancel',
-                },
-              ]
-            );
-            return;
-          }
-          
-          // Free Trial için metin çok uzun hatası
-          if (code === 'FREE_TRIAL_TEXT_TOO_LONG') {
-            const details = (response as any)?.details;
-            Alert.alert(
-              language === 'tr' ? 'Metin Çok Uzun' : 'Text Too Long',
-              language === 'tr'
-                ? `Ücretsiz denemede her ses maksimum ${details?.maxMinutes || 10} dakika olabilir.\n\nMetniniz: ~${details?.estimatedMinutes || 0} dakika\n\nLütfen metni kısaltın veya premium pakete geçin.`
-                : `In free trial, each audio can be maximum ${details?.maxMinutes || 10} minutes.\n\nYour text: ~${details?.estimatedMinutes || 0} minutes\n\nPlease shorten the text or upgrade to premium.`,
-              [
-                {
-                  text: language === 'tr' ? 'Paketleri Gör' : 'View Packages',
-                  onPress: () => {
-                    navigation.navigate('Packages' as never);
-                  },
-                },
-                {
-                  text: language === 'tr' ? 'Tamam' : 'OK',
-                  style: 'cancel',
-                },
-              ]
-            );
-            return;
-          }
-          
-          if (code === 'NO_ACTIVE_PLAN' || code === 'USAGE_LIMIT_EXCEEDED') {
-            Alert.alert(
-              t('common.error'),
-              msg,
-              [
-                {
-                  text: 'Paket Al',
-                  onPress: () => {
-                    navigation.navigate('Settings' as never);
-                  },
-                },
-                {
-                  text: 'İptal',
-                  style: 'cancel',
-                },
-              ]
-            );
-          } else {
-            Alert.alert(t('common.error'), msg);
-          }
+          Alert.alert(t('common.error'), t('create.alerts.audioCreateFailed'));
         }
       } else if (mode === 'book') {
-        // Use selected chapter text
+        // Book mode - ASYNC
         request = {
           type: 'text',
           input: selectedChapterText,
@@ -936,48 +852,23 @@ const CreateScreen: React.FC = () => {
           accent: selectedAccent as any,
         };
 
-        
-        const response = await apiService.processTextToSpeech(request);
+        const response = await apiService.processTextToSpeechAsync(request);
         if (response.success) {
           setSelectedBook(null);
           setSelectedChapterId(null);
           setSelectedChapterText('');
-          
-          // Create AudioTrack from response
-          const newTrack: AudioTrack = {
-            id: String(Date.now()), // Temporary ID
-            title: response.adapted_text || response.translated_text || selectedBook?.title || 'Book Chapter',
-            url: response.mp3_url || '',
-            level: response.level || selectedLevel,
-            duration: response.real_duration || 180,
-            created_at: new Date().toISOString(),
-            input_type: 'book',
-            translated_text: response.translated_text || response.translatedText,
-            adapted_text: response.adapted_text || response.adaptedText,
-            original_turkish: response.original_turkish || selectedChapterText,
-            mp3_url: response.mp3_url,
-            timepoints: response.timepoints || [],
-            words: response.words || [],
-          };
-          
-          setCreatedTrack(newTrack);
-          setShowPlayer(true);
+          Alert.alert(
+            language === 'tr' ? '✅ İşlem Başlatıldı' : '✅ Processing Started',
+            language === 'tr' 
+              ? `Sesiniz arka planda oluşturuluyor. ${response.estimatedTime} içinde bildirim alacaksınız.`
+              : `Your audio is being created in the background. You'll receive a notification in ${response.estimatedTime}.`
+          );
         } else {
-          Alert.alert(t('common.error'), response.message || t('create.book.alerts.ttsFailed'));
+          Alert.alert(t('common.error'), t('create.book.alerts.ttsFailed'));
         }
       }
     } catch (error: any) {
-      console.error('🔴 [CREATE] Error caught:', {
-        message: error?.message,
-        name: error?.name,
-        code: error?.code,
-        response: error?.response?.data,
-        fullError: JSON.stringify(error, null, 2)
-      });
-      
-      // Log the full error object for debugging
-      console.error('🔴 [CREATE] Full error object:', error);
-      console.error('🔴 [CREATE] Error stack:', error?.stack);
+      console.error('🔴 [CREATE ASYNC] Error:', error);
       
       const emsg = error?.message || '';
       if (

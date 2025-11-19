@@ -348,7 +348,7 @@ export const apiService = {
     }
   },
 
-  // Text-to-Speech API
+  // Text-to-Speech API (Sync)
   async processTextToSpeech(request: TTSRequest): Promise<TTSResponse> {
     try {
       await wakeBackendIfNeeded();
@@ -386,6 +386,66 @@ export const apiService = {
       }
       
       throw new Error(error.response?.data?.message || 'TTS işlemi başarısız');
+    }
+  },
+
+  // Text-to-Speech API (Async - with notification)
+  async processTextToSpeechAsync(request: TTSRequest): Promise<{ success: boolean; jobId: string; message: string; estimatedTime: string }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post('/api/tts/process-async', request, {
+        timeout: 30000, // 30 saniye - sadece job oluşturma için
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('🔴 [ASYNC TTS ERROR]:', error);
+      throw new Error(error.response?.data?.message || 'Async TTS işlemi başlatılamadı');
+    }
+  },
+
+  // File Upload için TTS (Async)
+  async processFileToSpeechAsync(file: FormData): Promise<{ success: boolean; jobId: string; message: string; estimatedTime: string }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post('/api/tts/process-async', file, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 30000, // 30 saniye - sadece job oluşturma için
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Async dosya TTS işlemi başlatılamadı');
+    }
+  },
+
+  // Get job status
+  async getJobStatus(jobId: string): Promise<any> {
+    try {
+      const response = await apiClient.get(`/api/tts/job/${jobId}`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Job durumu alınamadı');
+    }
+  },
+
+  // Get unread notifications
+  async getUnreadNotifications(): Promise<any[]> {
+    try {
+      const response = await apiClient.get('/api/tts/notifications/unread');
+      return response.data.notifications || [];
+    } catch (error: any) {
+      console.error('Error fetching notifications:', error);
+      return [];
+    }
+  },
+
+  // Mark notification as read
+  async markNotificationAsRead(notificationId: string): Promise<void> {
+    try {
+      await apiClient.post(`/api/tts/notifications/${notificationId}/read`);
+    } catch (error: any) {
+      console.error('Error marking notification as read:', error);
     }
   },
 

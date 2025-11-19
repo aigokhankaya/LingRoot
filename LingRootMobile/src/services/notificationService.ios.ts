@@ -12,6 +12,22 @@ try {
     onNotification: (notification: any) => {
       try {
         const userInfo = notification?.userInfo || notification?.data || {};
+        
+        // Handle audio creation notification
+        if (userInfo.type === 'audio_created') {
+          const audioData = typeof userInfo.audioData === 'string' 
+            ? JSON.parse(userInfo.audioData) 
+            : userInfo.audioData;
+          
+          const svc = NotificationService.getInstance?.();
+          if (svc && audioData) {
+            const cb = (svc as any).responseCallback as ((data: string) => void) | null;
+            if (cb) cb(JSON.stringify({ type: 'audio_created', data: audioData }));
+          }
+          return;
+        }
+        
+        // Handle vocabulary word notification
         const wordId = userInfo.wordId || userInfo?.item?.wordId;
         if (wordId) {
           const svc = NotificationService.getInstance?.();
@@ -22,7 +38,7 @@ try {
           }
         }
       } catch (e) {
-        // Silent error handling
+        console.error('[NotificationService iOS] Error handling notification:', e);
       }
     },
     popInitialNotification: true,
@@ -301,12 +317,35 @@ class NotificationService {
 
   public async getStatus(): Promise<{ isInitialized: boolean; hasPermission: boolean; scheduledCount: number }> {
     try {
-      const scheduledCount = await new Promise<number>((resolve) => {
-        try { PushNotificationIOS.getScheduledLocalNotifications((list: any[]) => { resolve(Array.isArray(list) ? list.length : 0); }); }
-        catch { resolve(0); }
-      });
-      return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount };
+      return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount: 0 };
     } catch { return { isInitialized: this.isInitialized, hasPermission: this.hasPermission, scheduledCount: 0 }; }
+  }
+
+  /**
+   * Show audio creation notification (iOS)
+   * @param audioData - Audio track data from notification
+   */
+  public async showAudioCreatedNotification(audioData: any): Promise<void> {
+    await this.initialize();
+    if (!this.hasPermission) return;
+
+    try {
+      const lang = await this.getLanguage();
+      
+      PushNotificationIOS.addNotificationRequest({
+        id: `audio_${Date.now()}`,
+        title: lang === 'tr' ? '🎵 Ses Oluşturuldu!' : '🎵 Audio Created!',
+        body: audioData.title || (lang === 'tr' ? 'Sesiniz hazır. Dinlemek için tıklayın.' : 'Your audio is ready. Tap to listen.'),
+        sound: 'default',
+        badge: 1,
+        userInfo: { 
+          type: 'audio_created',
+          audioData: JSON.stringify(audioData)
+        },
+      });
+    } catch (error) {
+      console.error('[NotificationService iOS] Error showing audio notification:', error);
+    }
   }
 }
 
