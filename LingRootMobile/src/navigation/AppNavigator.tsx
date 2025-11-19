@@ -10,6 +10,7 @@ import { getEnvironmentConfig } from '../services/environmentConfig';
 
 import { useAuth } from '../contexts/AuthContext';
 import NotificationService from '../services/notificationService';
+import { apiService } from '../services/api';
 
 import { useLanguage } from '../contexts/LanguageContext';
 import { RootStackParamList, MainTabParamList } from '../types';
@@ -62,6 +63,32 @@ const MainTabs = () => {
     getEnvironmentConfig().then(config => {
       setIsTestEnv(config.environment === 'test');
     });
+
+    // Poll for notifications every 30 seconds
+    const pollNotifications = async () => {
+      try {
+        const notifications = await apiService.getUnreadNotifications();
+
+        // Show local notifications for each unread notification
+        for (const notification of notifications) {
+          if (notification.type === 'audio_created') {
+            await NotificationService.showAudioCreatedNotification(notification.data);
+            // Mark as read
+            await apiService.markNotificationAsRead(notification.id);
+          }
+        }
+      } catch (error) {
+        // Silent error
+      }
+    };
+
+    // Poll immediately and then every 30 seconds
+    pollNotifications();
+    const pollInterval = setInterval(pollNotifications, 30000);
+
+    return () => {
+      clearInterval(pollInterval);
+    };
   }, []);
 
   const TestBadge = () => (
@@ -71,7 +98,7 @@ const MainTabs = () => {
       </View>
     ) : null
   );
-  
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -110,38 +137,38 @@ const MainTabs = () => {
         headerRight: () => <TestBadge />,
       })}
     >
-      <Tab.Screen 
-        name="Home" 
+      <Tab.Screen
+        name="Home"
         component={HomeScreen}
-        options={{ 
+        options={{
           tabBarLabel: t('home.title'),
           headerTitle: t('home.title')
         }}
       />
-      <Tab.Screen 
-        name="Library" 
+      <Tab.Screen
+        name="Library"
         component={LibraryScreen}
-        options={{ 
+        options={{
           tabBarLabel: t('library.title'),
           headerTitle: t('library.title')
         }}
       />
-      <Tab.Screen 
-        name="Create" 
+      <Tab.Screen
+        name="Create"
         component={CreateScreen}
         options={({ route, navigation }) => {
           // Check if this tab is currently focused
           const state = navigation.getState();
           const currentRoute = state.routes[state.index];
           const isFocused = currentRoute.name === 'Create';
-          
+
           return {
             tabBarLabel: t('create.title'),
             headerTitle: t('create.title'),
             // Only apply custom button when NOT focused (to make it dim)
             ...(isFocused ? {} : {
               tabBarButton: ({ style, children, accessibilityState, testID, accessibilityLabel, accessibilityRole }) => (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[style, { opacity: 0.3 }]}
                   disabled={true}
                   activeOpacity={1}
@@ -164,10 +191,10 @@ const MainTabs = () => {
           },
         })}
       />
-      <Tab.Screen 
-        name="Profile" 
+      <Tab.Screen
+        name="Profile"
         component={ProfileScreen}
-        options={{ 
+        options={{
           tabBarLabel: t('profile.title'),
           headerTitle: t('profile.title')
         }}
@@ -206,21 +233,52 @@ const AppNavigator = () => {
   useEffect(() => {
     if (user && navigationRef.current) {
       // Setup notification response handler
-      const subscription = NotificationService.setupNotificationResponseHandler((wordId: string) => {
+      const subscription = NotificationService.setupNotificationResponseHandler((data: string) => {
         // Navigate only when nav is ready; if not, store for later
         const doNavigate = () => {
-          navigationRef.current?.dispatch(
-            CommonActions.reset({
-              index: 1,
-              routes: [
-                { name: 'Main' },
-                { name: 'Vocabulary', params: { wordId } },
-              ],
-            })
-          );
+          try {
+            // Try to parse as audio notification
+            let parsed: any = null;
+            try {
+              parsed = JSON.parse(data);
+            } catch (e) {
+              // Not JSON, treat as wordId
+            }
+
+            if (parsed && parsed.type === 'audio_created') {
+              // Navigate to Library screen
+              navigationRef.current?.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [
+                    {
+                      name: 'Main',
+                      state: {
+                        routes: [{ name: 'Library' }]
+                      }
+                    },
+                  ],
+                })
+              );
+            } else {
+              // Treat as wordId for vocabulary
+              const wordId = parsed ? (parsed.wordId || data) : data;
+              navigationRef.current?.dispatch(
+                CommonActions.reset({
+                  index: 1,
+                  routes: [
+                    { name: 'Main' },
+                    { name: 'Vocabulary', params: { wordId } },
+                  ],
+                })
+              );
+            }
+          } catch (e) {
+            console.error('Navigation error:', e);
+          }
         };
         if (navReady) doNavigate();
-        else setInitialWordId(String(wordId));
+        else setInitialWordId(String(data));
       });
 
       // Handle cold start: app launched by tapping a notification (iOS only)
@@ -322,8 +380,8 @@ const AppNavigator = () => {
                 headerTitle: language === 'tr' ? 'Mesaj Gönder' : 'Send Message',
               })}
             />
-            <Stack.Screen 
-              name="Vocabulary" 
+            <Stack.Screen
+              name="Vocabulary"
               component={VocabularyScreen}
               options={{
                 headerShown: true,
@@ -337,8 +395,8 @@ const AppNavigator = () => {
                 headerTitle: 'Vocabulary', // This will be updated by the component
               }}
             />
-            <Stack.Screen 
-              name="PatternList" 
+            <Stack.Screen
+              name="PatternList"
               component={PatternListScreen}
               options={{
                 headerShown: false,

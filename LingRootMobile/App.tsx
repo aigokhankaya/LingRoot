@@ -10,6 +10,7 @@ import { useAuth } from './src/contexts/AuthContext';
 import TrackPlayer from 'react-native-track-player';
 import NotificationService from './src/services/notificationService';
 import { clearEnvironmentCache } from './src/services/environmentConfig';
+import { apiService } from './src/services/api';
 
 export default function App() {
   const appState = useRef<AppStateStatus>(AppState.currentState);
@@ -36,12 +37,6 @@ export default function App() {
           // Android: Skip any early initialization to avoid rare OEM-specific startup crashes.
           // We'll initialize lazily from Profile actions (Test Notification / Open Notification Settings / Quick Debug).
         }
-        
-        // Setup notification tap handler
-        NotificationService.setupNotificationResponseHandler((wordId: string) => {
-          // Navigate to vocabulary screen with wordId
-          // This will be handled by the navigation system
-        });
       } catch (error) {
         // Silent error handling
       }

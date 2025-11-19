@@ -13,6 +13,7 @@ import {
   Modal,
   Dimensions,
   Linking,
+  AppState,
 } from 'react-native';
 import { Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -46,7 +47,7 @@ const CreateScreen: React.FC = () => {
       const nextMode: 'text' | 'file' | 'book' | 'suggestion' | 'youtube' = route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : (route.params?.mode === 'youtube' ? 'youtube' : 'text')));
       const prevMode = mode;
       setMode(nextMode);
-      
+
       // Her zaman suggestion mode'a girerken temizle
       if (nextMode === 'suggestion') {
         setSuggestion('');
@@ -55,7 +56,7 @@ const CreateScreen: React.FC = () => {
         setIsConvertingSuggestion(false);
         setConvertingText('');
       }
-      
+
       // Diğer mode'lar için sadece mode değiştiğinde temizle
       if (prevMode !== nextMode && nextMode !== 'suggestion') {
         setInputText('');
@@ -94,7 +95,7 @@ const CreateScreen: React.FC = () => {
         await Linking.openURL(url);
       }
     } catch (err) {
-      try { await Linking.openURL(url); } catch {}
+      try { await Linking.openURL(url); } catch { }
     }
   };
 
@@ -155,11 +156,11 @@ const CreateScreen: React.FC = () => {
     setIsLoadingSuggestions(true);
     try {
       const res = await apiService.getTopicSuggestions(suggestion, selectedLevel);
-      
+
       if (res?.success) {
         const suggestions = res.suggestions || [];
         setSuggestionResults(suggestions);
-        
+
         // Set first suggestion to input text area
         if (suggestions.length > 0) {
           const firstSuggestion = suggestions[0];
@@ -175,7 +176,7 @@ const CreateScreen: React.FC = () => {
     }
   };
 
-  
+
   // Voice selection states - Default to Emma
   const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('neural');
   const [selectedVoice, setSelectedVoice] = useState<string>('Emma');
@@ -265,7 +266,7 @@ const CreateScreen: React.FC = () => {
   ].filter(category => {
     // Filter categories based on plan features
     if (!planFeatures?.voice_categories) return true; // Show all if features not loaded
-    
+
     const categories = planFeatures.voice_categories;
     switch (category.value) {
       case 'standard': return categories.standard !== false;
@@ -328,18 +329,18 @@ const CreateScreen: React.FC = () => {
     setLoadingVoices(true);
     try {
       const response = await apiService.getAvailableVoices();
-      
-      
+
+
       // Backend'den { provider: 'google', voices: [...] } formatında geliyor
       const apiResponse = response as any;
       const voices = apiResponse.voices || apiResponse.data?.voices || [];
-      
+
       if (voices.length > 0) {
-        
+
         // Voice alanlarını normalize et (name, category, accent, gender)
         const processedVoices = voices.map((voice: any) => {
           const name = voice.name || voice.voiceName || voice.id || voice.code;
-          
+
           // Kategori - Amazon Polly'nin 'engine' field'ını da kontrol et
           let category = voice.category || voice.type || voice.voiceType || voice.engine;
           if (!category) {
@@ -364,7 +365,7 @@ const CreateScreen: React.FC = () => {
           // Cinsiyet
           const rawGender = voice.gender || voice.ssmlGender || voice.ssml_gender || voice.voiceGender;
           const normalizedGender = (rawGender || '').toString().toLowerCase();
-          
+
           return {
             ...voice,
             name,
@@ -373,9 +374,9 @@ const CreateScreen: React.FC = () => {
             gender: normalizedGender,
           };
         });
-        
-        
-        
+
+
+
         // Web tarafıyla birebir: Backend zaten filtreleyip gönderiyor → UI tarafında tekrar filtreleme yok
         setAvailableVoices(processedVoices);
         setSelectedVoice((prev: string) => {
@@ -385,10 +386,10 @@ const CreateScreen: React.FC = () => {
           return preferred?.name || source[0]?.name || prev;
         });
       } else {
-        
+
       }
     } catch (error) {
-      
+
     } finally {
       setLoadingVoices(false);
     }
@@ -399,11 +400,11 @@ const CreateScreen: React.FC = () => {
     setLoadingVoices(true);
     try {
       const backendCategory = mapCategoryForBackend(category);
-      
+
       console.log('🎙️ [FETCH FILTERED] Request params:', { accent, gender, category, backendCategory });
-      
+
       const response = await apiService.getFilteredVoices(accent, gender, undefined, backendCategory);
-      
+
       console.log('🎙️ [FETCH FILTERED] Raw response:', JSON.stringify(response, null, 2));
 
       // Response şekli: { provider, voices, ... } veya { success, data } olabilir
@@ -413,7 +414,7 @@ const CreateScreen: React.FC = () => {
         apiResponse?.data?.voices ||
         (Array.isArray(apiResponse?.data) ? apiResponse.data : []) ||
         [];
-      
+
       console.log('🎙️ [FETCH FILTERED] Extracted voices count:', voices.length);
       if (voices.length > 0) {
         console.log('🎙️ [FETCH FILTERED] First voice sample:', JSON.stringify(voices[0], null, 2));
@@ -445,10 +446,10 @@ const CreateScreen: React.FC = () => {
 
         // Wavenet + AU/CA/IN fallback (backend deploy beklenirken geçici çözüm)
         if (voices.length === 0 && (category === 'wavenet') && (accent === 'australian' || accent === 'canadian' || accent === 'indian')) {
-          const map: Record<string, { male: string; female: string; lang: string } > = {
+          const map: Record<string, { male: string; female: string; lang: string }> = {
             australian: { male: 'en-AU-Wavenet-D', female: 'en-AU-Wavenet-A', lang: 'en-AU' },
-            canadian:   { male: 'en-CA-Wavenet-D', female: 'en-CA-Wavenet-A', lang: 'en-CA' },
-            indian:     { male: 'en-IN-Wavenet-D', female: 'en-IN-Wavenet-A', lang: 'en-IN' },
+            canadian: { male: 'en-CA-Wavenet-D', female: 'en-CA-Wavenet-A', lang: 'en-CA' },
+            indian: { male: 'en-IN-Wavenet-D', female: 'en-IN-Wavenet-A', lang: 'en-IN' },
           };
           const cfg = map[accent];
           const chosen = (gender === 'male') ? cfg.male : cfg.female;
@@ -504,7 +505,7 @@ const CreateScreen: React.FC = () => {
           // Cinsiyet
           const rawGender = voice.gender || voice.ssmlGender || voice.ssml_gender || voice.voiceGender;
           const normalizedGender = (rawGender || '').toString().toLowerCase();
-          
+
           return {
             ...voice,
             name,
@@ -513,7 +514,7 @@ const CreateScreen: React.FC = () => {
             gender: normalizedGender,
           };
         });
-        
+
         setAvailableVoices(processedVoices);
         // Keep current selection if still valid; otherwise pick the first from filtered list
         setSelectedVoice((prev) => {
@@ -524,7 +525,7 @@ const CreateScreen: React.FC = () => {
         });
       }
     } catch (error) {
-      
+
     } finally {
       setLoadingVoices(false);
     }
@@ -547,39 +548,39 @@ const CreateScreen: React.FC = () => {
     if (hasActiveFilters) {
       return availableVoices;
     }
-    
+
     // First apply plan-based voice category filtering
     let voices = availableVoices;
     console.log('🔍 [Mobile Voice Filter] Plan features:', planFeatures?.voice_categories);
     console.log('🔍 [Mobile Voice Filter] Total voices before filter:', availableVoices.length);
-    
+
     if (planFeatures?.voice_categories) {
       voices = availableVoices.filter(voice => {
         const voiceName = voice.name.toLowerCase();
         const categories = planFeatures.voice_categories!;
-        
+
         // Check which category this voice belongs to and if it's enabled
         const isWavenet = voiceName.includes('wavenet') && categories.wavenet;
         const isNeural2 = voiceName.includes('neural2') && categories.neural2;
         const isStudio = voiceName.includes('studio') && categories.studio;
         const isChirp = voiceName.includes('chirp') && categories.chirp3d;
-        const isStandard = categories.standard && 
-            !voiceName.includes('wavenet') && 
-            !voiceName.includes('neural2') && 
-            !voiceName.includes('studio') && 
-            !voiceName.includes('chirp');
-        
+        const isStandard = categories.standard &&
+          !voiceName.includes('wavenet') &&
+          !voiceName.includes('neural2') &&
+          !voiceName.includes('studio') &&
+          !voiceName.includes('chirp');
+
         const shouldShow = isWavenet || isNeural2 || isStudio || isChirp || isStandard;
-        
+
         if (!shouldShow) {
           console.log(`❌ [Mobile Voice Filter] Filtered out: ${voice.name}`);
         }
-        
+
         return shouldShow;
       });
       console.log('🔍 [Mobile Voice Filter] Voices after plan filter:', voices.length);
     }
-    
+
     // Then apply local kategori/gender/aksan filtresi
     const result = filterVoices(voices, selectedVoiceCategory, selectedGender, selectedAccent);
     console.log('🔍 [Mobile Voice Filter] Final voices after all filters:', result.length);
@@ -649,7 +650,7 @@ const CreateScreen: React.FC = () => {
           setShouldPromoteSelectedVoiceTop(true);
         }
       } catch (e) {
-        
+
       }
     })();
   }, []);
@@ -713,7 +714,7 @@ const CreateScreen: React.FC = () => {
         return;
       }
     } catch (e: any) {
-      
+      // Silent check
     }
 
     // Suggestion mode: if no input yet, rewrite the topic/suggestion into narration text first
@@ -736,6 +737,8 @@ const CreateScreen: React.FC = () => {
         setIsLoading(false);
         Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
         return;
+      } finally {
+        setIsLoading(false);
       }
     }
 
@@ -744,243 +747,102 @@ const CreateScreen: React.FC = () => {
         Alert.alert(t('common.error'), t('create.book.alerts.selectChapter'));
         return;
       }
-    } else if (!effectiveInputText.trim() && !selectedFile) {
+    } else if (mode !== 'file' && !effectiveInputText.trim()) {
       Alert.alert(t('common.error'), t('create.alerts.enterTextOrFile'));
       return;
     }
 
     setIsLoading(true);
     try {
-      let request: TTSRequest;
-      
-      if (selectedFile) {
-        // File upload process
-        
-        // Create FormData for file upload
+      let response: any;
+
+      if (mode === 'file' && selectedFile) {
+        // File upload process - SYNC
         const formData = new FormData();
         formData.append('file', {
           uri: selectedFile.uri,
           type: selectedFile.mimeType,
           name: selectedFile.name,
         } as any);
-        
-        // Required parameters that backend expects
+
         formData.append('type', 'file');
-        formData.append('input', selectedFile.name); // File name as input
+        formData.append('input', selectedFile.name);
         formData.append('level', selectedLevel);
-        // Backend controller 'speakingRate' ve 'voice' alanlarını okuyor
         formData.append('speakingRate', speechRate.toString());
         formData.append('voice', selectedVoice);
-        // Eski alanları da geriye dönük uyumluluk için gönderelim
         formData.append('sesHizi', speechRate.toString());
         formData.append('voiceName', selectedVoice);
         formData.append('gender', selectedGender);
         formData.append('accent', selectedAccent);
-        
-        const response = await apiService.processFileToSpeech(formData);
-        
-        if (response.success) {
-          // Success: Create track and open player
+
+        response = await apiService.processFileToSpeech(formData);
+      } else {
+        // Text/Book processing - SYNC
+        const textToProcess = mode === 'book' ? selectedChapterText : effectiveInputText;
+        const request: TTSRequest = {
+          type: 'text',
+          input: textToProcess,
+          level: selectedLevel,
+          speakingRate: speechRate,
+          voice: selectedVoice,
+          sesHizi: speechRate,
+          voiceName: selectedVoice,
+          gender: selectedGender as any,
+          accent: selectedAccent as any,
+        };
+
+        console.log('🎯 [CREATE] Calling processTextToSpeech (Sync)...');
+        response = await apiService.processTextToSpeech(request);
+      }
+
+      if (response && (response.success || response.mp3_url)) {
+        // Create track object
+        const track: AudioTrack = {
+          id: Date.now().toString(),
+          title: mode === 'file' ? selectedFile.name : (mode === 'book' ? (selectedBook?.title || 'Book Chapter') : (effectiveInputText.slice(0, 30) + (effectiveInputText.length > 30 ? '...' : ''))),
+          url: response.mp3_url || '',
+          level: response.level || selectedLevel,
+          duration: response.real_duration || response.estimated_duration || 0,
+          created_at: new Date().toISOString(),
+          original_turkish: response.original_turkish,
+          translated_text: response.translated_text || response.translatedText,
+          adapted_text: response.adapted_text || response.adaptedText,
+          timepoints: response.timepoints,
+          words: response.words,
+          mp3_url: response.mp3_url,
+        };
+
+        setCreatedTrack(track);
+        setShowPlayer(true);
+
+        // Clear inputs on success
+        if (mode === 'text' || mode === 'suggestion' || mode === 'youtube') {
           setInputText('');
+        } else if (mode === 'file') {
           setSelectedFile(null);
-          
-          // Create AudioTrack from response
-          const newTrack: AudioTrack = {
-            id: String(Date.now()), // Temporary ID
-            title: response.adapted_text || response.translated_text || selectedFile.name,
-            url: response.mp3_url || '',
-            level: response.level || selectedLevel,
-            duration: response.real_duration || 180,
-            created_at: new Date().toISOString(),
-            input_type: 'file',
-            translated_text: response.translated_text || response.translatedText,
-            adapted_text: response.adapted_text || response.adaptedText,
-            original_turkish: response.original_turkish || '',
-            mp3_url: response.mp3_url,
-            timepoints: response.timepoints || [],
-            words: response.words || [],
-          };
-          
-          setCreatedTrack(newTrack);
-          setShowPlayer(true);
-        } else {
-          Alert.alert(t('common.error'), response.message || t('create.alerts.fileProcessFailed'));
-        }
-      } else if (mode === 'text' || mode === 'suggestion' || mode === 'youtube') {
-        // Text processing
-        request = {
-          type: 'text',
-          input: effectiveInputText,
-          level: selectedLevel,
-          // Backend 'voice' ve 'speakingRate' bekliyor
-          speakingRate: speechRate,
-          voice: selectedVoice,
-          // Geriye dönük
-          sesHizi: speechRate,
-          voiceName: selectedVoice,
-          gender: selectedGender as any,
-          accent: selectedAccent as any,
-        };
-
-        console.log('🎯 [CREATE] Calling processTextToSpeech...');
-        const response = await apiService.processTextToSpeech(request);
-        console.log('🎯 [CREATE] Response received:', { success: response.success, hasUrl: !!response.mp3_url });
-        
-        if (response.success) {
-          // Success: Create track and open player
-          setInputText('');
-          
-          // Create AudioTrack from response
-          const newTrack: AudioTrack = {
-            id: String(Date.now()), // Temporary ID
-            title: response.adapted_text || response.translated_text || effectiveInputText.substring(0, 50),
-            url: response.mp3_url || '',
-            level: response.level || selectedLevel,
-            duration: response.real_duration || 180,
-            created_at: new Date().toISOString(),
-            input_type: mode,
-            translated_text: response.translated_text || response.translatedText,
-            adapted_text: response.adapted_text || response.adaptedText,
-            original_turkish: response.original_turkish || effectiveInputText,
-            mp3_url: response.mp3_url,
-            timepoints: response.timepoints || [],
-            words: response.words || [],
-          };
-          
-          setCreatedTrack(newTrack);
-          setShowPlayer(true);
-        } else {
-          const code = (response as any)?.code;
-          const msg = response.message || t('create.alerts.audioCreateFailed');
-          
-          // Free Trial limit aşımı için özel yönlendirme
-          if (code === 'FREE_TRIAL_EXHAUSTED') {
-            const details = (response as any)?.details;
-            Alert.alert(
-              language === 'tr' ? 'Ücretsiz Deneme Bitti' : 'Free Trial Ended',
-              language === 'tr'
-                ? `${details?.audioCreationCount || 3} ses oluşturma hakkınızı kullandınız.\n\nDevam etmek için premium pakete geçin.`
-                : `You've used your ${details?.audioCreationCount || 3} audio creation credits.\n\nUpgrade to premium to continue.`,
-              [
-                {
-                  text: language === 'tr' ? 'Paketleri Gör' : 'View Packages',
-                  onPress: () => {
-                    navigation.navigate('Packages' as never);
-                  },
-                },
-                {
-                  text: language === 'tr' ? 'İptal' : 'Cancel',
-                  style: 'cancel',
-                },
-              ]
-            );
-            return;
-          }
-          
-          // Free Trial için metin çok uzun hatası
-          if (code === 'FREE_TRIAL_TEXT_TOO_LONG') {
-            const details = (response as any)?.details;
-            Alert.alert(
-              language === 'tr' ? 'Metin Çok Uzun' : 'Text Too Long',
-              language === 'tr'
-                ? `Ücretsiz denemede her ses maksimum ${details?.maxMinutes || 10} dakika olabilir.\n\nMetniniz: ~${details?.estimatedMinutes || 0} dakika\n\nLütfen metni kısaltın veya premium pakete geçin.`
-                : `In free trial, each audio can be maximum ${details?.maxMinutes || 10} minutes.\n\nYour text: ~${details?.estimatedMinutes || 0} minutes\n\nPlease shorten the text or upgrade to premium.`,
-              [
-                {
-                  text: language === 'tr' ? 'Paketleri Gör' : 'View Packages',
-                  onPress: () => {
-                    navigation.navigate('Packages' as never);
-                  },
-                },
-                {
-                  text: language === 'tr' ? 'Tamam' : 'OK',
-                  style: 'cancel',
-                },
-              ]
-            );
-            return;
-          }
-          
-          if (code === 'NO_ACTIVE_PLAN' || code === 'USAGE_LIMIT_EXCEEDED') {
-            Alert.alert(
-              t('common.error'),
-              msg,
-              [
-                {
-                  text: 'Paket Al',
-                  onPress: () => {
-                    navigation.navigate('Settings' as never);
-                  },
-                },
-                {
-                  text: 'İptal',
-                  style: 'cancel',
-                },
-              ]
-            );
-          } else {
-            Alert.alert(t('common.error'), msg);
-          }
-        }
-      } else if (mode === 'book') {
-        // Use selected chapter text
-        request = {
-          type: 'text',
-          input: selectedChapterText,
-          level: selectedLevel,
-          speakingRate: speechRate,
-          voice: selectedVoice,
-          sesHizi: speechRate,
-          voiceName: selectedVoice,
-          gender: selectedGender as any,
-          accent: selectedAccent as any,
-        };
-
-        
-        const response = await apiService.processTextToSpeech(request);
-        if (response.success) {
+        } else if (mode === 'book') {
           setSelectedBook(null);
           setSelectedChapterId(null);
           setSelectedChapterText('');
-          
-          // Create AudioTrack from response
-          const newTrack: AudioTrack = {
-            id: String(Date.now()), // Temporary ID
-            title: response.adapted_text || response.translated_text || selectedBook?.title || 'Book Chapter',
-            url: response.mp3_url || '',
-            level: response.level || selectedLevel,
-            duration: response.real_duration || 180,
-            created_at: new Date().toISOString(),
-            input_type: 'book',
-            translated_text: response.translated_text || response.translatedText,
-            adapted_text: response.adapted_text || response.adaptedText,
-            original_turkish: response.original_turkish || selectedChapterText,
-            mp3_url: response.mp3_url,
-            timepoints: response.timepoints || [],
-            words: response.words || [],
-          };
-          
-          setCreatedTrack(newTrack);
-          setShowPlayer(true);
-        } else {
-          Alert.alert(t('common.error'), response.message || t('create.book.alerts.ttsFailed'));
         }
+      } else {
+        throw new Error(response?.message || 'İşlem başarısız');
       }
+
     } catch (error: any) {
-      console.error('🔴 [CREATE] Error caught:', {
-        message: error?.message,
-        name: error?.name,
-        code: error?.code,
-        response: error?.response?.data,
-        fullError: JSON.stringify(error, null, 2)
-      });
-      
-      // Log the full error object for debugging
-      console.error('🔴 [CREATE] Full error object:', error);
-      console.error('🔴 [CREATE] Error stack:', error?.stack);
-      
+      console.error('🔴 [CREATE SYNC] Error:', error);
+
       const emsg = error?.message || '';
-      if (
+
+      // Treat network errors as "background processing" since the server continues working
+      if (emsg.includes('Bağlantı hatası') || emsg.includes('Network Error')) {
+        Alert.alert(
+          language === 'tr' ? '✅ İşlem Devam Ediyor' : '✅ Processing Continues',
+          language === 'tr'
+            ? 'İşlem arka planda devam ediyor. Sesiniz hazır olduğunda kütüphanenizde görünecektir.'
+            : 'Processing continues in the background. Your audio will appear in your library when ready.'
+        );
+      } else if (
         emsg.includes('Aktif paketiniz yok') ||
         emsg.includes('kullanım sınırınız aşıldı') ||
         emsg.includes('USAGE_LIMIT_EXCEEDED') ||
@@ -1016,17 +878,17 @@ const CreateScreen: React.FC = () => {
       // Use iOS UTIs to avoid greyed-out files; use MIME types on Android
       const pickerTypes = Platform.OS === 'ios'
         ? [
-            'com.adobe.pdf', // PDF
-            'com.microsoft.word.doc', // DOC
-            'org.openxmlformats.wordprocessingml.document', // DOCX
-            'public.plain-text', // TXT
-          ]
+          'com.adobe.pdf', // PDF
+          'com.microsoft.word.doc', // DOC
+          'org.openxmlformats.wordprocessingml.document', // DOCX
+          'public.plain-text', // TXT
+        ]
         : [
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'text/plain',
-          ];
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain',
+        ];
 
       const [file] = await pick({
         type: pickerTypes,
@@ -1080,7 +942,7 @@ const CreateScreen: React.FC = () => {
           </View>
         </View>
       )}
-      
+
       <ScrollView
         style={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -1120,17 +982,17 @@ const CreateScreen: React.FC = () => {
               <View style={{ marginTop: 8 }}>
                 {suggestionResults.map((s, idx) => (
                   <TouchableOpacity
-                    key={`${idx}-${s.substring(0,10)}`}
+                    key={`${idx}-${s.substring(0, 10)}`}
                     style={styles.bookCard}
                     onPress={async () => {
                       try {
                         setIsConvertingSuggestion(true);
                         setConvertingText(language === 'tr' ? 'Öneri metne dönüştürülüyor...' : 'Converting suggestion to text...');
-                        
+
                         const rr = await apiService.rewriteToNarration(s, selectedLevel);
                         const narration = rr?.data?.narration_text || s;
                         setInputText(narration);
-                        
+
                         Alert.alert(t('common.success'), t('Öneri metne dönüştürüldü'));
                       } catch (e: any) {
                         Alert.alert(t('common.error'), e.message || t('common.unexpectedError'));
@@ -1399,7 +1261,7 @@ const CreateScreen: React.FC = () => {
         {/* Voice Selection Section */}
         <View style={styles.settingsSection}>
           <Text style={styles.sectionTitle}>{t('create.voice.title')}</Text>
-          
+
           {/* Voice Categories */}
           <View style={styles.voiceCategoryContainer}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -1466,7 +1328,7 @@ const CreateScreen: React.FC = () => {
                   ))}
                 </ScrollView>
               </View>
-              
+
               <View style={styles.filterGroup}>
                 <Text style={styles.filterLabel}>{t('create.voice.filters.gender')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -1504,7 +1366,7 @@ const CreateScreen: React.FC = () => {
                   await fetchAvailableVoices();
                 }
               } catch (e) {
-                
+
               }
               setShowVoiceSelection(true);
             }}
@@ -1521,7 +1383,7 @@ const CreateScreen: React.FC = () => {
             <Icon name="arrow-forward-ios" size={16} color="#007AFF" />
           </TouchableOpacity>
 
-          
+
         </View>
 
         {/* Voice Selection Modal - uses RN Modal so it opens in viewport regardless of scroll */}
@@ -1564,10 +1426,10 @@ const CreateScreen: React.FC = () => {
                           <Text style={styles.voiceItemName}>{item.name}</Text>
                           <Text style={styles.voiceItemDescription}>
                             {(item.accent === 'american' && t('create.voice.accents.american')) ||
-                             (item.accent === 'british' && t('create.voice.accents.british')) ||
-                             (item.accent === 'australian' && t('create.voice.accents.australian')) ||
-                             (item.accent === 'canadian' && t('create.voice.accents.canadian')) ||
-                             (item.accent === 'indian' && t('create.voice.accents.indian')) || item.accent}
+                              (item.accent === 'british' && t('create.voice.accents.british')) ||
+                              (item.accent === 'australian' && t('create.voice.accents.australian')) ||
+                              (item.accent === 'canadian' && t('create.voice.accents.canadian')) ||
+                              (item.accent === 'indian' && t('create.voice.accents.indian')) || item.accent}
                             {` • ${item.gender === 'male' ? t('create.voice.genders.male') : t('create.voice.genders.female')}`}
                           </Text>
                           {item.ssmlSupport && (
@@ -2015,7 +1877,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFE5E5',
     borderRadius: 20,
   },
-  
+
   // Voice Selection Styles
   voiceCategoryContainer: {
     marginBottom: 16,
@@ -2194,6 +2056,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '600',
   },
-  });
+});
 
 export default CreateScreen; 
