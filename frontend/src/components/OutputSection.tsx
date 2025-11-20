@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import NewSyncedTextPlayer from './NewSyncedTextPlayer';
 
 interface TtsResponseData {
@@ -33,24 +33,25 @@ interface OutputSectionProps {
 
 
 export default function OutputSection({ audioResult, isLoggedIn }: OutputSectionProps) {
-  
+  const [showTranslation, setShowTranslation] = useState(false);
+
   // URL conversion for different environments
   const convertToPlayableUrl = (url: string): string => {
     if (!url) return '';
-    
+
     // Already a full URL (http/https)
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
-    
+
     // Backend relative path - convert to full URL
-    const backendBaseUrl = process.env.NODE_ENV === 'production' 
+    const backendBaseUrl = process.env.NODE_ENV === 'production'
       ? 'https://lingroot-backend.onrender.com'  // Production backend URL
-      : 'http://localhost:3001';  // Local development URL
-    
+      : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001');  // Local development URL
+
     // Remove leading slash if exists to avoid double slashes
     const cleanPath = url.startsWith('/') ? url.slice(1) : url;
-    
+
     return `${backendBaseUrl}/${cleanPath}`;
   };
 
@@ -83,14 +84,81 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
   const playableVttUrl = audioResult.vtt_url ? convertToPlayableUrl(audioResult.vtt_url) : undefined;
 
   return (
-    <div className="w-full max-w-6xl mx-auto mt-8">
-      {/* Processing Info - GİZLENDİ */}
-      {/* GIZLENDI - Audio başarıyla oluşturuldu yazısı ve altındaki Ses Varsayılan yazısı kaldırılacak. Hız ve Seviye bilgisi kalacak */}
-
-      {/* NEW Synchronized Text Player - Using the new architecture */}
-      <div className="mb-6">
-        {/* GIZLENDI - Hassas Senkronizasyon ve Web Audio API + Binary Search yazısı kaldırılacak */}
+    <div className="w-full max-w-6xl mx-auto mt-8 bg-white rounded-lg shadow-lg p-6">
+      {/* Header with Topic Info and Toggle */}
+      <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-600">Konu: <span className="font-medium text-gray-800">{audioResult.topic || 'Günlük Yaşam'}</span></span>
+          <span className="text-sm text-gray-600">Seviye: <span className="font-medium text-blue-600">{audioResult.level || 'A1'}</span></span>
+        </div>
         
+        {/* Show Original Language Toggle */}
+        {(audioResult.translated_text || audioResult.translatedText) && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowTranslation(!showTranslation)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              style={{
+                backgroundColor: showTranslation ? '#4285F4' : '#E8F0FE',
+                color: showTranslation ? 'white' : '#1967D2'
+              }}
+            >
+              <span>Show Original Language</span>
+              <div 
+                className="relative inline-block w-10 h-5 rounded-full transition-colors"
+                style={{ backgroundColor: showTranslation ? 'rgba(255,255,255,0.3)' : 'rgba(25,103,210,0.2)' }}
+              >
+                <div 
+                  className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform"
+                  style={{ transform: showTranslation ? 'translateX(20px)' : 'translateX(0)' }}
+                />
+              </div>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Text Content Area */}
+      {(audioResult.adapted_text || audioResult.adaptedText) && (
+        <div className="mb-6">
+          <div className={`grid gap-4 ${showTranslation && (audioResult.translated_text || audioResult.translatedText) ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {/* English Column */}
+            <div className="bg-gray-50 rounded-lg p-6 relative">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">ENGLISH</h3>
+                <button className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                  </svg>
+                </button>
+              </div>
+              <div className="text-gray-800 leading-relaxed" style={{ fontSize: '15px', lineHeight: '1.8' }}>
+                {audioResult.adapted_text || audioResult.adaptedText}
+              </div>
+            </div>
+
+            {/* Turkish Column - Only shown when toggle is active */}
+            {showTranslation && (audioResult.translated_text || audioResult.translatedText) && (
+              <div className="bg-gray-50 rounded-lg p-6 relative">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">TURKISH</h3>
+                  <button className="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="text-gray-800 leading-relaxed" style={{ fontSize: '15px', lineHeight: '1.8' }}>
+                  {audioResult.translated_text || audioResult.translatedText}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Audio Player - Moved to bottom */}
+      <div className="mt-6 pt-6 border-t border-gray-200">
         <NewSyncedTextPlayer
           audioUrl={playableAudioUrl}
           words={audioResult.words || []}
@@ -111,54 +179,6 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
           }}
         />
       </div>
-
-      {/* Text Processing Results */}
-      {(audioResult.adapted_text || audioResult.adaptedText || audioResult.translated_text || audioResult.translatedText) && (
-        <div className="mt-6 space-y-4">
-          <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">
-            📝 Metin İşleme Sonuçları
-          </h3>
-          
-          {/* Adapted Text */}
-          {(audioResult.adapted_text || audioResult.adaptedText) && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-medium text-blue-800 mb-2 flex items-center">
-                <i className="fas fa-adjust mr-2"></i>
-                Seviyeye Uyarlanmış Metin ({audioResult.level || 'Auto'})
-              </h4>
-              <div className="text-blue-700 leading-relaxed">
-                {audioResult.adapted_text || audioResult.adaptedText}
-              </div>
-            </div>
-          )}
-
-          {/* Translated Text */}
-          {(audioResult.translated_text || audioResult.translatedText) && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h4 className="font-medium text-green-800 mb-2 flex items-center">
-                <i className="fas fa-language mr-2"></i>
-                İngilizce Çeviri
-              </h4>
-              <div className="text-green-700 leading-relaxed">
-                {audioResult.translated_text || audioResult.translatedText}
-              </div>
-            </div>
-          )}
-
-          {/* Original Turkish */}
-          {audioResult.original_turkish && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <h4 className="font-medium text-gray-800 mb-2 flex items-center">
-                <i className="fas fa-file-text mr-2"></i>
-                Orijinal Türkçe Metin
-              </h4>
-              <div className="text-gray-700 leading-relaxed">
-                {audioResult.original_turkish}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Architecture Comparison - GİZLENDİ */}
       {/* GIZLENDI - Yeni Senkronizasyon Mimarisi başlıklı alanı kaldır */}

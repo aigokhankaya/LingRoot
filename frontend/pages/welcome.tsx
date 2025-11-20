@@ -14,6 +14,7 @@ import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
 import OutputSection from '../src/components/OutputSection';
 import Footer from '../src/components/Footer';
+import TopicHierarchySection from '../src/components/TopicHierarchy/TopicHierarchySection';
 import { Button } from "../src/components/ui/button";
 import { Input } from "../src/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../src/components/ui/tabs";
@@ -234,6 +235,7 @@ const Welcome: React.FC = () => {
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
     { id: 'text', name: 'Metin', icon: 'fas fa-file-alt' },
+    { id: 'topic_tree', name: 'Konu Ağacı', icon: 'fas fa-sitemap' },
     { id: 'topic', name: 'Hobi', icon: 'fas fa-lightbulb' },
     { id: 'subject', name: 'Konu', icon: 'fas fa-graduation-cap' },
     { id: 'youtube', name: 'YouTube', icon: 'fab fa-youtube' },
@@ -2177,6 +2179,24 @@ const Welcome: React.FC = () => {
                           Podcast oluşturma işlemi birkaç dakika sürebilir. Lütfen bekleyin.
                         </div>
                       </div>
+                    )}
+
+                    {/* Konu Ağacı sekmesi */}
+                    {contentType === 'topic_tree' && user && (
+                      <TopicHierarchySection
+                        userId={user.id}
+                        level={englishLevel}
+                        onContentCreated={(data) => {
+                          // TTS workflow'unu tetikle
+                          if (data && data.suggestedInput) {
+                            setTextInput(data.suggestedInput);
+                            setContentType('subject'); // Konu sekmesine geç
+                            
+                            // Kullanıcıya bilgi ver
+                            alert('Konu bilgisi alındı! Şimdi "Ses Oluştur" butonuna basarak sesli içerik oluşturabilirsiniz.');
+                          }
+                        }}
+                      />
                     )}
 
                     {/* Kitap sekmesi */}

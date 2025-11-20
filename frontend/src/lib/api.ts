@@ -1589,3 +1589,173 @@ export const mfaService = {
   },
 };
 
+// ============================================
+// TOPIC HIERARCHY API
+// Çok katmanlı konu ağacı sistemi
+// ============================================
+
+export interface Topic {
+  id: string;
+  user_id: string;
+  parent_id: string | null;
+  title: string;
+  description: string | null;
+  level: string;
+  depth: number;
+  order_index: number;
+  is_manual: boolean;
+  keywords: string[];
+  created_at: string;
+  updated_at: string;
+  children?: Topic[];
+}
+
+export interface TopicContent {
+  id: string;
+  topic_id: string;
+  mp3_url: string | null;
+  vtt_url: string | null;
+  text_content: string | null;
+  translated_text: string | null;
+  adapted_text: string | null;
+  level: string | null;
+  voice_model: string | null;
+  speaking_rate: number | null;
+  duration_seconds: number | null;
+  words: string[];
+  timepoints: any;
+  created_at: string;
+}
+
+/**
+ * Ana konu oluştur
+ */
+export const createMainTopic = async (data: {
+  title: string;
+  description?: string;
+  level?: string;
+}): Promise<ApiResponse<{ topic: Topic }>> => {
+  const url = getApiUrl('topic-hierarchy/topics');
+  const headers = createHeaders('application/json');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  return await handleApiResponse(response);
+};
+
+/**
+ * OpenAI ile alt konu üret
+ */
+export const generateSubtopics = async (
+  topicId: string,
+  data: {
+    count?: number;
+    language?: string;
+  }
+): Promise<ApiResponse<{ subtopics: Topic[] }>> => {
+  const url = getApiUrl(`topic-hierarchy/topics/${topicId}/subtopics`);
+  const headers = createHeaders('application/json');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  return await handleApiResponse(response);
+};
+
+/**
+ * Manuel alt konu ekle
+ */
+export const addManualSubtopic = async (
+  topicId: string,
+  data: {
+    title: string;
+    description?: string;
+  }
+): Promise<ApiResponse<{ subtopic: Topic }>> => {
+  const url = getApiUrl(`topic-hierarchy/topics/${topicId}/subtopics/manual`);
+  const headers = createHeaders('application/json');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  return await handleApiResponse(response);
+};
+
+/**
+ * Kullanıcının tüm konu ağacını getir
+ */
+export const getTopicTree = async (): Promise<ApiResponse<{
+  topics: Topic[];
+  total: number;
+}>> => {
+  const url = getApiUrl('topic-hierarchy/topics/tree');
+  const headers = createHeaders();
+  const response = await fetch(url, {
+    method: 'GET',
+    headers,
+    credentials: 'include'
+  });
+  return await handleApiResponse(response);
+};
+
+/**
+ * Breadcrumb için konu yolunu getir
+ */
+export const getTopicPath = async (topicId: string): Promise<ApiResponse<{
+  path: Topic[];
+}>> => {
+  const url = getApiUrl(`topic-hierarchy/topics/${topicId}/path`);
+  const headers = createHeaders();
+  const response = await fetch(url, {
+    method: 'GET',
+    headers,
+    credentials: 'include'
+  });
+  return await handleApiResponse(response);
+};
+
+/**
+ * Konu ve tüm alt konularını sil
+ */
+export const deleteTopicAndChildren = async (topicId: string): Promise<ApiResponse> => {
+  const url = getApiUrl(`topic-hierarchy/topics/${topicId}`);
+  const headers = createHeaders();
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers,
+    credentials: 'include'
+  });
+  return await handleApiResponse(response);
+};
+
+/**
+ * Konudan TTS içerik oluştur (bilgi getir, TTS workflow'u tetikle)
+ */
+export const createContentFromTopic = async (
+  topicId: string,
+  data?: {
+    voice?: string;
+    speaking_rate?: number;
+  }
+): Promise<ApiResponse<{
+  topic: Topic;
+  suggested_input: string;
+}>> => {
+  const url = getApiUrl(`topic-hierarchy/topics/${topicId}/create-content`);
+  const headers = createHeaders('application/json');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify(data || {})
+  });
+  return await handleApiResponse(response);
+};
+
