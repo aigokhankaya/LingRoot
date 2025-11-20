@@ -224,6 +224,7 @@ const AppNavigator = () => {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [navReady, setNavReady] = useState(false);
   const [initialWordId, setInitialWordId] = useState<string | null>(null);
+  const [initialAudioNotification, setInitialAudioNotification] = useState<any | null>(null);
 
   // Store navigation ref globally for direct access from notification service
   useEffect(() => {
@@ -234,51 +235,71 @@ const AppNavigator = () => {
     if (user && navigationRef.current) {
       // Setup notification response handler
       const subscription = NotificationService.setupNotificationResponseHandler((data: string) => {
-        // Navigate only when nav is ready; if not, store for later
-        const doNavigate = () => {
-          try {
-            // Try to parse as audio notification
-            let parsed: any = null;
-            try {
-              parsed = JSON.parse(data);
-            } catch (e) {
-              // Not JSON, treat as wordId
-            }
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(data);
+        } catch {
+          // Non-JSON payloads are treated as vocabulary wordId
+        }
 
-            if (parsed && parsed.type === 'audio_created') {
-              // Navigate to Library screen
-              navigationRef.current?.dispatch(
-                CommonActions.reset({
-                  index: 0,
-                  routes: [
-                    {
-                      name: 'Main',
-                      state: {
-                        routes: [{ name: 'Library' }]
-                      }
+        const isAudioNotification = parsed && parsed.type === 'audio_created' && parsed.data;
+
+        const navigateToAudioFromNotification = (audioData: any) => {
+          try {
+            navigationRef.current?.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'Main',
+                    state: {
+                      routes: [
+                        {
+                          name: 'Library',
+                          params: { notificationAudio: audioData },
+                        },
+                      ],
                     },
-                  ],
-                })
-              );
-            } else {
-              // Treat as wordId for vocabulary
-              const wordId = parsed ? (parsed.wordId || data) : data;
-              navigationRef.current?.dispatch(
-                CommonActions.reset({
-                  index: 1,
-                  routes: [
-                    { name: 'Main' },
-                    { name: 'Vocabulary', params: { wordId } },
-                  ],
-                })
-              );
-            }
+                  },
+                ],
+              })
+            );
           } catch (e) {
-            console.error('Navigation error:', e);
+            console.error('Navigation error (audio notification):', e);
           }
         };
-        if (navReady) doNavigate();
-        else setInitialWordId(String(data));
+
+        const navigateToVocabularyFromNotification = (wordId: string) => {
+          try {
+            navigationRef.current?.dispatch(
+              CommonActions.reset({
+                index: 1,
+                routes: [
+                  { name: 'Main' },
+                  { name: 'Vocabulary', params: { wordId } },
+                ],
+              })
+            );
+          } catch (e) {
+            console.error('Navigation error (vocabulary notification):', e);
+          }
+        };
+
+        if (navReady) {
+          if (isAudioNotification) {
+            navigateToAudioFromNotification(parsed.data);
+          } else {
+            const wordId = parsed ? (parsed.wordId || data) : data;
+            navigateToVocabularyFromNotification(String(wordId));
+          }
+        } else {
+          if (isAudioNotification) {
+            setInitialAudioNotification(parsed.data);
+          } else {
+            const wordId = parsed ? (parsed.wordId || data) : data;
+            setInitialWordId(String(wordId));
+          }
+        }
       });
 
       // Handle cold start: app launched by tapping a notification (iOS only)
@@ -308,11 +329,40 @@ const AppNavigator = () => {
     }
   }, [user, navReady]);
 
-  // When navigation becomes ready or user logs in, consume any pending wordId and navigate
+  // When navigation becomes ready or user logs in, consume any pending notification and navigate
   useEffect(() => {
     if (!user || !navReady || !navigationRef.current) return;
 
-    // 1) From service-queued taps
+    // 1) Audio notification pending while nav was not ready
+    if (initialAudioNotification) {
+      try {
+        navigationRef.current.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [
+              {
+                name: 'Main',
+                state: {
+                  routes: [
+                    {
+                      name: 'Library',
+                      params: { notificationAudio: initialAudioNotification },
+                    },
+                  ],
+                },
+              },
+            ],
+          })
+        );
+      } catch (e) {
+        console.error('Navigation error (initial audio notification):', e);
+      } finally {
+        setInitialAudioNotification(null);
+      }
+      return;
+    }
+
+    // 2) Vocabulary notification pending while nav was not ready
     const pending = NotificationService.consumePendingWordId
       ? NotificationService.consumePendingWordId()
       : null;
@@ -329,7 +379,7 @@ const AppNavigator = () => {
       );
       setInitialWordId(null);
     }
-  }, [user, navReady, initialWordId]);
+  }, [user, navReady, initialWordId, initialAudioNotification]);
 
   if (isLoading) {
     return <LoadingScreen />;

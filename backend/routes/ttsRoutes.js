@@ -112,17 +112,22 @@ router.post(
         try {
           jobQueue.updateJob(job.id, { status: 'processing', progress: 10 });
 
-          // Create a mock request/response for handleTTSRequest
-          const mockReq = {
-            ...req,
-            body: job.data.requestBody,
-            file: job.data.file ? {
-              originalname: job.data.file.originalname,
-              mimetype: job.data.file.mimetype,
-              buffer: job.data.file.buffer
-            } : null,
-            user: req.user
-          };
+          // Create a mock request/response for handleTTSRequest, preserving Express helpers like req.is()
+          const mockReq = Object.assign(
+            Object.create(Object.getPrototypeOf(req)),
+            req,
+            {
+              body: job.data.requestBody,
+              file: job.data.file
+                ? {
+                    originalname: job.data.file.originalname,
+                    mimetype: job.data.file.mimetype,
+                    buffer: job.data.file.buffer,
+                  }
+                : null,
+              user: req.user,
+            }
+          );
 
           let ttsResult = null;
           const mockRes = {
@@ -130,7 +135,7 @@ router.post(
             json: (data) => {
               ttsResult = data;
               return mockRes;
-            }
+            },
           };
 
           // Call the actual TTS handler
@@ -155,7 +160,17 @@ router.post(
                 mp3_url: ttsResult.mp3_url,
                 title: ttsResult.adapted_text || ttsResult.translated_text || 'Yeni Ses',
                 level: ttsResult.level,
-                duration: ttsResult.real_duration
+                duration: ttsResult.real_duration,
+                // Highlight & text metadata for mobile client
+                words: Array.isArray(ttsResult.words) ? ttsResult.words : [],
+                timepoints: Array.isArray(ttsResult.timepoints) ? ttsResult.timepoints : [],
+                translated_text: ttsResult.translated_text,
+                adapted_text: ttsResult.adapted_text,
+                // Use original request body for original Turkish text so mobile can show it immediately
+                original_turkish:
+                  (job?.data?.requestBody &&
+                    (job.data.requestBody.input || job.data.requestBody.text)) ||
+                  ''
               }
             });
 

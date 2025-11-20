@@ -151,6 +151,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   
   useEffect(() => {
     setOriginalText(track.original_turkish || '');
+    console.log('[AudioPlayer] track.original_turkish updated:', {
+      id: track.id,
+      hasOriginalTurkish: !!track.original_turkish,
+      originalTurkishLength: track.original_turkish ? track.original_turkish.length : 0,
+    });
     
     // Debug: Log track timing info
     console.log('📊 Track Info:', {
@@ -1107,6 +1112,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             const idx = Math.round((e.nativeEvent.contentOffset.x || 0) / screenWidth);
             setPageIndex(idx);
             if (idx === 1 && !originalText && !originalLoading) {
+              // Önce notification'dan gelen track.original_turkish'i kullanmayı dene
+              if (track.original_turkish) {
+                console.log('[AudioPlayer] Using track.original_turkish for originalText on first open:', {
+                  id: track.id,
+                  length: track.original_turkish.length,
+                });
+                setOriginalText(track.original_turkish);
+                return;
+              }
+
+              // Eğer track.original_turkish yoksa, backend'den içeriği çekmeye çalış
               try {
                 setOriginalLoading(true);
                 const res = await apiService.getUserContentById(track.id);

@@ -714,9 +714,31 @@ const CreateScreen: React.FC = () => {
         return;
       }
     } catch (e: any) {
-      // Silent check
+      // Silent check - hata olursa yine de devam edip async isteği deneriz
     }
 
+    // Async işlem uyarısı göster
+    Alert.alert(
+      language === 'tr' ? '⏳ Ses Oluşturuluyor' : '⏳ Creating Audio',
+      language === 'tr'
+        ? 'İşleminiz birkaç dakika sürebilir. Ses oluşturulduktan sonra bildirim alacaksınız.\n\nUygulamayı kapatabilirsiniz, işlem arka planda devam edecektir.'
+        : 'Your request may take a few minutes. You will receive a notification when the audio is ready.\n\nYou can close the app, the process will continue in the background.',
+      [
+        {
+          text: language === 'tr' ? 'Tamam' : 'OK',
+          onPress: () => {
+            handleAsyncAudioCreation();
+          },
+        },
+        {
+          text: language === 'tr' ? 'İptal' : 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const handleAsyncAudioCreation = async () => {
     // Suggestion mode: if no input yet, rewrite the topic/suggestion into narration text first
     let effectiveInputText = inputText;
     if (mode === 'suggestion' && !effectiveInputText.trim()) {
@@ -754,10 +776,8 @@ const CreateScreen: React.FC = () => {
 
     setIsLoading(true);
     try {
-      let response: any;
-
       if (mode === 'file' && selectedFile) {
-        // File upload process - SYNC
+        // File upload process - ASYNC
         const formData = new FormData();
         formData.append('file', {
           uri: selectedFile.uri,
@@ -775,9 +795,21 @@ const CreateScreen: React.FC = () => {
         formData.append('gender', selectedGender);
         formData.append('accent', selectedAccent);
 
-        response = await apiService.processFileToSpeech(formData);
+        const response = await apiService.processFileToSpeechAsync(formData);
+
+        if (response.success) {
+          setSelectedFile(null);
+          Alert.alert(
+            language === 'tr' ? '✅ İşlem Başlatıldı' : '✅ Processing Started',
+            language === 'tr'
+              ? `Sesiniz arka planda oluşturuluyor. ${response.estimatedTime} içinde bildirim alacaksınız.`
+              : `Your audio is being created in the background. You'll receive a notification in ${response.estimatedTime}.`
+          );
+        } else {
+          Alert.alert(t('common.error'), t('create.alerts.fileProcessFailed'));
+        }
       } else {
-        // Text/Book processing - SYNC
+        // Text/Book processing - ASYNC
         const textToProcess = mode === 'book' ? selectedChapterText : effectiveInputText;
         const request: TTSRequest = {
           type: 'text',
@@ -791,58 +823,33 @@ const CreateScreen: React.FC = () => {
           accent: selectedAccent as any,
         };
 
-        console.log('🎯 [CREATE] Calling processTextToSpeech (Sync)...');
-        response = await apiService.processTextToSpeech(request);
-      }
+        console.log('🎯 [CREATE] Calling processTextToSpeechAsync...');
+        const response = await apiService.processTextToSpeechAsync(request);
 
-      if (response && (response.success || response.mp3_url)) {
-        // Create track object
-        const track: AudioTrack = {
-          id: Date.now().toString(),
-          title: mode === 'file' ? selectedFile.name : (mode === 'book' ? (selectedBook?.title || 'Book Chapter') : (effectiveInputText.slice(0, 30) + (effectiveInputText.length > 30 ? '...' : ''))),
-          url: response.mp3_url || '',
-          level: response.level || selectedLevel,
-          duration: response.real_duration || response.estimated_duration || 0,
-          created_at: new Date().toISOString(),
-          original_turkish: response.original_turkish,
-          translated_text: response.translated_text || response.translatedText,
-          adapted_text: response.adapted_text || response.adaptedText,
-          timepoints: response.timepoints,
-          words: response.words,
-          mp3_url: response.mp3_url,
-        };
+        if (response.success) {
+          if (mode === 'text' || mode === 'suggestion' || mode === 'youtube') {
+            setInputText('');
+          } else if (mode === 'book') {
+            setSelectedBook(null);
+            setSelectedChapterId(null);
+            setSelectedChapterText('');
+          }
 
-        setCreatedTrack(track);
-        setShowPlayer(true);
-
-        // Clear inputs on success
-        if (mode === 'text' || mode === 'suggestion' || mode === 'youtube') {
-          setInputText('');
-        } else if (mode === 'file') {
-          setSelectedFile(null);
-        } else if (mode === 'book') {
-          setSelectedBook(null);
-          setSelectedChapterId(null);
-          setSelectedChapterText('');
+          Alert.alert(
+            language === 'tr' ? '✅ İşlem Başlatıldı' : '✅ Processing Started',
+            language === 'tr'
+              ? `Sesiniz arka planda oluşturuluyor. ${response.estimatedTime} içinde bildirim alacaksınız.`
+              : `Your audio is being created in the background. You'll receive a notification in ${response.estimatedTime}.`
+          );
+        } else {
+          Alert.alert(t('common.error'), t('create.alerts.audioCreateFailed'));
         }
-      } else {
-        throw new Error(response?.message || 'İşlem başarısız');
       }
-
     } catch (error: any) {
-      console.error('🔴 [CREATE SYNC] Error:', error);
+      console.error('🔴 [CREATE ASYNC] Error:', error);
 
       const emsg = error?.message || '';
-
-      // Treat network errors as "background processing" since the server continues working
-      if (emsg.includes('Bağlantı hatası') || emsg.includes('Network Error')) {
-        Alert.alert(
-          language === 'tr' ? '✅ İşlem Devam Ediyor' : '✅ Processing Continues',
-          language === 'tr'
-            ? 'İşlem arka planda devam ediyor. Sesiniz hazır olduğunda kütüphanenizde görünecektir.'
-            : 'Processing continues in the background. Your audio will appear in your library when ready.'
-        );
-      } else if (
+      if (
         emsg.includes('Aktif paketiniz yok') ||
         emsg.includes('kullanım sınırınız aşıldı') ||
         emsg.includes('USAGE_LIMIT_EXCEEDED') ||

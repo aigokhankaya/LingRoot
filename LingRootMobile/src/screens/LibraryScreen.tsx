@@ -13,7 +13,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, CEFRLevel } from '../types';
 import { apiService } from '../services/api';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAudioContext } from '../contexts/AudioContext';
@@ -21,6 +21,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import AudioPlayer from '../components/AudioPlayer';
 
 const LibraryScreen: React.FC = () => {
+  const route = useRoute<any>();
+  const navigation = useNavigation<any>();
   const { isTrackPlaying, currentTrack, isPlaying } = useAudioContext();
   const { t, language } = useLanguage();
   const [searchText, setSearchText] = useState('');
@@ -44,6 +46,67 @@ const LibraryScreen: React.FC = () => {
   const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('word');
 
   const levels: (CEFRLevel | 'all')[] = ['all', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+
+  // Handle navigation from audio_created notification
+  useEffect(() => {
+    const params: any = (route as any).params || {};
+    const audioData = params.notificationAudio;
+
+    if (!audioData) {
+      return;
+    }
+
+    try {
+      console.log('[Library][Notification] Received notificationAudio:', {
+        keys: Object.keys(audioData || {}),
+        hasOriginalTurkish: !!audioData?.original_turkish,
+        originalTurkishLength: audioData?.original_turkish ? String(audioData.original_turkish).length : 0,
+      });
+
+      const track: AudioTrack = {
+        id: String(audioData.audioId || audioData.id || Date.now().toString()),
+        title: audioData.title || 'Yeni Ses',
+        url: audioData.mp3_url || audioData.url || '',
+        level: (audioData.level || 'B1') as CEFRLevel,
+        duration: typeof audioData.duration === 'number' ? audioData.duration : 180,
+        created_at: audioData.created_at || new Date().toISOString(),
+        input_type: audioData.input_type,
+        translated_text: audioData.translated_text,
+        adapted_text: audioData.adapted_text,
+        original_turkish: audioData.original_turkish || '',
+        mp3_url: audioData.mp3_url || audioData.url,
+        timepoints: Array.isArray(audioData.timepoints) ? audioData.timepoints : [],
+        words: Array.isArray(audioData.words) ? audioData.words : [],
+      };
+
+      console.log('[Library][Notification] Created track from notification:', {
+        id: track.id,
+        level: track.level,
+        hasOriginalTurkish: !!track.original_turkish,
+        originalTurkishLength: track.original_turkish ? track.original_turkish.length : 0,
+      });
+
+      // Optionally prepend to list if not already present
+      const exists = audioTracksRef.current.some(t => t.id === track.id);
+      if (!exists) {
+        const merged = [track, ...audioTracksRef.current];
+        audioTracksRef.current = merged;
+        setAudioTracks(merged);
+      }
+
+      setSelectedTrack(track);
+      setPlayerVisible(true);
+    } catch (e) {
+      // Silent error - player will not open if something goes wrong
+    } finally {
+      // Clear param so it doesn't trigger again on re-render
+      try {
+        navigation.setParams({ notificationAudio: undefined });
+      } catch {
+        // ignore
+      }
+    }
+  }, [route, navigation]);
 
   // Fetch audio history from API
   const fetchAudioHistory = async (showLoading = true, nextPage?: number) => {

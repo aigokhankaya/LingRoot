@@ -1,8 +1,13 @@
 import { EXPO_PUBLIC_API_URL } from '@env';
 
-// Read from .env or use defaults
-const resolvedApiUrl = (EXPO_PUBLIC_API_URL || '').trim();
-const resolvedProductionUrl = resolvedApiUrl.startsWith('http') ? resolvedApiUrl : '';
+const DEV_FALLBACK_URL = 'http://192.168.1.4:5001';
+
+const rawEnvUrl = (EXPO_PUBLIC_API_URL || '').trim();
+const isValidEnvUrl = rawEnvUrl.startsWith('http');
+const isDev = typeof __DEV__ !== 'undefined' && __DEV__;
+
+const resolvedApiUrl = isValidEnvUrl ? rawEnvUrl : (isDev ? DEV_FALLBACK_URL : '');
+const resolvedProductionUrl = resolvedApiUrl;
 
 if (resolvedProductionUrl) {
   console.log('🌐 [ENV CONFIG] Using EXPO_PUBLIC_API_URL:', resolvedProductionUrl);
