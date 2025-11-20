@@ -56,56 +56,120 @@ const LibraryScreen: React.FC = () => {
       return;
     }
 
-    try {
-      console.log('[Library][Notification] Received notificationAudio:', {
-        keys: Object.keys(audioData || {}),
-        hasOriginalTurkish: !!audioData?.original_turkish,
-        originalTurkishLength: audioData?.original_turkish ? String(audioData.original_turkish).length : 0,
-      });
-
-      const track: AudioTrack = {
-        id: String(audioData.audioId || audioData.id || Date.now().toString()),
-        title: audioData.title || 'Yeni Ses',
-        url: audioData.mp3_url || audioData.url || '',
-        level: (audioData.level || 'B1') as CEFRLevel,
-        duration: typeof audioData.duration === 'number' ? audioData.duration : 180,
-        created_at: audioData.created_at || new Date().toISOString(),
-        input_type: audioData.input_type,
-        translated_text: audioData.translated_text,
-        adapted_text: audioData.adapted_text,
-        original_turkish: audioData.original_turkish || '',
-        mp3_url: audioData.mp3_url || audioData.url,
-        timepoints: Array.isArray(audioData.timepoints) ? audioData.timepoints : [],
-        words: Array.isArray(audioData.words) ? audioData.words : [],
-      };
-
-      console.log('[Library][Notification] Created track from notification:', {
-        id: track.id,
-        level: track.level,
-        hasOriginalTurkish: !!track.original_turkish,
-        originalTurkishLength: track.original_turkish ? track.original_turkish.length : 0,
-      });
-
-      // Optionally prepend to list if not already present
-      const exists = audioTracksRef.current.some(t => t.id === track.id);
-      if (!exists) {
-        const merged = [track, ...audioTracksRef.current];
-        audioTracksRef.current = merged;
-        setAudioTracks(merged);
-      }
-
-      setSelectedTrack(track);
-      setPlayerVisible(true);
-    } catch (e) {
-      // Silent error - player will not open if something goes wrong
-    } finally {
-      // Clear param so it doesn't trigger again on re-render
+    const resolveNotificationAudio = async () => {
       try {
-        navigation.setParams({ notificationAudio: undefined });
-      } catch {
-        // ignore
+        console.log('[Library][Notification] Received notificationAudio:', {
+          keys: Object.keys(audioData || {}),
+          hasOriginalTurkish: !!audioData?.original_turkish,
+          originalTurkishLength: audioData?.original_turkish ? String(audioData.original_turkish).length : 0,
+          hasWords: Array.isArray(audioData?.words),
+          hasTimepoints: Array.isArray(audioData?.timepoints),
+        });
+
+        let source: any = audioData;
+
+        // If we only received a small summary (from FCM), hydrate full data from backend
+        const needsHydration = (
+          !Array.isArray(audioData.timepoints) || audioData.timepoints.length === 0 ||
+          !Array.isArray(audioData.words) || audioData.words.length === 0 ||
+          !audioData.original_turkish
+        );
+
+        const audioId = audioData.audioId || audioData.id;
+
+        if (needsHydration && audioId) {
+          try {
+            const res: any = await apiService.getUserContentById(String(audioId));
+            if (res?.success && res?.data) {
+              const backendData = res.data;
+              let words = backendData.words;
+              let timepoints = backendData.timepoints;
+
+              try {
+                if (typeof words === 'string') {
+                  words = JSON.parse(words);
+                }
+              } catch {}
+
+              try {
+                if (typeof timepoints === 'string') {
+                  timepoints = JSON.parse(timepoints);
+                }
+              } catch {}
+
+              source = {
+                ...audioData,
+                ...backendData,
+                words: Array.isArray(words) ? words : (audioData.words || []),
+                timepoints: Array.isArray(timepoints) ? timepoints : (audioData.timepoints || []),
+                original_turkish:
+                  backendData.original_turkish ||
+                  backendData.input ||
+                  audioData.original_turkish ||
+                  '',
+                mp3_url: backendData.mp3_url || audioData.mp3_url || audioData.url,
+              };
+
+              console.log('[Library][Notification] Hydrated audio data from backend:', {
+                id: source.id || audioId,
+                hasOriginalTurkish: !!source.original_turkish,
+                wordsLength: Array.isArray(source.words) ? source.words.length : 0,
+                timepointsLength: Array.isArray(source.timepoints) ? source.timepoints.length : 0,
+              });
+            }
+          } catch (e) {
+            console.log('[Library][Notification] Failed to hydrate notification audio from backend:', e);
+          }
+        }
+
+        const track: AudioTrack = {
+          id: String(source.audioId || source.id || Date.now().toString()),
+          title: source.title || source.adapted_text || source.translated_text || 'Yeni Ses',
+          url: source.mp3_url || source.url || '',
+          level: (source.level || 'B1') as CEFRLevel,
+          duration: typeof source.duration === 'number' ? source.duration : 180,
+          created_at: source.created_at || new Date().toISOString(),
+          input_type: source.input_type,
+          translated_text: source.translated_text,
+          adapted_text: source.adapted_text,
+          original_turkish: source.original_turkish || '',
+          mp3_url: source.mp3_url || source.url,
+          timepoints: Array.isArray(source.timepoints) ? source.timepoints : [],
+          words: Array.isArray(source.words) ? source.words : [],
+        };
+
+        console.log('[Library][Notification] Created track from notification:', {
+          id: track.id,
+          level: track.level,
+          hasOriginalTurkish: !!track.original_turkish,
+          originalTurkishLength: track.original_turkish ? track.original_turkish.length : 0,
+          words: Array.isArray(track.words) ? track.words.length : 0,
+          timepoints: Array.isArray(track.timepoints) ? track.timepoints.length : 0,
+        });
+
+        // Optionally prepend to list if not already present
+        const exists = audioTracksRef.current.some(t => t.id === track.id);
+        if (!exists) {
+          const merged = [track, ...audioTracksRef.current];
+          audioTracksRef.current = merged;
+          setAudioTracks(merged);
+        }
+
+        setSelectedTrack(track);
+        setPlayerVisible(true);
+      } catch (e) {
+        // Silent error - player will not open if something goes wrong
+      } finally {
+        // Clear param so it doesn't trigger again on re-render
+        try {
+          navigation.setParams({ notificationAudio: undefined });
+        } catch {
+          // ignore
+        }
       }
-    }
+    };
+
+    resolveNotificationAudio();
   }, [route, navigation]);
 
   // Fetch audio history from API

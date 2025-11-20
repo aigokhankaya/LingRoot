@@ -717,25 +717,7 @@ const CreateScreen: React.FC = () => {
       // Silent check - hata olursa yine de devam edip async isteği deneriz
     }
 
-    // Async işlem uyarısı göster
-    Alert.alert(
-      language === 'tr' ? '⏳ Ses Oluşturuluyor' : '⏳ Creating Audio',
-      language === 'tr'
-        ? 'İşleminiz birkaç dakika sürebilir. Ses oluşturulduktan sonra bildirim alacaksınız.\n\nUygulamayı kapatabilirsiniz, işlem arka planda devam edecektir.'
-        : 'Your request may take a few minutes. You will receive a notification when the audio is ready.\n\nYou can close the app, the process will continue in the background.',
-      [
-        {
-          text: language === 'tr' ? 'Tamam' : 'OK',
-          onPress: () => {
-            handleAsyncAudioCreation();
-          },
-        },
-        {
-          text: language === 'tr' ? 'İptal' : 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
+    handleAsyncAudioCreation();
   };
 
   const handleAsyncAudioCreation = async () => {

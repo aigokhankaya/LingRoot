@@ -69,12 +69,40 @@ const MainTabs = () => {
       try {
         const notifications = await apiService.getUnreadNotifications();
 
-        // Show local notifications for each unread notification
         for (const notification of notifications) {
-          if (notification.type === 'audio_created') {
-            await NotificationService.showAudioCreatedNotification(notification.data);
-            // Mark as read
-            await apiService.markNotificationAsRead(notification.id);
+          if (notification.type === 'audio_created' && notification.data) {
+            try {
+              // Navigate to Library with notificationAudio so LibraryScreen can open AudioPlayer
+              const navRef = (global as any).__NAVIGATION_REF__;
+              if (navRef?.current) {
+                const { CommonActions } = require('@react-navigation/native');
+                navRef.current.dispatch(
+                  CommonActions.reset({
+                    index: 0,
+                    routes: [
+                      {
+                        name: 'Main',
+                        state: {
+                          routes: [
+                            {
+                              name: 'Library',
+                              params: { notificationAudio: notification.data },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  })
+                );
+              }
+            } catch (navError) {
+            }
+
+            // Mark as read so we don't handle this notification again
+            try {
+              await apiService.markNotificationAsRead(notification.id);
+            } catch (markErr) {
+            }
           }
         }
       } catch (error) {
@@ -233,6 +261,11 @@ const AppNavigator = () => {
 
   useEffect(() => {
     if (user && navigationRef.current) {
+      try {
+        (NotificationService as any).initialize?.();
+      } catch {
+      }
+
       // Setup notification response handler
       const subscription = NotificationService.setupNotificationResponseHandler((data: string) => {
         let parsed: any = null;

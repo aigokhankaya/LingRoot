@@ -96,3 +96,6 @@ LingRootMobile/android/build/
 *.so
 *.a
 *.o
+
+
+backend/service-accounts/*.json

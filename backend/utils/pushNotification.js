@@ -1,6 +1,7 @@
 // Push notification utility for sending notifications to mobile devices
 const logger = require('./logger');
 const { supabase } = require('./supabaseClient');
+const { getMessaging } = require('./firebaseAdmin');
 
 /**
  * Send push notification to user's device
@@ -37,9 +38,109 @@ async function sendPushNotification(userId, notification) {
 
     logger.info(`[PushNotification] Notification stored successfully:`, data);
 
-    // TODO: In production, integrate with FCM (Firebase Cloud Messaging) or APNs
-    // For now, we're using database polling approach
-    
+    // Send real-time push via FCM to all active device tokens for this user
+    try {
+      const messaging = getMessaging();
+      if (!messaging) {
+        logger.warn('[PushNotification] Firebase messaging not available; skipping FCM send');
+        return { success: true, data };
+      }
+
+      const { data: tokens, error: tokensError } = await supabase
+        .from('device_tokens')
+        .select('id, platform, token, is_active')
+        .eq('user_id', userId)
+        .eq('is_active', true);
+
+      if (tokensError) {
+        logger.error('[PushNotification] Error fetching device tokens for FCM:', tokensError);
+        return { success: true, data };
+      }
+
+      const registrationTokens = (tokens || [])
+        .map((t) => t && t.token)
+        .filter((t) => typeof t === 'string' && t.trim().length > 0);
+
+      if (!registrationTokens.length) {
+        logger.info('[PushNotification] No active device tokens found for user; skipping FCM send');
+        return { success: true, data };
+      }
+
+      const dataPayload = {
+        type: notification.type || 'general',
+      };
+
+      if (notification.data) {
+        if (notification.type === 'audio_created' || notification.type === 'audio_failed') {
+          // FCM data payload 4KB limitine takılmamak için sadece özet alanları gönder
+          const {
+            jobId,
+            audioId,
+            mp3_url,
+            title,
+            level,
+            duration,
+          } = notification.data || {};
+
+          dataPayload.audioData = JSON.stringify({
+            jobId,
+            audioId,
+            mp3_url,
+            title,
+            level,
+            duration,
+          });
+        } else {
+          // Diğer tipler için de payload'ı küçük tutmaya çalış
+          dataPayload.payload = JSON.stringify(notification.data);
+        }
+      }
+
+      const message = {
+        tokens: registrationTokens,
+        notification: {
+          title: notification.title,
+          body: notification.body,
+        },
+        data: dataPayload,
+      };
+
+      const fcmResult = await messaging.sendEachForMulticast(message);
+      logger.info('[PushNotification] FCM send result: ' + JSON.stringify({
+        successCount: fcmResult.successCount,
+        failureCount: fcmResult.failureCount,
+      }));
+      try {
+        logger.info('[PushNotification] FCM raw result: ' + JSON.stringify(fcmResult));
+      } catch (jsonErr) {
+        logger.warn('[PushNotification] Failed to stringify FCM result:', jsonErr);
+      }
+
+      if (fcmResult.failureCount > 0 && Array.isArray(fcmResult.responses)) {
+        const failures = fcmResult.responses
+          .map((resp, index) => {
+            if (!resp.error) return null;
+            return {
+              index,
+              token: registrationTokens[index],
+              code: resp.error.code,
+              message: resp.error.message,
+            };
+          })
+          .filter(Boolean);
+
+        if (failures.length > 0) {
+          try {
+            logger.warn('[PushNotification] FCM send failures (detailed): ' + JSON.stringify(failures));
+          } catch (jsonErr) {
+            logger.warn('[PushNotification] FCM send failures (raw object):', failures);
+          }
+        }
+      }
+    } catch (fcmError) {
+      logger.error('[PushNotification] Error sending FCM notification:', fcmError);
+    }
+
     return { success: true, data };
   } catch (error) {
     logger.error(`[PushNotification] Error sending notification:`, error);

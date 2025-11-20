@@ -4,6 +4,7 @@ import { authService } from '../services/supabase';
 import { apiService } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationService from '../services/notificationService';
+import { registerPushTokenWithBackend, setupPushTokenRefreshListener } from '../services/pushTokenService';
 import { 
   signInWithGoogle, 
   signInWithFacebook, 
@@ -186,6 +187,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             } catch (error) {
               // silent in production
             }
+
+            // Register FCM/APNs device token for push notifications
+            try {
+              await registerPushTokenWithBackend();
+              setupPushTokenRefreshListener();
+            } catch {
+              // Push token hatası uygulamayı bozmasın
+            }
           } else {
             const errorText = await response.text();
             if (response.status === 401) {
@@ -302,6 +311,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log('✅ [AUTH] Environment config refreshed after login');
         } catch (envError) {
           console.log('⚠️ [AUTH] Failed to refresh environment config:', envError);
+        }
+
+        // Backend oturumu kurulduktan sonra push token kaydını yap
+        try {
+          await registerPushTokenWithBackend();
+          setupPushTokenRefreshListener();
+        } catch {
+          // Push token hatası uygulamayı bozmasın
         }
         
         setIsLoading(false);
@@ -432,6 +449,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       
       setUser(appUser);
+
+      // Backend oturumu kurulduktan sonra push token kaydını yap
+      try {
+        await registerPushTokenWithBackend();
+        setupPushTokenRefreshListener();
+      } catch {
+        // Push token hatası uygulamayı bozmasın
+      }
     } else {
       throw new Error(data.message || 'Sosyal giriş başarısız');
     }
