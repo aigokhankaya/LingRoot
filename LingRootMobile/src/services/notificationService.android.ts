@@ -65,6 +65,7 @@ class NotificationService {
       PushNotification.configure({
         onNotification: (notification: any) => {
           try {
+            console.log('[NotificationService][Android] onNotification:', notification);
             const userInfo = notification?.userInfo || notification?.data || {};
             
             // Handle audio creation notification
@@ -73,8 +74,41 @@ class NotificationService {
                 ? JSON.parse(userInfo.audioData) 
                 : userInfo.audioData;
               
+              console.log('[NotificationService][Android] Audio notification detected, audioData:', audioData);
+              
               if (this.responseCallback && audioData) {
+                console.log('[NotificationService][Android] Calling responseCallback');
                 this.responseCallback(JSON.stringify({ type: 'audio_created', data: audioData }));
+              } else {
+                console.log('[NotificationService][Android] No responseCallback, using global navigation');
+                // Fallback: use global navigation ref if callback not set
+                const navRef = (global as any).__NAVIGATION_REF__;
+                if (navRef?.current && audioData) {
+                  try {
+                    const { CommonActions } = require('@react-navigation/native');
+                    navRef.current.dispatch(
+                      CommonActions.reset({
+                        index: 0,
+                        routes: [
+                          {
+                            name: 'Main',
+                            state: {
+                              routes: [
+                                {
+                                  name: 'Library',
+                                  params: { notificationAudio: audioData },
+                                },
+                              ],
+                            },
+                          },
+                        ],
+                      })
+                    );
+                    console.log('[NotificationService][Android] Navigation dispatched via global ref');
+                  } catch (navError) {
+                    console.error('[NotificationService][Android] Navigation error:', navError);
+                  }
+                }
               }
               return;
             }
@@ -304,11 +338,17 @@ class NotificationService {
         message: audioData.title || 'Sesiniz hazır. Dinlemek için tıklayın.',
         playSound: true,
         soundName: 'default',
+        // iOS ekstra verileri userInfo üzerinden alıyor
         userInfo: { 
           type: 'audio_created',
           audioData: JSON.stringify(audioData)
         } as any,
-      });
+        // Android ise data alanını kullanıyor, bu yüzden aynısını buraya da yazıyoruz
+        data: {
+          type: 'audio_created',
+          audioData: JSON.stringify(audioData)
+        } as any,
+      } as any);
     } catch (error) {
       console.error('[NotificationService] Error showing audio notification:', error);
     }
