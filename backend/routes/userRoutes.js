@@ -548,12 +548,6 @@ router.get('/users/content/:id', authenticate, async (req, res) => {
   }
 });
 
-// Test endpoint for debugging
-router.get('/test-reminder', (req, res) => {
-  res.json({ success: true, message: 'Reminder test endpoint works!' });
-});
-
-// Reminder Settings endpoints
 router.get('/reminder-settings', authenticate, async (req, res) => {
   try {
     logger.info(`🔍 [DEBUG] Getting reminder settings for user: ${req.user.id}`);
@@ -634,7 +628,7 @@ router.post('/reminder-settings', authenticate, async (req, res) => {
 
     const { error: updateError } = await supabase
       .from('users')
-      .update({ reminder_settings: reminderSettings })
+      .update({ reminder_settings: JSON.stringify(reminderSettings) })
       .eq('id', req.user.id);
 
     if (updateError) {
@@ -658,6 +652,48 @@ router.post('/reminder-settings', authenticate, async (req, res) => {
       success: false,
       message: 'Hatırlatma ayarları kaydedilemedi'
     });
+  }
+});
+
+// Register or update a device token for push notifications (FCM/APNs)
+router.post('/device-tokens', authenticate, async (req, res) => {
+  try {
+    const { platform, token, deviceId, appVersion } = req.body || {};
+
+    if (!token || typeof token !== 'string' || !token.trim()) {
+      return res.status(400).json({ success: false, message: 'Geçersiz device token' });
+    }
+
+    const normalizedPlatform = (platform || '').toString().toLowerCase();
+    if (normalizedPlatform !== 'android' && normalizedPlatform !== 'ios') {
+      return res.status(400).json({ success: false, message: 'Geçersiz platform (android/ios olmalı)' });
+    }
+
+    const payload = {
+      user_id: req.user.id,
+      platform: normalizedPlatform,
+      token: token.trim(),
+      device_id: deviceId || null,
+      app_version: appVersion || null,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('device_tokens')
+      .upsert(payload, { onConflict: 'user_id,platform,token' })
+      .select('id, platform, token, is_active')
+      .single();
+
+    if (error) {
+      logger.error('Error saving device token:', error);
+      return res.status(500).json({ success: false, message: 'Device token kaydedilemedi' });
+    }
+
+    return res.json({ success: true, data });
+  } catch (e) {
+    logger.error('Unexpected error saving device token:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

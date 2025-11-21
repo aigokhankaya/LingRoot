@@ -6,3 +6,5 @@ google-credentials.json
 *.env
 lingroot.env
 .env
+
+backend/service-accounts/*.json

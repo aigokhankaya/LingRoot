@@ -114,7 +114,8 @@ Android Lokal test:
     1) Önce Telefonu kablo ile bağla
     2) Set-Alias adb "C:\Users\enesy\AppData\Local\Android\Sdk\platform-tools\adb.exe"
     3) adb reverse tcp:8081 tcp:8081
-    4) F:\Main\LingRootMobile> npx react-native run-android
+    4) npx react-native start --reset-cache (temiz başlangıç için)
+    5) F:\Main\LingRootMobile> npx react-native run-android (4.maddeyi çalıştırdıysa ayrı bir terminalde bunu çalıştır)
 
 Uygulamada açılmazsa:
     Uygulamada "RELOAD (R, R)" butonuna basın veya telefonu sallayın
@@ -147,7 +148,7 @@ curl https://api.booklevel.store/api/health
 curl http://localhost:5001/api/health
 
 # Açık olan backendi kapatıyoruz:
-etstat -ano | findstr ":5001"
+netstat -ano | findstr ":5001"
     gelen çıktı:TCP    0.0.0.0:5001           0.0.0.0:0              LISTENING       34580
-Stop-Process -Id 34580
+Stop-Process -Id 33808
 

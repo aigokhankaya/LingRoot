@@ -856,6 +856,20 @@ export const apiService = {
       throw new Error(error.response?.data?.message || 'Pattern geçmişi yüklenemedi');
     }
   },
+
+  async registerDeviceToken(payload: { platform: 'android' | 'ios'; token: string; deviceId?: string | null; appVersion?: string }): Promise<boolean> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post('/api/device-tokens', payload);
+      return !!response.data?.success;
+    } catch (error: any) {
+      // Push token kaydı başarısız olursa uygulamayı bozmayalım
+      try {
+        console.error('Error registering device token:', error);
+      } catch {}
+      return false;
+    }
+  },
 };
 
 // Vocabulary API functions
