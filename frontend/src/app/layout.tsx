@@ -8,9 +8,9 @@ export const metadata: Metadata = {
   title: 'LingRoot - AI-powered English Learning',
   description: 'Learn English with AI-powered audio content',
   icons: {
-    icon: '/lingroot-icon.svg',
-    shortcut: '/lingroot-icon.svg',
-    apple: '/lingroot-icon.svg',
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
   },
 };
 
@@ -22,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="icon" href="/lingroot-icon.svg" />
+        <link rel="icon" href="/favicon.ico" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">

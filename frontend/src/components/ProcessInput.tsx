@@ -109,7 +109,7 @@ export default function ProcessInput(): React.ReactElement {
       </div>
       {/* Temizlenmiş transcript ve TTS */}
       {cleanedTranscript && (
-        <div className="mt-2 p-2 bg-blue-50 border rounded text-sm">
+        <div className="mt-2 p-2 bg-primary/5 border border-primary/20 rounded text-sm">
           <b>Temizlenmiş Metin:</b> <br />{cleanedTranscript}
         </div>
       )}
@@ -132,7 +132,7 @@ export default function ProcessInput(): React.ReactElement {
             <button
               type="button"
               key={l}
-              className={`px-4 py-2 rounded-lg font-medium border transition-all duration-200 ${level === l ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}`}
+              className={`px-4 py-2 rounded-lg font-medium border transition-all duration-200 ${level === l ? 'bg-primary/10 text-primary border-primary/40' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}`}
               onClick={() => setLevel(l)}
             >
               {l}

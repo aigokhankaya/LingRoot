@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useTranslation } from '@/lib/i18n';
 
@@ -10,26 +11,39 @@ export default function Header() {
   const { t } = useTranslation();
 
   return (
-    <header className="w-full bg-white shadow-md border-b border-gray-200">
+    <header className="w-full bg-white/90 border-b border-border backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-20">
         {/* Logo */}
-        <Link href="/" className="flex items-center select-none">
-          <span className="font-extrabold text-3xl">
-            <span className="text-blue-600">Ling</span>
-            <span className="text-yellow-400">Root</span>
-          </span>
+        <Link href="/" className="flex items-center select-none space-x-3">
+          <Image
+            src="/lingroot-logo.svg"
+            alt="LingRoot Logo"
+            width={160}
+            height={40}
+            className="hidden sm:block h-10 w-auto"
+          />
+          <Image
+            src="/LingRoot_IconOnly.png"
+            alt="LingRoot Icon"
+            width={40}
+            height={40}
+            className="block sm:hidden h-10 w-10"
+          />
         </Link>
         {/* Menü */}
-        <nav className="flex items-center gap-8 text-lg font-medium text-gray-700">
-          <Link href="#neden" className="hover:text-blue-600 transition-colors">Neden LingRoot?</Link>
-          <Link href="#nasil" className="hover:text-blue-600 transition-colors">Nasıl Çalışır?</Link>
-          <Link href="#yorumlar" className="hover:text-blue-600 transition-colors">Yorumlar</Link>
+        <nav className="flex items-center gap-8 text-sm md:text-base font-medium text-foreground/80">
+          <Link href="#neden" className="hover:text-primary transition-colors">Neden LingRoot?</Link>
+          <Link href="#nasil" className="hover:text-primary transition-colors">Nasıl Çalışır?</Link>
+          <Link href="#yorumlar" className="hover:text-primary transition-colors">Yorumlar</Link>
         </nav>
         {/* Hemen Başla Butonu */}
-        <Link href="/login" className="ml-4 px-6 py-2 bg-yellow-400 hover:bg-yellow-500 text-white font-bold rounded-xl shadow transition-all text-lg">
-          Hemen Başla
+        <Link href="/login" className="ml-4">
+          <Button className="px-6 py-2 text-base font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-md">
+            Hemen Başla
+          </Button>
         </Link>
       </div>
     </header>
   );
-} 
+}
+ 

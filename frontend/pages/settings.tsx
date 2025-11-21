@@ -110,7 +110,7 @@ export default function Settings() {
   if (authLoading) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </main>
     );
   }
@@ -120,7 +120,7 @@ export default function Settings() {
       <main className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="mb-4 text-gray-600">Oturum açmanız gerekiyor.</p>
-          <Link href="/login" className="bg-blue-600 text-white px-6 py-2 rounded-md">Giriş Yap</Link>
+          <Link href="/login" className="bg-primary text-primary-foreground px-6 py-2 rounded-md hover:bg-primary/90">Giriş Yap</Link>
         </div>
       </main>
     );
@@ -139,7 +139,7 @@ export default function Settings() {
                 <FaArrowLeft className="text-xl" />
               </Link>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                <FaCog className="mr-3 text-blue-600" />
+                <FaCog className="mr-3 text-primary" />
                 Ayarlar
               </h1>
             </div>
@@ -171,7 +171,7 @@ export default function Settings() {
                     key={section.id}
                     onClick={() => setActiveSection(section.id)}
                     className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left ${
-                      activeSection === section.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                      activeSection === section.id ? 'bg-primary/5 text-primary font-semibold' : 'text-gray-700 hover:bg-gray-50'
                     }`}
                   >
                     {section.icon}
@@ -190,10 +190,10 @@ export default function Settings() {
                 <div className="space-y-6">
                   <h2 className="text-2xl font-bold mb-6">Profil Bilgileri</h2>
                   <div className="flex items-center space-x-6 mb-8">
-                    <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
+                    <div className="w-24 h-24 bg-gradient-to-br from-primary to-primary/60 rounded-full flex items-center justify-center text-primary-foreground text-3xl font-bold">
                       {displayName.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}
                     </div>
-                    <button className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">
+                    <button className="px-4 py-2 bg-primary/5 text-primary rounded-lg hover:bg-primary/10">
                       <FaCamera className="inline mr-2" />Fotoğraf Değiştir
                     </button>
                   </div>
@@ -201,12 +201,12 @@ export default function Settings() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Ad</label>
                       <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Adınız" />
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="Adınız" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Soyad</label>
                       <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Soyadınız" />
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="Soyadınız" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2"><FaEnvelope className="inline mr-2"/>E-posta</label>
@@ -215,12 +215,12 @@ export default function Settings() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2"><FaPhone className="inline mr-2"/>Telefon</label>
                       <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="+90 5xx xxx xx xx" />
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="+90 5xx xxx xx xx" />
                     </div>
                   </div>
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('profile')} disabled={saving}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                      className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
                       <FaSave className="inline mr-2"/>{saving ? 'Kaydediliyor...' : 'Kaydet'}
                     </button>
                   </div>
@@ -234,22 +234,22 @@ export default function Settings() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2"><FaKey className="inline mr-2"/>Mevcut Şifre</label>
                       <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="••••••••" />
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="••••••••" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Yeni Şifre</label>
                       <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="••••••••" />
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="••••••••" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Yeni Şifre (Tekrar)</label>
                       <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="••••••••" />
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="••••••••" />
                     </div>
                   </div>
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('password')} disabled={saving}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                      className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
                       <FaSave className="inline mr-2"/>{saving ? 'Kaydediliyor...' : 'Şifreyi Güncelle'}
                     </button>
                   </div>
@@ -263,7 +263,7 @@ export default function Settings() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2"><FaGlobe className="inline mr-2"/>Arayüz Dili</label>
                       <select value={interfaceLanguage} onChange={(e) => setInterfaceLanguage(e.target.value as 'tr'|'en')}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary">
                         <option value="tr">Türkçe</option>
                         <option value="en">English</option>
                       </select>
@@ -271,7 +271,7 @@ export default function Settings() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2"><FaHeadphones className="inline mr-2"/>Ana Dil (Seslendirme)</label>
                       <select value={nativeLanguage} onChange={(e) => setNativeLanguage(e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary">
                         <option value="tr-TR">Türkçe (TR)</option>
                         <option value="en-US">English (US)</option>
                         <option value="en-GB">English (UK)</option>
@@ -283,7 +283,7 @@ export default function Settings() {
                   </div>
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('language')} disabled={saving}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                      className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
                       <FaSave className="inline mr-2"/>{saving ? 'Kaydediliyor...' : 'Kaydet'}
                     </button>
                   </div>
@@ -299,14 +299,14 @@ export default function Settings() {
                       {(['A1','A2','B1','B2','C1','C2'] as const).map((level) => (
                         <button key={level} onClick={() => setDefaultLevel(level)}
                           className={`px-4 py-3 rounded-lg font-semibold ${
-                            defaultLevel === level ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            defaultLevel === level ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }`}>{level}</button>
                       ))}
                     </div>
                   </div>
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('content')} disabled={saving}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                      className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
                       <FaSave className="inline mr-2"/>{saving ? 'Kaydediliyor...' : 'Kaydet'}
                     </button>
                   </div>
@@ -329,14 +329,14 @@ export default function Settings() {
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <span className="font-medium">Otomatik Oynat</span>
                       <button onClick={() => setAutoPlay(!autoPlay)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full ${autoPlay ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full ${autoPlay ? 'bg-primary' : 'bg-gray-300'}`}>
                         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${autoPlay ? 'translate-x-6' : 'translate-x-1'}`} />
                       </button>
                     </div>
                   </div>
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('audio')} disabled={saving}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                      className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
                       <FaSave className="inline mr-2"/>{saving ? 'Kaydediliyor...' : 'Kaydet'}
                     </button>
                   </div>
@@ -354,7 +354,7 @@ export default function Settings() {
                       <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                         <span className="font-medium">{item.label}</span>
                         <button onClick={() => item.setState(!item.state)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full ${item.state ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full ${item.state ? 'bg-primary' : 'bg-gray-300'}`}>
                           <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${item.state ? 'translate-x-6' : 'translate-x-1'}`} />
                         </button>
                       </div>
@@ -376,14 +376,14 @@ export default function Settings() {
                       ].map((t) => (
                         <button key={t.value} onClick={() => setTheme(t.value as any)}
                           className={`px-6 py-4 rounded-lg font-semibold ${
-                            theme === t.value ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            theme === t.value ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }`}>{t.label}</button>
                       ))}
                     </div>
                   </div>
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('appearance')} disabled={saving}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                      className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
                       <FaSave className="inline mr-2"/>{saving ? 'Kaydediliyor...' : 'Kaydet'}
                     </button>
                   </div>
@@ -400,9 +400,9 @@ export default function Settings() {
               {activeSection === 'subscription' && (
                 <div className="space-y-6">
                   <h2 className="text-2xl font-bold mb-6">Abonelik Bilgileri</h2>
-                  <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg">
-                    <p className="text-gray-700">Mevcut paketiniz: <strong className="text-blue-600">Ücretsiz</strong></p>
-                    <Link href="/fiyatlandirma" className="inline-block mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  <div className="p-6 bg-muted rounded-lg">
+                    <p className="text-gray-700">Mevcut paketiniz: <strong className="text-primary">Ücretsiz</strong></p>
+                    <Link href="/fiyatlandirma" className="inline-block mt-4 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90">
                       Premium'a Yükselt
                     </Link>
                   </div>

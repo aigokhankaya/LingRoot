@@ -84,7 +84,7 @@ export default function EnvironmentSelector() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             <span className="ml-3 text-gray-600">Yükleniyor...</span>
           </div>
         </CardContent>
@@ -183,8 +183,8 @@ export default function EnvironmentSelector() {
           </div>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-          <p className="text-sm text-blue-800">
+        <div className="bg-primary/5 border border-primary/20 rounded-md p-3">
+          <p className="text-sm text-primary">
             <strong>Not:</strong> Ortam değişikliği yaptıktan sonra mobil uygulamayı yeniden başlatmanız gerekir. 
             Uygulama başlangıcında yeni ortam ayarını otomatik olarak alacaktır.
           </p>

@@ -223,7 +223,7 @@ const DestekPage: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open': return 'bg-blue-100 text-blue-800';
+      case 'open': return 'bg-primary/10 text-primary';
       case 'in_progress': return 'bg-yellow-100 text-yellow-800';
       case 'waiting': return 'bg-orange-100 text-orange-800';
       case 'resolved': return 'bg-green-100 text-green-800';
@@ -308,7 +308,7 @@ const DestekPage: React.FC = () => {
                 href={`/api/chat/attachments/${attachment.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm font-medium text-blue-600 hover:text-blue-800 truncate block"
+                className="text-sm font-medium text-primary hover:text-primary/80 truncate block"
               >
                 {attachment.filename}
               </a>
@@ -324,7 +324,7 @@ const DestekPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-gray-600">Yükleniyor...</p>
         </div>
       </div>
@@ -355,7 +355,7 @@ const DestekPage: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowNewConversation(true)}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
               >
                 Yeni Talep
               </button>
@@ -384,7 +384,7 @@ const DestekPage: React.FC = () => {
                         key={conversation.id}
                         onClick={() => handleConversationSelect(conversation.id)}
                         className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
-                          selectedConversation === conversation.id ? 'bg-indigo-50 border-indigo-200' : ''
+                          selectedConversation === conversation.id ? 'bg-primary/5 border-primary/20' : ''
                         }`}
                       >
                         <div className="flex justify-between items-start mb-2">
@@ -431,7 +431,7 @@ const DestekPage: React.FC = () => {
                           <div
                             className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                               message.sender_type === 'user'
-                                ? 'bg-indigo-600 text-white'
+                                ? 'bg-primary text-primary-foreground'
                                 : 'bg-gray-100 text-gray-900'
                             }`}
                           >
@@ -460,7 +460,7 @@ const DestekPage: React.FC = () => {
                           </div>
                           <button
                             onClick={reopenSelectedConversation}
-                            className="bg-indigo-600 text-white px-3 py-2 rounded-md hover:bg-indigo-700"
+                            className="bg-primary text-primary-foreground px-3 py-2 rounded-md hover:bg-primary/90"
                           >
                             Yeniden Aç
                           </button>
@@ -536,7 +536,7 @@ const DestekPage: React.FC = () => {
                         <button
                           onClick={sendMessage}
                           disabled={sending || (!newMessage.trim() && selectedFiles.length === 0) || isSelectedConversationClosed()}
-                          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                           {sending ? 'Gönderiliyor...' : 'Gönder'}
                         </button>
@@ -574,7 +574,7 @@ const DestekPage: React.FC = () => {
                     value={newSubject}
                     onChange={(e) => setNewSubject(e.target.value)}
                     placeholder="Talebinizin konusunu yazın"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 
@@ -603,7 +603,7 @@ const DestekPage: React.FC = () => {
                 <button
                   onClick={createNewConversation}
                   disabled={sending || !newSubject.trim() || !newContent.trim()}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {sending ? 'Oluşturuluyor...' : 'Oluştur'}
                 </button>

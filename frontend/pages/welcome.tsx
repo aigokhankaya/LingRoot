@@ -14,6 +14,7 @@ import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
 import OutputSection from '../src/components/OutputSection';
 import Footer from '../src/components/Footer';
+import TopicHierarchySection from '../src/components/TopicHierarchy/TopicHierarchySection';
 import { Button } from "../src/components/ui/button";
 import { Input } from "../src/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../src/components/ui/tabs";
@@ -116,6 +117,10 @@ const Welcome: React.FC = () => {
   const { badge, dailyLimit, remaining, currentPlanName } = useMembership();
   const { t } = useTranslation();
   const router = useRouter();
+  const displayName = (user as any)?.name || user?.email || 'Kullanıcı';
+  const avatar =
+    (user as any)?.avatar ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [audioResult, setAudioResult] = useState<AudioResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -234,6 +239,7 @@ const Welcome: React.FC = () => {
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
     { id: 'text', name: 'Metin', icon: 'fas fa-file-alt' },
+    { id: 'topic_tree', name: 'Konu Ağacı', icon: 'fas fa-sitemap' },
     { id: 'topic', name: 'Hobi', icon: 'fas fa-lightbulb' },
     { id: 'subject', name: 'Konu', icon: 'fas fa-graduation-cap' },
     { id: 'youtube', name: 'YouTube', icon: 'fab fa-youtube' },
@@ -1434,7 +1440,10 @@ const Welcome: React.FC = () => {
 
   // Yeni tasarım için ses oluşturma fonksiyonu
   const handleGenerate = async () => {
-    if (!textInput.trim()) {
+    const trimmed = textInput.trim();
+
+    // Metne dayalı modlarda boş içerik engeli
+    if ((contentType === 'text' || contentType === 'subject' || contentType === 'topic') && !trimmed) {
       setError('Lütfen bir metin girin.');
       return;
     }
@@ -1445,10 +1454,15 @@ const Welcome: React.FC = () => {
       return;
     }
 
+    let type: ProcessInputData['type'] = 'text';
+    if (contentType === 'subject' || contentType === 'topic') {
+      type = contentType as ProcessInputData['type'];
+    }
+
     const inputData: InputData = {
-      type: contentType as ProcessInputData['type'],
-      text: textInput,
-      level: englishLevel,
+      type,
+      text: trimmed,
+      level: englishLevel.toUpperCase(),
       SesHızı: speakingRate,
       voice: voiceType,
     };
@@ -1459,7 +1473,7 @@ const Welcome: React.FC = () => {
   if (user === undefined) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </main>
     );
   }
@@ -1469,7 +1483,7 @@ const Welcome: React.FC = () => {
     return (
       <main className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-lg text-gray-600">Yükleniyor...</p>
         </div>
       </main>
@@ -1484,7 +1498,7 @@ const Welcome: React.FC = () => {
           <p className="mb-4">Oturum açmanız gerekiyor.</p>
           <button 
             onClick={() => router.push('/login')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-md"
           >
             Giriş Yap
           </button>
@@ -1505,11 +1519,6 @@ const Welcome: React.FC = () => {
     );
   }
 
-  const displayName = (user as any).name || user.email;
-  const avatar = (user as any).avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
-  const role = user.role || 'user';
-  const membershipStatus = user.membershipStatus || 'free';
-
   // Örnek istatistikler (gerçek projede API'den alınır)
   const stats = {
     contentCreated: 12,
@@ -1517,10 +1526,10 @@ const Welcome: React.FC = () => {
     lastLogin: '2025-05-13 10:42',
   };
 
-  const heroImageUrl = 'https://readdy.ai/api/search-image?query=Modern%20language%20learning%20concept%20with%20digital%20technology%2C%20AI%20assistant%20helping%20with%20English%20lessons%2C%20abstract%20blue%20gradient%20background%20with%20subtle%20tech%20elements%2C%20professional%20educational%20atmosphere&width=1200&height=600&seq=hero1&orientation=landscape';
+  const heroImageUrl = 'https://readdy.ai/api/search-image?query=Modern%20language%20learning%20concept%20with%20digital%20technology%2C%20AI%20assistant%20helping%20with%20English%20lessons%2C%20abstract%20neutral%20gradient%20background%20with%20subtle%20tech%20elements%2C%20professional%20educational%20atmosphere&width=1200&height=600&seq=hero1&orientation=landscape';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen bg-background">
       {/* Top Navigation */}
       <div className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4">
@@ -1615,16 +1624,16 @@ const Welcome: React.FC = () => {
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${heroImageUrl})` }}
         ></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 to-transparent flex items-center">
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent flex items-center">
           <div className="container mx-auto px-6">
             <div className="max-w-2xl">
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
                 Liro ile Kişiselleştirilmiş İngilizce Öğrenimi
               </h1>
-              <p className="text-xl text-blue-100 mb-8">
+              <p className="text-xl text-white/80 mb-8">
                 Her seviyeye uygun kişiselleştirilmiş İngilizce içerik oluşturun ve ses dönüşümleriyle öğrenme deneyiminizi geliştirin.
               </p>
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-lg !rounded-button whitespace-nowrap cursor-pointer">
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 text-lg !rounded-button whitespace-nowrap cursor-pointer">
                 Hemen Başlayın
               </Button>
             </div>
@@ -1652,7 +1661,7 @@ const Welcome: React.FC = () => {
           >
             <div className="p-6 flex items-center justify-between">
               <div className="flex-1">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors">
                   Liro ile İçerik Oluştur
                 </h3>
                 <p className="text-gray-600 text-base">
@@ -1660,8 +1669,8 @@ const Welcome: React.FC = () => {
                 </p>
               </div>
               <div className="ml-6">
-                <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                  <MessageSquare className="w-8 h-8 text-blue-600 group-hover:translate-x-1 transition-transform" />
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <MessageSquare className="w-8 h-8 text-primary group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
             </div>
@@ -1671,15 +1680,15 @@ const Welcome: React.FC = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
-                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold mr-4">
+                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold mr-4">
                     1
                   </div>
-                  <h2 className="text-2xl font-bold text-blue-600">İçerik Türü ve Giriş</h2>
+                  <h2 className="text-2xl font-bold text-foreground">İçerik Türü ve Giriş</h2>
                 </div>
                 <Button
                   onClick={handleGenerate}
                   disabled={isLoading}
-                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 flex items-center space-x-2 !rounded-button whitespace-nowrap cursor-pointer"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2.5 flex items-center space-x-2 !rounded-button whitespace-nowrap cursor-pointer"
                 >
                   {isLoading ? (
                     <>
@@ -1702,11 +1711,13 @@ const Welcome: React.FC = () => {
                       key={option.id}
                       onClick={() => setContentType(option.id)}
                       className={`flex flex-col items-center justify-center p-4 rounded-lg border cursor-pointer transition-all ${
-                        contentType === option.id ? 'bg-blue-50 border-blue-300' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                        contentType === option.id
+                          ? 'bg-primary/10 border-primary/40'
+                          : 'bg-muted border-border hover:bg-muted/80'
                       }`}
                     >
-                      <i className={`${option.icon} text-2xl mb-2 ${contentType === option.id ? 'text-blue-600' : 'text-gray-500'}`}></i>
-                      <span className={`text-sm text-center ${contentType === option.id ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>
+                      <i className={`${option.icon} text-2xl mb-2 ${contentType === option.id ? 'text-primary' : 'text-gray-500'}`}></i>
+                      <span className={`text-sm text-center ${contentType === option.id ? 'text-primary font-medium' : 'text-gray-600'}`}>
                         {option.name}
                       </span>
                     </div>
@@ -1726,21 +1737,21 @@ const Welcome: React.FC = () => {
                 {contentType === 'document' ? (
                   <div className="space-y-4">
                     <div className={`flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors ${
-                      uploadingFile 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-300 hover:border-blue-500'
+                      uploadingFile
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary'
                     }`}>
                       <div className="space-y-1 text-center">
                         {uploadingFile ? (
                           <>
-                            <svg className="mx-auto h-12 w-12 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <svg className="mx-auto h-12 w-12 text-primary animate-spin" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <div className="text-sm text-blue-600 font-medium">
+                            <div className="text-sm text-primary font-medium">
                               Dosya yükleniyor...
                             </div>
-                            <p className="text-xs text-blue-500">Lütfen bekleyin</p>
+                            <p className="text-xs text-primary/80">Lütfen bekleyin</p>
                           </>
                         ) : (
                           <>
@@ -1748,10 +1759,10 @@ const Welcome: React.FC = () => {
                               <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4-4m4-4h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                             <div className="flex text-sm text-gray-600">
-                              <label htmlFor="file-upload" className={`relative rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 ${
-                                uploadingFile 
-                                  ? 'cursor-not-allowed text-gray-400' 
-                                  : 'cursor-pointer bg-white text-blue-600 hover:text-blue-500'
+                              <label htmlFor="file-upload" className={`relative rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary ${
+                                uploadingFile
+                                  ? 'cursor-not-allowed text-gray-400'
+                                  : 'cursor-pointer bg-white text-primary hover:text-primary/80'
                               }`}>
                                 <span>Dosya Yükle</span>
                                 <input
@@ -1780,7 +1791,7 @@ const Welcome: React.FC = () => {
                         <textarea
                           value={textInput}
                           onChange={(e) => setTextInput(e.target.value)}
-                          className="w-full min-h-[150px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                          className="w-full min-h-[150px] p-4 border border-input rounded-lg focus:border-primary focus:ring-primary resize-none"
                           placeholder="Dosyadan çıkarılan metin burada görünecek..."
                         />
                       </div>
@@ -1797,14 +1808,14 @@ const Welcome: React.FC = () => {
                           </label>
                           {loadingInterests ? (
                             <div className="flex items-center justify-center p-4 border border-gray-300 rounded-lg">
-                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                               <span className="ml-2 text-gray-600">İlgi alanları yükleniyor...</span>
                             </div>
                           ) : userInterests.length > 0 ? (
                             <div className="flex gap-3">
                               <div className="flex-1">
-                                <select 
-                                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                                <select
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                                   value={selectedInterest}
                                   onChange={(e) => setSelectedInterest(e.target.value)}
                                 >
@@ -1816,7 +1827,7 @@ const Welcome: React.FC = () => {
                                   ))}
                                 </select>
                               </div>
-                              <Button 
+                              <Button
                                 type="button"
                                 className={`px-6 py-3 !rounded-button whitespace-nowrap ${
                                   selectedInterest && !isLoadingTopicSuggestions && !isGeneratingHobbySuggestions
@@ -1871,7 +1882,7 @@ const Welcome: React.FC = () => {
                                   type="button"
                                   onClick={handleGetRandomHobbySuggestions}
                                   disabled={isLoadingTopicSuggestions}
-                                  className="px-3 py-1 text-xs !rounded-button bg-blue-600 hover:bg-blue-700"
+                                  className="px-3 py-1 text-xs !rounded-button bg-primary hover:bg-primary/90 text-primary-foreground"
                                 >
                                   {isLoadingTopicSuggestions ? (
                                     <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
@@ -1885,7 +1896,7 @@ const Welcome: React.FC = () => {
                               )}
                             </div>
                             <select
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                               value={selectedDetailTopic}
                               onChange={handleDetailTopicSelect}
                             >
@@ -1912,9 +1923,9 @@ const Welcome: React.FC = () => {
                             value={textInput}
                             onChange={(e) => setTextInput(e.target.value)}
                             placeholder="Öğrenmek istediğiniz konuyu yazın..."
-                            className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                            className="w-full min-h-[200px] p-4 border border-input rounded-lg focus:border-primary focus:ring-primary resize-none"
                           />
-                          <button className="absolute bottom-3 right-3 text-gray-500 hover:text-blue-600 cursor-pointer">
+                          <button className="absolute bottom-3 right-3 text-gray-500 hover:text-primary cursor-pointer">
                             <i className="fas fa-edit text-xl"></i>
                           </button>
                         </div>
@@ -1926,7 +1937,7 @@ const Welcome: React.FC = () => {
                           disabled={isLoadingTopicSuggestions || !textInput.trim()}
                           className={`w-full py-3 !rounded-button ${
                             !isLoadingTopicSuggestions && textInput.trim()
-                              ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
+                              ? 'bg-primary hover:bg-primary/90 cursor-pointer'
                               : 'bg-gray-400 cursor-not-allowed'
                           }`}
                         >
@@ -1959,7 +1970,7 @@ const Welcome: React.FC = () => {
                                   }}
                                   className={`text-left p-3 rounded-lg border-2 transition-all ${
                                     selectedDetailTopic === suggestion
-                                      ? 'border-blue-500 bg-blue-50'
+                                      ? 'border-primary/60 bg-primary/5'
                                       : 'border-gray-200 hover:border-gray-300 bg-white'
                                   }`}
                                 >
@@ -1986,13 +1997,13 @@ const Welcome: React.FC = () => {
                             value={youtubeUrl}
                             onChange={(e) => setYoutubeUrl(e.target.value)}
                             placeholder="https://www.youtube.com/watch?v=..."
-                            className="flex-1 p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                            className="flex-1 p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                           />
                           <Button
                             type="button"
                             onClick={handleFetchYoutubeSubtitle}
                             className={`px-6 py-3 !rounded-button whitespace-nowrap ${
-                              !isFetchingSubtitle ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' : 'bg-gray-400 cursor-not-allowed'
+                              !isFetchingSubtitle ? 'bg-primary hover:bg-primary/90 cursor-pointer' : 'bg-gray-400 cursor-not-allowed'
                             }`}
                             disabled={isFetchingSubtitle}
                           >
@@ -2031,7 +2042,7 @@ const Welcome: React.FC = () => {
                             value={podcastTopic}
                             onChange={(e) => setPodcastTopic(e.target.value)}
                             placeholder="Podcast için bir konu girin (Örn: The history of the Internet)..."
-                            className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                            className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary resize-none"
                           />
                         </div>
 
@@ -2045,7 +2056,7 @@ const Welcome: React.FC = () => {
                             max="30"
                             value={podcastDuration}
                             onChange={(e) => setPodcastDuration(parseInt(e.target.value) || 3)}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                           />
                         </div>
 
@@ -2057,7 +2068,7 @@ const Welcome: React.FC = () => {
                             <select
                               value={podcastStyleType}
                               onChange={(e) => setPodcastStyleType(e.target.value)}
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                             >
                               <option value="friendly_chat">Samimi Sohbet</option>
                               <option value="professional">Profesyonel</option>
@@ -2073,7 +2084,7 @@ const Welcome: React.FC = () => {
                             <select
                               value={podcastVoiceChoice}
                               onChange={(e) => setPodcastVoiceChoice(e.target.value)}
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                             >
                               <option value="english_female">İngilizce - Kadın</option>
                               <option value="english_male">İngilizce - Erkek</option>
@@ -2093,7 +2104,7 @@ const Welcome: React.FC = () => {
                             <select
                               value={podcastPersonalityA}
                               onChange={(e) => setPodcastPersonalityA(e.target.value)}
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                             >
                               <option value="curious_enthusiast">Meraklı Coşkulu</option>
                               <option value="skeptical_analyst">Şüpheci Analist</option>
@@ -2109,7 +2120,7 @@ const Welcome: React.FC = () => {
                             <select
                               value={podcastPersonalityB}
                               onChange={(e) => setPodcastPersonalityB(e.target.value)}
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                             >
                               <option value="knowledgeable_friend">Bilgili Arkadaş</option>
                               <option value="experienced_mentor">Deneyimli Mentor</option>
@@ -2125,7 +2136,7 @@ const Welcome: React.FC = () => {
                               type="checkbox"
                               checked={podcastIncludeHumor}
                               onChange={(e) => setPodcastIncludeHumor(e.target.checked)}
-                              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                              className="w-4 h-4 text-primary rounded focus:ring-primary"
                             />
                             <span className="text-sm text-gray-700">Mizah Ekle</span>
                           </label>
@@ -2135,7 +2146,7 @@ const Welcome: React.FC = () => {
                               type="checkbox"
                               checked={podcastIncludeFiller}
                               onChange={(e) => setPodcastIncludeFiller(e.target.checked)}
-                              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                              className="w-4 h-4 text-primary rounded focus:ring-primary"
                             />
                             <span className="text-sm text-gray-700">Dolgu Kelimeler Ekle</span>
                           </label>
@@ -2146,8 +2157,8 @@ const Welcome: React.FC = () => {
                             type="button"
                             onClick={handleCreatePodcast}
                             className={`px-8 py-3 !rounded-button whitespace-nowrap ${
-                              !isCreatingPodcast && podcastTopic.trim() 
-                                ? 'bg-purple-600 hover:bg-purple-700 cursor-pointer' 
+                              !isCreatingPodcast && podcastTopic.trim()
+                                ? 'bg-primary hover:bg-primary/90 cursor-pointer'
                                 : 'bg-gray-400 cursor-not-allowed'
                             }`}
                             disabled={isCreatingPodcast || !podcastTopic.trim()}
@@ -2172,11 +2183,29 @@ const Welcome: React.FC = () => {
                           </div>
                         )}
                         
-                        <div className="p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                        <div className="p-3 bg-primary/5 border border-primary/20 rounded text-xs text-primary">
                           <i className="fas fa-info-circle mr-1"></i>
                           Podcast oluşturma işlemi birkaç dakika sürebilir. Lütfen bekleyin.
                         </div>
                       </div>
+                    )}
+
+                    {/* Konu Ağacı sekmesi */}
+                    {contentType === 'topic_tree' && user && (
+                      <TopicHierarchySection
+                        userId={user.id}
+                        level={englishLevel}
+                        onContentCreated={(data) => {
+                          // TTS workflow'unu tetikle
+                          if (data && data.suggestedInput) {
+                            setTextInput(data.suggestedInput);
+                            setContentType('subject'); // Konu sekmesine geç
+                            
+                            // Kullanıcıya bilgi ver
+                            alert('Konu bilgisi alındı! Şimdi "Ses Oluştur" butonuna basarak sesli içerik oluşturabilirsiniz.');
+                          }
+                        }}
+                      />
                     )}
 
                     {/* Kitap sekmesi */}
@@ -2198,7 +2227,7 @@ const Welcome: React.FC = () => {
                                 value={bookSearchQuery}
                                 onChange={(e) => setBookSearchQuery(e.target.value)}
                                 placeholder="Herhangi bir kelime girin..."
-                                className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                               />
                             </div>
 
@@ -2213,7 +2242,7 @@ const Welcome: React.FC = () => {
                                   value={bookTitleSearch}
                                   onChange={(e) => setBookTitleSearch(e.target.value)}
                                   placeholder="Örn: Frankenstein"
-                                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                                 />
                               </div>
                               <div>
@@ -2225,7 +2254,7 @@ const Welcome: React.FC = () => {
                                   value={bookAuthorSearch}
                                   onChange={(e) => setBookAuthorSearch(e.target.value)}
                                   placeholder="Örn: Mary Shelley"
-                                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                                 />
                               </div>
                             </div>
@@ -2236,7 +2265,7 @@ const Welcome: React.FC = () => {
                                 type="submit"
                                 className={`px-8 py-3 !rounded-button whitespace-nowrap ${
                                   (bookSearchQuery.trim() || bookTitleSearch.trim() || bookAuthorSearch.trim()) && !isSearchingBooks
-                                    ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' 
+                                    ? 'bg-primary hover:bg-primary/90 cursor-pointer' 
                                     : 'bg-gray-400 cursor-not-allowed'
                                 }`}
                                 disabled={!(bookSearchQuery.trim() || bookTitleSearch.trim() || bookAuthorSearch.trim()) || isSearchingBooks}
@@ -2301,8 +2330,8 @@ const Welcome: React.FC = () => {
                                 <div
                                   key={book.id}
                                   onClick={() => handleBookSelect(book)}
-                                  className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors ${
-                                    selectedBook?.id === book.id ? 'bg-blue-50 border-blue-200' : ''
+                                  className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-primary/5 transition-colors ${
+                                    selectedBook?.id === book.id ? 'bg-primary/5 border-primary/30' : ''
                                   }`}
                                 >
                                   <div className="flex items-start space-x-3">
@@ -2351,12 +2380,12 @@ const Welcome: React.FC = () => {
                                 "{selectedBook.title}" Bölümleri
                               </h4>
                               {isLoadingChapters && (
-                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
                               )}
                             </div>
                             {isLoadingChapters ? (
                               <div className="flex flex-col items-center justify-center p-8 border border-gray-200 rounded-lg">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                                 <span className="ml-3 text-gray-600 mt-2">Bölümler yükleniyor...</span>
                                 <span className="text-sm text-gray-500 mt-1">
                                   {selectedBook?.text_url ? 'Kitap metni URL\'den çıkarılıyor...' : 'Veritabanından yükleniyor...'}
@@ -2437,7 +2466,7 @@ const Welcome: React.FC = () => {
                               <textarea
                                 value={textInput}
                                 onChange={(e) => setTextInput(e.target.value)}
-                                className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                                className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary resize-none"
                                 placeholder="Bölüm içeriği burada görünecek..."
                               />
                               <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded text-xs text-gray-500">
@@ -2456,9 +2485,9 @@ const Welcome: React.FC = () => {
                           value={textInput}
                           onChange={(e) => setTextInput(e.target.value)}
                           placeholder="İngilizce'ye çevirmek veya ses oluşturmak istediğiniz metni buraya girin..."
-                          className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 resize-none"
+                          className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary resize-none"
                         />
-                        <button className="absolute bottom-3 right-3 text-gray-500 hover:text-blue-600 cursor-pointer">
+                        <button className="absolute bottom-3 right-3 text-gray-500 hover:text-primary cursor-pointer">
                           <i className="fas fa-edit text-xl"></i>
                         </button>
                       </div>
@@ -2472,10 +2501,10 @@ const Welcome: React.FC = () => {
           <Card className="mb-8 border-none shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center mb-6">
-                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold mr-4">
+                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold mr-4">
                   2
                 </div>
-                <h2 className="text-2xl font-bold text-blue-600">Ses Ayarları</h2>
+                <h2 className="text-2xl font-bold text-primary">Ses Ayarları</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Sol Kolon - İngilizce Seviyesi ve Konuşma Hızı */}
@@ -2488,7 +2517,7 @@ const Welcome: React.FC = () => {
                         onClick={() => setEnglishLevel(level.toLowerCase())}
                         variant={englishLevel === level.toLowerCase() ? "default" : "outline"}
                         className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                          englishLevel === level.toLowerCase() ? 'bg-blue-600' : ''
+                          englishLevel === level.toLowerCase() ? 'bg-primary text-primary-foreground' : ''
                         }`}
                       >
                         {level}
@@ -2503,7 +2532,7 @@ const Welcome: React.FC = () => {
                         onClick={() => setSpeakingRate(rate.value)}
                         variant={speakingRate === rate.value ? "default" : "outline"}
                         className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                          speakingRate === rate.value ? 'bg-blue-600' : ''
+                          speakingRate === rate.value ? 'bg-primary text-primary-foreground' : ''
                         }`}
                       >
                         {rate.label}
@@ -2523,7 +2552,7 @@ const Welcome: React.FC = () => {
                             variant={selectedGender === gender.value ? "default" : "outline"}
                             size="sm"
                             className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                              selectedGender === gender.value ? 'bg-blue-600' : ''
+                              selectedGender === gender.value ? 'bg-primary text-primary-foreground' : ''
                             }`}
                           >
                             {gender.label}
@@ -2542,7 +2571,7 @@ const Welcome: React.FC = () => {
                             variant={selectedAccent === accent.value ? "default" : "outline"}
                             size="sm"
                             className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                              selectedAccent === accent.value ? 'bg-blue-600' : ''
+                              selectedAccent === accent.value ? 'bg-primary text-primary-foreground' : ''
                             }`}
                           >
                             {accent.label}
@@ -2575,7 +2604,7 @@ const Welcome: React.FC = () => {
                         }}
                         variant={selectedVoiceCategory === category.value ? "default" : "outline"}
                         className={`!rounded-button cursor-pointer h-auto flex flex-col items-center justify-center p-2 text-center transition-all duration-200 ${
-                          selectedVoiceCategory === category.value ? 'bg-blue-600' : ''
+                          selectedVoiceCategory === category.value ? 'bg-primary text-primary-foreground' : ''
                         }`}
                       >
                         {/* İkon ve Label */}
@@ -2599,7 +2628,7 @@ const Welcome: React.FC = () => {
                         
                         {/* SSML Support */}
                         {category.ssmlSupport && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full leading-none">
+                          <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full leading-none">
                             SSML
                           </span>
                         )}
@@ -2616,8 +2645,8 @@ const Welcome: React.FC = () => {
                   {/* Aktif Filtre Göstergesi */}
                   {(selectedAccent !== 'all' || selectedGender !== 'all' || selectedVoiceCategory !== 'standard') && (
                     <div className="flex items-center space-x-2 text-xs">
-                      <i className="fas fa-filter text-blue-600"></i>
-                      <span className="text-blue-600 font-medium">
+                      <i className="fas fa-filter text-primary"></i>
+                      <span className="text-primary font-medium">
                         Filtre aktif:
                         {selectedVoiceCategory !== 'standard' && ` ${selectedVoiceCategory.charAt(0).toUpperCase() + selectedVoiceCategory.slice(1)}`}
                         {selectedAccent !== 'all' && ` ${selectedAccent}`}
@@ -2650,7 +2679,7 @@ const Welcome: React.FC = () => {
                               value={voiceId}
                               checked={voiceType === voiceId}
                               onChange={(e) => setVoiceType(e.target.value)}
-                              className="mr-3 text-blue-600"
+                              className="mr-3 text-primary"
                             />
                             <div className="flex-1">
                               <div className="font-medium text-sm">
@@ -2725,7 +2754,7 @@ const Welcome: React.FC = () => {
                     onClick={() => setEmotionType(emotion.value)}
                     variant={emotionType === emotion.value ? "default" : "outline"}
                     className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                      emotionType === emotion.value ? 'bg-blue-600' : ''
+                      emotionType === emotion.value ? 'bg-primary text-primary-foreground' : ''
                     }`}
                   >
                     {emotion.label}
@@ -2744,7 +2773,7 @@ const Welcome: React.FC = () => {
                     onClick={() => setOutputFormat(format.toLowerCase())}
                     variant={outputFormat === format.toLowerCase() ? "default" : "outline"}
                     className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                      outputFormat === format.toLowerCase() ? 'bg-blue-600' : ''
+                      outputFormat === format.toLowerCase() ? 'bg-primary text-primary-foreground' : ''
                     }`}
                   >
                     {format}
@@ -2754,14 +2783,14 @@ const Welcome: React.FC = () => {
               */}
               
               <div className="mt-4">
-                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                <div className="mb-6 p-4 bg-muted rounded-lg border border-border">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium text-blue-800">Mevcut Üyelik Planınız</h3>
-                    <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
+                    <h3 className="text-lg font-medium text-primary">Mevcut Üyelik Planınız</h3>
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
                       {currentPlanName || 'Ücretsiz Plan'}
                     </Badge>
                   </div>
-                  <div className={remaining <= 0 ? "text-sm text-red-600" : "text-sm text-blue-600"}>
+                  <div className={remaining <= 0 ? "text-sm text-red-600" : "text-sm text-primary"}>
                     {remaining <= 0 ? (
                       <>
                         <p className="mb-2 font-semibold"><i className="fas fa-exclamation-triangle mr-2"></i>Ses oluşturma hakkınız bitti!</p>
@@ -2780,7 +2809,7 @@ const Welcome: React.FC = () => {
                       </Button>
                       <a 
                         href="/fiyatlandirma" 
-                        className="text-blue-600 hover:text-blue-700 text-sm"
+                        className="text-primary hover:text-primary/80 text-sm"
                         onClick={(e) => {
                           e.preventDefault();
                           router.push('/fiyatlandirma');
@@ -2799,7 +2828,7 @@ const Welcome: React.FC = () => {
             <Button
               onClick={handleGenerate}
               disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg flex items-center space-x-2 !rounded-button whitespace-nowrap cursor-pointer"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-4 text-lg flex items-center space-x-2 !rounded-button whitespace-nowrap cursor-pointer"
             >
               {isLoading ? (
                 <>
@@ -2866,7 +2895,7 @@ const Welcome: React.FC = () => {
 
                 {loadingHistory ? (
                   <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
                   </div>
                 ) : contentHistory.length > 0 ? (
                   <div className="space-y-4">
@@ -2893,7 +2922,7 @@ const Welcome: React.FC = () => {
                                 <Badge variant="outline" className="text-xs">
                                   {(item.input_type || 'unknown').toUpperCase()}
                                 </Badge>
-                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
                                   {item.level || 'N/A'}
                                 </Badge>
                                 <span className="text-xs text-gray-500">

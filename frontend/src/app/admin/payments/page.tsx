@@ -128,12 +128,12 @@ export default function PaymentManagementPage() {
                                     <tr key={item.id} className={`${item.plan === 'pro' && item.amount > 0 && item.user_current_plan === 'free' ? 'bg-red-50 dark:bg-red-900/30' : ''}`}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{item.user_id}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${item.plan === 'pro' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'}`}>
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${item.plan === 'pro' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary'}`}>
                                                 {item.plan}
                                             </span>
                                         </td>
                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${item.user_current_plan === 'pro' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'}`}>
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${item.user_current_plan === 'pro' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary'}`}>
                                                 {item.user_current_plan || 'N/A'}
                                             </span>
                                         </td>

@@ -5,7 +5,7 @@ import Footer from '../src/components/Footer';
 
 export default function KVKK() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen flex flex-col bg-background">
       <Head>
         <title>KVKK - Kişisel Verilerin Korunması | LingRoot</title>
         <meta name="description" content="LingRoot KVKK uyumluluk belgesi. Kişisel verilerin korunması kanunu çerçevesinde haklar ve yükümlülükler." />
@@ -18,7 +18,7 @@ export default function KVKK() {
       <header className="fixed w-full py-4 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <Link href="/" className="flex items-center space-x-3">
           <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12 drop-shadow-lg" />
-          <span className="font-extrabold text-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent tracking-tight">
+          <span className="font-extrabold text-2xl text-primary tracking-tight">
             LingRoot
           </span>
         </Link>
@@ -40,7 +40,7 @@ export default function KVKK() {
             Giriş Yap
           </Link>
           <Link href="/register" 
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+            className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
             Ücretsiz Başla
           </Link>
         </div>
@@ -48,7 +48,7 @@ export default function KVKK() {
 
       <main className="flex-grow pt-24">
         {/* Hero Section */}
-        <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-purple-600">
+        <section className="py-20 px-6 bg-slate-950">
           <div className="max-w-4xl mx-auto text-center">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
               <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
@@ -57,7 +57,7 @@ export default function KVKK() {
             <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
               KVKK
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-slate-200 max-w-3xl mx-auto leading-relaxed">
               Kişisel Verilerin Korunması Kanunu çerçevesinde haklarınız ve veri işleme süreçlerimiz.
             </p>
           </div>
@@ -69,8 +69,8 @@ export default function KVKK() {
             <div className="prose prose-lg max-w-none">
               
               {/* Son Güncellenme */}
-              <div className="mb-12 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl border border-blue-200 shadow-lg">
-                <p className="text-blue-800 mb-0 font-medium">
+              <div className="mb-12 p-6 bg-primary/5 rounded-2xl border border-primary/20 shadow-lg">
+                <p className="text-primary mb-0 font-medium">
                   <strong>Son Güncellenme:</strong> 1 Ocak 2025 | <strong>KVKK Uyumluluk:</strong> 6698 Sayılı Kanun
                 </p>
               </div>
@@ -78,7 +78,7 @@ export default function KVKK() {
               {/* Giriş */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                  Kişisel Verilerin <span className="text-blue-600">Korunması</span>
+                  Kişisel Verilerin <span className="text-primary">Korunması</span>
                 </h2>
                 <p className="text-gray-600 leading-relaxed mb-4">
                   LingRoot olarak, 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) hükümlerine tam uyum sağlayarak 
@@ -93,14 +93,14 @@ export default function KVKK() {
               {/* Veri Sorumlusu Bilgileri */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  1. Veri Sorumlusu <span className="text-blue-600">Bilgileri</span>
+                  1. Veri Sorumlusu <span className="text-primary">Bilgileri</span>
                 </h2>
                 
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-8 border border-blue-200">
+                <div className="bg-muted rounded-xl p-8 border border-border">
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
-                      <h3 className="text-lg font-semibold text-blue-900 mb-3">Şirket Bilgileri</h3>
-                      <ul className="text-blue-800 space-y-2 text-sm">
+                      <h3 className="text-lg font-semibold text-primary mb-3">Şirket Bilgileri</h3>
+                      <ul className="text-gray-700 space-y-2 text-sm">
                         <li><strong>Şirket Adı:</strong> LingRoot Teknoloji Ltd. Şti.</li>
                         <li><strong>Adres:</strong> İstanbul, Türkiye</li>
                         <li><strong>E-posta:</strong> kvkk@lingroot.com</li>
@@ -108,8 +108,8 @@ export default function KVKK() {
                       </ul>
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-purple-900 mb-3">KVKK Sorumlusu</h3>
-                      <ul className="text-purple-800 space-y-2 text-sm">
+                      <h3 className="text-lg font-semibold text-accent-foreground mb-3">KVKK Sorumlusu</h3>
+                      <ul className="text-gray-700 space-y-2 text-sm">
                         <li><strong>Ad:</strong> Veri Koruma Sorumlusu</li>
                         <li><strong>E-posta:</strong> vks@lingroot.com</li>
                         <li><strong>Görev:</strong> KVKK uyumluluk denetimi</li>
@@ -123,7 +123,7 @@ export default function KVKK() {
               {/* Kişisel Veri Türleri */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  2. İşlenen Kişisel <span className="text-blue-600">Veri Türleri</span>
+                  2. İşlenen Kişisel <span className="text-primary">Veri Türleri</span>
                 </h2>
                 
                 <div className="space-y-6">
@@ -137,9 +137,9 @@ export default function KVKK() {
                     </ul>
                   </div>
 
-                  <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
-                    <h3 className="text-lg font-semibold text-blue-900 mb-3">💰 Finansal Veriler</h3>
-                    <ul className="text-blue-800 space-y-2 text-sm">
+                  <div className="bg-primary/5 rounded-lg p-6 border border-primary/20">
+                    <h3 className="text-lg font-semibold text-primary mb-3">💰 Finansal Veriler</h3>
+                    <ul className="text-gray-700 space-y-2 text-sm">
                       <li>• Ödeme geçmişi bilgileri</li>
                       <li>• Abonelik durumu ve fatura bilgileri</li>
                       <li>• Ödeme yöntemi tercihleri (kart bilgileri değil)</li>
@@ -171,13 +171,13 @@ export default function KVKK() {
               {/* İşleme Amaçları */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  3. Veri İşleme <span className="text-blue-600">Amaçları</span>
+                  3. Veri İşleme <span className="text-primary">Amaçları</span>
                 </h2>
                 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="bg-white border border-gray-200 rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <span className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
+                      <span className="w-8 h-8 bg-primary rounded-full flex items-center justify-center mr-3">
                         <span className="text-white text-sm">1</span>
                       </span>
                       Hizmet Sunumu
@@ -236,10 +236,10 @@ export default function KVKK() {
               {/* KVKK Hakları */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  4. KVKK Kapsamında <span className="text-blue-600">Haklarınız</span>
+                  4. KVKK Kapsamında <span className="text-primary">Haklarınız</span>
                 </h2>
                 
-                <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-8 border border-green-200">
+                <div className="bg-gradient-to-r from-green-50 to-primary/10 rounded-xl p-8 border border-green-200">
                   <h3 className="text-xl font-semibold text-gray-900 mb-6 text-center">
                     KVKK md. 11 Kapsamında Veri Sahibi Hakları
                   </h3>
@@ -253,9 +253,9 @@ export default function KVKK() {
                         </p>
                       </div>
                       
-                      <div className="bg-white rounded-lg p-4 border border-blue-200">
-                        <h4 className="font-semibold text-blue-900 mb-2">✏️ Düzeltme Talep Etme</h4>
-                        <p className="text-blue-800 text-sm">
+                      <div className="bg-white rounded-lg p-4 border border-primary/20">
+                        <h4 className="font-semibold text-primary mb-2">✏️ Düzeltme Talep Etme</h4>
+                        <p className="text-gray-700 text-sm">
                           Kişisel verilerinizin yanlış veya eksik olması durumunda bunların düzeltilmesini isteme hakkı.
                         </p>
                       </div>
@@ -283,9 +283,9 @@ export default function KVKK() {
                         </p>
                       </div>
                       
-                      <div className="bg-white rounded-lg p-4 border border-indigo-200">
-                        <h4 className="font-semibold text-indigo-900 mb-2">📤 Taşınabilirlik</h4>
-                        <p className="text-indigo-800 text-sm">
+                      <div className="bg-white rounded-lg p-4 border border-accent/40">
+                        <h4 className="font-semibold text-accent-foreground mb-2">📤 Taşınabilirlik</h4>
+                        <p className="text-gray-700 text-sm">
                           Kişisel verilerinizin başka bir veri sorumlusuna aktarılmasını talep etme hakkı.
                         </p>
                       </div>
@@ -311,29 +311,29 @@ export default function KVKK() {
               {/* Başvuru Prosedürü */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  5. Başvuru <span className="text-blue-600">Prosedürü</span>
+                  5. Başvuru <span className="text-primary">Prosedürü</span>
                 </h2>
                 
                 <div className="space-y-6">
-                  <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
-                    <h3 className="text-lg font-semibold text-blue-900 mb-4">📝 Başvuru Yöntemleri</h3>
+                  <div className="bg-primary/5 rounded-lg p-6 border border-primary/20">
+                    <h3 className="text-lg font-semibold text-primary mb-4">📝 Başvuru Yöntemleri</h3>
                     <div className="grid md:grid-cols-3 gap-4">
-                      <div className="bg-white rounded-lg p-4 border border-blue-200">
-                        <h4 className="font-semibold text-blue-900 mb-2">📧 E-posta</h4>
-                        <p className="text-blue-800 text-sm mb-2">kvkk@lingroot.com</p>
-                        <p className="text-blue-700 text-xs">En hızlı yöntem</p>
+                      <div className="bg-white rounded-lg p-4 border border-primary/20">
+                        <h4 className="font-semibold text-primary mb-2">📧 E-posta</h4>
+                        <p className="text-gray-700 text-sm mb-2">kvkk@lingroot.com</p>
+                        <p className="text-gray-500 text-xs">En hızlı yöntem</p>
                       </div>
                       
-                      <div className="bg-white rounded-lg p-4 border border-blue-200">
-                        <h4 className="font-semibold text-blue-900 mb-2">📞 Telefon</h4>
-                        <p className="text-blue-800 text-sm mb-2">+90 212 123 45 67</p>
-                        <p className="text-blue-700 text-xs">Hafta içi 09:00-18:00</p>
+                      <div className="bg-white rounded-lg p-4 border border-primary/20">
+                        <h4 className="font-semibold text-primary mb-2">📞 Telefon</h4>
+                        <p className="text-gray-700 text-sm mb-2">+90 212 123 45 67</p>
+                        <p className="text-gray-500 text-xs">Hafta içi 09:00-18:00</p>
                       </div>
                       
-                      <div className="bg-white rounded-lg p-4 border border-blue-200">
-                        <h4 className="font-semibold text-blue-900 mb-2">🏢 Fiziksel</h4>
-                        <p className="text-blue-800 text-sm mb-2">İstanbul Ofis</p>
-                        <p className="text-blue-700 text-xs">Randevu ile</p>
+                      <div className="bg-white rounded-lg p-4 border border-primary/20">
+                        <h4 className="font-semibold text-primary mb-2">🏢 Fiziksel</h4>
+                        <p className="text-gray-700 text-sm mb-2">İstanbul Ofis</p>
+                        <p className="text-gray-500 text-xs">Randevu ile</p>
                       </div>
                     </div>
                   </div>
@@ -353,10 +353,10 @@ export default function KVKK() {
               {/* İletişim */}
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  6. <span className="text-blue-600">KVKK İletişim</span>
+                  6. <span className="text-primary">KVKK İletişim</span>
                 </h2>
                 
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-white">
+                <div className="bg-slate-900 rounded-xl p-8 text-white">
                   <h3 className="text-xl font-semibold mb-4">KVKK haklarınızı kullanmak mı istiyorsunuz?</h3>
                   <p className="mb-6 opacity-90">
                     Kişisel veri işleme faaliyetlerimiz veya KVKK haklarınız hakkında herhangi bir sorunuz varsa, 
@@ -364,11 +364,11 @@ export default function KVKK() {
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4">
                     <a href="mailto:kvkk@lingroot.com" 
-                      className="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors text-center">
+                      className="px-6 py-3 bg-white text-primary rounded-lg font-semibold hover:bg-gray-100 transition-colors text-center">
                       KVKK Başvurusu Yap
                     </a>
                     <Link href="/contact" 
-                      className="px-6 py-3 border border-white text-white rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors text-center">
+                      className="px-6 py-3 border border-white text-white rounded-lg font-semibold hover:bg-white hover:text-primary transition-colors text-center">
                       Genel İletişim
                     </Link>
                   </div>

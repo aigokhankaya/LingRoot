@@ -40,7 +40,7 @@
   }
 
   .button-primary {
-    @apply px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all;
+    @apply px-5 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all;
   }
 
   .button-secondary {
@@ -52,7 +52,7 @@
   }
 
   .navbar-menu-item {
-    @apply text-gray-700 hover:text-blue-700 font-medium;
+    @apply text-gray-700 hover:text-primary font-medium;
   }
 
   .navbar-cta {

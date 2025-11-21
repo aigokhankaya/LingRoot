@@ -127,7 +127,7 @@ export default function PackagesPage() {
                   </div>
 
                   {plan.is_trial && (
-                    <Badge className="bg-blue-100 text-blue-800">
+                    <Badge className="bg-primary/10 text-primary">
                       <i className="fas fa-gift mr-1"></i>
                       Deneme Paketi
                     </Badge>

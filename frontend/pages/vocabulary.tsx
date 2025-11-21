@@ -54,10 +54,10 @@ export function VocabularyTabContent({ user }: { user: any }) {
     a2: {
       title: "A2 - Temel Seviye", 
       description: "Basit günlük konuşmalar için gerekli kelimeler",
-      color: "bg-blue-100",
-      textColor: "text-blue-800",
-      borderColor: "border-blue-200", 
-      badgeColor: "bg-blue-500",
+      color: "bg-primary/10",
+      textColor: "text-primary",
+      borderColor: "border-primary/20", 
+      badgeColor: "bg-primary text-primary-foreground",
     },
     b1: {
       title: "B1 - Orta Seviye",
@@ -258,7 +258,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
           </div>
           <div className="flex gap-2">
             <Button 
-              className="bg-blue-600 hover:bg-blue-700 !rounded-button whitespace-nowrap cursor-pointer"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground !rounded-button whitespace-nowrap cursor-pointer"
               onClick={() => setIsAddWordModalOpen(true)}
             >
               <i className="fas fa-plus mr-2"></i>
@@ -307,7 +307,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
                   >
                     İptal
                   </Button>
-                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700 !rounded-button">
+                  <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground !rounded-button">
                     Kaydet
                   </Button>
                 </div>
@@ -348,7 +348,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
               <select 
                 value={activeLevel} 
                 onChange={(e) => setActiveLevel(e.target.value)}
-                className="w-[120px] rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                className="w-[120px] rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
               >
                 <option value="all">Tüm Seviyeler</option>
                 <option value="a1">A1</option>
@@ -361,7 +361,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
               <select 
                 value={learnedFilter} 
                 onChange={(e) => setLearnedFilter(e.target.value)}
-                className="w-[150px] rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                className="w-[150px] rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
               >
                 <option value="all">Tümü</option>
                 <option value="learned">Öğrenildi</option>
@@ -425,7 +425,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
           {isLoading ? (
             <div className="flex justify-center py-12">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
                 <p className="text-gray-600">Kelimeler yükleniyor...</p>
               </div>
             </div>
@@ -470,7 +470,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
                                   playWordAudio(word.word);
                                 }}
                               >
-                                <i className="fas fa-volume-up text-blue-600"></i>
+                                <i className="fas fa-volume-up text-primary"></i>
                               </Button>
                               {word.level && (
                                 <Badge className={`ml-2 ${levelData?.badgeColor}`}>
@@ -533,13 +533,13 @@ export function VocabularyTabContent({ user }: { user: any }) {
                         </div>
                         {/* Orijinal Cümle */}
                         {word.original_sentence && (
-                          <div className="col-span-2 mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <h5 className="font-medium text-blue-800 mb-2 flex items-center">
+                          <div className="col-span-2 mt-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                            <h5 className="font-medium text-primary mb-2 flex items-center">
                               <i className="fas fa-quote-left mr-2"></i>
                               Orijinal Cümle
                             </h5>
-                            <p className="text-blue-700 italic">"{word.original_sentence}"</p>
-                            <p className="text-xs text-blue-600 mt-1">Bu cümle kelimenin orijinal metindeki kullanımını gösterir</p>
+                            <p className="text-gray-800 italic">"{word.original_sentence}"</p>
+                            <p className="text-xs text-gray-600 mt-1">Bu cümle kelimenin orijinal metindeki kullanımını gösterir</p>
                           </div>
                         )}
                         <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-2">
@@ -575,7 +575,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
               </p>
               <div className="flex justify-center gap-2 mt-4">
                 <Button
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
                   onClick={() => setIsAddWordModalOpen(true)}
                 >
                   <i className="fas fa-plus mr-2"></i>
@@ -609,7 +609,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
                 <div>
                   <div className="flex justify-between mb-1">
                     <span className="text-sm font-medium text-gray-700">Toplam Kelime</span>
-                    <span className="text-sm font-medium text-blue-600">{stats.total}</span>
+                    <span className="text-sm font-medium text-primary">{stats.total}</span>
                   </div>
                   <Progress value={100} className="h-2" />
                 </div>
@@ -719,12 +719,12 @@ export function VocabularyTabContent({ user }: { user: any }) {
                       </div>
 
                       {/* Info box */}
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
                         <div className="flex">
-                          <i className="fas fa-mobile-alt text-blue-600 mr-2 mt-0.5"></i>
+                          <i className="fas fa-mobile-alt text-primary mr-2 mt-0.5"></i>
                           <div>
-                            <h4 className="text-sm font-medium text-blue-800">Mobil Bildirimler</h4>
-                            <p className="text-xs text-blue-600 mt-1">
+                            <h4 className="text-sm font-medium text-primary">Mobil Bildirimler</h4>
+                            <p className="text-xs text-gray-700 mt-1">
                               Bu ayarlar mobil uygulamada bildirim zamanlarını belirler. Web versiyonunda bildirim bulunmaz.
                             </p>
                           </div>
@@ -751,7 +751,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
                   </DialogContent>
                 </Dialog>
                 <Button variant="outline" className="w-full justify-start">
-                  <i className="fas fa-microphone mr-2 text-blue-600"></i>
+                  <i className="fas fa-microphone mr-2 text-primary"></i>
                   Telaffuz Pratiği
                 </Button>
                 <Button variant="outline" className="w-full justify-start">
@@ -768,8 +768,8 @@ export function VocabularyTabContent({ user }: { user: any }) {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium text-blue-800 mb-1">Düzenli Tekrar</h4>
+                <div className="p-3 bg-primary/5 rounded-lg">
+                  <h4 className="font-medium text-primary mb-1">Düzenli Tekrar</h4>
                   <p className="text-sm text-gray-600">Öğrendiğiniz kelimeleri düzenli aralıklarla tekrar edin.</p>
                 </div>
                 <div className="p-3 bg-green-50 rounded-lg">

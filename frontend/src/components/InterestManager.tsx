@@ -154,7 +154,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
           {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
-              className="text-blue-600 hover:text-blue-800 flex items-center"
+              className="text-primary hover:text-primary/80 flex items-center"
               disabled={isLoading}
             >
               <FaPen className="mr-1" size={14} />
@@ -197,7 +197,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
 
       {isLoading ? (
         <div className="py-4 text-center text-gray-500">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
           <p>İlgi alanları yükleniyor...</p>
         </div>
       ) : (
@@ -211,7 +211,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
                 interests.map((interest, index) => (
                   <div
                     key={index}
-                    className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full flex items-center"
+                    className="bg-primary/5 text-primary px-3 py-1 rounded-full flex items-center"
                   >
                     <span>{interest}</span>
                     {isEditing && (
@@ -238,11 +238,11 @@ const InterestManager: React.FC<InterestManagerProps> = ({
                   value={newInterest}
                   onChange={(e) => setNewInterest(e.target.value)}
                   placeholder="Yeni ilgi alanı ekleyin..."
-                  className="flex-1 border border-gray-300 rounded-l p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="flex-1 border border-gray-300 rounded-l p-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 />
                 <button
                   onClick={addInterest}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-r flex items-center"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 rounded-r flex items-center"
                 >
                   <FaPlus className="mr-1" size={14} />
                   <span>Ekle</span>

@@ -654,10 +654,10 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     <div className="max-w-4xl mx-auto">
       <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
         <div className="flex items-center mb-8">
-          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold mr-4 shadow-lg">
+          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground font-bold mr-4 shadow-lg">
             1
           </span>
-          <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-800">
+          <h2 className="text-2xl font-bold text-foreground">
             {t('content_type_and_input')}
           </h2>
         </div>
@@ -774,7 +774,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               <button
                 type="button"
                 onClick={() => setInputType('suggestion')}
-                className={`icon-button group ${inputType === 'suggestion' ? 'icon-button-selected' : 'icon-button-default'} relative animated-pulse bg-blue-50`}
+                className={`icon-button group ${inputType === 'suggestion' ? 'icon-button-selected' : 'icon-button-default'} relative animated-pulse bg-primary/10`}
                 style={{ animation: inputType !== 'suggestion' ? 'pulse 2s infinite' : 'none' }}
               >
                 <div className={inputType !== 'suggestion' ? 'absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce' : 'hidden'}>
@@ -810,7 +810,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                   id="text-input"
                   value={text}
                   onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value)}
-                  className="input-field h-32 resize-y focus:ring-blue-500 focus:border-blue-500"
+                  className="input-field h-32 resize-y focus:ring-primary focus:border-primary"
                   placeholder={t('enter_text_placeholder')}
                   required
                 />
@@ -830,7 +830,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                     İlgi Alanlarınızdan Seçin
                   </label>
                   <select
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                   >
@@ -858,7 +858,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                   <input
                     type="text"
                     placeholder="Kendi konunuzu yazın..."
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                   />
@@ -883,7 +883,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                     type="url"
                     value={youtubeLink}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setYoutubeLink(e.target.value)}
-                    className="input-field pl-10 focus:ring-blue-500 focus:border-blue-500"
+                    className="input-field pl-10 focus:ring-primary focus:border-primary"
                     placeholder="https://www.youtube.com/watch?v=..."
                     required
                   />
@@ -892,7 +892,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                 <div className="mt-2">
                   <button 
                     type="button" 
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:bg-blue-300"
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors disabled:bg-primary/60"
                     onClick={async () => {
                       if (!youtubeLink) {
                         alert("Lütfen bir YouTube linki girin!");
@@ -926,7 +926,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                     {t('your_text')}
                   </label>
                   <textarea
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px]"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary min-h-[100px]"
                     placeholder={t('enter_text_or_transcript')}
                     value={text}
                     onChange={(e) => setText(e.target.value)}
@@ -951,7 +951,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                     type="url"
                     value={webLink}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setWebLink(e.target.value)}
-                    className="input-field pl-10 focus:ring-blue-500 focus:border-blue-500"
+                    className="input-field pl-10 focus:ring-primary focus:border-primary"
                     placeholder="https://ornek.com/makale..."
                     required
                   />
@@ -976,7 +976,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                     type="url"
                     value={podcastLink}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setPodcastLink(e.target.value)}
-                    className="input-field pl-10 focus:ring-blue-500 focus:border-blue-500"
+                    className="input-field pl-10 focus:ring-primary focus:border-primary"
                     placeholder="https://open.spotify.com/episode/..."
                     required
                   />
@@ -991,20 +991,20 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                 </label>
                 <div className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors ${
                   uploadingFile 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-300 hover:border-blue-500'
+                    ? 'border-primary bg-primary/10' 
+                    : 'border-gray-300 hover:border-primary'
                 }`}>
                   <div className="space-y-1 text-center">
                     {uploadingFile ? (
                       <>
-                        <svg className="mx-auto h-12 w-12 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <svg className="mx-auto h-12 w-12 text-primary animate-spin" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        <div className="text-sm text-blue-600 font-medium">
+                        <div className="text-sm text-primary font-medium">
                           Dosya yükleniyor...
                         </div>
-                        <p className="text-xs text-blue-500">Lütfen bekleyin</p>
+                        <p className="text-xs text-primary/80">Lütfen bekleyin</p>
                       </>
                     ) : (
                       <>
@@ -1012,10 +1012,10 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                           <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4-4m4-4h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                         <div className="flex text-sm text-gray-600">
-                          <label htmlFor="file-upload" className={`relative rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 ${
+                          <label htmlFor="file-upload" className={`relative rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary ${
                             uploadingFile 
                               ? 'cursor-not-allowed text-gray-400' 
-                              : 'cursor-pointer bg-white text-blue-600 hover:text-blue-500'
+                              : 'cursor-pointer bg-white text-primary hover:text-primary/80'
                           }`}>
                             <span>{t('upload_file')}</span>
                             <input
@@ -1063,13 +1063,13 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                   />
                   <button type="button" onClick={handleBookSearch} className="btn-primary px-4 py-2">Ara</button>
                 </div>
-                {bookLoading && <div className="text-blue-600 text-sm">Yükleniyor...</div>}
+                {bookLoading && <div className="text-primary text-sm">Yükleniyor...</div>}
                 {!bookLoading && bookResults.length > 0 && (
                   <div className="border rounded bg-white max-h-48 overflow-auto">
                     {bookResults.map(book => (
                       <div
                         key={book.id}
-                        className={`p-2 cursor-pointer hover:bg-blue-100 ${selectedBook && selectedBook.id === book.id ? 'bg-blue-200' : ''}`}
+                        className={`p-2 cursor-pointer hover:bg-primary/10 ${selectedBook && selectedBook.id === book.id ? 'bg-primary/20' : ''}`}
                         onClick={() => setSelectedBook(book)}
                       >
                         <div className="font-semibold">{book.title}</div>
@@ -1086,7 +1086,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                       {bookChapters.map((ch, idx) => (
                         <div
                           key={idx}
-                          className={`p-2 cursor-pointer hover:bg-blue-100 ${selectedChapterIdx === idx ? 'bg-blue-200' : ''}`}
+                          className={`p-2 cursor-pointer hover:bg-primary/10 ${selectedChapterIdx === idx ? 'bg-primary/20' : ''}`}
                           onClick={() => {
                             setSelectedChapterIdx(idx);
                             setBookName(selectedBook.title);
@@ -1109,7 +1109,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                   <div className="w-3/4">
                     <div className="relative">
                       <select
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                         value={topic}
                         onChange={(e) => setTopic(e.target.value)}
                       >
@@ -1121,7 +1121,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                       <button
                         type="button"
                         onClick={() => setShowInterestManager(true)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-blue-100 text-blue-700 hover:bg-blue-200 p-1.5 rounded-full flex items-center justify-center"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-primary/10 text-primary hover:bg-primary/20 p-1.5 rounded-full flex items-center justify-center"
                         title="İlgi Alanlarını Düzenle"
                       >
                         <FaCog size={16} />
@@ -1185,7 +1185,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                       Detaylı Öneriler
                     </label>
                     <select
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                       value={selectedDetailTopic}
                       onChange={handleDetailTopicSelect}
                     >
@@ -1204,7 +1204,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                   <textarea
                     rows={6}
                     placeholder={t('topic_placeholder')}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                   />
@@ -1230,7 +1230,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                     onClick={() => setLevel(l as Level)}
                     className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                       level === l
-                        ? 'bg-blue-100 text-blue-700 border-2 border-blue-200 shadow-sm'
+                        ? 'bg-primary/10 text-primary border-2 border-primary/30 shadow-sm'
                         : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
                     }`}
                   >
@@ -1253,7 +1253,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                     onClick={() => setSpeakingRate(rate)}
                     className={`px-3 py-2 rounded-lg font-medium transition-all duration-200 ${
                       speakingRate === rate
-                        ? 'bg-blue-100 text-blue-700 border-2 border-blue-200 shadow-sm'
+                        ? 'bg-primary/10 text-primary border-2 border-primary/30 shadow-sm'
                         : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
                     }`}
                   >
@@ -1271,7 +1271,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               <select
                 value={voice}
                 onChange={(e) => setVoice(e.target.value)}
-                className="input-field focus:ring-blue-500 focus:border-blue-500"
+                className="input-field focus:ring-primary focus:border-primary"
               >
                 {getFilteredVoices().map((v) => (
                   <option key={v.name} value={v.name}>

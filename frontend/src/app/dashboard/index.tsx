@@ -92,8 +92,8 @@ export default function Dashboard() {
           <section className="mt-4">
             <h2 className="text-xl font-semibold mb-2">İstatistikler</h2>
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-50 p-4 rounded shadow">
-                <div className="text-3xl font-bold text-blue-600">12</div>
+              <div className="bg-primary/5 p-4 rounded shadow">
+                <div className="text-3xl font-bold text-primary">12</div>
                 <div className="text-gray-600">Oluşturulan İçerik</div>
               </div>
               <div className="bg-green-50 p-4 rounded shadow">

@@ -166,13 +166,13 @@ const Welcome2: React.FC = () => {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -185,11 +185,11 @@ const Welcome2: React.FC = () => {
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm text-gray-600">
-                Provider: <span className="font-semibold text-blue-600">{currentProvider}</span>
+                Provider: <span className="font-semibold text-primary">{currentProvider}</span>
               </div>
               <button
                 onClick={() => setShowSettings(!showSettings)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
               >
                 {showSettings ? 'Gizle' : 'Ayarlar'}
               </button>
@@ -234,7 +234,7 @@ const Welcome2: React.FC = () => {
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     rows={6}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     placeholder="İngilizce metin girin..."
                   />
                 </div>
@@ -246,7 +246,7 @@ const Welcome2: React.FC = () => {
                   <select
                     value={level}
                     onChange={(e) => setLevel(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
                   >
                     <option value="A1">A1 - Başlangıç</option>
                     <option value="A2">A2 - Temel</option>
@@ -279,7 +279,7 @@ const Welcome2: React.FC = () => {
                   <select
                     value={voice}
                     onChange={(e) => setVoice(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
                   >
                     {currentProvider === 'polly' && (
                       <>
@@ -331,7 +331,7 @@ const Welcome2: React.FC = () => {
                 <button
                   onClick={handleGenerateAudio}
                   disabled={isLoading || !text.trim()}
-                  className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+                  className="w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
                 >
                   {isLoading ? (
                     <span className="flex items-center justify-center">

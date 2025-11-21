@@ -1483,10 +1483,10 @@ const processTtsRequest = async (req, res) => {
             timing_source: mfaWordTimings ? 'MFA' : 'TTS',
             timing_accuracy: mfaWordTimings ? 'high' : 'estimated',
             // Çeviri ve adaptasyon sonuçları (database kayıt için)
-            translated_text: translationResult || '',
+            translated_text: translatedText || translationResult || '',
             adapted_text: adaptedText,
             // Frontend için camelCase versiyonları da ekle
-            translatedText: translationResult || '',
+            translatedText: translatedText || translationResult || '',
             adaptedText: adaptedText || '',
             cleanText: cleanTextForDisplay, // Temiz text ayrı field olarak da gönder
             daily_usage_patterns: dailyUsagePatterns // Günlük kullanım kalıpları

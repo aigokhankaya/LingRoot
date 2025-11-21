@@ -740,7 +740,7 @@ const App: React.FC = () => {
                           </TableCell>
                           <TableCell>
                             <Badge className={
-                              user.package === 'Ücretsiz' ? 'bg-blue-100 text-blue-800 hover:bg-blue-100' :
+                              user.package === 'Ücretsiz' ? 'bg-primary/10 text-primary hover:bg-primary/10' :
                               user.package === 'Premium' ? 'bg-purple-100 text-purple-800 hover:bg-purple-100' :
                               user.package === 'Pro' ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-100' :
                               'bg-teal-100 text-teal-800 hover:bg-teal-100'
@@ -824,8 +824,8 @@ const App: React.FC = () => {
                         <p className="text-sm font-medium text-gray-500">Toplam Kullanıcı</p>
                         <h3 className="text-3xl font-bold mt-1">3,163</h3>
                       </div>
-                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                        <i className="fas fa-users text-blue-600"></i>
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <i className="fas fa-users text-primary"></i>
                       </div>
                     </div>
                     <div className="flex items-center mt-4 text-sm">
@@ -959,21 +959,21 @@ const App: React.FC = () => {
                 {plans?.map((pkg) => (
                   <Card key={pkg.id} className="overflow-hidden">
                     <CardHeader className={
-                      (pkg.name === 'Ücretsiz' || pkg.is_trial) ? 'bg-blue-50 border-b border-blue-100' :
+                      (pkg.name === 'Ücretsiz' || pkg.is_trial) ? 'bg-primary/5 border-b border-primary/20' :
                       (pkg.name || '').toLowerCase().includes('premium') ? 'bg-purple-50 border-b border-purple-100' :
                       (pkg.name || '').toLowerCase().includes('pro') ? 'bg-indigo-50 border-b border-indigo-100' :
                       'bg-teal-50 border-b border-teal-100'
                     }>
                       <div className="flex items-center justify-between mb-2">
                         <CardTitle className={
-                          (pkg.name === 'Ücretsiz' || pkg.is_trial) ? 'text-blue-700' :
+                          (pkg.name === 'Ücretsiz' || pkg.is_trial) ? 'text-primary' :
                           (pkg.name || '').toLowerCase().includes('premium') ? 'text-purple-700' :
                           (pkg.name || '').toLowerCase().includes('pro') ? 'text-indigo-700' :
                           'text-teal-700'
                         }>{pkg.name}</CardTitle>
                         <div className="flex items-center gap-2">
                           {pkg.apple_product_id && (
-                            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                            <Badge className="bg-primary/10 text-primary hover:bg-primary/10">
                               <i className="fab fa-apple mr-1"></i>
                               iOS
                             </Badge>
@@ -1158,13 +1158,13 @@ const App: React.FC = () => {
                               <div className="text-sm text-gray-500">Oluşturulma: 15.05.2025</div>
                             </TableCell>
                             <TableCell>
-                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Podcast</Badge>
+                              <Badge className="bg-primary/10 text-primary hover:bg-primary/10">Podcast</Badge>
                             </TableCell>
                             <TableCell>
                               <Badge className="bg-green-100 text-green-800 hover:bg-green-100">A1</Badge>
                             </TableCell>
                             <TableCell>
-                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Ücretsiz</Badge>
+                              <Badge className="bg-primary/10 text-primary hover:bg-primary/10">Ücretsiz</Badge>
                             </TableCell>
                             <TableCell>1,245</TableCell>
                             <TableCell>

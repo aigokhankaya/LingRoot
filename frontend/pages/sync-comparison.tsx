@@ -81,7 +81,7 @@ export default function SyncComparisonPage() {
               <select
                 value={selectedSystem}
                 onChange={(e) => setSelectedSystem(e.target.value as 'old' | 'new' | 'both')}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
               >
                 <option value="both">Her İkisi de</option>
                 <option value="old">Sadece Eski Sistem</option>
@@ -131,12 +131,12 @@ export default function SyncComparisonPage() {
         </div>
 
         {/* Performance Metrics */}
-        <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-800 mb-4">📊 Performans Metrikleri</h3>
+        <div className="mb-8 bg-primary/5 border border-primary/20 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-primary mb-4">📊 Performans Metrikleri</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">4-66Hz</div>
-              <div className="text-sm text-blue-700">Eski Sistem Frekansı</div>
+              <div className="text-2xl font-bold text-primary">4-66Hz</div>
+              <div className="text-sm text-primary/80">Eski Sistem Frekansı</div>
               <div className="text-xs text-gray-600 mt-1">(Değişken)</div>
             </div>
             <div className="text-center">
@@ -250,7 +250,7 @@ export default function SyncComparisonPage() {
         <div className="mt-8 text-center">
           <a
             href="/welcome"
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <i className="fas fa-arrow-left mr-2"></i>
             Ana Sayfaya Dön

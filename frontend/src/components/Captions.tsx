@@ -19,13 +19,13 @@ export default function Captions({ text, level }: CaptionsProps) {
       case 'A2':
         return 'bg-emerald-50 border-emerald-200';
       case 'B1':
-        return 'bg-blue-50 border-blue-200';
+        return 'bg-primary/5 border-primary/20';
       case 'B2':
-        return 'bg-indigo-50 border-indigo-200';
+        return 'bg-secondary/10 border-secondary/30';
       case 'C1':
-        return 'bg-purple-50 border-purple-200';
+        return 'bg-accent/10 border-accent/40';
       case 'C2':
-        return 'bg-violet-50 border-violet-200';
+        return 'bg-gray-900 border-gray-700';
       default:
         return 'bg-gray-50 border-gray-200';
     }
@@ -39,13 +39,13 @@ export default function Captions({ text, level }: CaptionsProps) {
       case 'A2':
         return 'text-emerald-800';
       case 'B1':
-        return 'text-blue-800';
+        return 'text-primary';
       case 'B2':
-        return 'text-indigo-800';
+        return 'text-secondary-foreground';
       case 'C1':
-        return 'text-purple-800';
+        return 'text-accent-foreground';
       case 'C2':
-        return 'text-violet-800';
+        return 'text-gray-50';
       default:
         return 'text-gray-800';
     }

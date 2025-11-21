@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useTranslation } from '@/lib/i18n';
 
@@ -9,41 +10,60 @@ const Header: React.FC = () => {
   const { t } = useTranslation();
 
   return (
-    <header className="flex items-center justify-between py-4 px-6 bg-white shadow-md">
+    <header className="flex items-center justify-between py-4 px-6 bg-white/90 border-b border-border backdrop-blur-sm">
       <Link href="/">
-        <div className="flex items-center space-x-2">
-          <Image src="/lingroot-icon.svg" alt="LingRoot Logo" width={48} height={48} />
-          <span className="font-bold text-xl text-blue-700">LingRoot</span>
+        <div className="flex items-center space-x-3">
+          <Image
+            src="/lingroot-logo.svg"
+            alt="LingRoot Logo"
+            width={140}
+            height={36}
+            className="hidden sm:block h-9 w-auto"
+          />
+          <Image
+            src="/LingRoot_IconOnly.png"
+            alt="LingRoot Icon"
+            width={36}
+            height={36}
+            className="block sm:hidden h-9 w-9"
+          />
         </div>
       </Link>
-      <nav className="flex items-center space-x-6">
-        <Link href="/" className="hover:text-blue-600 font-medium">
+      <nav className="flex items-center space-x-6 text-sm md:text-base font-medium text-foreground/80">
+        <Link href="/" className="hover:text-primary transition-colors">
           {t('dashboard')}
         </Link>
-        <Link href="/about" className="hover:text-blue-600 font-medium">
+        <Link href="/about" className="hover:text-primary transition-colors">
           {t('about')}
         </Link>
-        <Link href="/contact" className="hover:text-blue-600 font-medium">
+        <Link href="/contact" className="hover:text-primary transition-colors">
           {t('contact')}
         </Link>
         {user ? (
           <>
-            <span className="text-gray-700 font-medium">{user.email}</span>
-            <Link href="/profile" className="ml-2 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-all font-medium">
-              Profil
+            <span className="hidden sm:inline text-xs md:text-sm text-muted-foreground max-w-[180px] truncate">
+              {user.email}
+            </span>
+            <Link href="/profile">
+              <Button variant="outline" className="ml-2 text-xs md:text-sm">
+                Profil
+              </Button>
             </Link>
-            <button onClick={logout} className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all">
+            <Button onClick={logout} className="ml-2 text-xs md:text-sm">
               {t('logout')}
-            </button>
+            </Button>
           </>
         ) : (
-          <Link href="/login" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all">
-            {t('login')}
+          <Link href="/login">
+            <Button className="text-xs md:text-sm">
+              {t('login')}
+            </Button>
           </Link>
         )}
       </nav>
     </header>
   );
-};
+}
+;
 
 export default Header; 

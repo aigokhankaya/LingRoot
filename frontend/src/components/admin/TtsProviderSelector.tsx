@@ -55,7 +55,7 @@ const TtsProviderSelector: React.FC = () => {
           <select
             value={provider}
             onChange={handleChange}
-            className="ml-3 border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none transition"
+            className="ml-3 border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-primary focus:outline-none transition"
             disabled={saving}
           >
             <option value="amazon">🔊 Amazon Polly</option>

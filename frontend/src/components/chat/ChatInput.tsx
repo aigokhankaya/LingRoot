@@ -40,13 +40,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled}
-            className="min-h-[52px] max-h-[200px] resize-none rounded-full px-5 py-3 pr-14 border-gray-300 dark:border-gray-700 focus:border-blue-500 focus:ring-blue-500 text-sm placeholder:text-gray-400"
+            className="min-h-[52px] max-h-[200px] resize-none rounded-full px-5 py-3 pr-14 border-gray-300 dark:border-gray-700 focus:border-primary focus:ring-primary text-sm placeholder:text-gray-400"
             rows={1}
           />
           <Button
             onClick={handleSend}
             disabled={disabled || !message.trim()}
-            className="absolute right-2 bottom-2 rounded-full h-9 w-9 p-0 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            className="absolute right-2 bottom-2 rounded-full h-9 w-9 p-0 bg-primary hover:bg-primary/90 text-primary-foreground disabled:bg-gray-300 disabled:cursor-not-allowed"
             size="icon"
           >
             {disabled ? (

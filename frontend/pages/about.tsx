@@ -5,7 +5,7 @@ import Footer from '../src/components/Footer';
 
 export default function About() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-blue-50">
+    <div className="min-h-screen flex flex-col bg-background">
       <Head>
         <title>Hakkımızda | LingRoot</title>
         <meta name="description" content="LingRoot'un hikayesi, misyonu ve vizyonu. Teknoloji destekli dil öğrenme yaklaşımımızla İngilizce öğrenimi hayatınızın doğal bir parçası oluyor." />
@@ -17,16 +17,16 @@ export default function About() {
       {/* Header - Ana sayfa stilinde */}
       <header className="fixed w-full py-3 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <Link href="/" className="flex items-center space-x-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-            <span className="text-white font-bold text-lg">LR</span>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10 text-primary border border-primary/20">
+            <span className="font-bold text-lg">LR</span>
           </div>
-          <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <span className="font-bold text-xl text-primary">
             LingRoot
           </span>
         </Link>
         
         <nav className="hidden md:flex items-center space-x-6">
-          <Link href="/about" className="text-blue-600 hover:text-blue-700 font-medium transition-colors">
+          <Link href="/about" className="text-primary hover:text-primary/80 font-medium transition-colors">
             Hakkımızda
           </Link>
           <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-700 font-medium transition-colors">
@@ -48,7 +48,7 @@ export default function About() {
             Giriş Yap
           </Link>
           <Link href="/register" 
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl">
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-lg">
             Ücretsiz Başla
           </Link>
         </div>
@@ -58,19 +58,19 @@ export default function About() {
         {/* Hero Section */}
         <section className="py-16 px-6">
           <div className="max-w-6xl mx-auto text-center">
-            <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-100 text-blue-700 text-sm font-medium mb-6">
-              <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+            <div className="inline-flex items-center px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
+              <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
               LingRoot Hakkında
             </div>
-            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-6">
+            <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
               Hikayemiz
             </h1>
             <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
               Teknoloji ile dil öğrenme deneyimini kökten değiştirmek için kurulmuş yenilikçi platform.
             </p>
             <div className="mt-8 flex justify-center">
-              <div className="px-6 py-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-full border border-blue-200">
-                <span className="text-blue-700 font-semibold">
+              <div className="px-6 py-3 bg-muted rounded-full border border-primary/10">
+                <span className="text-primary font-semibold">
                   "İngilizce öğrenmek için hayatını değiştirmene gerek yok – dinlemeye devam et"
                 </span>
               </div>
@@ -84,7 +84,7 @@ export default function About() {
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-6">
-                  Bizim <span className="text-blue-600">Hikayemiz</span>
+                  Bizim <span className="text-primary">Hikayemiz</span>
                 </h2>
                 <div className="space-y-4 text-gray-600 leading-relaxed">
                   <p>
@@ -104,15 +104,15 @@ export default function About() {
                 </div>
               </div>
               <div className="relative">
-                <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8 border border-blue-100">
+                <div className="bg-muted rounded-2xl p-8 border border-border">
                   <div className="bg-white rounded-xl p-6 shadow-lg">
                     <div className="flex items-center mb-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                      <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
                         <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
                       </div>
-                      <h3 className="text-xl font-bold text-blue-600 ml-3">2025</h3>
+                      <h3 className="text-xl font-bold text-primary ml-3">2025</h3>
                     </div>
                     <p className="text-gray-600">
                       İstanbul merkezli olarak yola çıktık ve o günden beri kullanıcılarımızın geri bildirimleriyle platformumuzu sürekli geliştiriyoruz.
@@ -125,18 +125,18 @@ export default function About() {
         </section>
 
         {/* Mission & Vision */}
-        <section className="py-16 px-6 bg-gradient-to-br from-blue-50 to-purple-50">
+        <section className="py-16 px-6 bg-muted">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                Misyon & <span className="text-blue-600">Vizyon</span>
+              <h2 className="text-3xl font-bold text-gray-900 mb-6">
+                Misyon & <span className="text-primary">Vizyon</span>
               </h2>
             </div>
             
             <div className="grid md:grid-cols-2 gap-8">
-              <div className="bg-white rounded-2xl p-8 shadow-lg border-l-4 border-blue-500">
+              <div className="bg-white rounded-2xl p-8 shadow-lg border-l-4 border-primary/20">
                 <div className="flex items-center mb-6">
-                  <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                  <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                     </svg>
@@ -150,9 +150,9 @@ export default function About() {
                 </p>
               </div>
 
-              <div className="bg-white rounded-2xl p-8 shadow-lg border-l-4 border-purple-500">
+              <div className="bg-white rounded-2xl p-8 shadow-lg border-l-4 border-primary/20">
                 <div className="flex items-center mb-6">
-                  <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center">
+                  <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -174,7 +174,7 @@ export default function About() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold text-gray-900 mb-6">
-                Neden <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent font-extrabold">LingRoot</span>?
+                Neden <span className="text-primary">LingRoot</span>?
               </h2>
             </div>
             
@@ -182,7 +182,7 @@ export default function About() {
               <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-6 border border-red-200">
                 <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center mb-4">
                   <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
                 <h3 className="text-lg font-bold text-red-700 mb-3">Problem</h3>
@@ -219,17 +219,17 @@ export default function About() {
         </section>
 
         {/* Values */}
-        <section className="py-16 px-6 bg-gradient-to-br from-blue-50 to-purple-50">
+        <section className="py-16 px-6 bg-muted">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold text-gray-900 mb-6">
-                Temel <span className="text-blue-600">Değerlerimiz</span>
+                Temel <span className="text-primary">Değerlerimiz</span>
               </h2>
             </div>
             
             <div className="grid md:grid-cols-3 gap-8">
               <div className="bg-white rounded-xl p-8 shadow-lg text-center hover:shadow-xl transition-shadow">
-                <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-6">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -242,7 +242,7 @@ export default function About() {
               </div>
 
               <div className="bg-white rounded-xl p-8 shadow-lg text-center hover:shadow-xl transition-shadow">
-                <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-6">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
@@ -254,7 +254,7 @@ export default function About() {
               </div>
 
               <div className="bg-white rounded-xl p-8 shadow-lg text-center hover:shadow-xl transition-shadow">
-                <div className="w-16 h-16 bg-indigo-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center mx-auto mb-6">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
@@ -271,28 +271,28 @@ export default function About() {
         {/* Security & Trust */}
         <section className="py-16 px-6 bg-white">
           <div className="max-w-6xl mx-auto">
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-12 border border-blue-200">
+            <div className="bg-muted rounded-2xl p-12 border border-border">
               <div className="text-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center mx-auto mb-6">
                   <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-6">
-                  Güvenlik ve <span className="text-blue-600">Gizlilik</span>
+                  Güvenlik ve <span className="text-primary">Gizlilik</span>
                 </h2>
                 <p className="text-gray-600 text-lg leading-relaxed max-w-4xl mx-auto">
                   LingRoot, kullanıcı güvenliği ve gizliliğini ön planda tutan profesyonel bir yaklaşıma sahiptir. 
                   Platformumuzda yaptığınız tüm işlemler ve paylaştığınız veriler, uluslararası standartlarda korunur. 
                   Verilerinizin güvenliği bizim için bir öncelik değil, vazgeçilmez bir gerekliliktir.
-        </p>
-      </div>
+                </p>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Call to Action */}
-        <section className="py-16 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+        <section className="py-16 px-6 bg-slate-900 text-white">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-4xl font-bold mb-6">
               LingRoot – We're Rooting for You!
@@ -303,17 +303,17 @@ export default function About() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/register" 
-                className="px-8 py-4 bg-white text-blue-600 rounded-lg font-bold hover:bg-gray-100 transition-colors shadow-lg">
+                className="px-8 py-4 bg-primary text-primary-foreground rounded-lg font-bold hover:bg-primary/90 transition-colors shadow-lg">
                 Hemen Başla
               </Link>
               <Link href="/nasil-calisir" 
-                className="px-8 py-4 border border-white text-white rounded-lg font-bold hover:bg-white hover:text-blue-600 transition-colors">
+                className="px-8 py-4 border border-white text-white rounded-lg font-bold hover:bg-white hover:text-foreground transition-colors">
                 Nasıl Çalıştığını Öğren
               </Link>
             </div>
           </div>
         </section>
-    </main>
+      </main>
 
       <Footer />
     </div>
