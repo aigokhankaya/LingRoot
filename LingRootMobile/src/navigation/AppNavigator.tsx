@@ -85,23 +85,6 @@ const MainTabs = () => {
           return;
         }
 
-        // On Android we already navigate via the push notification tap
-        // handler, so polling should ONLY be used to mark notifications
-        // as read to avoid duplicate navigations.
-        if (Platform.OS === 'android') {
-          try {
-            await Promise.all(
-              audioNotifications.map((notification: any) =>
-                apiService.markNotificationAsRead(notification.id).catch(() => {})
-              )
-            );
-          } catch {
-            // Ignore marking errors
-          }
-          return;
-        }
-
-        // iOS: use polling as a fallback navigation mechanism.
         const now = Date.now();
         const recentlyHandled =
           typeof lastAudioNotificationHandledAt === 'number' &&
@@ -158,9 +141,9 @@ const MainTabs = () => {
       }
     };
 
-    // Poll immediately and then every 30 seconds
+    // Poll immediately and then every 5 seconds (more responsive for async TTS)
     pollNotifications();
-    const pollInterval = setInterval(pollNotifications, 30000);
+    const pollInterval = setInterval(pollNotifications, 5000);
 
     return () => {
       clearInterval(pollInterval);
@@ -323,6 +306,9 @@ const AppNavigator = () => {
           // Non-JSON payloads are treated as vocabulary wordId
         }
 
+        console.log('[AppNav][Notification] Raw payload:', data);
+        console.log('[AppNav][Notification] Parsed payload:', parsed);
+
         const isAudioNotification = parsed && parsed.type === 'audio_created' && parsed.data;
 
         const navigateToAudioFromNotification = (audioData: any) => {
@@ -369,6 +355,11 @@ const AppNavigator = () => {
 
         if (navReady) {
           if (isAudioNotification) {
+            console.log('[AppNav][Notification] Navigating to Library with audio data:', {
+              keys: parsed && parsed.data ? Object.keys(parsed.data) : [],
+              audioId: parsed?.data?.audioId,
+              jobId: parsed?.data?.jobId,
+            });
             navigateToAudioFromNotification(parsed.data);
           } else {
             const wordId = parsed ? (parsed.wordId || data) : data;
@@ -376,6 +367,7 @@ const AppNavigator = () => {
           }
         } else {
           if (isAudioNotification) {
+            console.log('[AppNav][Notification] Nav not ready, caching initial audio notification');
             setInitialAudioNotification(parsed.data);
           } else {
             const wordId = parsed ? (parsed.wordId || data) : data;
