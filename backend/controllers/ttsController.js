@@ -1293,6 +1293,7 @@ const processTtsRequest = async (req, res) => {
         }
 
         // Genel TTS istekleri için contenthistory tablosuna kaydet
+        let contentHistoryId = null;
         try {
             logger.info(`[${requestId}] 💾 Saving to contenthistory table...`);
             
@@ -1315,8 +1316,7 @@ const processTtsRequest = async (req, res) => {
             } else {
                 logger.warn(`[${requestId}] ❌ No valid auth header found`);
             }
-            
-            if (userId) {
+                        if (userId) {
                 // Calculate costs
                 const { calculateOpenAiCost, calculateTtsCost } = require('../utils/costTracker');
                 // Sum costs per model using detailed breakdown if available; fallback to total with default model
@@ -1394,6 +1394,7 @@ const processTtsRequest = async (req, res) => {
                 
                 logger.info(`[${requestId}] ✅ Audio saved to contenthistory table: ${data[0]?.id}`);
                 logger.info(`[${requestId}] 📊 Saved data:`, JSON.stringify(data[0], null, 2));
+                contentHistoryId = data?.[0]?.id || null;
                 
                 // Free Trial için ses oluşturma sayacını artır
                 try {
@@ -1455,7 +1456,7 @@ const processTtsRequest = async (req, res) => {
             // "data" comes from the Supabase upsert above and may be
             // undefined when no userId is present, so guard with optional
             // chaining.
-            id: data?.[0]?.id,
+            id: contentHistoryId,
             message: cleanTextForDisplay, // Kullanıcıya temiz text göster (noktalama olmadan)
             originalMessage: translatedText || textToAdapt, // Topic için çevrilmiş metin (kullanıcıya gösterilen)
             level: level,
