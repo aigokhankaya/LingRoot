@@ -10,6 +10,7 @@ class NotificationService {
   private isConfigured = false;
   private hasPermission = false;
   private pendingWordId: string | null = null;
+  private pendingAudioPayload: string | null = null;
   private responseCallback: ((wordId: string) => void) | null = null;
   private rescheduleRunning = false;
   private rescheduleQueued = false;
@@ -70,45 +71,24 @@ class NotificationService {
             
             // Handle audio creation notification
             if (userInfo.type === 'audio_created') {
-              const audioData = typeof userInfo.audioData === 'string' 
-                ? JSON.parse(userInfo.audioData) 
+              const audioData = typeof userInfo.audioData === 'string'
+                ? JSON.parse(userInfo.audioData)
                 : userInfo.audioData;
-              
+
               console.log('[NotificationService][Android] Audio notification detected, audioData:', audioData);
-              
-              if (this.responseCallback && audioData) {
-                console.log('[NotificationService][Android] Calling responseCallback');
-                this.responseCallback(JSON.stringify({ type: 'audio_created', data: audioData }));
+
+              if (!audioData) {
+                return;
+              }
+
+              const payload = JSON.stringify({ type: 'audio_created', data: audioData });
+
+              if (this.responseCallback) {
+                console.log('[NotificationService][Android] Calling responseCallback for audio notification');
+                this.responseCallback(payload);
               } else {
-                console.log('[NotificationService][Android] No responseCallback, using global navigation');
-                // Fallback: use global navigation ref if callback not set
-                const navRef = (global as any).__NAVIGATION_REF__;
-                if (navRef?.current && audioData) {
-                  try {
-                    const { CommonActions } = require('@react-navigation/native');
-                    navRef.current.dispatch(
-                      CommonActions.reset({
-                        index: 0,
-                        routes: [
-                          {
-                            name: 'Main',
-                            state: {
-                              routes: [
-                                {
-                                  name: 'Library',
-                                  params: { notificationAudio: audioData },
-                                },
-                              ],
-                            },
-                          },
-                        ],
-                      })
-                    );
-                    console.log('[NotificationService][Android] Navigation dispatched via global ref');
-                  } catch (navError) {
-                    console.error('[NotificationService][Android] Navigation error:', navError);
-                  }
-                }
+                console.log('[NotificationService][Android] No responseCallback yet, storing pending audio payload');
+                this.pendingAudioPayload = payload;
               }
               return;
             }
@@ -295,6 +275,20 @@ class NotificationService {
 
   public setupNotificationResponseHandler(navigationCallback: (wordId: string) => void) {
     this.responseCallback = navigationCallback;
+
+    // If we received an audio notification before the callback was
+    // registered (cold start), forward the pending payload now so that
+    // navigation is handled consistently in AppNavigator.
+    if (this.pendingAudioPayload && this.responseCallback) {
+      const payload = this.pendingAudioPayload;
+      this.pendingAudioPayload = null;
+      try {
+        this.responseCallback(payload);
+      } catch {
+        // Ignore callback errors
+      }
+    }
+
     // No DeviceEventEmitter bridge on Android here; onNotification covers taps
     return { remove: () => { this.responseCallback = null; } };
   }

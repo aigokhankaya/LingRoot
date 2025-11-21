@@ -1450,6 +1450,12 @@ const processTtsRequest = async (req, res) => {
 
         const responseData = {
             success: true,
+            // Expose the contenthistory row ID so that async notifications
+            // can reference the correct audioId for hydration on mobile.
+            // "data" comes from the Supabase upsert above and may be
+            // undefined when no userId is present, so guard with optional
+            // chaining.
+            id: data?.[0]?.id,
             message: cleanTextForDisplay, // Kullanıcıya temiz text göster (noktalama olmadan)
             originalMessage: translatedText || textToAdapt, // Topic için çevrilmiş metin (kullanıcıya gösterilen)
             level: level,
