@@ -89,6 +89,19 @@ router.post(
         return res.status(401).json({ success: false, message: 'User not authenticated' });
       }
 
+      // Prevent multiple concurrent async TTS jobs per user
+      const existingJob = jobQueue.getActiveJobForUser(userId);
+      if (existingJob) {
+        logger.info(`[AsyncTTS] Existing active job ${existingJob.id} for user ${userId}; rejecting new request`);
+        return res.status(409).json({
+          success: false,
+          code: 'TTS_JOB_IN_PROGRESS',
+          message: 'Zaten devam eden bir ses oluşturma işleminiz var. Lütfen bitmesini bekleyin.',
+          jobId: existingJob.id,
+          status: existingJob.status,
+        });
+      }
+
       // Create job
       const job = jobQueue.createJob(userId, {
         requestBody: req.body,
@@ -231,6 +244,34 @@ router.post(
     next();
   }
 );
+
+// GET /api/tts/job/active – Get active job for current user (if any)
+router.get("/job/active", authenticate, (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ success: false, message: 'User not authenticated' });
+  }
+
+  const job = jobQueue.getActiveJobForUser(userId);
+
+  if (!job) {
+    return res.json({ success: true, hasActiveJob: false });
+  }
+
+  return res.json({
+    success: true,
+    hasActiveJob: true,
+    job: {
+      id: job.id,
+      status: job.status,
+      progress: job.progress,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      result: job.result,
+      error: job.error,
+    },
+  });
+});
 
 // GET /api/tts/job/:jobId – Get job status
 router.get("/job/:jobId", authenticate, (req, res) => {

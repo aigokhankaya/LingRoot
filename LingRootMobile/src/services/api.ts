@@ -406,7 +406,12 @@ export const apiService = {
       return response.data;
     } catch (error: any) {
       console.error('🔴 [ASYNC TTS ERROR]:', error);
-      throw new Error(error.response?.data?.message || 'Async TTS işlemi başlatılamadı');
+      const msg = error.response?.data?.message || 'Async TTS işlemi başlatılamadı';
+      const err: any = new Error(msg);
+      if (error.response?.data?.code) {
+        err.code = error.response.data.code;
+      }
+      throw err;
     }
   },
 
@@ -422,7 +427,12 @@ export const apiService = {
       });
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Async dosya TTS işlemi başlatılamadı');
+      const msg = error.response?.data?.message || 'Async dosya TTS işlemi başlatılamadı';
+      const err: any = new Error(msg);
+      if (error.response?.data?.code) {
+        err.code = error.response.data.code;
+      }
+      throw err;
     }
   },
 
@@ -433,6 +443,21 @@ export const apiService = {
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Job durumu alınamadı');
+    }
+  },
+
+  // Get active async TTS job for current user (if any)
+  async getActiveTtsJob(): Promise<{ success: boolean; hasActiveJob: boolean; job?: any }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.get('/api/tts/job/active');
+      return response.data;
+    } catch (error: any) {
+      // If endpoint is not available or returns 404, treat as no active job
+      if (error.response && error.response.status === 404) {
+        return { success: false, hasActiveJob: false };
+      }
+      return { success: false, hasActiveJob: false };
     }
   },
 

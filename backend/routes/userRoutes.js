@@ -690,6 +690,24 @@ router.post('/device-tokens', authenticate, async (req, res) => {
       return res.status(500).json({ success: false, message: 'Device token kaydedilemedi' });
     }
 
+    // Ensure a single active token per user and platform: deactivate other
+    // tokens for the same user+platform when a new token is registered.
+    try {
+      const { error: deactivateError } = await supabase
+        .from('device_tokens')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('user_id', req.user.id)
+        .eq('platform', normalizedPlatform)
+        .neq('token', token.trim())
+        .eq('is_active', true);
+
+      if (deactivateError) {
+        logger.warn('Failed to deactivate old device tokens:', deactivateError);
+      }
+    } catch (deactivateException) {
+      logger.warn('Unexpected error while deactivating old device tokens:', deactivateException);
+    }
+
     return res.json({ success: true, data });
   } catch (e) {
     logger.error('Unexpected error saving device token:', e);
