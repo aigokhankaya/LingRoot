@@ -16,8 +16,8 @@ export default function LanguageSelector() {
         value={currentLocale}
         onChange={(e: React.ChangeEvent<HTMLSelectElement>) => changeLanguage(e.target.value as Locale)}
         className="appearance-none bg-transparent pl-8 pr-10 py-2 text-white
-          border border-blue-400 rounded-lg cursor-pointer
-          hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 
+          border border-primary/60 rounded-lg cursor-pointer
+          hover:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-primary 
           focus:border-transparent transition-all duration-200"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ffffff'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
@@ -31,7 +31,7 @@ export default function LanguageSelector() {
           <option 
             key={locale} 
             value={locale}
-            className="bg-blue-600 text-white hover:bg-blue-700"
+            className="bg-slate-900 text-white hover:bg-slate-800"
           >
             {/* Use the t function with the specific language key */}
             {t(`language_${locale}`)}
@@ -39,7 +39,7 @@ export default function LanguageSelector() {
         ))}
       </select>
       
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
       </svg>
     </div>

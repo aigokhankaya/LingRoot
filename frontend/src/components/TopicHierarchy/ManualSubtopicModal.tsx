@@ -107,9 +107,9 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
           </div>
 
           {/* Bilgilendirme */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
             <p className="text-xs text-gray-700">
-              <i className="fas fa-lightbulb mr-1 text-blue-600"></i>
+              <i className="fas fa-lightbulb mr-1 text-primary"></i>
               Manuel olarak eklediğiniz alt konudan da daha detaylı konular oluşturabilirsiniz.
             </p>
           </div>

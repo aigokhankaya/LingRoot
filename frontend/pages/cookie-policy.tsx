@@ -5,7 +5,7 @@ import Footer from '../src/components/Footer';
 
 export default function CookiePolicy() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen flex flex-col bg-background">
       <Head>
         <title>Çerez Politikası | LingRoot</title>
         <meta name="description" content="LingRoot Çerez Politikası. Web sitemizde kullandığımız çerezler ve amaçları hakkında detaylı bilgiler." />
@@ -18,7 +18,7 @@ export default function CookiePolicy() {
       <header className="fixed w-full py-4 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <Link href="/" className="flex items-center space-x-3">
           <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12 drop-shadow-lg" />
-          <span className="font-extrabold text-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent tracking-tight">
+          <span className="font-extrabold text-2xl text-primary tracking-tight">
             LingRoot
           </span>
         </Link>
@@ -40,7 +40,7 @@ export default function CookiePolicy() {
             Giriş Yap
           </Link>
           <Link href="/register" 
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+            className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
             Ücretsiz Başla
           </Link>
         </div>
@@ -48,7 +48,7 @@ export default function CookiePolicy() {
 
       <main className="flex-grow pt-24">
         {/* Hero Section */}
-        <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-purple-600">
+        <section className="py-20 px-6 bg-slate-950">
           <div className="max-w-4xl mx-auto text-center">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
               <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
@@ -57,7 +57,7 @@ export default function CookiePolicy() {
             <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
               Çerez Politikası
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-slate-200 max-w-3xl mx-auto leading-relaxed">
               Web sitemizde kullandığımız çerezler ve bu çerezlerin amaçları hakkında şeffaf bilgiler.
             </p>
           </div>
@@ -69,8 +69,8 @@ export default function CookiePolicy() {
             <div className="prose prose-lg max-w-none">
               
               {/* Son Güncellenme */}
-              <div className="mb-12 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl border border-blue-200 shadow-lg">
-                <p className="text-blue-800 mb-0 font-medium">
+              <div className="mb-12 p-6 bg-primary/5 rounded-2xl border border-primary/20 shadow-lg">
+                <p className="text-primary mb-0 font-medium">
                   <strong>Son Güncellenme:</strong> 1 Ocak 2025
                 </p>
               </div>
@@ -78,7 +78,7 @@ export default function CookiePolicy() {
               {/* Giriş */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                  Çerezler ve <span className="text-blue-600">Kullanım Amaçları</span>
+                  Çerezler ve <span className="text-primary">Kullanım Amaçları</span>
                 </h2>
                 <p className="text-gray-600 leading-relaxed mb-4">
                   LingRoot olarak, web sitemizi daha işlevsel ve kullanıcı dostu hale getirmek için çerezler kullanıyoruz. 
@@ -93,23 +93,23 @@ export default function CookiePolicy() {
               {/* Çerez Nedir */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  1. Çerez <span className="text-blue-600">Nedir?</span>
+                  1. Çerez <span className="text-primary">Nedir?</span>
                 </h2>
                 
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-8 border border-blue-200">
+                <div className="bg-muted rounded-xl p-8 border border-border">
                   <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
                       <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-blue-900 mb-3">Çerez Tanımı</h3>
-                      <p className="text-blue-800 mb-4">
+                      <h3 className="text-lg font-semibold text-primary mb-3">Çerez Tanımı</h3>
+                      <p className="text-gray-700 mb-4">
                         Çerezler, web sitelerinin bilgisayarınızda veya mobil cihazınızda sakladığı küçük metin dosyalarıdır. 
                         Bu dosyalar, web sitesinin işlevselliğini artırmak ve size daha iyi bir deneyim sunmak için kullanılır.
                       </p>
-                      <ul className="text-blue-800 space-y-2 text-sm">
+                      <ul className="text-gray-700 space-y-2 text-sm">
                         <li>• Oturum yönetimi ve güvenlik sağlama</li>
                         <li>• Kullanıcı tercihlerini hatırlama</li>
                         <li>• Site performansını analiz etme</li>
@@ -123,7 +123,7 @@ export default function CookiePolicy() {
               {/* Çerez Kategorileri */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  2. Kullandığımız <span className="text-blue-600">Çerez Türleri</span>
+                  2. Kullandığımız <span className="text-primary">Çerez Türleri</span>
                 </h2>
                 
                 <div className="space-y-6">
@@ -165,19 +165,19 @@ export default function CookiePolicy() {
                     </ul>
                   </div>
 
-                  <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+                  <div className="bg-primary/5 rounded-lg p-6 border border-primary/20">
                     <div className="flex items-center mb-4">
-                      <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center mr-4">
+                      <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center mr-4">
                         <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-blue-900">📊 Analitik Çerezler</h3>
-                        <p className="text-blue-700 text-sm">Site kullanımını analiz eder ve performansı ölçer</p>
+                        <h3 className="text-lg font-semibold text-primary">📊 Analitik Çerezler</h3>
+                        <p className="text-gray-600 text-sm">Site kullanımını analiz eder ve performansı ölçer</p>
                       </div>
                     </div>
-                    <ul className="text-blue-800 space-y-2 text-sm">
+                    <ul className="text-gray-700 space-y-2 text-sm">
                       <li>• <strong>Google Analytics:</strong> Ziyaretçi istatistikleri ve sayfa görüntülemeleri</li>
                       <li>• <strong>Performans Metrikleri:</strong> Sayfa yüklenme süreleri ve hata izleme</li>
                       <li>• <strong>Kullanım Analitiği:</strong> En çok kullanılan özellikler ve sayfa akışı</li>
@@ -208,7 +208,7 @@ export default function CookiePolicy() {
               {/* Çerez Yönetimi */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  3. Çerez <span className="text-blue-600">Yönetimi</span>
+                  3. Çerez <span className="text-primary">Yönetimi</span>
                 </h2>
                 
                 <div className="grid md:grid-cols-2 gap-6">
@@ -243,7 +243,7 @@ export default function CookiePolicy() {
               {/* Üçüncü Taraf Çerezler */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  4. Üçüncü Taraf <span className="text-blue-600">Çerezler</span>
+                  4. Üçüncü Taraf <span className="text-primary">Çerezler</span>
                 </h2>
                 
                 <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-8 border border-amber-200">
@@ -290,10 +290,10 @@ export default function CookiePolicy() {
               {/* İletişim */}
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  5. <span className="text-blue-600">İletişim</span>
+                  5. <span className="text-primary">İletişim</span>
                 </h2>
                 
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-white">
+                <div className="bg-slate-900 rounded-xl p-8 text-white">
                   <h3 className="text-xl font-semibold mb-4">Çerezler hakkında sorularınız mı var?</h3>
                   <p className="mb-6 opacity-90">
                     Çerez kullanımımız veya gizliliğiniz hakkında herhangi bir sorunuz varsa, 
@@ -301,11 +301,11 @@ export default function CookiePolicy() {
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4">
                     <Link href="/contact" 
-                      className="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors text-center">
+                      className="px-6 py-3 bg-white text-primary rounded-lg font-semibold hover:bg-gray-100 transition-colors text-center">
                       İletişime Geç
                     </Link>
                     <a href="mailto:privacy@lingroot.com" 
-                      className="px-6 py-3 border border-white text-white rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors text-center">
+                      className="px-6 py-3 border border-white text-white rounded-lg font-semibold hover:bg-white hover:text-primary transition-colors text-center">
                       privacy@lingroot.com
                     </a>
                   </div>

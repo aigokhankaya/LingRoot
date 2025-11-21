@@ -5,7 +5,7 @@ import Footer from '../src/components/Footer';
 
 export default function Ozellikler() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen flex flex-col bg-background">
       <Head>
         <title>Özellikler | LingRoot</title>
         <meta name="description" content="LingRoot'un benzersiz özellikleri ile İngilizce öğrenme deneyiminizi bir üst seviyeye taşıyın." />
@@ -54,7 +54,7 @@ export default function Ozellikler() {
               </defs>
             </svg>
           </div>
-          <span className="font-extrabold text-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent tracking-tight">
+          <span className="font-extrabold text-2xl text-primary tracking-tight">
             LingRoot
           </span>
         </Link>
@@ -66,7 +66,7 @@ export default function Ozellikler() {
           <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             Nasıl Çalışır?
           </Link>
-          <Link href="/ozellikler" className="text-blue-600 hover:text-blue-700 font-semibold transition-colors duration-200">
+          <Link href="/ozellikler" className="text-primary hover:text-primary/80 font-semibold transition-colors duration-200">
             Özellikler
           </Link>
           <Link href="/fiyatlandirma" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
@@ -82,7 +82,7 @@ export default function Ozellikler() {
             Giriş Yap
           </Link>
           <Link href="/register" 
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+            className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
             Ücretsiz Başla
           </Link>
         </div>
@@ -90,16 +90,16 @@ export default function Ozellikler() {
 
       <main className="flex-grow pt-24">
         {/* Hero Section */}
-        <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-purple-600">
+        <section className="py-20 px-6 bg-slate-900">
           <div className="max-w-6xl mx-auto text-center">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
               <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
               Platform Özellikleri
             </div>
             <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
-              LingRoot <span className="text-blue-200">Özellikleri</span>
+              LingRoot <span className="text-primary">Özellikleri</span>
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-white/80 max-w-4xl mx-auto leading-relaxed">
               Benzersiz özelliklerimizle İngilizce öğrenme deneyiminizi tamamen değiştiriyoruz.
             </p>
           </div>
@@ -109,7 +109,7 @@ export default function Ozellikler() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                Platform <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Özelliklerimiz</span>
+                Platform <span className="text-primary">Özelliklerimiz</span>
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                 Teknoloji destekli öğrenme deneyimi için özel olarak tasarlanmış özellikler
@@ -117,13 +117,13 @@ export default function Ozellikler() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <div className="bg-gradient-to-br from-white to-blue-50 p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-blue-100 hover:border-blue-300 group hover:-translate-y-2">
-                <div className="mb-6 bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-xl w-16 h-16 flex items-center justify-center group-hover:scale-110 transition-all duration-300 shadow-lg">
+              <div className="bg-muted p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-primary/20 hover:border-primary/40 group hover:-translate-y-2">
+                <div className="mb-6 bg-primary text-primary-foreground rounded-xl w-16 h-16 flex items-center justify-center group-hover:scale-110 transition-all duration-300 shadow-lg">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">Kişiselleştirilmiş Öğrenme</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-primary transition-all duration-300">Kişiselleştirilmiş Öğrenme</h3>
                 <p className="text-gray-600 leading-relaxed">Her içerik, sizin seviyenize ve ilgi alanlarınıza göre özel olarak uyarlanır. Kendi hızınızda ve tarzınızda öğrenin.</p>
               </div>
               

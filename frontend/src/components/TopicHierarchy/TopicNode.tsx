@@ -32,27 +32,27 @@ const TopicNode: React.FC<TopicNodeProps> = ({
     switch (depth) {
       case 0:
         return {
-          bg: 'bg-blue-50',
-          border: 'border-blue-300',
-          text: 'text-blue-800',
-          icon: 'text-blue-600',
-          badge: 'bg-blue-600'
+          bg: 'bg-primary/5',
+          border: 'border-primary/30',
+          text: 'text-primary',
+          icon: 'text-primary',
+          badge: 'bg-primary'
         };
       case 1:
         return {
-          bg: 'bg-green-50',
-          border: 'border-green-300',
-          text: 'text-green-800',
-          icon: 'text-green-600',
-          badge: 'bg-green-600'
+          bg: 'bg-secondary/10',
+          border: 'border-secondary/40',
+          text: 'text-secondary-foreground',
+          icon: 'text-secondary-foreground',
+          badge: 'bg-secondary'
         };
       case 2:
         return {
-          bg: 'bg-purple-50',
-          border: 'border-purple-300',
-          text: 'text-purple-800',
-          icon: 'text-purple-600',
-          badge: 'bg-purple-600'
+          bg: 'bg-accent',
+          border: 'border-accent',
+          text: 'text-accent-foreground',
+          icon: 'text-accent-foreground',
+          badge: 'bg-accent'
         };
       default:
         return {
@@ -206,7 +206,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
             <Button
               onClick={handleCreateContent}
               size="sm"
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="text-sm"
             >
               <i className="fas fa-volume-up mr-1"></i>
               Ses Oluştur

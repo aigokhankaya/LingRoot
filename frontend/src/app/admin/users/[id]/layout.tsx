@@ -43,7 +43,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
               <span>Geri dön</span>
             </Link>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold">
+              <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold">
                 {user?.name ? user.name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase() : 'LR'}
               </div>
               <div>

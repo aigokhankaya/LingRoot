@@ -433,23 +433,24 @@ const App: React.FC = () => {
     };
     const t = translations[language];
 
+
   return (
-        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+        <div className="min-h-screen bg-background">
             {/* Navigation */}
-            <nav className="bg-white shadow-sm py-3 sticky top-0 z-50">
+            <nav className="bg-white/90 border-b border-border backdrop-blur-sm py-3 sticky top-0 z-50">
                 <div className="container mx-auto px-8 flex justify-between items-center">
                     <div className="flex items-center space-x-3">
                         <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-10 h-10 md:w-12 md:h-12" />
-                        <span className="text-xl md:text-2xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent tracking-tight">LingRoot</span>
+                        <span className="text-xl md:text-2xl font-extrabold text-foreground tracking-tight">LingRoot</span>
                     </div>
                     
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-6">
-                        <a href="/about" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">Hakkımızda</a>
-                        <a href="#nasil-calisir" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.howItWorks}</a>
-                        <a href="#ozellikler" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.features}</a>
-                        <a href="#yorumlar" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.testimonials}</a>
-                        <a href="#blog" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.blog}</a>
+                        <a href="/about" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">Hakkımızda</a>
+                        <a href="#nasil-calisir" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.howItWorks}</a>
+                        <a href="#ozellikler" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.features}</a>
+                        <a href="#yorumlar" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.testimonials}</a>
+                        <a href="#blog" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.blog}</a>
                     </div>
                     
                     {/* Desktop Buttons */}
@@ -486,7 +487,7 @@ const App: React.FC = () => {
                                             type="checkbox"
                                             checked={loginForm.rememberMe}
                                             onChange={handleLoginChange}
-                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                            className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                                         />
                                         <Label htmlFor="rememberMe" className="text-sm font-medium text-gray-700 cursor-pointer">
                                             Beni hatırla (30 gün)
@@ -518,9 +519,9 @@ const App: React.FC = () => {
                                     )}
                                     {/* Şifremi unuttum */}
                                     <div className="flex justify-end">
-                                        <a href="/forgot-password" className="text-sm text-blue-600 hover:underline">Şifremi unuttum?</a>
+                                        <a href="/forgot-password" className="text-sm text-primary hover:underline">Şifremi unuttum?</a>
                                     </div>
-                                    <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white !rounded-button" disabled={loading}>
+                                    <Button type="submit" className="w-full !rounded-button" disabled={loading}>
                                         {loading ? t.login.loadingButton : t.login.loginButton}
                                     </Button>
                                     
@@ -556,7 +557,7 @@ const App: React.FC = () => {
 
                         {/* KAYIT OL BUTONU */}
                         <a href="/register">
-                            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button whitespace-nowrap">{t.nav.signup}</Button>
+                            <Button className="!rounded-button whitespace-nowrap">{t.nav.signup}</Button>
                         </a>
                     </div>
           
@@ -579,11 +580,11 @@ const App: React.FC = () => {
                 {isMobileMenuOpen && (
                     <div className="md:hidden bg-white border-t border-gray-200 mobile-menu">
                         <div className="container mx-auto px-4 py-4 space-y-4">
-                            <a href="/about" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>Hakkımızda</a>
-                            <a href="#nasil-calisir" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.howItWorks}</a>
-                            <a href="#ozellikler" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.features}</a>
-                            <a href="#yorumlar" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.testimonials}</a>
-                            <a href="#blog" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.blog}</a>
+                            <a href="/about" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>Hakkımızda</a>
+                            <a href="#nasil-calisir" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.howItWorks}</a>
+                            <a href="#ozellikler" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.features}</a>
+                            <a href="#yorumlar" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.testimonials}</a>
+                            <a href="#blog" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.blog}</a>
                             
                             <div className="pt-4 border-t border-gray-200 space-y-3">
                                 <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
@@ -613,7 +614,7 @@ const App: React.FC = () => {
                                                     type="checkbox"
                                                     checked={loginForm.rememberMe}
                                                     onChange={handleLoginChange}
-                                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                                                 />
                                                 <Label htmlFor="mobile-rememberMe" className="text-sm font-medium text-gray-700 cursor-pointer">
                                                     Beni hatırla (30 gün)
@@ -643,7 +644,7 @@ const App: React.FC = () => {
                                                 )}
                                               </div>
                                             )}
-                                            <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white !rounded-button" disabled={loading}>
+                                            <Button type="submit" className="w-full !rounded-button" disabled={loading}>
                                                 {loading ? t.login.loadingButton : t.login.loginButton}
                                             </Button>
                                             
@@ -678,7 +679,7 @@ const App: React.FC = () => {
                                 </Dialog>
                                 
                                 <a href="/register" onClick={() => setIsMobileMenuOpen(false)}>
-                                    <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button">{t.nav.signup}</Button>
+                                    <Button className="w-full !rounded-button">{t.nav.signup}</Button>
                                 </a>
                             </div>
                         </div>
@@ -687,25 +688,25 @@ const App: React.FC = () => {
             </nav>
             
             {/* Hero Section */}
-            <section className="pt-10 pb-12 min-h-0 h-auto bg-gradient-to-b from-gray-100 to-white">
+            <section className="pt-10 pb-12 min-h-0 h-auto bg-gradient-to-b from-background via-primary/5 to-background">
                 <div className="container mx-auto px-8">
                     <div className="text-center">
-                        <Badge className="mb-4 bg-blue-100 text-blue-800 hover:bg-blue-200 border-none text-sm hero-badge">{t.hero.badge}</Badge>
+                        <Badge className="mb-4 bg-primary/10 text-primary border-none text-sm hero-badge">{t.hero.badge}</Badge>
                         <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 leading-tight hero-title max-w-5xl mx-auto">
-                            {t.hero.title}<span className="text-blue-600">{t.hero.titleHighlight}</span>
+                            {t.hero.title}<span className="text-primary">{t.hero.titleHighlight}</span>
                         </h1>
                         <p className="text-lg md:text-xl lg:text-2xl text-gray-600 mb-6 leading-relaxed hero-description max-w-4xl mx-auto">
                             {t.hero.description}
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 hero-buttons justify-center">
                             <a href="/register">
-                                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-base py-4 px-6 !rounded-button whitespace-nowrap">
+                                <Button className="text-base py-4 px-6 !rounded-button whitespace-nowrap">
                                     <i className="fas fa-rocket mr-2"></i> {t.hero.tryButton}
                                 </Button>
                             </a>
                             <Dialog>
                                 <DialogTrigger asChild>
-                                    <Button variant="outline" className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 text-base py-4 px-6 !rounded-button whitespace-nowrap">
+                                    <Button variant="outline" className="border-2 border-primary text-primary hover:bg-primary/10 text-base py-4 px-6 !rounded-button whitespace-nowrap">
                                         <i className="fas fa-play-circle mr-2"></i> {t.hero.watchButton}
                                     </Button>
                                 </DialogTrigger>
@@ -739,7 +740,7 @@ const App: React.FC = () => {
                             Ekstra zaman ayırmana gerek yok. Zaten yaptığın aktiviteler sırasında İngilizce öğren.
                         </p>
                     </div>
-                    <div className="bg-white rounded-xl shadow-xl overflow-hidden mb-2">
+                    <div className="bg-muted rounded-xl shadow-xl overflow-hidden mb-2">
                         <div className="grid md:grid-cols-2 gap-0">
                             <div className="p-8 md:p-12 flex flex-col justify-center">
                                 <h3 className="text-2xl font-bold mb-6">{t.demo.selectLevel}</h3>
@@ -748,7 +749,7 @@ const App: React.FC = () => {
                                         {levels.map((lvl, index) => (
                                             <div
                                                 key={index}
-                                                className={`text-sm font-medium cursor-pointer ${index === level ? 'text-blue-600' : 'text-gray-500'}`}
+                                                className={`text-sm font-medium cursor-pointer ${index === level ? 'text-primary' : 'text-gray-500'}`}
                                                 onClick={() => setLevel(index)}
                                             >
                                                 {lvl}
@@ -763,11 +764,11 @@ const App: React.FC = () => {
                                     />
                                 </div>
                                 <div className="space-y-4">
-                                    <div className="p-4 bg-blue-50 rounded-lg">
+                                    <div className="p-4 bg-muted rounded-lg">
                                         <h4 className="font-bold mb-2">{t.demo.originalContent}</h4>
                                         <p className="text-gray-700">Lingroot customizes and dubs your favorite content based on your English proficiency. This way, you can engage with interesting topics while improving your skills naturally.</p>
                                     </div>
-                                    <div className="p-4 bg-blue-100 rounded-lg border-2 border-blue-500">
+                                    <div className="p-4 bg-primary/10 rounded-lg border-2 border-primary">
                                         <h4 className="font-bold mb-2">{t.demo.yourLevel} ({levels[level]})</h4>
                                         {level === 0 && <p className="text-gray-700">Lingroot changes what you like into easy English. You can listen and understand at your level.</p>}
                                         {level === 1 && <p className="text-gray-700">Lingroot changes and reads your favorite content in your English level. So you can listen and learn easier.</p>}
@@ -793,7 +794,7 @@ const App: React.FC = () => {
                 </div>
             </section>
             {/* How It Works Section */}
-            <section id="nasil-calisir" className="py-20 bg-gradient-to-b from-gray-50 to-white">
+            <section id="nasil-calisir" className="py-20 bg-background">
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-16">
                         <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.howItWorks.title}</h2>
@@ -812,8 +813,8 @@ const App: React.FC = () => {
                                     </div>
                                 </CardHeader>
                                 <CardContent className="pt-6 flex-grow">
-                                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                                        <i className={`${step.icon} text-blue-600 text-xl`}></i>
+                                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                                        <i className={`${step.icon} text-primary text-xl`}></i>
                                     </div>
                                     <CardTitle className="text-2xl mb-2">{index + 1}. {step.title}</CardTitle>
                                     <CardDescription className="text-gray-600 text-base">{step.description}</CardDescription>
@@ -845,14 +846,14 @@ const App: React.FC = () => {
                                     </div>
                                 </CardHeader>
                                 <CardContent className="pt-6 flex-grow">
-                                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                                        <i className={`${activity.icon} text-blue-600 text-xl`}></i>
+                                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                                        <i className={`${activity.icon} text-primary text-xl`}></i>
                                     </div>
                                     <CardTitle className="text-xl mb-2">{activity.title}</CardTitle>
                                     <CardDescription className="text-gray-600">{activity.description}</CardDescription>
                                 </CardContent>
                                 <CardFooter>
-                                    <Button variant="outline" className="w-full border-blue-600 text-blue-600 hover:bg-blue-50 !rounded-button whitespace-nowrap">
+                                    <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 !rounded-button whitespace-nowrap">
                                         <i className="fas fa-level-up-alt mr-2"></i> {t.routine.adaptButton}
                                     </Button>
                                 </CardFooter>
@@ -862,7 +863,7 @@ const App: React.FC = () => {
                 </div>
             </section>
             {/* Features Section */}
-            <section id="ozellikler" className="py-20 bg-gradient-to-b from-gray-50 to-white">
+            <section id="ozellikler" className="py-20 bg-background">
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-16">
                         <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.features.title}</h2>
@@ -875,8 +876,8 @@ const App: React.FC = () => {
                             <Card key={index} className="border-none shadow-lg overflow-hidden">
                                 <div className="grid md:grid-cols-2 gap-0 h-full">
                                     <div className="order-2 md:order-1 p-6 flex flex-col justify-center">
-                                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                                            <i className={`${feature.icon} text-blue-600 text-xl`}></i>
+                                        <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                                            <i className={`${feature.icon} text-primary text-xl`}></i>
                                         </div>
                                         <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
                                         <CardDescription className="text-gray-600">{feature.description}</CardDescription>
@@ -948,7 +949,7 @@ const App: React.FC = () => {
                 </div>
             </section>
             {/* Try It Now Section */}
-            <section className="py-20 bg-gradient-to-b from-blue-50 to-white">
+            <section className="py-20 bg-background">
                 <div className="container mx-auto px-4">
                     <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
                         <div className="p-8 md:p-12">
@@ -958,13 +959,13 @@ const App: React.FC = () => {
                                     <Input
                                         type="text"
                                         placeholder={t.tryNow.placeholder}
-                                        className="w-full h-12 pl-12 pr-36 text-base border-2 border-gray-200 focus:border-blue-500 rounded-lg"
+                                        className="w-full h-12 pl-12 pr-36 text-base border-2 border-gray-200 focus:border-primary rounded-lg"
                                     />
                                     <i className="fas fa-link absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                                     <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
                                         <a href="/register">
                                             <Button
-                                                className="h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-md whitespace-nowrap px-5"
+                                                className="h-10 px-5 !rounded-button whitespace-nowrap"
                                             >
                                                 {t.tryNow.tryButton}
                                             </Button>
@@ -977,7 +978,7 @@ const App: React.FC = () => {
                                     <Button
                                         key={index}
                                         variant={index === level ? "default" : "outline"}
-                                        className={`flex-grow justify-center !rounded-button whitespace-nowrap ${index === level ? 'bg-blue-600' : 'border-blue-200 text-blue-600'}`}
+                                        className={`flex-grow justify-center !rounded-button whitespace-nowrap ${index === level ? '' : 'border-primary/60 text-primary'}`}
                                         onClick={() => setLevel(index)}
                                     >
                                         {lvl}
@@ -1002,7 +1003,7 @@ const App: React.FC = () => {
                             {t.cta.description}
                         </p>
                         <a href="/register">
-                            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-lg py-6 px-8 !rounded-button whitespace-nowrap">
+                            <Button className="text-lg py-6 px-8 !rounded-button whitespace-nowrap">
                                 <i className="fas fa-rocket mr-2"></i> {t.cta.button}
                             </Button>
                         </a>
@@ -1021,13 +1022,13 @@ const App: React.FC = () => {
                 </div>
             </section>
             {/* Footer */}
-            <footer className="bg-gray-900 text-white py-12">
+            <footer className="bg-[#1F6F63] text-white py-12">
                 <div className="container mx-auto px-4">
                     <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
                         <div>
                             <div className="flex items-center space-x-2 mb-6">
                                 <img src="/lingroot-icon16.svg" alt="LingRoot" className="w-10 h-10" />
-                                <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent tracking-tight">LingRoot</span>
+                                <span className="text-2xl font-extrabold tracking-tight">LingRoot</span>
                             </div>
                             <p className="text-gray-400 mb-4">
                                 {t.footer.slogan}

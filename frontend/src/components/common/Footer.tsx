@@ -19,7 +19,7 @@ const footerSections = [
         <b>Bizimle İletişime Geçin</b><br />
         LingRoot ile ilgili soru, öneri veya geri bildirimleriniz bizim için çok değerli. Aşağıdaki formu kullanarak bizimle doğrudan iletişime geçebilirsiniz.<br /><br />
         Alternatif olarak bize şu e-posta adresinden de ulaşabilirsiniz:<br />
-        <span className="font-semibold text-blue-300">support@lingroot.com</span><br />
+        <span className="font-semibold text-primary">support@lingroot.com</span><br />
         Ortalama yanıt süremiz: 1 iş günü
       </>
     ),
@@ -108,7 +108,7 @@ const Footer: React.FC = () => (
     <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
       {footerSections.map((section, idx) => (
         <div key={idx} className="bg-gray-800 rounded-lg p-5 shadow-md text-left">
-          <div className="font-bold text-blue-300 mb-2 text-lg">{section.title}</div>
+          <div className="font-bold text-primary mb-2 text-lg">{section.title}</div>
           <div className="text-gray-200 text-sm leading-relaxed">{section.content}</div>
         </div>
       ))}

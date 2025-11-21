@@ -97,15 +97,15 @@ const ContentSelectionPage: React.FC = () => {
   };
 
   if (!user) {
-    return <div className="min-h-screen flex items-center justify-center bg-blue-50">Yükleniyor...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-muted">Yükleniyor...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-blue-50">
+    <div className="min-h-screen bg-muted">
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center">
-            <h1 className="text-2xl font-bold text-blue-600">LingRoot</h1>
+            <h1 className="text-2xl font-bold text-primary">LingRoot</h1>
           </div>
           <div className="flex items-center space-x-4">
             <div className="text-gray-600">
@@ -117,7 +117,7 @@ const ContentSelectionPage: React.FC = () => {
                 localStorage.removeItem('user');
                 router.push('/');
               }}
-              className="text-blue-600 hover:text-blue-800"
+              className="text-primary hover:text-primary/80"
             >
               Çıkış Yap
             </button>
@@ -139,7 +139,7 @@ const ContentSelectionPage: React.FC = () => {
                   onClick={() => setContentType('youtube')}
                   className={`px-4 py-2 rounded-md flex items-center ${
                     contentType === 'youtube' 
-                      ? 'bg-blue-600 text-white' 
+                      ? 'bg-primary text-primary-foreground' 
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -152,7 +152,7 @@ const ContentSelectionPage: React.FC = () => {
                   onClick={() => setContentType('spotify')}
                   className={`px-4 py-2 rounded-md flex items-center ${
                     contentType === 'spotify' 
-                      ? 'bg-blue-600 text-white' 
+                      ? 'bg-primary text-primary-foreground' 
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -165,7 +165,7 @@ const ContentSelectionPage: React.FC = () => {
                   onClick={() => setContentType('text')}
                   className={`px-4 py-2 rounded-md flex items-center ${
                     contentType === 'text' 
-                      ? 'bg-blue-600 text-white' 
+                      ? 'bg-primary text-primary-foreground' 
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -185,7 +185,7 @@ const ContentSelectionPage: React.FC = () => {
                     type="url"
                     id="youtube-url"
                     placeholder="https://www.youtube.com/watch?v=..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
                     value={youtubeUrl}
                     onChange={(e) => setYoutubeUrl(e.target.value)}
                   />
@@ -201,7 +201,7 @@ const ContentSelectionPage: React.FC = () => {
                     type="url"
                     id="spotify-url"
                     placeholder="https://open.spotify.com/episode/..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
                     value={spotifyUrl}
                     onChange={(e) => setSpotifyUrl(e.target.value)}
                   />
@@ -216,7 +216,7 @@ const ContentSelectionPage: React.FC = () => {
                   <textarea
                     id="text-content"
                     placeholder="İşlemek istediğiniz metni buraya yapıştırın..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 min-h-[200px]"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary min-h-[200px]"
                     value={textContent}
                     onChange={(e) => setTextContent(e.target.value)}
                   ></textarea>
@@ -229,7 +229,7 @@ const ContentSelectionPage: React.FC = () => {
                 </label>
                 <select
                   id="level"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
                   defaultValue="a2"
                 >
                   <option value="a1">A1 (Başlangıç)</option>
@@ -250,8 +250,8 @@ const ContentSelectionPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full bg-blue-600 text-white py-3 rounded-md ${
-                  isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'
+                className={`w-full bg-primary text-primary-foreground py-3 rounded-md ${
+                  isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary/90'
                 }`}
               >
                 {isLoading ? (

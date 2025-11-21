@@ -19,7 +19,7 @@ export default function Fiyatlandirma() {
     router.push(`/checkout?plan=${planId}`);
   };
   return (
-    <div className="min-h-screen flex flex-col bg-white font-['Roboto',sans-serif]">
+    <div className="min-h-screen flex flex-col bg-background font-['Roboto',sans-serif]">
       <Head>
         <title>Fiyatlandırma | LingRoot</title>
         <meta name="description" content="LingRoot fiyatlandırma seçenekleri. Bütçenize ve ihtiyaçlarınıza uygun planı seçin." />
@@ -68,7 +68,7 @@ export default function Fiyatlandirma() {
               </defs>
             </svg>
           </div>
-          <span className="font-extrabold text-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent tracking-tight">
+          <span className="font-extrabold text-2xl text-primary tracking-tight">
             LingRoot
           </span>
         </Link>
@@ -83,7 +83,7 @@ export default function Fiyatlandirma() {
           <Link href="/ozellikler" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             Özellikler
           </Link>
-          <Link href="/fiyatlandirma" className="text-blue-600 hover:text-blue-700 font-semibold transition-colors duration-200">
+          <Link href="/fiyatlandirma" className="text-primary hover:text-primary/80 font-semibold transition-colors duration-200">
             Fiyatlandırma
           </Link>
           <Link href="/blog" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
@@ -96,7 +96,7 @@ export default function Fiyatlandirma() {
             Giriş Yap
           </Link>
           <Link href="/register" 
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+            className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
             Ücretsiz Başla
           </Link>
         </div>
@@ -104,17 +104,17 @@ export default function Fiyatlandirma() {
 
       <main className="flex-grow pt-24">
         {/* Hero Section */}
-        <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-purple-600">
+        <section className="py-20 px-6 bg-slate-900">
           <div className="max-w-6xl mx-auto text-center">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
               <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
               Planlar ve Fiyatlar
             </div>
             <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
-              LingRoot <span className="text-blue-200">Fiyatlandırma</span>
+              LingRoot <span className="text-primary">Fiyatlandırma</span>
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 max-w-4xl mx-auto leading-relaxed">
-              İhtiyaçlarınıza en uygun planı seçin ve İngilizce öğrenme serüveninize hemen başlayın.
+            <p className="text-xl md:text-2xl text-white/80 max-w-4xl mx-auto leading-relaxed">
+              İhtiyaçlarınıza en uygun planı seçin ve İngilizce öğrenme serüvenize hemen başlayın.
             </p>
           </div>
         </section>
@@ -123,7 +123,7 @@ export default function Fiyatlandirma() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                Size Uygun <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Planı Seçin</span>
+                Size Uygun <span className="text-primary">Planı Seçin</span>
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                 Tüm planlarımızda 7 gün ücretsiz deneme imkanı
@@ -142,19 +142,19 @@ export default function Fiyatlandirma() {
                 <div className="p-8">
                   <ul className="space-y-4 mb-8">
                     <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                       <span className="text-gray-700">Günlük 5 içerik dönüştürme</span>
                     </li>
                     <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                       <span className="text-gray-700">3 seviyeye erişim (A1-B1)</span>
                     </li>
                     <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                       <span className="text-gray-700">Temel kelime kaydetme özelliği</span>
@@ -180,7 +180,7 @@ export default function Fiyatlandirma() {
                         router.push('/welcome');
                       }
                     }}
-                    className="block w-full py-3 px-6 bg-gradient-to-r from-gray-200 to-gray-300 hover:from-gray-300 hover:to-gray-400 text-gray-800 rounded-xl text-center font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
+                    className="block w-full py-3 px-6 bg-muted hover:bg-gray-200 text-gray-800 rounded-xl text-center font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
                   >
                     Ücretsiz Başla
                   </button>
@@ -188,8 +188,8 @@ export default function Fiyatlandirma() {
               </div>
               
               {/* Aylık Plan */}
-              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl border-2 border-blue-300 shadow-2xl hover:shadow-3xl transition-all duration-300 transform scale-105 md:scale-100 md:hover:scale-105 z-10 overflow-hidden hover:-translate-y-2">
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 relative">
+              <div className="bg-muted rounded-2xl border-2 border-primary shadow-2xl hover:shadow-3xl transition-all duration-300 transform scale-105 md:scale-100 md:hover:scale-105 z-10 overflow-hidden hover:-translate-y-2">
+                <div className="bg-primary p-6 relative">
                   <div className="absolute top-0 right-0 mt-3 mr-4">
                     <div className="bg-orange-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg">EN POPÜLER</div>
                   </div>
@@ -234,7 +234,7 @@ export default function Fiyatlandirma() {
                   </ul>
                   <button
                     onClick={() => handlePlanSelect('monthly')}
-                    className="block w-full py-3 px-4 bg-[#28a745] hover:bg-[#218838] text-white rounded text-center font-medium transition-colors"
+                    className="block w-full py-3 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded text-center font-medium transition-colors"
                   >
                     Hemen Başla
                   </button>

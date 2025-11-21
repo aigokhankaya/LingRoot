@@ -72,9 +72,9 @@ export default function PatternsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-purple-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary mx-auto mb-4"></div>
           <p className="text-gray-600">Kalıplar yükleniyor...</p>
         </div>
       </div>
@@ -87,7 +87,7 @@ export default function PatternsPage() {
         <title>Günlük Kullanım Kalıpları - LingRoot</title>
       </Head>
 
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 py-8 px-4">
+      <div className="min-h-screen bg-muted py-8 px-4">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
@@ -140,7 +140,7 @@ export default function PatternsPage() {
               </p>
               <button
                 onClick={() => router.push('/welcome')}
-                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+                className="px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg font-medium transition-colors"
               >
                 İçerik Oluştur
               </button>
@@ -223,7 +223,7 @@ export default function PatternsPage() {
               </div>
 
               {/* Örnek Cümle - Blue Card */}
-              <div className="p-4 bg-blue-50 border-2 border-blue-400 rounded-xl">
+              <div className="p-4 bg-primary/5 border-2 border-primary/30 rounded-xl">
                 <div className="flex items-center mb-2">
                   <span className="text-base mr-2">🇬🇧</span>
                   <span className="text-xs font-bold text-gray-700">Örnek Cümle</span>

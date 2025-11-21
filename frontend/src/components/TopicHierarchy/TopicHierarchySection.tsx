@@ -76,10 +76,10 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
   return (
     <div className="space-y-6">
       {/* Bilgilendirme */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6">
+      <div className="bg-secondary/10 border border-secondary/40 rounded-lg p-6">
         <div className="flex items-start space-x-4">
           <div className="flex-shrink-0">
-            <i className="fas fa-sitemap text-3xl text-blue-600"></i>
+            <i className="fas fa-sitemap text-3xl text-primary"></i>
           </div>
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -90,15 +90,15 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
               üretebilir veya dilediğiniz konuyu manuel ekleyebilirsiniz. Her seviyeden sesli içerik oluşturabilirsiniz.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              <div className="flex items-center space-x-2 text-blue-700">
+              <div className="flex items-center space-x-2 text-primary">
                 <i className="fas fa-check-circle"></i>
                 <span>Sonsuz derinlikte konu ağacı</span>
               </div>
-              <div className="flex items-center space-x-2 text-blue-700">
+              <div className="flex items-center space-x-2 text-primary">
                 <i className="fas fa-check-circle"></i>
                 <span>AI destekli alt konu önerileri</span>
               </div>
-              <div className="flex items-center space-x-2 text-blue-700">
+              <div className="flex items-center space-x-2 text-primary">
                 <i className="fas fa-check-circle"></i>
                 <span>Her seviyeden ses oluşturma</span>
               </div>
@@ -152,7 +152,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
       {/* Loading State */}
       {isLoading && topics.length === 0 && (
         <div className="text-center py-12">
-          <i className="fas fa-spinner fa-spin text-3xl text-blue-600 mb-3"></i>
+          <i className="fas fa-spinner fa-spin text-3xl text-primary mb-3"></i>
           <p className="text-gray-600">Konular yükleniyor...</p>
         </div>
       )}

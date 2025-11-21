@@ -10,7 +10,7 @@ const LanguageSelector: React.FC = () => {
       <select
         value={currentLocale}
         onChange={e => changeLanguage(e.target.value as any)}
-        className="appearance-none bg-white border border-gray-300 rounded-lg py-2 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        className="appearance-none bg-white border border-gray-300 rounded-lg py-2 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
       >
         {supportedLocales.map(locale => (
           <option key={locale} value={locale}>

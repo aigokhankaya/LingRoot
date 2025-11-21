@@ -89,7 +89,7 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
       <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-600">Konu: <span className="font-medium text-gray-800">{audioResult.topic || 'Günlük Yaşam'}</span></span>
-          <span className="text-sm text-gray-600">Seviye: <span className="font-medium text-blue-600">{audioResult.level || 'A1'}</span></span>
+          <span className="text-sm text-gray-600">Seviye: <span className="font-medium text-primary">{audioResult.level || 'A1'}</span></span>
         </div>
         
         {/* Show Original Language Toggle */}
@@ -99,14 +99,22 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
               onClick={() => setShowTranslation(!showTranslation)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
               style={{
-                backgroundColor: showTranslation ? '#4285F4' : '#E8F0FE',
-                color: showTranslation ? 'white' : '#1967D2'
+                backgroundColor: showTranslation
+                  ? 'hsl(var(--primary))'
+                  : 'hsl(var(--muted))',
+                color: showTranslation
+                  ? 'hsl(var(--primary-foreground))'
+                  : 'hsl(var(--muted-foreground))'
               }}
             >
               <span>Show Original Language</span>
               <div 
                 className="relative inline-block w-10 h-5 rounded-full transition-colors"
-                style={{ backgroundColor: showTranslation ? 'rgba(255,255,255,0.3)' : 'rgba(25,103,210,0.2)' }}
+                style={{
+                  backgroundColor: showTranslation
+                    ? 'hsl(var(--primary-foreground) / 0.35)'
+                    : 'hsl(var(--primary) / 0.2)'
+                }}
               >
                 <div 
                   className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform"

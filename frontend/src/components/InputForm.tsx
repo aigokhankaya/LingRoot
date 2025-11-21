@@ -155,7 +155,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
             <label className="block font-medium">Upload File (PDF or DOCX)</label>
             <input
               type="file"
-              className="w-full border border-gray-300 rounded p-3 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              className="w-full border border-gray-300 rounded p-3 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary/5 file:text-primary hover:file:bg-primary/10"
               onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
               accept=".pdf, .docx, application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             />
@@ -189,7 +189,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
           />
         </div>
-        {isLoading && <p className="text-blue-600">Preparing audio...</p>}
+        {isLoading && <p className="text-primary">Preparing audio...</p>}
         {isError && (
           <div className="text-red-600 bg-red-100 border border-red-400 rounded p-3 space-y-2">
             <p className="font-semibold">Error:</p>
@@ -199,7 +199,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
         {isSuccess && <p className="text-green-600">✅ Audio generated successfully!</p>}
         <button
           onClick={handleSubmit}
-          className="bg-blue-600 text-white font-semibold py-3 px-6 rounded hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-primary text-primary-foreground font-semibold py-3 px-6 rounded-lg hover:bg-primary/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={isLoading || (inputType === 'file' && !file) || (inputType === 'text' && !text.trim()) || (inputType === 'youtube' && !youtubeLink.trim()) || (inputType === 'podcast' && !podcastLink.trim())}
         >
           {isLoading ? "Preparing..." : "Generate Audio"}

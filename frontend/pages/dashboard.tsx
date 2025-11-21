@@ -115,10 +115,10 @@ const Dashboard = () => {
   const avatar = (user as any).avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
   const membershipStatus = user.membershipStatus || 'free';
   const profileImageUrl = avatar;
-  const backgroundImageUrl = 'https://readdy.ai/api/search-image?query=Abstract%2520professional%2520background%2520with%2520soft%2520blue%2520gradient%252C%2520subtle%2520geometric%2520patterns%252C%2520clean%2520modern%2520design%252C%2520perfect%2520for%2520profile%2520page%2520header%252C%2520light%2520tech%2520elements%252C%2520minimalist%2520aesthetic%252C%2520high%2520quality%2520digital%2520art&width=1440&height=300&seq=bg1&orientation=landscape';
+  const backgroundImageUrl = 'https://readdy.ai/api/search-image?query=Abstract%2520professional%2520background%2520with%2520soft%2520teal%2520and%2520slate%2520tones%252C%2520subtle%2520geometric%2520patterns%252C%2520clean%2520modern%2520design%252C%2520perfect%2520for%2520profile%2520page%2520header%252C%2520minimalist%2520aesthetic%252C%2520high%2520quality%2520digital%2520art&width=1440&height=300&seq=bg1&orientation=landscape';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen bg-background">
       {/* Top Navigation Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-50">
         <div className="container mx-auto px-4">
@@ -129,7 +129,7 @@ const Dashboard = () => {
                 <img src="/LingRoot_MainLogo.png" alt="LingRoot" className="h-8" />
               </Link>
               <Link href="/welcome">
-                <button className="text-gray-700 hover:text-blue-600 transition-colors text-sm font-medium">
+                <button className="text-gray-700 hover:text-primary transition-colors text-sm font-medium">
                   <i className="fas fa-home mr-2"></i>
                   Ana Sayfa
                 </button>
@@ -208,7 +208,7 @@ const Dashboard = () => {
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${backgroundImageUrl})` }}
         ></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/50 to-blue-600/30"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/70 via-slate-900/40 to-slate-900/10"></div>
         <div className="container mx-auto px-6 relative h-full flex items-end pb-6">
           <div className="flex items-end">
             <div className="relative mr-6">
@@ -216,10 +216,10 @@ const Dashboard = () => {
             </div>
             <div className="mb-4 text-white">
               <h1 className="text-3xl font-bold">{displayName}</h1>
-              <p className="text-blue-100">{user.email}</p>
+              <p className="text-slate-200">{user.email}</p>
               <div className="flex mt-2 gap-2">
                 <MembershipBadge status={membershipStatus} />
-                <Badge className="bg-blue-500">B1 İngilizce</Badge>
+                <Badge className="bg-primary text-primary-foreground">B1 İngilizce</Badge>
                 <Badge className="bg-green-500">2 Dil</Badge>
           </div>
         </div>
@@ -280,10 +280,10 @@ const Dashboard = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-gray-500">Günlük Hedef</p>
-                        <h3 className="text-2xl font-bold text-blue-600">{statsLoading ? '...' : `${stats?.activity.dailyGoalProgress || 0}%`}</h3>
+                        <h3 className="text-2xl font-bold text-primary">{statsLoading ? '...' : `${stats?.activity.dailyGoalProgress || 0}%`}</h3>
                         <p className="text-xs text-gray-500 mt-1">Hedef: 30 dakika</p>
                       </div>
-                      <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                         <i className="fas fa-bullseye text-xl"></i>
                       </div>
                     </div>
@@ -395,8 +395,8 @@ const Dashboard = () => {
                         <Badge className="bg-green-500 ml-2">Tamamlandı</Badge>
                       </div>
 
-                      <div className="flex items-center p-3 bg-blue-50 rounded-lg border border-blue-100">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mr-3 flex-shrink-0">
+                      <div className="flex items-center p-3 bg-primary/5 rounded-lg border border-primary/10">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3 flex-shrink-0">
                           <i className="fas fa-book-open"></i>
                         </div>
                         <div className="flex-1">
@@ -492,10 +492,10 @@ const Dashboard = () => {
                 <CardContent>
                   <ScrollArea className="h-[300px] pr-4">
                     <div className="space-y-4">
-                      <div className="flex p-3 bg-blue-50 rounded-lg border border-blue-100">
+                      <div className="flex p-3 bg-primary/5 rounded-lg border border-primary/10">
                         <div className="w-12 text-center mr-3">
-                          <div className="bg-white rounded-md p-1 border border-blue-200">
-                            <div className="text-xs font-bold text-blue-600">HAZ</div>
+                          <div className="bg-white rounded-md p-1 border border-primary/30">
+                            <div className="text-xs font-bold text-primary">HAZ</div>
                             <div className="text-lg font-bold">10</div>
                           </div>
                         </div>
@@ -504,7 +504,7 @@ const Dashboard = () => {
                           <p className="text-sm text-gray-600">Pazartesi, 19:00 - 20:30</p>
                           <p className="text-xs text-gray-500 mt-1">Günlük konular hakkında İngilizce pratik yapın</p>
                           <div className="mt-2">
-                            <Button size="sm" variant="outline" className="text-blue-600 border-blue-600">
+                            <Button size="sm" variant="outline" className="text-primary border-primary">
                               Katıl
                             </Button>
                           </div>

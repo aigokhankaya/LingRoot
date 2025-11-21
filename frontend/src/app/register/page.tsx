@@ -177,18 +177,18 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="bg-white shadow-sm py-4 sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
-                          <a href="/" className="flex items-center space-x-3">
-                <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
-                <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent tracking-tight">LingRoot</span>
-              </a>
+            <a href="/" className="flex items-center space-x-3">
+              <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
+              <span className="text-2xl font-extrabold text-primary tracking-tight">LingRoot</span>
+            </a>
           </div>
           <div className="flex items-center space-x-4">
-            <a href="/" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer">
+            <a href="/" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer">
               <i className="fas fa-arrow-left mr-2"></i> Ana Sayfaya Dön
             </a>
           </div>
@@ -202,7 +202,9 @@ export default function RegisterPage() {
             {/* Form Column */}
             <div className="lg:w-7/12 bg-white rounded-xl shadow-xl p-8 mx-auto">
               <div className="max-w-md mx-auto">
-                <h1 className="text-3xl font-bold mb-2 text-gray-900"><span className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent font-extrabold">LingRoot</span>'a Hoş Geldiniz</h1>
+                <h1 className="text-3xl font-bold mb-2 text-gray-900">
+                  <span className="text-primary font-extrabold">LingRoot</span>'a Hoş Geldiniz
+                </h1>
                 <p className="text-gray-600 mb-8">Sevdiğiniz içeriklerle İngilizce öğrenme yolculuğunuza başlamak için hemen kaydolun.</p>
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -222,7 +224,7 @@ export default function RegisterPage() {
                         placeholder="Adınız"
                         value={formData.firstName}
                         onChange={handleChange}
-                        className="border-gray-300 focus:border-blue-500"
+                        className="border-gray-300 focus:border-primary"
                         required
                       />
                     </div>
@@ -235,7 +237,7 @@ export default function RegisterPage() {
                         placeholder="Soyadınız"
                         value={formData.lastName}
                         onChange={handleChange}
-                        className="border-gray-300 focus:border-blue-500"
+                        className="border-gray-300 focus:border-primary"
                         required
                       />
                     </div>
@@ -250,7 +252,7 @@ export default function RegisterPage() {
                       placeholder="ornek@email.com"
                       value={formData.email}
                       onChange={handleChange}
-                      className="border-gray-300 focus:border-blue-500"
+                      className="border-gray-300 focus:border-primary"
                       required
                     />
                   </div>
@@ -264,7 +266,7 @@ export default function RegisterPage() {
                       placeholder="+90 555 123 45 67"
                       value={formData.phoneNumber}
                       onChange={handleChange}
-                      className="border-gray-300 focus:border-blue-500"
+                      className="border-gray-300 focus:border-primary"
                       required
                     />
                   </div>
@@ -278,7 +280,7 @@ export default function RegisterPage() {
                       placeholder="En az 8 karakter"
                       value={formData.password}
                       onChange={handleChange}
-                      className="border-gray-300 focus:border-blue-500"
+                      className="border-gray-300 focus:border-primary"
                       required
                       minLength={8}
                     />
@@ -293,7 +295,7 @@ export default function RegisterPage() {
                       placeholder="Şifrenizi tekrar girin"
                       value={formData.confirmPassword}
                       onChange={handleChange}
-                      className="border-gray-300 focus:border-blue-500"
+                      className="border-gray-300 focus:border-primary"
                       required
                     />
                   </div>
@@ -307,16 +309,16 @@ export default function RegisterPage() {
                     />
                     <Label htmlFor="terms" className="text-sm text-gray-600 font-normal">
                       <span>LingRoot'un </span>
-                      <a href="/terms" className="text-blue-600 hover:underline cursor-pointer">Kullanım Şartları</a>
+                      <a href="/terms" className="text-primary hover:underline cursor-pointer">Kullanım Şartları</a>
                       <span> ve </span>
-                      <a href="https://www.lingroot.com/privacy-policy" className="text-blue-600 hover:underline cursor-pointer">Gizlilik Politikası</a>
+                      <a href="https://www.lingroot.com/privacy-policy" className="text-primary hover:underline cursor-pointer">Gizlilik Politikası</a>
                       <span>'nı okudum ve kabul ediyorum.</span>
                     </Label>
                   </div>
                   
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-6"
+                    className="w-full py-6 !rounded-button whitespace-nowrap cursor-pointer"
                     disabled={!formData.acceptTerms || loading}
                   >
                     {loading ? 'Hesap Oluşturuluyor...' : 'Ücretsiz Hesap Oluştur'}
@@ -349,7 +351,7 @@ export default function RegisterPage() {
                 
                 <div className="text-center text-gray-600 text-sm mt-8">
                   Zaten bir hesabınız var mı? {" "}
-                  <a href="/login" className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                  <a href="/login" className="text-primary hover:text-primary/80 cursor-pointer">
                     Giriş Yap
                   </a>
                 </div>
@@ -357,7 +359,7 @@ export default function RegisterPage() {
             </div>
 
             {/* Benefits Column */}
-            <div className="lg:w-5/12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl shadow-xl overflow-hidden relative">
+            <div className="lg:w-5/12 bg-slate-900 rounded-xl shadow-xl overflow-hidden relative">
               <div className="absolute inset-0 opacity-10">
                 <img
                   src="https://readdy.ai/api/search-image?query=A%2520person%2520with%2520headphones%2520relaxing%2520and%2520learning%2520English%2520through%2520listening%2520to%2520content%2520on%2520a%2520device.%2520The%2520scene%2520has%2520floating%2520language%2520elements%2520and%2520educational%2520symbols%2520around%2520them%252C%2520showing%2520effortless%2520language%2520acquisition.%2520The%2520background%2520is%2520a%2520soft%2520blue%2520gradient%2520with%2520abstract%2520patterns%2520suggesting%2520knowledge%2520and%2520growth.&width=600&height=1024&seq=benefits-bg&orientation=portrait"
@@ -375,7 +377,7 @@ export default function RegisterPage() {
                       </div>
                       <div>
                         <h3 className="text-xl font-semibold text-white mb-2">Dinleyerek Öğren</h3>
-                        <p className="text-blue-100">Sevdiğin içerikleri dinlerken İngilizce öğren. Ekstra zaman harcamana gerek yok.</p>
+                        <p className="text-white/80">Sevdiğin içerikleri dinlerken İngilizce öğren. Ekstra zaman harcamana gerek yok.</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
@@ -384,7 +386,7 @@ export default function RegisterPage() {
                       </div>
                       <div>
                         <h3 className="text-xl font-semibold text-white mb-2">Seviyene Uygun</h3>
-                        <p className="text-blue-100">A1'den C2'ye kadar tüm seviyelerde içerikler. Kendi hızında ilerle ve gelişimini gör.</p>
+                        <p className="text-white/80">A1'den C2'ye kadar tüm seviyelerde içerikler. Kendi hızında ilerle ve gelişimini gör.</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
@@ -393,7 +395,7 @@ export default function RegisterPage() {
                       </div>
                       <div>
                         <h3 className="text-xl font-semibold text-white mb-2">Gerçek İçerikler</h3>
-                        <p className="text-blue-100">YouTube, podcast, blog yazıları... Gerçek dünya içerikleriyle öğren, ders kitaplarını unut.</p>
+                        <p className="text-white/80">YouTube, podcast, blog yazıları... Gerçek dünya içerikleriyle öğren, ders kitaplarını unut.</p>
                       </div>
                     </div>
                   </div>
@@ -408,7 +410,7 @@ export default function RegisterPage() {
                       />
                       <div>
                         <p className="text-white italic text-sm">"LingRoot ile sadece 3 ayda A1'den B1 seviyesine yükseldim. Artık sevdiğim YouTube kanallarını anlayabiliyorum!"</p>
-                        <p className="text-blue-200 text-sm mt-2">- Zeynep K.</p>
+                        <p className="text-white/70 text-sm mt-2">- Zeynep K.</p>
                       </div>
                     </div>
                   </CardContent>
@@ -446,8 +448,8 @@ export default function RegisterPage() {
                 description: "Gelişiminizi görün, öğrendiğiniz kelimeleri takip edin ve seviyenizi yükseltin."
               }
             ].map((feature, index) => (
-              <div key={index} className="bg-blue-50 rounded-xl p-8 hover:shadow-md transition-shadow duration-300">
-                <div className="w-14 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mb-6">
+              <div key={index} className="bg-muted rounded-xl p-8 hover:shadow-md transition-shadow duration-300">
+                <div className="w-14 h-14 bg-primary rounded-full flex items-center justify-center mb-6">
                   <i className={`${feature.icon} text-white text-xl`}></i>
                 </div>
                 <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
@@ -500,10 +502,10 @@ export default function RegisterPage() {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-                              <div className="flex items-center space-x-3 mb-6">
-                  <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
-                  <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent tracking-tight">LingRoot</span>
-                </div>
+              <div className="flex items-center space-x-3 mb-6">
+                <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
+                <span className="text-2xl font-extrabold text-primary tracking-tight">LingRoot</span>
+              </div>
               <p className="text-gray-400 mb-4">
                 "Your routines turn into English."
               </p>

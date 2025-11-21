@@ -177,7 +177,7 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open': return 'bg-blue-100 text-blue-800 hover:bg-blue-100';
+      case 'open': return 'bg-primary/10 text-primary hover:bg-primary/10';
       case 'in_progress': return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100';
       case 'waiting': return 'bg-orange-100 text-orange-800 hover:bg-orange-100';
       case 'resolved': return 'bg-green-100 text-green-800 hover:bg-green-100';
@@ -191,7 +191,7 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
       case 'urgent': return 'bg-red-100 text-red-800 hover:bg-red-100';
       case 'high': return 'bg-orange-100 text-orange-800 hover:bg-orange-100';
       case 'medium': return 'bg-amber-100 text-amber-800 hover:bg-amber-100';
-      case 'low': return 'bg-blue-100 text-blue-800 hover:bg-blue-100';
+      case 'low': return 'bg-primary/10 text-primary hover:bg-primary/10';
       default: return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
     }
   };
@@ -434,7 +434,7 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
                                     <div className="flex-1 min-w-0">
                                       <button 
                                         onClick={() => downloadAttachment(attachment.id, attachment.filename)}
-                                        className="text-sm font-medium text-blue-600 hover:text-blue-800 truncate block text-left"
+                                        className="text-sm font-medium text-primary hover:text-primary/80 truncate block text-left"
                                       >
                                         {attachment.filename}
                                       </button>

@@ -90,7 +90,9 @@ module.exports = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ['Inter', 'Geist', 'sans-serif'],
+        // LingRoot brand typography
+        // Manrope as primary sans across headings and body
+        sans: ["Manrope", "system-ui", "sans-serif"],
       },
       fontSize: {
         'xs': ['0.75rem', { lineHeight: '1rem' }],

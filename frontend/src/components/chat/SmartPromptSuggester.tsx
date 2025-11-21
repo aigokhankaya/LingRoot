@@ -91,7 +91,7 @@ export const SmartPromptSuggester: React.FC<SmartPromptSuggesterProps> = ({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-4">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -109,7 +109,7 @@ export const SmartPromptSuggester: React.FC<SmartPromptSuggesterProps> = ({
             onClick={() => setActiveTab('smart')}
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === 'smart'
-                ? 'text-blue-600 border-b-2 border-blue-600'
+                ? 'text-primary border-b-2 border-primary'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }`}
           >
@@ -120,7 +120,7 @@ export const SmartPromptSuggester: React.FC<SmartPromptSuggesterProps> = ({
             onClick={() => setActiveTab('popular')}
             className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === 'popular'
-                ? 'text-blue-600 border-b-2 border-blue-600'
+                ? 'text-primary border-b-2 border-primary'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }`}
           >
@@ -145,7 +145,7 @@ export const SmartPromptSuggester: React.FC<SmartPromptSuggesterProps> = ({
                   <button
                     key={idx}
                     onClick={() => handleSuggestionClick(topic)}
-                    className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-sm transition-colors border border-blue-200 dark:border-blue-800"
+                    className="px-3 py-2 bg-primary/5 dark:bg-primary/20 hover:bg-primary/10 dark:hover:bg-primary/30 text-primary dark:text-primary rounded-lg text-sm transition-colors border border-primary/30 dark:border-primary/40"
                   >
                     {topic.title}
                   </button>
@@ -166,13 +166,13 @@ export const SmartPromptSuggester: React.FC<SmartPromptSuggesterProps> = ({
                   <button
                     key={idx}
                     onClick={() => handleSuggestionClick(topic)}
-                    className="w-full text-left p-3 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg transition-colors border border-purple-200 dark:border-purple-800"
+                    className="w-full text-left p-3 bg-accent/10 dark:bg-accent/20 hover:bg-accent/20 dark:hover:bg-accent/30 rounded-lg transition-colors border border-accent/40 dark:border-accent/50"
                   >
-                    <div className="font-medium text-purple-700 dark:text-purple-300 text-sm">
+                    <div className="font-medium text-accent-foreground text-sm">
                       {topic.title}
                     </div>
                     {topic.description && (
-                      <div className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                      <div className="text-xs text-accent-foreground/80 mt-1">
                         {topic.description}
                       </div>
                     )}

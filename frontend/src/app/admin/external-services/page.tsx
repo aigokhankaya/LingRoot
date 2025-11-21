@@ -203,7 +203,7 @@ export default function ExternalServicesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -217,7 +217,7 @@ export default function ExternalServicesPage() {
         </div>
         <button
           onClick={openCreateModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-lg font-medium flex items-center gap-2"
         >
           <i className="fas fa-plus"></i>
           Yeni Servis Ekle
@@ -287,7 +287,7 @@ export default function ExternalServicesPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-primary/10 text-primary">
                       {service.service_type}
                     </span>
                   </td>
@@ -311,7 +311,7 @@ export default function ExternalServicesPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       onClick={() => handleEdit(service)}
-                      className="text-blue-600 hover:text-blue-900 mr-4"
+                      className="text-primary hover:text-primary/80 mr-4"
                     >
                       <i className="fas fa-edit"></i> Düzenle
                     </button>
@@ -347,7 +347,7 @@ export default function ExternalServicesPage() {
                   required
                   value={formData.service_name}
                   onChange={(e) => setFormData({ ...formData, service_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary"
                   placeholder="podcast_generator"
                 />
               </div>
@@ -360,7 +360,7 @@ export default function ExternalServicesPage() {
                   required
                   value={formData.service_type}
                   onChange={(e) => setFormData({ ...formData, service_type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary"
                 >
                   <option value="podcast">Podcast</option>
                   <option value="translation">Translation</option>
@@ -379,7 +379,7 @@ export default function ExternalServicesPage() {
                   required
                   value={formData.api_url}
                   onChange={(e) => setFormData({ ...formData, api_url: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary"
                   placeholder="https://api.example.com/webhook"
                 />
               </div>
@@ -392,7 +392,7 @@ export default function ExternalServicesPage() {
                   type="password"
                   value={formData.api_token}
                   onChange={(e) => setFormData({ ...formData, api_token: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary"
                   placeholder={editingService ? "Token değiştirmek için girin" : "API Token"}
                 />
               </div>
@@ -404,7 +404,7 @@ export default function ExternalServicesPage() {
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary"
                   rows={3}
                   placeholder="Servis hakkında açıklama"
                 />
@@ -416,7 +416,7 @@ export default function ExternalServicesPage() {
                   id="is_active"
                   checked={formData.is_active}
                   onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                 />
                 <label htmlFor="is_active" className="ml-2 block text-sm text-gray-900">
                   Servis Aktif
@@ -436,7 +436,7 @@ export default function ExternalServicesPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
                 >
                   {editingService ? 'Güncelle' : 'Oluştur'}
                 </button>

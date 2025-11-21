@@ -463,7 +463,7 @@ export default function PackageDetailPage() {
                     onChange={(e) => handleHomepageFeatureChange('book', e.target.checked)}
                   />
                   <Label htmlFor="book" className="cursor-pointer">
-                    <i className="fas fa-book mr-2 text-blue-600"></i>
+                    <i className="fas fa-book mr-2 text-primary"></i>
                     Kitap
                   </Label>
                 </div>
@@ -524,7 +524,7 @@ export default function PackageDetailPage() {
                     onChange={(e) => handleVoiceCategoryChange('studio', e.target.checked)}
                   />
                   <Label htmlFor="studio" className="cursor-pointer">
-                    <i className="fas fa-gem mr-2 text-blue-600"></i>
+                    <i className="fas fa-gem mr-2 text-primary"></i>
                     Studio
                   </Label>
                 </div>

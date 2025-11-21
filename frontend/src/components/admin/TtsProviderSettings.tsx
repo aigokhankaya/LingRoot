@@ -132,7 +132,7 @@ export default function TtsProviderSettings({ onProviderChange }: TtsProviderSet
               <div className="font-semibold text-gray-900">Microsoft Azure Cognitive Services</div>
               <div className="text-sm text-gray-600 mt-1">
                 • Neural voices with natural prosody<br />
-                • <span className="font-semibold text-blue-600">Real-time word boundary events</span> for precise highlighting<br />
+                • <span className="font-semibold text-primary">Real-time word boundary events</span> for precise timing<br />
                 • Multiple voice styles and emotions<br />
                 • Excellent for word-level synchronization
               </div>
@@ -156,18 +156,18 @@ export default function TtsProviderSettings({ onProviderChange }: TtsProviderSet
         {/* Loading Indicator */}
         {loading && (
           <div className="flex items-center justify-center py-2">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
             <span className="ml-2 text-gray-600">Updating provider...</span>
           </div>
         )}
 
         {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+        <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mt-4">
           <div className="flex items-start">
-            <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="w-5 h-5 text-primary mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
             </svg>
-            <div className="text-sm text-blue-800">
+            <div className="text-sm text-primary">
               <strong>Note:</strong> Azure TTS provides superior word-level timing through WordBoundary events, 
               enabling precise word highlighting during audio playback. This is especially useful for language learning applications.
             </div>

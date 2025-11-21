@@ -148,15 +148,15 @@ export default function AdminUserGeneralPage() {
         {/* Test Kullanıcısı Ayarı */}
         <div className="mt-4 p-4 border rounded-lg bg-yellow-50 border-yellow-200">
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isTestUser}
-                  onChange={(e) => handleTestStatusChange(e.target.checked)}
-                  disabled={updatingTestStatus}
-                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                />
+            <div className="flex items-center justify-between">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={isTestUser}
+                onChange={(e) => handleTestStatusChange(e.target.checked)}
+                disabled={updatingTestStatus}
+                className="w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer"
+              />
                 <div>
                   <span className="text-sm font-medium text-gray-900">Test Kullanıcısı</span>
                   <p className="text-xs text-gray-600 mt-1">
@@ -168,7 +168,7 @@ export default function AdminUserGeneralPage() {
             </div>
             {updatingTestStatus && (
               <div className="ml-3">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
               </div>
             )}
           </div>
@@ -179,7 +179,7 @@ export default function AdminUserGeneralPage() {
       <div className="border-t pt-6">
         <h2 className="text-lg font-semibold mb-4">Mevcut Paket</h2>
         {currentSub ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <div className="text-xs text-gray-500">Paket Adı</div>
@@ -225,7 +225,7 @@ export default function AdminUserGeneralPage() {
             <select 
               value={selectedPlanId} 
               onChange={(e) => setSelectedPlanId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Bir paket seçin...</option>
               {plans.map((plan) => (

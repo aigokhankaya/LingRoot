@@ -5,7 +5,7 @@ import Footer from '../src/components/Footer';
 
 export default function NasilCalisir() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen flex flex-col bg-background">
       <Head>
         <title>Nasıl Çalışır? | LingRoot</title>
         <meta name="description" content="LingRoot nasıl çalışır? İngilizce öğrenme platformumuzun çalışma şekli ve temel özellikleri hakkında bilgi edinin." />
@@ -18,7 +18,7 @@ export default function NasilCalisir() {
       <header className="fixed w-full py-4 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <Link href="/" className="flex items-center space-x-3">
           <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12 drop-shadow-lg" />
-          <span className="font-extrabold text-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent tracking-tight">
+          <span className="font-extrabold text-2xl text-primary tracking-tight">
             LingRoot
           </span>
         </Link>
@@ -28,7 +28,7 @@ export default function NasilCalisir() {
           <Link href="/about" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             Hakkımızda
           </Link>
-          <Link href="/nasil-calisir" className="text-blue-600 hover:text-blue-700 font-semibold transition-colors duration-200">
+          <Link href="/nasil-calisir" className="text-primary hover:text-primary/90 font-semibold transition-colors duration-200">
             Nasıl Çalışır?
           </Link>
           <Link href="/ozellikler" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
@@ -47,7 +47,7 @@ export default function NasilCalisir() {
             Giriş Yap
           </Link>
           <Link href="/register" 
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+            className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
             Ücretsiz Başla
           </Link>
         </div>
@@ -55,16 +55,16 @@ export default function NasilCalisir() {
 
       <main className="flex-grow pt-24">
         {/* Hero Section */}
-        <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-purple-600">
+        <section className="py-20 px-6 bg-slate-950">
           <div className="max-w-6xl mx-auto text-center">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
               <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
               Üç Basit Adım
             </div>
             <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
-              LingRoot <span className="text-blue-200">Nasıl Çalışır?</span>
+              LingRoot <span className="text-primary/80">Nasıl Çalışır?</span>
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-slate-200 max-w-3xl mx-auto leading-relaxed">
               Sevdiğin içerikleri kendi İngilizce seviyende dinlemek için sadece üç adım yeterli. 
               Yapay zeka teknolojimiz, içerikleri analiz eder ve seviyenize uygun hale getirir.
             </p>
@@ -204,9 +204,9 @@ export default function NasilCalisir() {
                   </p>
                 </div>
                 
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <h5 className="font-bold text-blue-700 text-sm mb-2">Yapılan Değişiklikler:</h5>
-                  <ul className="text-sm text-blue-600 space-y-1">
+                <div className="bg-primary/5 p-4 rounded-lg border border-primary/20">
+                  <h5 className="font-bold text-primary text-sm mb-2">Yapılan Değişiklikler:</h5>
+                  <ul className="text-sm text-gray-700 space-y-1">
                     <li>• Karmaşık kelimeler basitleştirildi</li>
                     <li>• Cümle yapısı sadeleştirildi</li>
                     <li>• A2 seviyesi kelime dağarcığı kullanıldı</li>

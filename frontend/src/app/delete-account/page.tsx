@@ -37,7 +37,7 @@ export default function DeleteAccountPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">🗑️ Hesap Silme</h1>
@@ -65,7 +65,7 @@ export default function DeleteAccountPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="ornek@email.com"
                 required
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
               />
             </div>
 
@@ -92,7 +92,7 @@ export default function DeleteAccountPage() {
         )}
 
         <div className="mt-6 text-center">
-          <a href="/" className="text-purple-600 hover:text-purple-800 text-sm font-medium">
+          <a href="/" className="text-primary hover:text-primary/80 text-sm font-medium">
             ← Ana Sayfaya Dön
           </a>
         </div>

@@ -36,7 +36,7 @@ const TopicInput: React.FC<TopicInputProps> = ({
   };
 
   return (
-    <Card className="border-2 border-blue-200">
+    <Card className="border-2 border-primary/20">
       <CardContent className="p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -67,7 +67,7 @@ const TopicInput: React.FC<TopicInputProps> = ({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Konu hakkında kısa bir açıklama yazabilirsiniz..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
                 rows={3}
                 disabled={isLoading}
                 maxLength={500}
@@ -92,7 +92,7 @@ const TopicInput: React.FC<TopicInputProps> = ({
             <button
               type="button"
               onClick={() => setShowDescription(true)}
-              className="text-sm text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+              className="text-sm text-primary hover:text-primary/80 flex items-center space-x-1"
               disabled={isLoading}
             >
               <i className="fas fa-plus-circle"></i>
@@ -105,7 +105,7 @@ const TopicInput: React.FC<TopicInputProps> = ({
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <i className="fas fa-layer-group"></i>
               <span>Seviye:</span>
-              <span className="font-semibold text-blue-600">{level.toUpperCase()}</span>
+              <span className="font-semibold text-primary">{level.toUpperCase()}</span>
             </div>
             <div className="text-xs text-gray-500">
               Alt konular bu seviyede oluşturulacak
@@ -116,7 +116,7 @@ const TopicInput: React.FC<TopicInputProps> = ({
           <Button
             type="submit"
             disabled={isLoading || !title.trim()}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            className="w-full font-semibold"
           >
             {isLoading ? (
               <>

@@ -5,7 +5,7 @@ import Footer from '../src/components/Footer';
 
 export default function Blog() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen flex flex-col bg-background">
       <Head>
         <title>Blog | LingRoot</title>
         <meta name="description" content="LingRoot Blog'da İngilizce öğrenme ipuçları bulabilirsiniz." />
@@ -54,7 +54,7 @@ export default function Blog() {
               </defs>
             </svg>
           </div>
-          <span className="font-extrabold text-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent tracking-tight whitespace-nowrap">
+          <span className="font-extrabold text-2xl text-primary tracking-tight whitespace-nowrap">
             LingRoot
           </span>
         </Link>
@@ -72,7 +72,7 @@ export default function Blog() {
           <Link href="/fiyatlandirma" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200 whitespace-nowrap">
             Fiyatlandırma
           </Link>
-          <Link href="/blog" className="text-blue-600 hover:text-blue-700 font-semibold transition-colors duration-200 whitespace-nowrap">
+          <Link href="/blog" className="text-primary hover:text-primary/80 font-semibold transition-colors duration-200 whitespace-nowrap">
             Blog
           </Link>
         </nav>
@@ -82,7 +82,7 @@ export default function Blog() {
             Giriş Yap
           </Link>
           <Link href="/register" 
-            className="px-4 lg:px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 whitespace-nowrap text-sm lg:text-base">
+            className="px-4 lg:px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 whitespace-nowrap text-sm lg:text-base">
             Ücretsiz Başla
           </Link>
         </div>
@@ -90,16 +90,16 @@ export default function Blog() {
 
       <main className="flex-grow pt-24">
         {/* Hero Section */}
-        <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-purple-600">
+        <section className="py-20 px-6 bg-slate-900">
           <div className="max-w-6xl mx-auto text-center">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
               <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
               İngilizce Öğrenme Rehberi
             </div>
             <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
-              LingRoot <span className="text-blue-200">Blog</span>
+              LingRoot <span className="text-primary">Blog</span>
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-white/80 max-w-4xl mx-auto leading-relaxed">
               Dil öğrenme serüveninize ışık tutacak ipuçları, bilimsel bulgular ve motivasyon verici yaklaşımlar.
             </p>
           </div>
@@ -128,8 +128,8 @@ export default function Blog() {
               <article className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
                 <div className="p-8 md:p-12">
                   <div className="flex items-center mb-6">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
-                    <span className="text-blue-600 font-semibold text-sm uppercase tracking-wider">Dil Öğrenme</span>
+                    <div className="w-3 h-3 bg-primary rounded-full mr-3"></div>
+                    <span className="text-primary font-semibold text-sm uppercase tracking-wider">Dil Öğrenme</span>
                   </div>
                   <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
                     İngilizce Dinleme Becerisinin Önemi
@@ -147,8 +147,8 @@ export default function Blog() {
                       Öncelikle, dinleme dili kullanmanın temelidir. Konuşma becerisi, büyük ölçüde iyi bir dinleyici olmanın üzerine inşa edilir. Kendi anadilimizde bile önce etrafımızdaki insanları dinleyerek kelimeleri, telaffuzları ve cümle yapılarını öğreniriz. İkinci dilde de durum farklı değil: Dinleme, telaffuzunuzu geliştirmede, kelime dağarcığınızı genişletmede ve hatta doğru gramer kullanımını içselleştirmede doğrudan etkili olur.
                     </p>
                     
-                    <div className="bg-blue-50 border-l-4 border-blue-500 p-6 my-8">
-                      <p className="text-blue-800 font-medium">
+                    <div className="bg-primary/5 border-l-4 border-primary p-6 my-8">
+                      <p className="text-primary font-medium">
                         "Konuşma ediniminde ve gelişiminde dinlemenin rolü çok büyüktür… her yaşta dinleme becerisinin etkin kullanımı önemlidir."
                       </p>
                     </div>
@@ -166,7 +166,7 @@ export default function Blog() {
                       İyi bir dinleyici olmak, aynı zamanda kültürel nüansları da yakalamanızı sağlar; ses tonlarındaki duygu, vurgu ve imaları anlamlandırabilirsiniz.
                     </p>
                     
-                    <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg mt-8">
+                    <div className="bg-primary text-primary-foreground p-6 rounded-lg mt-8">
                       <p className="text-lg font-semibold">
                         Sonuç olarak, İngilizce dinleme becerisi bir lüks değil, gerekliliktir. Dil öğrenme yolculuğunuzda dinlemeye ne kadar çok yer ayırırsanız, diğer becerilerinizin de o denli hızlı ve sağlam ilerlediğini göreceksiniz.
                       </p>
@@ -195,7 +195,7 @@ export default function Blog() {
                       Odaklanarak (ya da "aktif") dinleme, duyduğunuz içeriğe tüm dikkatinizi vermek, gerektiğinde not almak, bilinçli bir şekilde anlamaya çalışmak demektir. Bu yaklaşım, dili öğrenme sürecinde pasif dinlemeye kıyasla daha kısa sürede daha kalıcı ilerleme sağlar.
                     </p>
                     
-                    <div className="bg-purple-50 rounded-lg p-6 my-8">
+                    <div className="bg-secondary/10 rounded-lg p-6 my-8">
                       <h4 className="text-lg font-bold text-purple-900 mb-3">Odaklı Dinlemenin Faydaları:</h4>
                       <ul className="space-y-2 text-purple-800">
                         <li>• İşitsel algıyı geliştirir</li>
@@ -228,7 +228,7 @@ export default function Blog() {
                       Odak ve tekrar ikilisi, dil öğreniminde mucizeler yaratabilir. Odaklanarak dinlediğiniz bir parçayı birkaç gün arayla tekrar dinlemek, ilk sefer kaçırdığınız incelikleri yakalamanızı sağlar. İlk dinleyişte anlamlandıramadığınız bir ifadeyi, ikinci dinleyişte "aha!" diyerek çözebilirsiniz.
                     </p>
                     
-                    <div className="bg-gradient-to-r from-purple-500 to-blue-600 text-white p-6 rounded-lg mt-8">
+                    <div className="bg-slate-900 text-white p-6 rounded-lg mt-8">
                       <p className="text-lg font-semibold">
                         LingRoot platformu, odaklanarak dinleme pratiğinizi desteklemek için size altyazı, yavaşlatma, tekrar oynatma gibi araçlar sunuyor. Bu araçlar, dikkatinizi toplamanız ve içeriği tamamen kavramanız için tasarlandı.
                       </p>
@@ -280,8 +280,8 @@ export default function Blog() {
                       Bu entegrasyonun bir diğer faydası, öğrenmenin kalıcılığını artırmasıdır. Yeni öğrendiğiniz kelimeleri veya dilbilgisi yapılarını günlük hayatınızda gerçek bağlamlar içinde kullanmaya başladığınızda, bunlar kısa süreli hafızadan uzun süreli hafızaya geçmeye başlar.
                     </p>
                     
-                    <div className="bg-blue-50 border-l-4 border-blue-500 p-6 my-8">
-                      <p className="text-blue-800 font-medium">
+                    <div className="bg-primary/5 border-l-4 border-primary p-6 my-8">
+                      <p className="text-primary font-medium">
                         "Use it or lose it" (kullan ya da kaybet) prensibi: Günlük kullanım, öğrendiklerinizi taze tutar ve unutulma ihtimalini azaltır.
                       </p>
                     </div>
@@ -310,7 +310,7 @@ export default function Blog() {
                       Bu sürekli temas, dil öğrenme sürecini bir görev olmaktan çıkarır, yaşam tarzınızın bir parçası yapar. Örneğin, sabah işe giderken 15 dakika İngilizce dinleme yapmak bir süre sonra alışkanlık olacak ve aksattığınız gün kendinizi eksik hissedeceksiniz.
                     </p>
                     
-                    <div className="bg-gradient-to-r from-teal-500 to-blue-600 text-white p-6 rounded-lg mt-8">
+                    <div className="bg-primary text-primary-foreground p-6 rounded-lg mt-8">
                       <p className="text-lg font-semibold mb-2">
                         LingRoot'un Felsefesi:
                       </p>
@@ -330,19 +330,19 @@ export default function Blog() {
         </section>
 
         {/* Call to Action */}
-        <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+        <section className="py-20 px-6 bg-slate-900 text-white">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-4xl md:text-5xl font-bold mb-8">
               Hemen Başlayın!
             </h2>
-            <p className="text-xl md:text-2xl mb-12 text-blue-100">
+            <p className="text-xl md:text-2xl mb-12 text-white/80">
               Bu yazılarda bahsettiğimiz teknikleri LingRoot ile pratiğe dökün. İngilizce öğrenmek için hayatınızı değiştirmenize gerek yok!
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <Link href="/register" className="inline-flex items-center px-8 py-4 bg-white text-blue-600 rounded-xl font-bold hover:bg-gray-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+              <Link href="/register" className="inline-flex items-center px-8 py-4 bg-white text-primary rounded-xl font-bold hover:bg-gray-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
                 Ücretsiz Denemeye Başla
               </Link>
-              <Link href="/nasil-calisir" className="inline-flex items-center px-8 py-4 border-2 border-white text-white rounded-xl font-bold hover:bg-white hover:text-blue-600 transition-all duration-200">
+              <Link href="/nasil-calisir" className="inline-flex items-center px-8 py-4 border-2 border-white text-white rounded-xl font-bold hover:bg-white hover:text-primary transition-all duration-200">
                 Nasıl Çalışır?
               </Link>
             </div>

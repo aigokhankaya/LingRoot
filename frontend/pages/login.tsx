@@ -104,7 +104,7 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-background">
       {debug && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-100 text-yellow-900 text-xs p-2 border-b border-yellow-300">
           <div className="max-w-3xl mx-auto">
@@ -115,7 +115,7 @@ const LoginPage: React.FC = () => {
       <header className="w-full flex justify-center items-center py-8">
         <div className="flex items-center space-x-4">
           <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
-          <span className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent tracking-tight">LingRoot</span>
+          <span className="text-3xl font-extrabold text-primary tracking-tight">LingRoot</span>
         </div>
       </header>
 
@@ -137,7 +137,7 @@ const LoginPage: React.FC = () => {
               <div className="flex items-center space-x-2 mb-2">
                 <input
                   type="email"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="E-posta adresi"
@@ -146,7 +146,7 @@ const LoginPage: React.FC = () => {
                   type="button"
                   onClick={handleResend}
                   disabled={resendLoading || !email}
-                  className="px-3 py-2 text-sm rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                  className="px-3 py-2 text-sm rounded-md text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50"
                 >
                   {resendLoading ? 'Gönderiliyor...' : 'Aktivasyon maili gönder'}
                 </button>
@@ -161,11 +161,11 @@ const LoginPage: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <label htmlFor="email-address" className="block text-sm font-medium text-gray-700 mb-1">E-posta</label>
-                <input id="email-address" name="email" type="email" autoComplete="email" required className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="E-posta adresinizi girin" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <input id="email-address" name="email" type="email" autoComplete="email" required className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" placeholder="E-posta adresinizi girin" value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
-                <input id="password" name="password" type="password" autoComplete="current-password" required className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Şifrenizi girin" value={password} onChange={(e) => setPassword(e.target.value)} />
+                <input id="password" name="password" type="password" autoComplete="current-password" required className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" placeholder="Şifrenizi girin" value={password} onChange={(e) => setPassword(e.target.value)} />
               </div>
 
               <label
@@ -178,7 +178,7 @@ const LoginPage: React.FC = () => {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
                 />
                 <span>Beni hatırla (30 gün boyunca oturum açık kalsın)</span>
               </label>
@@ -186,12 +186,12 @@ const LoginPage: React.FC = () => {
 
             <div className="flex justify-end">
               <div className="text-sm">
-                <Link href="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">Şifremi unuttum?</Link>
+                <Link href="/forgot-password" className="font-medium text-primary hover:text-primary/80">Şifremi unuttum?</Link>
               </div>
             </div>
 
             <div className="space-y-3">
-              <button type="submit" disabled={loading} className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50">
+              <button type="submit" disabled={loading} className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50">
                 {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
               </button>
 
@@ -205,7 +205,7 @@ const LoginPage: React.FC = () => {
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={googleLoading}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
                   <path fill="#EA4335" d="M12 10.2v3.6h5.09c-.22 1.18-.88 2.18-1.87 2.86l3.02 2.34c1.76-1.62 2.78-4 2.78-6.8 0-.66-.06-1.3-.18-1.9H12z" />
@@ -219,7 +219,7 @@ const LoginPage: React.FC = () => {
           </form>
 
           <div className="text-sm text-center mt-4">
-            <button onClick={() => router.push('/register')} className="font-medium text-blue-600 hover:text-blue-500">Hesabınız yok mu? Kayıt olun</button>
+            <button onClick={() => router.push('/register')} className="font-medium text-primary hover:text-primary/80">Hesabınız yok mu? Kayıt olun</button>
           </div>
         </div>
       </main>

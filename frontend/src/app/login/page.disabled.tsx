@@ -73,7 +73,7 @@ export default function LoginPage() {
       <header className="w-full flex justify-center items-center py-8">
         <div className="flex items-center space-x-4">
           <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
-          <span className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent tracking-tight">LingRoot</span>
+          <span className="text-3xl font-extrabold bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 bg-clip-text text-transparent tracking-tight">LingRoot</span>
         </div>
       </header>
       
@@ -107,7 +107,7 @@ export default function LoginPage() {
                   type="email"
                   autoComplete="email"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                   placeholder="E-posta adresinizi girin"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -121,7 +121,7 @@ export default function LoginPage() {
                   type="password"
                   autoComplete="current-password"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                   placeholder="Şifrenizi girin"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -146,7 +146,7 @@ export default function LoginPage() {
                   style={{ 
                     width: '20px', 
                     height: '20px',
-                    accentColor: '#2563eb',
+                    accentColor: 'hsl(var(--primary))',
                     cursor: 'pointer'
                   }}
                 />
@@ -160,15 +160,15 @@ export default function LoginPage() {
               </div>
               
               {/* Debug: Checkbox durumunu göster */}
-              <div className="text-sm text-center p-2 bg-blue-100 rounded">
-                <strong>Debug:</strong> Beni hatırla durumu = <span className="font-bold text-blue-600">{rememberMe ? 'SEÇİLİ ✅' : 'SEÇİLİ DEĞİL ❌'}</span>
+              <div className="text-sm text-center p-2 bg-primary/10 rounded">
+                <strong>Debug:</strong> Beni hatırla durumu = <span className="font-bold text-primary">{rememberMe ? 'SEÇİLİ ✅' : 'SEÇİLİ DEĞİL ❌'}</span>
               </div>
             </div>
 
             {/* Şifremi unuttum linki */}
             <div className="flex justify-end">
               <div className="text-sm">
-                <Link href="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
+                <Link href="/forgot-password" className="font-medium text-primary hover:text-primary/80">
                   Şifremi unuttum?
                 </Link>
               </div>
@@ -179,7 +179,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
               >
                 {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
               </button>
@@ -188,7 +188,7 @@ export default function LoginPage() {
           
           {/* Kayıt ol linki */}
           <div className="text-sm text-center mt-4">
-            <button onClick={() => router.push('/register')} className="font-medium text-blue-600 hover:text-blue-500">
+            <button onClick={() => router.push('/register')} className="font-medium text-primary hover:text-primary/80">
               Hesabınız yok mu? Kayıt olun
             </button>
           </div>

@@ -328,7 +328,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
                 key={sentenceIndex}
                 className={`inline-block mx-1 my-1 transition-all duration-200 font-normal ${
                   isCurrentSentence 
-                    ? 'bg-blue-200 text-blue-900 px-3 py-2 rounded-lg shadow-lg border-2 border-blue-400' 
+                    ? 'bg-primary/10 text-primary px-3 py-2 rounded-lg shadow-lg border-2 border-primary/40' 
                     : 'text-gray-800 px-2 py-1 hover:bg-gray-100 rounded'
                 }`}
                 title={`Cümle ${sentenceIndex + 1}`}
@@ -465,7 +465,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
       elements.push(
         <span
           key={`word-${index}`}
-          className={`inline-block cursor-pointer transition-all duration-75 hover:text-blue-600 font-normal ${
+          className={`inline-block cursor-pointer transition-all duration-75 hover:text-primary font-normal ${
             isCurrentWord 
               ? 'bg-yellow-300 text-yellow-900 rounded-md shadow-md scale-105' 
               : 'text-gray-800'
@@ -522,7 +522,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         <span className="ml-3">Audio yükleniyor...</span>
       </div>
     );
@@ -571,7 +571,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
             <button
               onClick={isPlaying ? pause : play}
               disabled={isBuffering}
-              className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-medium"
+              className="flex items-center space-x-2 bg-primary hover:bg-primary/90 disabled:bg-gray-400 text-primary-foreground px-6 py-2 rounded-lg font-medium"
             >
               {isBuffering ? (
                 <>
@@ -595,7 +595,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
             <select
               value={playbackRate}
               onChange={handlePlaybackRateChange}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             >
               <option value={0.5}>0.5x</option>
               <option value={0.75}>0.75x</option>
@@ -683,7 +683,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
             >
               {isAddingWord ? (
                 <span className="flex items-center">
-                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500 mr-2"></div>
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-2"></div>
                   Ekleniyor...
                 </span>
               ) : (
@@ -730,7 +730,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
               </div>
 
               {/* Örnek Cümle - Blue Card */}
-              <div className="p-4 bg-blue-50 border-2 border-blue-400 rounded-xl">
+              <div className="p-4 bg-primary/5 border-2 border-primary/40 rounded-xl">
                 <div className="flex items-center mb-2">
                   <span className="text-base mr-2">🇬🇧</span>
                   <span className="text-xs font-bold text-gray-700">Örnek Cümle</span>

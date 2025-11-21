@@ -227,7 +227,7 @@ export default function ContentManagementPage() {
                                             {(currentUserRole === 'super_admin' || currentUserRole === 'support_admin') && (
                                                 <div className="flex flex-col space-y-1 md:flex-row md:space-y-0 md:space-x-2">
                                                     {item.status === 'failed' && (
-                                                        <button onClick={() => handleRegenerateContent(item.id)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-200 text-left md:text-center">Regenerate</button>
+                                                        <button onClick={() => handleRegenerateContent(item.id)} className="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 text-left md:text-center">Regenerate</button>
                                                     )}
                                                     <button onClick={() => handleDeleteContent(item.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 text-left md:text-center">Delete</button>
                                                 </div>

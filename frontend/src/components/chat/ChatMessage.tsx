@@ -18,7 +18,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ role, content, timesta
       {/* Avatar */}
       <Avatar className="h-8 w-8 flex-shrink-0">
         {isUser ? (
-          <AvatarFallback className="bg-blue-600">
+          <AvatarFallback className="bg-primary">
             <User className="w-4 h-4 text-white" />
           </AvatarFallback>
         ) : (
@@ -32,7 +32,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ role, content, timesta
       <div className={`flex-1 ${isUser ? 'flex justify-end' : ''}`}>
         <div className={`inline-block max-w-[85%] rounded-xl px-4 py-3 ${
           isUser 
-            ? 'bg-blue-600 text-white' 
+            ? 'bg-primary text-primary-foreground' 
             : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
         }`}>
           <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{content}</p>

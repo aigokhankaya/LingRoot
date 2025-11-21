@@ -241,7 +241,7 @@ export default function AudioPlayer({
         {/* Play/Pause button */}
         <button
           onClick={togglePlayPause}
-          className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-full hover:bg-blue-700 focus:outline-none"
+          className="w-10 h-10 flex items-center justify-center bg-primary text-primary-foreground rounded-full hover:bg-primary/90 focus:outline-none"
         >
           {isPlaying ? (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -280,7 +280,7 @@ export default function AudioPlayer({
         <a
           href={audioUrl}
           download
-          className="text-blue-600 hover:text-blue-800"
+          className="text-primary hover:text-primary/80"
           title="Download audio"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

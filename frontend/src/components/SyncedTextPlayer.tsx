@@ -648,7 +648,7 @@ export default function SyncedTextPlayer({
           return (
             <span
               key={index}
-              className={`inline-block cursor-pointer transition-colors duration-[25ms] hover:text-blue-600 font-normal ${
+              className={`inline-block cursor-pointer transition-colors duration-[25ms] hover:text-primary font-normal ${
                 isCurrentWord 
                   ? 'bg-yellow-300 text-yellow-900 rounded shadow-lg' 
                   : 'text-gray-800'
@@ -721,7 +721,7 @@ export default function SyncedTextPlayer({
               key={index}
               className={`inline-block mx-1 my-1 transition-all duration-[25ms] font-normal ${
                 isCurrentSentence 
-                  ? 'bg-blue-200 text-blue-900 px-2 py-1 rounded-lg shadow-lg border-2 border-blue-400' 
+                  ? 'bg-primary/10 text-primary px-2 py-1 rounded-lg shadow-lg border-2 border-primary/40' 
                   : 'text-gray-800 px-1 py-1 hover:bg-gray-100 rounded'
               }`}
               title={`Cümle ${index + 1}: ${sentenceData.startTime.toFixed(2)}s - ${sentenceData.endTime.toFixed(2)}s`}
@@ -988,11 +988,11 @@ export default function SyncedTextPlayer({
           <button
             onClick={handleAddToVocabulary}
             disabled={isAddingWord}
-            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-primary/5 hover:text-primary flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isAddingWord ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
                 Çeviriliyor...
               </>
             ) : (
@@ -1018,7 +1018,7 @@ export default function SyncedTextPlayer({
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               {level && (
-                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full">
+                <span className="px-3 py-1 bg-primary/10 text-primary rounded-full">
                   Seviye: {level}
                 </span>
               )}
@@ -1129,27 +1129,27 @@ export default function SyncedTextPlayer({
                    step="0.001"
                    value={timingOffset}
                    onChange={(e) => setTimingOffset(parseFloat(e.target.value))}
-                   className="w-full h-3 bg-gradient-to-r from-red-300 via-green-300 to-blue-300 rounded-lg appearance-none cursor-pointer"
+                   className="w-full h-3 bg-gradient-to-r from-red-300 via-emerald-300 to-primary/60 rounded-lg appearance-none cursor-pointer"
                    title={`Timing offset: ${(timingOffset * 1000).toFixed(0)}ms`}
                  />
                </div>
                <button
                  onClick={() => setTimingOffset(prev => Math.min(prev + 0.1, 5))}
-                 className="px-3 py-2 bg-blue-300 hover:bg-blue-400 text-blue-800 rounded font-mono text-sm"
+                 className="px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded font-mono text-sm"
                  title="100ms ileri"
                >
                  +100ms
                </button>
                <button
                  onClick={() => setTimingOffset(prev => Math.min(prev + 0.5, 5))}
-                 className="px-3 py-2 bg-blue-400 hover:bg-blue-500 text-white rounded font-mono text-sm"
+                 className="px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded font-mono text-sm"
                  title="500ms ileri"
                >
                  +500ms
                </button>
                <button
                  onClick={() => setTimingOffset(prev => Math.min(prev + 1, 5))}
-                 className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded font-mono text-sm"
+                 className="px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded font-mono text-sm"
                  title="1 saniye ileri"
                >
                  +1s
@@ -1196,28 +1196,28 @@ export default function SyncedTextPlayer({
                
                <button
                  onClick={() => setTimingOffset(prev => Math.min(prev + 0.05, 5))}
-                 className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-mono"
+                 className="px-2 py-1 bg-primary hover:bg-primary/90 text-primary-foreground rounded text-xs font-mono"
                  title="50ms ileri"
                >
                  +50ms
                </button>
                <button
                  onClick={() => setTimingOffset(prev => Math.min(prev + 0.01, 5))}
-                 className="px-2 py-1 bg-blue-400 hover:bg-blue-500 text-white rounded text-xs font-mono"
+                 className="px-2 py-1 bg-primary/80 hover:bg-primary text-primary-foreground rounded text-xs font-mono"
                  title="10ms ileri"
                >
                  +10ms
                </button>
                <button
                  onClick={() => setTimingOffset(prev => Math.min(prev + 0.005, 5))}
-                 className="px-2 py-1 bg-blue-300 hover:bg-blue-400 text-blue-800 rounded text-xs font-mono"
+                 className="px-2 py-1 bg-primary/20 hover:bg-primary/30 text-primary rounded text-xs font-mono"
                  title="5ms ileri"
                >
                  +5ms
                </button>
                <button
                  onClick={() => setTimingOffset(prev => Math.min(prev + 0.001, 5))}
-                 className="px-2 py-1 bg-blue-200 hover:bg-blue-300 text-blue-800 rounded text-xs font-mono"
+                 className="px-2 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded text-xs font-mono"
                  title="1ms ileri"
                >
                  +1ms
@@ -1301,7 +1301,7 @@ export default function SyncedTextPlayer({
                   className={`flex items-center justify-center w-12 h-12 text-white rounded-full transition-colors ${
                     !isAudioLoaded 
                       ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-primary hover:bg-primary/90'
                   }`}
                   title={!isAudioLoaded ? 'Audio yükleniyor...' : isPlaying ? 'Duraklat' : 'Oynat'}
                 >
@@ -1355,9 +1355,9 @@ export default function SyncedTextPlayer({
           {renderHighlightedText()}
           
           {currentCueIndex >= 0 && vttCues[currentCueIndex] && (
-            <div className="mt-4 p-3 bg-blue-50 border-l-4 border-blue-400 rounded">
-              <div className="text-sm text-blue-600 font-medium">Current Subtitle:</div>
-              <div className="text-blue-800">{vttCues[currentCueIndex].text}</div>
+            <div className="mt-4 p-3 bg-primary/5 border-l-4 border-primary rounded">
+              <div className="text-sm text-primary font-medium">Current Subtitle:</div>
+              <div className="text-primary">{vttCues[currentCueIndex].text}</div>
             </div>
           )}
         </div>

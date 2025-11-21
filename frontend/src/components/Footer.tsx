@@ -4,14 +4,14 @@ import Link from 'next/link';
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-900 text-white py-12 px-4">
+    <footer className="bg-[#1F6F63] text-white py-12 px-4">
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-8">
           {/* Logo ve Slogan */}
           <div className="col-span-1 md:col-span-2 lg:col-span-2">
             <div className="flex items-center gap-3 mb-4">
               <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
-              <span className="font-extrabold text-2xl bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent tracking-tight">
+              <span className="font-extrabold text-2xl tracking-tight">
                 LingRoot
               </span>
             </div>

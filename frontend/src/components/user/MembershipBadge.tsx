@@ -13,11 +13,11 @@ const statusConfig = {
   },
   premium: {
     label: 'Premium',
-    className: 'bg-blue-100 text-blue-800',
+    className: 'bg-primary/10 text-primary',
   },
   enterprise: {
     label: 'Enterprise',
-    className: 'bg-purple-100 text-purple-800',
+    className: 'bg-secondary/10 text-secondary-foreground',
   },
 };
 

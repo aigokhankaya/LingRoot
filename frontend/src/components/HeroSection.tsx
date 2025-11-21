@@ -17,7 +17,7 @@ const HeroSection: React.FC<HeroSectionProps> = () => {
       </p>
       <a
         href="#"
-        className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-md"
+        className="inline-block bg-primary text-primary-foreground font-semibold py-3 px-6 rounded-lg shadow-md transition-colors duration-300 hover:bg-primary/90"
       >
         {t('register_now')}
       </a>

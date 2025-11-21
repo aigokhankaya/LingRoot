@@ -25,7 +25,7 @@ export default function Contact() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen flex flex-col bg-background">
       <Head>
         <title>İletişim | LingRoot</title>
         <meta name="description" content="LingRoot ile iletişime geçin. Sorularınız, önerileriniz ve geri bildirimleriniz için bize ulaşın." />
@@ -38,7 +38,7 @@ export default function Contact() {
       <header className="fixed w-full py-4 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <Link href="/" className="flex items-center space-x-3">
           <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12 drop-shadow-lg" />
-          <span className="font-extrabold text-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent tracking-tight">
+          <span className="font-extrabold text-2xl text-primary tracking-tight">
             LingRoot
           </span>
         </Link>
@@ -59,7 +59,7 @@ export default function Contact() {
           <Link href="/blog" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             Blog
           </Link>
-          <Link href="/contact" className="text-blue-600 hover:text-blue-700 font-semibold transition-colors duration-200">
+          <Link href="/contact" className="text-primary hover:text-primary/80 font-semibold transition-colors duration-200">
             İletişim
           </Link>
         </nav>
@@ -69,7 +69,7 @@ export default function Contact() {
             Giriş Yap
           </Link>
           <Link href="/register" 
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+            className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
             Ücretsiz Başla
           </Link>
         </div>
@@ -77,7 +77,7 @@ export default function Contact() {
 
       <main className="flex-grow pt-24">
         {/* Hero Section */}
-        <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-purple-600">
+        <section className="py-20 px-6 bg-slate-900">
           <div className="max-w-4xl mx-auto text-center">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
               <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
@@ -86,7 +86,7 @@ export default function Contact() {
             <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
               İletişim
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-white/80 max-w-3xl mx-auto leading-relaxed">
               Sorularınız, önerileriniz ve geri bildirimleriniz bizim için çok değerli. 
               Size nasıl yardımcı olabileceğimizi öğrenmek istiyoruz.
             </p>
@@ -100,13 +100,13 @@ export default function Contact() {
               {/* İletişim Bilgileri */}
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-8">
-                  İletişim <span className="text-blue-600">Bilgileri</span>
+                  İletişim <span className="text-primary">Bilgileri</span>
                 </h2>
                 
                 <div className="space-y-6">
                   <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                     </div>
@@ -145,7 +145,7 @@ export default function Contact() {
                   </div>
                 </div>
 
-                <div className="mt-8 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+                <div className="mt-8 p-6 bg-muted rounded-xl border border-border">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Destek Ekibimiz</h3>
                   <p className="text-gray-600 text-sm">
                     Deneyimli destek ekibimiz size en hızlı şekilde yardımcı olmak için hazır. 
@@ -157,7 +157,7 @@ export default function Contact() {
               {/* İletişim Formu */}
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-8">
-                  Bize <span className="text-blue-600">Yazın</span>
+                  Bize <span className="text-primary">Yazın</span>
                 </h2>
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -172,7 +172,7 @@ export default function Contact() {
                       value={formData.name}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                       placeholder="Adınız ve soyadınız"
                     />
                   </div>
@@ -188,7 +188,7 @@ export default function Contact() {
                       value={formData.email}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                       placeholder="ornek@email.com"
                     />
                   </div>
@@ -204,7 +204,7 @@ export default function Contact() {
                       value={formData.subject}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                       placeholder="Mesajınızın konusu"
                     />
                   </div>
@@ -220,14 +220,14 @@ export default function Contact() {
                       onChange={handleChange}
                       required
                       rows={6}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
                       placeholder="Mesajınızı buraya yazın..."
                     />
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="w-full px-6 py-4 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl"
                   >
                     Mesaj Gönder
                   </button>
@@ -238,11 +238,11 @@ export default function Contact() {
         </section>
 
         {/* FAQ Section */}
-        <section className="py-16 px-6 bg-gradient-to-br from-blue-50 to-purple-50">
+        <section className="py-16 px-6 bg-muted">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                Sık Sorulan <span className="text-blue-600">Sorular</span>
+                Sık Sorulan <span className="text-primary">Sorular</span>
               </h2>
               <p className="text-gray-600">
                 Merak ettiğiniz konularda hızlı cevaplar

@@ -167,7 +167,7 @@ export default function TopicPipelineComponent() {
             value={topicInput}
             onChange={(e) => setTopicInput(e.target.value)}
             placeholder="Örn: Yapay Zeka, Sağlıklı Yaşam, Tarih..."
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             disabled={loading}
           />
         </div>
@@ -179,7 +179,7 @@ export default function TopicPipelineComponent() {
           <select
             value={selectedLevel}
             onChange={(e) => setSelectedLevel(e.target.value as any)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             disabled={loading}
           >
             <option value="A1">A1 (Beginner)</option>
@@ -194,7 +194,7 @@ export default function TopicPipelineComponent() {
         <button
           onClick={handleTopicSuggestions}
           disabled={loading || !topicInput.trim()}
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 px-6 rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
           {loading && loadingStage.includes('öneri') ? '⏳ Yükleniyor...' : '📝 Konu\'yu Detaylandır'}
         </button>
@@ -213,7 +213,7 @@ export default function TopicPipelineComponent() {
                 onClick={() => setSelectedSubtopic(suggestion)}
                 className={`text-left p-4 rounded-lg border-2 transition-all ${
                   selectedSubtopic === suggestion
-                    ? 'border-blue-500 bg-blue-50'
+                    ? 'border-primary bg-primary/5'
                     : 'border-gray-200 hover:border-gray-300 bg-white'
                 }`}
               >
@@ -234,7 +234,7 @@ export default function TopicPipelineComponent() {
 
       {/* Loading Indicator */}
       {loading && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded">
+        <div className="bg-primary/5 border border-primary/20 text-primary px-4 py-3 rounded">
           <div className="flex items-center space-x-2">
             <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -314,7 +314,7 @@ export default function TopicPipelineComponent() {
               )}
               <div>
                 <div className="font-semibold text-gray-600">Toplam</div>
-                <div className="text-2xl font-bold text-blue-600">
+                <div className="text-2xl font-bold text-primary">
                   {(result.usage.narration?.total_tokens || 0) +
                    (result.usage.translation?.total_tokens || 0) +
                    (result.usage.adaptation?.total_tokens || 0)}

@@ -72,7 +72,7 @@ export default function TestSyncedPlayer() {
               <select
                 value={selectedRate}
                 onChange={(e) => setSelectedRate(parseFloat(e.target.value))}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               >
                 {rateOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -123,22 +123,22 @@ export default function TestSyncedPlayer() {
         </div>
 
         {/* Test Data Info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h3 className="text-lg font-semibold text-blue-800 mb-2">
+        <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6">
+          <h3 className="text-lg font-semibold text-primary mb-2">
             📊 Test Verileri
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div>
-              <span className="font-medium text-blue-700">Toplam Kelime:</span>
-              <span className="ml-2 text-blue-600">{testData.words.length}</span>
+              <span className="font-medium text-primary/80">Toplam Kelime:</span>
+              <span className="ml-2 text-primary">{testData.words.length}</span>
             </div>
             <div>
-              <span className="font-medium text-blue-700">Timing Points:</span>
-              <span className="ml-2 text-blue-600">{testData.timepoints.length}</span>
+              <span className="font-medium text-primary/80">Timing Points:</span>
+              <span className="ml-2 text-primary">{testData.timepoints.length}</span>
             </div>
             <div>
-              <span className="font-medium text-blue-700">Audio Süresi:</span>
-              <span className="ml-2 text-blue-600">~10 saniye</span>
+              <span className="font-medium text-primary/80">Audio Süresi:</span>
+              <span className="ml-2 text-primary">~10 saniye</span>
             </div>
           </div>
         </div>
@@ -214,23 +214,23 @@ export default function TestSyncedPlayer() {
             </ul>
             <ul className="space-y-2 text-sm text-gray-600">
               <li className="flex items-center">
-                <span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>
+                <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
                 Kelimeye tıklayarak atlama
               </li>
               <li className="flex items-center">
-                <span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>
+                <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
                 Audio seek ve kontrol desteği
               </li>
               <li className="flex items-center">
-                <span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>
+                <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
                 Çoklu timing metodu (VTT/Backend/Adaptive/Linear)
               </li>
               <li className="flex items-center">
-                <span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>
+                <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
                 Development debug bilgileri
               </li>
               <li className="flex items-center">
-                <span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>
+                <span className="w-2 h-2 bg-primary rounded-full mr-3"></span>
                 Tamamen reusable ve customizable
               </li>
             </ul>

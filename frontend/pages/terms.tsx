@@ -5,7 +5,7 @@ import Footer from '../src/components/Footer';
 
 export default function Terms() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen flex flex-col bg-background">
       <Head>
         <title>Kullanım Şartları | LingRoot</title>
         <meta name="description" content="LingRoot Kullanım Şartları. Platform kullanım kuralları, kullanıcı sorumlulukları ve hizmet koşulları." />
@@ -18,7 +18,7 @@ export default function Terms() {
       <header className="fixed w-full py-4 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <Link href="/" className="flex items-center space-x-3">
           <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12 drop-shadow-lg" />
-          <span className="font-extrabold text-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent tracking-tight">
+          <span className="font-extrabold text-2xl text-primary tracking-tight">
             LingRoot
           </span>
         </Link>
@@ -40,7 +40,7 @@ export default function Terms() {
             Giriş Yap
           </Link>
           <Link href="/register" 
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+            className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
             Ücretsiz Başla
           </Link>
         </div>
@@ -48,7 +48,7 @@ export default function Terms() {
 
       <main className="flex-grow pt-24">
         {/* Hero Section */}
-        <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-purple-600">
+        <section className="py-20 px-6 bg-slate-900">
           <div className="max-w-4xl mx-auto text-center">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
               <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
@@ -57,7 +57,7 @@ export default function Terms() {
             <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
               Kullanım Şartları
             </h1>
-            <p className="text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-white/80 max-w-3xl mx-auto leading-relaxed">
               LingRoot platformunu kullanırken uymanız gereken kurallar ve koşullar hakkında bilgi edinin.
             </p>
           </div>
@@ -69,8 +69,8 @@ export default function Terms() {
             <div className="prose prose-lg max-w-none">
               
               {/* Son Güncellenme */}
-              <div className="mb-12 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl border border-blue-200 shadow-lg">
-                <p className="text-blue-800 mb-0 font-medium">
+              <div className="mb-12 p-6 bg-muted rounded-2xl border border-border shadow-lg">
+                <p className="text-primary mb-0 font-medium">
                   <strong>Son Güncellenme:</strong> 1 Ocak 2025
                 </p>
               </div>
@@ -78,7 +78,7 @@ export default function Terms() {
               {/* Giriş */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                  Platform Kullanım <span className="text-blue-600">Kuralları</span>
+                  Platform Kullanım <span className="text-primary">Kuralları</span>
                 </h2>
                 <p className="text-gray-600 leading-relaxed mb-4">
                   LingRoot'a erişerek ve platformumuzu kullanarak, aşağıdaki kullanım şartlarını kabul etmiş sayılırsınız. 
@@ -93,7 +93,7 @@ export default function Terms() {
               {/* Platform Kullanımı */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  1. Platform <span className="text-blue-600">Kullanımı</span>
+                  1. Platform <span className="text-primary">Kullanımı</span>
                 </h2>
                 
                 <div className="space-y-6">
@@ -123,13 +123,13 @@ export default function Terms() {
               {/* Hesap Sorumlulukları */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  2. Hesap <span className="text-blue-600">Sorumlulukları</span>
+                  2. Hesap <span className="text-primary">Sorumlulukları</span>
                 </h2>
                 
                 <div className="grid md:grid-cols-2 gap-6">
-                  <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
-                    <h3 className="text-lg font-semibold text-blue-900 mb-3">👤 Kullanıcı Sorumlulukları</h3>
-                    <ul className="text-blue-800 space-y-2 text-sm">
+                  <div className="bg-muted rounded-lg p-6 border border-primary/20">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">👤 Kullanıcı Sorumlulukları</h3>
+                    <ul className="text-gray-700 space-y-2 text-sm">
                       <li>• Hesap bilgilerinin güncel tutulması</li>
                       <li>• Şifre güvenliğinin sağlanması</li>
                       <li>• Hesap aktivitelerinden sorumlu olma</li>
@@ -137,9 +137,9 @@ export default function Terms() {
                     </ul>
                   </div>
 
-                  <div className="bg-purple-50 rounded-lg p-6 border border-purple-200">
-                    <h3 className="text-lg font-semibold text-purple-900 mb-3">🛡️ LingRoot'un Hakları</h3>
-                    <ul className="text-purple-800 space-y-2 text-sm">
+                  <div className="bg-muted rounded-lg p-6 border border-primary/20">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">🛡️ LingRoot'un Hakları</h3>
+                    <ul className="text-gray-700 space-y-2 text-sm">
                       <li>• Hesap askıya alma yetkisi</li>
                       <li>• İçerik moderasyonu hakkı</li>
                       <li>• Kullanım sınırları koyma</li>
@@ -152,7 +152,7 @@ export default function Terms() {
               {/* İçerik ve Telif Hakkı */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  3. İçerik ve <span className="text-blue-600">Telif Hakkı</span>
+                  3. İçerik ve <span className="text-primary">Telif Hakkı</span>
                 </h2>
                 
                 <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-8 border border-amber-200">
@@ -182,7 +182,7 @@ export default function Terms() {
               {/* Ödeme ve İade */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  4. Ödeme ve <span className="text-blue-600">İade Koşulları</span>
+                  4. Ödeme ve <span className="text-primary">İade Koşulları</span>
                 </h2>
                 
                 <div className="space-y-6">
@@ -211,13 +211,13 @@ export default function Terms() {
               {/* Hizmet Sınırlamaları */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  5. Hizmet <span className="text-blue-600">Sınırlamaları</span>
+                  5. Hizmet <span className="text-primary">Sınırlamaları</span>
                 </h2>
                 
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-8 border border-blue-200">
+                <div className="bg-muted rounded-xl p-8 border border-border">
                   <div className="grid md:grid-cols-3 gap-6">
                     <div className="text-center">
-                      <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
                         <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
@@ -227,7 +227,7 @@ export default function Terms() {
                     </div>
 
                     <div className="text-center">
-                      <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
                         <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
@@ -252,7 +252,7 @@ export default function Terms() {
               {/* Sorumluluk Reddi */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  6. Sorumluluk <span className="text-blue-600">Reddi</span>
+                  6. Sorumluluk <span className="text-primary">Reddi</span>
                 </h2>
                 
                 <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
@@ -272,10 +272,10 @@ export default function Terms() {
               {/* İletişim */}
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  7. <span className="text-blue-600">İletişim ve Şikayetler</span>
+                  7. <span className="text-primary">İletişim ve Şikayetler</span>
                 </h2>
                 
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-white">
+                <div className="bg-slate-900 rounded-xl p-8 text-white">
                   <h3 className="text-xl font-semibold mb-4">Kullanım şartları hakkında sorularınız mı var?</h3>
                   <p className="mb-6 opacity-90">
                     Kullanım şartları veya platform kullanımı hakkında herhangi bir sorunuz varsa, 
@@ -283,11 +283,11 @@ export default function Terms() {
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4">
                     <Link href="/contact" 
-                      className="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors text-center">
+                      className="px-6 py-3 bg-white text-primary rounded-lg font-semibold hover:bg-gray-100 transition-colors text-center">
                       İletişime Geç
                     </Link>
                     <a href="mailto:legal@lingroot.com" 
-                      className="px-6 py-3 border border-white text-white rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors text-center">
+                      className="px-6 py-3 border border-white text-white rounded-lg font-semibold hover:bg-white hover:text-primary transition-colors text-center">
                       legal@lingroot.com
                     </a>
                   </div>
