@@ -37,6 +37,9 @@ const CreateScreen: React.FC = () => {
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel>('B1');
   const [speechRate, setSpeechRate] = useState(1.0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCreatingVoice, setIsCreatingVoice] = useState(false);
+  const [isTtsJobLocked, setIsTtsJobLocked] = useState(false);
+  const [ttsJobMessage, setTtsJobMessage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [createdTrack, setCreatedTrack] = useState<AudioTrack | null>(null);
   const [showPlayer, setShowPlayer] = useState(false);
@@ -44,9 +47,34 @@ const CreateScreen: React.FC = () => {
   // Keep mode in sync when screen gains focus (e.g., navigating from Home with different params)
   useFocusEffect(
     React.useCallback(() => {
+      const checkActiveJob = async () => {
+        try {
+          const res = await apiService.getActiveTtsJob();
+          if (res && res.hasActiveJob) {
+            setIsTtsJobLocked(true);
+            setIsCreatingVoice(true);
+            setTtsJobMessage(
+              language === 'tr'
+                ? 'Ses oluşturma süreci devam ediyor. Lütfen bitmesini bekleyin.'
+                : 'An audio creation process is still running. Please wait for it to finish.'
+            );
+          } else {
+            setIsTtsJobLocked(false);
+            setIsCreatingVoice(false);
+            setTtsJobMessage(null);
+          }
+        } catch (e) {
+          // Sessizce geç; hata durumunda kullanıcıyı kilitlemeyelim
+          setIsTtsJobLocked(false);
+        }
+      };
+
       const nextMode: 'text' | 'file' | 'book' | 'suggestion' | 'youtube' = route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : (route.params?.mode === 'youtube' ? 'youtube' : 'text')));
       const prevMode = mode;
       setMode(nextMode);
+
+      // Ekrana her odaklanıldığında aktif job durumunu kontrol et
+      checkActiveJob();
 
       // Her zaman suggestion mode'a girerken temizle
       if (nextMode === 'suggestion') {
@@ -70,7 +98,7 @@ const CreateScreen: React.FC = () => {
         setYoutubeLoading(false);
         setYoutubeError(null);
       }
-    }, [route.params?.mode, mode])
+    }, [route.params?.mode, mode, language])
   );
   // --- Suggestion Mode State ---
   const [suggestion, setSuggestion] = useState('');
@@ -100,6 +128,15 @@ const CreateScreen: React.FC = () => {
   };
 
   const fetchYoutubeSubtitle = async () => {
+    if (isTtsJobLocked) {
+      const msg =
+        ttsJobMessage ||
+        (language === 'tr'
+          ? 'Ses oluşturma süreci devam ediyor. Lütfen bitmesini bekleyin.'
+          : 'An audio creation process is still running. Please wait for it to finish.');
+      Alert.alert(t('common.info'), msg);
+      return;
+    }
     if (!youtubeUrl || !/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(youtubeUrl)) {
       Alert.alert(t('common.error'), 'Geçerli bir YouTube linki girin');
       return;
@@ -149,6 +186,12 @@ const CreateScreen: React.FC = () => {
   };
 
   const handleGetSuggestions = async () => {
+    if (isTtsJobLocked) {
+      if (ttsJobMessage) {
+        Alert.alert(t('common.info'), ttsJobMessage);
+      }
+      return;
+    }
     if (!suggestion.trim()) {
       Alert.alert(t('common.error'), t('suggestions.alerts.pleaseEnterTopic'));
       return;
@@ -688,6 +731,12 @@ const CreateScreen: React.FC = () => {
   }, [selectedAccent, selectedGender, selectedVoiceCategory]);
 
   const handleCreateAudio = async () => {
+    if (isTtsJobLocked) {
+      if (ttsJobMessage) {
+        Alert.alert(t('common.info'), ttsJobMessage);
+      }
+      return;
+    }
     try {
       // Usage limit pre-check
       const summary = await apiService.getUsageSummary();
@@ -721,6 +770,12 @@ const CreateScreen: React.FC = () => {
   };
 
   const handleAsyncAudioCreation = async () => {
+    if (isTtsJobLocked) {
+      if (ttsJobMessage) {
+        Alert.alert(t('common.info'), ttsJobMessage);
+      }
+      return;
+    }
     // Suggestion mode: if no input yet, rewrite the topic/suggestion into narration text first
     let effectiveInputText = inputText;
     if (mode === 'suggestion' && !effectiveInputText.trim()) {
@@ -785,7 +840,15 @@ const CreateScreen: React.FC = () => {
             language === 'tr' ? '✅ İşlem Başlatıldı' : '✅ Processing Started',
             language === 'tr'
               ? `Sesiniz arka planda oluşturuluyor. ${response.estimatedTime} içinde bildirim alacaksınız.`
-              : `Your audio is being created in the background. You'll receive a notification in ${response.estimatedTime}.`
+              : `Your audio is being created in the background. You'll receive a notification in ${response.estimatedTime}.`,
+            [
+              {
+                text: language === 'tr' ? 'Tamam' : 'OK',
+                onPress: () => {
+                  setIsCreatingVoice(true);
+                },
+              },
+            ],
           );
         } else {
           Alert.alert(t('common.error'), t('create.alerts.fileProcessFailed'));
@@ -821,7 +884,15 @@ const CreateScreen: React.FC = () => {
             language === 'tr' ? '✅ İşlem Başlatıldı' : '✅ Processing Started',
             language === 'tr'
               ? `Sesiniz arka planda oluşturuluyor. ${response.estimatedTime} içinde bildirim alacaksınız.`
-              : `Your audio is being created in the background. You'll receive a notification in ${response.estimatedTime}.`
+              : `Your audio is being created in the background. You'll receive a notification in ${response.estimatedTime}.`,
+            [
+              {
+                text: language === 'tr' ? 'Tamam' : 'OK',
+                onPress: () => {
+                  setIsCreatingVoice(true);
+                },
+              },
+            ],
           );
         } else {
           Alert.alert(t('common.error'), t('create.alerts.audioCreateFailed'));
@@ -829,6 +900,19 @@ const CreateScreen: React.FC = () => {
       }
     } catch (error: any) {
       console.error('🔴 [CREATE ASYNC] Error:', error);
+
+      // Backend, devam eden iş varken yeni istek gelirse TTS_JOB_IN_PROGRESS döndürüyor
+      if (error?.code === 'TTS_JOB_IN_PROGRESS') {
+        const msg =
+          language === 'tr'
+            ? 'Ses oluşturma süreci devam ediyor. Lütfen mevcut işlemin bitmesini bekleyin.'
+            : 'An audio creation process is already running. Please wait for it to finish before starting a new one.';
+        setIsTtsJobLocked(true);
+        setIsCreatingVoice(true);
+        setTtsJobMessage(msg);
+        Alert.alert(t('common.info'), msg);
+        return;
+      }
 
       const emsg = error?.message || '';
       if (
@@ -928,6 +1012,20 @@ const CreateScreen: React.FC = () => {
           <View style={styles.loadingCard}>
             <ActivityIndicator size="large" color="#007AFF" />
             <Text style={styles.loadingText}>{convertingText}</Text>
+          </View>
+        </View>
+      )}
+
+      {isTtsJobLocked && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>
+              {ttsJobMessage ||
+                (language === 'tr'
+                  ? 'Ses oluşturma süreci devam ediyor. Lütfen bitmesini bekleyin.'
+                  : 'An audio creation process is still running. Please wait for it to finish.')}
+            </Text>
           </View>
         </View>
       )}
@@ -1464,17 +1562,24 @@ const CreateScreen: React.FC = () => {
         </Modal>
 
         <TouchableOpacity
-          style={[styles.createButton, isLoading && styles.createButtonDisabled]}
+          style={[
+            styles.createButton,
+            (isLoading || isCreatingVoice || isTtsJobLocked) && styles.createButtonDisabled,
+          ]}
           onPress={handleCreateAudio}
-          disabled={isLoading}
+          disabled={isLoading || isCreatingVoice || isTtsJobLocked}
         >
-          {isLoading ? (
+          {isLoading || isCreatingVoice ? (
             <ActivityIndicator color="white" size="small" />
           ) : (
             <Icon name="volume-up" size={24} color="white" />
           )}
           <Text style={styles.createButtonText}>
-            {isLoading ? (selectedFile ? t('create.buttons.processingFile') : t('create.buttons.processing')) : t('create.buttons.createAudio')}
+            {isLoading
+              ? (selectedFile ? t('create.buttons.processingFile') : t('create.buttons.processing'))
+              : isCreatingVoice
+                ? (language === 'tr' ? 'Ses oluşturuluyor...' : 'Creating Voice...')
+                : t('create.buttons.createAudio')}
           </Text>
         </TouchableOpacity>
       </ScrollView>

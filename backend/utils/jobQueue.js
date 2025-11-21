@@ -44,6 +44,15 @@ class JobQueue {
     return this.jobs.get(jobId);
   }
 
+  getActiveJobForUser(userId) {
+    for (const job of this.jobs.values()) {
+      if (job.userId === userId && (job.status === 'pending' || job.status === 'processing')) {
+        return job;
+      }
+    }
+    return null;
+  }
+
   deleteJob(jobId) {
     this.jobs.delete(jobId);
     logger.info(`[JobQueue] Deleted job ${jobId}`);
