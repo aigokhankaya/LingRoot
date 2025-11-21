@@ -38,6 +38,10 @@ import TtsProviderSettingsScreen from '../screens/TtsProviderSettingsScreen';
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+// Track last time we navigated due to an audio_created notification
+// so that polling + notification taps do not trigger multiple navigations
+let lastAudioNotificationHandledAt: number | null = null;
+
 const LoadingScreen = () => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
     <ActivityIndicator size="large" color="#007AFF" />
@@ -69,44 +73,88 @@ const MainTabs = () => {
       try {
         const notifications = await apiService.getUnreadNotifications();
 
-        for (const notification of notifications) {
-          if (notification.type === 'audio_created' && notification.data) {
-            try {
-              // Navigate to Library with notificationAudio so LibraryScreen can open AudioPlayer
-              const navRef = (global as any).__NAVIGATION_REF__;
-              if (navRef?.current) {
-                const { CommonActions } = require('@react-navigation/native');
-                navRef.current.dispatch(
-                  CommonActions.reset({
-                    index: 0,
-                    routes: [
-                      {
-                        name: 'Main',
-                        state: {
-                          routes: [
-                            {
-                              name: 'Library',
-                              params: { notificationAudio: notification.data },
-                            },
-                          ],
-                        },
-                      },
-                    ],
-                  })
-                );
-              }
-            } catch (navError) {
-            }
+        if (!Array.isArray(notifications) || notifications.length === 0) {
+          return;
+        }
 
-            // Mark as read so we don't handle this notification again
-            try {
-              await apiService.markNotificationAsRead(notification.id);
-            } catch (markErr) {
+        const audioNotifications = notifications.filter(
+          (notification: any) => notification.type === 'audio_created' && notification.data
+        );
+
+        if (!audioNotifications.length) {
+          return;
+        }
+
+        // On Android we already navigate via the push notification tap
+        // handler, so polling should ONLY be used to mark notifications
+        // as read to avoid duplicate navigations.
+        if (Platform.OS === 'android') {
+          try {
+            await Promise.all(
+              audioNotifications.map((notification: any) =>
+                apiService.markNotificationAsRead(notification.id).catch(() => {})
+              )
+            );
+          } catch {
+            // Ignore marking errors
+          }
+          return;
+        }
+
+        // iOS: use polling as a fallback navigation mechanism.
+        const now = Date.now();
+        const recentlyHandled =
+          typeof lastAudioNotificationHandledAt === 'number' &&
+          now - lastAudioNotificationHandledAt < 15000;
+
+        const latestNotification = audioNotifications[0];
+
+        // Only navigate once per batch of unread audio notifications,
+        // and skip navigation if we have very recently navigated due to
+        // a notification tap.
+        if (!recentlyHandled) {
+          try {
+            const navRef = (global as any).__NAVIGATION_REF__;
+            if (navRef?.current) {
+              const { CommonActions } = require('@react-navigation/native');
+              navRef.current.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [
+                    {
+                      name: 'Main',
+                      state: {
+                        routes: [
+                          {
+                            name: 'Library',
+                            params: { notificationAudio: latestNotification.data },
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                })
+              );
+              lastAudioNotificationHandledAt = now;
             }
+          } catch (navError) {
+            // Ignore navigation errors in production
           }
         }
-      } catch (error) {
-        // Silent error
+
+        // Mark all audio_created notifications as read so they don't
+        // trigger navigation again on the next poll.
+        try {
+          await Promise.all(
+            audioNotifications.map((notification: any) =>
+              apiService.markNotificationAsRead(notification.id).catch(() => {})
+            )
+          );
+        } catch {
+          // Ignore marking errors
+        }
+      } catch {
+        // Silent error for polling failures
       }
     };
 
@@ -297,6 +345,7 @@ const AppNavigator = () => {
                 ],
               })
             );
+            lastAudioNotificationHandledAt = Date.now();
           } catch (e) {
             console.error('Navigation error (audio notification):', e);
           }
@@ -387,6 +436,7 @@ const AppNavigator = () => {
             ],
           })
         );
+        lastAudioNotificationHandledAt = Date.now();
       } catch (e) {
         console.error('Navigation error (initial audio notification):', e);
       } finally {
