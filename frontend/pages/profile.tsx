@@ -8,6 +8,7 @@ import { computeEstimates, formatEstimate, type UsageSummary, computeCostAwareEs
 import InterestManager from '../src/components/InterestManager';
 import PackageInfo from '../src/components/PackageInfo';
 import Footer from '../src/components/Footer';
+import BrandWordmark from '../src/components/BrandWordmark';
 
 export default function Profile() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -159,7 +160,7 @@ export default function Profile() {
             <Link href="/welcome" className="flex items-center space-x-4 group cursor-pointer">
               <img src="/lingroot-icon.svg" alt="LingRoot" className="w-12 h-12 transition-transform group-hover:scale-105" />
               <h1 className="text-xl font-semibold text-gray-900">
-                <span className="text-primary font-extrabold">LingRoot</span> Dashboard
+                <BrandWordmark className="text-xl" /> Dashboard
               </h1>
             </Link>
             <div className="flex items-center space-x-2">

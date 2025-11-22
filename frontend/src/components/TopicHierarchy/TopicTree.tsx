@@ -9,13 +9,17 @@ interface TopicTreeProps {
   onRefresh: () => Promise<void>;
   onContentCreated?: (result: any) => void;
   level: string;
+  audioStateByTopic?: Record<string, { isLoading?: boolean; hasAudio?: boolean }>;
+  onOpenAudioModal?: (topicId: string) => void;
 }
 
 const TopicTree: React.FC<TopicTreeProps> = ({
   topics,
   onRefresh,
   onContentCreated,
-  level
+  level,
+  audioStateByTopic,
+  onOpenAudioModal,
 }) => {
   if (!topics || topics.length === 0) {
     return null;
@@ -46,6 +50,8 @@ const TopicTree: React.FC<TopicTreeProps> = ({
             onRefresh={onRefresh}
             onContentCreated={onContentCreated}
             level={level}
+            audioStateByTopic={audioStateByTopic}
+            onOpenAudioModal={onOpenAudioModal}
           />
         ))}
       </div>

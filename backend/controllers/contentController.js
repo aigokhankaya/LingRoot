@@ -5,6 +5,7 @@ const logger = require("../utils/logger"); // Import logger
 const { logStep } = require('../utils/stepLogger');
 const { v4: uuidv4 } = require('uuid');
 const { processTextPipeline } = require('../utils/pipeline');
+const { getNewsForTopic } = require('../utils/newsService');
 
 // Supabase yapılandırması
 const supabaseBucket = process.env.SUPABASE_BUCKET || "lingroot-audio";
@@ -107,10 +108,61 @@ exports.processSuggestions = async (req, res) => {
 };
 
 /**
- * Kullanıcının takip ettiği hashtag'lere göre öneriler sunan fonksiyon. Henüz uygulanmadı.
+ * Kullanıcının takip ettiği hashtag'lere veya hobi/konu başlığına göre
+ * en güncel haberleri getiren fonksiyon.
+ *
+ * Body parametreleri:
+ * - query / hashtag / topic: Aranacak konu veya #hashtag
+ * - limit: Maksimum haber sayısı (1-50 arası, varsayılan 10)
  */
 exports.processHashtag = async (req, res) => {
-  return res.status(501).json({ success: false, error: 'Hashtag öneri özelliği henüz uygulanmadı.' });
+  const requestId = uuidv4();
+  try {
+    const { query, hashtag, topic, limit, language } = req.body || {};
+
+    const rawQuery = (query || hashtag || topic || '').toString().trim();
+
+    if (!rawQuery) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lütfen bir hashtag veya konu girin.',
+      });
+    }
+
+    const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 50);
+
+    logger.info(`[${requestId}] processHashtag called`, {
+      query: rawQuery,
+      limit: safeLimit,
+      language: language || 'en',
+    });
+
+    const items = await getNewsForTopic({
+      query: rawQuery,
+      limit: safeLimit,
+      language: language || 'en',
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        query: rawQuery,
+        limit: safeLimit,
+        language: language || 'en',
+        count: items.length,
+        results: items,
+      },
+    });
+  } catch (error) {
+    logger.error(`[${requestId}] Error in processHashtag`, {
+      error: error.message,
+    });
+    return res.status(500).json({
+      success: false,
+      message: 'Hashtag/hobi haberleri getirilirken bir hata oluştu.',
+      error: error.message,
+    });
+  }
 };
 
 /**

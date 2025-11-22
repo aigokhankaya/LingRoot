@@ -448,6 +448,8 @@ const processTtsRequest = async (req, res) => {
         let googleTtsCallCount = 0;
         let textToAdapt = cleanedText;
         let translationResult = '';
+        // Global language code used across TTS steps (default en-US)
+        let languageCode = 'en-US';
 
         if (!skipTranslateAndAdapt) {
             // --- Step 2.5: Detect Language and Translate if Necessary (for non-topic inputs) ---
@@ -766,7 +768,7 @@ const processTtsRequest = async (req, res) => {
         }
         
         // Dynamically determine language code based on voice name
-        let languageCode = "en-US"; // Default to US English
+        languageCode = "en-US"; // Default to US English
         if (selectedVoice) {
             if (selectedVoice.includes("en-GB")) {
                 languageCode = "en-GB";

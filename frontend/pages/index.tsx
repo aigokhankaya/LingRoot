@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 
 import { useAuth } from '../src/lib/auth'; // Eski dosyadan auth context'ini import ediyoruz
 import Footer from '../src/components/Footer';
+import BrandWordmark from '../src/components/BrandWordmark';
 
 // shadcn/ui ve diğer kütüphane importları
 import { Button } from "@/components/ui/button";
@@ -442,7 +443,7 @@ const App: React.FC = () => {
                 <div className="container mx-auto px-8 flex justify-between items-center">
                     <div className="flex items-center space-x-3">
                         <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-10 h-10 md:w-12 md:h-12" />
-                        <span className="text-xl md:text-2xl font-extrabold text-foreground tracking-tight">LingRoot</span>
+                        <BrandWordmark className="text-xl md:text-2xl" />
                     </div>
                     
                     {/* Desktop Navigation */}

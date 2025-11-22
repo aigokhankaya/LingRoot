@@ -2,6 +2,7 @@ import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Footer from '../src/components/Footer';
+import BrandWordmark from '../src/components/BrandWordmark';
 
 export default function KVKK() {
   return (
@@ -18,9 +19,7 @@ export default function KVKK() {
       <header className="fixed w-full py-4 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <Link href="/" className="flex items-center space-x-3">
           <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12 drop-shadow-lg" />
-          <span className="font-extrabold text-2xl text-primary tracking-tight">
-            LingRoot
-          </span>
+          <BrandWordmark className="text-2xl" />
         </Link>
         
         <nav className="hidden md:flex items-center space-x-8">

@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useTranslation } from '@/lib/i18n';
-import { ProcessInputData, getToken, API_BASE_URL, getApiUrl, getTopicDetailSuggestions, getGeneratedSuggestions, fetchYoutubeTranscript, getMyPlanFeatures, PlanFeatures } from '../lib/api';
+import { ProcessInputData, getToken, API_BASE_URL, getApiUrl, getTopicDetailSuggestions, getGeneratedSuggestions, fetchYoutubeTranscript, getMyPlanFeatures, PlanFeatures, getHashtagNews, HashtagNewsItem } from '../lib/api';
 import { searchBooks, fetchBookContent } from '../services/bookService';
 import InterestManager from './InterestManager';
 import { FaCog } from 'react-icons/fa';
@@ -88,6 +88,11 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [showInterestManager, setShowInterestManager] = useState<boolean>(false);
   const [loadingTranscript, setLoadingTranscript] = useState<boolean>(false);
   const [uploadingFile, setUploadingFile] = useState<boolean>(false);
+  const [hashtagQuery, setHashtagQuery] = useState<string>('');
+  const [hashtagLimit, setHashtagLimit] = useState<number>(5);
+  const [hashtagResults, setHashtagResults] = useState<HashtagNewsItem[]>([]);
+  const [isLoadingHashtag, setIsLoadingHashtag] = useState<boolean>(false);
+  const [hashtagError, setHashtagError] = useState<string | null>(null);
   
   // Plan features state
   const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
@@ -512,6 +517,59 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     console.log("📦 InputData oluşturuldu:", inputData);
     console.log("🎯 onSubmit çağrılıyor...");
     
+    onSubmit(inputData);
+  };
+
+  // Hashtag için en güncel haberleri getir
+  const handleFetchHashtagNews = async () => {
+    const query = hashtagQuery.trim();
+    if (!query) {
+      alert('Lütfen bir hashtag veya konu girin. Örn: #AI, yapay zeka');
+      return;
+    }
+
+    const safeLimit = Math.min(Math.max(Number(hashtagLimit) || 5, 1), 50);
+
+    setIsLoadingHashtag(true);
+    setHashtagError(null);
+    setHashtagResults([]);
+
+    try {
+      const response = await getHashtagNews(query, safeLimit);
+
+      if (!response.success) {
+        throw new Error(response.message || 'Haberler alınamadı');
+      }
+
+      const items = (response.data as unknown as any)?.results || response.data || [];
+      setHashtagResults(items as HashtagNewsItem[]);
+    } catch (error: any) {
+      console.error('Hashtag haberleri alınırken hata:', error);
+      setHashtagError(error.message || 'Haberler alınamadı');
+    } finally {
+      setIsLoadingHashtag(false);
+    }
+  };
+
+  // Seçilen haber maddesini doğrudan TTS pipeline'ına gönder
+  const handlePlayFromHashtag = (item: HashtagNewsItem) => {
+    const baseText = `${item.title || ''}\n\n${item.summary || ''}\n\nKaynak: ${item.sourceName || item.source || ''}\n${item.url || ''}`.trim();
+
+    if (!baseText) {
+      alert('Bu haber için metin bulunamadı.');
+      return;
+    }
+
+    const inputData: ProcessInputData = {
+      type: 'text',
+      input: baseText,
+      text: baseText,
+      level,
+      SesHızı: speakingRate,
+      voice,
+    };
+
+    console.log('📦 Hashtag haberinden oluşturulan InputData:', inputData);
     onSubmit(inputData);
   };
 
@@ -1209,11 +1267,6 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                     onChange={(e) => setText(e.target.value)}
                   />
                 </div>
-              </div>
-            )}
-            {inputType === 'hashtag' && (
-              <div className="p-4 bg-green-50 rounded-xl border border-green-200 text-green-700 text-center">
-                Takip ettiğiniz hashtag'lere göre öneriler burada listelenecek.
               </div>
             )}
 

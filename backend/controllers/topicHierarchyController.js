@@ -150,7 +150,7 @@ exports.markTopicListened = async (req, res) => {
 exports.generateSubtopics = async (req, res) => {
   try {
     const { id } = req.params;
-    const { count = 5, language = 'Turkish' } = req.body;
+    const { count = 5, language = 'Turkish', angle } = req.body;
     const userId = req.user.id;
 
     logger.info(`[TOPIC HIERARCHY] Generating ${count} subtopics for topic ${id}`);
@@ -170,6 +170,17 @@ exports.generateSubtopics = async (req, res) => {
       });
     }
 
+    // Mevcut alt konuları başlık benzerliği kontrolü için getir
+    const { data: existingChildren, error: existingChildrenError } = await supabase
+      .from('topics')
+      .select('title')
+      .eq('parent_id', id)
+      .eq('user_id', userId);
+
+    if (existingChildrenError) {
+      logger.error('[TOPIC HIERARCHY] Error fetching existing subtopics for similarity check:', existingChildrenError);
+    }
+
     // Prompt template'i yükle
     const promptPath = path.join(__dirname, '../prompts/topic_hierarchy/generate_subtopics.txt');
     let promptTemplate = '';
@@ -177,16 +188,21 @@ exports.generateSubtopics = async (req, res) => {
     try {
       promptTemplate = fs.readFileSync(promptPath, 'utf-8');
     } catch (err) {
-      // Fallback inline prompt
+      // Fallback inline prompt (generate_subtopics.txt ile aynı mantık)
       promptTemplate = `Ana Konu: "{{main_topic}}"
 CEFR Seviye: {{level}}
 Dil: {{language}}
 Alt Konu Sayısı: {{count}}
+Odak Açıklaması (isteğe bağlı): {{angle_description}}
 
-Bu ana konu için {{count}} adet eğitici alt konu oluştur. Her alt konu:
-- Gerçek, faktöre dayalı ve ana konuyla doğrudan ilişkili olmalı
-- {{level}} seviyesine uygun kelime ve kavramlar içermeli
-- Birbirinden farklı açıları kapsamalı
+Görevin:
+- Bu ana konu için {{count}} adet eğitici alt konu listesi üret.
+- Eğer bir odak açıklaması verilmişse (boş değilse), TÜM alt konular doğrudan bu odağa bağlı olmalı ve onu farklı açılardan detaylandırmalıdır. Genel veya konu dışı başlıklar üretme.
+- CEFR seviyesi SADECE açıklama cümlelerinin dil zorluğunu ayarlamak içindir. Alt konu başlıklarını ve seçilen konuları seviyeye göre sınırlama; herkes için geçerli, doğal ve öğretici başlıklar üret.
+- Açıklama cümlelerinde {{level}} seviyesine uygun kelime dağarcığı ve kavramlar kullan:
+  - A1-A2: Günlük, basit, somut konular
+  - B1-B2: Orta seviye, biraz soyut kavramlar
+  - C1-C2: İleri seviye, akademik ve detaylı konular
 
 JSON formatında döndür:
 {
@@ -200,11 +216,16 @@ JSON formatında döndür:
 }`;
     }
 
-    const prompt = promptTemplate
+    let prompt = promptTemplate
       .replace(/\{\{main_topic\}\}/g, parentTopic.title)
       .replace(/\{\{level\}\}/g, parentTopic.level)
       .replace(/\{\{language\}\}/g, language)
-      .replace(/\{\{count\}\}/g, count.toString());
+      .replace(/\{\{count\}\}/g, count.toString())
+      .replace(/\{\{angle_description\}\}/g, angle && typeof angle === 'string' && angle.trim().length > 0 ? angle.trim() : 'Belirtilmedi');
+
+    if (angle && typeof angle === 'string' && angle.trim().length > 0) {
+      prompt += `\n\nÖNEMLİ: Kullanıcının verdiği odak açıklaması: "${angle.trim()}". Lütfen ürettiğin tüm alt konu başlıklarının bu odağı doğrudan işlemesine dikkat et; genel Kıbrıs bilgisi gibi konu dışı başlıklar üretme.`;
+    }
 
     logger.info('[TOPIC HIERARCHY] Calling OpenAI for subtopic generation');
 
@@ -233,8 +254,79 @@ JSON formatında döndür:
 
     logger.info(`[TOPIC HIERARCHY] OpenAI returned ${parsed.subtopics.length} subtopics`);
 
+    // Benzer başlıkları temizlemek için basit kelime tabanlı benzerlik kontrolü
+    const tokenizeTitle = (title) => {
+      if (!title || typeof title !== 'string') return [];
+      const cleaned = title
+        .toLowerCase()
+        .replace(/[^a-zA-Z0-9ığüşöçİĞÜŞÖÇ]+/g, ' ')
+        .trim();
+      return cleaned ? cleaned.split(/\s+/) : [];
+    };
+
+    const jaccardSimilarity = (tokensA, tokensB) => {
+      if (!tokensA.length || !tokensB.length) return 0;
+      const setA = new Set(tokensA);
+      const setB = new Set(tokensB);
+      let intersection = 0;
+      for (const t of setA) {
+        if (setB.has(t)) intersection += 1;
+      }
+      const union = setA.size + setB.size - intersection;
+      return union === 0 ? 0 : intersection / union;
+    };
+
+    const existingNormalized = [];
+
+    if (Array.isArray(existingChildren)) {
+      existingChildren.forEach((child) => {
+        const tokens = tokenizeTitle(child.title);
+        if (tokens.length > 0) {
+          existingNormalized.push({ title: child.title, tokens });
+        }
+      });
+    }
+
+    const filteredSubtopics = [];
+    let skippedSimilarCount = 0;
+
+    for (const st of parsed.subtopics) {
+      if (!st || !st.title || typeof st.title !== 'string') continue;
+      const tokens = tokenizeTitle(st.title);
+      if (!tokens.length) continue;
+
+      let isSimilar = false;
+      for (const existing of existingNormalized) {
+        const sim = jaccardSimilarity(tokens, existing.tokens);
+        if (sim >= 0.75) {
+          isSimilar = true;
+          break;
+        }
+      }
+
+      if (isSimilar) {
+        skippedSimilarCount += 1;
+        continue;
+      }
+
+      filteredSubtopics.push(st);
+      existingNormalized.push({ title: st.title, tokens });
+    }
+
+    logger.info(
+      `[TOPIC HIERARCHY] Filtered subtopics: kept ${filteredSubtopics.length}, skipped ${skippedSimilarCount} similar titles`
+    );
+
+    if (filteredSubtopics.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Yeni, benzersiz alt konu bulunamadı (tüm öneriler mevcut başlıklarla çok benzerdi).',
+        data: { subtopics: [] }
+      });
+    }
+
     // Alt konuları veritabanına ekle
-    const subtopicsToInsert = parsed.subtopics.map((st, index) => ({
+    const subtopicsToInsert = filteredSubtopics.map((st, index) => ({
       user_id: userId,
       parent_id: id,
       title: st.title,
@@ -416,6 +508,13 @@ exports.getTopicTree = async (req, res) => {
       } else if (topicMap[topic.parent_id]) {
         topicMap[topic.parent_id].children.push(topicMap[topic.id]);
       }
+    });
+
+    // Ana konuları (rootTopics) oluşturulma tarihine göre sırala: en yeni en üstte
+    rootTopics.sort((a, b) => {
+      const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bCreated - aCreated;
     });
 
     logger.info(`[TOPIC HIERARCHY] Found ${topics.length} topics, ${rootTopics.length} root topics`);

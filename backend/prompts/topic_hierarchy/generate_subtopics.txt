@@ -6,20 +6,23 @@ Ana Konu: "{{main_topic}}"
 CEFR İngilizce Seviyesi: {{level}}
 Hedef Dil: {{language}}
 Oluşturulacak Alt Konu Sayısı: {{count}}
+Odak Açıklaması (isteğe bağlı): {{angle_description}}
 
 📋 KURALLAR:
 1. Her alt konu gerçek, faktöre dayalı ve ana konuyla DOĞRUDAN ilişkili olmalı
-2. Alt konular birbirinden FARKLI açıları kapsamalı (tekrar yok)
-3. {{level}} seviyesine uygun kelime dağarcığı ve kavramlar kullan:
+2. Alt konular birbirinden FARKLI açıları kapsamalı (tekrar yok). Sadece 1-2 kelimesi değişen veya neredeyse aynı anlamı taşıyan başlıklar üretme (örnek: "Erenköy Çatışmasının Tarihi" ve "Erenköy Çatışmasının Tarihi Bağlamı" gibi çok benzer başlıklar YASAK).
+3. Eğer bir odak açıklaması verilmişse (boş değilse), TÜM alt konular bu odağa doğrudan bağlı olmalı ve onu farklı açılardan detaylandırmalıdır. Genel veya konu dışı başlıklar üretme.
+4. CEFR seviyesi SADECE açıklama cümlelerinin dil zorluğunu ayarlamak içindir. Alt konu başlıklarını ve seçilen konuları seviyeye göre sınırlama; herkes için geçerli, doğal ve öğretici başlıklar üret.
+5. Açıklama cümlelerinde {{level}} seviyesine uygun kelime dağarcığı ve kavramlar kullan:
    - A1-A2: Günlük, basit, somut konular
    - B1-B2: Orta seviye, biraz soyut kavramlar
    - C1-C2: İleri seviye, akademik ve detaylı konular
-4. Her alt konu için:
+6. Her alt konu için:
    - Başlık: Net, kısa (maksimum 6 kelime)
    - Açıklama: 1-2 cümle, öğretici ve bilgilendirici
    - Anahtar Kelimeler: 2-4 adet, konuyu tanımlayan kelimeler
-5. Hayali, spekülatif veya ilgisiz konular YASAK
-6. Çıktı dilini {{language}} olarak kullan
+7. Hayali, spekülatif veya ilgisiz konular YASAK
+8. Çıktı dilini {{language}} olarak kullan
 
 📤 ÇIKTI FORMATI (JSON):
 {

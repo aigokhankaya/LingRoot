@@ -3,7 +3,7 @@ import Link from 'next/link';
 import MembershipBadge from '../src/components/user/MembershipBadge';
 import { useAuth } from '../src/lib/auth';
 import { useRouter } from 'next/router';
-import { getUserStats, UserStats, getTopicTree, Topic, getUserBookHistory, BookHistoryItem } from '../src/lib/api';
+import { getUserStats, UserStats, getTopicTree, Topic, getUserBookHistory, BookHistoryItem, FavoriteBookItem, getUserBookFavoritesDetails } from '../src/lib/api';
 import { Badge } from '../src/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../src/components/ui/card';
 import { Button } from '../src/components/ui/button';
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../src/components/ui/t
 import PackageInfo from '../src/components/PackageInfo';
 import { VocabularyTabContent } from './vocabulary';
 import TopicTree from '../src/components/TopicHierarchy/TopicTree';
+import BrandWordmark from '../src/components/BrandWordmark';
 
 
 
@@ -28,6 +29,9 @@ const Dashboard = () => {
   const [bookHistory, setBookHistory] = useState<BookHistoryItem[]>([]);
   const [bookHistoryLoading, setBookHistoryLoading] = useState(false);
   const [bookHistoryError, setBookHistoryError] = useState<string | null>(null);
+  const [favoriteBooks, setFavoriteBooks] = useState<FavoriteBookItem[]>([]);
+  const [favoriteBooksLoading, setFavoriteBooksLoading] = useState(false);
+  const [favoriteBooksError, setFavoriteBooksError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -70,6 +74,7 @@ const Dashboard = () => {
         }
       }
     };
+
     fetchStats();
   }, [isAuthenticated, user]);
 
@@ -110,6 +115,24 @@ const Dashboard = () => {
     }
   };
 
+	const loadFavoriteBooks = async () => {
+	  try {
+	    setFavoriteBooksLoading(true);
+	    setFavoriteBooksError(null);
+	    const response = await getUserBookFavoritesDetails();
+	    if (response.success && response.data) {
+	      setFavoriteBooks(response.data);
+	    } else if (!response.success) {
+	      setFavoriteBooksError(response.message || 'Favori kitaplar yüklenirken hata oluştu');
+	    }
+	  } catch (error: any) {
+	    console.error('[DASHBOARD] Favori kitaplar yükleme hatası:', error);
+	    setFavoriteBooksError(error?.message || 'Favori kitaplar yüklenirken hata oluştu');
+	  } finally {
+	    setFavoriteBooksLoading(false);
+	  }
+	};
+
   // Initialize tab from query (?tab=...) then hash, and keep in sync
   useEffect(() => {
     const applyLocation = () => {
@@ -117,7 +140,12 @@ const Dashboard = () => {
       const url = new URL(window.location.href);
       const qp = url.searchParams.get('tab');
       if (qp) {
-        setTab(qp);
+        // Eski URL'lerle geriye dönük uyumluluk için 'courses' -> 'book' eşlemesi
+        if (qp === 'courses') {
+          setTab('book');
+        } else {
+          setTab(qp);
+        }
       } else {
         const h = url.hash.replace('#', '');
         if (h) setTab(h);
@@ -133,9 +161,18 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    if (tab === 'reading-history' && isAuthenticated) {
+    if (!isAuthenticated) return;
+
+    if (tab === 'reading-history' || tab === 'achievements') {
       loadTopicTree();
+    }
+
+    if (tab === 'reading-history' || tab === 'book') {
       loadBookHistory();
+    }
+
+    if (tab === 'book') {
+      loadFavoriteBooks();
     }
   }, [tab, isAuthenticated]);
 
@@ -176,13 +213,26 @@ const Dashboard = () => {
           <div className="flex justify-between items-center h-16">
             {/* Left: Logo & Navigation */}
             <div className="flex items-center space-x-6">
-              <Link href="/welcome" className="flex items-center space-x-2">
-                <img src="/LingRoot_MainLogo.png" alt="LingRoot" className="h-8" />
+              <Link href="/">
+                <div className="flex items-center space-x-3">
+                  <img
+                    src="/lingroot-icon.svg"
+                    alt="LingRoot Logo"
+                    className="w-10 h-10 md:w-12 md:h-12"
+                  />
+                  <BrandWordmark className="text-xl md:text-2xl" />
+                </div>
               </Link>
               <Link href="/welcome">
                 <button className="text-gray-700 hover:text-primary transition-colors text-sm font-medium">
                   <i className="fas fa-home mr-2"></i>
                   Ana Sayfa
+                </button>
+              </Link>
+              <Link href="/welcome">
+                <button className="text-gray-700 hover:text-primary transition-colors text-sm font-medium">
+                  <i className="fas fa-headphones mr-2"></i>
+                  Dinleme Sayfası
                 </button>
               </Link>
             </div>
@@ -291,18 +341,37 @@ const Dashboard = () => {
           }
         }} className="w-full">
           <TabsList className="flex justify-start mb-6 bg-white p-1 rounded-lg shadow-sm border overflow-x-auto">
+            {/* 1. Dashboard */}
             <TabsTrigger value="dashboard" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-chart-line mr-2"></i>
               Dashboard
             </TabsTrigger>
+            {/* 2. Okuma Geçmişim */}
             <TabsTrigger value="reading-history" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-history mr-2"></i>
               Okuma Geçmişim
             </TabsTrigger>
-            <TabsTrigger value="courses" className="!rounded-button whitespace-nowrap cursor-pointer">
+            {/* 3. Konularım */}
+            <TabsTrigger value="achievements" className="!rounded-button whitespace-nowrap cursor-pointer">
+              <i className="fas fa-sitemap mr-2"></i>
+              Konularım
+            </TabsTrigger>
+            {/* 4. Kitaplarım */}
+            <TabsTrigger value="book" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-book mr-2"></i>
               Kitaplarım
             </TabsTrigger>
+            {/* 5. Podcastlerim (şimdilik placeholder) */}
+            <TabsTrigger value="podcasts" className="!rounded-button whitespace-nowrap cursor-pointer">
+              <i className="fas fa-podcast mr-2"></i>
+              Podcastlerim
+            </TabsTrigger>
+            {/* 6. PDF */}
+            <TabsTrigger value="pdf" className="!rounded-button whitespace-nowrap cursor-pointer">
+              <i className="fas fa-file-pdf mr-2"></i>
+              PDF
+            </TabsTrigger>
+            {/* Diğer mevcut sekmeler */}
             <TabsTrigger value="content" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-file-alt mr-2"></i>
               İçerik Yönetimi
@@ -310,10 +379,6 @@ const Dashboard = () => {
             <TabsTrigger value="vocabulary" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-language mr-2"></i>
               Kelimelerim
-            </TabsTrigger>
-            <TabsTrigger value="achievements" className="!rounded-button whitespace-nowrap cursor-pointer">
-              <i className="fas fa-sitemap mr-2"></i>
-              Konularım
             </TabsTrigger>
             <TabsTrigger value="ai-features" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-robot mr-2"></i>
@@ -610,211 +675,125 @@ const Dashboard = () => {
             </div>
           </TabsContent>
 
-          {/* Reading History Tab (Topics + Books) */}
+          {/* Reading History Tab - only overview & shortcuts */}
           <TabsContent value="reading-history" className="mt-0">
             <Card className="border-none shadow-md">
               <CardHeader className="pb-2">
                 <CardTitle className="text-xl font-bold text-gray-800">Okuma Geçmişim</CardTitle>
-                <CardDescription>Konu ağacınız ve kitap dinleme geçmişiniz burada.</CardDescription>
+                <CardDescription>Konu ağacınız ve kitap dinleme geçmişiniz burada özetlenir.</CardDescription>
               </CardHeader>
               <CardContent>
-                <Tabs defaultValue="topics" className="w-full">
-                  <TabsList className="mb-4 bg-gray-50 p-1 rounded-lg inline-flex">
-                    <TabsTrigger value="topics" className="!rounded-button whitespace-nowrap cursor-pointer">
-                      <i className="fas fa-sitemap mr-2"></i>
-                      Konularım
-                    </TabsTrigger>
-                    <TabsTrigger value="books" className="!rounded-button whitespace-nowrap cursor-pointer">
-                      <i className="fas fa-book mr-2"></i>
-                      Kitaplarım
-                    </TabsTrigger>
-                  </TabsList>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Card className="border border-gray-100 shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg font-semibold flex items-center">
+                        <i className="fas fa-sitemap mr-2 text-primary"></i>
+                        Konularım
+                      </CardTitle>
+                      <CardDescription>Konu ağacınızdan oluşturduğunuz tüm konular.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Detaylı konu geçmişinizi görmek için aşağıdaki butona tıklayın.
+                      </p>
+                      <button
+                        className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-full flex items-center space-x-2 cursor-pointer"
+                        onClick={() => setTab('achievements')}
+                      >
+                        <span>Konularımı Gör</span>
+                        <i className="fas fa-arrow-right"></i>
+                      </button>
+                    </CardContent>
+                  </Card>
 
-                  {/* Konularım sekmesi */}
-                  <TabsContent value="topics" className="mt-0">
-                    {topicsLoading && (
-                      <div className="text-center py-6 text-gray-500">
-                        <i className="fas fa-spinner fa-spin text-xl mr-2"></i>
-                        Konular yükleniyor...
-                      </div>
-                    )}
-
-                    {topicsError && !topicsLoading && (
-                      <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                        {topicsError}
-                      </div>
-                    )}
-
-                    {!topicsLoading && !topicsError && topics.length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        <i className="fas fa-folder-open text-4xl mb-3"></i>
-                        <p>Henüz konu oluşturmadınız.</p>
-                        <p className="text-sm text-gray-400 mt-1">
-                          İlk konunuzu{' '}
-                          <Link href="/welcome" className="text-primary underline">
-                            Ana Sayfa
-                          </Link>
-                          {' '}üzerindeki Konu Ağacı bölümünden oluşturabilirsiniz.
-                        </p>
-                      </div>
-                    )}
-
-                    {!topicsLoading && !topicsError && topics.length > 0 && (
-                      <div className="mt-4">
-                        <TopicTree
-                          topics={topics}
-                          onRefresh={loadTopicTree}
-                          level="A1"
-                        />
-                      </div>
-                    )}
-                  </TabsContent>
-
-                  {/* Kitaplarım sekmesi */}
-                  <TabsContent value="books" className="mt-0">
-                    {bookHistoryLoading && (
-                      <div className="text-center py-6 text-gray-500">
-                        <i className="fas fa-spinner fa-spin text-xl mr-2"></i>
-                        Kitap dinleme geçmişi yükleniyor...
-                      </div>
-                    )}
-
-                    {bookHistoryError && !bookHistoryLoading && (
-                      <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                        {bookHistoryError}
-                      </div>
-                    )}
-
-                    {!bookHistoryLoading && !bookHistoryError && bookHistory.length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        <i className="fas fa-book-open text-4xl mb-3"></i>
-                        <p>Henüz kitap bölümü dinlemediniz.</p>
-                        <p className="text-sm text-gray-400 mt-1">
-                          İlk kitabınızı{' '}
-                          <Link href="/welcome" className="text-primary underline">
-                            Ana Sayfa
-                          </Link>
-                          {' '}üzerindeki Kitap sekmesinden seçebilirsiniz.
-                        </p>
-                      </div>
-                    )}
-
-                    {!bookHistoryLoading && !bookHistoryError && bookHistory.length > 0 && (
-                      <div className="space-y-8">
-                        {/* Son dinlenen kitaplar - kart grid */}
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-800 mb-3">Son Dinlenen Kitaplar</h3>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {Object.values(
-                              bookHistory.reduce((acc: Record<string, any>, item) => {
-                                const key = String(item.book_id || item.book_title);
-                                if (!acc[key]) {
-                                  acc[key] = {
-                                    book_id: item.book_id,
-                                    book_title: item.book_title,
-                                    book_authors: item.book_authors,
-                                    cover_url: item.cover_url,
-                                    subjects: item.subjects,
-                                    lastChapter: item,
-                                    chapterCount: 1,
-                                  };
-                                } else {
-                                  acc[key].chapterCount += 1;
-                                  if (new Date(item.created_at).getTime() > new Date(acc[key].lastChapter.created_at).getTime()) {
-                                    acc[key].lastChapter = item;
-                                  }
-                                }
-                                return acc;
-                              }, {})
-                            ).map((book: any, index: number) => (
-                              <div
-                                key={`${book.book_id || book.book_title}-${index}`}
-                                className="bg-white rounded-lg shadow-sm hover:shadow-md border border-gray-100 overflow-hidden flex flex-col"
-                              >
-                                <div className="relative w-full h-40 bg-gray-100">
-                                  {book.cover_url ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                      src={book.cover_url}
-                                      alt={book.book_title}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-                                      <i className="fas fa-book-open text-3xl text-primary/60"></i>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="p-4 flex-1 flex flex-col">
-                                  <h4 className="font-semibold text-gray-900 line-clamp-2 mb-1">{book.book_title}</h4>
-                                  <p className="text-sm text-gray-600 mb-2 line-clamp-1">{book.book_authors}</p>
-                                  {book.subjects && (
-                                    <p className="text-xs text-gray-500 mb-2 line-clamp-1">{book.subjects}</p>
-                                  )}
-                                  <div className="flex items-center justify-between mt-auto pt-2">
-                                    <span className="text-xs text-gray-500">
-                                      {book.chapterCount} bölüm dinlendi
-                                    </span>
-                                    <Link
-                                      href="/welcome?contentType=book"
-                                      className="text-xs font-medium text-primary hover:underline flex items-center"
-                                    >
-                                      Devam Et
-                                      <i className="fas fa-arrow-right ml-1"></i>
-                                    </Link>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Son dinlenen bölümler listesi */}
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-800 mb-3">Son Dinlediğiniz Bölümler</h3>
-                          <div className="space-y-3">
-                            {bookHistory.slice(0, 15).map((item) => (
-                              <div
-                                key={item.id}
-                                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
-                              >
-                                <div className="flex items-center space-x-3">
-                                  <div className="w-10 h-14 bg-white rounded-md border border-gray-200 flex items-center justify-center">
-                                    <i className="fas fa-book text-primary"></i>
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-900 line-clamp-1">
-                                      {item.book_title}
-                                    </p>
-                                    <p className="text-xs text-gray-600 line-clamp-1">
-                                      Bölüm {item.chapter_index}: {item.chapter_title}
-                                    </p>
-                                    <p className="text-xs text-gray-400">
-                                      Seviye: {item.level.toUpperCase()} • {Math.round(item.duration)} sn • {new Date(item.created_at).toLocaleDateString()}
-                                    </p>
-                                  </div>
-                                </div>
-                                <Link
-                                  href="/welcome?contentType=book"
-                                  className="text-xs font-medium text-primary hover:underline flex items-center"
-                                >
-                                  Dinle
-                                  <i className="fas fa-play ml-1"></i>
-                                </Link>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
+                  <Card className="border border-gray-100 shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg font-semibold flex items-center">
+                        <i className="fas fa-book mr-2 text-primary"></i>
+                        Kitaplarım
+                      </CardTitle>
+                      <CardDescription>Dinlediğiniz kitaplar ve bölümler.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Kitap dinleme geçmişinizi görmek için aşağıdaki butona tıklayın.
+                      </p>
+                      <button
+                        className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-full flex items-center space-x-2 cursor-pointer"
+                        onClick={() => setTab('book')}
+                      >
+                        <span>Kitaplarımı Gör</span>
+                        <i className="fas fa-arrow-right"></i>
+                      </button>
+                    </CardContent>
+                  </Card>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Other Tab Contents - Placeholder */}
-          <TabsContent value="courses" className="mt-0">
+          {/* Kitaplarım Tab - Favoriler + Kitap Dinleme Geçmişi */}
+          <TabsContent value="book" className="mt-0">
+            {/* Favori Kitaplarım */}
+            {favoriteBooksLoading && (
+              <div className="text-center py-6 text-gray-500">
+                <i className="fas fa-spinner fa-spin text-xl mr-2"></i>
+                Favori kitaplar yükleniyor...
+              </div>
+            )}
+
+            {favoriteBooksError && !favoriteBooksLoading && (
+              <div className="p-3 mb-6 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                {favoriteBooksError}
+              </div>
+            )}
+
+            {!favoriteBooksLoading && !favoriteBooksError && favoriteBooks.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Favori Kitaplarım</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {favoriteBooks.map((book) => (
+                    <div
+                      key={book.id}
+                      className="bg-white rounded-lg shadow-sm hover:shadow-md border border-gray-100 overflow-hidden flex flex-col"
+                    >
+                      <div className="relative w-full h-40 bg-gray-100">
+                        {book.cover_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={book.cover_url}
+                            alt={book.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                            <i className="fas fa-book-open text-3xl text-primary/60"></i>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4 flex-1 flex flex-col">
+                        <h4 className="font-semibold text-gray-900 line-clamp-2 mb-1">{book.title}</h4>
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-1">{book.authors}</p>
+                        {book.subjects && (
+                          <p className="text-xs text-gray-500 mb-2 line-clamp-1">{book.subjects}</p>
+                        )}
+                        <div className="mt-auto pt-2 flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Favori kitap</span>
+                          <Link
+                            href="/welcome?contentType=book"
+                            className="text-xs font-medium text-primary hover:underline flex items-center"
+                          >
+                            Kitapla Çalış
+                            <i className="fas fa-arrow-right ml-1"></i>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Kitaplarım: Kullanıcının dinlediği kitap geçmişi */}
             {bookHistoryLoading && (
               <div className="text-center py-6 text-gray-500">
@@ -951,6 +930,22 @@ const Dashboard = () => {
                 </div>
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="podcasts" className="mt-0">
+            <div className="text-center py-8">
+              <i className="fas fa-podcast text-4xl text-gray-300 mb-2"></i>
+              <h3 className="text-lg font-medium text-gray-700">Podcastlerim</h3>
+              <p className="text-sm text-gray-500">Podcast dinleme geçmişiniz burada görünecek.</p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="pdf" className="mt-0">
+            <div className="text-center py-8">
+              <i className="fas fa-file-pdf text-4xl text-gray-300 mb-2"></i>
+              <h3 className="text-lg font-medium text-gray-700">PDF</h3>
+              <p className="text-sm text-gray-500">PDF tabanlı okuma geçmişiniz burada görünecek.</p>
+            </div>
           </TabsContent>
 
           <TabsContent value="content" className="mt-0">

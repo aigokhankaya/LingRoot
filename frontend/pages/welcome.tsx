@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 import { MessageSquare } from 'lucide-react';
-import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams, generateHobbySuggestions, getRandomHobbySuggestions, checkHobbyExists } from '../src/lib/api';
+import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams, generateHobbySuggestions, getRandomHobbySuggestions, checkHobbyExists, getUserBookFavorites, saveUserBookFavorites, getHashtagNews, HashtagNewsItem } from '../src/lib/api';
 import PlanRequired from '../src/components/PlanRequired';
 import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../src/components/ui/t
 import { Slider } from "../src/components/ui/slider";
 import { Card, CardContent } from "../src/components/ui/card";
 import { Badge } from "../src/components/ui/badge";
+import BrandWordmark from "../src/components/BrandWordmark";
 
 interface InputData {
   type: ProcessInputData['type'];
@@ -31,6 +32,7 @@ interface InputData {
   SesHızı?: number;
   voice?: string;
   chapter?: string;
+  chapter_id?: string;
 }
 
 interface ContentTypeOption {
@@ -147,11 +149,16 @@ const Welcome: React.FC = () => {
     } catch {}
   }, [router]);
 
-  // 🎯 Chat'ten gelen parametreleri işle
+  // 🎯 Chat'ten ve URL'den gelen parametreleri işle
   useEffect(() => {
     if (!router.isReady) return;
     
-    const { topic, action, text } = router.query;
+    const { topic, action, text, contentType: contentTypeFromQuery } = router.query;
+
+    // URL'den içerik türü (ör: ?contentType=book)
+    if (typeof contentTypeFromQuery === 'string') {
+      setContentType(contentTypeFromQuery);
+    }
 
     // action: 'create' -> Konu sekmesi + topic yerleştir
     if (action === 'create' && typeof topic === 'string') {
@@ -196,6 +203,10 @@ const Welcome: React.FC = () => {
   const [selectedDetailTopic, setSelectedDetailTopic] = useState<string>('');
   const [isGeneratingHobbySuggestions, setIsGeneratingHobbySuggestions] = useState<boolean>(false);
   const [hobbyExists, setHobbyExists] = useState<boolean>(false);
+  const [hobbyNewsLimit, setHobbyNewsLimit] = useState<number>(5);
+  const [hobbyNews, setHobbyNews] = useState<HashtagNewsItem[]>([]);
+  const [isLoadingHobbyNews, setIsLoadingHobbyNews] = useState<boolean>(false);
+  const [hobbyNewsError, setHobbyNewsError] = useState<string | null>(null);
   const [availableVoices, setAvailableVoices] = useState<any[]>([]);
   const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
   const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('neural');
@@ -233,21 +244,22 @@ const Welcome: React.FC = () => {
   const [existingAudio, setExistingAudio] = useState<ExistingAudio | null>(null);
   const [isCheckingExistingAudio, setIsCheckingExistingAudio] = useState<boolean>(false);
   const [activeTopicId, setActiveTopicId] = useState<string | null>(null);
+  const [favoriteBookIds, setFavoriteBookIds] = useState<number[]>([]);
   
   // Content history expanded view state
   const [expandedHistoryItem, setExpandedHistoryItem] = useState<string | null>(null);
   
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
-    { id: 'text', name: 'Metin', icon: 'fas fa-file-alt' },
     { id: 'topic_tree', name: 'Konu Ağacı', icon: 'fas fa-sitemap' },
-    { id: 'topic', name: 'Hobi', icon: 'fas fa-lightbulb' },
-    { id: 'subject', name: 'Konu', icon: 'fas fa-graduation-cap' },
-    { id: 'youtube', name: 'YouTube', icon: 'fab fa-youtube' },
-    { id: 'weblink', name: 'Web Bağlantısı', icon: 'fas fa-link' },
-    { id: 'document', name: 'Doküman', icon: 'fas fa-file-word' },
-    { id: 'podcast', name: 'Podcast', icon: 'fas fa-podcast' },
     { id: 'book', name: 'Kitap', icon: 'fas fa-book' },
+    { id: 'podcast', name: 'Podcast', icon: 'fas fa-podcast' },
+    { id: 'topic', name: 'Hobi', icon: 'fas fa-lightbulb' },
+    { id: 'youtube', name: 'YouTube', icon: 'fab fa-youtube' },
+    { id: 'document', name: 'Doküman', icon: 'fas fa-file-word' },
+    { id: 'text', name: 'Metin', icon: 'fas fa-file-alt' },
+    { id: 'weblink', name: 'Web Bağlantısı', icon: 'fas fa-link' },
+    { id: 'subject', name: 'Konu', icon: 'fas fa-graduation-cap' },
     { id: 'custom', name: 'Öneriler', icon: 'fas fa-plus' },
     { id: 'hashtag', name: 'Etiket', icon: 'fas fa-hashtag' },
   ];
@@ -535,6 +547,68 @@ const Welcome: React.FC = () => {
     } finally {
       setIsLoadingTopicSuggestions(false);
     }
+  };
+
+  // Seçili hobi için en güncel haberleri getir
+  const handleFetchHobbyNews = async () => {
+    if (!selectedInterest) {
+      setError('Lütfen bir hobi seçin.');
+      return;
+    }
+
+    const query = selectedInterest.trim();
+    if (!query) {
+      setError('Lütfen bir hobi seçin.');
+      return;
+    }
+
+    const safeLimit = Math.min(Math.max(Number(hobbyNewsLimit) || 5, 1), 50);
+
+    // Twitter entegrasyonu için otomatik hashtag oluştur (#YapayZeka gibi)
+    const queryForNews = query.startsWith('#') ? query : `#${query.replace(/\s+/g, '')}`;
+
+    setIsLoadingHobbyNews(true);
+    setHobbyNewsError(null);
+    setHobbyNews([]);
+
+    try {
+      console.log('📰 Hobi haberleri getiriliyor:', { query, queryForNews, safeLimit });
+      const response = await getHashtagNews(queryForNews, safeLimit);
+
+      if (!response.success) {
+        throw new Error(response.message || 'Hobi haberleri alınamadı');
+      }
+
+      const items = (response.data as any)?.results || response.data || [];
+      setHobbyNews(items as HashtagNewsItem[]);
+      console.log('📰 Hobi haberleri alındı:', items.length);
+    } catch (e: any) {
+      console.error('❌ Hobi haberleri alınırken hata:', e);
+      setHobbyNewsError(e?.message || 'Hobi haberleri alınamadı');
+    } finally {
+      setIsLoadingHobbyNews(false);
+    }
+  };
+
+  // Hobi haber maddesini doğrudan TTS pipeline'ına gönder
+  const handlePlayHobbyNewsItem = async (item: HashtagNewsItem) => {
+    const baseText = `${item.title || ''}\n\n${item.summary || ''}\n\nKaynak: ${item.sourceName || item.source || ''}\n${item.url || ''}`.trim();
+
+    if (!baseText) {
+      setError('Bu haber için metin bulunamadı.');
+      return;
+    }
+
+    const inputData: InputData = {
+      type: 'text',
+      text: baseText,
+      input: baseText,
+      level: englishLevel.toUpperCase(),
+      SesHızı: speakingRate,
+      voice: voiceType,
+    };
+
+    await handleSubmit(inputData);
   };
 
   // Hobi seçildiğinde varlık kontrolü
@@ -1148,6 +1222,29 @@ const Welcome: React.FC = () => {
     loadBookChapters(book.id);
   };
 
+  // Kitabı favorilere ekle/kaldır
+  const handleToggleBookFavorite = (book: Book, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    const numericId = Number(book.id);
+    if (!Number.isFinite(numericId) || numericId <= 0) return;
+
+    setFavoriteBookIds((prev) => {
+      const exists = prev.includes(numericId);
+      const updated = exists
+        ? prev.filter((id) => id !== numericId)
+        : [...prev, numericId];
+
+      // Persist updated favorites list (fire and forget)
+      saveUserBookFavorites(updated).catch((err) => {
+        console.error('[WELCOME] Favori kitaplar kaydedilirken hata oluştu:', err);
+      });
+
+      return updated;
+    });
+  };
+
   // Bölüm seçimi fonksiyonu
   const handleChapterSelect = async (chapter: Chapter) => {
     setSelectedChapter(chapter);
@@ -1155,6 +1252,27 @@ const Welcome: React.FC = () => {
     
     // Mevcut ses kontrolü yap
     await checkExistingAudio(chapter.id, voiceType, speakingRate, englishLevel);
+  };
+
+  // Belirli bir bölüm için doğrudan ses oluşturma
+  const handleGenerateForChapter = async (chapter: Chapter) => {
+    const text = (chapter.chapter_text || '').trim();
+    if (!text) {
+      setError('Bu bölüm için metin bulunamadı.');
+      return;
+    }
+
+    const inputData: InputData = {
+      type: 'book',
+      text,
+      level: englishLevel.toUpperCase(),
+      SesHızı: speakingRate,
+      voice: voiceType,
+      chapter: chapter.chapter_title,
+      chapter_id: chapter.id,
+    };
+
+    await handleSubmit(inputData);
   };
 
   // Kitap arama submit fonksiyonu
@@ -1170,6 +1288,9 @@ const Welcome: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
+      const effectiveChapterId = inputData.chapter_id || selectedChapter?.id;
+      const effectiveChapterTitle = inputData.chapter || selectedChapter?.chapter_title;
+
       let processInput: ProcessInputData = {
         type: inputData.type,
         input: inputData.text || inputData.input, // text veya input'u input olarak gönder
@@ -1177,8 +1298,8 @@ const Welcome: React.FC = () => {
         level: inputData.level,
         SesHızı: inputData.SesHızı,
         voice: inputData.voice,
-        chapter: (inputData as any).chapter,
-        chapter_id: selectedChapter?.id, // Kitap bölümü ID'sini ekle
+        chapter: effectiveChapterTitle,
+        chapter_id: effectiveChapterId,
         topic_id: activeTopicId || undefined,
       };
 
@@ -1257,89 +1378,86 @@ const Welcome: React.FC = () => {
         // Camel case versions
         hasTranslatedText_camel: !!result?.translatedText,
         hasAdaptedText_camel: !!result?.adaptedText,
-        // Values
+        // Values (shortened)
         translatedText_snake: result?.translated_text ? result.translated_text.substring(0, 50) + '...' : 'UNDEFINED',
         adaptedText_snake: result?.adapted_text ? result.adapted_text.substring(0, 50) + '...' : 'UNDEFINED',
         translatedText_camel: result?.translatedText ? result.translatedText.substring(0, 50) + '...' : 'UNDEFINED',
         adaptedText_camel: result?.adaptedText ? result.adaptedText.substring(0, 50) + '...' : 'UNDEFINED',
+        // Timepoints & words
+        timepointsIsArray: Array.isArray(result.timepoints),
+        timepointsLength: result.timepoints?.length || 0,
+        firstTimepoint: result.timepoints?.[0],
+        hasWords: !!result.words,
+        wordsLength: result.words?.length || 0,
         // All keys in result
         resultKeys: result ? Object.keys(result) : []
       });
-      
-      if (result && result.mp3_url) {
-        // DEBUG: setAudioResult öncesi timepoints kontrolü
-        console.log('🔍 [WELCOME DEBUG] Before setAudioResult:', {
-          hasTimepoints: !!result.timepoints,
-          timepointsLength: result.timepoints?.length || 0,
-          timepointsType: typeof result.timepoints,
-          isArray: Array.isArray(result.timepoints),
-          firstTimepoint: result.timepoints?.[0],
-          hasWords: !!result.words,
-          wordsLength: result.words?.length || 0
-        });
         
-        console.log('🚀 [DEBUG] About to call setAudioResult with:', {
-          mp3_url: result.mp3_url,
-          timepoints_length: result.timepoints?.length,
-          words_length: result.words?.length
-        });
-        
-        setAudioResult({
-          success: true,
-          message: result.message || t('audio_generated_success'),
-          mp3_url: result.mp3_url,
-          vtt_url: result.vtt_url,
-          level: inputData.level,
-          timepoints: result.timepoints || [],
-          words: result.words || [],
-          speaking_rate: (result as any).speaking_rate || 1.0,
-          original_turkish: (result as any).original_turkish || ''
-        });
-        
-        // DEBUG: setAudioResult sonrası kontrol
-        console.log('✅ [DEBUG] setAudioResult called successfully');
-        
-        // Input değerini belirle - kitap bölümü için chapter title kullan
-        let input = processInput.input || inputData.input || inputData.text;
-        if (processInput.type === 'book' && selectedChapter) {
-          input = `${selectedChapter.chapter_title} (Chapter ${selectedChapter.chapter_index})`;
-        }
-        
-        try {
-          await submitContent(
-            input || 'Unknown input', 
-            processInput.type, 
-            inputData.level, 
-            result.mp3_url, 
-            result.translated_text || result.translatedText || '',
-            result.adapted_text || result.adaptedText || '',
-            processInput.type === 'book' && selectedChapter ? selectedChapter.id : undefined
-          );
-          console.log('İçerik başarıyla kaydedildi');
-          // Content history'yi yeniden yükle
-          fetchContentHistory();
-        } catch (submitError: any) {
-          console.error('İçerik kaydetme hatası (ses oluşturma başarılı):', submitError);
-          const errMsg = String(submitError?.message || '');
-          const errJson = (() => {
-            try { return JSON.parse(errMsg.split(' - ').pop() || '{}'); } catch { return {}; }
-          })();
-          const serverError = String((errJson as any)?.error || '');
-          const isDuplicate = errMsg.toLowerCase().includes('duplicate key') 
-            || serverError.toLowerCase().includes('duplicate key')
-            || errMsg.includes('ux_contenthistory_user_mp3') 
-            || serverError.includes('ux_contenthistory_user_mp3');
-          if (isDuplicate) {
-            // Aynı mp3_url için kayıt zaten var → uyarıyı kullanıcıya göstermeyelim
-            console.warn('Duplicate contenthistory entry detected; suppressing user-facing error.');
-          } else {
-            // Diğer hataları normal şekilde göster
-            setError(`Ses başarıyla oluşturuldu ancak kaydetme sırasında hata oluştu: ${submitError.message}`);
+        if (result && result.mp3_url) {
+          console.log('🚀 [DEBUG] About to call setAudioResult with:', {
+            mp3_url: result.mp3_url,
+            timepoints_length: result.timepoints?.length,
+            words_length: result.words?.length
+          });
+          
+          setAudioResult({
+            success: true,
+            message: result.message || t('audio_generated_success'),
+            mp3_url: result.mp3_url,
+            vtt_url: result.vtt_url,
+            level: inputData.level,
+            timepoints: result.timepoints || [],
+            words: result.words || [],
+            speaking_rate: (result as any).speaking_rate || 1.0,
+            original_turkish: (result as any).original_turkish || ''
+          });
+          
+          // DEBUG: setAudioResult sonrası kontrol
+          console.log('✅ [DEBUG] setAudioResult called successfully');
+          
+          // Input değerini belirle - kitap bölümü için chapter title kullan
+          let input = processInput.input || inputData.input || inputData.text;
+          if (processInput.type === 'book' && (inputData.chapter || selectedChapter?.chapter_title)) {
+            input = inputData.chapter || selectedChapter?.chapter_title;
           }
+
+          const chapterIdForSubmit = inputData.chapter_id || selectedChapter?.id;
+          
+          try {
+            await submitContent(
+              input || 'Unknown input', 
+              processInput.type, 
+              inputData.level, 
+              result.mp3_url, 
+              result.translated_text || result.translatedText || '',
+              result.adapted_text || result.adaptedText || '',
+              chapterIdForSubmit
+            );
+            console.log('İçerik başarıyla kaydedildi');
+            // Content history'yi yeniden yükle
+            fetchContentHistory();
+          } catch (submitError: any) {
+            console.error('İçerik kaydetme hatası (ses oluşturma başarılı):', submitError);
+            const errMsg = String(submitError?.message || '');
+            const errJson = (() => {
+              try { return JSON.parse(errMsg.split(' - ').pop() || '{}'); } catch { return {}; }
+            })();
+            const serverError = String((errJson as any)?.error || '');
+            const isDuplicate = errMsg.toLowerCase().includes('duplicate key') 
+              || serverError.toLowerCase().includes('duplicate key')
+              || errMsg.includes('ux_contenthistory_user_mp3') 
+              || serverError.includes('ux_contenthistory_user_mp3');
+            if (isDuplicate) {
+              // Aynı mp3_url için kayıt zaten var → uyarıyı kullanıcıya göstermeyelim
+              console.warn('Duplicate contenthistory entry detected; suppressing user-facing error.');
+            } else {
+              // Diğer hataları normal şekilde göster
+              setError(`Ses başarıyla oluşturuldu ancak kaydetme sırasında hata oluştu: ${submitError.message}`);
+            }
+          }
+        } else {
+          setError(result.message || t('audio_generation_failed'));
         }
-      } else {
-        setError(result.message || t('audio_generation_failed'));
-      }
     } catch (error: any) {
       console.error('Error generating audio:', error);
       const message = String(error?.message || '');
@@ -1483,7 +1601,7 @@ const Welcome: React.FC = () => {
     }
 
     let type: ProcessInputData['type'] = 'text';
-    if (contentType === 'subject' || contentType === 'topic') {
+    if (contentType === 'subject' || contentType === 'topic' || contentType === 'book') {
       type = contentType as ProcessInputData['type'];
     }
 
@@ -1494,6 +1612,12 @@ const Welcome: React.FC = () => {
       SesHızı: speakingRate,
       voice: voiceType,
     };
+
+    // Kitap modunda, seçili bölüm varsa bölüm bilgisini de ilet
+    if (type === 'book' && selectedChapter) {
+      inputData.chapter = selectedChapter.chapter_title;
+      inputData.chapter_id = selectedChapter.id;
+    }
 
     await handleSubmit(inputData);
   };
@@ -1554,7 +1678,8 @@ const Welcome: React.FC = () => {
     lastLogin: '2025-05-13 10:42',
   };
 
-  const heroImageUrl = 'https://readdy.ai/api/search-image?query=Modern%20language%20learning%20concept%20with%20digital%20technology%2C%20AI%20assistant%20helping%20with%20English%20lessons%2C%20abstract%20neutral%20gradient%20background%20with%20subtle%20tech%20elements%2C%20professional%20educational%20atmosphere&width=1200&height=600&seq=hero1&orientation=landscape';
+  // Welcome hero arka plan görseli
+  const heroImageUrl = 'https://readdy.ai/api/search-image?query=Modern%20language%20learning%20concept%20with%20digital%20technology%2C%20AI%20assistant%20helping%20with%20English%20lessons%2C%20abstract%20blue%20gradient%20background%20with%20subtle%20tech%20elements%2C%20professional%20educational%20atmosphere&width=1200&height=600&seq=hero1&orientation=landscape';
 
   return (
     <div className="min-h-screen bg-background">
@@ -1562,17 +1687,35 @@ const Welcome: React.FC = () => {
       <div className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-6">
+              {/* Logo + Brand (same as home page) */}
               <Link href="/">
-                <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
-                  <i className="fas fa-home mr-2"></i>
-                  Ana Sayfa
-                </Button>
+                <div className="flex items-center space-x-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/lingroot-icon.svg"
+                    alt="LingRoot Logo"
+                    className="w-10 h-10 md:w-12 md:h-12"
+                  />
+                  <BrandWordmark className="text-xl md:text-2xl" />
+                </div>
               </Link>
-              <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
-                <i className="fas fa-user mr-2"></i>
-                Kullanıcı Paneli
-              </Button>
+
+              {/* Ana menü linkleri */}
+              <div className="flex items-center space-x-2">
+                <Link href="/">
+                  <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
+                    <i className="fas fa-home mr-2"></i>
+                    Ana Sayfa
+                  </Button>
+                </Link>
+                <Link href="/dashboard?tab=reading-history">
+                  <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
+                    <i className="fas fa-history mr-2"></i>
+                    Okuma Geçmişim
+                  </Button>
+                </Link>
+              </div>
             </div>
             <div className="flex items-center space-x-4">
               <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
@@ -1647,9 +1790,9 @@ const Welcome: React.FC = () => {
       </div>
 
       {/* Hero Section */}
-      <div className="relative w-full h-[400px] overflow-hidden">
+      <div className="relative w-full h-[440px] md:h-[480px] overflow-hidden">
         <div
-          className="absolute inset-0 bg-cover bg-center"
+          className="absolute inset-0 bg-cover bg-top"
           style={{ backgroundImage: `url(${heroImageUrl})` }}
         ></div>
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent flex items-center">
@@ -1855,36 +1998,35 @@ const Welcome: React.FC = () => {
                                   ))}
                                 </select>
                               </div>
+                              <div className="w-24">
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={50}
+                                  value={hobbyNewsLimit}
+                                  onChange={(e) => setHobbyNewsLimit(Number(e.target.value) || 5)}
+                                  className="h-full"
+                                />
+                              </div>
                               <Button
                                 type="button"
                                 className={`px-6 py-3 !rounded-button whitespace-nowrap ${
-                                  selectedInterest && !isLoadingTopicSuggestions && !isGeneratingHobbySuggestions
+                                  selectedInterest && !isLoadingHobbyNews
                                     ? 'bg-green-600 hover:bg-green-700 cursor-pointer' 
                                     : 'bg-gray-400 cursor-not-allowed'
                                 }`}
-                                disabled={!selectedInterest || isLoadingTopicSuggestions || isGeneratingHobbySuggestions}
-                                onClick={() => {
-                                  if (!hobbyExists) {
-                                    handleGenerateHobbySuggestions();
-                                  } else {
-                                    handleGetRandomHobbySuggestions();
-                                  }
-                                }}
+                                disabled={!selectedInterest || isLoadingHobbyNews}
+                                onClick={handleFetchHobbyNews}
                               >
-                                {isGeneratingHobbySuggestions ? (
+                                {isLoadingHobbyNews ? (
                                   <>
                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
-                                    200 Öneri Oluşturuluyor...
-                                  </>
-                                ) : isLoadingTopicSuggestions ? (
-                                  <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
-                                    Yükleniyor...
+                                    Güncel Konular Yükleniyor...
                                   </>
                                 ) : (
                                   <>
-                                    <i className={`fas ${hobbyExists ? 'fa-random' : 'fa-plus'} mr-2`}></i>
-                                    {hobbyExists ? 'Başka Öneriler Göster' : 'Hobi Öner'}
+                                    <i className="fas fa-stream mr-2"></i>
+                                    Güncel Konuları Listele
                                   </>
                                 )}
                               </Button>
@@ -1899,42 +2041,64 @@ const Welcome: React.FC = () => {
                         </div>
 
                         {/* Detaylı öneriler combobox'ı */}
-                        {topicDetailSuggestions.length > 0 && (
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
+                        {hobbyNewsError && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                            {hobbyNewsError}
+                          </div>
+                        )}
+                        {hobbyNews.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between mb-1">
                               <label className="block text-sm font-medium text-gray-700">
-                                Detaylı Öneriler:
+                                Güncel Konular / Haberler:
                               </label>
-                              {hobbyExists && (
-                                <Button
-                                  type="button"
-                                  onClick={handleGetRandomHobbySuggestions}
-                                  disabled={isLoadingTopicSuggestions}
-                                  className="px-3 py-1 text-xs !rounded-button bg-primary hover:bg-primary/90 text-primary-foreground"
-                                >
-                                  {isLoadingTopicSuggestions ? (
-                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                                  ) : (
-                                    <>
-                                      <i className="fas fa-sync-alt mr-1"></i>
-                                      Yenile
-                                    </>
-                                  )}
-                                </Button>
-                              )}
+                              <span className="text-xs text-gray-500">{hobbyNews.length} sonuç</span>
                             </div>
-                            <select
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
-                              value={selectedDetailTopic}
-                              onChange={handleDetailTopicSelect}
-                            >
-                              <option value="">Öneri seçin...</option>
-                              {topicDetailSuggestions.map((suggestion, index) => (
-                                <option key={index} value={suggestion}>
-                                  {suggestion.length > 100 ? `${suggestion.substring(0, 100)}...` : suggestion}
-                                </option>
+                            <div className="space-y-2 max-h-80 overflow-y-auto">
+                              {hobbyNews.map((item, index) => (
+                                <div
+                                  key={item.id || index}
+                                  className="p-3 border border-gray-200 rounded-lg bg-white flex flex-col gap-2"
+                                >
+                                  <div className="flex justify-between items-start gap-2">
+                                    <div>
+                                      <div className="text-sm font-semibold text-gray-900 line-clamp-2">
+                                        {item.title}
+                                      </div>
+                                      <div className="text-xs text-gray-500 mt-0.5">
+                                        {item.sourceName || item.source}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {item.summary && (
+                                    <p className="text-xs text-gray-700 line-clamp-3 whitespace-pre-line">
+                                      {item.summary}
+                                    </p>
+                                  )}
+                                  <div className="flex items-center justify-between mt-1 gap-2">
+                                    {item.url && (
+                                      <a
+                                        href={item.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-primary underline truncate max-w-[60%]"
+                                      >
+                                        Haberi Aç
+                                      </a>
+                                    )}
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      className="!rounded-button whitespace-nowrap cursor-pointer bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5"
+                                      onClick={() => handlePlayHobbyNewsItem(item)}
+                                    >
+                                      <i className="fas fa-volume-up mr-1"></i>
+                                      Bu Haberle Ses Oluştur
+                                    </Button>
+                                  </div>
+                                </div>
                               ))}
-                            </select>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -2223,19 +2387,6 @@ const Welcome: React.FC = () => {
                       <TopicHierarchySection
                         userId={user.id}
                         level={englishLevel}
-                        onContentCreated={(data) => {
-                          // TTS workflow'unu tetikle
-                          if (data && data.suggestedInput) {
-                            if (data.topic && data.topic.id) {
-                              setActiveTopicId(data.topic.id);
-                            }
-                            setTextInput(data.suggestedInput);
-                            setContentType('subject'); // Konu sekmesine geç
-                            
-                            // Kullanıcıya bilgi ver
-                            alert('Konu bilgisi alındı! Şimdi "Ses Oluştur" butonuna basarak sesli içerik oluşturabilirsiniz.');
-                          }
-                        }}
                       />
                     )}
 
@@ -2386,6 +2537,17 @@ const Welcome: React.FC = () => {
                                           <i className="fas fa-book text-3xl text-primary/60"></i>
                                         </div>
                                       )}
+                                      <button
+                                        type="button"
+                                        onClick={(e) => handleToggleBookFavorite(book, e)}
+                                        className="absolute top-2 left-2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center shadow-sm hover:bg-white cursor-pointer"
+                                      >
+                                        <i
+                                          className={`fas fa-heart text-sm ${
+                                            favoriteBookIds.includes(Number(book.id)) ? 'text-red-500' : 'text-gray-300'
+                                          }`}
+                                        ></i>
+                                      </button>
                                       {selectedBook?.id === book.id && (
                                         <span className="absolute top-2 right-2 bg-primary text-white text-[10px] px-2 py-1 rounded-full flex items-center">
                                           <i className="fas fa-check-circle mr-1"></i>
@@ -2454,7 +2616,7 @@ const Welcome: React.FC = () => {
                                       selectedChapter?.id === chapter.id ? 'bg-green-50 border-green-200' : ''
                                     }`}
                                   >
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex items-center justify-between gap-3">
                                       <div>
                                         <h6 className="font-medium text-gray-900">
                                           Bölüm {chapter.chapter_index}: {chapter.chapter_title}
@@ -2463,9 +2625,23 @@ const Welcome: React.FC = () => {
                                           {chapter.chapter_text ? `${chapter.chapter_text.split(' ').length} kelime` : 'Kelime sayısı hesaplanıyor...'}
                                         </p>
                                       </div>
-                                      {selectedChapter?.id === chapter.id && (
-                                        <i className="fas fa-check-circle text-green-600"></i>
-                                      )}
+                                      <div className="flex items-center space-x-2">
+                                        {selectedChapter?.id === chapter.id && (
+                                          <i className="fas fa-check-circle text-green-600"></i>
+                                        )}
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          className="!rounded-button whitespace-nowrap cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleGenerateForChapter(chapter);
+                                          }}
+                                        >
+                                          <i className="fas fa-volume-up mr-1"></i>
+                                          Ses Oluştur
+                                        </Button>
+                                      </div>
                                     </div>
                                   </div>
                                 ))}

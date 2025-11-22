@@ -8,6 +8,7 @@ import { useAuth } from '../src/lib/auth';
 import { resendVerificationEmail } from '../src/lib/api';
 import { initializeGoogleAuth, signInWithGoogle } from '../src/lib/googleAuth';
 import Footer from '../src/components/Footer';
+import BrandWordmark from '../src/components/BrandWordmark';
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
@@ -116,7 +117,7 @@ const LoginPage: React.FC = () => {
       <header className="w-full flex justify-center items-center py-8">
         <div className="flex items-center space-x-4">
           <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
-          <span className="text-3xl font-extrabold text-primary tracking-tight">LingRoot</span>
+          <BrandWordmark className="text-3xl" />
         </div>
       </header>
 

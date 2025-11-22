@@ -639,6 +639,82 @@ export const getUserBookHistory = async (
   return handleApiResponse<BookHistoryItem[]>(response);
 };
 
+// Favorite books - metadata from books table
+export interface FavoriteBookItem {
+  id: number;
+  title: string;
+  authors: string;
+  cover_url?: string | null;
+  subjects?: string | null;
+  text_url?: string | null;
+}
+
+// Get only favorite book IDs for authenticated user
+export const getUserBookFavorites = async (): Promise<ApiResponse<number[]>> => {
+  const url = getApiUrl('/user-book-favorites');
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  return handleApiResponse<number[]>(response);
+};
+
+// Get full favorite book details for authenticated user
+export const getUserBookFavoritesDetails = async (): Promise<ApiResponse<FavoriteBookItem[]>> => {
+  const url = getApiUrl('/user-book-favorites/details');
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  return handleApiResponse<FavoriteBookItem[]>(response);
+};
+
+// Hashtag / hobi haber maddesi tipi
+export interface HashtagNewsItem {
+  id: string;
+  title: string;
+  summary: string;
+  url: string;
+  source: string;
+  sourceName?: string;
+  author?: string;
+  publishedAt?: string;
+  language?: string;
+  type?: string;
+}
+
+// Belirli bir hashtag / konu için en güncel haberleri getir
+export const getHashtagNews = async (
+  query: string,
+  limit: number
+): Promise<ApiResponse<HashtagNewsItem[]>> => {
+  const url = getApiUrl('/content/process-hashtag');
+  const headers = createHeaders('application/json');
+
+  const body = JSON.stringify({
+    query,
+    limit,
+  });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body,
+  });
+
+  return handleApiResponse<HashtagNewsItem[]>(response);
+};
+
+// Save favorite book IDs for authenticated user
+export const saveUserBookFavorites = async (ids: Array<number | string>): Promise<ApiResponse<number[]>> => {
+  const url = getApiUrl('/user-book-favorites');
+  const headers = createHeaders('application/json');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({ ids }),
+  });
+  return handleApiResponse<number[]>(response);
+};
+
 // User settings
 export const getUserSettings = async (): Promise<{ default_voice?: string; settings?: any }> => {
   const url = getApiUrl('/user-settings');
@@ -1698,6 +1774,7 @@ export const generateSubtopics = async (
   data: {
     count?: number;
     language?: string;
+    angle?: string;
   }
 ): Promise<ApiResponse<{ subtopics: Topic[] }>> => {
   const url = getApiUrl(`topic-hierarchy/topics/${topicId}/subtopics`);
