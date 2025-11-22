@@ -105,6 +105,32 @@ exports.uploadDocument = async (req, res) => {
       ];
     }
 
+    // Normalize sections: trim text, ensure word_count, and enforce sequential section_index
+    sections = (sections || [])
+      .map((s) => {
+        const text = (s.section_text || "").toString();
+        const normalizedText = text.trim();
+        const wordCount =
+          typeof s.word_count === "number" && Number.isFinite(s.word_count)
+            ? s.word_count
+            : normalizedText
+            ? normalizedText.split(/\s+/).length
+            : 0;
+
+        return {
+          ...s,
+          section_text: normalizedText,
+          word_count: wordCount,
+        };
+      })
+      // Drop completely empty sections to satisfy NOT NULL constraint
+      .filter((s) => s.section_text && s.section_text.length > 0)
+      // Re-index sequentially to avoid UNIQUE(document_id, section_index) conflicts
+      .map((s, idx) => ({
+        ...s,
+        section_index: idx + 1,
+      }));
+
     logger.info("[uploadDocument] Sections prepared", {
       requestId,
       sectionCount: sections.length,
@@ -342,5 +368,185 @@ exports.getDocumentSectionById = async (req, res) => {
   } catch (error) {
     logger.error("[getDocumentSectionById] Unexpected error", { error: error.message });
     return res.status(500).json({ success: false, message: "İşlem sırasında beklenmeyen bir hata oluştu.", error: error.message });
+  }
+};
+
+/**
+ * Creates a document directly from raw text (no file upload).
+ * This is used when the frontend has already extracted text from a PDF/DOCX
+ * but wants to start the book-like document flow (split into sections + save).
+ */
+exports.createDocumentFromText = async (req, res) => {
+  const requestId = uuidv4();
+
+  try {
+    if (!supabase) {
+      logger.error("[createDocumentFromText] Supabase client not configured");
+      return res.status(500).json({
+        success: false,
+        message: "Veritabanı yapılandırması yapılmamış. Lütfen yöneticinizle iletişime geçin.",
+      });
+    }
+
+    const userId = req.user?.id || null;
+    const rawTitle = req.body?.title || req.body?.name || "";
+    const title = String(rawTitle).trim();
+    const rawTextInput = req.body?.text || req.body?.content || "";
+    const rawText = String(rawTextInput).trim();
+
+    logger.info("[createDocumentFromText] Request received", {
+      requestId,
+      userId,
+      title,
+      textLength: rawText.length,
+    });
+
+    if (!title) {
+      return res.status(400).json({ success: false, message: "Doküman için bir isim (title) zorunludur." });
+    }
+
+    if (!rawText) {
+      return res.status(400).json({ success: false, message: "Metin bulunamadı. Lütfen geçerli bir içerik gönderin." });
+    }
+
+    // Reuse existing chapter splitter: fallback mode will split by word count if no chapter patterns
+    let sections = [];
+    try {
+      const chapters = bookTextExtractor.splitIntoChapters(rawText, title);
+      if (Array.isArray(chapters) && chapters.length > 0) {
+        sections = chapters.map((ch, idx) => ({
+          section_index: ch.chapter_number || idx + 1,
+          section_title: ch.title || `Section ${idx + 1}`,
+          section_text: ch.content,
+          word_count: ch.word_count || (ch.content ? ch.content.split(/\s+/).length : 0),
+        }));
+      }
+    } catch (splitErr) {
+      logger.error("[createDocumentFromText] Error while splitting text into sections", {
+        requestId,
+        error: splitErr.message,
+      });
+    }
+
+    // Fallback: single section with whole text
+    if (!sections || sections.length === 0) {
+      logger.warn("[createDocumentFromText] No sections produced by splitter, using single-section fallback", {
+        requestId,
+      });
+      sections = [
+        {
+          section_index: 1,
+          section_title: title,
+          section_text: rawText,
+          word_count: rawText.split(/\s+/).length,
+        },
+      ];
+    }
+
+    // Normalize sections: trim text, ensure word_count, and enforce sequential section_index
+    sections = (sections || [])
+      .map((s) => {
+        const text = (s.section_text || "").toString();
+        const normalizedText = text.trim();
+        const wordCount =
+          typeof s.word_count === "number" && Number.isFinite(s.word_count)
+            ? s.word_count
+            : normalizedText
+            ? normalizedText.split(/\s+/).length
+            : 0;
+
+        return {
+          ...s,
+          section_text: normalizedText,
+          word_count: wordCount,
+        };
+      })
+      // Drop completely empty sections to satisfy NOT NULL constraint
+      .filter((s) => s.section_text && s.section_text.length > 0)
+      // Re-index sequentially to avoid UNIQUE(document_id, section_index) conflicts
+      .map((s, idx) => ({
+        ...s,
+        section_index: idx + 1,
+      }));
+
+    logger.info("[createDocumentFromText] Sections prepared", {
+      requestId,
+      sectionCount: sections.length,
+    });
+
+    const now = new Date().toISOString();
+
+    // Insert document row (no original file, text-based)
+    const { data: document, error: docError } = await supabase
+      .from("documents")
+      .insert({
+        user_id: userId,
+        title,
+        original_filename: null,
+        mime_type: "text/plain",
+        page_count: null,
+        language: null,
+        created_at: now,
+      })
+      .select("*")
+      .single();
+
+    if (docError || !document) {
+      logger.error("[createDocumentFromText] Failed to insert document", {
+        requestId,
+        error: docError?.message,
+      });
+      return res.status(500).json({
+        success: false,
+        message: "Doküman kaydedilirken hata oluştu.",
+        error: docError?.message,
+      });
+    }
+
+    const sectionsToInsert = sections.map((s) => ({
+      document_id: document.id,
+      section_index: s.section_index,
+      section_title: s.section_title,
+      section_text: s.section_text,
+      word_count: s.word_count,
+      created_at: now,
+    }));
+
+    const { data: insertedSections, error: sectionError } = await supabase
+      .from("document_sections")
+      .insert(sectionsToInsert)
+      .select("*")
+      .order("section_index", { ascending: true });
+
+    if (sectionError) {
+      logger.error("[createDocumentFromText] Failed to insert document sections", {
+        requestId,
+        error: sectionError.message,
+      });
+      return res.status(500).json({
+        success: false,
+        message: "Doküman bölümleri kaydedilirken hata oluştu.",
+        error: sectionError.message,
+      });
+    }
+
+    logger.info("[createDocumentFromText] Document and sections saved successfully", {
+      requestId,
+      documentId: document.id,
+      sectionCount: insertedSections?.length || 0,
+    });
+
+    return res.status(201).json({
+      success: true,
+      document,
+      sections: insertedSections || [],
+    });
+  } catch (error) {
+    logger.error("[createDocumentFromText] Unexpected error", { requestId, error: error.message });
+    return res.status(500).json({
+      success: false,
+      message: "Doküman oluşturulurken beklenmeyen bir hata oluştu.",
+      error: error.message,
+    });
   }
 };

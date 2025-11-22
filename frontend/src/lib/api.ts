@@ -240,9 +240,57 @@ export interface ApiResponse<T = any> {
     level?: string;
 }
 
+// Document + section types for PDF/document workflow
+export interface DocumentRecord {
+  id: number;
+  user_id: string | null;
+  title: string;
+  original_filename?: string | null;
+  mime_type?: string | null;
+  page_count?: number | null;
+  language?: string | null;
+  created_at: string;
+}
+
+export interface DocumentSection {
+  id: number;
+  document_id: number;
+  section_index: number;
+  section_title: string;
+  section_text: string;
+  word_count: number;
+  created_at: string;
+}
+
+export interface DocumentUploadResponse {
+  success: boolean;
+  message?: string;
+  document: DocumentRecord;
+  sections: DocumentSection[];
+}
+
+// Fetch all documents for the authenticated user
+export const getUserDocuments = async (): Promise<ApiResponse<DocumentRecord[]>> => {
+  const url = getApiUrl('/documents');
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  return handleApiResponse<DocumentRecord[]>(response);
+};
+
+// Fetch all sections for a specific document
+export const getDocumentSections = async (
+  documentId: number
+): Promise<ApiResponse<DocumentSection[]>> => {
+  const url = getApiUrl(`/documents/${encodeURIComponent(String(documentId))}/sections`);
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  return handleApiResponse<DocumentSection[]>(response);
+};
+
 // YouTube transcript servisini çağırmak için fonksiyon
 export const fetchYoutubeTranscript = async (youtubeUrl: string, languageCode: string = 'en'): Promise<string | null> => {
   try {
+    // ... (rest of the code remains the same)
     console.log(`YouTube transkript çekme işlemi başlatılıyor: ${youtubeUrl} (${languageCode})`);
     
     // Doğrudan transkript servisine istek gönder
@@ -719,6 +767,45 @@ export const fetchArticleDetails = async (
   });
 
   return handleApiResponse<{ url: string; text: string; length: number }>(response);
+};
+
+// Create a document + sections from already extracted text (e.g. uploaded PDF)
+export const createDocumentFromText = async (
+  title: string,
+  text: string
+): Promise<DocumentUploadResponse> => {
+  const url = getApiUrl('/documents/from-text');
+  const headers = createHeaders('application/json');
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({ title, text }),
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Request failed with status ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData && errorData.message) {
+        errorMessage = errorData.message;
+      }
+    } catch {
+      try {
+        const textBody = await response.text();
+        if (textBody) {
+          errorMessage = `${errorMessage}: ${textBody}`;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    throw new Error(errorMessage);
+  }
+
+  const json = await response.json();
+  return json as DocumentUploadResponse;
 };
 
 // Save favorite book IDs for authenticated user

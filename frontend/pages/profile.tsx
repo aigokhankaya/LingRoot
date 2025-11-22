@@ -2,11 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../src/lib/auth';
 import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
-import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle, FaChartLine, FaHeadphones, FaMicrophone, FaClock, FaFire, FaTrophy } from 'react-icons/fa';
+import { FaUserEdit, FaVolumeUp, FaCheckCircle, FaExclamationCircle, FaChartLine, FaHeadphones, FaMicrophone, FaClock, FaFire, FaTrophy } from 'react-icons/fa';
 import { getContentHistory, getUsageSummary } from '../src/lib/api';
 import { computeEstimates, formatEstimate, type UsageSummary, computeCostAwareEstimates, COST_PER_1K, CHARS_PER_VIDEO_MINUTE, CHARS_PER_A4_PAGE, type VoiceCategory, type CostAwarePerCategory } from '../src/lib/usageEstimates';
 import InterestManager from '../src/components/InterestManager';
-import PackageInfo from '../src/components/PackageInfo';
 import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
 
@@ -18,11 +17,16 @@ export default function Profile() {
   const [contentHistory, setContentHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [locale, setLocale] = useState<string>('tr-TR');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
   const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null);
   const [estimates, setEstimates] = useState<{ remainingChars: number | null; remainingVideoMinutes: number | null; remainingA4Pages: number | null } | null>(null);
   const [perCategory, setPerCategory] = useState<CostAwarePerCategory | null>(null);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [interfaceLanguage, setInterfaceLanguage] = useState<'tr' | 'en'>('tr');
+  const [defaultLevel, setDefaultLevel] = useState<'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'>('B1');
+  const [loginTotal, setLoginTotal] = useState(0);
+  const [lastLogin, setLastLogin] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchActivities() {
@@ -86,12 +90,40 @@ export default function Profile() {
     fetchUsage();
   }, []);
 
-  // Tercih edilen locale'i yükle
+  // Tercih edilen locale'i ve profil ayarlarını yükle
   useEffect(() => {
     try {
       const stored = typeof window !== 'undefined' ? localStorage.getItem('lingroot_locale') : null;
       if (stored) setLocale(stored);
       else if (typeof navigator !== 'undefined' && navigator.language) setLocale(navigator.language);
+
+      if (typeof window !== 'undefined') {
+        setFirstName(localStorage.getItem('lingroot_firstName') || '');
+        setLastName(localStorage.getItem('lingroot_lastName') || '');
+        setPhone(localStorage.getItem('lingroot_phone') || '');
+        setInterfaceLanguage((localStorage.getItem('lingroot_interfaceLanguage') as 'tr' | 'en') || 'tr');
+        setDefaultLevel((localStorage.getItem('lingroot_defaultLevel') as any) || 'B1');
+      }
+    } catch {}
+  }, [isAuthenticated]);
+
+  // Giriş istatistiklerini localStorage'dan yükle
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    try {
+      if (typeof window === 'undefined') return;
+      const totalStr = localStorage.getItem('lingroot_loginCount') || '0';
+      const total = parseInt(totalStr, 10);
+      setLoginTotal(Number.isFinite(total) ? total : 0);
+
+      const lastTsStr = localStorage.getItem('lingroot_lastLogin');
+      if (lastTsStr) {
+        const ts = parseInt(lastTsStr, 10);
+        if (Number.isFinite(ts)) {
+          const d = new Date(ts);
+          setLastLogin(d.toLocaleString('tr-TR'));
+        }
+      }
     } catch {}
   }, [isAuthenticated]);
 
@@ -146,9 +178,9 @@ export default function Profile() {
 
   // Örnek istatistikler (gerçek projede API'den alınır)
   const stats = {
-    contentCreated: 12,
-    totalLogins: 5,
-    lastLogin: '2025-05-13 10:42',
+    contentCreated: loadingHistory ? 0 : contentHistory.length,
+    totalLogins: loginTotal,
+    lastLogin: lastLogin || '-',
   };
 
   return (
@@ -299,11 +331,90 @@ export default function Profile() {
               </div>
             </div>
 
+          </div>
+
+          {/* Sağ Kolon - Profil Bilgilerim */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Paket Bilgilerim sekmesi taşındı (Dashboard) */}
+
+            {/* Hızlı Erişim Kartları */}
+            <div className="bg-muted rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 border border-border">
+              <div className="flex items-center mb-6">
+                <FaUserEdit className="text-3xl text-primary mr-3" />
+                <h3 className="text-2xl font-bold text-gray-900">Profil Bilgilerim</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white rounded-xl p-4 shadow-sm">
+                  <div className="text-xs uppercase text-gray-500 font-semibold mb-1">Ad Soyad</div>
+                  <div className="text-base font-semibold text-gray-900">
+                    {(firstName + ' ' + lastName).trim() || displayName}
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl p-4 shadow-sm">
+                  <div className="text-xs uppercase text-gray-500 font-semibold mb-1">E-posta</div>
+                  <div className="text-base font-semibold text-gray-900">{user.email}</div>
+                </div>
+                <div className="bg-white rounded-xl p-4 shadow-sm">
+                  <div className="text-xs uppercase text-gray-500 font-semibold mb-1">Üyelik</div>
+                  <div className="text-base font-semibold text-gray-900">
+                    {badge?.label || 'Ücretsiz'} ({membershipStatus})
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl p-4 shadow-sm">
+                  <div className="text-xs uppercase text-gray-500 font-semibold mb-1">Telefon</div>
+                  <div className="text-base font-semibold text-gray-900">{phone || '-'}</div>
+                </div>
+                <div className="bg-white rounded-xl p-4 shadow-sm">
+                  <div className="text-xs uppercase text-gray-500 font-semibold mb-1">Arayüz Dili</div>
+                  <div className="text-base font-semibold text-gray-900">
+                    {interfaceLanguage === 'en' ? 'English' : 'Türkçe'}
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl p-4 shadow-sm">
+                  <div className="text-xs uppercase text-gray-500 font-semibold mb-1">Ana Dil (Seslendirme)</div>
+                  <div className="text-base font-semibold text-gray-900">{locale}</div>
+                </div>
+                <div className="bg-white rounded-xl p-4 shadow-sm">
+                  <div className="text-xs uppercase text-gray-500 font-semibold mb-1">Varsayılan Seviye</div>
+                  <div className="text-base font-semibold text-gray-900">{defaultLevel}</div>
+                </div>
+                <div className="bg-white rounded-xl p-4 shadow-sm">
+                  <div className="text-xs uppercase text-gray-500 font-semibold mb-1">Sesli İçerik Sayısı</div>
+                  <div className="text-base font-semibold text-gray-900">
+                    {loadingHistory ? 'Yükleniyor...' : contentHistory.length}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end">
+                <Link
+                  href="/settings"
+                  className="inline-flex items-center px-5 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition"
+                >
+                  <FaUserEdit className="mr-2" />
+                  Profili ve Ayarları Düzenle
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Alt Bölüm - Paket + İlgi Alanları + Günlük Haklar */}
+          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {/* Paket Bilgileri */}
-            <PackageInfo />
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Paket Özeti</h3>
+              <p className="text-sm text-gray-600">
+                Detaylı paket ve kullanım bilgilerinizi görmek için{' '}
+                <Link href="/dashboard?tab=paket-bilgilerim" className="text-primary font-semibold hover:underline">
+                  Paket Bilgilerim
+                </Link>{' '}
+                sekmesine gidin.
+              </p>
+            </div>
 
             {/* İlgi Alanları */}
-            <InterestManager />
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 flex flex-col">
+              <InterestManager />
+            </div>
 
             {/* Günlük Haklar */}
             <div className="bg-gradient-to-br from-white to-green-50 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 border border-green-100">
@@ -315,7 +426,7 @@ export default function Profile() {
                 <div className="bg-white rounded-xl p-5 shadow-sm">
                   <div className="flex justify-between items-center mb-3">
                     <span className="text-gray-700 font-semibold">Günlük Limit</span>
-                    <span className="text-2xl font-black text-primary">{dailyLimit === Infinity ? '∞' : dailyLimit}</span>
+                    <span className="text-2xl font-black text-primary">{dailyLimit === Infinity ? '\u221e' : dailyLimit}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-700 font-semibold">Kalan Hak</span>
@@ -372,145 +483,6 @@ export default function Profile() {
                   )}
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Sağ Kolon - Hızlı Erişim ve Aktiviteler */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Paket Bilgilerim sekmesi taşındı (Dashboard) */}
-
-            {/* Hızlı Erişim Kartları */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Link href="/text-to-speech" className="group bg-muted rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 p-8 border-2 border-primary/20 hover:border-primary/40 transform hover:-translate-y-1">
-                <div className="flex items-start space-x-4">
-                  <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg group-hover:scale-110 transition-transform">
-                    <FaVolumeUp className="text-2xl" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors">Metinden Sese</h3>
-                    <p className="text-gray-700 text-sm">Metinlerinizi sesli hale getirin</p>
-                  </div>
-                </div>
-              </Link>
-              <Link href="/pronunciation" className="group bg-gradient-to-br from-green-50 to-green-100 rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 p-8 border-2 border-green-200 hover:border-green-400 transform hover:-translate-y-1">
-                <div className="flex items-start space-x-4">
-                  <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg group-hover:scale-110 transition-transform">
-                    <FaMicrophone className="text-2xl" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-700 transition-colors">Telaffuz</h3>
-                    <p className="text-gray-700 text-sm">Telaffuz egzersizleri yapın</p>
-                  </div>
-                </div>
-              </Link>
-              <Link href="/vocabulary" className="group bg-muted rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 p-8 border-2 border-primary/20 hover:border-primary/40 transform hover:-translate-y-1">
-                <div className="flex items-start space-x-4">
-                  <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg group-hover:scale-110 transition-transform">
-                    <FaBook className="text-2xl" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors">Kelime Hazinesi</h3>
-                    <p className="text-gray-700 text-sm">Kelime listelerinizi yönetin</p>
-                  </div>
-                </div>
-              </Link>
-              <Link href="/patterns" className="group bg-muted rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 p-8 border-2 border-primary/20 hover:border-primary/40 transform hover:-translate-y-1">
-                <div className="flex items-start space-x-4">
-                  <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg group-hover:scale-110 transition-transform">
-                    <span className="text-2xl">✨</span>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors">Günlük Kullanım Kalıpları</h3>
-                    <p className="text-gray-700 text-sm">İçeriklerinizdeki kalıpları keşfedin</p>
-                  </div>
-                </div>
-              </Link>
-              <Link href="/profile" className="group bg-muted rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 p-8 border-2 border-primary/20 hover:border-primary/40 transform hover:-translate-y-1">
-                <div className="flex items-start space-x-4">
-                  <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg group-hover:scale-110 transition-transform">
-                    <FaUserEdit className="text-2xl" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors">Profil</h3>
-                    <p className="text-gray-700 text-sm">Hesap ayarlarınızı yönetin</p>
-                  </div>
-                </div>
-              </Link>
-            </div>
-
-            {/* Geçmiş İçerikler */}
-            <div className="bg-muted rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 border border-border">
-              <div className="flex items-center mb-6">
-                <FaHeadphones className="text-3xl text-primary mr-3" />
-                <h3 className="text-2xl font-bold text-gray-900">Geçmiş Sesli İçeriklerim</h3>
-              </div>
-              {loadingHistory ? (
-                <div className="text-gray-400 text-sm">Yükleniyor...</div>
-              ) : contentHistory.length === 0 ? (
-                <div className="text-gray-500 text-sm">Henüz içerik üretilmemiş.</div>
-              ) : (
-                <>
-                  <div className="space-y-6">
-                    {contentHistory
-                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                      .map((item: any) => (
-                        <div key={item.id} className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-primary/40">
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="font-bold text-lg text-gray-900">{item.input_source}</div>
-                              <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold">Seviye: {item.level}</span>
-                            </div>
-                            <div className="text-sm text-gray-500 mb-4 flex items-center">
-                              <FaClock className="mr-2" />
-                              {new Date(item.created_at).toLocaleString('tr-TR')}
-                            </div>
-                            <audio controls src={item.mp3_url} className="w-full mb-3 rounded-lg" />
-                            {item.vtt_url && (
-                              <a href={item.vtt_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-primary hover:text-primary/80 font-semibold text-sm transition-colors">
-                                <FaBook className="mr-2" />
-                                Altyazı dosyasını indir
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                  {/* Pagination */}
-                  {contentHistory.length > itemsPerPage && (
-                    <div className="flex items-center justify-center space-x-2 mt-6 pt-6 border-t border-border">
-                      <button
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                        className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                      >
-                        Önceki
-                      </button>
-                      <div className="flex items-center space-x-1">
-                        {Array.from({ length: Math.ceil(contentHistory.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
-                          <button
-                            key={page}
-                            onClick={() => setCurrentPage(page)}
-                            className={`px-4 py-2 rounded-lg transition ${
-                              currentPage === page
-                                ? 'bg-primary text-primary-foreground font-semibold'
-                                : 'bg-white border border-gray-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        ))}
-                      </div>
-                      <button
-                        onClick={() => setCurrentPage(prev => Math.min(Math.ceil(contentHistory.length / itemsPerPage), prev + 1))}
-                        disabled={currentPage === Math.ceil(contentHistory.length / itemsPerPage)}
-                        className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                      >
-                        Sonraki
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
             </div>
           </div>
         </div>

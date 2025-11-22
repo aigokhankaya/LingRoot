@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 import { MessageSquare } from 'lucide-react';
-import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams, generateHobbySuggestions, getRandomHobbySuggestions, checkHobbyExists, getUserBookFavorites, saveUserBookFavorites, getHashtagNews, HashtagNewsItem, fetchArticleDetails } from '../src/lib/api';
+import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams, generateHobbySuggestions, getRandomHobbySuggestions, checkHobbyExists, getUserBookFavorites, saveUserBookFavorites, getHashtagNews, HashtagNewsItem, fetchArticleDetails, createDocumentFromText, DocumentRecord, DocumentSection } from '../src/lib/api';
 import PlanRequired from '../src/components/PlanRequired';
 import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
@@ -217,6 +217,10 @@ const Welcome: React.FC = () => {
   const [outputFormat, setOutputFormat] = useState<string>('mp3');
   const [textInput, setTextInput] = useState<string>('');
   const [uploadingFile, setUploadingFile] = useState<boolean>(false);
+  const [documentTitle, setDocumentTitle] = useState<string>('');
+  const [creatingDocument, setCreatingDocument] = useState<boolean>(false);
+  const [lastCreatedDocument, setLastCreatedDocument] = useState<DocumentRecord | null>(null);
+  const [lastDocumentSections, setLastDocumentSections] = useState<DocumentSection[]>([]);
   const [contentHistory, setContentHistory] = useState<ContentHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
   const [showAllHistory, setShowAllHistory] = useState<boolean>(false);
@@ -290,7 +294,6 @@ const Welcome: React.FC = () => {
     { id: 'weblink', name: 'Web Bağlantısı', icon: 'fas fa-link' },
     { id: 'subject', name: 'Konu', icon: 'fas fa-graduation-cap' },
     { id: 'custom', name: 'Öneriler', icon: 'fas fa-plus' },
-    { id: 'hashtag', name: 'Etiket', icon: 'fas fa-hashtag' },
   ];
   
   const levelOptions = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -1648,7 +1651,7 @@ const Welcome: React.FC = () => {
       
       if (data.text) {
         setTextInput(data.text);
-        setContentType('text');
+        // Doküman sekmesinde kal, çıkarılan metni sadece burada göster
         alert(`Dosya başarıyla yüklendi! ${data.text.length} karakter metin çıkarıldı.`);
       } else if (data.error) {
         throw new Error(data.error);
@@ -1666,6 +1669,67 @@ const Welcome: React.FC = () => {
     } finally {
       setUploadingFile(false);
     }
+  };
+
+  // Doküman sekmesinde: çıkarılan metni kitap benzeri dokümana dönüştür
+  const handleCreateDocumentFromText = async () => {
+    const title = documentTitle.trim();
+    const text = textInput.trim();
+
+    if (!title) {
+      setError('Lütfen doküman için bir isim girin.');
+      return;
+    }
+
+    if (!text) {
+      setError('Önce bir doküman yükleyip metni çıkartın.');
+      return;
+    }
+
+    try {
+      setCreatingDocument(true);
+      setError(null);
+
+      const response = await createDocumentFromText(title, text);
+
+      if (!response.success) {
+        throw new Error(response.message || 'Doküman oluşturulamadı.');
+      }
+
+      console.log('📚 Doküman oluşturuldu:', {
+        documentId: response.document?.id,
+        sectionCount: response.sections?.length,
+      });
+
+      setLastCreatedDocument(response.document);
+      setLastDocumentSections(response.sections || []);
+
+      alert(`Doküman kaydedildi. Toplam ${response.sections?.length || 0} bölüm oluşturuldu.`);
+    } catch (err: any) {
+      console.log('createDocumentFromText error:', err);
+      setError(err.message || 'Doküman oluşturulamadı.');
+    } finally {
+      setCreatingDocument(false);
+    }
+  };
+
+  const handlePlayDocumentSection = async (section: DocumentSection) => {
+    const baseText = (section.section_text || '').toString().trim();
+    if (!baseText) {
+      setError('Bu bölüm için metin bulunamadı.');
+      return;
+    }
+
+    const inputData: InputData = {
+      type: 'text',
+      text: baseText,
+      input: baseText,
+      level: englishLevel.toUpperCase(),
+      SesHızı: speakingRate,
+      voice: voiceType,
+    };
+
+    await handleSubmit(inputData);
   };
 
   // Yeni tasarım için ses oluşturma fonksiyonu
@@ -1825,31 +1889,52 @@ const Welcome: React.FC = () => {
                   <div
                     className={`absolute right-0 w-48 mt-2 bg-white rounded-lg shadow-lg py-2 ${profileMenuOpen ? 'block' : 'hidden'} z-10`}
                   >
-                    <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                    <Link
+                      href="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                    >
                       <i className="fas fa-user-circle mr-2"></i>
                       Profil Bilgilerim
                     </Link>
-                    <Link href="/dashboard?tab=paket-bilgilerim" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                    <Link
+                      href="/dashboard?tab=paket-bilgilerim"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                    >
                       <i className="fas fa-box mr-2"></i>
                       Paket Bilgilerim
                     </Link>
-                    <Link href="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                    <Link
+                      href="/settings"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                    >
                       <i className="fas fa-cog mr-2"></i>
                       Hesap Ayarları
                     </Link>
-                    <Link href="/dashboard?tab=reading-history" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                    <Link
+                      href="/dashboard?tab=reading-history"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                    >
                       <i className="fas fa-history mr-2"></i>
                       Okuma Geçmişim
                     </Link>
-                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                    <a
+                      href="#"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                    >
                       <i className="fas fa-heart mr-2"></i>
                       Favorilerim
                     </a>
-                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                    <Link
+                      href="/settings?section=language"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                    >
                       <i className="fas fa-globe mr-2"></i>
                       Dil Ayarları
-                    </a>
-                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                    </Link>
+                    <a
+                      href="#"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                    >
                       <i className="fas fa-question-circle mr-2"></i>
                       Yardım ve Destek
                     </a>
@@ -1965,14 +2050,14 @@ const Welcome: React.FC = () => {
                     <div
                       key={option.id}
                       onClick={() => setContentType(option.id)}
-                      className={`flex flex-col items-center justify-center p-4 rounded-lg border cursor-pointer transition-all ${
+                      className={`group flex flex-col items-center justify-center p-4 rounded-lg border cursor-pointer transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-md ${
                         contentType === option.id
                           ? 'bg-primary/10 border-primary/40'
                           : 'bg-muted border-border hover:bg-muted/80'
                       }`}
                     >
-                      <i className={`${option.icon} text-2xl mb-2 ${contentType === option.id ? 'text-primary' : 'text-gray-500'}`}></i>
-                      <span className={`text-sm text-center ${contentType === option.id ? 'text-primary font-medium' : 'text-gray-600'}`}>
+                      <i className={`${option.icon} text-2xl mb-2 transition-transform group-hover:scale-110 ${contentType === option.id ? 'text-primary' : 'text-gray-500'}`}></i>
+                      <span className={`text-sm text-center transition-colors ${contentType === option.id ? 'text-primary font-medium' : 'text-gray-600'}`}>
                         {option.name}
                       </span>
                     </div>
@@ -2047,16 +2132,100 @@ const Welcome: React.FC = () => {
                     </div>
                     
                     {textInput && (
-                      <div className="mt-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Çıkarılan Metin:
-                        </label>
-                        <textarea
-                          value={textInput}
-                          onChange={(e) => setTextInput(e.target.value)}
-                          className="w-full min-h-[150px] p-4 border border-input rounded-lg focus:border-primary focus:ring-primary resize-none"
-                          placeholder="Dosyadan çıkarılan metin burada görünecek..."
-                        />
+                      <div className="mt-4 space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Çıkarılan Metin:
+                          </label>
+                          <textarea
+                            value={textInput}
+                            onChange={(e) => setTextInput(e.target.value)}
+                            className="w-full min-h-[150px] p-4 border border-input rounded-lg focus:border-primary focus:ring-primary resize-none"
+                            placeholder="Dosyadan çıkarılan metin burada görünecek..."
+                          />
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-[2fr,auto] items-end">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Doküman Adı
+                            </label>
+                            <Input
+                              type="text"
+                              value={documentTitle}
+                              onChange={(e) => setDocumentTitle(e.target.value)}
+                              placeholder="Örn: PDF dokümanınızın adı"
+                              className="w-full"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            onClick={handleCreateDocumentFromText}
+                            disabled={creatingDocument || !documentTitle.trim() || !textInput.trim()}
+                            className={`!rounded-button whitespace-nowrap px-4 py-2.5 flex items-center justify-center ${
+                              creatingDocument || !documentTitle.trim() || !textInput.trim()
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'bg-primary hover:bg-primary/90 cursor-pointer'
+                            }`}
+                          >
+                            {creatingDocument ? (
+                              <>
+                                <i className="fas fa-circle-notch fa-spin mr-2"></i>
+                                Metin kaydediliyor...
+                              </>
+                            ) : (
+                              <>
+                                <i className="fas fa-book-open mr-2"></i>
+                                Metni bölümlere ayır ve kaydet
+                              </>
+                            )}
+                          </Button>
+                        </div>
+
+                        {lastCreatedDocument && (
+                          <div className="mt-6 border-t border-gray-200 pt-4">
+                            <h4 className="text-sm font-semibold text-gray-800 mb-2 flex items-center">
+                              <i className="fas fa-file-alt mr-2 text-primary"></i>
+                              Son Kaydedilen Doküman
+                            </h4>
+                            <div className="text-sm text-gray-700 mb-3">
+                              {lastCreatedDocument.title}
+                            </div>
+                            {lastDocumentSections.length > 0 && (
+                              <div className="max-h-64 overflow-y-auto space-y-2">
+                                {lastDocumentSections.map((section) => (
+                                  <div
+                                    key={section.id}
+                                    className="p-3 rounded-lg border border-gray-200 bg-white flex flex-col gap-2"
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="text-xs font-semibold text-gray-800 truncate">
+                                        {section.section_index}. {section.section_title || 'Bölüm'}
+                                      </div>
+                                      <span className="text-[11px] text-gray-500 whitespace-nowrap">
+                                        {section.word_count || 0} kelime
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-gray-600 line-clamp-2 whitespace-pre-line">
+                                      {section.section_text}
+                                    </p>
+                                    <div className="flex justify-end">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        className="!rounded-button whitespace-nowrap cursor-pointer px-3 py-1.5 text-xs"
+                                        onClick={() => handlePlayDocumentSection(section)}
+                                      >
+                                        <i className="fas fa-volume-up mr-1"></i>
+                                        Bu Bölümle Ses Oluştur
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

@@ -51,7 +51,8 @@ if (process.env.NODE_ENV === 'development') {
   logger.info(`[ENV CHECK] OPENAI_API_KEY loaded: ${hasOpenAI ? 'YES' : 'NO'}`);
 }
 
-app.use(express.json());
+// Increase JSON body size limit to support large document text payloads
+app.use(express.json({ limit: "10mb" }));
 
 // Configure security middleware
 configureSecurity(app);
@@ -105,7 +106,8 @@ app.use("/subscription/webhook", express.raw({ type: "application/json" }));
 
 // Other middlewares
 
-app.use(express.urlencoded({ extended: true }));
+// Increase URL-encoded body size limit as well (for form submissions)
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Static files
 app.use(express.static(path.join(__dirname, "public")));

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import MembershipBadge from '../src/components/user/MembershipBadge';
 import { useAuth } from '../src/lib/auth';
 import { useRouter } from 'next/router';
-import { getUserStats, UserStats, getTopicTree, Topic, getUserBookHistory, BookHistoryItem, FavoriteBookItem, getUserBookFavoritesDetails } from '../src/lib/api';
+import { getUserStats, UserStats, getTopicTree, Topic, getUserBookHistory, BookHistoryItem, FavoriteBookItem, getUserBookFavoritesDetails, DocumentRecord, DocumentSection, getUserDocuments, getDocumentSections } from '../src/lib/api';
 import { Badge } from '../src/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../src/components/ui/card';
 import { Button } from '../src/components/ui/button';
@@ -33,6 +33,13 @@ const Dashboard = () => {
   const [favoriteBooks, setFavoriteBooks] = useState<FavoriteBookItem[]>([]);
   const [favoriteBooksLoading, setFavoriteBooksLoading] = useState(false);
   const [favoriteBooksError, setFavoriteBooksError] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentRecord | null>(null);
+  const [documentSections, setDocumentSections] = useState<DocumentSection[]>([]);
+  const [sectionsLoading, setSectionsLoading] = useState(false);
+  const [sectionsError, setSectionsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -78,6 +85,47 @@ const Dashboard = () => {
 
     fetchStats();
   }, [isAuthenticated, user]);
+
+  const loadDocuments = async () => {
+    try {
+      setDocumentsLoading(true);
+      setDocumentsError(null);
+      const response = await getUserDocuments();
+      if (response.success && response.data) {
+        setDocuments(response.data);
+        if (!selectedDocument && response.data.length > 0) {
+          const first = response.data[0];
+          setSelectedDocument(first);
+          await loadDocumentSections(first.id);
+        }
+      } else if (!response.success) {
+        setDocumentsError(response.message || 'Dokümanlar yüklenirken hata oluştu');
+      }
+    } catch (error: any) {
+      console.error('[DASHBOARD] Dokümanlar yüklenirken hata oluştu:', error);
+      setDocumentsError(error?.message || 'Dokümanlar yüklenirken hata oluştu');
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
+  const loadDocumentSections = async (documentId: number) => {
+    try {
+      setSectionsLoading(true);
+      setSectionsError(null);
+      const response = await getDocumentSections(documentId);
+      if (response.success && response.data) {
+        setDocumentSections(response.data);
+      } else if (!response.success) {
+        setSectionsError(response.message || 'Doküman bölümleri yüklenirken hata oluştu');
+      }
+    } catch (error: any) {
+      console.error('[DASHBOARD] Doküman bölümleri yüklenirken hata oluştu:', error);
+      setSectionsError(error?.message || 'Doküman bölümleri yüklenirken hata oluştu');
+    } finally {
+      setSectionsLoading(false);
+    }
+  };
 
   const loadTopicTree = async () => {
     try {
@@ -174,6 +222,10 @@ const Dashboard = () => {
 
     if (tab === 'book') {
       loadFavoriteBooks();
+    }
+
+    if (tab === 'pdf') {
+      loadDocuments();
     }
   }, [tab, isAuthenticated]);
 
@@ -394,10 +446,10 @@ const Dashboard = () => {
               <i className="fas fa-podcast mr-2"></i>
               Podcastlerim
             </TabsTrigger>
-            {/* 6. PDF */}
+            {/* 6. Dokümanlar */}
             <TabsTrigger value="pdf" className="!rounded-button whitespace-nowrap cursor-pointer">
-              <i className="fas fa-file-pdf mr-2"></i>
-              PDF
+              <i className="fas fa-file-alt mr-2"></i>
+              Dokümanlarım
             </TabsTrigger>
             <TabsTrigger value="vocabulary" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-language mr-2"></i>
@@ -703,9 +755,9 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <Card className="border border-gray-100 shadow-sm">
+                  <Card className="group bg-muted rounded-2xl border border-border shadow-md hover:shadow-2xl transition-all duration-300 hover:border-primary/40 transform hover:-translate-y-1 cursor-pointer">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg font-semibold flex items-center">
+                      <CardTitle className="text-lg font-semibold flex items-center group-hover:text-primary transition-colors">
                         <i className="fas fa-sitemap mr-2 text-primary"></i>
                         Konularım
                       </CardTitle>
@@ -725,9 +777,9 @@ const Dashboard = () => {
                     </CardContent>
                   </Card>
 
-                  <Card className="border border-gray-100 shadow-sm">
+                  <Card className="group bg-muted rounded-2xl border border-border shadow-md hover:shadow-2xl transition-all duration-300 hover:border-primary/40 transform hover:-translate-y-1 cursor-pointer">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg font-semibold flex items-center">
+                      <CardTitle className="text-lg font-semibold flex items-center group-hover:text-primary transition-colors">
                         <i className="fas fa-book mr-2 text-primary"></i>
                         Kitaplarım
                       </CardTitle>
@@ -747,9 +799,9 @@ const Dashboard = () => {
                     </CardContent>
                   </Card>
 
-                  <Card className="border border-gray-100 shadow-sm">
+                  <Card className="group bg-muted rounded-2xl border border-border shadow-md hover:shadow-2xl transition-all duration-300 hover:border-primary/40 transform hover:-translate-y-1 cursor-pointer">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg font-semibold flex items-center">
+                      <CardTitle className="text-lg font-semibold flex items-center group-hover:text-primary transition-colors">
                         <i className="fas fa-heart mr-2 text-primary"></i>
                         Hobilerim
                       </CardTitle>
@@ -996,12 +1048,123 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="pdf" className="mt-0">
-            <div className="text-center py-8">
-              <i className="fas fa-file-pdf text-4xl text-gray-300 mb-2"></i>
-              <h3 className="text-lg font-medium text-gray-700">PDF</h3>
-              <p className="text-sm text-gray-500">
-                PDF içerik geçmişi ve yönetimi yakında burada görünecek.
-              </p>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="border-none shadow-md lg:col-span-1">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-bold text-gray-800 flex items-center justify-between">
+                    <span>Dokümanlarım</span>
+                    <i className="fas fa-file-alt text-primary"></i>
+                  </CardTitle>
+                  <CardDescription>
+                    PDF veya metin olarak içeri aldığınız dokümanlar.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {documentsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  ) : documentsError ? (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                      {documentsError}
+                    </div>
+                  ) : documents.length === 0 ? (
+                    <div className="text-center py-6 text-sm text-gray-500">
+                      Henüz hiç doküman eklemediniz. Dinleme sayfasından bir doküman yükleyebilirsiniz.
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[320px] pr-3">
+                      <div className="space-y-2">
+                        {documents.map((doc) => {
+                          const isActive = selectedDocument && selectedDocument.id === doc.id;
+                          return (
+                            <button
+                              key={doc.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedDocument(doc);
+                                loadDocumentSections(doc.id);
+                              }}
+                              className={`w-full text-left p-3 rounded-lg border text-sm transition-colors cursor-pointer ${
+                                isActive ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="font-medium truncate">{doc.title}</div>
+                              <div className="text-xs text-gray-500 mt-1 flex items-center justify-between">
+                                <span>{new Date(doc.created_at).toLocaleDateString()}</span>
+                                {doc.page_count != null && (
+                                  <span className="ml-2">{doc.page_count} sayfa</span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-none shadow-md lg:col-span-2">
+                <CardHeader className="pb-2 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg font-bold text-gray-800">
+                      {selectedDocument ? selectedDocument.title : 'Bir doküman seçin'}
+                    </CardTitle>
+                    <CardDescription>
+                      Doküman bölümlerini burada görebilirsiniz.
+                    </CardDescription>
+                  </div>
+                  {selectedDocument && (
+                    <Badge className="bg-primary/10 text-primary border border-primary/30">
+                      <i className="fas fa-layer-group mr-1"></i>
+                      {documentSections.length} bölüm
+                    </Badge>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  {!selectedDocument ? (
+                    <div className="h-[320px] flex items-center justify-center text-sm text-gray-500">
+                      Soldan bir doküman seçerek bölümlerini görebilirsiniz.
+                    </div>
+                  ) : sectionsLoading ? (
+                    <div className="h-[320px] flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  ) : sectionsError ? (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                      {sectionsError}
+                    </div>
+                  ) : documentSections.length === 0 ? (
+                    <div className="h-[320px] flex items-center justify-center text-sm text-gray-500">
+                      Bu doküman için bölüm bulunamadı.
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[320px] pr-3">
+                      <div className="space-y-2">
+                        {documentSections.map((section) => (
+                          <div
+                            key={section.id}
+                            className="p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="text-sm font-semibold text-gray-800 truncate mr-2">
+                                {section.section_index}. {section.section_title || 'Bölüm'}
+                              </div>
+                              <span className="text-xs text-gray-500 whitespace-nowrap">
+                                {section.word_count || 0} kelime
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-600 line-clamp-2 whitespace-pre-line">
+                              {section.section_text}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
         </Tabs>

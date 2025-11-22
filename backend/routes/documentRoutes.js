@@ -22,6 +22,13 @@ const upload = multer({
   },
 });
 
+// POST /api/documents/from-text - create document + sections from raw text (no file upload)
+router.post(
+  "/from-text",
+  authenticate,
+  documentController.createDocumentFromText
+);
+
 // POST /api/documents/upload - upload PDF, ask for title, extract text and create document + sections
 router.post(
   "/upload",
