@@ -1292,6 +1292,44 @@ const processTtsRequest = async (req, res) => {
             }
         }
 
+        // Konu ağacı üzerinden gelen istekler için topic_contents tablosuna kaydet
+        if (req.body.topic_id) {
+            try {
+                const topicId = req.body.topic_id;
+
+                logger.info(`[${requestId}] Saving topic audio for topic_id=${topicId} to topic_contents`);
+
+                const insertPayload = {
+                    topic_id: topicId,
+                    mp3_url: finalMp3Url,
+                    vtt_url: vttUrl,
+                    text_content: cleanTextForDisplay || null,
+                    translated_text: translatedText || translationResult || null,
+                    adapted_text: adaptedText || null,
+                    level: level || null,
+                    voice_model: selectedVoice || null,
+                    speaking_rate: speakingRate || null,
+                    duration_seconds: Math.round(actualTotalDuration || 0),
+                    words: Array.isArray(words) && words.length > 0 ? words : null,
+                    timepoints: Array.isArray(timepoints) && timepoints.length > 0 ? timepoints : null
+                };
+
+                const { data, error } = await supabase
+                    .from('topic_contents')
+                    .insert(insertPayload)
+                    .select();
+
+                if (error) {
+                    throw error;
+                }
+
+                logger.info(`[${requestId}] Topic audio saved to topic_contents: ${data[0]?.id}`);
+            } catch (dbError) {
+                logger.error(`[${requestId}] Error saving topic audio to topic_contents: ${dbError.message}`);
+                // İstek başarısız sayılmamalı; sadece logla
+            }
+        }
+
         // Genel TTS istekleri için contenthistory tablosuna kaydet
         try {
             logger.info(`[${requestId}] 💾 Saving to contenthistory table...`);

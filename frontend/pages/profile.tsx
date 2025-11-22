@@ -7,6 +7,7 @@ import { getContentHistory, getUsageSummary } from '../src/lib/api';
 import { computeEstimates, formatEstimate, type UsageSummary, computeCostAwareEstimates, COST_PER_1K, CHARS_PER_VIDEO_MINUTE, CHARS_PER_A4_PAGE, type VoiceCategory, type CostAwarePerCategory } from '../src/lib/usageEstimates';
 import InterestManager from '../src/components/InterestManager';
 import PackageInfo from '../src/components/PackageInfo';
+import Footer from '../src/components/Footer';
 
 export default function Profile() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -515,13 +516,7 @@ export default function Profile() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-white border-t mt-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <p className="text-center text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} LingRoot. Tüm hakları saklıdır.
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
-} 
+}

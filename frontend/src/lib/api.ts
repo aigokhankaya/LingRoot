@@ -211,6 +211,7 @@ export interface ProcessInputData {
     voice?: string;
     chapter?: string;
     chapter_id?: string;
+    topic_id?: string;
     suppressPlanAlerts?: boolean;
 }
 
@@ -351,7 +352,7 @@ async function handleApiResponse<T>(response: Response): Promise<ApiResponse<T>>
 }
 
 export const processTts = async (data: ProcessInputData): Promise<TtsResponseData> => {
-    const { type, input, file, level, SesHızı, voice, chapter_id, suppressPlanAlerts } = data;
+    const { type, input, file, level, SesHızı, voice, chapter_id, topic_id, suppressPlanAlerts } = data;
     const url = `${getApiUrl("tts/process")}`;
     let headers: Record<string, string>;
     let body: string | FormData;
@@ -359,6 +360,9 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
     if (type === "text") {
         headers = createHeaders("application/json");
         const payload = { input, type, level, SesHızı, voice, chapter_id } as any;
+        if (topic_id) {
+            (payload as any).topic_id = topic_id;
+        }
         console.log('🧭 [TTS PAYLOAD DEBUG] Prepared JSON payload:', payload);
         body = JSON.stringify(payload);
     } else {
@@ -369,6 +373,7 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
         if (SesHızı !== undefined) formData.append("SesHızı", SesHızı.toString());
         if (voice) formData.append("voice", voice);
         if (chapter_id) formData.append("chapter_id", chapter_id);
+        if (topic_id) formData.append("topic_id", topic_id);
 
         if (input && type !== "file") {
             formData.append("input", input);
@@ -482,7 +487,8 @@ export const submitContent = async (
     level: string,
     mp3Url: string,
     translatedText?: string,
-    adaptedText?: string
+    adaptedText?: string,
+    chapterId?: string | number
 ): Promise<ApiResponse> => {
     const url = getApiUrl('/content/submit');
     const headers = createHeaders("application/json");
@@ -494,6 +500,7 @@ export const submitContent = async (
         mp3_url: mp3Url,
         translated_text: translatedText || '',
         adapted_text: adaptedText || '',
+        chapter_id: chapterId ?? null,
     });
 
     try {
@@ -506,7 +513,8 @@ export const submitContent = async (
             level: level || 'EMPTY',
             mp3Url: mp3Url || 'EMPTY',
             translatedText: translatedText || 'EMPTY',
-            adaptedText: adaptedText || 'EMPTY'
+            adaptedText: adaptedText || 'EMPTY',
+            chapterId: chapterId ?? null,
         });
         
         const response = await fetch(url, {
@@ -595,6 +603,40 @@ export const getContentHistory = async (): Promise<ApiResponse> => {
     console.error("İçerik geçmişi alınırken hata oluştu:", error);
     throw error;
   }
+};
+
+// Book-based audio history item (linked to book chapters)
+export interface BookHistoryItem {
+  id: string;
+  book_id: number | null;
+  book_title: string;
+  book_authors: string;
+  cover_url?: string | null;
+  subjects?: string | null;
+  chapter_id: number | null;
+  chapter_index: number | null;
+  chapter_title: string;
+  level: string;
+  mp3_url: string;
+  created_at: string;
+  duration: number;
+  input: string;
+  input_type: string;
+  words?: any[];
+  timepoints?: any[];
+}
+
+// Fetch authenticated user's book-based audio history (paginated)
+export const getUserBookHistory = async (
+  userId: string,
+  page: number = 1,
+  limit: number = 20
+): Promise<ApiResponse<BookHistoryItem[]>> => {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  const url = getApiUrl(`/users/${encodeURIComponent(userId)}/book-history?${params.toString()}`);
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  return handleApiResponse<BookHistoryItem[]>(response);
 };
 
 // User settings
@@ -1608,6 +1650,7 @@ export interface Topic {
   created_at: string;
   updated_at: string;
   children?: Topic[];
+  latest_content?: TopicContent | null;
 }
 
 export interface TopicContent {
@@ -1625,6 +1668,7 @@ export interface TopicContent {
   words: string[];
   timepoints: any;
   created_at: string;
+  listened_at: string | null;
 }
 
 /**
@@ -1759,3 +1803,17 @@ export const createContentFromTopic = async (
   return await handleApiResponse(response);
 };
 
+/**
+ * Konu sesini dinlenmiş olarak işaretle
+ */
+export const markTopicAudioListened = async (mp3Url: string): Promise<ApiResponse> => {
+  const url = getApiUrl('topic-hierarchy/topics/mark-listened');
+  const headers = createHeaders('application/json');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({ mp3_url: mp3Url })
+  });
+  return await handleApiResponse(response);
+};

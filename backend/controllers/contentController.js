@@ -299,7 +299,7 @@ exports.submitContent = async (req, res) => {
   let stepSequence = 1;
 
   try {
-    const { input, input_type, level, mp3_url, translated_text, adapted_text } = req.body;
+    const { input, input_type, level, mp3_url, translated_text, adapted_text, chapter_id } = req.body;
     const user_id = req.user?.id;
     logger.info(`submitContent request received for user ID: ${user_id || 'anon'}`, { 
       input_type, 
@@ -309,7 +309,8 @@ exports.submitContent = async (req, res) => {
       hasInput: !!input,
       hasInputType: !!input_type,
       hasLevel: !!level,
-      hasMp3Url: !!mp3_url
+      hasMp3Url: !!mp3_url,
+      chapter_id: chapter_id || null
     });
 
     // Gerekli alanları kontrol et
@@ -360,12 +361,24 @@ exports.submitContent = async (req, res) => {
       validUserId = null;
     }
     
+    // chapter_id değerini güvenli şekilde parse et
+    let chapterIdValue = null;
+    if (chapter_id !== undefined && chapter_id !== null && String(chapter_id).trim() !== '') {
+      const parsed = parseInt(String(chapter_id), 10);
+      if (!Number.isNaN(parsed)) {
+        chapterIdValue = parsed;
+      } else {
+        logger.warn(`submitContent received invalid chapter_id: ${chapter_id}`);
+      }
+    }
+
     // Debug: Kaydedilecek verileri logla
     console.log('🔍 [SUBMIT CONTENT DEBUG]', {
       input: input ? input.substring(0, 50) + '...' : 'EMPTY',
       translated_text: translated_text ? translated_text.substring(0, 50) + '...' : 'EMPTY',
       adapted_text: adapted_text ? adapted_text.substring(0, 50) + '...' : 'EMPTY',
-      user_id: validUserId
+      user_id: validUserId,
+      chapter_id: chapterIdValue
     });
 
     // Supabase veritabanına kaydet (duplicate mp3_url için upsert mantığı)
@@ -401,6 +414,7 @@ exports.submitContent = async (req, res) => {
           level,
           translated_text: translated_text || '',
           adapted_text: adapted_text || '',
+          chapter_id: chapterIdValue,
           updated_at: now,
         })
         .eq('id', existingId)
@@ -418,6 +432,7 @@ exports.submitContent = async (req, res) => {
             translated_text: translated_text || '',
             adapted_text: adapted_text || '',
             user_id: validUserId,
+            chapter_id: chapterIdValue,
             created_at: now,
             updated_at: now,
           },

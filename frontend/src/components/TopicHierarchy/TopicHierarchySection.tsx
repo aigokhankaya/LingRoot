@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Topic, getTopicTree, createMainTopic } from '../../lib/api';
 import TopicInput from './TopicInput';
 import TopicTree from './TopicTree';
@@ -105,6 +106,16 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Link
+          href="/dashboard?tab=reading-history"
+          className="text-xs text-primary hover:text-primary/80 flex items-center space-x-1"
+        >
+          <i className="fas fa-history"></i>
+          <span>Konularımı / Okuma Geçmişimi Gör</span>
+        </Link>
       </div>
 
       {/* Error/Success Messages */}

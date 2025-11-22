@@ -232,6 +232,7 @@ const Welcome: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [existingAudio, setExistingAudio] = useState<ExistingAudio | null>(null);
   const [isCheckingExistingAudio, setIsCheckingExistingAudio] = useState<boolean>(false);
+  const [activeTopicId, setActiveTopicId] = useState<string | null>(null);
   
   // Content history expanded view state
   const [expandedHistoryItem, setExpandedHistoryItem] = useState<string | null>(null);
@@ -1065,6 +1066,31 @@ const Welcome: React.FC = () => {
     }
   };
 
+  // Kitap arama input'ları için canlı (debounced) arama
+  useEffect(() => {
+    const hasSearchCriteria =
+      bookSearchQuery.trim().length > 0 ||
+      bookTitleSearch.trim().length > 0 ||
+      bookAuthorSearch.trim().length > 0;
+
+    // Hiç kriter yoksa sonuçları temizle
+    if (!hasSearchCriteria) {
+      setBookSearchResults(null);
+      setCurrentPage(1);
+      return;
+    }
+
+    // Yazarken çok sık istek atmamak için debounce
+    const handler = setTimeout(() => {
+      // En az bir kriter girilmişse ilk sayfadan ara
+      searchBooks(bookSearchQuery, bookTitleSearch, bookAuthorSearch, 1);
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [bookSearchQuery, bookTitleSearch, bookAuthorSearch]);
+
   // Kitap bölümlerini yükleme fonksiyonu
   const loadBookChapters = async (bookId: string) => {
     setIsLoadingChapters(true);
@@ -1153,6 +1179,7 @@ const Welcome: React.FC = () => {
         voice: inputData.voice,
         chapter: (inputData as any).chapter,
         chapter_id: selectedChapter?.id, // Kitap bölümü ID'sini ekle
+        topic_id: activeTopicId || undefined,
       };
 
       // YouTube: altyazı metnini text olarak TTS'e gönder
@@ -1285,7 +1312,8 @@ const Welcome: React.FC = () => {
             inputData.level, 
             result.mp3_url, 
             result.translated_text || result.translatedText || '',
-            result.adapted_text || result.adaptedText || ''
+            result.adapted_text || result.adaptedText || '',
+            processInput.type === 'book' && selectedChapter ? selectedChapter.id : undefined
           );
           console.log('İçerik başarıyla kaydedildi');
           // Content history'yi yeniden yükle
@@ -1582,7 +1610,7 @@ const Welcome: React.FC = () => {
                       <i className="fas fa-cog mr-2"></i>
                       Hesap Ayarları
                     </Link>
-                    <Link href="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                    <Link href="/dashboard?tab=reading-history" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
                       <i className="fas fa-history mr-2"></i>
                       Okuma Geçmişim
                     </Link>
@@ -2198,6 +2226,9 @@ const Welcome: React.FC = () => {
                         onContentCreated={(data) => {
                           // TTS workflow'unu tetikle
                           if (data && data.suggestedInput) {
+                            if (data.topic && data.topic.id) {
+                              setActiveTopicId(data.topic.id);
+                            }
                             setTextInput(data.suggestedInput);
                             setContentType('subject'); // Konu sekmesine geç
                             
@@ -2294,16 +2325,22 @@ const Welcome: React.FC = () => {
 
                         {/* Kitap Arama Sonuçları */}
                         {bookSearchResults && (
-                          <div>
-                            <div className="flex justify-between items-center mb-3">
-                              <h4 className="text-md font-medium text-gray-700">
-                                Arama Sonuçları ({bookSearchResults.total} kitap)
-                              </h4>
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <h4 className="text-md font-semibold text-gray-800 flex items-center">
+                                  <i className="fas fa-book-open mr-2 text-primary"></i>
+                                  Arama Sonuçları
+                                </h4>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {bookSearchResults.total} kitap bulundu. Bir kartı seçerek bölümlerini görebilirsiniz.
+                                </p>
+                              </div>
                               {bookSearchResults.total_pages > 1 && (
                                 <div className="flex items-center space-x-2">
                                   <Button
                                     onClick={() => searchBooks(bookSearchQuery, bookTitleSearch, bookAuthorSearch, currentPage - 1)}
-                                    disabled={currentPage <= 1}
+                                    disabled={currentPage <= 1 || isSearchingBooks}
                                     variant="outline"
                                     size="sm"
                                     className="!rounded-button"
@@ -2315,7 +2352,7 @@ const Welcome: React.FC = () => {
                                   </span>
                                   <Button
                                     onClick={() => searchBooks(bookSearchQuery, bookTitleSearch, bookAuthorSearch, currentPage + 1)}
-                                    disabled={currentPage >= bookSearchResults.total_pages}
+                                    disabled={currentPage >= bookSearchResults.total_pages || isSearchingBooks}
                                     variant="outline"
                                     size="sm"
                                     className="!rounded-button"
@@ -2325,49 +2362,65 @@ const Welcome: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                            <div className="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
-                              {bookSearchResults.books.map((book) => (
-                                <div
-                                  key={book.id}
-                                  onClick={() => handleBookSelect(book)}
-                                  className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-primary/5 transition-colors ${
-                                    selectedBook?.id === book.id ? 'bg-primary/5 border-primary/30' : ''
-                                  }`}
-                                >
-                                  <div className="flex items-start space-x-3">
-                                    {book.cover_image ? (
-                                      <img
-                                        src={book.cover_image}
-                                        alt={book.title}
-                                        className="w-12 h-16 object-cover rounded"
-                                      />
-                                    ) : (
-                                      <div className="w-12 h-16 bg-gray-200 rounded flex items-center justify-center">
-                                        <i className="fas fa-book text-gray-400"></i>
-                                      </div>
-                                    )}
-                                    <div className="flex-1">
-                                      <h5 className="font-medium text-gray-900">{book.title}</h5>
-                                      <p className="text-sm text-gray-600">{book.author}</p>
+
+                            <div className="max-h-[420px] overflow-y-auto pr-1">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {bookSearchResults.books.map((book) => (
+                                  <div
+                                    key={book.id}
+                                    onClick={() => handleBookSelect(book)}
+                                    className={`bg-white rounded-lg shadow-sm border cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 ${
+                                      selectedBook?.id === book.id ? 'border-primary ring-1 ring-primary/40' : 'border-gray-200'
+                                    }`}
+                                  >
+                                    <div className="relative w-full h-40 bg-gray-100">
+                                      {book.cover_image ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                          src={book.cover_image}
+                                          alt={book.title}
+                                          className="w-full h-full object-cover rounded-t-lg"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5 rounded-t-lg">
+                                          <i className="fas fa-book text-3xl text-primary/60"></i>
+                                        </div>
+                                      )}
+                                      {selectedBook?.id === book.id && (
+                                        <span className="absolute top-2 right-2 bg-primary text-white text-[10px] px-2 py-1 rounded-full flex items-center">
+                                          <i className="fas fa-check-circle mr-1"></i>
+                                          Seçili
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="p-3 flex flex-col h-full">
+                                      <h5 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-1">{book.title}</h5>
+                                      <p className="text-xs text-gray-600 line-clamp-1 mb-1">{book.author}</p>
                                       {book.description && (
-                                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                        <p className="text-xs text-gray-500 line-clamp-2 mb-2">
                                           {book.description}
                                         </p>
                                       )}
-                                      <div className="flex items-center space-x-2 mt-2">
-                                        <Badge variant="secondary" className="text-xs">
-                                          {book.total_chapters} bölüm
-                                        </Badge>
-                                        {book.genre && (
-                                          <Badge variant="outline" className="text-xs">
-                                            {book.genre}
+                                      <div className="flex items-center justify-between mt-auto pt-1">
+                                        <div className="flex items-center space-x-2">
+                                          <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                                            {book.total_chapters} bölüm
                                           </Badge>
-                                        )}
+                                          {book.genre && (
+                                            <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                                              {book.genre}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        <span className="text-[10px] text-primary flex items-center">
+                                          Bölümleri Gör
+                                          <i className="fas fa-arrow-right ml-1"></i>
+                                        </span>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
-                              ))}
+                                ))}
+                              </div>
                             </div>
                           </div>
                         )}

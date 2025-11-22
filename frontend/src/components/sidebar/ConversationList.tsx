@@ -180,7 +180,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild className="focus:bg-gray-100 cursor-pointer">
-                  <Link href="/dashboard" className="flex items-center gap-2">
+                  <Link href="/dashboard?tab=reading-history" className="flex items-center gap-2">
                     <i className="fas fa-history w-4 text-center"></i>
                     Okuma Geçmişim
                   </Link>

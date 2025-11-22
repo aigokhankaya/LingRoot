@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { initializeGoogleAuth, signInWithGoogle } from '../../lib/googleAuth';
+import Footer from '@/components/Footer';
 
 // Phone helpers: Turkish format +90 555 123 45 67
 function extractDigits(value: string): string {
@@ -498,82 +499,7 @@ export default function RegisterPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-3 mb-6">
-                <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
-                <span className="text-2xl font-extrabold text-primary tracking-tight">LingRoot</span>
-              </div>
-              <p className="text-gray-400 mb-4">
-                "Your routines turn into English."
-              </p>
-              <div className="flex space-x-4">
-                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
-                  <i className="fab fa-facebook-f text-xl"></i>
-                </a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
-                  <i className="fab fa-twitter text-xl"></i>
-                </a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
-                  <i className="fab fa-instagram text-xl"></i>
-                </a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">
-                  <i className="fab fa-youtube text-xl"></i>
-                </a>
-              </div>
-            </div>
-            <div>
-              <h3 className="text-lg font-bold mb-4">Hızlı Bağlantılar</h3>
-              <ul className="space-y-2">
-                <li><a href="/about" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Hakkımızda</a></li>
-                <li><a href="/nasil-calisir" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Nasıl Çalışır?</a></li>
-                <li><a href="/fiyatlandirma" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Fiyatlandırma</a></li>
-                <li><a href="/blog" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Blog</a></li>
-                <li><a href="/contact" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">İletişim</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-bold mb-4">Yasal</h3>
-              <ul className="space-y-2">
-                <li><a href="https://www.lingroot.com/privacy-policy" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Gizlilik Politikası</a></li>
-                <li><a href="/terms" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Kullanım Şartları</a></li>
-                <li><a href="/cookies" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">Çerez Politikası</a></li>
-                <li><a href="/kvkk" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">KVKK</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-bold mb-4">Bize Ulaşın</h3>
-              <ul className="space-y-2">
-                <li className="flex items-center">
-                  <i className="fas fa-envelope mr-2 text-gray-400"></i>
-                  <a href="mailto:info@lingroot.com" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">info@lingroot.com</a>
-                </li>
-                <li className="flex items-center">
-                  <i className="fas fa-phone-alt mr-2 text-gray-400"></i>
-                  <a href="tel:+902121234567" className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer">+90 212 123 45 67</a>
-                </li>
-                <li className="flex items-start mt-4">
-                  <i className="fas fa-map-marker-alt mr-2 mt-1 text-gray-400"></i>
-                  <span className="text-gray-400">İstanbul, Türkiye</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400 text-sm mb-4 md:mb-0">
-              &copy; 2025 LingRoot. Tüm hakları saklıdır.
-            </p>
-            <div className="flex space-x-4">
-              <i className="fab fa-cc-visa text-2xl text-gray-400"></i>
-              <i className="fab fa-cc-mastercard text-2xl text-gray-400"></i>
-              <i className="fab fa-cc-paypal text-2xl text-gray-400"></i>
-              <i className="fab fa-apple-pay text-2xl text-gray-400"></i>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 } 

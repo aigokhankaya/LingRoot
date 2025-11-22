@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useAuth } from '../src/lib/auth';
 import { resendVerificationEmail } from '../src/lib/api';
 import { initializeGoogleAuth, signInWithGoogle } from '../src/lib/googleAuth';
+import Footer from '../src/components/Footer';
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
@@ -224,9 +225,7 @@ const LoginPage: React.FC = () => {
         </div>
       </main>
 
-      <footer className="w-full flex flex-col items-center py-4 text-xs text-gray-400">
-        <div>&copy; {new Date().getFullYear()} LingRoot. All rights reserved.</div>
-      </footer>
+      <Footer />
     </div>
   );
 };

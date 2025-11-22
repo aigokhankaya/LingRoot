@@ -50,6 +50,13 @@ router.delete(
   topicHierarchyController.deleteTopicAndChildren
 );
 
+// Konu sesini dinlenmiş olarak işaretle
+router.post(
+  '/topics/mark-listened',
+  authenticate,
+  topicHierarchyController.markTopicListened
+);
+
 // Konudan TTS içerik oluştur (mevcut TTS workflow'una yönlendirme)
 router.post(
   '/topics/:id/create-content',

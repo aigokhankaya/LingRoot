@@ -25,7 +25,13 @@ exports.createMainTopic = async (req, res) => {
       });
     }
 
-    logger.info(`[TOPIC HIERARCHY] Creating main topic: "${title}" for user ${userId}`);
+    const allowedLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+    const normalizedLevelRaw = (level || 'A1').toString().trim().toUpperCase();
+    const normalizedLevel = allowedLevels.includes(normalizedLevelRaw)
+      ? normalizedLevelRaw
+      : 'A1';
+
+    logger.info(`[TOPIC HIERARCHY] Creating main topic: "${title}" for user ${userId} at level ${normalizedLevel}`);
 
     const { data, error } = await supabase
       .from('topics')
@@ -33,7 +39,7 @@ exports.createMainTopic = async (req, res) => {
         user_id: userId,
         title: title.trim(),
         description: description?.trim() || null,
-        level: level || 'A1',
+        level: normalizedLevel,
         depth: 0,
         parent_id: null,
         is_manual: true
@@ -55,6 +61,83 @@ exports.createMainTopic = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Ana konu oluşturulurken hata oluştu',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Konu sesini dinlenmiş olarak işaretle
+ * POST /api/topic-hierarchy/topics/mark-listened
+ * Body: { mp3_url: string }
+ */
+exports.markTopicListened = async (req, res) => {
+  try {
+    const { mp3_url } = req.body;
+    const userId = req.user.id;
+
+    if (!mp3_url || typeof mp3_url !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'mp3_url zorunludur'
+      });
+    }
+
+    logger.info(`[TOPIC HIERARCHY] Marking topic audio as listened for user ${userId}, mp3_url=${mp3_url}`);
+
+    // Kullanıcıya ait konular için bu mp3_url ile ilişkili en son topic_contents kaydını bul
+    const { data, error } = await supabase
+      .from('topic_contents')
+      .select('id, topic_id, created_at, topics!inner(user_id)')
+      .eq('mp3_url', mp3_url)
+      .eq('topics.user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      logger.error('[TOPIC HIERARCHY] Error fetching topic_contents for mark-listened:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Ses kaydı aranırken hata oluştu',
+        error: error.message
+      });
+    }
+
+    if (!data || data.length === 0) {
+      logger.warn(`[TOPIC HIERARCHY] No topic_contents found for mp3_url=${mp3_url} and user ${userId}`);
+      return res.status(404).json({
+        success: false,
+        message: 'İlgili konu ses kaydı bulunamadı'
+      });
+    }
+
+    const contentId = data[0].id;
+
+    const { error: updateError } = await supabase
+      .from('topic_contents')
+      .update({ listened_at: new Date().toISOString() })
+      .eq('id', contentId);
+
+    if (updateError) {
+      logger.error('[TOPIC HIERARCHY] Error updating listened_at on topic_contents:', updateError);
+      return res.status(500).json({
+        success: false,
+        message: 'Dinlenme bilgisi güncellenirken hata oluştu',
+        error: updateError.message
+      });
+    }
+
+    logger.info(`[TOPIC HIERARCHY] Topic audio marked as listened: topic_contents.id=${contentId}`);
+
+    return res.json({
+      success: true,
+      message: 'Ses kaydı dinlenmiş olarak işaretlendi'
+    });
+  } catch (error) {
+    logger.error('[TOPIC HIERARCHY] Error in markTopicListened:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Ses kaydı dinlenmiş olarak işaretlenirken hata oluştu',
       error: error.message
     });
   }
@@ -281,12 +364,50 @@ exports.getTopicTree = async (req, res) => {
 
     if (error) throw error;
 
+    if (!topics || topics.length === 0) {
+      logger.info('[TOPIC HIERARCHY] No topics found for user');
+      return res.json({
+        success: true,
+        data: {
+          topics: [],
+          total: 0
+        }
+      });
+    }
+
+    // Her topic için son oluşturulan sesli içeriği getir
+    const topicIds = topics.map(t => t.id);
+    let latestContentByTopic = {};
+    try {
+      const { data: contents, error: contentsError } = await supabase
+        .from('topic_contents')
+        .select('*')
+        .in('topic_id', topicIds)
+        .order('created_at', { ascending: false });
+
+      if (contentsError) {
+        logger.error('[TOPIC HIERARCHY] Error fetching topic_contents:', contentsError);
+      } else if (contents && contents.length > 0) {
+        contents.forEach(content => {
+          if (!latestContentByTopic[content.topic_id]) {
+            latestContentByTopic[content.topic_id] = content;
+          }
+        });
+      }
+    } catch (contentsErr) {
+      logger.error('[TOPIC HIERARCHY] Unexpected error while fetching topic_contents:', contentsErr);
+    }
+
     // Tree yapısına dönüştür
     const topicMap = {};
     const rootTopics = [];
 
     topics.forEach(topic => {
-      topicMap[topic.id] = { ...topic, children: [] };
+      topicMap[topic.id] = {
+        ...topic,
+        children: [],
+        latest_content: latestContentByTopic[topic.id] || null
+      };
     });
 
     topics.forEach(topic => {

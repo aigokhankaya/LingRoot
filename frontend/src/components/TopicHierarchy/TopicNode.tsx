@@ -69,6 +69,15 @@ const TopicNode: React.FC<TopicNodeProps> = ({
   const hasChildren = topic.children && topic.children.length > 0;
   const indent = depth * 20; // Her seviye için 20px indent
 
+  const handleToggleExpand = () => {
+    if (!hasChildren) return;
+    setIsExpanded(prev => !prev);
+  };
+
+  const latestContent = (topic as any).latest_content || null;
+  const hasAudio = !!(latestContent && latestContent.mp3_url);
+  const isListened = !!(latestContent && latestContent.listened_at);
+
   // Alt konu oluştur
   const handleGenerateSubtopics = async (count: number, language: string) => {
     try {
@@ -153,12 +162,18 @@ const TopicNode: React.FC<TopicNodeProps> = ({
       {/* Node Container */}
       <div className={`${colors.bg} ${colors.border} border-2 rounded-lg p-4 transition-all hover:shadow-md`}>
         <div className="flex items-start justify-between">
-          {/* Sol Taraf - Başlık ve Bilgiler */}
-          <div className="flex-1 flex items-start space-x-3">
+          {/* Sol Taraf - Başlık ve Bilgiler (tıklanabilir alan) */}
+          <div
+            className="flex-1 flex items-start space-x-3 cursor-pointer"
+            onClick={handleToggleExpand}
+          >
             {/* Expand/Collapse Button */}
             {hasChildren && (
               <button
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleExpand();
+                }}
                 className={`${colors.icon} hover:opacity-70 transition-opacity mt-1`}
               >
                 <i className={`fas fa-chevron-${isExpanded ? 'down' : 'right'}`}></i>
@@ -195,6 +210,21 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 {topic.keywords && topic.keywords.length > 0 && (
                   <span className="text-gray-400">
                     {topic.keywords.slice(0, 3).join(', ')}
+                  </span>
+                )}
+                {hasAudio ? (
+                  <span
+                    className={`px-2 py-0.5 rounded-full ${
+                      isListened
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-blue-100 text-blue-700'
+                    }`}
+                  >
+                    {isListened ? 'Dinlendi' : 'Ses hazır'}
+                  </span>
+                ) : (
+                  <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                    Ses yok
                   </span>
                 )}
               </div>
