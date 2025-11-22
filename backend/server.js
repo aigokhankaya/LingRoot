@@ -40,6 +40,7 @@ const configRoutes = require("./routes/configRoutes"); // Config routes (environ
 const patternRoutes = require("./routes/patternRoutes"); // Daily usage patterns
 const mfaRoutes = require("./routes/mfaRoutes"); // MFA alignment routes
 const topicHierarchyRoutes = require("./routes/topicHierarchy"); // Topic Hierarchy (multi-level content tree)
+const documentRoutes = require("./routes/documentRoutes"); // Document/PDF workflow
 
 // Initialize Express app
 const app = express();
@@ -50,7 +51,8 @@ if (process.env.NODE_ENV === 'development') {
   logger.info(`[ENV CHECK] OPENAI_API_KEY loaded: ${hasOpenAI ? 'YES' : 'NO'}`);
 }
 
-app.use(express.json());
+// Increase JSON body size limit to support large document text payloads
+app.use(express.json({ limit: "10mb" }));
 
 // Configure security middleware
 configureSecurity(app);
@@ -104,7 +106,8 @@ app.use("/subscription/webhook", express.raw({ type: "application/json" }));
 
 // Other middlewares
 
-app.use(express.urlencoded({ extended: true }));
+// Increase URL-encoded body size limit as well (for form submissions)
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Static files
 app.use(express.static(path.join(__dirname, "public")));
@@ -151,6 +154,7 @@ app.use("/api/config", configRoutes); // Config routes (environment, etc.)
 app.use("/api/patterns", patternRoutes); // Daily usage patterns
 app.use("/api/mfa", mfaRoutes); // MFA alignment routes
 app.use("/api/topic-hierarchy", topicHierarchyRoutes); // Topic Hierarchy (multi-level content tree)
+app.use("/api/documents", documentRoutes); // Document/PDF workflow
 
 // Account deletion page (legacy)
 app.get('/delete-account', (req, res) => {

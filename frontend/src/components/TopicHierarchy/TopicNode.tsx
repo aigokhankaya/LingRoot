@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Topic, generateSubtopics, addManualSubtopic, deleteTopicAndChildren, createContentFromTopic } from '../../lib/api';
+import { Topic, generateSubtopics, addManualSubtopic, deleteTopicAndChildren } from '../../lib/api';
 import { Button } from '../ui/button';
 import SubtopicModal from './SubtopicModal';
 import ManualSubtopicModal from './ManualSubtopicModal';
@@ -12,6 +12,8 @@ interface TopicNodeProps {
   onRefresh: () => Promise<void>;
   onContentCreated?: (result: any) => void;
   level: string;
+  audioStateByTopic?: Record<string, { isLoading?: boolean; hasAudio?: boolean }>;
+  onOpenAudioModal?: (topicId: string) => void;
 }
 
 const TopicNode: React.FC<TopicNodeProps> = ({
@@ -19,13 +21,16 @@ const TopicNode: React.FC<TopicNodeProps> = ({
   depth,
   onRefresh,
   onContentCreated,
-  level
+  level,
+  audioStateByTopic,
+  onOpenAudioModal,
 }) => {
   const [isExpanded, setIsExpanded] = useState(depth === 0); // Ana konular açık başlar
   const [isGenerating, setIsGenerating] = useState(false);
   const [showSubtopicModal, setShowSubtopicModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Renk şeması - derinliğe göre
   const getDepthColors = () => {
@@ -40,11 +45,11 @@ const TopicNode: React.FC<TopicNodeProps> = ({
         };
       case 1:
         return {
-          bg: 'bg-secondary/10',
-          border: 'border-secondary/40',
-          text: 'text-secondary-foreground',
-          icon: 'text-secondary-foreground',
-          badge: 'bg-secondary'
+          bg: 'bg-orange-50',
+          border: 'border-orange-200',
+          text: 'text-orange-800',
+          icon: 'text-orange-500',
+          badge: 'bg-orange-500'
         };
       case 2:
         return {
@@ -69,11 +74,54 @@ const TopicNode: React.FC<TopicNodeProps> = ({
   const hasChildren = topic.children && topic.children.length > 0;
   const indent = depth * 20; // Her seviye için 20px indent
 
+  const audioState = audioStateByTopic?.[topic.id];
+  const isTopicAudioLoading = !!audioState?.isLoading;
+  const hasInlineAudio = !!audioState?.hasAudio;
+
+  const handleToggleExpand = () => {
+    if (!hasChildren) return;
+    setIsExpanded(prev => !prev);
+  };
+
+  const latestContent = (topic as any).latest_content || null;
+  const hasAudio = !!(latestContent && latestContent.mp3_url);
+  const isListened = !!(latestContent && latestContent.listened_at);
+  // Ses oynatılabilir mi? (backend'de audio varsa veya bu oturumda yeni üretildiyse)
+  const canPlayFromTree = hasAudio || hasInlineAudio;
+
+  // Alt konu istatistikleri (toplam alt konu, ses oluşturulan ve dinlenen sayıları)
+  const computeSubtreeStats = (root: any) => {
+    let totalSubtopics = 0;
+    let audioCount = 0;
+    let listenedCount = 0;
+
+    const traverse = (node: any) => {
+      if (!node.children || node.children.length === 0) return;
+      node.children.forEach((child: any) => {
+        totalSubtopics += 1;
+        const childLatest = child.latest_content;
+        if (childLatest && childLatest.mp3_url) {
+          audioCount += 1;
+        }
+        if (childLatest && childLatest.listened_at) {
+          listenedCount += 1;
+        }
+        traverse(child);
+      });
+    };
+
+    traverse(root);
+    return { totalSubtopics, audioCount, listenedCount };
+  };
+
+  const { totalSubtopics, audioCount, listenedCount } = computeSubtreeStats(topic as any);
+  const hasSubtopics = totalSubtopics > 0;
+
   // Alt konu oluştur
-  const handleGenerateSubtopics = async (count: number, language: string) => {
+  const handleGenerateSubtopics = async (count: number, language: string, angle?: string) => {
     try {
       setIsGenerating(true);
-      const response = await generateSubtopics(topic.id, { count, language });
+      const response = await generateSubtopics(topic.id, { count, language, angle });
       
       if (response.success) {
         await onRefresh();
@@ -106,16 +154,13 @@ const TopicNode: React.FC<TopicNodeProps> = ({
 
   // Konu sil
   const handleDelete = async () => {
-    if (!confirm(`"${topic.title}" konusunu ve tüm alt konularını silmek istediğinizden emin misiniz?`)) {
-      return;
-    }
-
     try {
       setIsDeleting(true);
       const response = await deleteTopicAndChildren(topic.id);
       
       if (response.success) {
         await onRefresh();
+        setShowDeleteConfirm(false);
       }
     } catch (err: any) {
       console.error('❌ Konu silme hatası:', err);
@@ -125,23 +170,19 @@ const TopicNode: React.FC<TopicNodeProps> = ({
     }
   };
 
-  // TTS İçerik oluştur
+  // TTS İçerik oluştur (sadece frontend tarafında topic bilgisinden input üret)
   const handleCreateContent = async () => {
     try {
-      const response = await createContentFromTopic(topic.id);
-      
-      if (response.success && response.data) {
-        // Frontend'deki mevcut TTS workflow'unu tetikle
-        // Bu bilgiyi parent component'e ilet
-        if (onContentCreated) {
-          onContentCreated({
-            topic: response.data.topic,
-            suggestedInput: response.data.suggested_input
-          });
-        }
-        
-        alert('Konu bilgisi alındı! Şimdi ses oluşturabilirsiniz.');
-      }
+      if (!onContentCreated) return;
+
+      const suggestedInput = topic.description
+        ? `${topic.title}: ${topic.description}`
+        : topic.title;
+
+      onContentCreated({
+        topic,
+        suggestedInput,
+      });
     } catch (err: any) {
       console.error('❌ İçerik oluşturma hatası:', err);
       alert(err.message || 'İçerik oluşturulurken hata oluştu');
@@ -153,12 +194,18 @@ const TopicNode: React.FC<TopicNodeProps> = ({
       {/* Node Container */}
       <div className={`${colors.bg} ${colors.border} border-2 rounded-lg p-4 transition-all hover:shadow-md`}>
         <div className="flex items-start justify-between">
-          {/* Sol Taraf - Başlık ve Bilgiler */}
-          <div className="flex-1 flex items-start space-x-3">
+          {/* Sol Taraf - Başlık ve Bilgiler (tıklanabilir alan) */}
+          <div
+            className="flex-1 flex items-start space-x-3 cursor-pointer"
+            onClick={handleToggleExpand}
+          >
             {/* Expand/Collapse Button */}
             {hasChildren && (
               <button
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleExpand();
+                }}
                 className={`${colors.icon} hover:opacity-70 transition-opacity mt-1`}
               >
                 <i className={`fas fa-chevron-${isExpanded ? 'down' : 'right'}`}></i>
@@ -174,6 +221,11 @@ const TopicNode: React.FC<TopicNodeProps> = ({
             <div className="flex-1">
               <h4 className={`${colors.text} font-semibold text-base mb-1`}>
                 {topic.title}
+                {hasSubtopics && (
+                  <span className="ml-2 text-xs font-normal text-gray-500">
+                    ({totalSubtopics} alt konu)
+                  </span>
+                )}
               </h4>
               {topic.description && (
                 <p className="text-sm text-gray-600 mb-2">
@@ -197,6 +249,30 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                     {topic.keywords.slice(0, 3).join(', ')}
                   </span>
                 )}
+                {hasSubtopics ? (
+                  <>
+                    <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                      {audioCount}/{totalSubtopics} Ses Oluşturuldu
+                    </span>
+                    <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                      {listenedCount}/{totalSubtopics} Dinlendi
+                    </span>
+                  </>
+                ) : hasAudio ? (
+                  <span
+                    className={`px-2 py-0.5 rounded-full ${
+                      isListened
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-blue-100 text-blue-700'
+                    }`}
+                  >
+                    {isListened ? 'Dinlendi' : 'Ses hazır'}
+                  </span>
+                ) : (
+                  <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                    Ses yok
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -204,12 +280,36 @@ const TopicNode: React.FC<TopicNodeProps> = ({
           {/* Sağ Taraf - Aksiyonlar */}
           <div className="flex flex-col space-y-2">
             <Button
-              onClick={handleCreateContent}
+              onClick={() => {
+                if (isTopicAudioLoading) return;
+                // Ses varsa popup aç
+                if (canPlayFromTree && onOpenAudioModal) {
+                  onOpenAudioModal(topic.id);
+                  return;
+                }
+                // Ses yoksa TTS başlat
+                handleCreateContent();
+              }}
               size="sm"
               className="text-sm"
+              disabled={isTopicAudioLoading}
             >
-              <i className="fas fa-volume-up mr-1"></i>
-              Ses Oluştur
+              {isTopicAudioLoading ? (
+                <>
+                  <i className="fas fa-circle-notch fa-spin mr-1"></i>
+                  Ses Oluşturuluyor...
+                </>
+              ) : canPlayFromTree ? (
+                <>
+                  <i className="fas fa-play mr-1"></i>
+                  Dinle
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-volume-up mr-1"></i>
+                  Ses Oluştur
+                </>
+              )}
             </Button>
 
             <div className="flex space-x-1">
@@ -221,7 +321,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 disabled={isGenerating}
               >
                 <i className="fas fa-robot mr-1"></i>
-                AI Öner
+                Alt Konu Öner
               </Button>
 
               <Button
@@ -235,13 +335,14 @@ const TopicNode: React.FC<TopicNodeProps> = ({
               </Button>
 
               <Button
-                onClick={handleDelete}
+                onClick={() => setShowDeleteConfirm(true)}
                 size="sm"
                 variant="outline"
-                className="text-xs text-red-600 hover:bg-red-50"
+                className="text-xs text-red-600 border-red-200 hover:bg-red-50"
                 disabled={isDeleting}
               >
-                <i className="fas fa-trash"></i>
+                <i className="fas fa-trash mr-1"></i>
+                Sil
               </Button>
             </div>
           </div>
@@ -259,6 +360,8 @@ const TopicNode: React.FC<TopicNodeProps> = ({
               onRefresh={onRefresh}
               onContentCreated={onContentCreated}
               level={level}
+              audioStateByTopic={audioStateByTopic}
+              onOpenAudioModal={onOpenAudioModal}
             />
           ))}
         </div>
@@ -279,6 +382,58 @@ const TopicNode: React.FC<TopicNodeProps> = ({
         onAdd={handleAddManualSubtopic}
         parentTitle={topic.title}
       />
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <i className="fas fa-exclamation-triangle mr-2 text-red-600"></i>
+                Konuyu silmek istiyor musun?
+              </h3>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="text-gray-400 hover:text-gray-600"
+                disabled={isDeleting}
+              >
+                <i className="fas fa-times text-xl"></i>
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-700 mb-4">
+              "{topic.title}" konusunu ve tüm alt konularını kalıcı olarak sileceksin. Bu işlem geri alınamaz.
+            </p>
+
+            <div className="flex space-x-3 mt-4">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+              >
+                Vazgeç
+              </Button>
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin mr-2"></i>
+                    Siliniyor...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-trash mr-2"></i>
+                    Evet, Sil
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

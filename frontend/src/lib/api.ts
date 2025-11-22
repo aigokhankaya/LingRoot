@@ -211,6 +211,7 @@ export interface ProcessInputData {
     voice?: string;
     chapter?: string;
     chapter_id?: string;
+    topic_id?: string;
     suppressPlanAlerts?: boolean;
 }
 
@@ -239,9 +240,57 @@ export interface ApiResponse<T = any> {
     level?: string;
 }
 
+// Document + section types for PDF/document workflow
+export interface DocumentRecord {
+  id: number;
+  user_id: string | null;
+  title: string;
+  original_filename?: string | null;
+  mime_type?: string | null;
+  page_count?: number | null;
+  language?: string | null;
+  created_at: string;
+}
+
+export interface DocumentSection {
+  id: number;
+  document_id: number;
+  section_index: number;
+  section_title: string;
+  section_text: string;
+  word_count: number;
+  created_at: string;
+}
+
+export interface DocumentUploadResponse {
+  success: boolean;
+  message?: string;
+  document: DocumentRecord;
+  sections: DocumentSection[];
+}
+
+// Fetch all documents for the authenticated user
+export const getUserDocuments = async (): Promise<ApiResponse<DocumentRecord[]>> => {
+  const url = getApiUrl('/documents');
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  return handleApiResponse<DocumentRecord[]>(response);
+};
+
+// Fetch all sections for a specific document
+export const getDocumentSections = async (
+  documentId: number
+): Promise<ApiResponse<DocumentSection[]>> => {
+  const url = getApiUrl(`/documents/${encodeURIComponent(String(documentId))}/sections`);
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  return handleApiResponse<DocumentSection[]>(response);
+};
+
 // YouTube transcript servisini çağırmak için fonksiyon
 export const fetchYoutubeTranscript = async (youtubeUrl: string, languageCode: string = 'en'): Promise<string | null> => {
   try {
+    // ... (rest of the code remains the same)
     console.log(`YouTube transkript çekme işlemi başlatılıyor: ${youtubeUrl} (${languageCode})`);
     
     // Doğrudan transkript servisine istek gönder
@@ -351,7 +400,7 @@ async function handleApiResponse<T>(response: Response): Promise<ApiResponse<T>>
 }
 
 export const processTts = async (data: ProcessInputData): Promise<TtsResponseData> => {
-    const { type, input, file, level, SesHızı, voice, chapter_id, suppressPlanAlerts } = data;
+    const { type, input, file, level, SesHızı, voice, chapter_id, topic_id, suppressPlanAlerts } = data;
     const url = `${getApiUrl("tts/process")}`;
     let headers: Record<string, string>;
     let body: string | FormData;
@@ -359,6 +408,9 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
     if (type === "text") {
         headers = createHeaders("application/json");
         const payload = { input, type, level, SesHızı, voice, chapter_id } as any;
+        if (topic_id) {
+            (payload as any).topic_id = topic_id;
+        }
         console.log('🧭 [TTS PAYLOAD DEBUG] Prepared JSON payload:', payload);
         body = JSON.stringify(payload);
     } else {
@@ -369,6 +421,7 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
         if (SesHızı !== undefined) formData.append("SesHızı", SesHızı.toString());
         if (voice) formData.append("voice", voice);
         if (chapter_id) formData.append("chapter_id", chapter_id);
+        if (topic_id) formData.append("topic_id", topic_id);
 
         if (input && type !== "file") {
             formData.append("input", input);
@@ -482,7 +535,8 @@ export const submitContent = async (
     level: string,
     mp3Url: string,
     translatedText?: string,
-    adaptedText?: string
+    adaptedText?: string,
+    chapterId?: string | number
 ): Promise<ApiResponse> => {
     const url = getApiUrl('/content/submit');
     const headers = createHeaders("application/json");
@@ -494,6 +548,7 @@ export const submitContent = async (
         mp3_url: mp3Url,
         translated_text: translatedText || '',
         adapted_text: adaptedText || '',
+        chapter_id: chapterId ?? null,
     });
 
     try {
@@ -506,7 +561,8 @@ export const submitContent = async (
             level: level || 'EMPTY',
             mp3Url: mp3Url || 'EMPTY',
             translatedText: translatedText || 'EMPTY',
-            adaptedText: adaptedText || 'EMPTY'
+            adaptedText: adaptedText || 'EMPTY',
+            chapterId: chapterId ?? null,
         });
         
         const response = await fetch(url, {
@@ -595,6 +651,174 @@ export const getContentHistory = async (): Promise<ApiResponse> => {
     console.error("İçerik geçmişi alınırken hata oluştu:", error);
     throw error;
   }
+};
+
+// Book-based audio history item (linked to book chapters)
+export interface BookHistoryItem {
+  id: string;
+  book_id: number | null;
+  book_title: string;
+  book_authors: string;
+  cover_url?: string | null;
+  subjects?: string | null;
+  chapter_id: number | null;
+  chapter_index: number | null;
+  chapter_title: string;
+  level: string;
+  mp3_url: string;
+  created_at: string;
+  duration: number;
+  input: string;
+  input_type: string;
+  words?: any[];
+  timepoints?: any[];
+}
+
+// Fetch authenticated user's book-based audio history (paginated)
+export const getUserBookHistory = async (
+  userId: string,
+  page: number = 1,
+  limit: number = 20
+): Promise<ApiResponse<BookHistoryItem[]>> => {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  const url = getApiUrl(`/users/${encodeURIComponent(userId)}/book-history?${params.toString()}`);
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  return handleApiResponse<BookHistoryItem[]>(response);
+};
+
+// Favorite books - metadata from books table
+export interface FavoriteBookItem {
+  id: number;
+  title: string;
+  authors: string;
+  cover_url?: string | null;
+  subjects?: string | null;
+  text_url?: string | null;
+}
+
+// Get only favorite book IDs for authenticated user
+export const getUserBookFavorites = async (): Promise<ApiResponse<number[]>> => {
+  const url = getApiUrl('/user-book-favorites');
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  return handleApiResponse<number[]>(response);
+};
+
+// Get full favorite book details for authenticated user
+export const getUserBookFavoritesDetails = async (): Promise<ApiResponse<FavoriteBookItem[]>> => {
+  const url = getApiUrl('/user-book-favorites/details');
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  return handleApiResponse<FavoriteBookItem[]>(response);
+};
+
+// Hashtag / hobi haber maddesi tipi
+export interface HashtagNewsItem {
+  id: string;
+  title: string;
+  summary: string;
+  url: string;
+  source: string;
+  sourceName?: string;
+  author?: string;
+  publishedAt?: string;
+  language?: string;
+  type?: string;
+}
+
+// Belirli bir hashtag / konu için en güncel haberleri getir
+export const getHashtagNews = async (
+  query: string,
+  limit: number,
+  language: string = 'en'
+): Promise<ApiResponse<HashtagNewsItem[]>> => {
+  const url = getApiUrl('/content/process-hashtag');
+  const headers = createHeaders('application/json');
+
+  const body = JSON.stringify({
+    query,
+    limit,
+    language,
+  });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body,
+  });
+
+  return handleApiResponse<HashtagNewsItem[]>(response);
+};
+
+// Haber URL'sinden tam metni getir
+export const fetchArticleDetails = async (
+  url: string
+): Promise<ApiResponse<{ url: string; text: string; length: number }>> => {
+  const apiUrl = getApiUrl('/content/article-details');
+  const headers = createHeaders('application/json');
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({ url }),
+  });
+
+  return handleApiResponse<{ url: string; text: string; length: number }>(response);
+};
+
+// Create a document + sections from already extracted text (e.g. uploaded PDF)
+export const createDocumentFromText = async (
+  title: string,
+  text: string
+): Promise<DocumentUploadResponse> => {
+  const url = getApiUrl('/documents/from-text');
+  const headers = createHeaders('application/json');
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({ title, text }),
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Request failed with status ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData && errorData.message) {
+        errorMessage = errorData.message;
+      }
+    } catch {
+      try {
+        const textBody = await response.text();
+        if (textBody) {
+          errorMessage = `${errorMessage}: ${textBody}`;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    throw new Error(errorMessage);
+  }
+
+  const json = await response.json();
+  return json as DocumentUploadResponse;
+};
+
+// Save favorite book IDs for authenticated user
+export const saveUserBookFavorites = async (ids: Array<number | string>): Promise<ApiResponse<number[]>> => {
+  const url = getApiUrl('/user-book-favorites');
+  const headers = createHeaders('application/json');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({ ids }),
+  });
+  return handleApiResponse<number[]>(response);
 };
 
 // User settings
@@ -1608,6 +1832,7 @@ export interface Topic {
   created_at: string;
   updated_at: string;
   children?: Topic[];
+  latest_content?: TopicContent | null;
 }
 
 export interface TopicContent {
@@ -1625,6 +1850,7 @@ export interface TopicContent {
   words: string[];
   timepoints: any;
   created_at: string;
+  listened_at: string | null;
 }
 
 /**
@@ -1654,6 +1880,7 @@ export const generateSubtopics = async (
   data: {
     count?: number;
     language?: string;
+    angle?: string;
   }
 ): Promise<ApiResponse<{ subtopics: Topic[] }>> => {
   const url = getApiUrl(`topic-hierarchy/topics/${topicId}/subtopics`);
@@ -1759,3 +1986,17 @@ export const createContentFromTopic = async (
   return await handleApiResponse(response);
 };
 
+/**
+ * Konu sesini dinlenmiş olarak işaretle
+ */
+export const markTopicAudioListened = async (mp3Url: string): Promise<ApiResponse> => {
+  const url = getApiUrl('topic-hierarchy/topics/mark-listened');
+  const headers = createHeaders('application/json');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({ mp3_url: mp3Url })
+  });
+  return await handleApiResponse(response);
+};

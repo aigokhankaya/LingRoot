@@ -9,6 +9,7 @@ const { Readability } = require("@mozilla/readability");
 const pdf = require("pdf-parse");
 const mammoth = require("mammoth");
 const fetch = require('node-fetch');
+const { JSDOM } = require('jsdom');
 const { fetchYoutubeTranscript } = require('./youtubeTranscriptService');
 
 // Initialize OpenAI client (similar to cefrAdapter, consider refactoring to a shared client)
@@ -96,32 +97,89 @@ async function translateToEnglishWithOpenAI(text, level = 'A1', requestLogger) {
  * @param {string} url The URL of the web page.
  * @returns {Promise<string|null>} The extracted article text or null on error.
  */
-async function extractFromWebLink(url) {
+async function extractFromWebLinkInternal(url, depth = 0) {
     try {
+        if (depth > 2) {
+            logger.warn(`extractFromWebLinkInternal max depth reached for URL: ${url}`);
+            return null;
+        }
+
         logger.info(`Fetching content from URL: ${url}`);
         const response = await fetch(url);
         if (!response.ok) {
             logger.error(`Failed to fetch URL ${url}. Status: ${response.status}`);
             return null;
         }
+
+        const finalUrl = response.url || url;
         const html = await response.text();
-        const doc = new JSDOM(html, { url });
+        const doc = new JSDOM(html, { url: finalUrl });
         const reader = new Readability(doc.window.document);
         const article = reader.parse();
 
+        let text = '';
         if (article && article.textContent) {
-            logger.info(`Successfully extracted article from ${url}`);
-            return article.textContent; // Return plain text content
+            text = article.textContent;
         } else {
-            logger.warn(`Readability could not extract main content from ${url}. Falling back to body text.`);
-            // Fallback: attempt to get text from body, might be less clean
-            const bodyText = doc.window.document.body.textContent;
-            return bodyText || null;
+            logger.warn(`Readability could not extract main content from ${finalUrl}. Falling back to body text.`);
+            const bodyText = doc.window.document.body && doc.window.document.body.textContent;
+            text = bodyText || '';
         }
+
+        let trimmed = (text || '').trim();
+        if (trimmed.length >= 200) {
+            logger.info(`Successfully extracted article text from ${finalUrl} (len=${trimmed.length})`);
+            return trimmed;
+        }
+
+        let hostname = '';
+        try {
+            hostname = new URL(finalUrl).hostname.toLowerCase();
+        } catch {
+            hostname = '';
+        }
+
+        if (hostname.includes('news.google.com')) {
+            const metaRefresh = doc.window.document.querySelector('meta[http-equiv="refresh"]');
+            if (metaRefresh) {
+                const content = metaRefresh.getAttribute('content') || '';
+                const match = content.match(/url=(.+)$/i);
+                if (match && match[1]) {
+                    let redirectUrl = match[1].trim();
+                    if (redirectUrl.startsWith('/')) {
+                        redirectUrl = new URL(redirectUrl, finalUrl).href;
+                    }
+                    logger.info(`extractFromWebLinkInternal following Google News meta redirect to ${redirectUrl}`);
+                    return extractFromWebLinkInternal(redirectUrl, depth + 1);
+                }
+            }
+
+            const anchor = doc.window.document.querySelector('a[href^="http"]');
+            if (anchor) {
+                let href = anchor.getAttribute('href') || '';
+                if (href && !href.includes('news.google.com')) {
+                    if (href.startsWith('/')) {
+                        href = new URL(href, finalUrl).href;
+                    }
+                    logger.info(`extractFromWebLinkInternal following Google News anchor redirect to ${href}`);
+                    return extractFromWebLinkInternal(href, depth + 1);
+                }
+            }
+        }
+
+        if (trimmed.length > 0) {
+            return trimmed;
+        }
+
+        return null;
     } catch (error) {
         logger.error(`Error processing web link ${url}: ${error.message}`);
         return null;
     }
+}
+
+async function extractFromWebLink(url) {
+    return extractFromWebLinkInternal(url, 0);
 }
 
 /**
@@ -361,7 +419,12 @@ async function rewriteTranscriptClean(text, requestLogger) {
         ],
         temperature: 0.2,
     });
-    let cleaned = completion.choices[0]?.message?.content?.trim();
+    const cleaned = completion.choices[0]?.message?.content?.trim();
+    if (!cleaned) {
+        logger.error('rewriteTranscriptClean: OpenAI response did not contain cleaned transcript.');
+        return null;
+    }
+    logger.info('rewriteTranscriptClean: Successfully cleaned transcript.');
     return cleaned;
 }
 
@@ -369,5 +432,6 @@ module.exports = {
     extractTextFromInput,
     generateNarrationForTopic,
     translateToEnglishWithOpenAI,
+    extractFromWebLink,
+    rewriteTranscriptClean,
 };
-

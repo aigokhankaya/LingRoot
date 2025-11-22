@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import NewSyncedTextPlayer from './NewSyncedTextPlayer';
+import { markTopicAudioListened } from '../lib/api';
 
 interface TtsResponseData {
   success?: boolean;
@@ -184,6 +185,14 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
           stats={{
             wordsCount: audioResult.words?.length,
             timepointsCount: audioResult.timepoints?.length
+          }}
+          onPlay={async () => {
+            if (!audioResult.mp3_url) return;
+            try {
+              await markTopicAudioListened(audioResult.mp3_url);
+            } catch (e) {
+              console.error('markTopicAudioListened error:', e);
+            }
           }}
         />
       </div>

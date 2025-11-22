@@ -5,6 +5,8 @@ const logger = require("../utils/logger"); // Import logger
 const { logStep } = require('../utils/stepLogger');
 const { v4: uuidv4 } = require('uuid');
 const { processTextPipeline } = require('../utils/pipeline');
+const { getNewsForTopic } = require('../utils/newsService');
+const { extractFromWebLink } = require('../utils/inputExtractor');
 
 // Supabase yapılandırması
 const supabaseBucket = process.env.SUPABASE_BUCKET || "lingroot-audio";
@@ -48,6 +50,48 @@ exports.processLink = async (req, res) => {
   const result = await processTextPipeline({ inputData: input, inputType: 'weblink', level });
   if (result.error) return res.status(400).json({ success: false, error: result.error });
   res.json({ success: true, data: result.cleanedText });
+};
+
+/**
+ * Haber URL'sinden tam metni çıkarıp döndüren yardımcı endpoint.
+ */
+exports.fetchArticleDetails = async (req, res) => {
+	const requestId = uuidv4();
+	try {
+		const { url } = req.body || {};
+		if (!url || typeof url !== 'string' || !url.trim()) {
+			return res.status(400).json({
+				success: false,
+				message: 'Lütfen geçerli bir haber bağlantısı (url) gönderin.',
+			});
+		}
+
+		logger.info(`[${requestId}] fetchArticleDetails called`, { url });
+		const text = await extractFromWebLink(url);
+		if (!text || !text.trim()) {
+			return res.status(502).json({
+				success: false,
+				message: 'Haber metni kaynaktan çıkarılamadı.',
+			});
+		}
+
+		const trimmed = text.length > 20000 ? text.slice(0, 20000) : text;
+		return res.status(200).json({
+			success: true,
+			data: {
+				url,
+				text: trimmed,
+				length: trimmed.length,
+			},
+		});
+	} catch (error) {
+		logger.error(`[${requestId}] Error in fetchArticleDetails`, { error: error.message });
+		return res.status(500).json({
+			success: false,
+			message: 'Haber detayı alınırken bir hata oluştu.',
+			error: error.message,
+		});
+	}
 };
 
 /**
@@ -107,10 +151,61 @@ exports.processSuggestions = async (req, res) => {
 };
 
 /**
- * Kullanıcının takip ettiği hashtag'lere göre öneriler sunan fonksiyon. Henüz uygulanmadı.
+ * Kullanıcının takip ettiği hashtag'lere veya hobi/konu başlığına göre
+ * en güncel haberleri getiren fonksiyon.
+ *
+ * Body parametreleri:
+ * - query / hashtag / topic: Aranacak konu veya #hashtag
+ * - limit: Maksimum haber sayısı (1-50 arası, varsayılan 10)
  */
 exports.processHashtag = async (req, res) => {
-  return res.status(501).json({ success: false, error: 'Hashtag öneri özelliği henüz uygulanmadı.' });
+  const requestId = uuidv4();
+  try {
+    const { query, hashtag, topic, limit, language } = req.body || {};
+
+    const rawQuery = (query || hashtag || topic || '').toString().trim();
+
+    if (!rawQuery) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lütfen bir hashtag veya konu girin.',
+      });
+    }
+
+    const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 50);
+
+    logger.info(`[${requestId}] processHashtag called`, {
+      query: rawQuery,
+      limit: safeLimit,
+      language: language || 'en',
+    });
+
+    const items = await getNewsForTopic({
+      query: rawQuery,
+      limit: safeLimit,
+      language: language || 'en',
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        query: rawQuery,
+        limit: safeLimit,
+        language: language || 'en',
+        count: items.length,
+        results: items,
+      },
+    });
+  } catch (error) {
+    logger.error(`[${requestId}] Error in processHashtag`, {
+      error: error.message,
+    });
+    return res.status(500).json({
+      success: false,
+      message: 'Hashtag/hobi haberleri getirilirken bir hata oluştu.',
+      error: error.message,
+    });
+  }
 };
 
 /**
@@ -299,7 +394,7 @@ exports.submitContent = async (req, res) => {
   let stepSequence = 1;
 
   try {
-    const { input, input_type, level, mp3_url, translated_text, adapted_text } = req.body;
+    const { input, input_type, level, mp3_url, translated_text, adapted_text, chapter_id } = req.body;
     const user_id = req.user?.id;
     logger.info(`submitContent request received for user ID: ${user_id || 'anon'}`, { 
       input_type, 
@@ -309,7 +404,8 @@ exports.submitContent = async (req, res) => {
       hasInput: !!input,
       hasInputType: !!input_type,
       hasLevel: !!level,
-      hasMp3Url: !!mp3_url
+      hasMp3Url: !!mp3_url,
+      chapter_id: chapter_id || null
     });
 
     // Gerekli alanları kontrol et
@@ -360,12 +456,24 @@ exports.submitContent = async (req, res) => {
       validUserId = null;
     }
     
+    // chapter_id değerini güvenli şekilde parse et
+    let chapterIdValue = null;
+    if (chapter_id !== undefined && chapter_id !== null && String(chapter_id).trim() !== '') {
+      const parsed = parseInt(String(chapter_id), 10);
+      if (!Number.isNaN(parsed)) {
+        chapterIdValue = parsed;
+      } else {
+        logger.warn(`submitContent received invalid chapter_id: ${chapter_id}`);
+      }
+    }
+
     // Debug: Kaydedilecek verileri logla
     console.log('🔍 [SUBMIT CONTENT DEBUG]', {
       input: input ? input.substring(0, 50) + '...' : 'EMPTY',
       translated_text: translated_text ? translated_text.substring(0, 50) + '...' : 'EMPTY',
       adapted_text: adapted_text ? adapted_text.substring(0, 50) + '...' : 'EMPTY',
-      user_id: validUserId
+      user_id: validUserId,
+      chapter_id: chapterIdValue
     });
 
     // Supabase veritabanına kaydet (duplicate mp3_url için upsert mantığı)
@@ -401,6 +509,7 @@ exports.submitContent = async (req, res) => {
           level,
           translated_text: translated_text || '',
           adapted_text: adapted_text || '',
+          chapter_id: chapterIdValue,
           updated_at: now,
         })
         .eq('id', existingId)
@@ -418,6 +527,7 @@ exports.submitContent = async (req, res) => {
             translated_text: translated_text || '',
             adapted_text: adapted_text || '',
             user_id: validUserId,
+            chapter_id: chapterIdValue,
             created_at: now,
             updated_at: now,
           },

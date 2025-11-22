@@ -194,7 +194,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           localStorage.setItem('lingroot_remember_me', rememberMe.toString());
           console.log('[AUTH] Token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
         }
-        try { localStorage.setItem('justLoggedIn', String(Date.now())); } catch {}
+        // Giriş istatistiklerini güncelle
+        try {
+          const now = Date.now();
+          localStorage.setItem('justLoggedIn', String(now));
+          const prevStr = localStorage.getItem('lingroot_loginCount') || '0';
+          const prev = parseInt(prevStr, 10);
+          const next = Number.isFinite(prev) ? prev + 1 : 1;
+          localStorage.setItem('lingroot_loginCount', String(next));
+          localStorage.setItem('lingroot_lastLogin', String(now));
+        } catch {}
         console.log('[AUTH] setUser & setIsAuthenticated', user);
         return { success: true };
       } else {
@@ -325,7 +334,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           localStorage.setItem('lingroot_remember_me', rememberMe.toString());
           console.log('[AUTH] Google token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
         }
-        
+        // Giriş istatistiklerini güncelle
+        try {
+          const now = Date.now();
+          localStorage.setItem('justLoggedIn', String(now));
+          const prevStr = localStorage.getItem('lingroot_loginCount') || '0';
+          const prev = parseInt(prevStr, 10);
+          const next = Number.isFinite(prev) ? prev + 1 : 1;
+          localStorage.setItem('lingroot_loginCount', String(next));
+          localStorage.setItem('lingroot_lastLogin', String(now));
+        } catch {}
+
         return { success: true };
       } else {
         setUser(null);

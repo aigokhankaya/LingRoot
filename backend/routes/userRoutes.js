@@ -5,6 +5,7 @@ const { supabase } = require('../utils/supabaseClient');
 const logger = require('../utils/logger');
 
 const router = express.Router();
+
 // User settings: get default voice
 router.get('/user-settings', authenticate, async (req, res) => {
   try {
@@ -22,6 +23,161 @@ router.get('/user-settings', authenticate, async (req, res) => {
     return res.json({ success: true, data: data || { default_voice: null, settings: {} } });
   } catch (e) {
     logger.error('Unexpected error fetching user settings:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Book favorites stored inside user_settings.settings JSON as settings.favorite_books: number[] | string[]
+router.get('/user-book-favorites', authenticate, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('settings')
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (error && error.details !== 'The result contains 0 rows') {
+      logger.error('Error fetching user book favorites:', error);
+      return res.status(500).json({ success: false, message: 'Error fetching book favorites' });
+    }
+
+    let favoriteBookIds = [];
+    try {
+      const settings = data?.settings && typeof data.settings === 'string'
+        ? JSON.parse(data.settings)
+        : (data?.settings || {});
+      if (settings && Array.isArray(settings.favorite_books)) {
+        favoriteBookIds = settings.favorite_books
+          .map(id => {
+            const n = Number(id);
+            return Number.isFinite(n) && n > 0 ? n : null;
+          })
+          .filter(Boolean);
+      }
+    } catch (e) {
+      logger.warn('Failed to parse settings when reading book favorites:', e);
+    }
+
+    return res.json({ success: true, data: favoriteBookIds });
+  } catch (e) {
+    logger.error('Unexpected error fetching book favorites:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Return full details for the user's favorite books
+// Response: { success: true, data: Book[], total: number, missing_ids: number[] }
+router.get('/user-book-favorites/details', authenticate, async (req, res) => {
+  try {
+    const { data: settingsRow, error: settingsErr } = await supabase
+      .from('user_settings')
+      .select('settings')
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (settingsErr && settingsErr.details !== 'The result contains 0 rows') {
+      logger.error('Error fetching user book favorites (details):', settingsErr);
+      return res.status(500).json({ success: false, message: 'Error fetching book favorites' });
+    }
+
+    let favoriteIds = [];
+    try {
+      const settingsVal = settingsRow?.settings && typeof settingsRow.settings === 'string'
+        ? JSON.parse(settingsRow.settings)
+        : (settingsRow?.settings || {});
+      if (settingsVal && Array.isArray(settingsVal.favorite_books)) {
+        favoriteIds = settingsVal.favorite_books
+          .map(id => {
+            const n = Number(id);
+            return Number.isFinite(n) && n > 0 ? n : null;
+          })
+          .filter(Boolean);
+      }
+    } catch (e) {
+      logger.warn('Failed to parse settings when reading book favorites (details):', e);
+    }
+
+    if (!Array.isArray(favoriteIds) || favoriteIds.length === 0) {
+      return res.json({ success: true, data: [], total: 0, missing_ids: [] });
+    }
+
+    const { data: books, error: fetchErr } = await supabase
+      .from('books')
+      .select('id, title, authors, cover_url, subjects, text_url')
+      .in('id', favoriteIds);
+
+    if (fetchErr) {
+      logger.error('Error fetching favorite book details from books table:', fetchErr);
+      return res.status(500).json({ success: false, message: 'Error fetching favorite books' });
+    }
+
+    const rows = books || [];
+    const byId = new Map(rows.map(b => [Number(b.id), b]));
+    const ordered = favoriteIds
+      .map(id => byId.get(Number(id)))
+      .filter(Boolean);
+
+    const foundIds = new Set(rows.map(r => Number(r.id)));
+    const missingIds = favoriteIds.filter(id => !foundIds.has(Number(id)));
+
+    return res.json({ success: true, data: ordered, total: ordered.length, missing_ids: missingIds });
+  } catch (e) {
+    logger.error('Unexpected error in book favorites details endpoint:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Save favorite books list for the authenticated user
+router.post('/user-book-favorites', authenticate, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids)) {
+      return res.status(400).json({ success: false, message: 'Geçersiz favorite_books listesi' });
+    }
+
+    // Read current settings
+    const { data: existing, error: readError } = await supabase
+      .from('user_settings')
+      .select('settings')
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (readError && readError.details !== 'The result contains 0 rows') {
+      logger.error('Error reading settings for book favorites:', readError);
+      return res.status(500).json({ success: false, message: 'Book favorites could not be saved' });
+    }
+
+    let settingsObj = {};
+    try {
+      settingsObj = existing?.settings && typeof existing.settings === 'string'
+        ? JSON.parse(existing.settings)
+        : (existing?.settings || {});
+    } catch {}
+
+    const sanitizedIds = ids
+      .map(id => {
+        const n = Number(id);
+        return Number.isFinite(n) && n > 0 ? n : null;
+      })
+      .filter((n, index, arr) => n !== null && arr.indexOf(n) === index);
+
+    const newSettings = { ...(settingsObj || {}), favorite_books: sanitizedIds };
+
+    const { error: upsertError, data: upsertData } = await supabase
+      .from('user_settings')
+      .upsert({ user_id: req.user.id, settings: newSettings }, { onConflict: 'user_id' })
+      .select('settings')
+      .single();
+
+    if (upsertError) {
+      logger.error('Error saving book favorites:', upsertError);
+      return res.status(500).json({ success: false, message: 'Book favorites could not be saved' });
+    }
+
+    const saved = upsertData?.settings?.favorite_books || sanitizedIds;
+    return res.json({ success: true, data: saved });
+  } catch (e) {
+    logger.error('Unexpected error saving book favorites:', e);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -386,6 +542,215 @@ router.get('/users/:userId/audio-history', authenticate, async (req, res) => {
   } catch (error) {
     logger.error('Error in getUserAudioHistory:', error);
     res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// Get user's book-based audio history (only items linked to book chapters)
+router.get('/users/:userId/book-history', authenticate, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Authorization check - user can only access their own data
+    if (req.user.id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only access your own book audio history.'
+      });
+    }
+
+    const page = parseInt(req.query.page, 10) > 0 ? parseInt(req.query.page, 10) : 1;
+    const limit = parseInt(req.query.limit, 10) > 0 ? parseInt(req.query.limit, 10) : 10;
+    const rangeFrom = (page - 1) * limit;
+    const rangeTo = rangeFrom + limit - 1;
+
+    logger.info(`Fetching book audio history for user: ${userId} (page=${page}, limit=${limit})`);
+
+    // Fetch contenthistory rows that have chapter_id and mp3_url
+    const { data: rows, error } = await supabase
+      .from('contenthistory')
+      .select(`
+        id,
+        input,
+        input_type,
+        level,
+        mp3_url,
+        created_at,
+        words,
+        timepoints,
+        chapter_id,
+        book_chapters!inner(
+          id,
+          book_id,
+          chapter_index,
+          chapter_title
+        )
+      `)
+      .eq('user_id', userId)
+      .not('mp3_url', 'is', null)
+      .not('chapter_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .range(rangeFrom, rangeTo);
+
+    if (error) {
+      logger.error('Error fetching book audio history:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error fetching book audio history'
+      });
+    }
+
+    // Fetch related book metadata in a separate query (no FK required between book_chapters and books)
+    let booksById = new Map();
+    try {
+      const chapterRows = rows || [];
+      const bookIds = Array.from(
+        new Set(
+          chapterRows
+            .map(item => {
+              let chapter = item.book_chapters;
+              if (Array.isArray(chapter)) chapter = chapter[0] || null;
+              return chapter?.book_id || null;
+            })
+            .filter(Boolean)
+        )
+      );
+
+      if (bookIds.length > 0) {
+        const { data: books, error: booksError } = await supabase
+          .from('books')
+          .select('id, title, authors, cover_url, subjects')
+          .in('id', bookIds);
+
+        if (booksError) {
+          logger.warn('Error fetching books for book-history (continuing without book metadata):', booksError);
+        } else if (Array.isArray(books)) {
+          booksById = new Map(books.map(b => [b.id, b]));
+        }
+      }
+    } catch (e) {
+      logger.warn('Book metadata fetch failed in book-history:', e);
+    }
+
+    // Also get total count of user's book-based audio items (without limit)
+    const { count: totalCount, error: countError } = await supabase
+      .from('contenthistory')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .not('mp3_url', 'is', null)
+      .not('chapter_id', 'is', null);
+
+    if (countError) {
+      logger.warn('Count query error in book-history:', countError);
+    }
+
+    // Total duration across ALL book-based records (seconds)
+    let totalDurationSeconds = 0;
+    try {
+      const { data: allForDuration, error: durError } = await supabase
+        .from('contenthistory')
+        .select('id, timepoints, chapter_id')
+        .eq('user_id', userId)
+        .not('mp3_url', 'is', null)
+        .not('chapter_id', 'is', null);
+
+      if (!durError && Array.isArray(allForDuration)) {
+        totalDurationSeconds = allForDuration.reduce((sum, row) => {
+          try {
+            const tps = typeof row.timepoints === 'string' ? JSON.parse(row.timepoints) : (row.timepoints || []);
+            const maxEnd = Array.isArray(tps) && tps.length > 0
+              ? Math.max(...tps.map(tp => (typeof tp?.endTimeSeconds === 'number' ? tp.endTimeSeconds : (typeof tp?.timeSeconds === 'number' ? tp.timeSeconds : 0))))
+              : 0;
+            return sum + (isFinite(maxEnd) && maxEnd > 0 ? Math.round(maxEnd) : 0);
+          } catch {
+            return sum;
+          }
+        }, 0);
+      }
+    } catch (e) {
+      logger.warn('Total duration aggregation failed in book-history:', e);
+    }
+
+    // Transform data for client (flatten joined book & chapter)
+    const history = (rows || []).map(item => {
+      let words = [];
+      let timepoints = [];
+
+      try {
+        if (item.words && typeof item.words === 'string') {
+          words = JSON.parse(item.words);
+        } else if (Array.isArray(item.words)) {
+          words = item.words;
+        }
+        if (item.timepoints && typeof item.timepoints === 'string') {
+          timepoints = JSON.parse(item.timepoints);
+        } else if (Array.isArray(item.timepoints)) {
+          timepoints = item.timepoints;
+        }
+      } catch (parseError) {
+        logger.warn(`Error parsing words/timepoints for book-history item ${item.id}:`, parseError);
+      }
+
+      // Derive duration from timepoints if available
+      let derivedDurationSec = 180; // fallback
+      try {
+        if (Array.isArray(timepoints) && timepoints.length > 0) {
+          const maxEnd = Math.max(
+            ...timepoints.map(tp => {
+              const end = typeof tp?.endTimeSeconds === 'number' ? tp.endTimeSeconds : undefined;
+              const mid = typeof tp?.timeSeconds === 'number' ? tp.timeSeconds : undefined;
+              return end ?? mid ?? 0;
+            })
+          );
+          if (isFinite(maxEnd) && maxEnd > 0) {
+            derivedDurationSec = Math.round(maxEnd);
+          }
+        }
+      } catch (e) {
+        logger.warn(`Duration derivation failed for book-history item ${item.id}:`, e);
+      }
+
+      // Flatten joined chapter & book info
+      let chapter = item.book_chapters;
+      if (Array.isArray(chapter)) {
+        chapter = chapter[0] || null;
+      }
+      const bookMeta = chapter && chapter.book_id ? booksById.get(chapter.book_id) : null;
+
+      return {
+        id: item.id,
+        book_id: (bookMeta && bookMeta.id) || chapter?.book_id || null,
+        book_title: (bookMeta && bookMeta.title) || '',
+        book_authors: (bookMeta && bookMeta.authors) || '',
+        cover_url: (bookMeta && bookMeta.cover_url) || null,
+        subjects: (bookMeta && bookMeta.subjects) || null,
+        chapter_id: item.chapter_id || chapter?.id || null,
+        chapter_index: chapter?.chapter_index ?? null,
+        chapter_title: chapter?.chapter_title || '',
+        level: item.level || 'A1',
+        mp3_url: item.mp3_url,
+        created_at: item.created_at,
+        duration: derivedDurationSec,
+        input: item.input || '',
+        input_type: item.input_type,
+        words,
+        timepoints,
+      };
+    });
+
+    logger.info(`Found ${history.length} book audio files (paged) for user: ${userId}, totalCount: ${totalCount ?? 'unknown'}, page=${page}, limit=${limit}`);
+
+    return res.json({
+      success: true,
+      data: history,
+      total_count: typeof totalCount === 'number' ? totalCount : history.length,
+      total_duration_seconds: totalDurationSeconds,
+    });
+  } catch (error) {
+    logger.error('Error in getUserBookHistory:', error);
+    return res.status(500).json({
       success: false,
       message: 'Server error'
     });

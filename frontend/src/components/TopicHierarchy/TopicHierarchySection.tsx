@@ -1,7 +1,17 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Topic, getTopicTree, createMainTopic } from '../../lib/api';
+import React, { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
+import {
+  Topic,
+  getTopicTree,
+  createMainTopic,
+  processTts,
+  getUsageSummary,
+  ProcessInputData,
+  TtsResponseData
+} from '../../lib/api';
+import OutputSection from '../OutputSection';
 import TopicInput from './TopicInput';
 import TopicTree from './TopicTree';
 
@@ -20,6 +30,9 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [topicAudioLoadingId, setTopicAudioLoadingId] = useState<string | null>(null);
+  const [topicAudioResults, setTopicAudioResults] = useState<Record<string, TtsResponseData>>({});
+  const [modalTopicId, setModalTopicId] = useState<string | null>(null);
 
   // Konu ağacını yükle
   const loadTopicTree = async () => {
@@ -38,6 +51,140 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Konu ağacındaki bir topic için ses oluşturma akışı
+  const handleTopicContentCreated = async (data: any) => {
+    try {
+      if (!data || !data.suggestedInput || !data.topic) return;
+
+      const topicId = data.topic.id as string;
+      const suggestedInput: string = data.suggestedInput;
+
+      setTopicAudioLoadingId(topicId);
+
+      // Kullanım/abonelik kontrolü
+      try {
+        const usageSummary = await getUsageSummary();
+        if (usageSummary?.success && usageSummary.data && usageSummary.data.hasPlan === false) {
+          setError('Aktif paketiniz yok');
+          return;
+        }
+        if (usageSummary?.success && usageSummary.data?.isExceeded) {
+          setError('Paket kullanım sınırınız aşıldı');
+          return;
+        }
+      } catch (e: any) {
+        console.error('❌ Paket doğrulama hatası (topic audio):', e);
+        setError('Paket doğrulaması yapılamadı');
+        return;
+      }
+
+      const processInput: ProcessInputData = {
+        type: 'subject',
+        input: suggestedInput,
+        level: level.toUpperCase(),
+      };
+
+      const result = await processTts({
+        ...processInput,
+        topic_id: topicId,
+        suppressPlanAlerts: true
+      });
+
+      if (result && result.mp3_url) {
+        const audioResult: TtsResponseData = {
+          success: true,
+          message: result.message || 'Ses oluşturuldu',
+          mp3_url: result.mp3_url,
+          vtt_url: result.vtt_url,
+          level: result.level || level.toUpperCase(),
+          timepoints: result.timepoints || [],
+          words: result.words || [],
+          translated_text: (result as any).translated_text || (result as any).translatedText,
+          adapted_text: (result as any).adapted_text || (result as any).adaptedText,
+          translatedText: (result as any).translatedText,
+          adaptedText: (result as any).adaptedText,
+        };
+
+        setTopicAudioResults(prev => ({
+          ...prev,
+          [topicId]: audioResult,
+        }));
+
+        // Konu ağacını yenile ki rozetler güncellensin
+        await loadTopicTree();
+
+        // İsteğe bağlı olarak dışarıya haber verilebilir; şimdilik sadece lokal akış
+      } else {
+        setError((result as any)?.message || 'Ses oluşturma başarısız oldu');
+      }
+    } catch (err: any) {
+      console.error('❌ Konu için ses oluşturma hatası:', err);
+      setError(err.message || 'Ses oluşturulurken hata oluştu');
+    } finally {
+      setTopicAudioLoadingId(null);
+    }
+  };
+
+  const audioStateByTopic = useMemo(() => {
+    const map: Record<string, { isLoading?: boolean; hasAudio?: boolean }> = {};
+
+    if (topicAudioLoadingId) {
+      map[topicAudioLoadingId] = { ...(map[topicAudioLoadingId] || {}), isLoading: true };
+    }
+
+    Object.keys(topicAudioResults).forEach((id) => {
+      map[id] = { ...(map[id] || {}), hasAudio: true };
+    });
+
+    return map;
+  }, [topicAudioLoadingId, topicAudioResults]);
+
+  // Konu ağacından "Dinle" tıklandığında popup aç
+  const findTopicById = (nodes: Topic[], id: string): Topic | null => {
+    for (const node of nodes) {
+      if (node.id === id) return node;
+      if (node.children && node.children.length > 0) {
+        const found = findTopicById(node.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const handleOpenAudioModal = (topicId: string) => {
+    setTopicAudioResults((prev) => {
+      if (prev[topicId]) return prev;
+
+      const topic = findTopicById(topics, topicId);
+      const latest: any = topic && (topic as any).latest_content;
+
+      if (!latest || !latest.mp3_url) {
+        return prev;
+      }
+
+      const audioResult: TtsResponseData = {
+        success: true,
+        message: latest.message || 'Ses oluşturuldu',
+        mp3_url: latest.mp3_url,
+        vtt_url: latest.vtt_url || (latest.mp3_url ? latest.mp3_url.replace('.mp3', '.vtt') : ''),
+        level: latest.level || level.toUpperCase(),
+        timepoints: latest.timepoints || [],
+        words: latest.words || [],
+        translated_text: latest.translated_text,
+        adapted_text: latest.adapted_text,
+        translatedText: latest.translated_text,
+        adaptedText: latest.adapted_text,
+      };
+
+      return {
+        ...prev,
+        [topicId]: audioResult,
+      };
+    });
+
+    setModalTopicId(topicId);
   };
 
   // Component mount'ta yükle
@@ -107,6 +254,16 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         </div>
       </div>
 
+      <div className="flex justify-end">
+        <Link
+          href="/dashboard?tab=reading-history"
+          className="text-xs text-primary hover:text-primary/80 flex items-center space-x-1"
+        >
+          <i className="fas fa-history"></i>
+          <span>Konularımı / Okuma Geçmişimi Gör</span>
+        </Link>
+      </div>
+
       {/* Error/Success Messages */}
       {error && (
         <div className="flex items-center p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
@@ -134,8 +291,10 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         <TopicTree
           topics={topics}
           onRefresh={loadTopicTree}
-          onContentCreated={onContentCreated}
+          onContentCreated={handleTopicContentCreated}
           level={level}
+          audioStateByTopic={audioStateByTopic}
+          onOpenAudioModal={handleOpenAudioModal}
         />
       ) : (
         !isLoading && (
@@ -154,6 +313,35 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         <div className="text-center py-12">
           <i className="fas fa-spinner fa-spin text-3xl text-primary mb-3"></i>
           <p className="text-gray-600">Konular yükleniyor...</p>
+        </div>
+      )}
+
+      {/* Topic audio popup player */}
+      {modalTopicId && topicAudioResults[modalTopicId] && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">
+                {topics.find((t) => t.id === modalTopicId)?.title || 'Ses Önizleme'}
+              </h3>
+              <button
+                onClick={() => setModalTopicId(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <OutputSection
+              audioResult={{
+                ...topicAudioResults[modalTopicId],
+                topic:
+                  topics.find((t) => t.id === modalTopicId)?.title ||
+                  (topicAudioResults[modalTopicId] as any).topic,
+              } as any}
+              isLoggedIn={true}
+            />
+          </div>
         </div>
       )}
     </div>

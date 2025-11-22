@@ -6,7 +6,7 @@ import { Button } from '../ui/button';
 interface SubtopicModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onGenerate: (count: number, language: string) => Promise<void>;
+  onGenerate: (count: number, language: string, angle?: string) => Promise<void>;
   parentTitle: string;
   isLoading: boolean;
 }
@@ -20,11 +20,13 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
 }) => {
   const [count, setCount] = useState(5);
   const [language, setLanguage] = useState('Turkish');
+  const [angle, setAngle] = useState('');
 
   if (!isOpen) return null;
 
   const handleGenerate = async () => {
-    await onGenerate(count, language);
+    const safeCount = !count || count <= 0 ? 5 : count;
+    await onGenerate(safeCount, language, angle.trim() || undefined);
   };
 
   return (
@@ -56,8 +58,8 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Kaç adet alt konu oluşturulsun?
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[5, 8, 10].map((num) => (
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {[5, 10, 20].map((num) => (
                 <button
                   key={num}
                   onClick={() => setCount(num)}
@@ -71,6 +73,22 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
                   {num}
                 </button>
               ))}
+            </div>
+            <div className="mt-1">
+              <label className="block text-xs text-gray-600 mb-1">
+                Veya kendi sayını gir
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={count}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value || '0', 10);
+                  setCount(Number.isNaN(value) ? 0 : value);
+                }}
+                disabled={isLoading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+              />
             </div>
           </div>
 
@@ -90,12 +108,25 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
             </select>
           </div>
 
+          {/* Açı/Açıklama */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Açı/Açıklama
+            </label>
+            <textarea
+              value={angle}
+              onChange={(e) => setAngle(e.target.value)}
+              disabled={isLoading}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+          </div>
+
           {/* Bilgilendirme */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
             <p className="text-xs text-gray-700">
               <i className="fas fa-info-circle mr-1 text-yellow-600"></i>
-              AI, bu ana konu için {count} adet eğitici ve gerçek alt konu önerecek. 
-              Her alt konudan tekrar detay konular oluşturabilirsiniz.
+              AI, bu ana konu için seçtiğiniz sayıda eğitici ve gerçek alt konu önerecek.
+              Eğer bir açı / açıklama girersen, alt konuları o bakış açısına göre detaylandırmaya çalışır.
             </p>
           </div>
         </div>

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import MembershipBadge from '../src/components/user/MembershipBadge';
 import { useAuth } from '../src/lib/auth';
 import { useRouter } from 'next/router';
-import { getUserStats, UserStats } from '../src/lib/api';
+import { getUserStats, UserStats, getTopicTree, Topic, getUserBookHistory, BookHistoryItem, FavoriteBookItem, getUserBookFavoritesDetails, DocumentRecord, DocumentSection, getUserDocuments, getDocumentSections } from '../src/lib/api';
 import { Badge } from '../src/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../src/components/ui/card';
 import { Button } from '../src/components/ui/button';
@@ -12,6 +12,9 @@ import { ScrollArea } from '../src/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../src/components/ui/tabs';
 import PackageInfo from '../src/components/PackageInfo';
 import { VocabularyTabContent } from './vocabulary';
+import TopicHierarchySection from '../src/components/TopicHierarchy/TopicHierarchySection';
+import BrandWordmark from '../src/components/BrandWordmark';
+import InterestManager from '../src/components/InterestManager';
 
 
 
@@ -21,6 +24,22 @@ const Dashboard = () => {
   const [tab, setTab] = React.useState<string>('dashboard');
   const [stats, setStats] = useState<UserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [topicsLoading, setTopicsLoading] = useState(false);
+  const [topicsError, setTopicsError] = useState<string | null>(null);
+  const [bookHistory, setBookHistory] = useState<BookHistoryItem[]>([]);
+  const [bookHistoryLoading, setBookHistoryLoading] = useState(false);
+  const [bookHistoryError, setBookHistoryError] = useState<string | null>(null);
+  const [favoriteBooks, setFavoriteBooks] = useState<FavoriteBookItem[]>([]);
+  const [favoriteBooksLoading, setFavoriteBooksLoading] = useState(false);
+  const [favoriteBooksError, setFavoriteBooksError] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentRecord | null>(null);
+  const [documentSections, setDocumentSections] = useState<DocumentSection[]>([]);
+  const [sectionsLoading, setSectionsLoading] = useState(false);
+  const [sectionsError, setSectionsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -63,8 +82,105 @@ const Dashboard = () => {
         }
       }
     };
+
     fetchStats();
   }, [isAuthenticated, user]);
+
+  const loadDocuments = async () => {
+    try {
+      setDocumentsLoading(true);
+      setDocumentsError(null);
+      const response = await getUserDocuments();
+      if (response.success && response.data) {
+        setDocuments(response.data);
+        if (!selectedDocument && response.data.length > 0) {
+          const first = response.data[0];
+          setSelectedDocument(first);
+          await loadDocumentSections(first.id);
+        }
+      } else if (!response.success) {
+        setDocumentsError(response.message || 'Dokümanlar yüklenirken hata oluştu');
+      }
+    } catch (error: any) {
+      console.error('[DASHBOARD] Dokümanlar yüklenirken hata oluştu:', error);
+      setDocumentsError(error?.message || 'Dokümanlar yüklenirken hata oluştu');
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
+  const loadDocumentSections = async (documentId: number) => {
+    try {
+      setSectionsLoading(true);
+      setSectionsError(null);
+      const response = await getDocumentSections(documentId);
+      if (response.success && response.data) {
+        setDocumentSections(response.data);
+      } else if (!response.success) {
+        setSectionsError(response.message || 'Doküman bölümleri yüklenirken hata oluştu');
+      }
+    } catch (error: any) {
+      console.error('[DASHBOARD] Doküman bölümleri yüklenirken hata oluştu:', error);
+      setSectionsError(error?.message || 'Doküman bölümleri yüklenirken hata oluştu');
+    } finally {
+      setSectionsLoading(false);
+    }
+  };
+
+  const loadTopicTree = async () => {
+    try {
+      setTopicsLoading(true);
+      setTopicsError(null);
+      const response = await getTopicTree();
+      if (response.success && response.data) {
+        setTopics(response.data.topics);
+      } else if (!response.success) {
+        setTopicsError(response.message || 'Konular yüklenirken hata oluştu');
+      }
+    } catch (error: any) {
+      console.error('[DASHBOARD] Konu ağacı yükleme hatası:', error);
+      setTopicsError(error?.message || 'Konular yüklenirken hata oluştu');
+    } finally {
+      setTopicsLoading(false);
+    }
+  };
+
+  const loadBookHistory = async () => {
+    if (!user) return;
+    try {
+      setBookHistoryLoading(true);
+      setBookHistoryError(null);
+      const response = await getUserBookHistory(user.id, 1, 50);
+      if (response.success && response.data) {
+        setBookHistory(response.data);
+      } else if (!response.success) {
+        setBookHistoryError(response.message || 'Kitap dinleme geçmişi yüklenirken hata oluştu');
+      }
+    } catch (error: any) {
+      console.error('[DASHBOARD] Kitap geçmişi yükleme hatası:', error);
+      setBookHistoryError(error?.message || 'Kitap dinleme geçmişi yüklenirken hata oluştu');
+    } finally {
+      setBookHistoryLoading(false);
+    }
+  };
+
+	const loadFavoriteBooks = async () => {
+	  try {
+	    setFavoriteBooksLoading(true);
+	    setFavoriteBooksError(null);
+	    const response = await getUserBookFavoritesDetails();
+	    if (response.success && response.data) {
+	      setFavoriteBooks(response.data);
+	    } else if (!response.success) {
+	      setFavoriteBooksError(response.message || 'Favori kitaplar yüklenirken hata oluştu');
+	    }
+	  } catch (error: any) {
+	    console.error('[DASHBOARD] Favori kitaplar yükleme hatası:', error);
+	    setFavoriteBooksError(error?.message || 'Favori kitaplar yüklenirken hata oluştu');
+	  } finally {
+	    setFavoriteBooksLoading(false);
+	  }
+	};
 
   // Initialize tab from query (?tab=...) then hash, and keep in sync
   useEffect(() => {
@@ -73,7 +189,12 @@ const Dashboard = () => {
       const url = new URL(window.location.href);
       const qp = url.searchParams.get('tab');
       if (qp) {
-        setTab(qp);
+        // Eski URL'lerle geriye dönük uyumluluk için 'courses' -> 'book' eşlemesi
+        if (qp === 'courses') {
+          setTab('book');
+        } else {
+          setTab(qp);
+        }
       } else {
         const h = url.hash.replace('#', '');
         if (h) setTab(h);
@@ -87,6 +208,26 @@ const Dashboard = () => {
       window.removeEventListener('popstate', applyLocation);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    if (tab === 'reading-history' || tab === 'achievements') {
+      loadTopicTree();
+    }
+
+    if (tab === 'reading-history' || tab === 'book') {
+      loadBookHistory();
+    }
+
+    if (tab === 'book') {
+      loadFavoriteBooks();
+    }
+
+    if (tab === 'pdf') {
+      loadDocuments();
+    }
+  }, [tab, isAuthenticated]);
 
   // Close profile menu when clicking outside
   useEffect(() => {
@@ -111,7 +252,30 @@ const Dashboard = () => {
     return <div className="p-8 text-center text-lg">Kullanıcı bilgileri yükleniyor...</div>;
   }
 
-  const displayName = (user as any).name || user.email;
+  const getDisplayName = () => {
+    try {
+      const firstName =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('lingroot_firstName') || ''
+          : '';
+      const lastName =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('lingroot_lastName') || ''
+          : '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      if (fullName) return fullName;
+      if ((user as any).name) return (user as any).name as string;
+      if (user.email) return user.email.split('@')[0];
+      return 'Kullanıcı';
+    } catch {
+      return (
+        ((user as any).name as string) ||
+        (user.email ? user.email.split('@')[0] : 'Kullanıcı')
+      );
+    }
+  };
+
+  const displayName = getDisplayName();
   const avatar = (user as any).avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
   const membershipStatus = user.membershipStatus || 'free';
   const profileImageUrl = avatar;
@@ -125,13 +289,26 @@ const Dashboard = () => {
           <div className="flex justify-between items-center h-16">
             {/* Left: Logo & Navigation */}
             <div className="flex items-center space-x-6">
-              <Link href="/welcome" className="flex items-center space-x-2">
-                <img src="/LingRoot_MainLogo.png" alt="LingRoot" className="h-8" />
+              <Link href="/">
+                <div className="flex items-center space-x-3">
+                  <img
+                    src="/lingroot-icon.svg"
+                    alt="LingRoot Logo"
+                    className="w-10 h-10 md:w-12 md:h-12"
+                  />
+                  <BrandWordmark className="text-xl md:text-2xl" />
+                </div>
               </Link>
               <Link href="/welcome">
                 <button className="text-gray-700 hover:text-primary transition-colors text-sm font-medium">
                   <i className="fas fa-home mr-2"></i>
                   Ana Sayfa
+                </button>
+              </Link>
+              <Link href="/welcome">
+                <button className="text-gray-700 hover:text-primary transition-colors text-sm font-medium">
+                  <i className="fas fa-headphones mr-2"></i>
+                  Dinleme Sayfası
                 </button>
               </Link>
             </div>
@@ -176,7 +353,7 @@ const Dashboard = () => {
                       <i className="fas fa-cog mr-2 w-4 text-center"></i>
                       Hesap Ayarları
                     </Link>
-                    <Link href="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                    <Link href="/dashboard?tab=reading-history" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
                       <i className="fas fa-history mr-2 w-4 text-center"></i>
                       Okuma Geçmişim
                     </Link>
@@ -239,30 +416,44 @@ const Dashboard = () => {
             window.history.replaceState({}, '', url.toString());
           }
         }} className="w-full">
-          <TabsList className="flex justify-start mb-6 bg-white p-1 rounded-lg shadow-sm border overflow-x-auto">
+          <TabsList className="flex flex-wrap justify-start gap-2 mb-6 bg-white p-2 rounded-lg shadow-sm border">
+            {/* 1. Dashboard */}
             <TabsTrigger value="dashboard" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-chart-line mr-2"></i>
               Dashboard
             </TabsTrigger>
-            <TabsTrigger value="courses" className="!rounded-button whitespace-nowrap cursor-pointer">
-              <i className="fas fa-book mr-2"></i>
-              Kurslarım
+            {/* 2. Okuma Geçmişim */}
+            <TabsTrigger value="reading-history" className="!rounded-button whitespace-nowrap cursor-pointer">
+              <i className="fas fa-history mr-2"></i>
+              Okuma Geçmişim
             </TabsTrigger>
-            <TabsTrigger value="content" className="!rounded-button whitespace-nowrap cursor-pointer">
+            {/* 3. Konularım */}
+            <TabsTrigger value="achievements" className="!rounded-button whitespace-nowrap cursor-pointer">
+              <i className="fas fa-sitemap mr-2"></i>
+              Konularım
+            </TabsTrigger>
+            {/* 4. Kitaplarım */}
+            <TabsTrigger value="book" className="!rounded-button whitespace-nowrap cursor-pointer">
+              <i className="fas fa-book mr-2"></i>
+              Kitaplarım
+            </TabsTrigger>
+            <TabsTrigger value="hobbies" className="!rounded-button whitespace-nowrap cursor-pointer">
+              <i className="fas fa-heart mr-2"></i>
+              Hobilerim
+            </TabsTrigger>
+            {/* 5. Podcastlerim (şimdilik placeholder) */}
+            <TabsTrigger value="podcasts" className="!rounded-button whitespace-nowrap cursor-pointer">
+              <i className="fas fa-podcast mr-2"></i>
+              Podcastlerim
+            </TabsTrigger>
+            {/* 6. Dokümanlar */}
+            <TabsTrigger value="pdf" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-file-alt mr-2"></i>
-              İçerik Yönetimi
+              Dokümanlarım
             </TabsTrigger>
             <TabsTrigger value="vocabulary" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-language mr-2"></i>
               Kelimelerim
-            </TabsTrigger>
-            <TabsTrigger value="achievements" className="!rounded-button whitespace-nowrap cursor-pointer">
-              <i className="fas fa-trophy mr-2"></i>
-              Başarılar
-            </TabsTrigger>
-            <TabsTrigger value="ai-features" className="!rounded-button whitespace-nowrap cursor-pointer">
-              <i className="fas fa-robot mr-2"></i>
-              AI Özellikleri
             </TabsTrigger>
             <TabsTrigger value="paket-bilgilerim" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-box mr-2"></i>
@@ -555,50 +746,431 @@ const Dashboard = () => {
             </div>
           </TabsContent>
 
-          {/* Other Tab Contents - Placeholder */}
-          <TabsContent value="courses" className="mt-0">
+          {/* Reading History Tab - only overview & shortcuts */}
+          <TabsContent value="reading-history" className="mt-0">
+            <Card className="border-none shadow-md">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-bold text-gray-800">Okuma Geçmişim</CardTitle>
+                <CardDescription>Konu ağacınız ve kitap dinleme geçmişiniz burada özetlenir.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <Card className="group bg-muted rounded-2xl border border-border shadow-md hover:shadow-2xl transition-all duration-300 hover:border-primary/40 transform hover:-translate-y-1 cursor-pointer">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg font-semibold flex items-center group-hover:text-primary transition-colors">
+                        <i className="fas fa-sitemap mr-2 text-primary"></i>
+                        Konularım
+                      </CardTitle>
+                      <CardDescription>Konu ağacınızdan oluşturduğunuz tüm konular.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Detaylı konu geçmişinizi görmek için aşağıdaki butona tıklayın.
+                      </p>
+                      <button
+                        className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-full flex items-center space-x-2 cursor-pointer"
+                        onClick={() => setTab('achievements')}
+                      >
+                        <span>Konularımı Gör</span>
+                        <i className="fas fa-arrow-right"></i>
+                      </button>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="group bg-muted rounded-2xl border border-border shadow-md hover:shadow-2xl transition-all duration-300 hover:border-primary/40 transform hover:-translate-y-1 cursor-pointer">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg font-semibold flex items-center group-hover:text-primary transition-colors">
+                        <i className="fas fa-book mr-2 text-primary"></i>
+                        Kitaplarım
+                      </CardTitle>
+                      <CardDescription>Dinlediğiniz kitaplar ve bölümler.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Kitap dinleme geçmişinizi görmek için aşağıdaki butona tıklayın.
+                      </p>
+                      <button
+                        className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-full flex items-center space-x-2 cursor-pointer"
+                        onClick={() => setTab('book')}
+                      >
+                        <span>Kitaplarımı Gör</span>
+                        <i className="fas fa-arrow-right"></i>
+                      </button>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="group bg-muted rounded-2xl border border-border shadow-md hover:shadow-2xl transition-all duration-300 hover:border-primary/40 transform hover:-translate-y-1 cursor-pointer">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg font-semibold flex items-center group-hover:text-primary transition-colors">
+                        <i className="fas fa-heart mr-2 text-primary"></i>
+                        Hobilerim
+                      </CardTitle>
+                      <CardDescription>Kaydettiğiniz hobi ve ilgi alanları.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Hobilerinizi güncellemek ve yeni konular keşfetmek için aşağıdaki butona tıklayın.
+                      </p>
+                      <button
+                        className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-full flex items-center space-x-2 cursor-pointer"
+                        onClick={() => setTab('hobbies')}
+                      >
+                        <span>Hobilerimi Gör</span>
+                        <i className="fas fa-arrow-right"></i>
+                      </button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="hobbies" className="mt-0">
+            <Card className="border-none shadow-md">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-bold text-gray-800">Hobilerim</CardTitle>
+                <CardDescription>Profilinizde kayıtlı ilgi alanlarınızı burada görüntüleyip güncelleyebilirsiniz.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="max-w-xl">
+                  <InterestManager showTitle={false} isEditing />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Kitaplarım Tab - Favoriler + Kitap Dinleme Geçmişi */}
+          <TabsContent value="book" className="mt-0">
+            {/* Favori Kitaplarım */}
+            {favoriteBooksLoading && (
+              <div className="text-center py-6 text-gray-500">
+                <i className="fas fa-spinner fa-spin text-xl mr-2"></i>
+                Favori kitaplar yükleniyor...
+              </div>
+            )}
+
+            {favoriteBooksError && !favoriteBooksLoading && (
+              <div className="p-3 mb-6 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                {favoriteBooksError}
+              </div>
+            )}
+
+            {!favoriteBooksLoading && !favoriteBooksError && favoriteBooks.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Favori Kitaplarım</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {favoriteBooks.map((book) => (
+                    <div
+                      key={book.id}
+                      className="bg-white rounded-lg shadow-sm hover:shadow-md border border-gray-100 overflow-hidden flex flex-col"
+                    >
+                      <div className="relative w-full h-40 bg-gray-100">
+                        {book.cover_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={book.cover_url}
+                            alt={book.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                            <i className="fas fa-book-open text-3xl text-primary/60"></i>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4 flex-1 flex flex-col">
+                        <h4 className="font-semibold text-gray-900 line-clamp-2 mb-1">{book.title}</h4>
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-1">{book.authors}</p>
+                        {book.subjects && (
+                          <p className="text-xs text-gray-500 mb-2 line-clamp-1">{book.subjects}</p>
+                        )}
+                        <div className="mt-auto pt-2 flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Favori kitap</span>
+                          <Link
+                            href="/welcome?contentType=book"
+                            className="text-xs font-medium text-primary hover:underline flex items-center"
+                          >
+                            Kitapla Çalış
+                            <i className="fas fa-arrow-right ml-1"></i>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Kitaplarım: Kullanıcının dinlediği kitap geçmişi */}
+            {bookHistoryLoading && (
+              <div className="text-center py-6 text-gray-500">
+                <i className="fas fa-spinner fa-spin text-xl mr-2"></i>
+                Kitap dinleme geçmişi yükleniyor...
+              </div>
+            )}
+
+            {bookHistoryError && !bookHistoryLoading && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                {bookHistoryError}
+              </div>
+            )}
+
+            {!bookHistoryLoading && !bookHistoryError && bookHistory.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <i className="fas fa-book-open text-4xl mb-3"></i>
+                <p>Henüz kitap bölümü dinlemediniz.</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  İlk kitabınızı{' '}
+                  <Link href="/welcome" className="text-primary underline">
+                    Ana Sayfa
+                  </Link>
+                  {' '}üzerindeki Kitap sekmesinden seçebilirsiniz.
+                </p>
+              </div>
+            )}
+
+            {!bookHistoryLoading && !bookHistoryError && bookHistory.length > 0 && (
+              <div className="space-y-8">
+                {/* Son dinlenen kitaplar - kart grid */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Son Dinlenen Kitaplar</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.values(
+                      bookHistory.reduce((acc: Record<string, any>, item) => {
+                        const key = String(item.book_id || item.book_title);
+                        if (!acc[key]) {
+                          acc[key] = {
+                            book_id: item.book_id,
+                            book_title: item.book_title,
+                            book_authors: item.book_authors,
+                            cover_url: item.cover_url,
+                            subjects: item.subjects,
+                            lastChapter: item,
+                            chapterCount: 1,
+                          };
+                        } else {
+                          acc[key].chapterCount += 1;
+                          if (new Date(item.created_at).getTime() > new Date(acc[key].lastChapter.created_at).getTime()) {
+                            acc[key].lastChapter = item;
+                          }
+                        }
+                        return acc;
+                      }, {})
+                    ).map((book: any, index: number) => (
+                      <div
+                        key={`${book.book_id || book.book_title}-${index}`}
+                        className="bg-white rounded-lg shadow-sm hover:shadow-md border border-gray-100 overflow-hidden flex flex-col"
+                      >
+                        <div className="relative w-full h-40 bg-gray-100">
+                          {book.cover_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={book.cover_url}
+                              alt={book.book_title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                              <i className="fas fa-book-open text-3xl text-primary/60"></i>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-4 flex-1 flex flex-col">
+                          <h4 className="font-semibold text-gray-900 line-clamp-2 mb-1">{book.book_title}</h4>
+                          <p className="text-sm text-gray-600 mb-2 line-clamp-1">{book.book_authors}</p>
+                          {book.subjects && (
+                            <p className="text-xs text-gray-500 mb-2 line-clamp-1">{book.subjects}</p>
+                          )}
+                          <div className="flex items-center justify-between mt-auto pt-2">
+                            <span className="text-xs text-gray-500">
+                              {book.chapterCount} bölüm dinlendi
+                            </span>
+                            <Link
+                              href="/welcome?contentType=book"
+                              className="text-xs font-medium text-primary hover:underline flex items-center"
+                            >
+                              Devam Et
+                              <i className="fas fa-arrow-right ml-1"></i>
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Son dinlenen bölümler listesi */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Son Dinlediğiniz Bölümler</h3>
+                  <div className="space-y-3">
+                    {bookHistory.slice(0, 15).map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-14 bg-white rounded-md border border-gray-200 flex items-center justify-center">
+                            <i className="fas fa-book text-primary"></i>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 line-clamp-1">
+                              {item.book_title}
+                            </p>
+                            <p className="text-xs text-gray-600 line-clamp-1">
+                              Bölüm {item.chapter_index}: {item.chapter_title}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              Seviye: {item.level.toUpperCase()} • {Math.round(item.duration)} sn • {new Date(item.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <Link
+                          href="/welcome?contentType=book"
+                          className="text-xs font-medium text-primary hover:underline flex items-center"
+                        >
+                          Dinle
+                          <i className="fas fa-play ml-1"></i>
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="podcasts" className="mt-0">
             <div className="text-center py-8">
-              <i className="fas fa-book text-4xl text-gray-300 mb-2"></i>
-              <h3 className="text-lg font-medium text-gray-700">Kurslarım</h3>
-              <p className="text-sm text-gray-500">Kurslarınız burada görünecek</p>
+              <i className="fas fa-podcast text-4xl text-gray-300 mb-2"></i>
+              <h3 className="text-lg font-medium text-gray-700">Podcastlerim</h3>
+              <p className="text-sm text-gray-500">Podcast dinleme geçmişiniz burada görünecek.</p>
             </div>
           </TabsContent>
 
-          <TabsContent value="content" className="mt-0">
-            <div className="text-center py-8">
-              <i className="fas fa-file-alt text-4xl text-gray-300 mb-2"></i>
-              <h3 className="text-lg font-medium text-gray-700">İçerik Yönetimi</h3>
-              <p className="text-sm text-gray-500">İçerik yönetimi burada görünecek</p>
+          <TabsContent value="pdf" className="mt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="border-none shadow-md lg:col-span-1">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-bold text-gray-800 flex items-center justify-between">
+                    <span>Dokümanlarım</span>
+                    <i className="fas fa-file-alt text-primary"></i>
+                  </CardTitle>
+                  <CardDescription>
+                    PDF veya metin olarak içeri aldığınız dokümanlar.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {documentsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  ) : documentsError ? (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                      {documentsError}
+                    </div>
+                  ) : documents.length === 0 ? (
+                    <div className="text-center py-6 text-sm text-gray-500">
+                      Henüz hiç doküman eklemediniz. Dinleme sayfasından bir doküman yükleyebilirsiniz.
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[320px] pr-3">
+                      <div className="space-y-2">
+                        {documents.map((doc) => {
+                          const isActive = selectedDocument && selectedDocument.id === doc.id;
+                          return (
+                            <button
+                              key={doc.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedDocument(doc);
+                                loadDocumentSections(doc.id);
+                              }}
+                              className={`w-full text-left p-3 rounded-lg border text-sm transition-colors cursor-pointer ${
+                                isActive ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="font-medium truncate">{doc.title}</div>
+                              <div className="text-xs text-gray-500 mt-1 flex items-center justify-between">
+                                <span>{new Date(doc.created_at).toLocaleDateString()}</span>
+                                {doc.page_count != null && (
+                                  <span className="ml-2">{doc.page_count} sayfa</span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-none shadow-md lg:col-span-2">
+                <CardHeader className="pb-2 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg font-bold text-gray-800">
+                      {selectedDocument ? selectedDocument.title : 'Bir doküman seçin'}
+                    </CardTitle>
+                    <CardDescription>
+                      Doküman bölümlerini burada görebilirsiniz.
+                    </CardDescription>
+                  </div>
+                  {selectedDocument && (
+                    <Badge className="bg-primary/10 text-primary border border-primary/30">
+                      <i className="fas fa-layer-group mr-1"></i>
+                      {documentSections.length} bölüm
+                    </Badge>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  {!selectedDocument ? (
+                    <div className="h-[320px] flex items-center justify-center text-sm text-gray-500">
+                      Soldan bir doküman seçerek bölümlerini görebilirsiniz.
+                    </div>
+                  ) : sectionsLoading ? (
+                    <div className="h-[320px] flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  ) : sectionsError ? (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                      {sectionsError}
+                    </div>
+                  ) : documentSections.length === 0 ? (
+                    <div className="h-[320px] flex items-center justify-center text-sm text-gray-500">
+                      Bu doküman için bölüm bulunamadı.
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[320px] pr-3">
+                      <div className="space-y-2">
+                        {documentSections.map((section) => (
+                          <div
+                            key={section.id}
+                            className="p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="text-sm font-semibold text-gray-800 truncate mr-2">
+                                {section.section_index}. {section.section_title || 'Bölüm'}
+                              </div>
+                              <span className="text-xs text-gray-500 whitespace-nowrap">
+                                {section.word_count || 0} kelime
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-600 line-clamp-2 whitespace-pre-line">
+                              {section.section_text}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </CardContent>
+              </Card>
             </div>
-          </TabsContent>
-
-          <TabsContent value="vocabulary" className="mt-0">
-            <VocabularyTabContent user={user} />
-          </TabsContent>
-
-          <TabsContent value="achievements" className="mt-0">
-            <div className="text-center py-8">
-              <i className="fas fa-trophy text-4xl text-gray-300 mb-2"></i>
-              <h3 className="text-lg font-medium text-gray-700">Başarılar</h3>
-              <p className="text-sm text-gray-500">Başarılarınız burada görünecek</p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="ai-features" className="mt-0">
-            <div className="text-center py-8">
-              <i className="fas fa-robot text-4xl text-gray-300 mb-2"></i>
-              <h3 className="text-lg font-medium text-gray-700">AI Özellikleri</h3>
-              <p className="text-sm text-gray-500">AI özellikleri burada görünecek</p>
-          </div>
-          </TabsContent>
-
-          <TabsContent value="paket-bilgilerim" className="mt-0">
-            <PackageInfo />
           </TabsContent>
         </Tabs>
-          </div>
-        </div>
+      </div>
+    </div>
   );
 };
 
-export default Dashboard; 
+export default Dashboard;

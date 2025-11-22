@@ -38,12 +38,35 @@ CREATE TABLE IF NOT EXISTS chapter_audio (
 
 ### 2. Migration Çalıştırma
 
+#### a) Books / Chapters / Chapter Audio (ilk kurulum)
+
 ```bash
 # Backend klasörüne git
 cd backend
 
 # Migration'ı çalıştır
 node run_migration.js migrations/create_books_tables.sql
+```
+
+#### b) contenthistory.tablosuna chapter_id kolonu ekleme (kitap okuma geçmişi için)
+
+Bu adım, kullanıcıların dinlediği kitap bölümlerinin `contenthistory` tablosuna bağlanmasını sağlar.
+
+1. `backend/migrations/add_contenthistory_chapter_id.sql` dosyasını açın.
+2. İçeriğini **Supabase Dashboard > SQL Editor** alanına kopyalayın.
+3. `Run` butonuna basarak migration'ı çalıştırın.
+
+Eklenen alan ve indexler özetle:
+
+```sql
+ALTER TABLE contenthistory
+ADD COLUMN IF NOT EXISTS chapter_id INTEGER REFERENCES book_chapters(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_contenthistory_chapter_id
+ON contenthistory(chapter_id);
+
+CREATE INDEX IF NOT EXISTS idx_contenthistory_user_chapter
+ON contenthistory(user_id, chapter_id);
 ```
 
 ### 3. Bağımlılık Kurulumu
@@ -126,12 +149,38 @@ GET /api/books/{bookId}/chapters/{chapterId}/audio?voice_model=Joanna&speaking_r
 POST /api/books/{bookId}/chapters/{chapterId}/audio
 ```
 
+#### Kullanıcı Bazlı Kitap Okuma Geçmişi (Yeni)
+
+```http
+GET /api/users/{userId}/book-history
+```
+
+Bu endpoint, `contenthistory` tablosundaki **kitap bölümü** kayıtlarını (chapter_id dolu olanlar) `book_chapters` ve `books` tabloları ile join ederek döner.
+
+Örnek response veri alanları:
+
+- `id` – contenthistory kaydı
+- `book_id`, `book_title`, `book_authors`, `cover_url`, `subjects`
+- `chapter_id`, `chapter_index`, `chapter_title`
+- `level`, `mp3_url`, `created_at`, `duration`
+- `words`, `timepoints` (varsa)
+
 ### 2. Frontend Kullanımı
 
 Kitap özellikleri şu sayfalardan erişilebilir:
-- Kitap arama ve seçimi
-- Bölüm listesi görüntüleme  
-- TTS ile dinleme (mevcut TTS sistemi ile entegre)
+- **/welcome** sayfası → "Kitap" içerik türü sekmesi
+  - Genel arama, kitap ismi ve yazar ismi alanları ile kitap arama
+  - Kullanıcı yazdıkça (debounce'lu) arama sonuçlarının canlı güncellenmesi
+  - Kitap sonuçlarının kapak görselli kart-grid yapısında listelenmesi
+  - Bir kart seçildiğinde ilgili kitabın bölümlerinin altta listelenmesi
+  - Seçilen bölüm için mevcut ses cache kontrolü ve TTS ile yeni ses oluşturma
+
+- **/dashboard?tab=reading-history** → "Okuma Geçmişim" sekmesi
+  - Alt sekmeler:
+    - **Konularım**: Mevcut konu ağacı (TopicTree) görünümü
+    - **Kitaplarım**: Kullanıcının dinlediği kitap/bölüm geçmişi
+      - Son dinlenen kitaplar: kapak görselli kart-grid görünümü
+      - Son dinlenen bölümler: seviye, süre ve tarih bilgisiyle liste görünümleri
 
 ## 🔧 Teknik Detaylar
 
@@ -145,6 +194,7 @@ Kitap özellikleri şu sayfalardan erişilebilir:
 - **books**: Mevcut Gutenberg kitap bilgileri
 - **book_chapters**: Chapter'lar (index, title, text)
 - **chapter_audio**: TTS cache (opsiyonel optimizasyon)
+- **contenthistory.chapter_id**: Opsiyonel FK; bir ses kaydının hangi kitap bölümüne ait olduğunu tutar
 
 ### Performance
 - Chapter'lar ilk erişimde extract edilir ve DB'ye kaydedilir
@@ -179,6 +229,9 @@ psql $DATABASE_URL -c "\d book_chapters" # Check chapters table structure
 - [ ] Kitap arama fonksiyonu çalışıyor
 - [ ] Chapter extraction çalışıyor
 - [ ] TTS entegrasyonu çalışıyor
+- [ ] contenthistory.chapter_id kolonu ve indexleri oluşturuldu
+- [ ] /api/users/{userId}/book-history endpointi çalışıyor ve kitap/bölüm bilgilerini döndürüyor
+- [ ] Dashboard > Okuma Geçmişim > Kitaplarım sekmesi veri gösteriyor
 - [ ] Frontend build başarılı
 - [ ] Production environment variables ayarlandı
 

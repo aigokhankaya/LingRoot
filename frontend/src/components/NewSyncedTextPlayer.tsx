@@ -52,6 +52,7 @@ interface NewSyncedTextPlayerProps {
     wordsCount?: number;
     timepointsCount?: number;
   };
+  onPlay?: () => void;
 }
 
 interface ContextMenu {
@@ -73,7 +74,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   originalTurkish,
   topic,
   downloadUrls,
-  stats
+  stats,
+  onPlay
 }: NewSyncedTextPlayerProps) {
   
   // Use useWordSync hook directly in component
@@ -109,6 +111,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     show: false, x: 0, y: 0, word: '', wordIndex: -1 
   });
   const [isAddingWord, setIsAddingWord] = useState(false);
+  const [hasReportedPlay, setHasReportedPlay] = useState(false);
 
   // Load patterns from backend
   const loadPatterns = async () => {
@@ -569,7 +572,21 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
           {/* Playback Controls */}
           <div className="flex items-center justify-center space-x-4">
             <button
-              onClick={isPlaying ? pause : play}
+              onClick={() => {
+                if (!isPlaying) {
+                  if (!hasReportedPlay && onPlay) {
+                    try {
+                      onPlay();
+                    } catch (e) {
+                      console.error('onPlay callback error:', e);
+                    }
+                    setHasReportedPlay(true);
+                  }
+                  play();
+                } else {
+                  pause();
+                }
+              }}
               disabled={isBuffering}
               className="flex items-center space-x-2 bg-primary hover:bg-primary/90 disabled:bg-gray-400 text-primary-foreground px-6 py-2 rounded-lg font-medium"
             >

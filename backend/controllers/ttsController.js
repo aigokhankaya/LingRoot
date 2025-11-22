@@ -448,6 +448,8 @@ const processTtsRequest = async (req, res) => {
         let googleTtsCallCount = 0;
         let textToAdapt = cleanedText;
         let translationResult = '';
+        // Global language code used across TTS steps (default en-US)
+        let languageCode = 'en-US';
 
         if (!skipTranslateAndAdapt) {
             // --- Step 2.5: Detect Language and Translate if Necessary (for non-topic inputs) ---
@@ -766,7 +768,7 @@ const processTtsRequest = async (req, res) => {
         }
         
         // Dynamically determine language code based on voice name
-        let languageCode = "en-US"; // Default to US English
+        languageCode = "en-US"; // Default to US English
         if (selectedVoice) {
             if (selectedVoice.includes("en-GB")) {
                 languageCode = "en-GB";
@@ -1289,6 +1291,44 @@ const processTtsRequest = async (req, res) => {
             } catch (dbError) {
                 logger.error(`[${requestId}] Error saving chapter audio to database: ${dbError.message}`);
                 // Don't fail the request if database save fails
+            }
+        }
+
+        // Konu ağacı üzerinden gelen istekler için topic_contents tablosuna kaydet
+        if (req.body.topic_id) {
+            try {
+                const topicId = req.body.topic_id;
+
+                logger.info(`[${requestId}] Saving topic audio for topic_id=${topicId} to topic_contents`);
+
+                const insertPayload = {
+                    topic_id: topicId,
+                    mp3_url: finalMp3Url,
+                    vtt_url: vttUrl,
+                    text_content: cleanTextForDisplay || null,
+                    translated_text: translatedText || translationResult || null,
+                    adapted_text: adaptedText || null,
+                    level: level || null,
+                    voice_model: selectedVoice || null,
+                    speaking_rate: speakingRate || null,
+                    duration_seconds: Math.round(actualTotalDuration || 0),
+                    words: Array.isArray(words) && words.length > 0 ? words : null,
+                    timepoints: Array.isArray(timepoints) && timepoints.length > 0 ? timepoints : null
+                };
+
+                const { data, error } = await supabase
+                    .from('topic_contents')
+                    .insert(insertPayload)
+                    .select();
+
+                if (error) {
+                    throw error;
+                }
+
+                logger.info(`[${requestId}] Topic audio saved to topic_contents: ${data[0]?.id}`);
+            } catch (dbError) {
+                logger.error(`[${requestId}] Error saving topic audio to topic_contents: ${dbError.message}`);
+                // İstek başarısız sayılmamalı; sadece logla
             }
         }
 

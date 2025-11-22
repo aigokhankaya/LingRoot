@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../src/lib/auth';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { 
   FaUser, FaLock, FaBell, FaGlobe, FaVolumeUp, FaEye, 
   FaShieldAlt, FaCreditCard, FaSave, FaArrowLeft, FaCog,
@@ -10,6 +11,7 @@ import {
 
 export default function Settings() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
+  const router = useRouter();
   const [activeSection, setActiveSection] = useState('profile');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{type: 'success'|'error', text: string}|null>(null);
@@ -37,6 +39,18 @@ export default function Settings() {
       loadSettings();
     }
   }, [user]);
+
+  // URL'deki ?section=language gibi parametrelerle doğrudan ilgili sekmeye git
+  useEffect(() => {
+    if (!router.isReady) return;
+    const sectionFromQuery = router.query.section;
+    if (typeof sectionFromQuery === 'string') {
+      const allowedSections = ['profile','password','language','content','audio','notifications','appearance','privacy','subscription'];
+      if (allowedSections.includes(sectionFromQuery)) {
+        setActiveSection(sectionFromQuery);
+      }
+    }
+  }, [router.isReady, router.query.section]);
 
   const loadSettings = () => {
     try {

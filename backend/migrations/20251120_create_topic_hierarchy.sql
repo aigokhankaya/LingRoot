@@ -38,6 +38,9 @@ CREATE TABLE IF NOT EXISTS topic_contents (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
+ALTER TABLE topic_contents
+  ADD COLUMN IF NOT EXISTS listened_at TIMESTAMP WITH TIME ZONE;
+
 -- 3) Performance Index'ler
 CREATE INDEX IF NOT EXISTS idx_topics_user_id ON topics(user_id);
 CREATE INDEX IF NOT EXISTS idx_topics_parent_id ON topics(parent_id);
@@ -67,7 +70,7 @@ WITH RECURSIVE topic_hierarchy AS (
   SELECT 
     t.*,
     t.title as path,
-    0 as level
+    0 as tree_level
   FROM topics t
   WHERE t.parent_id IS NULL
   
@@ -77,7 +80,7 @@ WITH RECURSIVE topic_hierarchy AS (
   SELECT 
     t.*,
     th.path || ' > ' || t.title,
-    th.level + 1
+    th.tree_level + 1 as tree_level
   FROM topics t
   INNER JOIN topic_hierarchy th ON t.parent_id = th.id
 )
