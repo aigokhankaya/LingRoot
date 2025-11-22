@@ -55,9 +55,9 @@ interface Conversation {
 import { EXPO_PUBLIC_API_URL } from '@env';
 import { getApiBaseUrl } from '../services/environmentConfig';
 
-const ChatScreen: React.FC = ({ navigation }: any) => {
+const ChatScreen: React.FC = ({ navigation, route }: any) => {
   const { language } = useLanguage();
-  const [API_URL, setApiUrl] = useState<string>('https://lingloops-backend.onrender.com');
+  const [API_URL, setApiUrl] = useState<string>('');
   
   // Initialize API URL from environment config
   useEffect(() => {
@@ -78,8 +78,21 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
+    if (!API_URL) return;
     fetchConversations();
-  }, []);
+  }, [API_URL]);
+
+  // If screen is opened via notification with a specific conversationId,
+  // make sure we immediately load that conversation's messages.
+  useEffect(() => {
+    if (!API_URL) return;
+    const convId = route?.params?.conversationId;
+    if (!convId) return;
+
+    setSelectedConversation(convId);
+    setShowConversationList(false);
+    fetchMessages(convId);
+  }, [API_URL, route?.params?.conversationId]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -100,7 +113,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
   const fetchConversations = async () => {
     try {
       const token = await getToken();
-      const response = await fetch(`${API_URL}/api/chat/conversations`, {
+      const response = await fetch(`${API_URL}/api/support-chat/conversations`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -121,7 +134,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
   const fetchMessages = async (conversationId: string) => {
     try {
       const token = await getToken();
-      const response = await fetch(`${API_URL}/api/chat/conversations/${conversationId}/messages`, {
+      const response = await fetch(`${API_URL}/api/support-chat/conversations/${conversationId}/messages`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -146,7 +159,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
     setSending(true);
     try {
       const token = await getToken();
-      const response = await fetch(`${API_URL}/api/chat/conversations`, {
+      const response = await fetch(`${API_URL}/api/support-chat/conversations`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -212,7 +225,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
         } as any);
       });
 
-      const response = await fetch(`${API_URL}/api/chat/conversations/${selectedConversation}/messages`, {
+      const response = await fetch(`${API_URL}/api/support-chat/conversations/${selectedConversation}/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -322,7 +335,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
           <TouchableOpacity
             key={attachment.id}
             style={styles.attachmentItem}
-            onPress={() => Linking.openURL(`${API_URL}/api/chat/attachments/${attachment.id}`)}
+            onPress={() => Linking.openURL(`${API_URL}/api/support-chat/attachments/${attachment.id}`)}
           >
             <Text style={styles.fileIcon}>{getFileIcon(attachment.mime_type)}</Text>
             <View style={styles.attachmentInfo}>
@@ -339,7 +352,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
     if (!selectedConversation) return;
     try {
       const token = await getToken();
-      const response = await fetch(`${API_URL}/api/chat/conversations/${selectedConversation}/reopen`, {
+      const response = await fetch(`${API_URL}/api/support-chat/conversations/${selectedConversation}/reopen`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -372,7 +385,7 @@ const ChatScreen: React.FC = ({ navigation }: any) => {
 
   const getStatusText = (status: string) => {
     const statusMap: Record<string, { tr: string; en: string }> = {
-      open: { tr: 'Yeniden Açıldı', en: 'Reopened' },
+      open: { tr: 'Açık', en: 'Open' },
       in_progress: { tr: 'İşlemde', en: 'In Progress' },
       waiting: { tr: 'Beklemede', en: 'Waiting' },
       resolved: { tr: 'Çözüldü', en: 'Resolved' },

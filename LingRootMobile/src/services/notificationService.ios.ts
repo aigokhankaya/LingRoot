@@ -27,6 +27,25 @@ try {
           return;
         }
         
+        // Handle support message notification
+        if (userInfo.type === 'support_message') {
+          try {
+            const raw = userInfo.payload || userInfo.supportData;
+            const supportData = typeof raw === 'string' 
+              ? JSON.parse(raw) 
+              : raw;
+
+            const svc = NotificationService.getInstance?.();
+            if (svc && supportData) {
+              const cb = (svc as any).responseCallback as ((data: string) => void) | null;
+              if (cb) cb(JSON.stringify({ type: 'support_message', data: supportData }));
+            }
+          } catch (e) {
+            console.error('[NotificationService iOS] Error handling support_message notification:', e);
+          }
+          return;
+        }
+        
         // Handle vocabulary word notification
         const wordId = userInfo.wordId || userInfo?.item?.wordId;
         if (wordId) {

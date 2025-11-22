@@ -227,6 +227,7 @@ const processTtsRequest = async (req, res) => {
     }
     let tempFilePath = null;
     let detectedLang = 'en';
+    let languageCode = 'en-US';
     // Mock TTS disabled in production
 
     try {
@@ -766,7 +767,7 @@ const processTtsRequest = async (req, res) => {
         }
         
         // Dynamically determine language code based on voice name
-        let languageCode = "en-US"; // Default to US English
+        languageCode = "en-US"; // Default to US English
         if (selectedVoice) {
             if (selectedVoice.includes("en-GB")) {
                 languageCode = "en-GB";

@@ -1,8 +1,8 @@
 // The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
 
-'use client';
+"use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTheme } from "next-themes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -55,7 +55,54 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [conversationsLoading, setConversationsLoading] = useState(false);
-  const [conversationFilter, setConversationFilter] = useState({ status: 'all', priority: 'all' });
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const statusDropdownRef = useRef<HTMLDivElement | null>(null);
+  // Destek konuşmaları için durum çoktan seçmeli (boş liste = tüm durumlar)
+  const [conversationFilter, setConversationFilter] = useState<{ status: string[]; priority: string }>({ status: [], priority: 'all' });
+
+  const statusFilterOptions = [
+    { value: 'open', label: 'Açık' },
+    { value: 'in_progress', label: 'İşlemde' },
+    { value: 'waiting', label: 'Beklemede' },
+    { value: 'resolved', label: 'Çözüldü' },
+    { value: 'closed', label: 'Kapatıldı' },
+  ];
+
+  const isStatusSelected = (value: string) => conversationFilter.status.includes(value);
+
+  const toggleStatusFilter = (value: string) => {
+    setConversationFilter((prev) => {
+      const exists = prev.status.includes(value);
+      const nextStatus = exists
+        ? prev.status.filter((s) => s !== value)
+        : [...prev.status, value];
+      return { ...prev, status: nextStatus };
+    });
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!statusDropdownRef.current) return;
+      if (!(event.target instanceof Node)) return;
+      if (!statusDropdownRef.current.contains(event.target)) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const clearStatusFilter = () => {
+    setConversationFilter((prev) => ({ ...prev, status: [] }));
+  };
+  const statusButtonLabel = conversationFilter.status.length === 0
+    ? 'Tüm Durumlar'
+    : conversationFilter.status.length === 1
+      ? (statusFilterOptions.find((opt) => opt.value === conversationFilter.status[0])?.label || 'Seçili 1 durum')
+      : `Seçili ${conversationFilter.status.length} durum`;
   const [editingPlan, setEditingPlan] = useState<any | null>(null);
   const [planForm, setPlanForm] = useState<any>({
     name: '',
@@ -514,6 +561,32 @@ const App: React.FC = () => {
     const matchesStatus = filterStatus === 'tümü' || user.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem('admin_support_conversation_filter');
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.status) && typeof parsed.priority === 'string') {
+        setConversationFilter({ status: parsed.status, priority: parsed.priority });
+      }
+    } catch (e) {
+      console.error('Failed to load support conversation filter', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(
+        'admin_support_conversation_filter',
+        JSON.stringify(conversationFilter)
+      );
+    } catch (e) {
+      console.error('Failed to save support conversation filter', e);
+    }
+  }, [conversationFilter]);
 
   const handleUserClick = (userId: string) => {
     router.push(`/admin/users/${userId}`);
@@ -1449,6 +1522,85 @@ const App: React.FC = () => {
 
           {activeTab === "destek" && (
             <div className="p-6">
+              <div className="bg-white rounded-lg shadow-sm mb-4 p-4 border border-gray-200">
+                <div className="flex flex-wrap gap-4 items-center">
+                  <div ref={statusDropdownRef} className="relative flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">Durum:</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsStatusDropdownOpen((prev) => !prev)}
+                      className="px-3 py-2 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2 min-w-[180px]"
+                    >
+                      <span>{statusButtonLabel}</span>
+                      <i className="fas fa-chevron-down text-xs text-gray-500"></i>
+                    </button>
+                    {isStatusDropdownOpen && (
+                      <div className="absolute left-0 top-full mt-1 w-60 rounded-md border bg-white shadow-lg z-50">
+                        <div className="px-3 py-2 text-xs font-semibold text-gray-500">
+                          Durum filtresi
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => clearStatusFilter()}
+                          className="flex w-full items-center px-3 py-1.5 text-sm text-left hover:bg-gray-50"
+                        >
+                          <span className="mr-2 inline-flex h-3.5 w-3.5 items-center justify-center">
+                            {conversationFilter.status.length === 0 && (
+                              <span className="h-3 w-3 rounded-sm bg-indigo-500 text-white text-[10px] flex items-center justify-center">
+                                ✓
+                              </span>
+                            )}
+                          </span>
+                          Tümü
+                        </button>
+                        <div className="my-1 border-t border-gray-200" />
+                        {statusFilterOptions.map((opt) => {
+                          const selected = isStatusSelected(opt.value);
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => toggleStatusFilter(opt.value)}
+                              className="flex w-full items-center px-3 py-1.5 text-sm text-left hover:bg-gray-50"
+                            >
+                              <span className="mr-2 inline-flex h-3.5 w-3.5 items-center justify-center">
+                                {selected && (
+                                  <span className="h-3 w-3 rounded-sm bg-indigo-500 text-white text-[10px] flex items-center justify-center">
+                                    ✓
+                                  </span>
+                                )}
+                              </span>
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">Öncelik:</span>
+                    <select
+                      value={conversationFilter.priority}
+                      onChange={(e) => setConversationFilter({ ...conversationFilter, priority: e.target.value })}
+                      className="px-3 py-2 pr-10 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-w-[160px] appearance-none"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                        backgroundPosition: 'right 0.75rem center',
+                        backgroundSize: '1.25em 1.25em',
+                        backgroundRepeat: 'no-repeat'
+                      }}
+                    >
+                      <option value="all">Tüm Öncelikler</option>
+                      <option value="low">Düşük</option>
+                      <option value="medium">Orta</option>
+                      <option value="high">Yüksek</option>
+                      <option value="urgent">Acil</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <AdminChatInterface
                 conversationFilter={conversationFilter}
                 setConversationFilter={setConversationFilter}

@@ -63,7 +63,7 @@ const DestekPage: React.FC = () => {
   const fetchConversations = async () => {
     try {
       const token = localStorage.getItem('lingroot_token');
-      const response = await fetch('/api/chat/conversations', {
+      const response = await fetch('/api/support-chat/conversations', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -84,7 +84,7 @@ const DestekPage: React.FC = () => {
   const fetchMessages = async (conversationId: string) => {
     try {
       const token = localStorage.getItem('lingroot_token');
-      const response = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
+      const response = await fetch(`/api/support-chat/conversations/${conversationId}/messages`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -109,7 +109,7 @@ const DestekPage: React.FC = () => {
     setSending(true);
     try {
       const token = localStorage.getItem('lingroot_token');
-      const response = await fetch('/api/chat/conversations', {
+      const response = await fetch('/api/support-chat/conversations', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -161,7 +161,7 @@ const DestekPage: React.FC = () => {
         formData.append('files', file);
       });
 
-      const response = await fetch(`/api/chat/conversations/${selectedConversation}/messages`, {
+      const response = await fetch(`/api/support-chat/conversations/${selectedConversation}/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -201,7 +201,7 @@ const DestekPage: React.FC = () => {
     if (!selectedConversation) return;
     try {
       const token = localStorage.getItem('lingroot_token');
-      const response = await fetch(`/api/chat/conversations/${selectedConversation}/reopen`, {
+      const response = await fetch(`/api/support-chat/conversations/${selectedConversation}/reopen`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -305,7 +305,7 @@ const DestekPage: React.FC = () => {
             <span className="text-lg">{getFileIcon(attachment.mime_type)}</span>
             <div className="flex-1 min-w-0">
               <a 
-                href={`/api/chat/attachments/${attachment.id}`}
+                href={`/api/support-chat/attachments/${attachment.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm font-medium text-blue-600 hover:text-blue-800 truncate block"
