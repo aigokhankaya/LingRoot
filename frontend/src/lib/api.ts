@@ -682,7 +682,8 @@ export interface HashtagNewsItem {
 // Belirli bir hashtag / konu için en güncel haberleri getir
 export const getHashtagNews = async (
   query: string,
-  limit: number
+  limit: number,
+  language: string = 'en'
 ): Promise<ApiResponse<HashtagNewsItem[]>> => {
   const url = getApiUrl('/content/process-hashtag');
   const headers = createHeaders('application/json');
@@ -690,6 +691,7 @@ export const getHashtagNews = async (
   const body = JSON.stringify({
     query,
     limit,
+    language,
   });
 
   const response = await fetch(url, {
@@ -700,6 +702,23 @@ export const getHashtagNews = async (
   });
 
   return handleApiResponse<HashtagNewsItem[]>(response);
+};
+
+// Haber URL'sinden tam metni getir
+export const fetchArticleDetails = async (
+  url: string
+): Promise<ApiResponse<{ url: string; text: string; length: number }>> => {
+  const apiUrl = getApiUrl('/content/article-details');
+  const headers = createHeaders('application/json');
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({ url }),
+  });
+
+  return handleApiResponse<{ url: string; text: string; length: number }>(response);
 };
 
 // Save favorite book IDs for authenticated user

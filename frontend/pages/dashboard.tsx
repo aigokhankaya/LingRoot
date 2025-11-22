@@ -12,8 +12,9 @@ import { ScrollArea } from '../src/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../src/components/ui/tabs';
 import PackageInfo from '../src/components/PackageInfo';
 import { VocabularyTabContent } from './vocabulary';
-import TopicTree from '../src/components/TopicHierarchy/TopicTree';
+import TopicHierarchySection from '../src/components/TopicHierarchy/TopicHierarchySection';
 import BrandWordmark from '../src/components/BrandWordmark';
+import InterestManager from '../src/components/InterestManager';
 
 
 
@@ -199,7 +200,30 @@ const Dashboard = () => {
     return <div className="p-8 text-center text-lg">Kullanıcı bilgileri yükleniyor...</div>;
   }
 
-  const displayName = (user as any).name || user.email;
+  const getDisplayName = () => {
+    try {
+      const firstName =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('lingroot_firstName') || ''
+          : '';
+      const lastName =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('lingroot_lastName') || ''
+          : '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      if (fullName) return fullName;
+      if ((user as any).name) return (user as any).name as string;
+      if (user.email) return user.email.split('@')[0];
+      return 'Kullanıcı';
+    } catch {
+      return (
+        ((user as any).name as string) ||
+        (user.email ? user.email.split('@')[0] : 'Kullanıcı')
+      );
+    }
+  };
+
+  const displayName = getDisplayName();
   const avatar = (user as any).avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
   const membershipStatus = user.membershipStatus || 'free';
   const profileImageUrl = avatar;
@@ -340,7 +364,7 @@ const Dashboard = () => {
             window.history.replaceState({}, '', url.toString());
           }
         }} className="w-full">
-          <TabsList className="flex justify-start mb-6 bg-white p-1 rounded-lg shadow-sm border overflow-x-auto">
+          <TabsList className="flex flex-wrap justify-start gap-2 mb-6 bg-white p-2 rounded-lg shadow-sm border">
             {/* 1. Dashboard */}
             <TabsTrigger value="dashboard" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-chart-line mr-2"></i>
@@ -361,6 +385,10 @@ const Dashboard = () => {
               <i className="fas fa-book mr-2"></i>
               Kitaplarım
             </TabsTrigger>
+            <TabsTrigger value="hobbies" className="!rounded-button whitespace-nowrap cursor-pointer">
+              <i className="fas fa-heart mr-2"></i>
+              Hobilerim
+            </TabsTrigger>
             {/* 5. Podcastlerim (şimdilik placeholder) */}
             <TabsTrigger value="podcasts" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-podcast mr-2"></i>
@@ -371,18 +399,9 @@ const Dashboard = () => {
               <i className="fas fa-file-pdf mr-2"></i>
               PDF
             </TabsTrigger>
-            {/* Diğer mevcut sekmeler */}
-            <TabsTrigger value="content" className="!rounded-button whitespace-nowrap cursor-pointer">
-              <i className="fas fa-file-alt mr-2"></i>
-              İçerik Yönetimi
-            </TabsTrigger>
             <TabsTrigger value="vocabulary" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-language mr-2"></i>
               Kelimelerim
-            </TabsTrigger>
-            <TabsTrigger value="ai-features" className="!rounded-button whitespace-nowrap cursor-pointer">
-              <i className="fas fa-robot mr-2"></i>
-              AI Özellikleri
             </TabsTrigger>
             <TabsTrigger value="paket-bilgilerim" className="!rounded-button whitespace-nowrap cursor-pointer">
               <i className="fas fa-box mr-2"></i>
@@ -683,7 +702,7 @@ const Dashboard = () => {
                 <CardDescription>Konu ağacınız ve kitap dinleme geçmişiniz burada özetlenir.</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <Card className="border border-gray-100 shadow-sm">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-lg font-semibold flex items-center">
@@ -727,6 +746,42 @@ const Dashboard = () => {
                       </button>
                     </CardContent>
                   </Card>
+
+                  <Card className="border border-gray-100 shadow-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg font-semibold flex items-center">
+                        <i className="fas fa-heart mr-2 text-primary"></i>
+                        Hobilerim
+                      </CardTitle>
+                      <CardDescription>Kaydettiğiniz hobi ve ilgi alanları.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Hobilerinizi güncellemek ve yeni konular keşfetmek için aşağıdaki butona tıklayın.
+                      </p>
+                      <button
+                        className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-full flex items-center space-x-2 cursor-pointer"
+                        onClick={() => setTab('hobbies')}
+                      >
+                        <span>Hobilerimi Gör</span>
+                        <i className="fas fa-arrow-right"></i>
+                      </button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="hobbies" className="mt-0">
+            <Card className="border-none shadow-md">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-bold text-gray-800">Hobilerim</CardTitle>
+                <CardDescription>Profilinizde kayıtlı ilgi alanlarınızı burada görüntüleyip güncelleyebilirsiniz.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="max-w-xl">
+                  <InterestManager showTitle={false} isEditing />
                 </div>
               </CardContent>
             </Card>
@@ -944,77 +999,15 @@ const Dashboard = () => {
             <div className="text-center py-8">
               <i className="fas fa-file-pdf text-4xl text-gray-300 mb-2"></i>
               <h3 className="text-lg font-medium text-gray-700">PDF</h3>
-              <p className="text-sm text-gray-500">PDF tabanlı okuma geçmişiniz burada görünecek.</p>
+              <p className="text-sm text-gray-500">
+                PDF içerik geçmişi ve yönetimi yakında burada görünecek.
+              </p>
             </div>
-          </TabsContent>
-
-          <TabsContent value="content" className="mt-0">
-            <div className="text-center py-8">
-              <i className="fas fa-file-alt text-4xl text-gray-300 mb-2"></i>
-              <h3 className="text-lg font-medium text-gray-700">İçerik Yönetimi</h3>
-              <p className="text-sm text-gray-500">İçerik yönetimi burada görünecek</p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="vocabulary" className="mt-0">
-            <VocabularyTabContent user={user} />
-          </TabsContent>
-
-          <TabsContent value="achievements" className="mt-0">
-            {/* Konularım: Konu ağacı görünümü */}
-            {topicsLoading && (
-              <div className="text-center py-6 text-gray-500">
-                <i className="fas fa-spinner fa-spin text-xl mr-2"></i>
-                Konular yükleniyor...
-              </div>
-            )}
-
-            {topicsError && !topicsLoading && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                {topicsError}
-              </div>
-            )}
-
-            {!topicsLoading && !topicsError && topics.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <i className="fas fa-folder-open text-4xl mb-3"></i>
-                <p>Henüz konu oluşturmadınız.</p>
-                <p className="text-sm text-gray-400 mt-1">
-                  İlk konunuzu{' '}
-                  <Link href="/welcome" className="text-primary underline">
-                    Ana Sayfa
-                  </Link>
-                  {' '}üzerindeki Konu Ağacı bölümünden oluşturabilirsiniz.
-                </p>
-              </div>
-            )}
-
-            {!topicsLoading && !topicsError && topics.length > 0 && (
-              <div className="mt-4">
-                <TopicTree
-                  topics={topics}
-                  onRefresh={loadTopicTree}
-                  level="A1"
-                />
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="ai-features" className="mt-0">
-            <div className="text-center py-8">
-              <i className="fas fa-robot text-4xl text-gray-300 mb-2"></i>
-              <h3 className="text-lg font-medium text-gray-700">AI Özellikleri</h3>
-              <p className="text-sm text-gray-500">AI özellikleri burada görünecek</p>
-          </div>
-          </TabsContent>
-
-          <TabsContent value="paket-bilgilerim" className="mt-0">
-            <PackageInfo />
           </TabsContent>
         </Tabs>
-          </div>
-        </div>
+      </div>
+    </div>
   );
 };
 
-export default Dashboard; 
+export default Dashboard;

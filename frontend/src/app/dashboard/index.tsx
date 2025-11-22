@@ -48,8 +48,30 @@ export default function Dashboard() {
     return <div className="p-8 text-center text-lg">Yükleniyor...</div>;
   }
 
-  // Eksik alanlar için fallback
-  const displayName = (user as any).name || user.email;
+  const getDisplayName = () => {
+    try {
+      const firstName =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('lingroot_firstName') || ''
+          : '';
+      const lastName =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('lingroot_lastName') || ''
+          : '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      if (fullName) return fullName;
+      if ((user as any).name) return (user as any).name as string;
+      if (user.email) return user.email.split('@')[0];
+      return 'Kullanıcı';
+    } catch {
+      return (
+        ((user as any).name as string) ||
+        (user.email ? user.email.split('@')[0] : 'Kullanıcı')
+      );
+    }
+  };
+
+  const displayName = getDisplayName();
   const avatar = (user as any).avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
   const role = user.role || 'user';
   const membershipStatus = user.membershipStatus || 'free';

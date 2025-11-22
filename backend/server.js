@@ -40,6 +40,7 @@ const configRoutes = require("./routes/configRoutes"); // Config routes (environ
 const patternRoutes = require("./routes/patternRoutes"); // Daily usage patterns
 const mfaRoutes = require("./routes/mfaRoutes"); // MFA alignment routes
 const topicHierarchyRoutes = require("./routes/topicHierarchy"); // Topic Hierarchy (multi-level content tree)
+const documentRoutes = require("./routes/documentRoutes"); // Document/PDF workflow
 
 // Initialize Express app
 const app = express();
@@ -151,6 +152,7 @@ app.use("/api/config", configRoutes); // Config routes (environment, etc.)
 app.use("/api/patterns", patternRoutes); // Daily usage patterns
 app.use("/api/mfa", mfaRoutes); // MFA alignment routes
 app.use("/api/topic-hierarchy", topicHierarchyRoutes); // Topic Hierarchy (multi-level content tree)
+app.use("/api/documents", documentRoutes); // Document/PDF workflow
 
 // Account deletion page (legacy)
 app.get('/delete-account', (req, res) => {

@@ -8,13 +8,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 import { MessageSquare } from 'lucide-react';
-import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams, generateHobbySuggestions, getRandomHobbySuggestions, checkHobbyExists, getUserBookFavorites, saveUserBookFavorites, getHashtagNews, HashtagNewsItem } from '../src/lib/api';
+import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams, generateHobbySuggestions, getRandomHobbySuggestions, checkHobbyExists, getUserBookFavorites, saveUserBookFavorites, getHashtagNews, HashtagNewsItem, fetchArticleDetails } from '../src/lib/api';
 import PlanRequired from '../src/components/PlanRequired';
 import { useTranslation } from '../src/lib/i18n';
 import InputSection from '../src/components/InputSection';
 import OutputSection from '../src/components/OutputSection';
 import Footer from '../src/components/Footer';
 import TopicHierarchySection from '../src/components/TopicHierarchy/TopicHierarchySection';
+import InterestManager from '../src/components/InterestManager';
 import { Button } from "../src/components/ui/button";
 import { Input } from "../src/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../src/components/ui/tabs";
@@ -119,7 +120,31 @@ const Welcome: React.FC = () => {
   const { badge, dailyLimit, remaining, currentPlanName } = useMembership();
   const { t } = useTranslation();
   const router = useRouter();
-  const displayName = (user as any)?.name || user?.email || 'Kullanıcı';
+
+  const getDisplayName = () => {
+    try {
+      const firstName =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('lingroot_firstName') || ''
+          : '';
+      const lastName =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('lingroot_lastName') || ''
+          : '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      if (fullName) return fullName;
+      if ((user as any)?.name) return (user as any).name as string;
+      if (user?.email) return user.email.split('@')[0];
+      return 'Kullanıcı';
+    } catch {
+      return (
+        ((user as any)?.name as string) ||
+        (user?.email ? user.email.split('@')[0] : 'Kullanıcı')
+      );
+    }
+  };
+
+  const displayName = getDisplayName();
   const avatar =
     (user as any)?.avatar ||
     `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
@@ -198,6 +223,7 @@ const Welcome: React.FC = () => {
   const [userInterests, setUserInterests] = useState<string[]>([]);
   const [loadingInterests, setLoadingInterests] = useState<boolean>(false);
   const [selectedInterest, setSelectedInterest] = useState<string>('');
+  const [showInterestManager, setShowInterestManager] = useState<boolean>(false);
   const [topicDetailSuggestions, setTopicDetailSuggestions] = useState<string[]>([]);
   const [isLoadingTopicSuggestions, setIsLoadingTopicSuggestions] = useState<boolean>(false);
   const [selectedDetailTopic, setSelectedDetailTopic] = useState<string>('');
@@ -207,6 +233,9 @@ const Welcome: React.FC = () => {
   const [hobbyNews, setHobbyNews] = useState<HashtagNewsItem[]>([]);
   const [isLoadingHobbyNews, setIsLoadingHobbyNews] = useState<boolean>(false);
   const [hobbyNewsError, setHobbyNewsError] = useState<string | null>(null);
+  const [articleDetails, setArticleDetails] = useState<Record<string, string>>({});
+  const [loadingArticleId, setLoadingArticleId] = useState<string | null>(null);
+  const [articleDetailError, setArticleDetailError] = useState<string | null>(null);
   const [availableVoices, setAvailableVoices] = useState<any[]>([]);
   const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
   const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('neural');
@@ -573,7 +602,7 @@ const Welcome: React.FC = () => {
 
     try {
       console.log('📰 Hobi haberleri getiriliyor:', { query, queryForNews, safeLimit });
-      const response = await getHashtagNews(queryForNews, safeLimit);
+      const response = await getHashtagNews(queryForNews, safeLimit, 'tr');
 
       if (!response.success) {
         throw new Error(response.message || 'Hobi haberleri alınamadı');
@@ -592,7 +621,12 @@ const Welcome: React.FC = () => {
 
   // Hobi haber maddesini doğrudan TTS pipeline'ına gönder
   const handlePlayHobbyNewsItem = async (item: HashtagNewsItem) => {
-    const baseText = `${item.title || ''}\n\n${item.summary || ''}\n\nKaynak: ${item.sourceName || item.source || ''}\n${item.url || ''}`.trim();
+    const key = (item.id || item.url || '').toString();
+    const detailedText = key ? articleDetails[key] : '';
+
+    const baseText = (detailedText && detailedText.trim().length > 0)
+      ? detailedText.trim()
+      : `${item.title || ''}\n\n${item.summary || ''}\n\nKaynak: ${item.sourceName || item.source || ''}\n${item.url || ''}`.trim();
 
     if (!baseText) {
       setError('Bu haber için metin bulunamadı.');
@@ -611,21 +645,71 @@ const Welcome: React.FC = () => {
     await handleSubmit(inputData);
   };
 
+  // Haber kartı için tam metni getir
+  const handleFetchArticleDetail = async (item: HashtagNewsItem) => {
+    if (!item.url) {
+      setArticleDetailError('Bu haber için geçerli bir bağlantı bulunamadı.');
+      return;
+    }
+
+    const key = (item.id || item.url || '').toString();
+
+    // Google News aggregator URL'leri için backend'e gitmeden özet metni kullan
+    try {
+      const hostname = new URL(item.url).hostname.toLowerCase();
+      if (hostname.includes('news.google.com')) {
+        const fallbackText = `${item.title || ''}\n\n${(item.summary || '').trim()}`.trim();
+        if (fallbackText) {
+          setArticleDetails((prev) => ({
+            ...prev,
+            [key]: fallbackText,
+          }));
+          setArticleDetailError(null);
+          return;
+        }
+      }
+    } catch {
+      // URL parse error - normal akışa devam et
+    }
+
+    setLoadingArticleId(key);
+    setArticleDetailError(null);
+
+    try {
+      const response = await fetchArticleDetails(item.url);
+      if (!response.success || !response.data || !response.data.text) {
+        throw new Error(response.message || 'Haber detayı alınamadı');
+      }
+
+      setArticleDetails((prev) => ({
+        ...prev,
+        [key]: response.data!.text,
+      }));
+    } catch (error: any) {
+      console.error('Haber detayı alınırken hata:', error);
+      setArticleDetailError(error.message || 'Haber detayı alınamadı');
+    } finally {
+      setLoadingArticleId(null);
+    }
+  };
+
   // Hobi seçildiğinde varlık kontrolü
   useEffect(() => {
-    if (contentType === 'topic' && selectedInterest) {
-      checkHobbyExists(selectedInterest).then(result => {
-        if (result.success) {
-          setHobbyExists(result.data.exists);
-          if (result.data.exists) {
-            // Otomatik olarak 5 rastgele öneri getir
-            handleGetRandomHobbySuggestions();
+    if (false) {
+      if (contentType === 'topic' && selectedInterest) {
+        checkHobbyExists(selectedInterest).then(result => {
+          if (result.success) {
+            setHobbyExists(result.data.exists);
+            if (result.data.exists) {
+              // Otomatik olarak 5 rastgele öneri getir
+              handleGetRandomHobbySuggestions();
+            }
           }
-        }
-      }).catch(err => {
-        console.error('Hobi kontrolü hatası:', err);
-        setHobbyExists(false);
-      });
+        }).catch(err => {
+          console.error('Hobi kontrolü hatası:', err);
+          setHobbyExists(false);
+        });
+      }
     }
   }, [selectedInterest, contentType]);
 
@@ -1899,11 +1983,19 @@ const Welcome: React.FC = () => {
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-lg font-medium text-gray-700">İçerik Girişi</h3>
-                  <div className="flex space-x-2">
-                    <Button variant="outline" size="sm" className="!rounded-button whitespace-nowrap cursor-pointer">
-                      <i className="fas fa-cog mr-2"></i> Ayarlar
-                    </Button>
-                  </div>
+                  {contentType === 'topic' && (
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="!rounded-button whitespace-nowrap cursor-pointer"
+                        type="button"
+                        onClick={() => setShowInterestManager(!showInterestManager)}
+                      >
+                        <i className="fas fa-heart mr-2"></i> Hobilerimi Yönet
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 {contentType === 'document' ? (
                   <div className="space-y-4">
@@ -1974,9 +2066,18 @@ const Welcome: React.FC = () => {
                     {contentType === 'topic' && (
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Hobiler/İlgi Alanlarınız:
-                          </label>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-medium text-gray-700">
+                              Hobiler/İlgi Alanlarınız:
+                            </label>
+                            <button
+                              type="button"
+                              className="text-xs text-primary hover:text-primary/80 underline cursor-pointer ml-3 whitespace-nowrap"
+                              onClick={() => setShowInterestManager(!showInterestManager)}
+                            >
+                              Hobilerimi Yönet
+                            </button>
+                          </div>
                           {loadingInterests ? (
                             <div className="flex items-center justify-center p-4 border border-gray-300 rounded-lg">
                               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
@@ -2040,10 +2141,26 @@ const Welcome: React.FC = () => {
                           )}
                         </div>
 
+                        {showInterestManager && (
+                            <div className="mt-4">
+                              <InterestManager
+                                showTitle={false}
+                                className="bg-white rounded-lg shadow p-4"
+                                isEditing
+                                onUpdate={fetchUserInterests}
+                              />
+                            </div>
+                          )}
+
                         {/* Detaylı öneriler combobox'ı */}
                         {hobbyNewsError && (
                           <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
                             {hobbyNewsError}
+                          </div>
+                        )}
+                        {articleDetailError && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                            {articleDetailError}
                           </div>
                         )}
                         {hobbyNews.length > 0 && (
@@ -2089,6 +2206,26 @@ const Welcome: React.FC = () => {
                                     <Button
                                       type="button"
                                       size="sm"
+                                      variant="outline"
+                                      className="!rounded-button whitespace-nowrap text-xs px-3 py-1.5"
+                                      onClick={() => handleFetchArticleDetail(item)}
+                                      disabled={loadingArticleId === (item.id || item.url)}
+                                    >
+                                      {loadingArticleId === (item.id || item.url) ? (
+                                        <>
+                                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current mr-1 inline-block"></div>
+                                          Detay Yükleniyor...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <i className="fas fa-file-alt mr-1"></i>
+                                          Detayı Getir
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="sm"
                                       className="!rounded-button whitespace-nowrap cursor-pointer bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5"
                                       onClick={() => handlePlayHobbyNewsItem(item)}
                                     >
@@ -2096,6 +2233,16 @@ const Welcome: React.FC = () => {
                                       Bu Haberle Ses Oluştur
                                     </Button>
                                   </div>
+                                  {(() => {
+                                    const key = (item.id || item.url || '').toString();
+                                    const detail = key ? articleDetails[key] : '';
+                                    if (!detail) return null;
+                                    return (
+                                      <div className="mt-2 p-2 bg-gray-50 border border-dashed border-gray-200 rounded text-xs text-gray-800 max-h-48 overflow-y-auto whitespace-pre-line">
+                                        {detail}
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               ))}
                             </div>

@@ -24,6 +24,9 @@ router.post('/process-spotify', contentController.processSpotify);
 router.post('/process-suggestions', contentController.processSuggestions);
 router.post('/process-hashtag', contentController.processHashtag);
 
+// Haber detayı için özel endpoint
+router.post('/article-details', contentController.fetchArticleDetails);
+
 // ✅ Yeni eklenen route:
 router.post('/submit', authenticate, contentController.submitContent);
 

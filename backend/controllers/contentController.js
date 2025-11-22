@@ -6,6 +6,7 @@ const { logStep } = require('../utils/stepLogger');
 const { v4: uuidv4 } = require('uuid');
 const { processTextPipeline } = require('../utils/pipeline');
 const { getNewsForTopic } = require('../utils/newsService');
+const { extractFromWebLink } = require('../utils/inputExtractor');
 
 // Supabase yapılandırması
 const supabaseBucket = process.env.SUPABASE_BUCKET || "lingroot-audio";
@@ -49,6 +50,48 @@ exports.processLink = async (req, res) => {
   const result = await processTextPipeline({ inputData: input, inputType: 'weblink', level });
   if (result.error) return res.status(400).json({ success: false, error: result.error });
   res.json({ success: true, data: result.cleanedText });
+};
+
+/**
+ * Haber URL'sinden tam metni çıkarıp döndüren yardımcı endpoint.
+ */
+exports.fetchArticleDetails = async (req, res) => {
+	const requestId = uuidv4();
+	try {
+		const { url } = req.body || {};
+		if (!url || typeof url !== 'string' || !url.trim()) {
+			return res.status(400).json({
+				success: false,
+				message: 'Lütfen geçerli bir haber bağlantısı (url) gönderin.',
+			});
+		}
+
+		logger.info(`[${requestId}] fetchArticleDetails called`, { url });
+		const text = await extractFromWebLink(url);
+		if (!text || !text.trim()) {
+			return res.status(502).json({
+				success: false,
+				message: 'Haber metni kaynaktan çıkarılamadı.',
+			});
+		}
+
+		const trimmed = text.length > 20000 ? text.slice(0, 20000) : text;
+		return res.status(200).json({
+			success: true,
+			data: {
+				url,
+				text: trimmed,
+				length: trimmed.length,
+			},
+		});
+	} catch (error) {
+		logger.error(`[${requestId}] Error in fetchArticleDetails`, { error: error.message });
+		return res.status(500).json({
+			success: false,
+			message: 'Haber detayı alınırken bir hata oluştu.',
+			error: error.message,
+		});
+	}
 };
 
 /**

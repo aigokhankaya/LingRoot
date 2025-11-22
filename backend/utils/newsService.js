@@ -31,9 +31,10 @@ const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN || '';
  * Fetch news via NewsAPI (https://newsapi.org/) if configured.
  * @param {string} topic
  * @param {number} limit
+ * @param {string} language
  * @returns {Promise<NormalizedNewsItem[]>}
  */
-async function fetchNewsApi(topic, limit) {
+async function fetchNewsApi(topic, limit, language = 'en') {
   if (!NEWS_API_KEY || NEWS_API_PROVIDER.toLowerCase() !== 'newsapi') {
     return [];
   }
@@ -46,7 +47,7 @@ async function fetchNewsApi(topic, limit) {
       params: {
         q: topic,
         sortBy: 'publishedAt',
-        language: 'en',
+        language: (language || 'en').toLowerCase(),
         pageSize,
       },
       headers: {
@@ -82,9 +83,10 @@ async function fetchNewsApi(topic, limit) {
  * NOTE: This requires a valid TWITTER_BEARER_TOKEN and appropriate API access level.
  * @param {string} hashtag
  * @param {number} limit
+ * @param {string} language
  * @returns {Promise<NormalizedNewsItem[]>}
  */
-async function fetchTwitterHashtag(hashtag, limit) {
+async function fetchTwitterHashtag(hashtag, limit, language = 'en') {
   if (!TWITTER_BEARER_TOKEN) return [];
 
   // Normalize hashtag (remove leading # for query building)
@@ -96,7 +98,7 @@ async function fetchTwitterHashtag(hashtag, limit) {
 
     const resp = await axios.get(url, {
       params: {
-        query: `#${tag} lang:en -is:retweet`,
+        query: `#${tag} lang:${(language || 'en').toLowerCase()} -is:retweet`,
         'tweet.fields': 'created_at,lang,author_id',
         max_results: maxResults,
       },
@@ -133,12 +135,26 @@ async function fetchTwitterHashtag(hashtag, limit) {
  * This gives us recent news for a general topic string.
  * @param {string} topic
  * @param {number} limit
+ * @param {string} language
  * @returns {Promise<NormalizedNewsItem[]>}
  */
-async function fetchGoogleNewsRSS(topic, limit) {
+async function fetchGoogleNewsRSS(topic, limit, language = 'en') {
   try {
     const q = encodeURIComponent(topic);
-    const rssUrl = `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`;
+
+    // Google News locale ayarları - dil koduna göre basit eşleme
+    let hl = 'en-US';
+    let gl = 'US';
+    let ceid = 'US:en';
+
+    const lang = (language || 'en').toLowerCase();
+    if (lang.startsWith('tr')) {
+      hl = 'tr-TR';
+      gl = 'TR';
+      ceid = 'TR:tr';
+    }
+
+    const rssUrl = `https://news.google.com/rss/search?q=${q}&hl=${hl}&gl=${gl}&ceid=${ceid}`;
 
     const resp = await axios.get(rssUrl, {
       timeout: 8000,
@@ -156,13 +172,43 @@ async function fetchGoogleNewsRSS(topic, limit) {
       const pubDate = $(el).find('pubDate').first().text();
       const description = $(el).find('description').first().text();
 
-      // Some Google News links are redirect URLs; keep as-is for now
-      if (!link) link = description || '';
+      let summary = description || '';
+
+      // Try to resolve original article URL and clean text from description HTML
+      try {
+        if (description) {
+          const $desc = cheerio.load(description, { xmlMode: false });
+
+          // Prefer the first anchor that does NOT point back to Google News
+          let resolvedLink = link;
+          $desc('a[href]').each((_, a) => {
+            const href = $desc(a).attr('href');
+            if (href && !href.includes('news.google.com')) {
+              resolvedLink = href;
+              return false; // break
+            }
+            return undefined;
+          });
+
+          if (resolvedLink) {
+            link = resolvedLink;
+          }
+
+          const cleanedText = $desc.text().trim();
+          if (cleanedText) {
+            summary = cleanedText;
+          }
+        }
+      } catch (e) {
+        // keep original link + summary on error
+      }
+
+      if (!link) link = summary || '';
 
       items.push({
         id: uuidv4(),
         title,
-        summary: description || '',
+        summary,
         url: link,
         source: 'google_news_rss',
         sourceName: 'Google News',
@@ -197,17 +243,21 @@ async function getNewsForTopic({ query, limit = 10, language = 'en' }) {
   }
 
   const requestId = uuidv4();
-  logger.info(`[newsService] Fetching news for query="${trimmedQuery}" limit=${safeLimit}`, { requestId });
+
+  // Twitter için tam hashtag'i, genel haber kaynakları için ise '#' işareti olmadan konuyu kullan
+  const baseTopic = trimmedQuery.startsWith('#') ? trimmedQuery.slice(1) : trimmedQuery;
+
+  logger.info(`[newsService] Fetching news for query="${trimmedQuery}" baseTopic="${baseTopic}" limit=${safeLimit} lang=${language}`, { requestId });
 
   const tasks = [];
 
-  // General news providers
-  tasks.push(fetchGoogleNewsRSS(trimmedQuery, safeLimit));
-  tasks.push(fetchNewsApi(trimmedQuery, safeLimit));
+  // General news providers (Google News + NewsAPI)
+  tasks.push(fetchGoogleNewsRSS(baseTopic, safeLimit, language));
+  tasks.push(fetchNewsApi(baseTopic, safeLimit, language));
 
   // Twitter only makes sense for real hashtags
   if (trimmedQuery.startsWith('#')) {
-    tasks.push(fetchTwitterHashtag(trimmedQuery, safeLimit));
+    tasks.push(fetchTwitterHashtag(trimmedQuery, safeLimit, language));
   }
 
   const resultsNested = await Promise.allSettled(tasks);
