@@ -116,6 +116,7 @@ Android Lokal test:
     3) adb reverse tcp:8081 tcp:8081
     4) npx react-native start --reset-cache (temiz başlangıç için)
     5) F:\Main\LingRootMobile> npx react-native run-android (4.maddeyi çalıştırdıysa ayrı bir terminalde bunu çalıştır)
+    6) npx react-native log-android (Log takibi için Logcat çalıştırma)
 
 Uygulamada açılmazsa:
     Uygulamada "RELOAD (R, R)" butonuna basın veya telefonu sallayın

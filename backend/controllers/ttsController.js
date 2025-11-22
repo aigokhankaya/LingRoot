@@ -227,6 +227,7 @@ const processTtsRequest = async (req, res) => {
     }
     let tempFilePath = null;
     let detectedLang = 'en';
+    let languageCode = 'en-US';
     // Mock TTS disabled in production
 
     try {

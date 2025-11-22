@@ -92,6 +92,30 @@ class NotificationService {
               }
               return;
             }
+
+            // Handle support message notification
+            if (userInfo.type === 'support_message') {
+              try {
+                const raw = userInfo.payload || userInfo.supportData;
+                const supportData = typeof raw === 'string' ? JSON.parse(raw) : raw;
+
+                if (!supportData) {
+                  return;
+                }
+
+                const payload = JSON.stringify({ type: 'support_message', data: supportData });
+
+                if (this.responseCallback) {
+                  this.responseCallback(payload);
+                } else {
+                  // Reuse pendingAudioPayload buffer for support payloads as well
+                  this.pendingAudioPayload = payload;
+                }
+              } catch (e) {
+                console.error('[NotificationService][Android] Error handling support_message notification:', e);
+              }
+              return;
+            }
             
             // Handle vocabulary word notification
             const wordId = userInfo.wordId || userInfo?.item?.wordId;

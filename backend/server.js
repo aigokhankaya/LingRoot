@@ -1,4 +1,5 @@
 const express = require("express");
+const http = require("http");
 const path = require("path");
 const fs = require("fs");
 const cors = require("cors");
@@ -29,6 +30,7 @@ const userRoutes = require("./routes/userRoutes"); // 👈 İlgi alanları burad
 const parameterRoutes = require("./routes/parameterRoutes");
 const vocabularyRoutes = require("./routes/vocabularyRoutes"); // 👈 Vocabulary route eklendi
 const chatRoutes = require("./routes/chat"); // Chat routes (admin-user support)
+const supportChatRoutes = require("./routes/supportChat"); // New Support Chat routes (separate tables)
 const aiChatRoutes = require("./routes/aiChat"); // AI Chat routes (Liro assistant)
 const iapRoutes = require("./routes/iapRoutes"); // Apple IAP routes
 const appleNotificationsRoutes = require("./routes/appleNotificationsRoutes"); // Apple Server Notifications
@@ -44,6 +46,7 @@ const documentRoutes = require("./routes/documentRoutes"); // Document/PDF workf
 
 // Initialize Express app
 const app = express();
+const { initSocket } = require('./utils/socketManager');
 
 // Dev-only env diagnostics (no secrets printed)
 if (process.env.NODE_ENV === 'development') {
@@ -142,6 +145,7 @@ app.use("/api", userRoutes); // ✅ user-interests endpoint burada aktif
 app.use("/api/parameters", parameterRoutes);
 app.use("/api/vocabulary", vocabularyRoutes); // 👈 Vocabulary route eklendi
 app.use("/api/chat", chatRoutes); // Chat routes (admin-user support)
+app.use("/api/support-chat", supportChatRoutes); // Support Chat routes (separate from LIRO)
 app.use("/api/ai-chat", aiChatRoutes); // AI Chat routes (Liro assistant)
 app.use('/auth', authRoutes);
 app.use("/api/iap", iapRoutes); // Apple IAP verification
@@ -195,7 +199,17 @@ logger.info(`Process environment PORT variable: ${process.env.PORT || "not set"}
 
 // Start server function
 const startServer = () => {
-  const server = app.listen(PORT, "0.0.0.0", () => {
+  const server = http.createServer(app);
+
+  // Initialize Socket.IO on the same HTTP server
+  try {
+    initSocket(server);
+    logger.info('✅ Socket.IO initialized for real-time support notifications');
+  } catch (socketError) {
+    logger.error('❌ Failed to initialize Socket.IO:', socketError);
+  }
+
+  server.listen(PORT, "0.0.0.0", () => {
     logger.info(`✅ Server is running on http://0.0.0.0:${PORT} in ${process.env.NODE_ENV || "development"} mode`);
     logger.info(`✅ Server successfully bound to port ${PORT}`);
   });

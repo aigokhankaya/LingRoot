@@ -135,7 +135,7 @@ export type RootStackParamList = {
   Settings: undefined;
   Membership: undefined;
   Packages: undefined;
-  Chat: undefined;
+  Chat: { conversationId?: string } | undefined;
   Vocabulary: { wordId?: string } | undefined;
   PatternList: undefined;
   PrivacyPolicy: undefined;

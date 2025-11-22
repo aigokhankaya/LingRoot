@@ -284,6 +284,7 @@ const AppNavigator = () => {
   const [navReady, setNavReady] = useState(false);
   const [initialWordId, setInitialWordId] = useState<string | null>(null);
   const [initialAudioNotification, setInitialAudioNotification] = useState<any | null>(null);
+  const [initialSupportNotification, setInitialSupportNotification] = useState<any | null>(null);
 
   // Store navigation ref globally for direct access from notification service
   useEffect(() => {
@@ -310,6 +311,7 @@ const AppNavigator = () => {
         console.log('[AppNav][Notification] Parsed payload:', parsed);
 
         const isAudioNotification = parsed && parsed.type === 'audio_created' && parsed.data;
+        const isSupportNotification = parsed && parsed.type === 'support_message' && parsed.data;
 
         const navigateToAudioFromNotification = (audioData: any) => {
           try {
@@ -353,6 +355,16 @@ const AppNavigator = () => {
           }
         };
 
+        const navigateToSupportFromNotification = (supportData: any) => {
+          try {
+            navigationRef.current?.navigate('Chat', {
+              conversationId: supportData.conversationId,
+            } as any);
+          } catch (e) {
+            console.error('Navigation error (support notification):', e);
+          }
+        };
+
         if (navReady) {
           if (isAudioNotification) {
             console.log('[AppNav][Notification] Navigating to Library with audio data:', {
@@ -361,6 +373,9 @@ const AppNavigator = () => {
               jobId: parsed?.data?.jobId,
             });
             navigateToAudioFromNotification(parsed.data);
+          } else if (isSupportNotification) {
+            console.log('[AppNav][Notification] Navigating to Support Chat with data:', parsed.data);
+            navigateToSupportFromNotification(parsed.data);
           } else {
             const wordId = parsed ? (parsed.wordId || data) : data;
             navigateToVocabularyFromNotification(String(wordId));
@@ -369,6 +384,9 @@ const AppNavigator = () => {
           if (isAudioNotification) {
             console.log('[AppNav][Notification] Nav not ready, caching initial audio notification');
             setInitialAudioNotification(parsed.data);
+          } else if (isSupportNotification) {
+            console.log('[AppNav][Notification] Nav not ready, caching initial support notification');
+            setInitialSupportNotification(parsed.data);
           } else {
             const wordId = parsed ? (parsed.wordId || data) : data;
             setInitialWordId(String(wordId));
@@ -407,7 +425,21 @@ const AppNavigator = () => {
   useEffect(() => {
     if (!user || !navReady || !navigationRef.current) return;
 
-    // 1) Audio notification pending while nav was not ready
+    // 1) Support notification pending while nav was not ready
+    if (initialSupportNotification) {
+      try {
+        navigationRef.current.navigate('Chat', {
+          conversationId: initialSupportNotification.conversationId,
+        });
+      } catch (e) {
+        console.error('Navigation error (initial support notification):', e);
+      } finally {
+        setInitialSupportNotification(null);
+      }
+      return;
+    }
+
+    // 2) Audio notification pending while nav was not ready
     if (initialAudioNotification) {
       try {
         navigationRef.current.dispatch(
@@ -437,7 +469,7 @@ const AppNavigator = () => {
       return;
     }
 
-    // 2) Vocabulary notification pending while nav was not ready
+    // 3) Vocabulary notification pending while nav was not ready
     const pending = NotificationService.consumePendingWordId
       ? NotificationService.consumePendingWordId()
       : null;
@@ -497,27 +529,12 @@ const AppNavigator = () => {
             <Stack.Screen
               name="Chat"
               component={ChatScreen}
-              options={({ navigation }) => ({
+              options={{
                 headerShown: true,
                 headerStyle: { backgroundColor: '#007AFF' },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
-                headerTitle: language === 'tr' ? 'Mesaj Gönder' : 'Send Message',
-              })}
-            />
-            <Stack.Screen
-              name="Vocabulary"
-              component={VocabularyScreen}
-              options={{
-                headerShown: true,
-                headerStyle: {
-                  backgroundColor: '#007AFF',
-                },
-                headerTintColor: '#fff',
-                headerTitleStyle: {
-                  fontWeight: 'bold',
-                },
-                headerTitle: 'Vocabulary', // This will be updated by the component
+                headerTitle: language === 'tr' ? 'Destek' : 'Support',
               }}
             />
             <Stack.Screen

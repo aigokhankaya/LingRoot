@@ -30,6 +30,11 @@ exports.errorHandler = (err, req, res, next) => {
  * Not found middleware
  */
 exports.notFound = (req, res, next) => {
+  // Allow Socket.IO to handle its own handshake/upgrade requests
+  if (req.originalUrl && req.originalUrl.startsWith('/socket.io')) {
+    return next();
+  }
+
   const error = new Error(`Not Found - ${req.originalUrl}`);
   res.status(404);
   next(error);

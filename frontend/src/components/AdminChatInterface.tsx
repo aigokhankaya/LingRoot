@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -6,6 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { io, Socket } from "socket.io-client";
+import { getApiBaseUrl } from "@/lib/api";
 
 interface Attachment {
   id: string;
@@ -44,8 +46,8 @@ interface Conversation {
 }
 
 interface AdminChatInterfaceProps {
-  conversationFilter: { status: string; priority: string };
-  setConversationFilter: (filter: { status: string; priority: string }) => void;
+  conversationFilter: { status: string[]; priority: string };
+  setConversationFilter: (filter: { status: string[]; priority: string }) => void;
 }
 
 const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
@@ -59,28 +61,25 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
   const [conversationsLoading, setConversationsLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [openUserKeys, setOpenUserKeys] = useState<string[]>([]);
+  const socketRef = useRef<Socket | null>(null);
+  const selectedConversationRef = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  useEffect(() => {
-    fetchConversations();
-  }, [conversationFilter]);
-
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     setConversationsLoading(true);
     try {
       const token = localStorage.getItem('lingroot_token');
       const params = new URLSearchParams();
-      if (conversationFilter.status !== 'all') params.append('status', conversationFilter.status);
+      if (conversationFilter.status && conversationFilter.status.length > 0) {
+        params.append('status', conversationFilter.status.join(','));
+      }
       if (conversationFilter.priority !== 'all') params.append('priority', conversationFilter.priority);
       
-      const response = await fetch(`/api/chat/admin/conversations?${params}`, {
+      const response = await fetch(`/api/support-chat/admin/conversations?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -96,12 +95,12 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
     } finally {
       setConversationsLoading(false);
     }
-  };
+  }, [conversationFilter]);
 
-  const fetchMessages = async (conversationId: string) => {
+  const fetchMessages = useCallback(async (conversationId: string) => {
     try {
       const token = localStorage.getItem('lingroot_token');
-      const response = await fetch(`/api/chat/conversations/${conversationId}/messages`, {
+      const response = await fetch(`/api/support-chat/conversations/${conversationId}/messages`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -115,7 +114,20 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Always keep a ref of the currently selected conversation for socket handlers
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+  }, [selectedConversation]);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
 
   const sendAdminMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return;
@@ -123,11 +135,13 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
     setSending(true);
     try {
       const token = localStorage.getItem('lingroot_token');
-      const response = await fetch(`/api/chat/conversations/${selectedConversation}/messages`, {
+      const response = await fetch(`/api/support-chat/conversations/${selectedConversation}/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          // Bu header, backend'e bu isteğin admin panelinden geldiğini söyler.
+          'X-Admin-Support-Sender': 'admin',
         },
         body: JSON.stringify({ content: newMessage })
       });
@@ -152,7 +166,7 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
       if (status) body.status = status;
       if (priority) body.priority = priority;
       
-      const response = await fetch(`/api/chat/admin/conversations/${conversationId}`, {
+      const response = await fetch(`/api/support-chat/admin/conversations/${conversationId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -217,6 +231,37 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
     }
   };
 
+  const getConversationRowBackground = (status: string, isSelected: boolean) => {
+    if (isSelected) {
+      // Seçili kayıt biraz daha belirgin kalsın
+      return 'bg-indigo-50';
+    }
+
+    switch (status) {
+      case 'open':
+        return 'bg-blue-50/50';
+      case 'in_progress':
+        return 'bg-yellow-50/50';
+      case 'waiting':
+        return 'bg-orange-50/50';
+      case 'resolved':
+        return 'bg-green-50/50';
+      case 'closed':
+        return 'bg-gray-50/50';
+      default:
+        return 'bg-white';
+    }
+  };
+
+  const getUnreadHighlightClasses = (unreadCount: number) => {
+    if (unreadCount > 0) {
+      // Yeni mesajı olan taleplerde 2px kalınlığında kırmızı bir çerçeve
+      return 'border-2 border-red-500';
+    }
+    // Okunmamış mesaj yoksa normal görünüm
+    return 'border border-transparent';
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -228,6 +273,124 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
       return date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' });
     }
   };
+  
+  // Kullanıcı bazlı gruplama: her kullanıcı için ayrı bir collapse
+  const groupedConversations = useMemo(() => {
+    const groups: Record<string, { userName: string; userEmail: string; conversations: Conversation[] }> = {};
+
+    conversations.forEach((conv) => {
+      const key = conv.user_email || conv.user_name || 'unknown-user';
+      if (!groups[key]) {
+        groups[key] = {
+          userName: conv.user_name,
+          userEmail: conv.user_email,
+          conversations: [],
+        };
+      }
+      groups[key].conversations.push(conv);
+    });
+
+    const result = Object.entries(groups).map(([key, value]) => {
+      const sortedConversations = [...value.conversations].sort((a, b) => {
+        const da = new Date(a.last_message_at || a.created_at).getTime();
+        const db = new Date(b.last_message_at || b.created_at).getTime();
+        // Mesaj tarihine göre DESC
+        return db - da;
+      });
+
+      return {
+        userKey: key,
+        userName: value.userName,
+        userEmail: value.userEmail,
+        conversations: sortedConversations,
+      };
+    });
+
+    // Kullanıcı adına göre A-Z sırala
+    result.sort((a, b) => {
+      const nameA = (a.userName || '').toLowerCase();
+      const nameB = (b.userName || '').toLowerCase();
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+      const emailA = (a.userEmail || '').toLowerCase();
+      const emailB = (b.userEmail || '').toLowerCase();
+      if (emailA < emailB) return -1;
+      if (emailA > emailB) return 1;
+      return 0;
+    });
+
+    return result;
+  }, [conversations]);
+
+  // Socket.IO ile gerçek zamanlı admin destek güncellemeleri
+  useEffect(() => {
+    const baseUrl = getApiBaseUrl();
+
+    const socket = io(baseUrl, {
+      path: '/socket.io',
+      transports: ['websocket', 'polling'],
+      withCredentials: true,
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('[SupportSocket] connected:', socket.id);
+      socket.emit('join_admin_support_room');
+    });
+
+    socket.on('support:new_conversation', () => {
+      console.log('[SupportSocket] support:new_conversation received');
+      fetchConversations();
+    });
+
+    socket.on('support:new_message', (payload: { conversationId: string; isAdmin?: boolean }) => {
+      console.log('[SupportSocket] support:new_message received:', payload);
+      fetchConversations();
+
+      const currentConv = selectedConversationRef.current;
+      if (currentConv && payload?.conversationId === currentConv) {
+        fetchMessages(currentConv);
+      }
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('[SupportSocket] disconnected:', reason);
+    });
+
+    return () => {
+      try {
+        socket.off('support:new_conversation');
+        socket.off('support:new_message');
+        socket.disconnect();
+      } catch (e) {
+        // ignore cleanup errors
+      }
+      socketRef.current = null;
+    };
+  }, [fetchConversations, fetchMessages]);
+
+  // Tüm kullanıcı grupları varsayılan olarak açık gelsin.
+  // Yeni gelen kullanıcı grupları da otomatik olarak açık listeye eklenir.
+  useEffect(() => {
+    const groupKeys = groupedConversations.map(g => g.userKey);
+    if (!groupKeys.length) {
+      setOpenUserKeys([]);
+      return;
+    }
+
+    setOpenUserKeys(prev => {
+      if (prev.length === 0) {
+        // İlk yüklemede tüm grupları aç
+        return groupKeys;
+      }
+
+      // Daha önce var olanları koru, yeni gelenleri ekle
+      const newKeys = groupKeys.filter(key => !prev.includes(key));
+      if (newKeys.length === 0) return prev;
+      return [...prev, ...newKeys];
+    });
+  }, [groupedConversations]);
 
   const getFileIcon = (mimeType: string) => {
     if (mimeType?.startsWith('image/')) return '🖼️';
@@ -250,7 +413,7 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
   const downloadAttachment = async (attachmentId: string, filename: string) => {
     try {
       const token = localStorage.getItem('lingroot_token');
-      const response = await fetch(`/api/chat/attachments/${attachmentId}`, {
+      const response = await fetch(`/api/support-chat/attachments/${attachmentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -308,41 +471,83 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
                   <p>Konuşma bulunamadı</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100">
-                  {conversations.map((conversation) => (
-                    <div 
-                      key={conversation.id}
-                      onClick={() => handleConversationSelect(conversation.id)}
-                      className={`p-4 hover:bg-gray-50 cursor-pointer ${
-                        selectedConversation === conversation.id ? 'bg-indigo-50' : ''
-                      }`}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="font-medium truncate">{conversation.subject}</div>
-                        <div className="flex space-x-1 ml-2">
-                          <Badge className={getPriorityColor(conversation.priority)}>
-                            {getPriorityText(conversation.priority)}
-                          </Badge>
-                          {conversation.unread_count > 0 && (
-                            <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1">
-                              {conversation.unread_count}
-                            </span>
-                          )}
+                <div className="divide-y divide-gray-200">
+                  {groupedConversations.map((group) => (
+                    <div key={group.userKey} className="border-b border-gray-100 last:border-b-0">
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100"
+                        onClick={() =>
+                          setOpenUserKeys(prev =>
+                            prev.includes(group.userKey)
+                              ? prev.filter(key => key !== group.userKey)
+                              : [...prev, group.userKey]
+                          )
+                        }
+                      >
+                        <div className="flex flex-col text-left">
+                          <span className="font-medium text-gray-900">{group.userName || 'İsimsiz Kullanıcı'}</span>
+                          <span className="text-xs text-gray-500">{group.userEmail}</span>
                         </div>
-                      </div>
-                      <div className="text-sm text-gray-500 mb-1">{conversation.user_name}</div>
-                      <div className="flex justify-between items-center mb-2">
-                        <Badge className={getStatusColor(conversation.status)}>
-                          {getStatusText(conversation.status)}
-                        </Badge>
-                        <span className="text-xs text-gray-400">
-                          {formatDate(conversation.last_message_at || conversation.created_at)}
-                        </span>
-                      </div>
-                      {conversation.last_message_content && (
-                        <div className="text-sm text-gray-600 truncate">
-                          {conversation.last_message_sender_type === 'admin' ? '👨‍💼 ' : ''}
-                          {conversation.last_message_content}
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs text-gray-400">{group.conversations.length} talep</span>
+                          <i className={`fas fa-chevron-${openUserKeys.includes(group.userKey) ? 'up' : 'down'} text-gray-400`}></i>
+                        </div>
+                      </button>
+
+                      {openUserKeys.includes(group.userKey) && (
+                        <div className="divide-y divide-gray-100">
+                          {group.conversations.map((conversation) => {
+                            const rawUnreadCount = Number((conversation as any).unread_count ?? 0);
+                            const isLastFromUser = conversation.last_message_sender_type === 'user';
+                            const effectiveUnreadCount = isLastFromUser
+                              ? (rawUnreadCount > 0 ? rawUnreadCount : 1)
+                              : 0;
+                            const hasNewIndicator = effectiveUnreadCount > 0;
+
+                            return (
+                              <div
+                                key={conversation.id}
+                                onClick={() => handleConversationSelect(conversation.id)}
+                                className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors ${
+                                  getConversationRowBackground(conversation.status, selectedConversation === conversation.id)
+                                } ${getUnreadHighlightClasses(effectiveUnreadCount)}`}
+                              >
+                                <div className="flex justify-between items-start mb-1">
+                                  <div className="flex items-center space-x-2 min-w-0">
+                                    {hasNewIndicator && (
+                                      <span className="inline-flex h-2 w-2 rounded-full bg-red-400 animate-pulse flex-shrink-0" />
+                                    )}
+                                    <div className="font-medium truncate text-sm">{conversation.subject}</div>
+                                  </div>
+                                  <div className="flex space-x-1 ml-2">
+                                    <Badge className={getPriorityColor(conversation.priority)}>
+                                      {getPriorityText(conversation.priority)}
+                                    </Badge>
+                                    {hasNewIndicator && (
+                                      <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
+                                        {effectiveUnreadCount}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <Badge className={getStatusColor(conversation.status)}>
+                                    {getStatusText(conversation.status)}
+                                  </Badge>
+                                  <span className="text-xs text-gray-400">
+                                    {formatDate(conversation.last_message_at || conversation.created_at)}
+                                  </span>
+                                </div>
+                                {conversation.last_message_content && (
+                                  <div className="text-xs text-gray-600 truncate">
+                                    {conversation.last_message_sender_type === 'admin' ? '👨   ' : ''}
+                                    {conversation.last_message_content}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -369,7 +574,7 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
                       {conversations.find(c => c.id === selectedConversation)?.user_email}
                     </CardDescription>
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex space-x-2 items-center">
                     <select 
                       value={conversations.find(c => c.id === selectedConversation)?.status || 'open'}
                       onChange={(e) => updateConversationStatus(selectedConversation, e.target.value)}
@@ -381,7 +586,7 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
                         backgroundRepeat: 'no-repeat'
                       }}
                     >
-                      <option value="open">Yeniden Açıldı</option>
+                      <option value="open">Açık</option>
                       <option value="in_progress">İşlemde</option>
                       <option value="closed">Kapatıldı</option>
                     </select>
@@ -410,7 +615,6 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
                     {messages.map((message) => (
                       <div key={message.id} className="flex items-start space-x-4">
                         <Avatar className="h-10 w-10 mt-1">
-                          <AvatarImage src={`https://readdy.ai/api/search-image?query=professional%20portrait%20of%20a%20Turkish%20${message.sender_type === 'admin' ? 'admin%20person%20with%20short%20dark%20hair%20wearing%20business%20casual%20attire' : 'person'}%20with%20neutral%20expression%2C%20studio%20lighting%2C%20high%20quality%2C%20photorealistic&width=100&height=100&seq=${message.sender_id}&orientation=squarish`} />
                           <AvatarFallback>
                             {message.sender_name.split(' ').map(n => n[0]).join('')}
                           </AvatarFallback>
