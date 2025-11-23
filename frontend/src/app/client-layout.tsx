@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { AuthProvider } from '@/lib/auth';
+import { MembershipProvider } from '@/context/MembershipContext';
 
 export default function ClientLayout({
   children,
@@ -10,7 +11,9 @@ export default function ClientLayout({
 }) {
   return (
     <AuthProvider>
-      {children}
+      <MembershipProvider>
+        {children}
+      </MembershipProvider>
     </AuthProvider>
   );
-} 
+}

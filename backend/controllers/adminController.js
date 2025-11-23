@@ -5,6 +5,217 @@ const { checkLimits } = require('../utils/usageLimiter');
 
 // Supabase client provided by shared utility
 
+// Cost analytics dashboard - aggregated usage & cost view (ADMIN)
+exports.getCostDashboard = async (req, res) => {
+  try {
+    const { from, to } = req.query;
+
+    // Date range: default last 30 days
+    const now = new Date();
+    const toDate = to ? new Date(String(to)) : now;
+    const fromDate = from ? new Date(String(from)) : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const fromIso = fromDate.toISOString();
+    const toIso = toDate.toISOString();
+
+    logger.info(`[ADMIN COST] Fetching cost dashboard from ${fromIso} to ${toIso}`);
+
+    // 1) Overview: totals for whole range
+    const { data: overviewRows, error: overviewError } = await supabase
+      .from('contenthistory')
+      .select('user_id, audio_duration_seconds, openai_cost_usd, tts_cost_usd, total_cost_usd')
+      .gte('created_at', fromIso)
+      .lt('created_at', toIso);
+
+    if (overviewError) {
+      logger.error('[ADMIN COST] Overview query failed:', overviewError);
+      return res.status(500).json({ success: false, message: 'Error fetching cost overview' });
+    }
+
+    let totalAudioSeconds = 0;
+    let totalOpenAiCost = 0;
+    let totalTtsCost = 0;
+    let totalCost = 0;
+    const userIdsSet = new Set();
+
+    (overviewRows || []).forEach(row => {
+      if (!row) return;
+      if (row.user_id) userIdsSet.add(row.user_id);
+      totalAudioSeconds += Number(row.audio_duration_seconds || 0);
+      totalOpenAiCost += Number(row.openai_cost_usd || 0);
+      totalTtsCost += Number(row.tts_cost_usd || 0);
+      totalCost += Number(row.total_cost_usd || 0);
+    });
+
+    const totalAudioMinutes = totalAudioSeconds / 60;
+    const activeUsers = userIdsSet.size;
+
+    const overview = {
+      from: fromIso,
+      to: toIso,
+      total_cost_usd: Number(totalCost.toFixed(4)),
+      tts_cost_usd: Number(totalTtsCost.toFixed(4)),
+      openai_cost_usd: Number(totalOpenAiCost.toFixed(4)),
+      total_audio_minutes: Number(totalAudioMinutes.toFixed(2)),
+      active_users: activeUsers,
+      avg_cost_per_user: activeUsers > 0 ? Number((totalCost / activeUsers).toFixed(4)) : 0,
+    };
+
+    // 2) By user: aggregate per user_id
+    const userAggMap = new Map();
+    (overviewRows || []).forEach(row => {
+      if (!row || !row.user_id) return;
+      const key = row.user_id;
+      const current = userAggMap.get(key) || {
+        user_id: key,
+        audio_seconds: 0,
+        openai_cost_usd: 0,
+        tts_cost_usd: 0,
+        total_cost_usd: 0,
+      };
+      current.audio_seconds += Number(row.audio_duration_seconds || 0);
+      current.openai_cost_usd += Number(row.openai_cost_usd || 0);
+      current.tts_cost_usd += Number(row.tts_cost_usd || 0);
+      current.total_cost_usd += Number(row.total_cost_usd || 0);
+      userAggMap.set(key, current);
+    });
+
+    const byUser = Array.from(userAggMap.values()).map(u => ({
+      user_id: u.user_id,
+      audio_minutes: Number((u.audio_seconds / 60).toFixed(2)),
+      openai_cost_usd: Number(u.openai_cost_usd.toFixed(4)),
+      tts_cost_usd: Number(u.tts_cost_usd.toFixed(4)),
+      total_cost_usd: Number(u.total_cost_usd.toFixed(4)),
+    }));
+
+    // En pahalı kullanıcıları öne almak için sıralayalım
+    byUser.sort((a, b) => b.total_cost_usd - a.total_cost_usd);
+
+    // 3) By provider & category
+    const { data: providerRows, error: providerError } = await supabase
+      .from('contenthistory')
+      .select('tts_provider, tts_category, tts_characters, tts_cost_usd, audio_duration_seconds')
+      .gte('created_at', fromIso)
+      .lt('created_at', toIso);
+
+    if (providerError) {
+      logger.error('[ADMIN COST] Provider/category query failed:', providerError);
+      return res.status(500).json({ success: false, message: 'Error fetching provider cost breakdown' });
+    }
+
+    const providerMap = new Map();
+    (providerRows || []).forEach(row => {
+      if (!row) return;
+      const key = `${row.tts_provider || 'unknown'}__${row.tts_category || 'unknown'}`;
+      const current = providerMap.get(key) || {
+        tts_provider: row.tts_provider || 'unknown',
+        tts_category: row.tts_category || 'unknown',
+        tts_characters: 0,
+        tts_cost_usd: 0,
+        audio_seconds: 0,
+      };
+      current.tts_characters += Number(row.tts_characters || 0);
+      current.tts_cost_usd += Number(row.tts_cost_usd || 0);
+      current.audio_seconds += Number(row.audio_duration_seconds || 0);
+      providerMap.set(key, current);
+    });
+
+    const byProviderCategory = Array.from(providerMap.values()).map(p => ({
+      tts_provider: p.tts_provider,
+      tts_category: p.tts_category,
+      tts_characters: p.tts_characters,
+      tts_cost_usd: Number(p.tts_cost_usd.toFixed(4)),
+      audio_minutes: Number((p.audio_seconds / 60).toFixed(2)),
+    }));
+
+    // 4) By entry_source (client section / usage source)
+    const { data: sourceRows, error: sourceError } = await supabase
+      .from('contenthistory')
+      .select('entry_source, openai_cost_usd, tts_cost_usd, total_cost_usd, audio_duration_seconds')
+      .gte('created_at', fromIso)
+      .lt('created_at', toIso);
+
+    if (sourceError) {
+      logger.error('[ADMIN COST] Entry source query failed:', sourceError);
+      return res.status(500).json({ success: false, message: 'Error fetching source cost breakdown' });
+    }
+
+    const sourceMap = new Map();
+    (sourceRows || []).forEach(row => {
+      if (!row) return;
+      const key = row.entry_source || 'unknown';
+      const current = sourceMap.get(key) || {
+        entry_source: key,
+        openai_cost_usd: 0,
+        tts_cost_usd: 0,
+        total_cost_usd: 0,
+        audio_seconds: 0,
+      };
+      current.openai_cost_usd += Number(row.openai_cost_usd || 0);
+      current.tts_cost_usd += Number(row.tts_cost_usd || 0);
+      current.total_cost_usd += Number(row.total_cost_usd || 0);
+      current.audio_seconds += Number(row.audio_duration_seconds || 0);
+      sourceMap.set(key, current);
+    });
+
+    const byEntrySource = Array.from(sourceMap.values()).map(s => ({
+      entry_source: s.entry_source,
+      openai_cost_usd: Number(s.openai_cost_usd.toFixed(4)),
+      tts_cost_usd: Number(s.tts_cost_usd.toFixed(4)),
+      total_cost_usd: Number(s.total_cost_usd.toFixed(4)),
+      audio_minutes: Number((s.audio_seconds / 60).toFixed(2)),
+    }));
+
+    // 5) Raw items list for per-operation tracking (limited for performance)
+    const { data: itemRows, error: itemError } = await supabase
+      .from('contenthistory')
+      .select('id, created_at, entry_source, input_type, audio_duration_seconds, openai_cost_usd, tts_cost_usd, total_cost_usd, tts_provider, tts_category, tts_voice_name')
+      .gte('created_at', fromIso)
+      .lt('created_at', toIso)
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (itemError) {
+      logger.error('[ADMIN COST] Items query failed:', itemError);
+      return res.status(500).json({ success: false, message: 'Error fetching cost items' });
+    }
+
+    const defaultLlmModel = process.env.OPENAI_DEFAULT_MODEL || 'gpt-4o';
+
+    const items = (itemRows || []).map(row => ({
+      id: row.id,
+      created_at: row.created_at,
+      entry_source: row.entry_source || row.input_type || 'unknown',
+      input_type: row.input_type || null,
+      audio_minutes: row.audio_duration_seconds ? Number((Number(row.audio_duration_seconds) / 60).toFixed(2)) : null,
+      // LLM side (currently OpenAI-only in this flow)
+      llm_service: (row.openai_cost_usd && Number(row.openai_cost_usd) > 0) ? 'openai' : null,
+      llm_model: (row.openai_cost_usd && Number(row.openai_cost_usd) > 0) ? defaultLlmModel : null,
+      llm_cost_usd: row.openai_cost_usd != null ? Number(Number(row.openai_cost_usd).toFixed(6)) : 0,
+      // TTS side
+      tts_provider: row.tts_provider || null,
+      tts_category: row.tts_category || null,
+      tts_voice_name: row.tts_voice_name || null,
+      tts_cost_usd: row.tts_cost_usd != null ? Number(Number(row.tts_cost_usd).toFixed(6)) : 0,
+      total_cost_usd: row.total_cost_usd != null ? Number(Number(row.total_cost_usd).toFixed(6)) : null,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        overview,
+        by_user: byUser,
+        by_provider_category: byProviderCategory,
+        by_entry_source: byEntrySource,
+        items,
+      },
+    });
+  } catch (error) {
+    logger.error('[ADMIN COST] getCostDashboard error:', error);
+    return res.status(500).json({ success: false, message: 'Server error while fetching cost dashboard', error: error.message });
+  }
+};
+
 // Get dashboard stats
 exports.getDashboardStats = async (req, res) => {
   try {

@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 interface MembershipBadgeProps {
   status: 'free' | 'premium' | 'enterprise';
   className?: string;
+  labelOverride?: string;
 }
 
 const statusConfig = {
@@ -21,7 +22,7 @@ const statusConfig = {
   },
 };
 
-const MembershipBadge: React.FC<MembershipBadgeProps> = ({ status, className }) => {
+const MembershipBadge: React.FC<MembershipBadgeProps> = ({ status, className, labelOverride }) => {
   const config = statusConfig[status] || statusConfig['free'];
 
   return (
@@ -32,9 +33,9 @@ const MembershipBadge: React.FC<MembershipBadgeProps> = ({ status, className }) 
         className
       )}
     >
-      {config.label}
+      {labelOverride || config.label}
     </span>
   );
 };
 
-export default MembershipBadge; 
+export default MembershipBadge;

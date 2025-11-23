@@ -5,12 +5,14 @@ import PackageInfo from '@/components/PackageInfo';
 import MembershipBadge from '@/components/user/MembershipBadge';
 import UserProfile from '@/components/user/UserProfile';
 import { useAuth } from '@/lib/auth';
+import { useMembership } from '@/context/MembershipContext';
 import { useRouter } from 'next/navigation';
 
 export default function Dashboard() {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const [tab, setTab] = React.useState<string>('genel');
+  const { currentPlanName } = useMembership();
 
   React.useEffect(() => {
     if (!isAuthenticated) {
@@ -85,7 +87,7 @@ export default function Dashboard() {
           <div>
             <h2 className="text-xl font-semibold text-gray-900">{displayName}</h2>
             <p className="text-sm text-gray-500">{user.email}</p>
-            <MembershipBadge status={membershipStatus} className="mt-2" />
+            <MembershipBadge status={membershipStatus} labelOverride={currentPlanName} className="mt-2" />
           </div>
         </div>
         <div className="space-y-2">

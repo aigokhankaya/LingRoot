@@ -3,7 +3,7 @@ import Link from 'next/link';
 import MembershipBadge from '../src/components/user/MembershipBadge';
 import { useAuth } from '../src/lib/auth';
 import { useRouter } from 'next/router';
-import { getUserStats, UserStats, getTopicTree, Topic, getUserBookHistory, BookHistoryItem, FavoriteBookItem, getUserBookFavoritesDetails, DocumentRecord, DocumentSection, getUserDocuments, getDocumentSections } from '../src/lib/api';
+import { getUserStats, UserStats, getTopicTree, Topic, getUserBookHistory, BookHistoryItem, FavoriteBookItem, getUserBookFavoritesDetails, DocumentRecord, DocumentSection, getUserDocuments, getDocumentSections, getContentHistory } from '../src/lib/api';
 import { Badge } from '../src/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../src/components/ui/card';
 import { Button } from '../src/components/ui/button';
@@ -15,8 +15,52 @@ import { VocabularyTabContent } from './vocabulary';
 import TopicHierarchySection from '../src/components/TopicHierarchy/TopicHierarchySection';
 import BrandWordmark from '../src/components/BrandWordmark';
 import InterestManager from '../src/components/InterestManager';
+import OutputSection from '../src/components/OutputSection';
 
+interface ContentHistoryItem {
+  id: string;
+  input: string;
+  input_type: string;
+  level: string;
+  mp3_url: string;
+  created_at: string;
+  translated_text?: string;
+  adapted_text?: string;
+  words?: string[];
+  timepoints?: Array<{
+    timeSeconds: number;
+    endTimeSeconds?: number;
+    word?: string;
+  }>;
+}
 
+const HISTORY_TYPE_LABELS: Record<string, string> = {
+  text: 'Metin',
+  subject: 'Konu',
+  topic: 'Konu Ağacı',
+  book: 'Kitap',
+  podcast: 'Podcast',
+  youtube: 'YouTube',
+  file: 'Dosya',
+  document: 'Doküman',
+  weblink: 'Web Bağlantısı',
+};
+
+const historyTypeOptions = [
+  { id: 'topic', label: 'Konu Ağacı' },
+  { id: 'book', label: 'Kitap' },
+  { id: 'document', label: 'Doküman' },
+  { id: 'podcast', label: 'Podcast' },
+  { id: 'youtube', label: 'YouTube' },
+  { id: 'weblink', label: 'Web Bağlantısı' },
+  { id: 'text', label: 'Metin' },
+  { id: 'subject', label: 'Konu' },
+];
+
+const getHistoryTypeLabel = (inputType: string): string => {
+  const key = (inputType || '').toLowerCase();
+  return HISTORY_TYPE_LABELS[key] || (inputType ? inputType.toUpperCase() : 'DİĞER');
+};
 
 const Dashboard = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -40,6 +84,13 @@ const Dashboard = () => {
   const [documentSections, setDocumentSections] = useState<DocumentSection[]>([]);
   const [sectionsLoading, setSectionsLoading] = useState(false);
   const [sectionsError, setSectionsError] = useState<string | null>(null);
+  const [contentHistory, setContentHistory] = useState<ContentHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
+  const [showAllHistory, setShowAllHistory] = useState<boolean>(false);
+  const [expandedHistoryItem, setExpandedHistoryItem] = useState<string | null>(null);
+  const [activeHistoryTypes, setActiveHistoryTypes] = useState<string[]>(
+    historyTypeOptions.map((t) => t.id)
+  );
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -164,23 +215,46 @@ const Dashboard = () => {
     }
   };
 
-	const loadFavoriteBooks = async () => {
-	  try {
-	    setFavoriteBooksLoading(true);
-	    setFavoriteBooksError(null);
-	    const response = await getUserBookFavoritesDetails();
-	    if (response.success && response.data) {
-	      setFavoriteBooks(response.data);
-	    } else if (!response.success) {
-	      setFavoriteBooksError(response.message || 'Favori kitaplar yüklenirken hata oluştu');
-	    }
-	  } catch (error: any) {
-	    console.error('[DASHBOARD] Favori kitaplar yükleme hatası:', error);
-	    setFavoriteBooksError(error?.message || 'Favori kitaplar yüklenirken hata oluştu');
-	  } finally {
-	    setFavoriteBooksLoading(false);
-	  }
-	};
+  const loadFavoriteBooks = async () => {
+    try {
+      setFavoriteBooksLoading(true);
+      setFavoriteBooksError(null);
+      const response = await getUserBookFavoritesDetails();
+      if (response.success && response.data) {
+        setFavoriteBooks(response.data);
+      } else if (!response.success) {
+        setFavoriteBooksError(response.message || 'Favori kitaplar yüklenirken hata oluştu');
+      }
+    } catch (error: any) {
+      console.error('[DASHBOARD] Favori kitaplar yüklenirken hata oluştu:', error);
+      setFavoriteBooksError(error?.message || 'Favori kitaplar yüklenirken hata oluştu');
+    } finally {
+      setFavoriteBooksLoading(false);
+    }
+  };
+  const fetchContentHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      console.log('[DASHBOARD] fetchContentHistory başlatılıyor...');
+      const response = await getContentHistory();
+      console.log('[DASHBOARD] getContentHistory response:', response);
+
+      if (response.success && response.data) {
+        if (Array.isArray(response.data)) {
+          setContentHistory(response.data);
+        } else {
+          setContentHistory([]);
+        }
+      } else {
+        setContentHistory([]);
+      }
+    } catch (error) {
+      console.error('[DASHBOARD] Content history yüklenirken hata oluştu:', error);
+      setContentHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   // Initialize tab from query (?tab=...) then hash, and keep in sync
   useEffect(() => {
@@ -218,6 +292,10 @@ const Dashboard = () => {
 
     if (tab === 'reading-history' || tab === 'book') {
       loadBookHistory();
+    }
+
+    if (tab === 'reading-history') {
+      fetchContentHistory();
     }
 
     if (tab === 'book') {
@@ -280,9 +358,16 @@ const Dashboard = () => {
   const membershipStatus = user.membershipStatus || 'free';
   const profileImageUrl = avatar;
   const backgroundImageUrl = 'https://readdy.ai/api/search-image?query=Abstract%2520professional%2520background%2520with%2520soft%2520teal%2520and%2520slate%2520tones%252C%2520subtle%2520geometric%2520patterns%252C%2520clean%2520modern%2520design%252C%2520perfect%2520for%2520profile%2520page%2520header%252C%2520minimalist%2520aesthetic%252C%2520high%2520quality%2520digital%2520art&width=1440&height=300&seq=bg1&orientation=landscape';
+  const filteredHistory = contentHistory.filter((item) => {
+    const typeKey = (item.input_type || '').toLowerCase();
+    if (!activeHistoryTypes || activeHistoryTypes.length === 0) return true;
+    if (!typeKey) return true;
+    return activeHistoryTypes.includes(typeKey);
+  });
+  const historyToRender = showAllHistory ? filteredHistory : filteredHistory.slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background fadeIn">
       {/* Top Navigation Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-50">
         <div className="container mx-auto px-4">
@@ -380,7 +465,7 @@ const Dashboard = () => {
       </div>
 
       {/* Profile Header */}
-      <div className="relative w-full h-[220px] md:h-[250px] overflow-hidden mb-8">
+      <div className="relative w-full h-[220px] md:h-[250px] overflow-hidden mb-8 slideUp">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${backgroundImageUrl})` }}
@@ -466,7 +551,7 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Quick Stats */}
               <div className="col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                <Card className="border-none shadow-md">
+                <Card className="border-none shadow-md hover-lift slideUp">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
@@ -551,7 +636,7 @@ const Dashboard = () => {
               </div>
 
               {/* Weekly Activity Chart */}
-              <Card className="border-none shadow-md col-span-3 md:col-span-2">
+              <Card className="border-none shadow-md col-span-3 md:col-span-2 hover-lift slideUp">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl font-bold text-gray-800">Haftalık Aktivite</CardTitle>
                   <CardDescription>Son 7 günde öğrenme süreniz</CardDescription>
@@ -567,7 +652,7 @@ const Dashboard = () => {
               </Card>
 
               {/* Today's Tasks */}
-              <Card className="border-none shadow-md">
+              <Card className="border-none shadow-md hover-lift slideUp">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl font-bold text-gray-800">Bugünkü Görevler</CardTitle>
                   <CardDescription>6 Haziran 2025, Cuma</CardDescription>
@@ -659,7 +744,7 @@ const Dashboard = () => {
               </Card> */}
 
               {/* Vocabulary Growth */}
-              <Card className="border-none shadow-md">
+              <Card className="border-none shadow-md hover-lift slideUp">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl font-bold text-gray-800">Kelime Gelişimi</CardTitle>
                   <CardDescription>Öğrenilen kelime sayısı</CardDescription>
@@ -821,6 +906,241 @@ const Dashboard = () => {
                     </CardContent>
                   </Card>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="mt-8 border border-border shadow-lg rounded-2xl bg-white">
+              <CardContent className="p-6">
+                <div className="flex flex-col gap-4 mb-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold mr-4 shadow-sm">
+                        <i className="fas fa-history"></i>
+                      </div>
+                      <h2 className="text-2xl font-bold text-primary tracking-tight">Ses Geçmişim</h2>
+                    </div>
+                    <Button 
+                      onClick={fetchContentHistory}
+                      variant="outline" 
+                      className="!rounded-button whitespace-nowrap cursor-pointer"
+                      disabled={loadingHistory}
+                    >
+                      {loadingHistory ? (
+                        <>
+                          <i className="fas fa-circle-notch fa-spin mr-2"></i>
+                          Yükleniyor
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-refresh mr-2"></i>
+                          Yenile
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 justify-between">
+                    <div className="flex flex-wrap gap-2">
+                      {historyTypeOptions.map((option) => {
+                        const isActive = activeHistoryTypes.includes(option.id);
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => {
+                              setActiveHistoryTypes((prev) => {
+                                const exists = prev.includes(option.id);
+                                if (exists) {
+                                  const next = prev.filter((t) => t !== option.id);
+                                  return next.length === 0 ? prev : next;
+                                }
+                                return [...prev, option.id];
+                              });
+                            }}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
+                              isActive
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="text-xs text-gray-500 whitespace-nowrap">
+                      {filteredHistory.length} kayıt görüntüleniyor
+                    </div>
+                  </div>
+                </div>
+
+                {loadingHistory ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                  </div>
+                ) : filteredHistory.length > 0 ? (
+                  <div className="space-y-4">
+                    {historyToRender.map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-white rounded-xl border border-gray-200 hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden"
+                      >
+                        <div
+                          className="p-4 md:p-5 cursor-pointer hover:bg-primary/5 transition-colors"
+                          onClick={() => {
+                            setExpandedHistoryItem(expandedHistoryItem === item.id ? null : item.id);
+                          }}
+                        >
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2 text-xs">
+                                <Badge variant="outline" className="text-xs">
+                                  {getHistoryTypeLabel(item.input_type)}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
+                                  {item.level || 'N/A'}
+                                </Badge>
+                                <span className="text-xs text-gray-500">
+                                  {new Date(item.created_at).toLocaleDateString('tr-TR', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                              </div>
+                              <div className="mb-3">
+                                <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">İngilizce Metin (Seviyenize Uyarlanmış):</h4>
+                                <p className="text-sm text-gray-700 line-clamp-2">
+                                  {item.adapted_text || item.input}
+                                </p>
+                                {item.adapted_text && (
+                                  <details className="mt-2">
+                                    <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+                                      Orijinal Türkçe metni göster
+                                    </summary>
+                                    <p className="text-xs text-gray-500 mt-1 p-2 bg-gray-100 rounded">
+                                      {item.input}
+                                    </p>
+                                  </details>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-xs text-gray-500">
+                                {expandedHistoryItem === item.id ? 'Daralt' : 'Oynatıcıyı Aç'}
+                              </div>
+                              <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
+                            </div>
+                          </div>
+                        </div>
+
+                        {expandedHistoryItem === item.id && (
+                          <div className="border-t border-gray-200 bg-white p-6">
+                            {(() => {
+                              const audioResult = {
+                                message: item.adapted_text || item.input,
+                                mp3_url: item.mp3_url,
+                                vtt_url: item.mp3_url.replace('.mp3', '.vtt'),
+                                level: item.level,
+                                timepoints: Array.isArray(item.timepoints)
+                                  ? item.timepoints
+                                  : item.timepoints
+                                  ? JSON.parse(item.timepoints as any)
+                                  : [],
+                                words: Array.isArray(item.words)
+                                  ? item.words
+                                  : item.words
+                                  ? JSON.parse(item.words as any)
+                                  : (item.adapted_text || item.input).split(/\s+/).filter((word) => word.length > 0),
+                                original_turkish: item.input,
+                                speaking_rate: 1.0,
+                              } as any;
+
+                              return (
+                                <OutputSection
+                                  audioResult={audioResult}
+                                  isLoggedIn={isAuthenticated}
+                                />
+                              );
+                            })()}
+
+                            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="!rounded-button whitespace-nowrap cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(convertToPlayableUrl(item.mp3_url), '_blank');
+                                }}
+                              >
+                                <i className="fas fa-external-link-alt mr-2"></i>
+                                Yeni Sekmede Aç
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="!rounded-button whitespace-nowrap cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedHistoryItem(null);
+                                }}
+                              >
+                                <i className="fas fa-times mr-2"></i>
+                                Kapat
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {contentHistory.length > 5 && (
+                      <div className="text-center pt-4">
+                        <Button
+                          variant="outline"
+                          className="!rounded-button whitespace-nowrap cursor-pointer"
+                          onClick={() => setShowAllHistory(!showAllHistory)}
+                        >
+                          <i className={`fas ${showAllHistory ? 'fa-chevron-up' : 'fa-chevron-down'} mr-2`}></i>
+                          {showAllHistory ? 'Daha Az Göster' : 'Daha Fazla Göster'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-gray-400 mb-4">
+                      <i className="fas fa-microphone-slash text-4xl"></i>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-500 mb-2">Henüz ses kaydınız yok</h3>
+                    <p className="text-gray-400">İlk ses kaydınızı oluşturmak için dinleme sayfasını kullanabilirsiniz.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="achievements" className="mt-0">
+            {/* Konularım: Welcome sayfasındaki ile aynı konu ağacı deneyimi */}
+            <Card className="border-none shadow-md">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
+                  <i className="fas fa-sitemap mr-2 text-primary"></i>
+                  Konu Ağacım
+                </CardTitle>
+                <CardDescription>
+                  Ana konularını oluştur, AI ile alt konu önerileri al ve her seviyeden sesli içerik üret.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TopicHierarchySection
+                  userId={user.id}
+                  level={"A1"}
+                  topicsFirst
+                />
               </CardContent>
             </Card>
           </TabsContent>

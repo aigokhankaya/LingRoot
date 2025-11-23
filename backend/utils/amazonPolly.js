@@ -95,7 +95,8 @@ async function synthesizeWithPolly(options) {
     text,
     voiceName = 'Joanna',
     languageCode = 'en-US',
-    speakingRate = 1.0
+    speakingRate = 1.0,
+    engine = 'neural'
   } = options;
 
   logger.info(`🎯 Amazon Polly synthesis - Voice: ${voiceName}, Rate: ${speakingRate}x, Length: ${text.length} chars`);
@@ -116,7 +117,7 @@ async function synthesizeWithPolly(options) {
       TextType: 'ssml',
       VoiceId: voiceName,
       LanguageCode: languageCode,
-      Engine: 'neural',
+      Engine: engine,
       SpeechMarkTypes: ['word'] // Get word-level timing marks
     });
 
@@ -144,7 +145,7 @@ async function synthesizeWithPolly(options) {
       TextType: 'ssml',
       VoiceId: voiceName,
       LanguageCode: languageCode,
-      Engine: 'neural'
+      Engine: engine
     });
 
     const audioResponse = await polly.send(audioCommand);

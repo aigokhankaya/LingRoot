@@ -9,7 +9,8 @@ import {
   processTts,
   getUsageSummary,
   ProcessInputData,
-  TtsResponseData
+  TtsResponseData,
+  submitContent,
 } from '../../lib/api';
 import OutputSection from '../OutputSection';
 import TopicInput from './TopicInput';
@@ -19,12 +20,14 @@ interface TopicHierarchySectionProps {
   userId: string;
   level: string;
   onContentCreated?: (result: any) => void;
+  topicsFirst?: boolean;
 }
 
 const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
   userId,
   level,
-  onContentCreated
+  onContentCreated,
+  topicsFirst = false,
 }) => {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -112,6 +115,23 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
           [topicId]: audioResult,
         }));
 
+        try {
+          const logInput =
+            suggestedInput ||
+            (data.topic.description ? `${data.topic.title}: ${data.topic.description}` : data.topic.title);
+          await submitContent(
+            logInput,
+            'topic',
+            audioResult.level || level.toUpperCase(),
+            result.mp3_url,
+            audioResult.translated_text || '',
+            audioResult.adapted_text || ''
+          );
+          console.log('Topic audio saved to content history.');
+        } catch (logErr) {
+          console.error('Failed to log topic audio to content history:', logErr);
+        }
+
         // Konu ağacını yenile ki rozetler güncellensin
         await loadTopicTree();
 
@@ -186,6 +206,25 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
 
     setModalTopicId(topicId);
   };
+
+  const renderEmptyState = (formPosition: 'above' | 'below') => (
+    <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+      <i className="fas fa-folder-open text-4xl text-gray-400 mb-4"></i>
+      <p className="text-gray-600 mb-2">Henüz konu oluşturmadınız</p>
+      <p className="text-sm text-gray-500">
+        {formPosition === 'above'
+          ? 'Yukarıdaki formdan bir ana konu oluşturarak başlayın'
+          : 'Aşağıdaki formdan bir ana konu oluşturarak başlayın'}
+      </p>
+    </div>
+  );
+
+  const renderLoadingState = () => (
+    <div className="text-center py-12">
+      <i className="fas fa-spinner fa-spin text-3xl text-primary mb-3"></i>
+      <p className="text-gray-600">Konular yükleniyor...</p>
+    </div>
+  );
 
   // Component mount'ta yükle
   useEffect(() => {
@@ -279,41 +318,58 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         </div>
       )}
 
-      {/* Ana Konu Girişi */}
-      <TopicInput
-        onCreateTopic={handleCreateMainTopic}
-        isLoading={isLoading}
-        level={level}
-      />
+      {topicsFirst ? (
+        <>
+          {/* Konu Ağacı */}
+          {topics.length > 0 ? (
+            <TopicTree
+              topics={topics}
+              onRefresh={loadTopicTree}
+              onContentCreated={handleTopicContentCreated}
+              level={level}
+              audioStateByTopic={audioStateByTopic}
+              onOpenAudioModal={handleOpenAudioModal}
+            />
+          ) : (
+            !isLoading && renderEmptyState('below')
+          )}
 
-      {/* Konu Ağacı */}
-      {topics.length > 0 ? (
-        <TopicTree
-          topics={topics}
-          onRefresh={loadTopicTree}
-          onContentCreated={handleTopicContentCreated}
-          level={level}
-          audioStateByTopic={audioStateByTopic}
-          onOpenAudioModal={handleOpenAudioModal}
-        />
+          {/* Loading State */}
+          {isLoading && topics.length === 0 && renderLoadingState()}
+
+          {/* Ana Konu Girişi */}
+          <TopicInput
+            onCreateTopic={handleCreateMainTopic}
+            isLoading={isLoading}
+            level={level}
+          />
+        </>
       ) : (
-        !isLoading && (
-          <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-            <i className="fas fa-folder-open text-4xl text-gray-400 mb-4"></i>
-            <p className="text-gray-600 mb-2">Henüz konu oluşturmadınız</p>
-            <p className="text-sm text-gray-500">
-              Yukarıdaki formdan bir ana konu oluşturarak başlayın
-            </p>
-          </div>
-        )
-      )}
+        <>
+          {/* Ana Konu Girişi */}
+          <TopicInput
+            onCreateTopic={handleCreateMainTopic}
+            isLoading={isLoading}
+            level={level}
+          />
 
-      {/* Loading State */}
-      {isLoading && topics.length === 0 && (
-        <div className="text-center py-12">
-          <i className="fas fa-spinner fa-spin text-3xl text-primary mb-3"></i>
-          <p className="text-gray-600">Konular yükleniyor...</p>
-        </div>
+          {/* Konu Ağacı */}
+          {topics.length > 0 ? (
+            <TopicTree
+              topics={topics}
+              onRefresh={loadTopicTree}
+              onContentCreated={handleTopicContentCreated}
+              level={level}
+              audioStateByTopic={audioStateByTopic}
+              onOpenAudioModal={handleOpenAudioModal}
+            />
+          ) : (
+            !isLoading && renderEmptyState('above')
+          )}
+
+          {/* Loading State */}
+          {isLoading && topics.length === 0 && renderLoadingState()}
+        </>
       )}
 
       {/* Topic audio popup player */}

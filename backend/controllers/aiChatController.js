@@ -4,6 +4,8 @@ const claudeClient = require('../utils/claudeClient');
 const openaiClient = require('../utils/openaiClient');
 const userProfileAnalyzer = require('../utils/userProfileAnalyzer');
 const liroPromptGenerator = require('../utils/liroPromptGenerator');
+const { supabase } = require('../utils/supabaseClient');
+const { calculateOpenAiCost } = require('../utils/costTracker');
 // Temporarily disabled - requires topics table migration
 // const { suggestTopicsForUser, extractAndStoreTopic } = require('../lib/rag');
 
@@ -204,12 +206,15 @@ const sendMessage = async (req, res) => {
     
     // Get AI response with Liro's personalized prompting
     let assistantContent;
+    let openaiUsage = null;
+    const openaiModel = openaiClient.chatModel || process.env.OPENAI_CHAT_MODEL || 'gpt-4o';
     try {
       const response = await openaiClient.generateChatCompletion(messageHistory, {
         systemPrompt: liroSystemPrompt,
         temperature: 0.8,
       });
       assistantContent = response.content;
+      openaiUsage = response.usage || null;
     } catch (openaiError) {
       logger.error('OpenAI API error:', openaiError);
       // Fallback to alternative AI provider if OpenAI fails
@@ -239,6 +244,53 @@ const sendMessage = async (req, res) => {
       'UPDATE conversations SET updated_at = NOW() WHERE id = $1',
       [conversationId]
     );
+    
+    // Cost tracking: log OpenAI usage for Liro Chat into contenthistory (no TTS)
+    try {
+      if (openaiUsage && userId) {
+        const cost = calculateOpenAiCost(openaiUsage, openaiModel);
+        const promptTokens = openaiUsage.prompt_tokens || 0;
+        const completionTokens = openaiUsage.completion_tokens || 0;
+        const totalTokens = openaiUsage.total_tokens || (promptTokens + completionTokens);
+        const insertData = {
+          user_id: userId,
+          level: userProfile?.learningProgress?.experienceLevel || 'B1',
+          mp3_url: null,
+          input: content.trim(),
+          translated_text: null,
+          adapted_text: assistantContent,
+          input_type: 'chat',
+          created_at: new Date().toISOString(),
+          words: null,
+          timepoints: null,
+          openai_prompt_tokens: promptTokens,
+          openai_completion_tokens: completionTokens,
+          openai_total_tokens: totalTokens,
+          openai_cost_usd: cost.totalCostUsd || 0,
+          tts_characters: 0,
+          tts_category: null,
+          tts_cost_usd: 0,
+          total_cost_usd: cost.totalCostUsd || 0,
+          tts_provider: null,
+          tts_voice_name: null,
+          audio_duration_seconds: null,
+          entry_source: 'liro_chat',
+        };
+        
+        const { data: chData, error: chError } = await supabase
+          .from('contenthistory')
+          .insert(insertData)
+          .select();
+        
+        if (chError) {
+          logger.error('💰 [LIRO COST] Failed to insert contenthistory record for chat:', chError);
+        } else {
+          logger.info('💰 [LIRO COST] Logged Liro Chat usage to contenthistory:', { id: chData?.[0]?.id, tokens: totalTokens, costUsd: cost.totalCostUsd });
+        }
+      }
+    } catch (costError) {
+      logger.error('💰 [LIRO COST] Unexpected error while logging chat cost:', costError);
+    }
     
     // Extract and store topic if conversation is mature enough (background task)
     // Temporarily disabled - requires topics table migration

@@ -1,13 +1,57 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '../src/lib/auth';
 import Footer from '../src/components/Footer';
+import BrandWordmark from '../src/components/BrandWordmark';
 
 export default function Fiyatlandirma() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+
+  const [plans, setPlans] = useState<any[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState<boolean>(true);
+  const [plansError, setPlansError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+
+    const fetchPlans = async () => {
+      try {
+        setLoadingPlans(true);
+        setPlansError(null);
+
+        const res = await fetch('/api/subscription/plans');
+        const json = await res.json();
+
+        if (res.ok && json?.success) {
+          setPlans((json.data || []).filter((p: any) => p.is_active));
+          return;
+        }
+
+        if (!token) {
+          throw new Error('Planlar getirilemedi');
+        }
+
+        const res2 = await fetch('/api/admin/plans', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json2 = await res2.json();
+        if (!res2.ok || !json2?.success) {
+          throw new Error(json2?.message || 'Planlar getirilemedi');
+        }
+        setPlans((json2.data || []).filter((p: any) => p.is_active));
+      } catch (e: any) {
+        setPlansError(e?.message || 'Planlar getirilemedi');
+      } finally {
+        setLoadingPlans(false);
+      }
+    };
+
+    fetchPlans();
+  }, []);
 
   const handlePlanSelect = (planId: string) => {
     if (!isAuthenticated) {
@@ -15,9 +59,10 @@ export default function Fiyatlandirma() {
       router.push(`/login?next=${encodeURIComponent('/fiyatlandirma')}`);
       return;
     }
-    // Giriş yapmışsa checkout sayfasına yönlendir
-    router.push(`/checkout?plan=${planId}`);
+    // Giriş yapmışsa ödeme sayfasına yönlendir
+    router.push(`/payment?planId=${encodeURIComponent(planId)}`);
   };
+
   return (
     <div className="min-h-screen flex flex-col bg-background font-['Roboto',sans-serif]">
       <Head>
@@ -27,78 +72,77 @@ export default function Fiyatlandirma() {
         <link rel="icon" href="/lingroot-icon.svg" />
         <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&family=Lato:wght@400;700&display=swap" rel="stylesheet" />
       </Head>
-      
-      {/* Header */}
-      <header className="fixed w-full py-4 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
-        <Link href="/" className="flex items-center space-x-3">
-          <div className="w-12 h-12 relative">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 48 48"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="drop-shadow-lg"
-            >
-              <circle cx="24" cy="24" r="22" fill="url(#gradient)" stroke="url(#borderGradient)" strokeWidth="2" />
-              <path d="M32 18c0-4.4-3.6-8-8-8s-8 3.6-8 8 3.6 8 8 8c1.1 0 2.2-.2 3.2-.6l4.8 2.4v-4.2c1.2-1.5 1.9-3.4 1.9-5.6z" fill="white" fillOpacity="0.9" />
-              <path d="M24 14v8m-3-4h6m-6 2h6" stroke="url(#textGradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="18" cy="30" r="1.5" fill="url(#accentGradient)" />
-              <circle cx="22" cy="32" r="1" fill="url(#accentGradient)" />
-              <circle cx="26" cy="32" r="1" fill="url(#accentGradient)" />
-              <circle cx="30" cy="30" r="1.5" fill="url(#accentGradient)" />
-              <defs>
-                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#3b82f6" />
-                  <stop offset="50%" stopColor="#8b5cf6" />
-                  <stop offset="100%" stopColor="#3b82f6" />
-                </linearGradient>
-                <linearGradient id="borderGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#2563eb" />
-                  <stop offset="100%" stopColor="#7c3aed" />
-                </linearGradient>
-                <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#1d4ed8" />
-                  <stop offset="100%" stopColor="#6d28d9" />
-                </linearGradient>
-                <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#60a5fa" />
-                  <stop offset="100%" stopColor="#a78bfa" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
-          <span className="font-extrabold text-2xl text-primary tracking-tight">
-            LingRoot
-          </span>
-        </Link>
-        
-        <nav className="hidden md:flex items-center space-x-8">
-          <Link href="/about" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Hakkımızda
-          </Link>
-          <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Nasıl Çalışır?
-          </Link>
-          <Link href="/ozellikler" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Özellikler
-          </Link>
-          <Link href="/fiyatlandirma" className="text-primary hover:text-primary/80 font-semibold transition-colors duration-200">
-            Fiyatlandırma
-          </Link>
-          <Link href="/blog" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Blog
-          </Link>
-        </nav>
 
-        <div className="flex items-center space-x-4">
-          <Link href="/login" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Giriş Yap
-          </Link>
-          <Link href="/register" 
-            className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-            Ücretsiz Başla
-          </Link>
+      {/* Header - aligned with homepage */}
+      <header className="bg-white/90 border-b border-border backdrop-blur-sm py-3 sticky top-0 z-50">
+        <div className="container mx-auto px-8 flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <img
+              src="/lingroot-icon.svg"
+              alt="LingRoot Logo"
+              className="w-10 h-10 md:w-12 md:h-12"
+            />
+            <BrandWordmark className="text-xl md:text-2xl" />
+          </div>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-6">
+            <Link
+              href="/about"
+              className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base"
+            >
+              Hakkımızda
+            </Link>
+            <a
+              href="#nasil-calisir"
+              className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base"
+            >
+              Nasıl Çalışır?
+            </a>
+            <a
+              href="#ozellikler"
+              className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base"
+            >
+              Özellikler
+            </a>
+            <a
+              href="#yorumlar"
+              className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base"
+            >
+              Kullanıcı Yorumları
+            </a>
+            <a
+              href="#blog"
+              className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base"
+            >
+              Blog
+            </a>
+          </div>
+
+          {/* Desktop Buttons */}
+          <div className="hidden md:flex items-center space-x-4">
+            <Link href="/login">
+              <Button variant="outline" className="!rounded-button whitespace-nowrap">
+                Giriş Yap
+              </Button>
+            </Link>
+            <Link href="/register">
+              <Button className="!rounded-button whitespace-nowrap">Ücretsiz Kaydol</Button>
+            </Link>
+          </div>
+
+          {/* Simple mobile actions */}
+          <div className="md:hidden flex items-center space-x-3">
+            <Link href="/login" className="text-sm text-gray-600 hover:text-primary">
+              Giriş Yap
+            </Link>
+            <Link
+              href="/register"
+              className="px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-md hover:bg-primary/90"
+            >
+              Ücretsiz Kaydol
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -125,218 +169,237 @@ export default function Fiyatlandirma() {
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
                 Size Uygun <span className="text-primary">Planı Seçin</span>
               </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Tüm planlarımızda 7 gün ücretsiz deneme imkanı
-              </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Ücretsiz Plan */}
-              <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden hover:-translate-y-2">
-                <div className="bg-gradient-to-r from-gray-100 to-gray-200 p-6">
-                  <h3 className="text-xl font-bold text-gray-800 mb-2 text-center">Ücretsiz</h3>
-                  <div className="text-center">
-                    <span className="text-4xl font-bold bg-gradient-to-r from-gray-600 to-gray-800 bg-clip-text text-transparent">0 ₺</span>
-                    <span className="text-gray-600">/ay</span>
-                  </div>
-                </div>
-                <div className="p-8">
-                  <ul className="space-y-4 mb-8">
-                    <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-gray-700">Günlük 5 içerik dönüştürme</span>
-                    </li>
-                    <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-gray-700">3 seviyeye erişim (A1-B1)</span>
-                    </li>
-                    <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-gray-700">Temel kelime kaydetme özelliği</span>
-                    </li>
-                    <li className="flex items-start text-gray-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      <span>Çevrimdışı erişim</span>
-                    </li>
-                    <li className="flex items-start text-gray-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      <span>Telaffuz geri bildirimleri</span>
-                    </li>
-                  </ul>
-                  <button
-                    onClick={() => {
-                      if (!isAuthenticated) {
-                        router.push('/register');
-                      } else {
-                        router.push('/welcome');
+            {loadingPlans && (
+              <div className="text-center text-gray-600">Paketler yükleniyor...</div>
+            )}
+            {plansError && !loadingPlans && (
+              <div className="text-center text-red-600">{plansError}</div>
+            )}
+            {!loadingPlans && !plansError && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {plans.map((plan) => {
+                  const isFree = plan.price === 0 || plan.is_trial;
+                  const isYearly = plan.interval === 'yearly';
+                  const isPopular = !isFree && !isYearly;
+                  const rawFeatures = Array.isArray(plan.features) ? plan.features : [];
+                  const localizedFeatures = rawFeatures
+                    .map((f: any) => {
+                      if (typeof f !== 'string') return null;
+                      const trimmed = f.trim();
+                      if (trimmed.toUpperCase().startsWith('TR:')) {
+                        return trimmed.substring(3).trim();
                       }
-                    }}
-                    className="block w-full py-3 px-6 bg-muted hover:bg-gray-200 text-gray-800 rounded-xl text-center font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
-                  >
-                    Ücretsiz Başla
-                  </button>
-                </div>
+                      if (trimmed.toUpperCase().startsWith('EN:')) {
+                        return null;
+                      }
+                      return trimmed;
+                    })
+                    .filter((f: any) => f);
+                  const intervalLabel =
+                    plan.interval === 'yearly' ? 'yıl' : plan.interval === 'monthly' ? 'ay' : '';
+                  const buttonLabel = isFree ? 'Ücretsiz Başla' : isYearly ? 'Yıllık Abone Ol' : 'Hemen Başla';
+                  const cardClasses = isPopular
+                    ? 'bg-muted rounded-2xl border-2 border-primary shadow-2xl hover:shadow-3xl transition-all duration-300 transform md:hover:scale-105 z-10 overflow-hidden hover:-translate-y-2'
+                    : isFree
+                    ? 'bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden hover:-translate-y-2'
+                    : 'bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all overflow-hidden';
+
+                  const planName = String(plan.name || '').toLowerCase();
+                  const sanitizedFeatures: string[] = localizedFeatures.filter((feature: any) => {
+                    if (typeof feature !== 'string') return false;
+                    const lower = feature.toLowerCase();
+                    if (lower.includes('sınırsız') || lower.includes('sinirsiz') || lower.includes('unlimited')) {
+                      return false;
+                    }
+                    return true;
+                  });
+
+                  let marketingDescription: string | null = null;
+                  let marketingBullets: string[] = [];
+
+                  if (isFree && (planName.includes('free') || planName.includes('trial') || planName.includes('ücretsiz'))) {
+                    marketingDescription = 'Platformu risksiz denemek için tasarlanmış ücretsiz başlangıç paketi.';
+                    marketingBullets = [
+                      'Sınırlı sayıda kısa ses üretimi ile LingRoot deneyimini risksiz keşfedin',
+                      'Tüm CEFR seviyeleri (A1–C1) için örnek içeriklere erişim',
+                      'Standart ses kalitesi (Standard kategori)',
+                      'Metinden hızlı ses oluşturma deneyimi',
+                    ];
+                  } else if (planName.includes('gold')) {
+                    marketingDescription =
+                      'Her gün düzenli İngilizce dinleme ve tekrar yapmak isteyenler için ideal günlük pratik paketi.';
+                    marketingBullets = [
+                      'Hedef kullanım: günde ortalama ~1 saat İngilizce dinleme ve pratik senaryoları',
+                      'Gerçek dakikalar; seçilen ses kalitesi ve adil kullanım limitlerine göre sistem tarafından otomatik yönetilir',
+                      'Standart + Premium (Wavenet / Neural2) ses kalitesi – daha doğal ve akıcı sesler',
+                      'Metin, konu, kitap ve dokümanlardan ses oluşturma',
+                    ];
+                  } else if (planName.includes('platin') || planName.includes('platinum')) {
+                    marketingDescription =
+                      'Yoğun içerik üretenler, öğretmenler ve ileri seviye kullanıcılar için tasarlanmış profesyonel paket.';
+                    marketingBullets = [
+                      'Hedef kullanım: günde ~3 saate kadar yoğun pratik ve içerik üretimi',
+                      'Gerçek sınırlar; API maliyetine göre adil kullanım politikasıyla sistem tarafından takip edilir',
+                      'Tüm ses kategorileri: Standard, Premium (Wavenet / Neural2), Studio ve 3D (Chirp3D)',
+                      'Uzun metinler ve çok bölümlü içerikler için yüksek toplam dakika potansiyeli',
+                    ];
+                  }
+
+                  const combinedFeatures: string[] =
+                    marketingBullets.length > 0 || marketingDescription
+                      ? [...marketingBullets, ...sanitizedFeatures]
+                      : sanitizedFeatures;
+
+                  return (
+                    <div key={plan.id} className={cardClasses}>
+                      <div className={isPopular ? 'bg-primary p-6 relative' : isFree ? 'bg-gradient-to-r from-gray-100 to-gray-200 p-6' : 'bg-gray-50 p-6'}>
+                        {isPopular && (
+                          <div className="absolute top-0 right-0 mt-3 mr-4">
+                            <div className="bg-orange-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg">
+                              EN POPÜLER
+                            </div>
+                          </div>
+                        )}
+                        <h3 className={`text-xl font-bold mb-2 text-center ${isPopular ? 'text-white' : 'text-gray-800'}`}>
+                          {plan.name}
+                        </h3>
+                        <div className="text-center">
+                          <span
+                            className={`text-4xl font-bold ${
+                              isPopular
+                                ? 'text-white'
+                                : isFree
+                                ? 'bg-gradient-to-r from-gray-600 to-gray-800 bg-clip-text text-transparent'
+                                : 'text-[#28a745]'
+                            }`}
+                          >
+                            {plan.price} ₺
+                          </span>
+                          {intervalLabel && (
+                            <span className={isPopular ? 'text-white opacity-90' : 'text-gray-600'}>/{intervalLabel}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className={isPopular ? 'p-8' : 'p-6'}>
+                        {(marketingDescription || plan.description) && (
+                          <p className="text-gray-600 mb-4 text-sm leading-relaxed">
+                            {marketingDescription || plan.description}
+                          </p>
+                        )}
+                        {combinedFeatures.length > 0 && (
+                          <ul className="space-y-3 mb-6">
+                            {combinedFeatures.map((feature: any, index: number) => (
+                              <li key={index} className="flex items-start">
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                <span className="text-gray-600">{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {isFree ? (
+                          <button
+                            onClick={() => {
+                              if (!isAuthenticated) {
+                                router.push('/register');
+                              } else {
+                                router.push('/welcome');
+                              }
+                            }}
+                            className="block w-full py-3 px-6 bg-muted hover:bg-gray-200 text-gray-800 rounded-xl text-center font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
+                          >
+                            {buttonLabel}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handlePlanSelect(String(plan.id))}
+                            className={
+                              isPopular
+                                ? 'block w-full py-3 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded text-center font-medium transition-colors'
+                                : 'block w-full py-3 px-4 bg-[#fd7e14] hover:bg-[#e76b02] text-white rounded text-center font-medium transition-colors'
+                            }
+                          >
+                            {buttonLabel}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              
-              {/* Aylık Plan */}
-              <div className="bg-muted rounded-2xl border-2 border-primary shadow-2xl hover:shadow-3xl transition-all duration-300 transform scale-105 md:scale-100 md:hover:scale-105 z-10 overflow-hidden hover:-translate-y-2">
-                <div className="bg-primary p-6 relative">
-                  <div className="absolute top-0 right-0 mt-3 mr-4">
-                    <div className="bg-orange-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg">EN POPÜLER</div>
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2 text-center">Aylık</h3>
-                  <div className="text-center">
-                    <span className="text-4xl font-bold text-white">49 ₺</span>
-                    <span className="text-white opacity-90">/ay</span>
-                  </div>
-                </div>
-                <div className="p-8">
-                  <ul className="space-y-3 mb-6">
-                    <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-gray-600">Sınırsız içerik dönüştürme</span>
-                    </li>
-                    <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-gray-600">Tüm seviyelere erişim (A1-C2)</span>
-                    </li>
-                    <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-gray-600">Gelişmiş kelime havuzu ve alıştırmalar</span>
-                    </li>
-                    <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-gray-600">Çevrimdışı erişim</span>
-                    </li>
-                    <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-gray-600">Telaffuz geri bildirimleri</span>
-                    </li>
-                  </ul>
-                  <button
-                    onClick={() => handlePlanSelect('monthly')}
-                    className="block w-full py-3 px-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded text-center font-medium transition-colors"
-                  >
-                    Hemen Başla
-                  </button>
-                </div>
-              </div>
-              
-              {/* Yıllık Plan */}
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all overflow-hidden">
-                <div className="bg-gray-50 p-6">
-                  <h3 className="text-xl font-bold text-gray-800 mb-2 text-center">Yıllık</h3>
-                  <div className="text-center">
-                    <span className="text-3xl font-bold text-[#28a745]">399 ₺</span>
-                    <span className="text-gray-600">/yıl</span>
-                    <div className="bg-red-100 text-red-600 text-xs px-2 py-1 rounded inline-block mt-1">%32 TASARRUF</div>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <ul className="space-y-3 mb-6">
-                    <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-gray-600">Sınırsız içerik dönüştürme</span>
-                    </li>
-                    <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-gray-600">Tüm seviyelere erişim (A1-C2)</span>
-                    </li>
-                    <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-gray-600">Gelişmiş kelime havuzu ve alıştırmalar</span>
-                    </li>
-                    <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-gray-600">Çevrimdışı erişim</span>
-                    </li>
-                    <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-gray-600">Telaffuz geri bildirimleri</span>
-                    </li>
-                    <li className="flex items-start">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#28a745] mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-gray-600">Öncelikli destek</span>
-                    </li>
-                  </ul>
-                  <button
-                    onClick={() => handlePlanSelect('yearly')}
-                    className="block w-full py-3 px-4 bg-[#fd7e14] hover:bg-[#e76b02] text-white rounded text-center font-medium transition-colors"
-                  >
-                    Yıllık Abone Ol
-                  </button>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </section>
-        
+
         <section className="py-12 bg-gray-50">
           <div className="max-w-6xl mx-auto px-6">
             <h2 className="text-2xl font-bold text-gray-800 mb-8 text-center">Sık Sorulan Sorular</h2>
-            
+
             <div className="space-y-6 max-w-4xl mx-auto">
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
                 <h3 className="text-lg font-bold text-[#28a745] mb-2">Üyelik planları arasında nasıl geçiş yapabilirim?</h3>
-                <p className="text-gray-600">Hesap ayarlarınızdan dilediğiniz zaman planınızı yükseltebilir veya değiştirebilirsiniz. Yıllık plandan aylık plana geçiş yapmak isterseniz, mevcut abonelik sürenizin sonunda değişiklik gerçekleşir.</p>
+                <p className="text-gray-600">
+                  Hesap ayarlarınızdan dilediğiniz zaman planınızı yükseltebilir veya değiştirebilirsiniz. Yıllık plandan aylık
+                  plana geçiş yapmak isterseniz, mevcut abonelik sürenizin sonunda değişiklik gerçekleşir.
+                </p>
               </div>
-              
+
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
                 <h3 className="text-lg font-bold text-[#28a745] mb-2">Ödememi nasıl yapabilirim?</h3>
-                <p className="text-gray-600">Kredi kartı, banka kartı veya PayPal ile güvenli ödeme yapabilirsiniz. Tüm ödemeler SSL ile şifrelenir ve bilgileriniz güvende tutulur.</p>
+                <p className="text-gray-600">
+                  Kredi kartı, banka kartı veya PayPal ile güvenli ödeme yapabilirsiniz. Tüm ödemeler SSL ile şifrelenir ve
+                  bilgileriniz güvende tutulur.
+                </p>
               </div>
-              
+
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
                 <h3 className="text-lg font-bold text-[#28a745] mb-2">İade politikanız nedir?</h3>
-                <p className="text-gray-600">Satın alma işleminizden itibaren 14 gün içerisinde, herhangi bir sebep belirtmeden iade talep edebilirsiniz. İade talepleri için destek ekibimizle iletişime geçmeniz yeterlidir.</p>
+                <p className="text-gray-600">
+                  Satın alma işleminizden itibaren 14 gün içerisinde, herhangi bir sebep belirtmeden iade talep edebilirsiniz.
+                  İade talepleri için destek ekibimizle iletişime geçmeniz yeterlidir.
+                </p>
               </div>
-              
+
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
                 <h3 className="text-lg font-bold text-[#28a745] mb-2">Ücretsiz plan ile ne kadar ileri gidebilirim?</h3>
-                <p className="text-gray-600">Ücretsiz planımız, platformumuzun temel özelliklerini denemeniz için tasarlanmıştır. Günlük sınırlar dahilinde, A1-B1 seviyelerinde içerikler oluşturabilir ve temel kelime öğrenme araçlarını kullanabilirsiniz.</p>
+                <p className="text-gray-600">
+                  Ücretsiz planımız, platformumuzun temel özelliklerini denemeniz için tasarlanmıştır. Sınırlı sayıda ve
+                  sürede kısa sesler üreterek LingRoot deneyimini risksiz keşfedebilirsiniz. Daha uzun ve düzenli günlük
+                  kullanım için Gold ve Platin planlarımızı öneririz.
+                </p>
+              </div>
+
+              <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+                <h3 className="text-lg font-bold text-[#28a745] mb-2">Planlarınız sınırsız mı?</h3>
+                <p className="text-gray-600">
+                  Hayır. Tüm planlarımızda kullanım, altyapı sağlayıcılarının maliyetlerine göre belirlenen adil kullanım
+                  limitleri ile otomatik olarak takip edilir. Hedef profil olarak Gold plan günlük yaklaşık ~1 saat, Platin
+                  plan ise günde ~3 saate kadar yoğun kullanım senaryolarına göre tasarlanmıştır.
+                </p>
               </div>
             </div>
           </div>
         </section>
-        
+
         <section className="py-16 bg-[#f1f9ee]">
           <div className="max-w-4xl mx-auto px-6 text-center">
             <h2 className="text-3xl font-bold text-gray-800 mb-4">Hala kararsız mısınız?</h2>
             <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-              Risk almadan ücretsiz planımızla başlayın ve LingRoot'un İngilizce öğrenme deneyiminizi nasıl tamamen değiştireceğini keşfedin.
+              Risk almadan ücretsiz planımızla başlayın ve LingRoot'un İngilizce öğrenme deneyiminizi nasıl tamamen
+              değiştireceğini keşfedin.
             </p>
-            <Link href="/register" className="inline-block px-8 py-4 bg-[#fd7e14] text-white rounded shadow-md font-medium hover:bg-[#e76b02] transition-colors text-lg">
+            <Link
+              href="/register"
+              className="inline-block px-8 py-4 bg-[#fd7e14] text-white rounded shadow-md font-medium hover:bg-[#e76b02] transition-colors text-lg"
+            >
               Ücretsiz Hesap Oluştur
             </Link>
           </div>
@@ -346,4 +409,4 @@ export default function Fiyatlandirma() {
       <Footer />
     </div>
   );
-} 
+}

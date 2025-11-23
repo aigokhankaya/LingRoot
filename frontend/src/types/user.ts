@@ -19,6 +19,7 @@ export interface User {
   };
   loginCount?: number;
   contentCount?: number;
+  planName?: string;
 }
 
 export interface UserUpdateData {
