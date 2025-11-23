@@ -1374,6 +1374,10 @@ const processTtsRequest = async (req, res) => {
                 const ttsCostUsd = calculateTtsCost(ttsCharactersTotal, ttsCategory);
                 const totalCostUsd = Number(((openaiCost.totalCostUsd || 0) + (ttsCostUsd || 0)).toFixed(6));
 
+                // Additional metadata for cost analytics
+                const audioDurationSeconds = Math.round((actualTotalDuration || totalRealDuration || 0));
+                const normalizedEntrySource = (req.body.entrySource || req.body.entry_source || req.body.section || req.body.source || req.body.type || inputType || 'unknown');
+
                 const insertData = {
                     user_id: userId,
                     level: level || 'B1',
@@ -1394,6 +1398,11 @@ const processTtsRequest = async (req, res) => {
                     tts_category: ttsCategory,
                     tts_cost_usd: ttsCostUsd,
                     total_cost_usd: totalCostUsd,
+                    // cost dashboard metadata
+                    tts_provider: ttsProvider || null,
+                    tts_voice_name: selectedVoice || null,
+                    audio_duration_seconds: audioDurationSeconds > 0 ? audioDurationSeconds : null,
+                    entry_source: normalizedEntrySource,
                 };
                 
                 logger.info(`[${requestId}] 📋 Insert data:`, JSON.stringify(insertData, null, 2));

@@ -27,6 +27,9 @@ router.use(authorizeAdmin);
 // Admin dashboard stats
 router.get('/stats', adminController.getDashboardStats);
 
+// Cost analytics dashboard
+router.get('/cost-dashboard', adminController.getCostDashboard);
+
 // Subscription plan management
 router.get('/plans', planController.getAllPlans);
 router.get('/plans/:id', planController.getPlanById);

@@ -205,6 +205,52 @@ export default function Fiyatlandirma() {
                     ? 'bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden hover:-translate-y-2'
                     : 'bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all overflow-hidden';
 
+                  const planName = String(plan.name || '').toLowerCase();
+                  const sanitizedFeatures: string[] = localizedFeatures.filter((feature: any) => {
+                    if (typeof feature !== 'string') return false;
+                    const lower = feature.toLowerCase();
+                    if (lower.includes('sınırsız') || lower.includes('sinirsiz') || lower.includes('unlimited')) {
+                      return false;
+                    }
+                    return true;
+                  });
+
+                  let marketingDescription: string | null = null;
+                  let marketingBullets: string[] = [];
+
+                  if (isFree && (planName.includes('free') || planName.includes('trial') || planName.includes('ücretsiz'))) {
+                    marketingDescription = 'Platformu risksiz denemek için tasarlanmış ücretsiz başlangıç paketi.';
+                    marketingBullets = [
+                      'Sınırlı sayıda kısa ses üretimi ile LingRoot deneyimini risksiz keşfedin',
+                      'Tüm CEFR seviyeleri (A1–C1) için örnek içeriklere erişim',
+                      'Standart ses kalitesi (Standard kategori)',
+                      'Metinden hızlı ses oluşturma deneyimi',
+                    ];
+                  } else if (planName.includes('gold')) {
+                    marketingDescription =
+                      'Her gün düzenli İngilizce dinleme ve tekrar yapmak isteyenler için ideal günlük pratik paketi.';
+                    marketingBullets = [
+                      'Hedef kullanım: günde ortalama ~1 saat İngilizce dinleme ve pratik senaryoları',
+                      'Gerçek dakikalar; seçilen ses kalitesi ve adil kullanım limitlerine göre sistem tarafından otomatik yönetilir',
+                      'Standart + Premium (Wavenet / Neural2) ses kalitesi – daha doğal ve akıcı sesler',
+                      'Metin, konu, kitap ve dokümanlardan ses oluşturma',
+                    ];
+                  } else if (planName.includes('platin') || planName.includes('platinum')) {
+                    marketingDescription =
+                      'Yoğun içerik üretenler, öğretmenler ve ileri seviye kullanıcılar için tasarlanmış profesyonel paket.';
+                    marketingBullets = [
+                      'Hedef kullanım: günde ~3 saate kadar yoğun pratik ve içerik üretimi',
+                      'Gerçek sınırlar; API maliyetine göre adil kullanım politikasıyla sistem tarafından takip edilir',
+                      'Tüm ses kategorileri: Standard, Premium (Wavenet / Neural2), Studio ve 3D (Chirp3D)',
+                      'Uzun metinler ve çok bölümlü içerikler için yüksek toplam dakika potansiyeli',
+                    ];
+                  }
+
+                  const combinedFeatures: string[] =
+                    marketingBullets.length > 0 || marketingDescription
+                      ? [...marketingBullets, ...sanitizedFeatures]
+                      : sanitizedFeatures;
+
                   return (
                     <div key={plan.id} className={cardClasses}>
                       <div className={isPopular ? 'bg-primary p-6 relative' : isFree ? 'bg-gradient-to-r from-gray-100 to-gray-200 p-6' : 'bg-gray-50 p-6'}>
@@ -236,12 +282,14 @@ export default function Fiyatlandirma() {
                         </div>
                       </div>
                       <div className={isPopular ? 'p-8' : 'p-6'}>
-                        {plan.description && (
-                          <p className="text-gray-600 mb-4 text-sm leading-relaxed">{plan.description}</p>
+                        {(marketingDescription || plan.description) && (
+                          <p className="text-gray-600 mb-4 text-sm leading-relaxed">
+                            {marketingDescription || plan.description}
+                          </p>
                         )}
-                        {localizedFeatures.length > 0 && (
+                        {combinedFeatures.length > 0 && (
                           <ul className="space-y-3 mb-6">
-                            {localizedFeatures.map((feature: any, index: number) => (
+                            {combinedFeatures.map((feature: any, index: number) => (
                               <li key={index} className="flex items-start">
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"
@@ -323,8 +371,18 @@ export default function Fiyatlandirma() {
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
                 <h3 className="text-lg font-bold text-[#28a745] mb-2">Ücretsiz plan ile ne kadar ileri gidebilirim?</h3>
                 <p className="text-gray-600">
-                  Ücretsiz planımız, platformumuzun temel özelliklerini denemeniz için tasarlanmıştır. Günlük sınırlar
-                  dahilinde, A1-B1 seviyelerinde içerikler oluşturabilir ve temel kelime öğrenme araçlarını kullanabilirsiniz.
+                  Ücretsiz planımız, platformumuzun temel özelliklerini denemeniz için tasarlanmıştır. Sınırlı sayıda ve
+                  sürede kısa sesler üreterek LingRoot deneyimini risksiz keşfedebilirsiniz. Daha uzun ve düzenli günlük
+                  kullanım için Gold ve Platin planlarımızı öneririz.
+                </p>
+              </div>
+
+              <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+                <h3 className="text-lg font-bold text-[#28a745] mb-2">Planlarınız sınırsız mı?</h3>
+                <p className="text-gray-600">
+                  Hayır. Tüm planlarımızda kullanım, altyapı sağlayıcılarının maliyetlerine göre belirlenen adil kullanım
+                  limitleri ile otomatik olarak takip edilir. Hedef profil olarak Gold plan günlük yaklaşık ~1 saat, Platin
+                  plan ise günde ~3 saate kadar yoğun kullanım senaryolarına göre tasarlanmıştır.
                 </p>
               </div>
             </div>

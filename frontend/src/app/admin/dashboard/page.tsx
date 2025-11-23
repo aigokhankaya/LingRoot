@@ -69,6 +69,15 @@ const App: React.FC = () => {
     apple_product_id: '',
     google_product_id: '',
   });
+
+  // Cost dashboard state
+  const [costOverview, setCostOverview] = useState<any | null>(null);
+  const [costByUser, setCostByUser] = useState<any[]>([]);
+  const [costByProvider, setCostByProvider] = useState<any[]>([]);
+  const [costBySource, setCostBySource] = useState<any[]>([]);
+  const [costItems, setCostItems] = useState<any[]>([]);
+  const [costLoading, setCostLoading] = useState(false);
+  const [costError, setCostError] = useState<string | null>(null);
   const resetPlanForm = () => setPlanForm({
     name: '', description: '', price: '', interval: 'monthly', features: '', is_active: true, is_trial: false, trial_days: 7, apple_product_id: '', google_product_id: ''
   });
@@ -115,6 +124,35 @@ const App: React.FC = () => {
         text_pages: estimatedPages
       }
     };
+  };
+
+  const fetchCostDashboard = async () => {
+    try {
+      setCostLoading(true);
+      setCostError(null);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+      const res = await fetch('/api/admin/cost-dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token || ''}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.message || 'Maliyet verileri getirilemedi');
+      }
+      const data = json.data || {};
+      setCostOverview(data.overview || null);
+      setCostByUser(Array.isArray(data.by_user) ? data.by_user.slice(0, 20) : []);
+      setCostByProvider(Array.isArray(data.by_provider_category) ? data.by_provider_category : []);
+      setCostBySource(Array.isArray(data.by_entry_source) ? data.by_entry_source : []);
+      setCostItems(Array.isArray(data.items) ? data.items : []);
+    } catch (e: any) {
+      console.error('Cost dashboard fetch error:', e);
+      setCostError(e?.message || 'Maliyet verileri yüklenemedi');
+    } finally {
+      setCostLoading(false);
+    }
   };
   const openCreatePlan = () => { setEditingPlan(null); resetPlanForm(); setShowPackageForm(true); };
   const openEditPlan = (p: any) => {
@@ -185,6 +223,12 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!loading && activeTab === 'paket-yonetimi') {
       fetchPlans();
+    }
+  }, [loading, activeTab]);
+
+  useEffect(() => {
+    if (!loading && activeTab === 'maliyet-takibi') {
+      fetchCostDashboard();
     }
   }, [loading, activeTab]);
 
@@ -590,6 +634,10 @@ const App: React.FC = () => {
                 <i className="fas fa-chart-line mr-3 text-lg"></i>
                 <span>Analitik</span>
               </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("maliyet-takibi")}>
+                <i className="fas fa-coins mr-3 text-lg"></i>
+                <span>Maliyet Takibi</span>
+              </Button>
               <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("kampanya-yonetimi")}>
                 <i className="fas fa-percentage mr-3 text-lg"></i>
                 <span>Kampanya Yönetimi</span>
@@ -786,6 +834,249 @@ const App: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === "maliyet-takibi" && (
+            <div className="p-6 space-y-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-gray-800">Maliyet Takibi</h2>
+                <span className="text-sm text-gray-500">TTS ve OpenAI kullanım maliyetlerinin özeti</span>
+              </div>
+
+              {costLoading && (
+                <div className="text-gray-600">Maliyet verileri yükleniyor...</div>
+              )}
+
+              {costError && !costLoading && (
+                <div className="text-red-600 text-sm">{costError}</div>
+              )}
+
+              {!costLoading && !costError && costOverview && (
+                <>
+                  {/* Overview cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-gray-500">Toplam Maliyet (USD)</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold text-gray-900">${costOverview.total_cost_usd?.toFixed?.(2) ?? costOverview.total_cost_usd}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-gray-500">TTS Maliyeti (USD)</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold text-gray-900">${costOverview.tts_cost_usd?.toFixed?.(2) ?? costOverview.tts_cost_usd}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-gray-500">OpenAI Maliyeti (USD)</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-2xl font-bold text-gray-900">${costOverview.openai_cost_usd?.toFixed?.(2) ?? costOverview.openai_cost_usd}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-gray-500">Toplam Dakika &amp; Kullanıcı</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-lg font-semibold text-gray-900">{costOverview.total_audio_minutes?.toFixed?.(1) ?? costOverview.total_audio_minutes} dk</p>
+                        <p className="text-sm text-gray-500">Aktif kullanıcı: {costOverview.active_users}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Tables */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* By user */}
+                    <Card className="overflow-hidden">
+                      <CardHeader>
+                        <CardTitle>Kullanıcı Bazında Maliyet (İlk 20)</CardTitle>
+                        <CardDescription>Toplam maliyete göre azalan sırada</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <ScrollArea className="h-72">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Kullanıcı ID</TableHead>
+                                <TableHead className="text-right">Dakika</TableHead>
+                                <TableHead className="text-right">TTS $</TableHead>
+                                <TableHead className="text-right">OpenAI $</TableHead>
+                                <TableHead className="text-right">Toplam $</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {costByUser.length === 0 && (
+                                <TableRow>
+                                  <TableCell colSpan={5} className="text-center text-sm text-gray-500 py-4">
+                                    Kayıt bulunamadı.
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                              {costByUser.map((row, idx) => (
+                                <TableRow key={row.user_id || idx}>
+                                  <TableCell className="text-xs text-gray-700">{row.user_id}</TableCell>
+                                  <TableCell className="text-right text-sm">{row.audio_minutes?.toFixed?.(1) ?? row.audio_minutes}</TableCell>
+                                  <TableCell className="text-right text-sm">{row.tts_cost_usd?.toFixed?.(3) ?? row.tts_cost_usd}</TableCell>
+                                  <TableCell className="text-right text-sm">{row.openai_cost_usd?.toFixed?.(3) ?? row.openai_cost_usd}</TableCell>
+                                  <TableCell className="text-right text-sm font-semibold">{row.total_cost_usd?.toFixed?.(3) ?? row.total_cost_usd}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+
+                    {/* By provider/category */}
+                    <Card className="overflow-hidden">
+                      <CardHeader>
+                        <CardTitle>Servis &amp; Ses Kalitesi Bazında</CardTitle>
+                        <CardDescription>TTS sağlayıcısı ve kalite kategorisi kırılımı</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <ScrollArea className="h-72">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Provider</TableHead>
+                                <TableHead>Kategori</TableHead>
+                                <TableHead className="text-right">Karakter</TableHead>
+                                <TableHead className="text-right">Dakika</TableHead>
+                                <TableHead className="text-right">TTS $</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {costByProvider.length === 0 && (
+                                <TableRow>
+                                  <TableCell colSpan={5} className="text-center text-sm text-gray-500 py-4">
+                                    Kayıt bulunamadı.
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                              {costByProvider.map((row, idx) => (
+                                <TableRow key={`${row.tts_provider || 'unknown'}-${row.tts_category || 'unknown'}-${idx}`}>
+                                  <TableCell className="text-sm text-gray-700">{row.tts_provider || 'unknown'}</TableCell>
+                                  <TableCell className="text-sm text-gray-700">{row.tts_category || 'unknown'}</TableCell>
+                                  <TableCell className="text-right text-sm">{row.tts_characters}</TableCell>
+                                  <TableCell className="text-right text-sm">{row.audio_minutes?.toFixed?.(1) ?? row.audio_minutes}</TableCell>
+                                  <TableCell className="text-right text-sm font-semibold">{row.tts_cost_usd?.toFixed?.(3) ?? row.tts_cost_usd}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* By entry source (sections like konu, konu ağacı, metin, podcast, Liro) */}
+                  <Card className="overflow-hidden">
+                    <CardHeader>
+                      <CardTitle>Kullanım Kaynağı (Sekmeler / Servisler)</CardTitle>
+                      <CardDescription>entry_source alanına göre maliyet kırılımı</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <ScrollArea className="h-64">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Kaynak</TableHead>
+                              <TableHead className="text-right">Dakika</TableHead>
+                              <TableHead className="text-right">TTS $</TableHead>
+                              <TableHead className="text-right">OpenAI $</TableHead>
+                              <TableHead className="text-right">Toplam $</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {costBySource.length === 0 && (
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center text-sm text-gray-500 py-4">
+                                  Kayıt bulunamadı.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            {costBySource.map((row, idx) => (
+                              <TableRow key={`${row.entry_source || 'unknown'}-${idx}`}>
+                                <TableCell className="text-sm text-gray-700">{row.entry_source || 'unknown'}</TableCell>
+                                <TableCell className="text-right text-sm">{row.audio_minutes?.toFixed?.(1) ?? row.audio_minutes}</TableCell>
+                                <TableCell className="text-right text-sm">{row.tts_cost_usd?.toFixed?.(3) ?? row.tts_cost_usd}</TableCell>
+                                <TableCell className="text-right text-sm">{row.openai_cost_usd?.toFixed?.(3) ?? row.openai_cost_usd}</TableCell>
+                                <TableCell className="text-right text-sm font-semibold">{row.total_cost_usd?.toFixed?.(3) ?? row.total_cost_usd}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+
+                  {/* Per-operation detailed list */}
+                  <Card className="overflow-hidden mt-6">
+                    <CardHeader>
+                      <CardTitle>İşlem Bazında Detaylı Maliyet</CardTitle>
+                      <CardDescription>Her satır tek bir içerik üretim işlemini temsil eder</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <ScrollArea className="h-[420px]">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-40">Tarih / Saat</TableHead>
+                              <TableHead className="w-24">Süre (dk)</TableHead>
+                              <TableHead>Kaynak</TableHead>
+                              <TableHead>Girdi Tipi</TableHead>
+                              <TableHead>LLM Servisi</TableHead>
+                              <TableHead>LLM Modeli</TableHead>
+                              <TableHead className="text-right">LLM $</TableHead>
+                              <TableHead>TTS Servisi</TableHead>
+                              <TableHead>Ses Kalitesi</TableHead>
+                              <TableHead>Ses Adı</TableHead>
+                              <TableHead className="text-right">TTS $</TableHead>
+                              <TableHead className="text-right">Toplam $</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {costItems.length === 0 && (
+                              <TableRow>
+                                <TableCell colSpan={11} className="text-center text-sm text-gray-500 py-4">
+                                  Kayıt bulunamadı.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            {costItems.map((item, idx) => (
+                              <TableRow key={item.id || idx}>
+                                <TableCell className="w-40 text-xs text-gray-500">
+                                  {item.created_at ? new Date(item.created_at).toLocaleString('tr-TR') : '-'}
+                                </TableCell>
+                                <TableCell className="w-24 text-sm">
+                                  {item.audio_minutes != null ? (item.audio_minutes?.toFixed?.(2) ?? item.audio_minutes) : '-'}
+                                </TableCell>
+                                <TableCell className="text-sm text-gray-700">{item.entry_source || 'unknown'}</TableCell>
+                                <TableCell className="text-sm text-gray-700">{item.input_type || '-'}</TableCell>
+                                <TableCell className="text-sm text-gray-700">{item.llm_service || '-'}</TableCell>
+                                <TableCell className="text-sm text-gray-700">{item.llm_model || '-'}</TableCell>
+                                <TableCell className="text-right text-sm">{item.llm_cost_usd?.toFixed?.(4) ?? item.llm_cost_usd}</TableCell>
+                                <TableCell className="text-sm text-gray-700">{item.tts_provider || '-'}</TableCell>
+                                <TableCell className="text-sm text-gray-700">{item.tts_category || '-'}</TableCell>
+                                <TableCell className="text-sm text-gray-700">{item.tts_voice_name || '-'}</TableCell>
+                                <TableCell className="text-right text-sm">{item.tts_cost_usd?.toFixed?.(4) ?? item.tts_cost_usd}</TableCell>
+                                <TableCell className="text-right text-sm font-semibold">{item.total_cost_usd?.toFixed?.(4) ?? item.total_cost_usd}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </div>
           )}
 
