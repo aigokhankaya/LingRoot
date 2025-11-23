@@ -28,6 +28,7 @@ export interface User {
   loginCount?: number;
   contentCount?: number;
   currentSubscription?: UserSubscription | null;
+  planName?: string;
 }
 
 export interface UserUpdateData {

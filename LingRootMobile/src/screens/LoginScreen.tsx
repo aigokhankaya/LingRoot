@@ -10,6 +10,7 @@ import {
   Platform,
   ScrollView,
   Keyboard,
+  Animated,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
@@ -37,10 +38,28 @@ const LoginScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<any>();
 
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateYAnim = useRef(new Animated.Value(12)).current;
+
   useEffect(() => {
     // Check if Apple Sign-In is available
     isAppleSignInAvailable().then(setShowAppleSignIn);
   }, []);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateYAnim, {
+        toValue: 0,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, translateYAnim]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -203,15 +222,16 @@ const LoginScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-        bounces={false}
-        contentInsetAdjustmentBehavior="never"
-        automaticallyAdjustKeyboardInsets
-      >
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: translateYAnim }] }}>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          bounces={false}
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustKeyboardInsets
+        >
         <View style={styles.centerWrap}>
           <View style={styles.header}>
           <Text style={styles.title}>LingRoot</Text>
@@ -325,6 +345,7 @@ const LoginScreen: React.FC = () => {
           </View>
         </View>
       </ScrollView>
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 };

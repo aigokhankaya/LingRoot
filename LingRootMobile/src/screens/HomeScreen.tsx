@@ -7,6 +7,7 @@ import {
   ScrollView,
   SafeAreaView,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -26,6 +27,9 @@ const HomeScreen: React.FC = () => {
   });
   const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
   const [featuresLoading, setFeaturesLoading] = useState(true);
+
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const translateYAnim = React.useRef(new Animated.Value(12)).current;
 
   // All available features
   const allFeatures = [
@@ -199,6 +203,21 @@ const HomeScreen: React.FC = () => {
     fetchPlanFeatures();
   }, [user?.id]);
 
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateYAnim, {
+        toValue: 0,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, translateYAnim]);
+
   // Refresh stats when Home gains focus (e.g., after creating new audio)
   useFocusEffect(
     React.useCallback(() => {
@@ -227,7 +246,8 @@ const HomeScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: translateYAnim }] }}>
+        <ScrollView style={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
 
 
         <View style={styles.statsContainer}>
@@ -311,6 +331,7 @@ const HomeScreen: React.FC = () => {
           </View>
         </View>
       </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   );
 };

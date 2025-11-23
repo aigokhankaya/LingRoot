@@ -9,6 +9,7 @@ function mapUserFromApi(apiUser: any): User {
   
   // Backend'den gelen 'package' alanını membershipStatus'a çevir
   let membershipStatus = apiUser.membership_status || apiUser.membershipStatus;
+  let planName = apiUser.package || apiUser.planName || null;
   if (apiUser.package) {
     // Plan adına göre membership status belirle
     const packageLower = apiUser.package.toLowerCase();
@@ -39,6 +40,7 @@ function mapUserFromApi(apiUser: any): User {
     email: apiUser.email,
     role: apiUser.role,
     membershipStatus: membershipStatus || 'free',
+    planName: planName || undefined,
     avatar: apiUser.avatar,
     createdAt: apiUser.created_at || apiUser.createdAt,
     updatedAt: apiUser.updated_at || apiUser.updatedAt,
@@ -169,8 +171,14 @@ export const getUserById = async (id: string): Promise<User> => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const json = await response.json();
-    const data = json?.data ?? json; 
-    return mapUserFromApi(data);
+    const data = json?.data ?? json;
+
+    // Map core user fields but also preserve currentSubscription for admin detail page
+    const mapped = mapUserFromApi(data);
+    return {
+      ...mapped,
+      currentSubscription: (data as any).currentSubscription,
+    } as any;
   } catch (error) {
     console.error(`Error fetching user ${id}:`, error);
     throw error;
