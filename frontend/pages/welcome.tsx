@@ -1959,7 +1959,7 @@ const Welcome: React.FC = () => {
       </div>
 
       {/* Hero Section */}
-      <div className="relative w-full h-[440px] md:h-[480px] overflow-hidden">
+      <div className="relative w-full h-[440px] md:h-[480px] overflow-hidden slideUp">
         <div
           className="absolute inset-0 bg-cover bg-top"
           style={{ backgroundImage: `url(${heroImageUrl})` }}
@@ -1997,7 +1997,7 @@ const Welcome: React.FC = () => {
           {/* AI Content Entry Card */}
           <div 
             onClick={() => router.push('/chat/assistant')}
-            className="max-w-4xl mx-auto mb-8 bg-white rounded-xl shadow-md hover:shadow-lg cursor-pointer transition-all duration-300 group"
+            className="max-w-4xl mx-auto mb-8 bg-white rounded-xl shadow-md hover:shadow-lg cursor-pointer transition-all duration-300 group hover-lift slideUp"
           >
             <div className="p-6 flex items-center justify-between">
               <div className="flex-1">
@@ -2016,7 +2016,7 @@ const Welcome: React.FC = () => {
             </div>
           </div>
 
-          <Card className="mb-8 border-none shadow-lg">
+          <Card className="mb-8 border-none shadow-lg slideUp">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">

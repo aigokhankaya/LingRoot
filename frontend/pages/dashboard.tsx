@@ -282,7 +282,7 @@ const Dashboard = () => {
   const backgroundImageUrl = 'https://readdy.ai/api/search-image?query=Abstract%2520professional%2520background%2520with%2520soft%2520teal%2520and%2520slate%2520tones%252C%2520subtle%2520geometric%2520patterns%252C%2520clean%2520modern%2520design%252C%2520perfect%2520for%2520profile%2520page%2520header%252C%2520minimalist%2520aesthetic%252C%2520high%2520quality%2520digital%2520art&width=1440&height=300&seq=bg1&orientation=landscape';
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background fadeIn">
       {/* Top Navigation Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-50">
         <div className="container mx-auto px-4">
@@ -380,7 +380,7 @@ const Dashboard = () => {
       </div>
 
       {/* Profile Header */}
-      <div className="relative w-full h-[220px] md:h-[250px] overflow-hidden mb-8">
+      <div className="relative w-full h-[220px] md:h-[250px] overflow-hidden mb-8 slideUp">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${backgroundImageUrl})` }}
@@ -466,7 +466,7 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Quick Stats */}
               <div className="col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                <Card className="border-none shadow-md">
+                <Card className="border-none shadow-md hover-lift slideUp">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
@@ -551,7 +551,7 @@ const Dashboard = () => {
               </div>
 
               {/* Weekly Activity Chart */}
-              <Card className="border-none shadow-md col-span-3 md:col-span-2">
+              <Card className="border-none shadow-md col-span-3 md:col-span-2 hover-lift slideUp">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl font-bold text-gray-800">Haftalık Aktivite</CardTitle>
                   <CardDescription>Son 7 günde öğrenme süreniz</CardDescription>
@@ -567,7 +567,7 @@ const Dashboard = () => {
               </Card>
 
               {/* Today's Tasks */}
-              <Card className="border-none shadow-md">
+              <Card className="border-none shadow-md hover-lift slideUp">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl font-bold text-gray-800">Bugünkü Görevler</CardTitle>
                   <CardDescription>6 Haziran 2025, Cuma</CardDescription>
@@ -659,7 +659,7 @@ const Dashboard = () => {
               </Card> */}
 
               {/* Vocabulary Growth */}
-              <Card className="border-none shadow-md">
+              <Card className="border-none shadow-md hover-lift slideUp">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl font-bold text-gray-800">Kelime Gelişimi</CardTitle>
                   <CardDescription>Öğrenilen kelime sayısı</CardDescription>

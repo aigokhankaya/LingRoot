@@ -370,6 +370,74 @@
   to { transform: translateY(0); opacity: 1; }
 }
 
+/* Landing hero & demo micro-animations */
+.hero-badge {
+  animation: slideUp 0.4s ease-out both;
+}
+
+.hero-title {
+  animation: slideUp 0.5s ease-out both;
+}
+
+.hero-description {
+  animation: slideUp 0.6s ease-out both;
+}
+
+.hero-buttons {
+  animation: slideUp 0.7s ease-out both;
+}
+
+.demo-title,
+.demo-description {
+  animation: fadeIn 0.6s ease-out both;
+}
+
+/* Desktop card hover for how-it-works & routine sections */
+.how-it-works-card,
+.routine-card {
+  transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+}
+
+.how-it-works-card:hover,
+.routine-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
+}
+
+/* Feature & routine images: gentle zoom on hover */
+.feature-image img,
+.routine-image img {
+  transition: transform 0.35s ease-out;
+}
+
+.feature-image img:hover,
+.routine-image img:hover {
+  transform: scale(1.03);
+}
+
+/* Mobile nav menu quick fade */
+.mobile-menu {
+  animation: fadeIn 0.18s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-badge,
+  .hero-title,
+  .hero-description,
+  .hero-buttons,
+  .demo-title,
+  .demo-description,
+  .how-it-works-card,
+  .routine-card,
+  .feature-image img,
+  .routine-image img,
+  .mobile-menu {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
 .hover-lift {
   @apply transition-transform duration-300 hover:-translate-y-1;
 }

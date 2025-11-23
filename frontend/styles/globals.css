@@ -275,3 +275,74 @@ footer a {
         flex-basis: 100%;
     }
 } 
+
+/* ---- LingRoot landing animations ---- */
+
+@keyframes lr-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lr-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Hero area: title, description and buttons animate softly on first paint */
+.hero-badge {
+  animation: lr-fade-in-up 0.45s ease-out both;
+}
+
+.hero-title {
+  animation: lr-fade-in-up 0.55s ease-out both;
+}
+
+.hero-description {
+  animation: lr-fade-in-up 0.7s ease-out both;
+}
+
+.hero-buttons {
+  animation: lr-fade-in-up 0.85s ease-out both;
+}
+
+/* Demo and routine sections */
+.demo-title,
+.demo-description {
+  animation: lr-fade-in-up 0.6s ease-out both;
+}
+
+.routine-card {
+  animation: lr-fade-in-up 0.6s ease-out both;
+  transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+}
+
+.routine-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* Feature / routine images: gentle hover scale */
+.feature-image img,
+.routine-image img {
+  transition: transform 0.35s ease-out;
+}
+
+.feature-image img:hover,
+.routine-image img:hover {
+  transform: scale(1.03);
+}
+
+/* Mobile nav menu: quick slide-down when opened */
+.mobile-menu {
+  animation: lr-fade-in 0.16s ease-out both;
+}
