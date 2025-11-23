@@ -127,6 +127,7 @@ export interface Timepoint {
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
+  Liro: undefined;
   Login: undefined;
   Register: undefined;
   ForgotPassword: undefined;

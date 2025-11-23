@@ -127,6 +127,46 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
         )}
       </div>
 
+      {/* Podcast Dialogue View (if message is dialogue-style transcript) */}
+      {audioResult.message && /Speaker\s+[AB]:/i.test(audioResult.message) && (
+        <div className="mb-6 space-y-3">
+          {audioResult.message
+            .split(/\r?\n/)
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .map((line, index) => {
+              const match = line.match(/^(Speaker\s+[AB]):\s*(.*)$/i);
+              const speakerLabel = match ? match[1] : '';
+              const text = match ? match[2] : line;
+              const isSpeakerA = /Speaker\s+A/i.test(speakerLabel);
+
+              return (
+                <div
+                  key={index}
+                  className={`flex ${isSpeakerA ? 'justify-start' : 'justify-end'}`}
+                >
+                  <div
+                    className={`max-w-3xl rounded-2xl px-4 py-2 text-sm shadow-sm border ${
+                      isSpeakerA
+                        ? 'bg-blue-50 border-blue-100 text-gray-800'
+                        : 'bg-green-50 border-green-100 text-gray-800'
+                    }`}
+                  >
+                    {speakerLabel && (
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
+                        {speakerLabel}
+                      </div>
+                    )}
+                    <div className="leading-relaxed whitespace-pre-wrap">
+                      {text}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+      )}
+
       {/* Text Content Area */}
       {(audioResult.adapted_text || audioResult.adaptedText) && (
         <div className="mb-6">

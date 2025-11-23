@@ -23,6 +23,8 @@ const logger = require("../utils/logger");
 const { authenticate } = require('../middleware/auth');
 const jobQueue = require('../utils/jobQueue');
 const { sendPushNotification, getUnreadNotifications, markNotificationAsRead } = require('../utils/pushNotification');
+const fetch = require('node-fetch');
+const { supabase } = require('../utils/supabaseClient');
 
 const router = express.Router();
 
@@ -323,37 +325,143 @@ router.post("/chunkText", chunkTextAPI);
 router.post("/synthesizeChunk", synthesizeChunkAPI);
 router.post("/mergeAudio", mergeAudioAPI);
 
-// Create podcast from topic
+// Create podcast from topic (proxy to n8n webhook)
 router.post("/create-podcast", authenticate, async (req, res) => {
   try {
-    const { topic, level, duration } = req.body;
-    
+    const body = req.body || {};
+    const rawTopic = body.topic;
+    const topic = typeof rawTopic === 'string' ? rawTopic.trim() : '';
     if (!topic) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Topic is required" 
+      return res.status(400).json({
+        success: false,
+        message: 'Topic is required'
       });
     }
-    
-    logger.info(`📻 Creating podcast for topic: "${topic}", level: ${level || 'B1'}, duration: ${duration || '10'} min`);
-    
-    // Podcast oluşturma işlemini handleTTSRequest'e yönlendir
-    req.body = {
-      type: 'podcast',
-      text: topic,
-      level: level || 'B1',
-      voice: req.body.voice || 'en-US-Standard-C',
-      SesHızı: req.body.SesHızı || 0.8,
-      duration: duration || '10'
+    const level = (body.level || 'B1').toString().toUpperCase();
+    const duration = body.duration != null ? body.duration : 10;
+    logger.info(`📻 [PODCAST] Proxy create-podcast for topic: "${topic}", level: ${level}, duration: ${duration}`);
+    let serviceConfig = null;
+    try {
+      const { data, error } = await supabase
+        .from('external_services')
+        .select('api_url, api_token')
+        .eq('service_name', 'podcast_generator')
+        .eq('is_active', true)
+        .single();
+      if (error) {
+        logger.warn('[PODCAST] Error loading podcast_generator config from external_services:', error.message);
+      } else {
+        serviceConfig = data;
+      }
+    } catch (configErr) {
+      logger.warn('[PODCAST] Exception loading podcast_generator config:', configErr.message);
+    }
+    const envUrl = process.env.PODCAST_WEBHOOK_URL || process.env.N8N_PODCAST_WEBHOOK_URL;
+    const envToken = process.env.PODCAST_WEBHOOK_TOKEN || process.env.N8N_PODCAST_WEBHOOK_TOKEN;
+    let targetUrl = envUrl || (serviceConfig && serviceConfig.api_url);
+    let targetToken = envToken || (serviceConfig && serviceConfig.api_token) || null;
+
+    if (!targetUrl) {
+      logger.error('[PODCAST] No podcast webhook URL configured. Define PODCAST_WEBHOOK_URL or configure podcast_generator in external_services.');
+      return res.status(500).json({
+        success: false,
+        message: 'Podcast webhook URL not configured on server. Please contact support.',
+      });
+    }
+    const payload = {
+      topic,
+      level,
+      duration,
+      styleType: body.styleType,
+      voiceChoice: body.voiceChoice,
+      personalityA: body.personalityA,
+      personalityB: body.personalityB,
+      includeHumor: body.includeHumor,
+      includeFiller: body.includeFiller,
     };
-    
-    return handleTTSRequest(req, res);
+    logger.info('[PODCAST] Forwarding request to n8n webhook', {
+      url: targetUrl,
+      level,
+      duration,
+      hasToken: !!targetToken,
+    });
+    const headers = { 'Content-Type': 'application/json' };
+    if (targetToken) {
+      let authHeader = targetToken;
+      if (!/^Bearer\s+/i.test(authHeader)) {
+        authHeader = `Bearer ${authHeader}`;
+      }
+      headers['Authorization'] = authHeader;
+    }
+    const n8nResponse = await fetch(targetUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    const rawText = await n8nResponse.text();
+    if (!n8nResponse.ok) {
+      logger.error(`[#PODCAST] n8n webhook error response: status=${n8nResponse.status}, body=${rawText}`);
+      let errJson = null;
+      try {
+        errJson = rawText ? JSON.parse(rawText) : null;
+      } catch (_e) { /* ignore */ }
+      return res.status(500).json({
+        success: false,
+        message: (errJson && errJson.message) || 'Podcast service error',
+        status: n8nResponse.status,
+      });
+    }
+    if (!rawText || !rawText.trim()) {
+      logger.error('[PODCAST] n8n webhook returned empty body with 200');
+      return res.status(500).json({
+        success: false,
+        message: 'Podcast service returned empty response body',
+      });
+    }
+    let n8nResult;
+    try {
+      n8nResult = JSON.parse(rawText);
+    } catch (parseErr) {
+      logger.error('[PODCAST] Failed to parse n8n JSON response', {
+        body: rawText.slice(0, 500),
+        message: parseErr.message,
+      });
+      return res.status(500).json({
+        success: false,
+        message: 'Podcast service returned invalid JSON response',
+      });
+    }
+    const audioUrl = n8nResult.audioUrl || n8nResult.podcast_url || n8nResult.audio_url;
+    const vttUrl = n8nResult.subtitlesUrl || n8nResult.vtt_url || n8nResult.vtt_subtitles || '';
+    if (!audioUrl) {
+      logger.error('[PODCAST] n8n response missing audioUrl', { n8nResult });
+      return res.status(500).json({
+        success: false,
+        message: 'Podcast service did not return audioUrl',
+      });
+    }
+    const responseBody = {
+      success: true,
+      status: 'success',
+      message: `Podcast created: ${n8nResult.topic || topic}`,
+      mp3_url: audioUrl,
+      podcast_url: audioUrl,
+      audio_url: audioUrl,
+      vtt_url: vttUrl,
+      vtt_subtitles: vttUrl,
+      duration_seconds: n8nResult.duration || n8nResult.duration_seconds || '',
+      topic: n8nResult.topic || topic,
+      level,
+      transcript: n8nResult.transcript || '',
+      data: n8nResult,
+    };
+    return res.json(responseBody);
   } catch (error) {
-    logger.error('Error creating podcast:', error);
-    return res.status(500).json({ 
-      success: false, 
+    logger.error('[PODCAST] Error creating podcast via proxy:', error);
+    return res.status(500).json({
+      success: false,
       message: 'Failed to create podcast',
-      error: error.message 
+      error: error.message,
     });
   }
 });
