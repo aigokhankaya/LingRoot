@@ -256,7 +256,7 @@ const Welcome: React.FC = () => {
   const [contentType, setContentType] = useState<string>('text');
   const [englishLevel, setEnglishLevel] = useState<string>('a1');
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
-  const [voiceType, setVoiceType] = useState<string>('Emma');
+  const [voiceType, setVoiceType] = useState<string>('');
   const [savedDefaultVoice, setSavedDefaultVoice] = useState<string | null>(null);
   const [defaultApplied, setDefaultApplied] = useState<boolean>(false);
   const [accentType, setAccentType] = useState<string>('american');
@@ -378,14 +378,14 @@ const Welcome: React.FC = () => {
   // Ses kategorileri - TTS provider'a göre dinamik
   const voiceCategories = ttsProvider === 'google' 
     ? [
-        { value: 'standard', label: 'Standart Sesler', icon: 'fas fa-volume-up', badge: 'Ücretsiz', ssmlSupport: false },
+        { value: 'standard', label: 'Standart Sesler', icon: 'fas fa-volume-up', ssmlSupport: false },
         { value: 'wavenet', label: 'WaveNet Sesleri', icon: 'fas fa-star', badge: 'Premium', ssmlSupport: true },
         { value: 'neural2', label: 'Neural2 Sesleri', icon: 'fas fa-brain', badge: 'Premium', ssmlSupport: true },
         { value: 'studio', label: 'Studio Sesleri', icon: 'fas fa-crown', badge: 'Platinium', ssmlSupport: true },
         { value: 'chirp3d', label: 'Chirp 3D', icon: 'fas fa-gem', badge: 'Gold', ssmlSupport: true }
       ]
     : [ // Amazon Polly categories
-        { value: 'standard', label: 'Standard', icon: 'fas fa-volume-up', badge: 'Ücretsiz', ssmlSupport: false },
+        { value: 'standard', label: 'Standard', icon: 'fas fa-volume-up', ssmlSupport: false },
         { value: 'neural', label: 'Neural', icon: 'fas fa-star', badge: 'Premium', ssmlSupport: true }
       ];
 
@@ -3208,17 +3208,19 @@ const Welcome: React.FC = () => {
                         </div>
                         
                         {/* Badge */}
-                        <Badge 
-                          variant="outline" 
-                          className={`text-xs px-1.5 py-0.5 mb-1 ${
-                            category.badge === 'Ücretsiz' ? 'bg-green-100 text-green-700 border-green-200' :
-                            category.badge === 'Premium' ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                            category.badge === 'Gold' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                            category.badge === 'Platinium' ? 'bg-gray-100 text-gray-700 border-gray-200' : ''
-                          }`}
-                        >
-                          {category.badge}
-                        </Badge>
+                        {category.badge && (
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs px-1.5 py-0.5 mb-1 ${
+                              category.badge === 'Ücretsiz' ? 'bg-green-100 text-green-700 border-green-200' :
+                              category.badge === 'Premium' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                              category.badge === 'Gold' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                              category.badge === 'Platinium' ? 'bg-gray-100 text-gray-700 border-gray-200' : ''
+                            }`}
+                          >
+                            {category.badge}
+                          </Badge>
+                        )}
                         
                         {/* SSML Support */}
                         {category.ssmlSupport && (
@@ -3387,10 +3389,6 @@ const Welcome: React.FC = () => {
                   <div className="text-sm">
                     {isPlatinumPlan ? (
                       <>
-                        <p className="mb-2 text-primary font-semibold">
-                          Platin plan kullanıyorsunuz. Bu pakette ses oluşturma hakkınız, plan limitleriniz
-                          dahilinde sınırsızdır.
-                        </p>
                         <p className="mb-3 text-xs text-gray-600">
                           Detaylı limit ve kullanım bilgisi için paket özetinizi ve plan karşılaştırmalarını
                           inceleyebilirsiniz.

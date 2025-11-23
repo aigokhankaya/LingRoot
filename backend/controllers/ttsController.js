@@ -20,6 +20,7 @@ const { logStep } = require('../utils/stepLogger');
 const { logRequestStep } = require("../utils/requestLogger");
 const { supabase } = require("../utils/supabaseClient");
 const { checkLimits } = require("../utils/usageLimiter");
+const { getLingrootVoices, getLingrootVoiceById, mapLingrootToProviderVoice, getDefaultLingrootVoiceId } = require("../utils/lingrootVoices");
 
 // Store references to temp files so they can be accessed via API
 const tempAudioFiles = new Map();
@@ -706,19 +707,51 @@ const processTtsRequest = async (req, res) => {
         // --- Get and validate voice BEFORE chunking ---
         const requestedVoice = req.body.voice || req.body.voiceName;
         
-        // Eğer ses seçilmemişse, provider'a göre varsayılan sesi al
         let selectedVoice;
+        let lingrootVoiceId = null;
+        let pollyEngine = null;
+        const ttsProvider = await getTtsProvider();
+
         if (!requestedVoice) {
-            const ttsProvider = await getTtsProvider();
-            selectedVoice = await getDefaultVoiceForProvider(ttsProvider, languageCode);
-            logger.info(`[${requestId}] 🎯 No voice requested, using default for ${ttsProvider}: ${selectedVoice}`);
+            // No voice requested: pick default Lingroot voice, then map to provider
+            lingrootVoiceId = getDefaultLingrootVoiceId(languageCode);
+            const mapped = mapLingrootToProviderVoice(lingrootVoiceId, ttsProvider);
+            if (mapped && mapped.name) {
+                selectedVoice = mapped.name;
+                languageCode = mapped.languageCode || languageCode;
+                if (mapped.engine) {
+                    pollyEngine = mapped.engine;
+                }
+                logger.info(`[${requestId}] 🎯 No voice requested, using default Lingroot voice ${lingrootVoiceId} -> ${ttsProvider}:${selectedVoice}`);
+            } else {
+                selectedVoice = await getDefaultVoiceForProvider(ttsProvider, languageCode);
+                logger.info(`[${requestId}] 🎯 No voice requested, Lingroot mapping missing, using provider default for ${ttsProvider}: ${selectedVoice}`);
+            }
         } else {
-            selectedVoice = requestedVoice;
-            logger.info(`[${requestId}] 🎯 Requested voice: ${requestedVoice} | Selected: ${selectedVoice}`);
+            const maybeLingroot = getLingrootVoiceById(requestedVoice);
+            if (maybeLingroot) {
+                lingrootVoiceId = requestedVoice;
+                const mapped = mapLingrootToProviderVoice(lingrootVoiceId, ttsProvider);
+                if (mapped && mapped.name) {
+                    selectedVoice = mapped.name;
+                    languageCode = mapped.languageCode || languageCode;
+                    if (mapped.engine) {
+                        pollyEngine = mapped.engine;
+                    }
+                    logger.info(`[${requestId}] 🎯 Requested Lingroot voice: ${lingrootVoiceId} | Provider: ${ttsProvider} | Selected: ${selectedVoice}`);
+                } else {
+                    selectedVoice = await getDefaultVoiceForProvider(ttsProvider, languageCode);
+                    logger.warn(`[${requestId}] ⚠️ Lingroot mapping not found for ${lingrootVoiceId}, falling back to provider default: ${selectedVoice}`);
+                }
+            } else {
+                // Backwards compatibility: treat as provider-specific voice name
+                selectedVoice = requestedVoice;
+                logger.info(`[${requestId}] 🎯 Requested provider voice: ${requestedVoice} | Selected: ${selectedVoice}`);
+            }
         }
         
-        // Trust client-selected voice and defer fallback to synthesis stage
-        logger.info(`[${requestId}] 🎙️ Using selected voice (no pre-validation): ${selectedVoice}`);
+        // Trust client-selected voice (Lingroot-mapped or raw) and defer detailed validation to synthesis stage
+        logger.info(`[${requestId}] 🎙️ Using selected voice for synthesis: ${selectedVoice}`);
 
         // Log gender/accent from request for mismatch diagnostics
         logger.info(`[${requestId}] 🎯 Client filters -> gender: ${req.body?.gender || 'n/a'}, accent: ${req.body?.accent || 'n/a'}`);
@@ -921,13 +954,24 @@ const processTtsRequest = async (req, res) => {
         }
         
         // Skip old TTS implementation - using real timing approach below
-        const ttsProvider = await getTtsProvider();
         logger.info(`[${requestId}] 🔧 TTS Provider: ${ttsProvider} (Real Timing Mode)`);
 
-        // --- Step 6: Synthesize Audio with TTS Provider (Google or Azure) ---
+        // --- Step 6: Synthesize Audio with TTS Provider (Google / Amazon / Azure) ---
         // Track TTS characters and category for cost
         let ttsCharactersTotal = 0;
         let ttsCategory = 'Premium';
+
+        // If we have a Lingroot voice, prefer its quality as the cost category
+        if (lingrootVoiceId) {
+            const lingrootVoice = getLingrootVoiceById(lingrootVoiceId);
+            if (lingrootVoice && lingrootVoice.quality) {
+                const q = String(lingrootVoice.quality).toLowerCase();
+                if (q === 'basic') ttsCategory = 'Basic';
+                else if (q === 'premium') ttsCategory = 'Premium';
+                else if (q === 'gold') ttsCategory = 'Gold';
+                else if (q === 'platinum') ttsCategory = 'Platinum';
+            }
+        }
         logger.info(`[${requestId}] Starting ${ttsProvider} TTS synthesis...`);
         logStep({
             requestId,
@@ -959,12 +1003,17 @@ const processTtsRequest = async (req, res) => {
                 // Use Amazon Polly, Azure or Google based on provider setting
                 if ((ttsProvider === 'polly' || ttsProvider === 'amazon') && isPollyAvailable()) {
                     logger.info(`[${requestId}] Using Amazon Polly for chunk ${i + 1}`);
-                    ttsResult = await synthesizeWithPolly({
+                    const pollyOptions = {
                         text: chunk,
                         voiceName: selectedVoice,
                         languageCode: languageCode,
                         speakingRate: speakingRate
-                    });
+                    };
+                    // For Lingroot BASIC voices we explicitly use Polly STANDARD engine
+                    if (pollyEngine) {
+                        pollyOptions.engine = pollyEngine;
+                    }
+                    ttsResult = await synthesizeWithPolly(pollyOptions);
                 } else if (ttsProvider === 'azure' && isAzureTTSAvailable()) {
                     logger.info(`[${requestId}] Using Azure TTS for chunk ${i + 1}`);
                     ttsResult = await synthesizeWithAzure({
@@ -1010,11 +1059,13 @@ const processTtsRequest = async (req, res) => {
                 // Cost tracking for TTS
                 ttsCharactersTotal += chunk.length;
                 googleTtsCallCount += 1;
-                // Determine package category from utils/googleTTS voice list heuristics in ttsResult or voice name
-                if (selectedVoice?.includes('Standard')) ttsCategory = 'Basic';
-                else if (selectedVoice?.includes('Wavenet') || selectedVoice?.includes('Neural2')) ttsCategory = 'Premium';
-                else if (selectedVoice?.includes('Chirp') || selectedVoice?.includes('Journey')) ttsCategory = 'Gold';
-                else if (selectedVoice?.includes('Studio')) ttsCategory = 'Platinum';
+                // Determine package category from voice name only for Google TTS
+                if (ttsProvider === 'google') {
+                    if (selectedVoice?.includes('Standard')) ttsCategory = 'Basic';
+                    else if (selectedVoice?.includes('Wavenet') || selectedVoice?.includes('Neural2')) ttsCategory = 'Premium';
+                    else if (selectedVoice?.includes('Chirp') || selectedVoice?.includes('Journey')) ttsCategory = 'Gold';
+                    else if (selectedVoice?.includes('Studio')) ttsCategory = 'Platinum';
+                }
 
                 // Clean ve original words'leri topla
                 if (ttsResult.cleanWords) {
@@ -1816,27 +1867,45 @@ const translateToEnglish = async (req, res) => {
     const requestId = uuidv4();
     try {
       logStep({ requestId, stepName: 'tts:synthesizeChunk', inputData: { text, voice, rate } });
-      
-      // Dynamically determine language code based on voice name
+
       let languageCode = "en-US"; // Default to US English
-      
+      let selectedVoice = voice;
+
+      const ttsProvider = await getTtsProvider();
+
+      // If a Lingroot voice ID is provided, map it to provider-specific voice
       if (voice) {
-        if (voice.includes("en-GB")) {
+        const maybeLingroot = getLingrootVoiceById(voice);
+        if (maybeLingroot) {
+          const mapped = mapLingrootToProviderVoice(voice, ttsProvider);
+          if (mapped && mapped.name) {
+            selectedVoice = mapped.name;
+            languageCode = mapped.languageCode || languageCode;
+            logger.info(`[${requestId}] 🎯 ChunkAPI Lingroot voice: ${voice} -> ${ttsProvider}:${selectedVoice}`);
+          } else {
+            logger.warn(`[${requestId}] ⚠️ ChunkAPI Lingroot mapping not found for ${voice}, using raw provider voice if possible`);
+          }
+        }
+      }
+
+      // If still not determined from mapping, infer language from provider voice name
+      if (selectedVoice) {
+        if (selectedVoice.includes("en-GB")) {
           languageCode = "en-GB";
-        } else if (voice.includes("en-AU")) {
+        } else if (selectedVoice.includes("en-AU")) {
           languageCode = "en-AU";
-        } else if (voice.includes("en-CA")) {
+        } else if (selectedVoice.includes("en-CA")) {
           languageCode = "en-CA";
-        } else if (voice.includes("en-IN")) {
+        } else if (selectedVoice.includes("en-IN")) {
           languageCode = "en-IN";
-        } else if (voice.includes("en-US")) {
+        } else if (selectedVoice.includes("en-US")) {
           languageCode = "en-US";
         }
       }
-      
+
       const result = await synthesizeWithGoogle({
           text: text,
-          voiceName: voice || "en-US-Standard-B",
+          voiceName: selectedVoice || "en-US-Standard-B",
           languageCode: languageCode,
           speakingRate: rate || 1.0
       });
@@ -1862,519 +1931,99 @@ const translateToEnglish = async (req, res) => {
     }
   };
   
-  // Ses listesi endpointi (dinamik) - fiyatlandırma kategorileri ile
+  // Ses listesi endpointi (Lingroot abstraction) - provider-agnostik liste döner
   const listVoices = async (req, res) => {
-    const ttsProvider = await getTtsProvider();
-    
-    // Amazon Polly provider (accept both 'amazon' and 'polly')
-    if (ttsProvider === 'polly' || ttsProvider === 'amazon') {
-      if (!isPollyAvailable()) {
-        logger.warn('🎯 [VOICE LIST] Polly selected but not available - falling back to Google');
-        // Fall through to Google TTS
-      } else {
-      try {
-        const { languageCode = 'en-US' } = req.query;
-        
-        logger.info(`🎯 [VOICE LIST] Fetching voices from Amazon Polly for language: ${languageCode}`);
-        
-        const pollyVoices = await listPollyVoices(languageCode);
-        
-        logger.info(`🎯 [VOICE LIST] Retrieved ${pollyVoices.length} Polly voices`);
-        
-        return res.json({
-          provider: 'polly',
-          voices: pollyVoices,
-          defaultVoice: pollyVoices.length > 0 ? pollyVoices[0].name : 'Joanna',
-          stats: {
-            total: pollyVoices.length,
-            neural: pollyVoices.filter(v => v.engine === 'neural').length,
-            standard: pollyVoices.filter(v => v.engine === 'standard').length
-          }
-        });
-      } catch (error) {
-        logger.error(`🎯 [VOICE LIST] Error fetching Polly voices: ${error.message}`);
-        return res.status(500).json({ 
-          success: false, 
-          message: `Failed to fetch Polly voices: ${error.message}` 
-        });
-      }
-      }
-    }
-    
-    // Azure TTS provider
-    if (ttsProvider === 'azure' && isAzureTTSAvailable()) {
-      try {
-        const { languageCode = 'en-US' } = req.query;
-        const locale = languageCode.replace('_', '-'); // en_US -> en-US
-        
-        logger.info(`🎯 [VOICE LIST] Fetching voices from Azure API for locale: ${locale}`);
-        
-        const azureVoices = await listAzureVoices(locale);
-        
-        logger.info(`🎯 [VOICE LIST] Retrieved ${azureVoices.length} Azure voices`);
-        
-        return res.json({
-          provider: 'azure',
-          voices: azureVoices,
-          defaultVoice: azureVoices.length > 0 ? azureVoices[0].name : 'en-US-JennyNeural',
-          stats: {
-            total: azureVoices.length,
-            neural: azureVoices.filter(v => v.voiceType === 'Neural').length,
-            standard: azureVoices.filter(v => v.voiceType === 'Standard').length
-          }
-        });
-      } catch (error) {
-        logger.error(`🎯 [VOICE LIST] Error fetching Azure voices: ${error.message}`);
-        return res.status(500).json({ 
-          success: false, 
-          message: `Failed to fetch Azure voices: ${error.message}` 
-        });
-      }
-    }
-    
-    // Google TTS provider (default)
-    if (ttsProvider === 'google' || (!isAzureTTSAvailable() && !isPollyAvailable())) {
-      try {
-        const { languageCode = 'en-US' } = req.query;
-        
-        logger.info(`🎯 [VOICE LIST] Fetching voices from Google API for language: ${languageCode}`);
-        
-        // Gerçek Google API'den sesleri al
-        const googleVoices = await listGoogleVoices(languageCode);
-        
-        // SSML desteği istatistikleri
-        const ssmlSupportedCount = googleVoices.filter(voice => voice.ssmlSupport).length;
-        const ssmlUnsupportedCount = googleVoices.filter(voice => !voice.ssmlSupport).length;
-        
-        // Ses kategorilerini sayla
-        const categoryStats = {
-          Basic: googleVoices.filter(voice => voice.package === 'Basic').length,
-          Premium: googleVoices.filter(voice => voice.package === 'Premium').length,
-          Gold: googleVoices.filter(voice => voice.package === 'Gold').length,
-          Platinum: googleVoices.filter(voice => voice.package === 'Platinum').length
-        };
-        
-        // Paket önceliğine göre sırala
-        const packagePriority = { 'Basic': 1, 'Premium': 2, 'Gold': 3, 'Platinum': 4 };
-        googleVoices.sort((a, b) => {
-          if (packagePriority[a.package] !== packagePriority[b.package]) {
-            return packagePriority[a.package] - packagePriority[b.package];
-          }
-          return a.name.localeCompare(b.name);
-        });
-        
-        logger.info(`🎯 [VOICE LIST] Retrieved ${googleVoices.length} voices:`);
-        logger.info(`🎯 [VOICE LIST] SSML supported: ${ssmlSupportedCount}, unsupported: ${ssmlUnsupportedCount}`);
-        logger.info(`🎯 [VOICE LIST] Categories:`, categoryStats);
-        
-        // İlk sesi bul (Basic paket öncelikli)
-        const basicVoices = googleVoices.filter(v => v.package === 'Basic');
-        const defaultVoice = basicVoices.length > 0 ? basicVoices[0].name : (googleVoices.length > 0 ? googleVoices[0].name : 'en-US-Standard-C');
-        
-        return res.json({ 
-          provider: 'google', 
-          voices: googleVoices,
-          defaultVoice: defaultVoice,
-          stats: {
-            total: googleVoices.length,
-            ssmlSupported: ssmlSupportedCount,
-            ssmlUnsupported: ssmlUnsupportedCount,
-            categories: categoryStats
-          }
-        });
-        
-      } catch (error) {
-        logger.error(`🎯 [VOICE LIST] Error fetching voices: ${error.message}`);
-        
-        // Fallback: static voice list with SSML support - more categories
-        const fallbackVoices = [
-          // Standard voices (Basic package)
-          { name: 'en-US-Standard-C', displayName: 'US English Female (Standard)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
-          { name: 'en-US-Standard-D', displayName: 'US English Male (Standard)', gender: 'MALE', languageCode: 'en-US', accent: 'US', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
-          { name: 'en-GB-Standard-A', displayName: 'UK English Female (Standard)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
-          { name: 'en-GB-Standard-B', displayName: 'UK English Male (Standard)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
-          
-          // Wavenet voices (Premium package)
-          { name: 'en-US-Wavenet-F', displayName: 'US English Female (Wavenet)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-US-Wavenet-A', displayName: 'US English Male (Wavenet)', gender: 'MALE', languageCode: 'en-US', accent: 'US', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Wavenet-B', displayName: 'UK English Male (Wavenet)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Wavenet-C', displayName: 'UK English Female (Wavenet)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
-          
-          // Neural2 voices (Premium package)
-          { name: 'en-US-Neural2-H', displayName: 'US English Female (Neural2)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-US-Neural2-J', displayName: 'US English Male (Neural2)', gender: 'MALE', languageCode: 'en-US', accent: 'US', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          
-          // British Neural2 voices (Premium package)
-          { name: 'en-GB-Neural2-A', displayName: 'UK English Female (Neural2)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Neural2-B', displayName: 'UK English Male (Neural2)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Neural2-C', displayName: 'UK English Female (Neural2)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Neural2-D', displayName: 'UK English Male (Neural2)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Neural2-F', displayName: 'UK English Female (Neural2)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Neural2-N', displayName: 'UK English Female (Neural2)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Neural2-O', displayName: 'UK English Male (Neural2)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          
-          // Studio voices (Platinum package)
-          { name: 'en-US-Studio-M', displayName: 'US English Male (Studio)', gender: 'MALE', languageCode: 'en-US', accent: 'US', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
-          { name: 'en-US-Studio-O', displayName: 'US English Female (Studio)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
-          { name: 'en-US-Studio-Q', displayName: 'US English Female (Studio)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
-          { name: 'en-GB-Studio-B', displayName: 'UK English Male (Studio)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
-          { name: 'en-GB-Studio-C', displayName: 'UK English Female (Studio)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
-          
-          // Chirp HD voices (Gold package) - British
-          { name: 'en-GB-Chirp-HD-D', displayName: 'UK English Male (Chirp HD)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Chirp-HD-F', displayName: 'UK English Female (Chirp HD)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Chirp-HD-O', displayName: 'UK English Female (Chirp HD)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          
-          // Chirp 3 HD voices (Gold package) - British
-          { name: 'en-GB-Chirp3-HD-Achernar', displayName: 'UK English Female (Chirp 3 HD)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Chirp3-HD-Achird', displayName: 'UK English Male (Chirp 3 HD)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Chirp3-HD-Algenib', displayName: 'UK English Male (Chirp 3 HD)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Chirp3-HD-Algieba', displayName: 'UK English Male (Chirp 3 HD)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Chirp3-HD-Alnilam', displayName: 'UK English Male (Chirp 3 HD)', gender: 'MALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Chirp3-HD-Aoede', displayName: 'UK English Female (Chirp 3 HD)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          
-          // Journey/Chirp voices (Gold package)
-          { name: 'en-US-Journey-D', displayName: 'US English Female (Journey)', gender: 'FEMALE', languageCode: 'en-US', accent: 'US', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Journey-F', displayName: 'UK English Female (Journey)', gender: 'FEMALE', languageCode: 'en-GB', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' }
-        ];
-        
-        const ssmlSupportedCount = fallbackVoices.filter(voice => voice.ssmlSupport).length;
-        const ssmlUnsupportedCount = fallbackVoices.filter(voice => !voice.ssmlSupport).length;
-        
-        logger.info(`🎯 [VOICE LIST] Using fallback voice list with ${fallbackVoices.length} voices (Google API unavailable)`);
-        logger.info(`🎯 [VOICE LIST] Fallback SSML supported: ${ssmlSupportedCount}, unsupported: ${ssmlUnsupportedCount}`);
-        
-        return res.json({ 
-          provider: 'google', 
-          voices: fallbackVoices,
-          fallback: true,
-          stats: {
-            total: fallbackVoices.length,
-            ssmlSupported: ssmlSupportedCount,
-            ssmlUnsupported: ssmlUnsupportedCount
-          }
-        });
-      }
-    } else {
-      logger.error(`Unsupported TTS provider: ${ttsProvider}`);
-      return res.status(500).json({ success: false, message: `Unsupported TTS provider: ${ttsProvider}` });
+    try {
+      const ttsProvider = await getTtsProvider();
+      const { languageCode = 'en-US' } = req.query;
+
+      const lingrootVoices = getLingrootVoices().map(v => ({
+        id: v.id,
+        name: v.id,
+        displayName: v.label,
+        gender: v.gender,
+        accent: v.accent,
+        quality: v.quality,
+        // Provider-specific hints for debugging/admin tools
+        providerVoice: mapLingrootToProviderVoice(v.id, ttsProvider),
+      }));
+
+      logger.info(`🎯 [VOICE LIST] Returning ${lingrootVoices.length} Lingroot voices for provider ${ttsProvider} and language ${languageCode}`);
+
+      return res.json({
+        provider: ttsProvider,
+        voices: lingrootVoices,
+        defaultVoice: getDefaultLingrootVoiceId(languageCode),
+        stats: {
+          total: lingrootVoices.length,
+        }
+      });
+    } catch (error) {
+      logger.error(`🎯 [VOICE LIST] Error building Lingroot voice list: ${error.message}`);
+      return res.status(500).json({
+        success: false,
+        message: `Failed to build Lingroot voice list: ${error.message}`
+      });
     }
   };
   
-  // Filtrelenmiş ses listesi endpointi
+  // Filtrelenmiş ses listesi endpointi (Lingroot abstraction)
   const getFilteredVoices = async (req, res) => {
     try {
-      const { accent, emotion, gender, category } = req.query;
-      
-      // Önce tüm sesleri al (accent'e göre doğru dil kodunu seç)
-      let languageCode = 'en-US';
+      const { accent, gender, category } = req.query;
+      const ttsProvider = await getTtsProvider();
+
+      let voices = getLingrootVoices();
+      logger.info(`🎯 [VOICE FILTER] Starting with ${voices.length} Lingroot voices`);
+
+      // Accent filter (american / british / australian / indian / all)
       if (accent && accent !== 'all') {
         const a = String(accent).toLowerCase();
-        if (a === 'british') languageCode = 'en-GB';
-        else if (a === 'american') languageCode = 'en-US';
-        else if (a === 'australian') languageCode = 'en-AU';
-        else if (a === 'canadian') languageCode = 'en-CA';
-        else if (a === 'indian') languageCode = 'en-IN';
+        voices = voices.filter(v => v.accent === a);
       }
 
-      const mockReq = { query: { languageCode } };
-      const mockRes = {
-        json: (data) => data
-      };
-      
-      let allVoicesResponse;
-      let allVoices;
-      
-      let actualProvider = 'google'; // default fallback
-      try {
-        allVoicesResponse = await listVoices(mockReq, mockRes);
-        allVoices = allVoicesResponse.voices;
-        actualProvider = allVoicesResponse.provider || 'google'; // Get actual provider
-      } catch (voiceError) {
-        logger.error(`Error fetching voices from Google API: ${voiceError.message}`);
-        
-        // Fallback: hardcoded voice list with SSML support info
-        allVoices = [
-          { name: 'en-US-Standard-C', gender: 'FEMALE', accent: 'US', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
-          { name: 'en-US-Standard-D', gender: 'MALE', accent: 'US', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
-          { name: 'en-US-Wavenet-F', gender: 'FEMALE', accent: 'US', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-US-Wavenet-A', gender: 'MALE', accent: 'US', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Standard-A', gender: 'FEMALE', accent: 'GB', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
-          { name: 'en-GB-Standard-B', gender: 'MALE', accent: 'GB', emotion: 'Standard', ssmlSupport: false, package: 'Basic' },
-          { name: 'en-GB-Wavenet-B', gender: 'MALE', accent: 'GB', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Wavenet-C', gender: 'FEMALE', accent: 'GB', emotion: 'Natural', ssmlSupport: true, package: 'Premium' },
-          
-          // British Neural2 voices (Premium package)
-          { name: 'en-GB-Neural2-A', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Neural2-B', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Neural2-C', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Neural2-D', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Neural2-F', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Neural2-N', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          { name: 'en-GB-Neural2-O', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: true, package: 'Premium' },
-          
-          // British Chirp HD voices (Gold package)
-          { name: 'en-GB-Chirp-HD-D', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Chirp-HD-F', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Chirp-HD-O', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          
-          // British Chirp 3 HD voices (Gold package)
-          { name: 'en-GB-Chirp3-HD-Achernar', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Chirp3-HD-Achird', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Chirp3-HD-Algenib', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Chirp3-HD-Algieba', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Chirp3-HD-Alnilam', gender: 'MALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          { name: 'en-GB-Chirp3-HD-Aoede', gender: 'FEMALE', accent: 'GB', emotion: 'Advanced', ssmlSupport: false, package: 'Gold' },
-          
-          // Studio voices (Platinum package)
-          { name: 'en-US-Studio-M', gender: 'MALE', accent: 'US', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
-          { name: 'en-US-Studio-O', gender: 'FEMALE', accent: 'US', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
-          { name: 'en-US-Studio-Q', gender: 'MALE', accent: 'US', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
-          { name: 'en-GB-Studio-B', gender: 'MALE', accent: 'GB', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' },
-          { name: 'en-GB-Studio-C', gender: 'FEMALE', accent: 'GB', emotion: 'Professional', ssmlSupport: false, package: 'Platinum' }
-        ];
-        logger.info('🎯 [VOICE FILTER] Using fallback voice list');
-      }
-      
-      // 🔍 DEBUG: İlk durumu logla
-      logger.info(`🎯 [VOICE FILTER DEBUG] Starting with ${allVoices.length} total voices`);
-      logger.info(`🎯 [VOICE FILTER DEBUG] Incoming filters:`, { accent, emotion, gender, category });
-      
-      // İlk birkaç voice'ın özelliklerini logla
-      if (allVoices.length > 0) {
-        const sampleVoice = allVoices[0];
-        logger.info(`🎯 [VOICE FILTER DEBUG] Sample voice structure:`, {
-          name: sampleVoice.name,
-          gender: sampleVoice.gender,
-          accent: sampleVoice.accent,
-          package: sampleVoice.package,
-          ssmlSupport: sampleVoice.ssmlSupport
-        });
-      }
-      
-      // Filtreleme uygula
-      let filteredVoices = allVoices;
-      logger.info(`🎯 [VOICE FILTER DEBUG] Step 0 - Initial: ${filteredVoices.length} voices`);
-      
-      // 🔧 Frontend-Backend mapping düzeltmeleri
-      if (accent && accent !== 'all') {
-        // Frontend'den gelen accent'leri backend accent'leriyle eşleştir
-        let backendAccent = accent;
-        switch (accent.toLowerCase()) {
-          case 'british':
-            backendAccent = 'GB';
-            break;
-          case 'american':
-            backendAccent = 'US';
-            break;
-          case 'australian':
-            backendAccent = 'AU';
-            break;
-          case 'canadian':
-            backendAccent = 'CA';
-            break;
-          case 'indian':
-            backendAccent = 'IN';
-            break;
-        }
-        
-        // Amazon Polly uses languageCode (e.g., "en-GB"), Google uses accent field
-        filteredVoices = filteredVoices.filter(voice => {
-          // Check both accent field and languageCode
-          if (voice.accent === backendAccent) return true;
-          if (voice.languageCode && voice.languageCode.includes(`-${backendAccent}`)) return true;
-          return false;
-        });
-        logger.info(`🎯 [VOICE FILTER] Accent filter applied - ${accent} (mapped to ${backendAccent})`);
-        logger.info(`🎯 [VOICE FILTER DEBUG] Step 1 - After accent filter: ${filteredVoices.length} voices`);
-      }
-      
-      if (emotion && emotion !== 'all') {
-        filteredVoices = filteredVoices.filter(voice => voice.emotion === emotion);
-        logger.info(`🎯 [VOICE FILTER] Emotion filter applied - ${emotion}`);
-        logger.info(`🎯 [VOICE FILTER DEBUG] Step 2 - After emotion filter: ${filteredVoices.length} voices`);
-      }
-      
-      // 🔧 Gender mapping düzeltmesi (case-insensitive)
+      // Gender filter
       if (gender && gender !== 'all') {
-        // Frontend'den gelen gender'ları backend gender'larıyla eşleştir
-        const targetGender = gender.toLowerCase(); // "female" -> "female", "male" -> "male"
-        
-        filteredVoices = filteredVoices.filter(voice => {
-          const voiceGender = (voice.gender || '').toLowerCase();
-          return voiceGender === targetGender;
-        });
-        logger.info(`🎯 [VOICE FILTER] Gender filter applied - ${gender}`);
-        logger.info(`🎯 [VOICE FILTER DEBUG] Step 3 - After gender filter: ${filteredVoices.length} voices`);
+        const g = String(gender).toLowerCase();
+        voices = voices.filter(v => v.gender === g);
       }
-      
-      // SSML filtresi kaldırıldı - kullanıcılar için gereksiz karmaşıklık
-      logger.info(`🎯 [VOICE FILTER] SSML filter REMOVED - no longer filtering by SSML support`);
-      logger.info(`🎯 [VOICE FILTER DEBUG] Step 4 - SSML filter disabled: ${filteredVoices.length} voices`);
-      
-      // 🔧 Kategori filtresi (sadece seçilen kategori için kontrol)
+
+      // Category -> map to Lingroot quality tiers
       if (category && category !== 'all') {
-        filteredVoices = filteredVoices.filter(voice => {
-          let matches = false;
-          
-          // Her kategori için ayrı ayrı kontrol et (yanlış pozitif sonuçları önle)
-          switch (category) {
-            case 'standard':
-              // Amazon Polly: engine === 'standard', Google: name includes 'Standard'
-              matches = voice.engine === 'standard' || voice.name.includes('Standard') || voice.package === 'Basic';
-              break;
-            case 'neural':
-              // Amazon Polly: engine === 'neural'
-              // Google TTS: Wavenet or Neural2 voices
-              matches = voice.engine === 'neural' || 
-                        voice.name.includes('Wavenet') || 
-                        voice.name.includes('Neural2');
-              break;
-            case 'wavenet':
-              matches = voice.name.includes('Wavenet');
-              break;
-            case 'neural2':
-              matches = voice.name.includes('Neural2');
-              break;
-            case 'studio':
-              matches = voice.name.includes('Studio') || voice.package === 'Platinum';
-              break;
-            case 'chirp3d':
-              matches = voice.name.includes('Journey') || voice.name.includes('Chirp') || voice.package === 'Gold';
-              break;
-            default:
-              matches = false;
-          }
-          
-          if (matches) {
-            logger.debug(`🎯 [CATEGORY MATCH] ${voice.name} matches ${category} category`);
-          }
-          
-          return matches;
-        });
-        logger.info(`🎯 [VOICE FILTER] Category filter applied - ${category} category`);
-        logger.info(`🎯 [VOICE FILTER DEBUG] Step 5 - After category filter: ${filteredVoices.length} voices`);
-      }
-      
-      // 🔧 If Studio + Male combos are missing from Google API, inject known voices
-      if ((category === 'studio') && (gender && gender !== 'all') && (accent && accent !== 'all')) {
-        const desiredGender = gender.toUpperCase();
-        const desiredAccent = (accent || '').toUpperCase() === 'BRITISH' ? 'GB' :
-                               (accent || '').toUpperCase() === 'AMERICAN' ? 'US' :
-                               (accent || '').toUpperCase() === 'AUSTRALIAN' ? 'AU' :
-                               (accent || '').toUpperCase() === 'CANADIAN' ? 'CA' :
-                               (accent || '').toUpperCase() === 'INDIAN' ? 'IN' : (accent || '').toUpperCase();
-
-        // Known Studio voices by accent/gender
-        const studioVoiceMap = {
-          'US:MALE':   { name: 'en-US-Studio-M', displayName: 'US English Male (Studio)', languageCode: 'en-US', accent: 'US' },
-          'US:FEMALE': { name: 'en-US-Studio-Q', displayName: 'US English Female (Studio)', languageCode: 'en-US', accent: 'US' },
-          'GB:MALE':   { name: 'en-GB-Studio-B', displayName: 'UK English Male (Studio)', languageCode: 'en-GB', accent: 'GB' },
-          'GB:FEMALE': { name: 'en-GB-Studio-C', displayName: 'UK English Female (Studio)', languageCode: 'en-GB', accent: 'GB' },
-        };
-
-        const key = `${desiredAccent}:${desiredGender}`;
-        if (filteredVoices.length === 0 && studioVoiceMap[key]) {
-          // Only inject if not already present in allVoices
-          const existsInAll = allVoices.some(v => v.name === studioVoiceMap[key].name);
-          if (!existsInAll) {
-            filteredVoices.push({
-              name: studioVoiceMap[key].name,
-              displayName: studioVoiceMap[key].displayName,
-              gender: desiredGender,
-              languageCode: studioVoiceMap[key].languageCode,
-              accent: studioVoiceMap[key].accent,
-              emotion: 'Professional',
-              ssmlSupport: false,
-              package: 'Platinum'
-            });
-            logger.warn(`🎯 [VOICE FILTER INJECT] Injected Studio voice: ${studioVoiceMap[key].name} for ${key}`);
-          }
+        const c = String(category).toLowerCase();
+        if (c === 'standard') {
+          voices = voices.filter(v => v.quality === 'basic');
+        } else if (c === 'neural' || c === 'wavenet' || c === 'neural2') {
+          voices = voices.filter(v => v.quality === 'premium');
+        } else if (c === 'chirp3d' || c === 'gold') {
+          voices = voices.filter(v => v.quality === 'gold');
+        } else if (c === 'studio' || c === 'platinum') {
+          voices = voices.filter(v => v.quality === 'platinum');
         }
       }
 
-      // 🔧 Wavenet + Australian / Canadian / Indian için Google API eksik dönerse fallback ekle
-      if ((category === 'wavenet') && (accent && accent !== 'all')) {
-        const desiredAccent = (accent || '').toLowerCase();
-        const desiredGender = (gender && gender !== 'all') ? gender.toUpperCase() : null;
-        const wavenetMap = {
-          'australian:MALE':   'en-AU-Wavenet-D',
-          'australian:FEMALE': 'en-AU-Wavenet-A',
-          'canadian:MALE':     'en-CA-Wavenet-D',
-          'canadian:FEMALE':   'en-CA-Wavenet-A',
-          'indian:MALE':       'en-IN-Wavenet-D',
-          'indian:FEMALE':     'en-IN-Wavenet-A',
-        };
-        const key = `${desiredAccent}:${desiredGender || 'FEMALE'}`;
-        if (filteredVoices.length === 0 && wavenetMap[key]) {
-          filteredVoices.push({
-            name: wavenetMap[key],
-            displayName: wavenetMap[key].split('-').slice(-1)[0],
-            gender: desiredGender || 'FEMALE',
-            languageCode: desiredAccent === 'australian' ? 'en-AU' : desiredAccent === 'canadian' ? 'en-CA' : 'en-IN',
-            accent: desiredAccent === 'australian' ? 'AU' : desiredAccent === 'canadian' ? 'CA' : 'IN',
-            emotion: 'Natural',
-            ssmlSupport: true,
-            package: 'Premium'
-          });
-          logger.warn(`🎯 [VOICE FILTER INJECT] Injected Wavenet voice fallback for ${key}`);
-        }
-      }
+      const payload = voices.map(v => ({
+        id: v.id,
+        name: v.id,
+        displayName: v.label,
+        gender: v.gender,
+        accent: v.accent,
+        quality: v.quality,
+        providerVoice: mapLingrootToProviderVoice(v.id, ttsProvider),
+      }));
 
-      // Allowlist validation for selected voice (avoid false fallback)
-      const allowList = new Set([
-        'en-US-Chirp-HD-D','en-US-Chirp-HD-F','en-US-Chirp-HD-O',
-        'en-GB-Chirp-HD-D','en-GB-Chirp-HD-F','en-GB-Chirp-HD-O',
-        'en-AU-Chirp-HD-D','en-AU-Chirp-HD-F','en-AU-Chirp-HD-O'
-      ]);
+      logger.info(`🎯 [VOICE FILTER] Applied filters - accent: ${accent}, gender: ${gender}, category: ${category} => ${payload.length} voices`);
 
-      // 🔍 FINAL DEBUG: Detaylı sonuç analizi
-      logger.info(`🎯 [VOICE FILTER] Applied filters - accent: ${accent}, emotion: ${emotion}, gender: ${gender}, category: ${category}`);
-      logger.info(`🎯 [VOICE FILTER] Filtered voices count: ${filteredVoices.length} / ${allVoices.length}`);
-      
-      // Eğer hiç voice kalmamışsa, mevcut olanları göster
-      if (filteredVoices.length === 0 && allVoices.length > 0) {
-        logger.warn(`🔴 [VOICE FILTER] NO VOICES FOUND! Available voice properties:`);
-        
-        const uniqueAccents = [...new Set(allVoices.map(v => v.accent))];
-        const uniqueGenders = [...new Set(allVoices.map(v => v.gender))];
-        const uniqueCategories = [...new Set(allVoices.map(v => v.package))];
-        
-        logger.warn(`🔴 Available accents: ${uniqueAccents.join(', ')}`);
-        logger.warn(`🔴 Available genders: ${uniqueGenders.join(', ')}`);
-        logger.warn(`🔴 Available packages: ${uniqueCategories.join(', ')}`);
-        
-        // Neural2 voice'ları özellikle kontrol et
-        const neural2Voices = allVoices.filter(v => v.name.includes('Neural2'));
-        logger.warn(`🔴 Neural2 voices available: ${neural2Voices.length}`);
-        neural2Voices.slice(0, 3).forEach(voice => {
-          logger.warn(`🔴 Neural2 sample: ${voice.name} - Gender: ${voice.gender}, Accent: ${voice.accent}, Package: ${voice.package}`);
-        });
-        
-        // Chirp voice'ları özellikle kontrol et
-        const chirpVoices = allVoices.filter(v => v.name.includes('Chirp') || v.name.includes('Journey'));
-        logger.warn(`🔴 Chirp/Journey voices available: ${chirpVoices.length}`);
-        chirpVoices.slice(0, 3).forEach(voice => {
-          logger.warn(`🔴 Chirp sample: ${voice.name} - Gender: ${voice.gender}, Accent: ${voice.accent}, Package: ${voice.package}`);
-        });
-      } else if (filteredVoices.length > 0) {
-        // Başarılı filtreleme durumunda örnek göster
-        logger.info(`🎯 [VOICE FILTER SUCCESS] Sample filtered voices:`);
-        filteredVoices.slice(0, 3).forEach(voice => {
-          logger.info(`🎯 Filtered voice: ${voice.name} - Gender: ${voice.gender}, Accent: ${voice.accent}, Package: ${voice.package}`);
-        });
-      }
-      
-      return res.json({ 
-        provider: actualProvider, // Use actual provider from listVoices
-        voices: filteredVoices,
-        filters: { accent, emotion, gender, category },
-        totalCount: allVoices.length,
-        filteredCount: filteredVoices.length
+      return res.json({
+        provider: ttsProvider,
+        voices: payload,
+        filters: { accent, gender, category },
+        totalCount: getLingrootVoices().length,
+        filteredCount: payload.length
       });
       
     } catch (error) {
-      logger.error(`Error filtering voices: ${error.message}`);
+      logger.error(`Error filtering Lingroot voices: ${error.message}`);
       return res.status(500).json({ success: false, message: 'Error filtering voices' });
     }
   };

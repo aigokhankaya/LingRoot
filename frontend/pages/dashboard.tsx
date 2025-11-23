@@ -232,6 +232,29 @@ const Dashboard = () => {
       setFavoriteBooksLoading(false);
     }
   };
+  const fetchContentHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      console.log('[DASHBOARD] fetchContentHistory başlatılıyor...');
+      const response = await getContentHistory();
+      console.log('[DASHBOARD] getContentHistory response:', response);
+
+      if (response.success && response.data) {
+        if (Array.isArray(response.data)) {
+          setContentHistory(response.data);
+        } else {
+          setContentHistory([]);
+        }
+      } else {
+        setContentHistory([]);
+      }
+    } catch (error) {
+      console.error('[DASHBOARD] Content history yüklenirken hata oluştu:', error);
+      setContentHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   // Initialize tab from query (?tab=...) then hash, and keep in sync
   useEffect(() => {

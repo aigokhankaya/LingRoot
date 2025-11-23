@@ -140,11 +140,14 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   }, []);
 
   useEffect(() => {
-    if (!POLLY_VOICES.some(v => v.Id === voice)) {
-      setVoice(POLLY_VOICES[0].Id);
+    if (!googleVoices || googleVoices.length === 0) return;
+    const hasCurrent = googleVoices.some((v: any) => v.id === voice || v.name === voice);
+    if (!hasCurrent) {
+      const first = googleVoices[0];
+      setVoice(first.id || first.name);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voice]);
+  }, [voice, googleVoices]);
 
   // Kitap arama butonuna basınca tetiklenecek fonksiyon
   const handleBookSearch = async () => {
@@ -187,27 +190,16 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       // If features not loaded yet, return all voices
       return googleVoices;
     }
-    
+
     const voiceCategories = planFeatures.voice_categories;
-    
-    // Filter voices based on enabled voice categories
-    // Google TTS voices are categorized as: standard, wavenet, neural2, studio, chirp3d
-    return googleVoices.filter(voice => {
-      const voiceName = voice.name.toLowerCase();
-      
-      // Check which category this voice belongs to
-      if (voiceName.includes('wavenet') && voiceCategories.wavenet) return true;
-      if (voiceName.includes('neural2') && voiceCategories.neural2) return true;
-      if (voiceName.includes('studio') && voiceCategories.studio) return true;
-      if (voiceName.includes('chirp3d') && voiceCategories.chirp3d) return true;
-      if (voiceCategories.standard && 
-          !voiceName.includes('wavenet') && 
-          !voiceName.includes('neural2') && 
-          !voiceName.includes('studio') && 
-          !voiceName.includes('chirp3d')) return true;
-      
-      return false;
-    });
+
+    // Lingroot voice list currently represents cost-effective (Basic/standard) voices.
+    // If the plan allows standard voices, expose all Lingroot voices; otherwise return empty.
+    if (voiceCategories.standard) {
+      return googleVoices;
+    }
+
+    return [];
   };
 
   // Google sesleri yüklendiğinde ilk sesi otomatik seç
@@ -1326,11 +1318,17 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                 onChange={(e) => setVoice(e.target.value)}
                 className="input-field focus:ring-primary focus:border-primary"
               >
-                {getFilteredVoices().map((v) => (
-                  <option key={v.name} value={v.name}>
-                    {v.name} ({v.ssmlGender === 'FEMALE' ? t('female_voice') : t('male_voice')})
-                  </option>
-                ))}
+                {getFilteredVoices().map((v: any) => {
+                  const id = v.id || v.name;
+                  const label = v.displayName || v.label || id;
+                  const gender = String(v.gender || v.ssmlGender || '').toUpperCase();
+                  const isFemale = gender === 'FEMALE';
+                  return (
+                    <option key={id} value={id}>
+                      {label} ({isFemale ? t('female_voice') : t('male_voice')})
+                    </option>
+                  );
+                })}
               </select>
               {featuresLoading && (
                 <p className="text-xs text-gray-500">{t('loading_voices')}</p>
