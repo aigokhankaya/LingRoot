@@ -134,7 +134,7 @@ export default function UserTable() {
               <td className="p-2 cursor-pointer underline" onClick={() => { openUserModal(user); }}>{user.email}</td>
               <td className="p-2">{user.role}</td>
               <td className="p-2">
-                <MembershipBadge status={user.membershipStatus} />
+                <MembershipBadge status={user.membershipStatus} labelOverride={user.planName} />
               </td>
               <td className="p-2">{user.createdAt}</td>
               <td className="p-2">{user.lastLogin || '-'}</td>
@@ -163,7 +163,7 @@ export default function UserTable() {
             <h2 className="text-xl font-bold mb-2">Kullanıcı Detayı</h2>
             <div><b>E-posta:</b> {selectedUser.email}</div>
             <div><b>Rol:</b> {selectedUser.role}</div>
-            <div><b>Üyelik:</b> {selectedUser.membershipStatus}</div>
+            <div><b>Üyelik:</b> {selectedUser.planName || selectedUser.membershipStatus}</div>
             <div><b>Kayıt Tarihi:</b> {selectedUser.createdAt}</div>
             <div><b>Son Aktif:</b> {selectedUser.lastLogin || '-'}</div>
             {/* Buraya içerik geçmişi ve diğer detaylar eklenebilir */}

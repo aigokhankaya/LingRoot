@@ -6,7 +6,22 @@ import { useAuth } from '../src/lib/auth';
 import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FaUserEdit, FaVolumeUp, FaBook, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+import {
+  FaUserEdit,
+  FaVolumeUp,
+  FaBook,
+  FaCheckCircle,
+  FaExclamationCircle,
+  FaSitemap,
+  FaPodcast,
+  FaLightbulb,
+  FaYoutube,
+  FaFileWord,
+  FaFileAlt,
+  FaLink,
+  FaGraduationCap,
+  FaPlus,
+} from 'react-icons/fa';
 import { MessageSquare } from 'lucide-react';
 import { processTts, submitContent, getContentHistory, getUserInterests, getTopicDetailSuggestions, rewriteToNarration, ProcessInputData, getUsageSummary, createPodcast, PodcastCreationParams, generateHobbySuggestions, getRandomHobbySuggestions, checkHobbyExists, getUserBookFavorites, saveUserBookFavorites, getHashtagNews, HashtagNewsItem, fetchArticleDetails, createDocumentFromText, DocumentRecord, DocumentSection } from '../src/lib/api';
 import PlanRequired from '../src/components/PlanRequired';
@@ -39,7 +54,7 @@ interface InputData {
 interface ContentTypeOption {
   id: string;
   name: string;
-  icon: string;
+  icon: React.ReactNode;
 }
 
 interface AudioResult {
@@ -73,6 +88,34 @@ interface ContentHistoryItem {
     word?: string;
   }>;
 }
+
+const HISTORY_TYPE_LABELS: Record<string, string> = {
+  text: 'Metin',
+  subject: 'Konu',
+  topic: 'Konu Ağacı',
+  book: 'Kitap',
+  podcast: 'Podcast',
+  youtube: 'YouTube',
+  file: 'Dosya',
+  document: 'Doküman',
+  weblink: 'Web Bağlantısı',
+};
+
+const historyTypeOptions = [
+  { id: 'topic', label: 'Konu Ağacı' },
+  { id: 'book', label: 'Kitap' },
+  { id: 'document', label: 'Doküman' },
+  { id: 'podcast', label: 'Podcast' },
+  { id: 'youtube', label: 'YouTube' },
+  { id: 'weblink', label: 'Web Bağlantısı' },
+  { id: 'text', label: 'Metin' },
+  { id: 'subject', label: 'Konu' },
+];
+
+const getHistoryTypeLabel = (inputType: string): string => {
+  const key = (inputType || '').toLowerCase();
+  return HISTORY_TYPE_LABELS[key] || (inputType ? inputType.toUpperCase() : 'DİĞER');
+};
 
 interface Book {
   id: string;
@@ -120,6 +163,10 @@ const Welcome: React.FC = () => {
   const { badge, dailyLimit, remaining, currentPlanName } = useMembership();
   const { t } = useTranslation();
   const router = useRouter();
+
+  const normalizedPlanName = (currentPlanName || '').toLowerCase();
+  const isPlatinumPlan =
+    normalizedPlanName.includes('platin') || normalizedPlanName.includes('platinum');
 
   const getDisplayName = () => {
     try {
@@ -281,19 +328,22 @@ const Welcome: React.FC = () => {
   
   // Content history expanded view state
   const [expandedHistoryItem, setExpandedHistoryItem] = useState<string | null>(null);
+  const [activeHistoryTypes, setActiveHistoryTypes] = useState<string[]>(
+    historyTypeOptions.map((t) => t.id)
+  );
   
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
-    { id: 'topic_tree', name: 'Konu Ağacı', icon: 'fas fa-sitemap' },
-    { id: 'book', name: 'Kitap', icon: 'fas fa-book' },
-    { id: 'podcast', name: 'Podcast', icon: 'fas fa-podcast' },
-    { id: 'topic', name: 'Hobi', icon: 'fas fa-lightbulb' },
-    { id: 'youtube', name: 'YouTube', icon: 'fab fa-youtube' },
-    { id: 'document', name: 'Doküman', icon: 'fas fa-file-word' },
-    { id: 'text', name: 'Metin', icon: 'fas fa-file-alt' },
-    { id: 'weblink', name: 'Web Bağlantısı', icon: 'fas fa-link' },
-    { id: 'subject', name: 'Konu', icon: 'fas fa-graduation-cap' },
-    { id: 'custom', name: 'Öneriler', icon: 'fas fa-plus' },
+    { id: 'topic_tree', name: 'Konu Ağacı', icon: <FaSitemap /> },
+    { id: 'book', name: 'Kitap', icon: <FaBook /> },
+    { id: 'podcast', name: 'Podcast', icon: <FaPodcast /> },
+    { id: 'topic', name: 'Hobi', icon: <FaLightbulb /> },
+    { id: 'youtube', name: 'YouTube', icon: <FaYoutube /> },
+    { id: 'document', name: 'Doküman', icon: <FaFileWord /> },
+    { id: 'text', name: 'Metin', icon: <FaFileAlt /> },
+    { id: 'weblink', name: 'Web Bağlantısı', icon: <FaLink /> },
+    { id: 'subject', name: 'Konu', icon: <FaGraduationCap /> },
+    { id: 'custom', name: 'Öneriler', icon: <FaPlus /> },
   ];
   
   const levelOptions = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -1826,6 +1876,14 @@ const Welcome: React.FC = () => {
     lastLogin: '2025-05-13 10:42',
   };
 
+  const filteredHistory = contentHistory.filter((item) => {
+    const typeKey = (item.input_type || '').toLowerCase();
+    if (!activeHistoryTypes || activeHistoryTypes.length === 0) return true;
+    if (!typeKey) return true;
+    return activeHistoryTypes.includes(typeKey);
+  });
+  const historyToRender = showAllHistory ? filteredHistory : filteredHistory.slice(0, 5);
+
   // Welcome hero arka plan görseli
   const heroImageUrl = 'https://readdy.ai/api/search-image?query=Modern%20language%20learning%20concept%20with%20digital%20technology%2C%20AI%20assistant%20helping%20with%20English%20lessons%2C%20abstract%20blue%20gradient%20background%20with%20subtle%20tech%20elements%2C%20professional%20educational%20atmosphere&width=1200&height=600&seq=hero1&orientation=landscape';
 
@@ -2056,8 +2114,14 @@ const Welcome: React.FC = () => {
                           : 'bg-muted border-border hover:bg-muted/80'
                       }`}
                     >
-                      <i className={`${option.icon} text-2xl mb-2 transition-transform group-hover:scale-110 ${contentType === option.id ? 'text-primary' : 'text-gray-500'}`}></i>
-                      <span className={`text-sm text-center transition-colors ${contentType === option.id ? 'text-primary font-medium' : 'text-gray-600'}`}>
+                      <div className="mb-2 text-primary text-2xl transition-transform group-hover:scale-110 flex items-center justify-center">
+                        {option.icon}
+                      </div>
+                      <span
+                        className={`text-sm text-center transition-colors ${
+                          contentType === option.id ? 'text-primary font-medium' : 'text-gray-700'
+                        }`}
+                      >
                         {option.name}
                       </span>
                     </div>
@@ -2239,13 +2303,6 @@ const Welcome: React.FC = () => {
                             <label className="block text-sm font-medium text-gray-700">
                               Hobiler/İlgi Alanlarınız:
                             </label>
-                            <button
-                              type="button"
-                              className="text-xs text-primary hover:text-primary/80 underline cursor-pointer ml-3 whitespace-nowrap"
-                              onClick={() => setShowInterestManager(!showInterestManager)}
-                            >
-                              Hobilerimi Yönet
-                            </button>
                           </div>
                           {loadingInterests ? (
                             <div className="flex items-center justify-center p-4 border border-gray-300 rounded-lg">
@@ -2696,14 +2753,6 @@ const Welcome: React.FC = () => {
                           Podcast oluşturma işlemi birkaç dakika sürebilir. Lütfen bekleyin.
                         </div>
                       </div>
-                    )}
-
-                    {/* Konu Ağacı sekmesi */}
-                    {contentType === 'topic_tree' && user && (
-                      <TopicHierarchySection
-                        userId={user.id}
-                        level={englishLevel}
-                      />
                     )}
 
                     {/* Kitap sekmesi */}
@@ -3335,39 +3384,85 @@ const Welcome: React.FC = () => {
                       {currentPlanName || 'Ücretsiz Plan'}
                     </Badge>
                   </div>
-                  <div className={remaining <= 0 ? "text-sm text-red-600" : "text-sm text-primary"}>
-                    {remaining <= 0 ? (
+                  <div className="text-sm">
+                    {isPlatinumPlan ? (
                       <>
-                        <p className="mb-2 font-semibold"><i className="fas fa-exclamation-triangle mr-2"></i>Ses oluşturma hakkınız bitti!</p>
-                        <p className="mb-3 text-xs">Premium pakete yükselterek sınırsız ses oluşturabilirsiniz.</p>
+                        <p className="mb-2 text-primary font-semibold">
+                          Platin plan kullanıyorsunuz. Bu pakette ses oluşturma hakkınız, plan limitleriniz
+                          dahilinde sınırsızdır.
+                        </p>
+                        <p className="mb-3 text-xs text-gray-600">
+                          Detaylı limit ve kullanım bilgisi için paket özetinizi ve plan karşılaştırmalarını
+                          inceleyebilirsiniz.
+                        </p>
+                        <div className="flex items-center mt-3">
+                          <a
+                            href="/fiyatlandirma"
+                            className="text-primary hover:text-primary/80 text-sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              router.push('/fiyatlandirma');
+                            }}
+                          >
+                            Tüm planları karşılaştır
+                          </a>
+                        </div>
                       </>
                     ) : (
-                      <p className="mb-2"><i className="fas fa-info-circle mr-2"></i>Günlük {remaining}/{dailyLimit} ses dönüşümü hakkınız kaldı.</p>
+                      <div className={remaining <= 0 ? "text-sm text-red-600" : "text-sm text-primary"}>
+                        {remaining <= 0 ? (
+                          <>
+                            <p className="mb-2 font-semibold">
+                              <i className="fas fa-exclamation-triangle mr-2"></i>
+                              Ses oluşturma hakkınız bitti!
+                            </p>
+                            <p className="mb-3 text-xs">
+                              Premium pakete yükselterek daha fazla ses oluşturabilirsiniz.
+                            </p>
+                          </>
+                        ) : (
+                          <p className="mb-2">
+                            <i className="fas fa-info-circle mr-2"></i>
+                            Günlük {remaining}/{dailyLimit} ses dönüşümü hakkınız kaldı.
+                          </p>
+                        )}
+                        <div className="flex items-center mt-3">
+                          <Button 
+                            variant="outline" 
+                            className="mr-3 !rounded-button whitespace-nowrap cursor-pointer"
+                            onClick={() => router.push('/fiyatlandirma')}
+                          >
+                            <i className="fas fa-crown text-yellow-500 mr-2"></i>
+                            Premium'a Yükselt
+                          </Button>
+                          <a 
+                            href="/fiyatlandirma" 
+                            className="text-primary hover:text-primary/80 text-sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              router.push('/fiyatlandirma');
+                            }}
+                          >
+                            Tüm planları karşılaştır
+                          </a>
+                        </div>
+                      </div>
                     )}
-                    <div className="flex items-center mt-3">
-                      <Button 
-                        variant="outline" 
-                        className="mr-3 !rounded-button whitespace-nowrap cursor-pointer"
-                        onClick={() => router.push('/fiyatlandirma')}
-                      >
-                        <i className="fas fa-crown text-yellow-500 mr-2"></i>Premium'a Yükselt
-                      </Button>
-                      <a 
-                        href="/fiyatlandirma" 
-                        className="text-primary hover:text-primary/80 text-sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          router.push('/fiyatlandirma');
-                        }}
-                      >
-                        Tüm planları karşılaştır
-                      </a>
-                    </div>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Konu Ağacım - sadece konu ağacı sekmesi seçiliyken, Ses Ayarları kartının altında */}
+          {contentType === 'topic_tree' && user && (
+            <div className="mt-8">
+              <TopicHierarchySection
+                userId={user.id}
+                level={englishLevel}
+              />
+            </div>
+          )}
 
           <div className="flex justify-center mt-8">
             <Button
@@ -3409,46 +3504,85 @@ const Welcome: React.FC = () => {
 
           {/* Content History Section */}
           {isAuthenticated && (
-            <Card className="mt-12 border-none shadow-lg">
+            <Card className="mt-12 border border-border shadow-lg rounded-2xl bg-white">
               <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold mr-4">
-                      <i className="fas fa-history"></i>
+                <div className="flex flex-col gap-4 mb-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold mr-4 shadow-sm">
+                        <i className="fas fa-history"></i>
+                      </div>
+                      <h2 className="text-2xl font-bold text-primary tracking-tight">Ses Geçmişim</h2>
                     </div>
-                    <h2 className="text-2xl font-bold text-purple-600">Ses Geçmişim</h2>
+                    <Button 
+                      onClick={fetchContentHistory}
+                      variant="outline" 
+                      className="!rounded-button whitespace-nowrap cursor-pointer"
+                      disabled={loadingHistory}
+                    >
+                      {loadingHistory ? (
+                        <>
+                          <i className="fas fa-circle-notch fa-spin mr-2"></i>
+                          Yükleniyor
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-refresh mr-2"></i>
+                          Yenile
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <Button 
-                    onClick={fetchContentHistory}
-                    variant="outline" 
-                    className="!rounded-button whitespace-nowrap cursor-pointer"
-                    disabled={loadingHistory}
-                  >
-                    {loadingHistory ? (
-                      <>
-                        <i className="fas fa-circle-notch fa-spin mr-2"></i>
-                        Yükleniyor
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-refresh mr-2"></i>
-                        Yenile
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2 justify-between">
+                    <div className="flex flex-wrap gap-2">
+                      {historyTypeOptions.map((option) => {
+                        const isActive = activeHistoryTypes.includes(option.id);
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => {
+                              setActiveHistoryTypes((prev) => {
+                                const exists = prev.includes(option.id);
+                                if (exists) {
+                                  // En az bir filtre daima açık kalsın
+                                  const next = prev.filter((t) => t !== option.id);
+                                  return next.length === 0 ? prev : next;
+                                }
+                                return [...prev, option.id];
+                              });
+                            }}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
+                              isActive
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="text-xs text-gray-500 whitespace-nowrap">
+                      {filteredHistory.length} kayıt görüntüleniyor
+                    </div>
+                  </div>
                 </div>
 
                 {loadingHistory ? (
                   <div className="flex justify-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
                   </div>
-                ) : contentHistory.length > 0 ? (
+                ) : filteredHistory.length > 0 ? (
                   <div className="space-y-4">
-                    {(showAllHistory ? contentHistory : contentHistory.slice(0, 5)).map((item) => (
-                      <div key={item.id} className="bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
+                    {historyToRender.map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-white rounded-xl border border-gray-200 hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden"
+                      >
                         {/* Compact Header - Always Visible */}
-                        <div 
-                          className="p-4 cursor-pointer hover:bg-gray-100 transition-colors"
+                        <div
+                          className="p-4 md:p-5 cursor-pointer hover:bg-primary/5 transition-colors"
                           onClick={() => {
                             console.log('🎯 [HISTORY DEBUG] Item clicked:', {
                               itemId: item.id,
@@ -3463,9 +3597,9 @@ const Welcome: React.FC = () => {
                         >
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
+                              <div className="flex items-center gap-2 mb-2 text-xs">
                                 <Badge variant="outline" className="text-xs">
-                                  {(item.input_type || 'unknown').toUpperCase()}
+                                  {getHistoryTypeLabel(item.input_type)}
                                 </Badge>
                                 <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
                                   {item.level || 'N/A'}
@@ -3481,8 +3615,8 @@ const Welcome: React.FC = () => {
                                 </span>
                               </div>
                               <div className="mb-3">
-                                <h4 className="font-medium text-gray-800 mb-1">İngilizce Metin (Seviyenize Uyarlanmış):</h4>
-                                <p className="text-sm text-gray-600 line-clamp-2">
+                                <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">İngilizce Metin (Seviyenize Uyarlanmış):</h4>
+                                <p className="text-sm text-gray-700 line-clamp-2">
                                   {item.adapted_text || item.input}
                                 </p>
                                 {item.adapted_text && (

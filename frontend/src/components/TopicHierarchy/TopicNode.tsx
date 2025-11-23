@@ -117,6 +117,18 @@ const TopicNode: React.FC<TopicNodeProps> = ({
   const { totalSubtopics, audioCount, listenedCount } = computeSubtreeStats(topic as any);
   const hasSubtopics = totalSubtopics > 0;
 
+  const createdAt = topic.created_at ? new Date(topic.created_at) : null;
+  const createdAtLabel = createdAt
+    ? `${createdAt.toLocaleDateString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+      })} ${createdAt.toLocaleTimeString('tr-TR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })}`
+    : null;
+
   // Alt konu oluştur
   const handleGenerateSubtopics = async (count: number, language: string, angle?: string) => {
     try {
@@ -271,6 +283,13 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 ) : (
                   <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                     Ses yok
+                  </span>
+                )}
+
+                {createdAtLabel && (
+                  <span className="flex items-center text-[11px] text-gray-400">
+                    <i className="fas fa-clock mr-1"></i>
+                    {createdAtLabel}
                   </span>
                 )}
               </div>

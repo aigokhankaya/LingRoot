@@ -11,7 +11,7 @@ import BrandWordmark from '../src/components/BrandWordmark';
 
 export default function Profile() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
-  const { badge, dailyLimit, remaining } = useMembership();
+  const { badge, dailyLimit, remaining, currentPlanName } = useMembership();
   const [activities, setActivities] = useState<any[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [contentHistory, setContentHistory] = useState<any[]>([]);
@@ -288,7 +288,7 @@ export default function Profile() {
                   <h2 className="text-2xl font-extrabold text-gray-900 mb-1">{displayName}</h2>
                   <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-primary text-primary-foreground shadow-md">
                     <FaTrophy className="mr-2" />
-                    {badge?.label || 'Ücretsiz'} Üyelik
+                    {(currentPlanName || badge?.label || 'Ücretsiz') + ' Üyelik'}
                   </span>
                 </div>
               </div>
@@ -357,7 +357,7 @@ export default function Profile() {
                 <div className="bg-white rounded-xl p-4 shadow-sm">
                   <div className="text-xs uppercase text-gray-500 font-semibold mb-1">Üyelik</div>
                   <div className="text-base font-semibold text-gray-900">
-                    {badge?.label || 'Ücretsiz'} ({membershipStatus})
+                    {currentPlanName || badge?.label || 'Ücretsiz'}
                   </div>
                 </div>
                 <div className="bg-white rounded-xl p-4 shadow-sm">
