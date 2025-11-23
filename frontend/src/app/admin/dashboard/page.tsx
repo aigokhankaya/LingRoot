@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import * as echarts from 'echarts';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { deleteUser as deleteUserApi, deleteUsersBulk as deleteUsersBulkApi } from '@/services/userService';
 // Paket Bilgilerim kullanıcı dashboard'ına taşındı
 import AdminChatInterface from '@/components/AdminChatInterface';
@@ -654,6 +655,17 @@ const App: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-800">Dil Öğrenme Platformu</h1>
           </div>
           <div className="flex items-center space-x-4 mr-4">
+            <Link href="/welcome">
+              <Button
+                variant="outline"
+                size="sm"
+                className="!rounded-full border-indigo-500 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 shadow-sm flex items-center gap-2"
+              >
+                <i className="fas fa-door-open text-indigo-500"></i>
+                <span className="hidden sm:inline">Welcome Sayfası</span>
+                <span className="sm:hidden">Welcome</span>
+              </Button>
+            </Link>
             <div className="relative">
               <i className="fas fa-bell text-gray-500 cursor-pointer"></i>
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">3</span>

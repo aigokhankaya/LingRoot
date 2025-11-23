@@ -494,7 +494,13 @@ const Welcome: React.FC = () => {
       const params: PodcastCreationParams = {
         topic: podcastTopic,
         level: englishLevel.toUpperCase(),
-        duration: podcastDuration
+        duration: podcastDuration,
+        styleType: podcastStyleType,
+        voiceChoice: podcastVoiceChoice,
+        personalityA: podcastPersonalityA,
+        personalityB: podcastPersonalityB,
+        includeHumor: podcastIncludeHumor,
+        includeFiller: podcastIncludeFiller,
       };
       
       console.log('🎙️ [PODCAST] Creating podcast with params:', params);

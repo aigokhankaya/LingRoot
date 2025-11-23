@@ -274,6 +274,28 @@ const HomeScreen: React.FC = () => {
         </View>
 
         <View style={styles.featuresContainer}>
+          <View style={styles.liroBanner}>
+            <TouchableOpacity
+              style={styles.liroButton}
+              activeOpacity={0.9}
+              onPress={() => (navigation as any).navigate('Liro')}
+            >
+              <View style={styles.liroIcon}>
+                <Icon name="auto-awesome" size={26} color="#27BEAA" />
+              </View>
+              <View style={styles.liroContent}>
+                <Text style={styles.liroTitle}>
+                  {language === 'tr' ? 'LIRO ile Öğren' : 'Learn with LIRO'}
+                </Text>
+                <Text style={styles.liroDescription}>
+                  {language === 'tr'
+                    ? 'Sevdiğin içerikleri seviyene göre dinlemek için LIRO ekranını aç.'
+                    : 'Open the LIRO screen to listen to your favorite content at your level.'}
+                </Text>
+              </View>
+              <Icon name="chevron-right" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
           <Text style={styles.sectionTitle}>{t('home.features')}</Text>
           <View style={styles.featuresGrid}>
             {features.map((feature) => (
@@ -355,6 +377,46 @@ const styles = StyleSheet.create({
   },
   featuresContainer: {
     padding: 20,
+  },
+  liroBanner: {
+    marginBottom: 16,
+  },
+  liroButton: {
+    backgroundColor: 'white',
+    borderRadius: 14,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#27BEAA',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  liroIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(39, 190, 170, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  liroContent: {
+    flex: 1,
+  },
+  liroTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  liroDescription: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#6B7280',
   },
   sectionTitle: {
     fontSize: 20,

@@ -34,6 +34,7 @@ import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 import ReminderSettingsScreen from '../screens/ReminderSettingsScreen';
 import TtsProviderSettingsScreen from '../screens/TtsProviderSettingsScreen';
+import LiroScreen from '../screens/LiroScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -498,6 +499,17 @@ const AppNavigator = () => {
         {user ? (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen
+              name="Liro"
+              component={LiroScreen}
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: '#007AFF' },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: 'bold' },
+                headerTitle: 'LIRO',
+              }}
+            />
             <Stack.Screen
               name="Settings"
               component={AccountSettingsScreen}

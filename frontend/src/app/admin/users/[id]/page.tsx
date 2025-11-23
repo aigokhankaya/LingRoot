@@ -129,7 +129,7 @@ export default function AdminUserGeneralPage() {
   };
 
   // Get current subscription info
-  const currentSub = (user as any).currentSubscription;
+  const currentSub = user?.currentSubscription as any;
 
   return (
     <div className="space-y-6">

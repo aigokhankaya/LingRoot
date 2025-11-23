@@ -396,6 +396,45 @@ export const apiService = {
     }
   },
 
+  // Podcast creation API (Sync) - mirrors web podcast flow
+  async createPodcast(params: {
+    topic: string;
+    level: string;
+    duration: number | string;
+    styleType?: string;
+    voiceChoice?: string;
+    personalityA?: string;
+    personalityB?: string;
+    includeHumor?: boolean;
+    includeFiller?: boolean;
+  }): Promise<any> {
+    try {
+      await wakeBackendIfNeeded();
+      const body = {
+        topic: params.topic,
+        level: params.level,
+        duration: params.duration,
+        styleType: params.styleType,
+        voiceChoice: params.voiceChoice,
+        personalityA: params.personalityA,
+        personalityB: params.personalityB,
+        includeHumor: params.includeHumor,
+        includeFiller: params.includeFiller,
+      };
+      const response = await apiClient.post('/api/tts/create-podcast', body, {
+        timeout: 600000, // Uzun podcast üretimleri için geniş timeout
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('🔴 [PODCAST API ERROR]:', {
+        message: error?.message,
+        status: error?.response?.status,
+        data: error?.response?.data,
+      });
+      throw new Error(error.response?.data?.message || 'Podcast oluşturma işlemi başarısız');
+    }
+  },
+
   // Text-to-Speech API (Async - with notification)
   async processTextToSpeechAsync(request: TTSRequest): Promise<{ success: boolean; jobId: string; message: string; estimatedTime: string }> {
     try {

@@ -1,3 +1,11 @@
+export interface UserSubscription {
+  id: string;
+  plantype?: string | null;
+  status?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -19,6 +27,7 @@ export interface User {
   };
   loginCount?: number;
   contentCount?: number;
+  currentSubscription?: UserSubscription | null;
   planName?: string;
 }
 

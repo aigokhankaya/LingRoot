@@ -27,8 +27,18 @@ import AudioPlayer from '../components/AudioPlayer';
 const CreateScreen: React.FC = () => {
   const route = useRoute<any>();
   const navigation = useNavigation();
-  const [mode, setMode] = useState<'text' | 'file' | 'book' | 'suggestion' | 'youtube'>(
-    route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : (route.params?.mode === 'youtube' ? 'youtube' : 'text')))
+  const [mode, setMode] = useState<'text' | 'file' | 'book' | 'suggestion' | 'youtube' | 'podcast'>(
+    route.params?.mode === 'file'
+      ? 'file'
+      : route.params?.mode === 'book'
+      ? 'book'
+      : route.params?.mode === 'suggestion'
+      ? 'suggestion'
+      : route.params?.mode === 'youtube'
+      ? 'youtube'
+      : route.params?.mode === 'podcast'
+      ? 'podcast'
+      : 'text'
   );
   const { t, language } = useLanguage();
   const screenHeight = Dimensions.get('window').height;
@@ -69,7 +79,18 @@ const CreateScreen: React.FC = () => {
         }
       };
 
-      const nextMode: 'text' | 'file' | 'book' | 'suggestion' | 'youtube' = route.params?.mode === 'file' ? 'file' : (route.params?.mode === 'book' ? 'book' : (route.params?.mode === 'suggestion' ? 'suggestion' : (route.params?.mode === 'youtube' ? 'youtube' : 'text')));
+      const nextMode: 'text' | 'file' | 'book' | 'suggestion' | 'youtube' | 'podcast' =
+        route.params?.mode === 'file'
+          ? 'file'
+          : route.params?.mode === 'book'
+          ? 'book'
+          : route.params?.mode === 'suggestion'
+          ? 'suggestion'
+          : route.params?.mode === 'youtube'
+          ? 'youtube'
+          : route.params?.mode === 'podcast'
+          ? 'podcast'
+          : 'text';
       const prevMode = mode;
       setMode(nextMode);
 
@@ -111,6 +132,18 @@ const CreateScreen: React.FC = () => {
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
   const [youtubeLoading, setYoutubeLoading] = useState<boolean>(false);
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
+
+  // --- Podcast Mode State ---
+  const [podcastTopic, setPodcastTopic] = useState<string>('');
+  const [podcastDuration, setPodcastDuration] = useState<number>(3);
+  const [isCreatingPodcast, setIsCreatingPodcast] = useState<boolean>(false);
+  const [podcastError, setPodcastError] = useState<string | null>(null);
+  const [podcastStyleType, setPodcastStyleType] = useState<string>('friendly_chat');
+  const [podcastVoiceChoice, setPodcastVoiceChoice] = useState<string>('english_female');
+  const [podcastPersonalityA, setPodcastPersonalityA] = useState<string>('curious_enthusiast');
+  const [podcastPersonalityB, setPodcastPersonalityB] = useState<string>('knowledgeable_friend');
+  const [podcastIncludeHumor, setPodcastIncludeHumor] = useState<boolean>(true);
+  const [podcastIncludeFiller, setPodcastIncludeFiller] = useState<boolean>(true);
 
   // Helper: open external URL reliably without Expo WebBrowser
   const openExternalUrl = async (url: string) => {
@@ -945,6 +978,89 @@ const CreateScreen: React.FC = () => {
     }
   };
 
+  const handleCreatePodcast = async () => {
+    if (!podcastTopic || podcastTopic.trim().length === 0) {
+      Alert.alert(
+        t('common.error'),
+        language === 'tr' ? 'Lütfen bir podcast konusu girin.' : 'Please enter a podcast topic.'
+      );
+      return;
+    }
+
+    setIsCreatingPodcast(true);
+    setPodcastError(null);
+
+    try {
+      const response: any = await apiService.createPodcast({
+        topic: podcastTopic.trim(),
+        level: selectedLevel,
+        duration: podcastDuration,
+        styleType: podcastStyleType,
+        voiceChoice: podcastVoiceChoice,
+        personalityA: podcastPersonalityA,
+        personalityB: podcastPersonalityB,
+        includeHumor: podcastIncludeHumor,
+        includeFiller: podcastIncludeFiller,
+      });
+
+      const success = response?.success !== false;
+      const audioUrl =
+        response?.podcast_url ||
+        response?.audio_url ||
+        response?.mp3_url ||
+        response?.audioUrl;
+      const vttUrl =
+        response?.vtt_url ||
+        response?.vtt_subtitles ||
+        response?.subtitlesUrl ||
+        response?.data?.subtitles?.vtt;
+
+      if (!success || !audioUrl) {
+        throw new Error(
+          response?.message ||
+            (language === 'tr' ? 'Podcast oluşturulamadı.' : 'Podcast could not be created.')
+        );
+      }
+
+      Alert.alert(
+        language === 'tr' ? 'Podcast hazır' : 'Podcast is ready',
+        language === 'tr'
+          ? 'Sesi dinlemek veya altyazıyı açmak için aşağıdaki seçenekleri kullan.'
+          : 'Use the options below to listen to the audio or open subtitles.',
+        [
+          audioUrl
+            ? {
+                text: language === 'tr' ? 'Sesi aç' : 'Open audio',
+                onPress: () => {
+                  Linking.openURL(audioUrl);
+                },
+              }
+            : undefined,
+          vttUrl
+            ? {
+                text: language === 'tr' ? 'Altyazıyı aç' : 'Open subtitles',
+                onPress: () => {
+                  Linking.openURL(vttUrl);
+                },
+              }
+            : undefined,
+          {
+            text: language === 'tr' ? 'Kapat' : 'Close',
+            style: 'cancel',
+          },
+        ].filter(Boolean) as any
+      );
+    } catch (e: any) {
+      const msg =
+        e?.message ||
+        (language === 'tr' ? 'Podcast oluşturulamadı.' : 'Podcast could not be created.');
+      setPodcastError(msg);
+      Alert.alert(t('common.error'), msg);
+    } finally {
+      setIsCreatingPodcast(false);
+    }
+  };
+
   const handleFileUpload = async () => {
     try {
 
@@ -1041,6 +1157,268 @@ const CreateScreen: React.FC = () => {
             {t('create.subtitle')}
           </Text>
         </View>
+
+        {mode === 'podcast' && (
+          <View style={styles.inputSection}>
+            <Text style={styles.sectionTitle}>
+              {language === 'tr' ? 'Podcast Oluştur' : 'Create Podcast'}
+            </Text>
+            <Text style={{ fontSize: 14, color: '#666', marginBottom: 12 }}>
+              {language === 'tr'
+                ? 'Podcast için bir konu girin ve seviye ile süreyi seçin.'
+                : 'Enter a topic for the podcast and choose the level and duration.'}
+            </Text>
+            <TextInput
+              style={[styles.textInput, { minHeight: 100 }]}
+              placeholder={
+                language === 'tr'
+                  ? 'Podcast için bir konu girin (Örn: İnternetin tarihi)...'
+                  : 'Enter a topic for the podcast (e.g. The history of the Internet)...'
+              }
+              value={podcastTopic}
+              onChangeText={setPodcastTopic}
+              multiline
+              textAlignVertical="top"
+            />
+            <View style={{ marginTop: 16 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
+                {language === 'tr' ? 'Süre (dakika)' : 'Duration (minutes)'}
+              </Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 6,
+                }}
+              >
+                {[3, 5, 10].map((d) => (
+                  <TouchableOpacity
+                    key={d}
+                    style={{
+                      flex: 1,
+                      marginHorizontal: 4,
+                      paddingVertical: 10,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: podcastDuration === d ? '#007AFF' : '#ddd',
+                      backgroundColor: podcastDuration === d ? '#E3F2FD' : '#fff',
+                      alignItems: 'center',
+                    }}
+                    onPress={() => setPodcastDuration(d)}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: '500',
+                        color: podcastDuration === d ? '#007AFF' : '#333',
+                      }}
+                    >
+                      {d} {language === 'tr' ? 'dk' : 'min'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={{ fontSize: 13, color: '#666' }}>
+                {language === 'tr'
+                  ? `Hedef süre: yaklaşık ${podcastDuration} dakika`
+                  : `Target duration: around ${podcastDuration} minutes`}
+              </Text>
+            </View>
+
+            <View style={{ marginTop: 16 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
+                {language === 'tr' ? 'Konuşma Stili' : 'Speaking Style'}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {[
+                  { value: 'friendly_chat', tr: 'Samimi Sohbet', en: 'Friendly chat' },
+                  { value: 'professional', tr: 'Profesyonel', en: 'Professional' },
+                  { value: 'educational', tr: 'Eğitici', en: 'Educational' },
+                  { value: 'casual', tr: 'Rahat', en: 'Casual' },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[
+                      styles.filterButton,
+                      podcastStyleType === opt.value && styles.filterButtonActive,
+                      { marginBottom: 6 },
+                    ]}
+                    onPress={() => setPodcastStyleType(opt.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterButtonText,
+                        podcastStyleType === opt.value && styles.filterButtonTextActive,
+                      ]}
+                    >
+                      {language === 'tr' ? opt.tr : opt.en}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={{ marginTop: 16 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
+                {language === 'tr' ? 'Ses Seçimi' : 'Voice Choice'}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {[
+                  { value: 'english_female', tr: 'İngilizce - Kadın', en: 'English - Female' },
+                  { value: 'english_male', tr: 'İngilizce - Erkek', en: 'English - Male' },
+                  { value: 'american_female', tr: 'Amerikan - Kadın', en: 'American - Female' },
+                  { value: 'american_male', tr: 'Amerikan - Erkek', en: 'American - Male' },
+                  { value: 'british_female', tr: 'İngiliz - Kadın', en: 'British - Female' },
+                  { value: 'british_male', tr: 'İngiliz - Erkek', en: 'British - Male' },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[
+                      styles.filterButton,
+                      podcastVoiceChoice === opt.value && styles.filterButtonActive,
+                      { marginBottom: 6 },
+                    ]}
+                    onPress={() => setPodcastVoiceChoice(opt.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterButtonText,
+                        podcastVoiceChoice === opt.value && styles.filterButtonTextActive,
+                      ]}
+                    >
+                      {language === 'tr' ? opt.tr : opt.en}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={{ marginTop: 16 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
+                {language === 'tr' ? 'Kişilik A' : 'Personality A'}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {[
+                  { value: 'curious_enthusiast', tr: 'Meraklı Coşkulu', en: 'Curious Enthusiast' },
+                  { value: 'skeptical_analyst', tr: 'Şüpheci Analist', en: 'Skeptical Analyst' },
+                  { value: 'friendly_guide', tr: 'Samimi Rehber', en: 'Friendly Guide' },
+                  { value: 'professional_expert', tr: 'Profesyonel Uzman', en: 'Professional Expert' },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[
+                      styles.filterButton,
+                      podcastPersonalityA === opt.value && styles.filterButtonActive,
+                      { marginBottom: 6 },
+                    ]}
+                    onPress={() => setPodcastPersonalityA(opt.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterButtonText,
+                        podcastPersonalityA === opt.value && styles.filterButtonTextActive,
+                      ]}
+                    >
+                      {language === 'tr' ? opt.tr : opt.en}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={{ marginTop: 16 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
+                {language === 'tr' ? 'Kişilik B' : 'Personality B'}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {[
+                  { value: 'knowledgeable_friend', tr: 'Bilgili Arkadaş', en: 'Knowledgeable Friend' },
+                  { value: 'experienced_mentor', tr: 'Deneyimli Mentor', en: 'Experienced Mentor' },
+                  { value: 'curious_learner', tr: 'Meraklı Öğrenci', en: 'Curious Learner' },
+                  { value: 'witty_commentator', tr: 'Esprili Yorumcu', en: 'Witty Commentator' },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[
+                      styles.filterButton,
+                      podcastPersonalityB === opt.value && styles.filterButtonActive,
+                      { marginBottom: 6 },
+                    ]}
+                    onPress={() => setPodcastPersonalityB(opt.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterButtonText,
+                        podcastPersonalityB === opt.value && styles.filterButtonTextActive,
+                      ]}
+                    >
+                      {language === 'tr' ? opt.tr : opt.en}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}
+                onPress={() => setPodcastIncludeHumor((prev) => !prev)}
+              >
+                <Icon
+                  name={podcastIncludeHumor ? 'check-box' : 'check-box-outline-blank'}
+                  size={20}
+                  color="#007AFF"
+                />
+                <Text style={{ marginLeft: 6, fontSize: 14, color: '#333' }}>
+                  {language === 'tr' ? 'Mizah Ekle' : 'Include Humor'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center' }}
+                onPress={() => setPodcastIncludeFiller((prev) => !prev)}
+              >
+                <Icon
+                  name={podcastIncludeFiller ? 'check-box' : 'check-box-outline-blank'}
+                  size={20}
+                  color="#007AFF"
+                />
+                <Text style={{ marginLeft: 6, fontSize: 14, color: '#333' }}>
+                  {language === 'tr' ? 'Dolgu Kelimeler Ekle' : 'Include Filler Words'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {podcastError && (
+              <Text style={{ color: '#d32f2f', marginTop: 8 }}>{podcastError}</Text>
+            )}
+            <TouchableOpacity
+              style={[
+                styles.createButton,
+                (isCreatingPodcast || !podcastTopic.trim()) && styles.createButtonDisabled,
+                { marginTop: 16, marginHorizontal: 0 },
+              ]}
+              onPress={handleCreatePodcast}
+              disabled={isCreatingPodcast || !podcastTopic.trim()}
+            >
+              {isCreatingPodcast ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Icon name="graphic-eq" size={24} color="white" />
+              )}
+              <Text style={styles.createButtonText}>
+                {isCreatingPodcast
+                  ? language === 'tr'
+                    ? 'Podcast oluşturuluyor...'
+                    : 'Creating podcast...'
+                  : language === 'tr'
+                  ? 'Podcast Oluştur'
+                  : 'Create Podcast'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {mode === 'suggestion' && (
           <View style={styles.inputSection}>
@@ -1561,27 +1939,29 @@ const CreateScreen: React.FC = () => {
           </View>
         </Modal>
 
-        <TouchableOpacity
-          style={[
-            styles.createButton,
-            (isLoading || isCreatingVoice || isTtsJobLocked) && styles.createButtonDisabled,
-          ]}
-          onPress={handleCreateAudio}
-          disabled={isLoading || isCreatingVoice || isTtsJobLocked}
-        >
-          {isLoading || isCreatingVoice ? (
-            <ActivityIndicator color="white" size="small" />
-          ) : (
-            <Icon name="volume-up" size={24} color="white" />
-          )}
-          <Text style={styles.createButtonText}>
-            {isLoading
-              ? (selectedFile ? t('create.buttons.processingFile') : t('create.buttons.processing'))
-              : isCreatingVoice
-                ? (language === 'tr' ? 'Ses oluşturuluyor...' : 'Creating Voice...')
-                : t('create.buttons.createAudio')}
-          </Text>
-        </TouchableOpacity>
+        {mode !== 'podcast' && (
+          <TouchableOpacity
+            style={[
+              styles.createButton,
+              (isLoading || isCreatingVoice || isTtsJobLocked) && styles.createButtonDisabled,
+            ]}
+            onPress={handleCreateAudio}
+            disabled={isLoading || isCreatingVoice || isTtsJobLocked}
+          >
+            {isLoading || isCreatingVoice ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <Icon name="volume-up" size={24} color="white" />
+            )}
+            <Text style={styles.createButtonText}>
+              {isLoading
+                ? (selectedFile ? t('create.buttons.processingFile') : t('create.buttons.processing'))
+                : isCreatingVoice
+                  ? (language === 'tr' ? 'Ses oluşturuluyor...' : 'Creating Voice...')
+                  : t('create.buttons.createAudio')}
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* Audio Player Modal */}

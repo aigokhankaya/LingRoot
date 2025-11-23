@@ -1,4 +1,4 @@
-import { User, UserUpdateData } from '@/types/user';
+import { User, UserUpdateData, UserSubscription } from '@/types/user';
 import { getApiUrl, createHeaders } from '@/lib/api';
 import type { UsageSummary } from '@/lib/usageEstimates';
 
@@ -24,6 +24,16 @@ function mapUserFromApi(apiUser: any): User {
     }
   }
   
+  const rawSub = apiUser.currentSubscription || apiUser.subscription;
+  let currentSubscription: UserSubscription | null | undefined = undefined;
+  if (rawSub) {
+    currentSubscription = {
+      ...rawSub,
+      start_date: rawSub.start_date || rawSub.startdate || null,
+      end_date: rawSub.end_date || rawSub.enddate || null,
+    };
+  }
+
   return {
     id: apiUser.id,
     name: apiUser.name ?? (composedName || undefined),
@@ -42,6 +52,7 @@ function mapUserFromApi(apiUser: any): User {
     preferences: apiUser.preferences,
     loginCount: apiUser.login_count ?? apiUser.loginCount,
     contentCount: apiUser.content_count ?? apiUser.contentCount,
+    currentSubscription: currentSubscription ?? null,
   };
 }
 
