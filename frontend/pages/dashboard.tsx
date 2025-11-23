@@ -366,6 +366,36 @@ const Dashboard = () => {
   });
   const historyToRender = showAllHistory ? filteredHistory : filteredHistory.slice(0, 5);
 
+  const convertToPlayableUrl = (url: string): string => {
+    if (!url) return '';
+
+    try {
+      if (url.startsWith('/tts/')) {
+        url = `/api${url}`;
+      }
+
+      if (url.startsWith('/api/')) {
+        if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+          return `http://localhost:5001${url}`;
+        }
+
+        if (typeof window !== 'undefined' && window.location.hostname.includes('lingroot.com')) {
+          return `https://lingloops-backend.onrender.com${url}`;
+        }
+
+        return url;
+      }
+
+      if (url.startsWith('https://')) {
+        return url;
+      }
+
+      return url;
+    } catch {
+      return url;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background fadeIn">
       {/* Top Navigation Header */}
