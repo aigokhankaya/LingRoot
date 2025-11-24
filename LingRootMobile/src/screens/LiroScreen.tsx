@@ -95,6 +95,7 @@ const LiroScreen: React.FC = () => {
   const [ctaContentReady, setCtaContentReady] = useState(false);
   const [audioResult, setAudioResult] = useState<any | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [activeCta, setActiveCta] = useState<CtaType | null>(null);
   const scrollViewRef = useRef<ScrollView | null>(null);
 
   const ctaDisabled = !(ctaTopicReady || ctaContentReady);
@@ -352,6 +353,7 @@ const LiroScreen: React.FC = () => {
       return;
     }
 
+    setActiveCta(type);
     setIsProcessing(true);
     try {
       const token = await getToken();
@@ -442,6 +444,7 @@ const LiroScreen: React.FC = () => {
       );
     } finally {
       setIsProcessing(false);
+      setActiveCta(null);
     }
   };
 
@@ -779,7 +782,11 @@ const LiroScreen: React.FC = () => {
                 disabled={ctaDisabled || isProcessing}
                 onPress={() => confirmCta('narration')}
               >
-                <Icon name="menu-book" size={18} color="#111827" />
+                {activeCta === 'narration' && isProcessing ? (
+                  <ActivityIndicator size="small" color="#111827" />
+                ) : (
+                  <Icon name="menu-book" size={18} color="#111827" />
+                )}
                 <Text style={styles.ctaButtonText}>
                   {language === 'tr'
                     ? 'Anlatım Oluştur'
@@ -794,7 +801,11 @@ const LiroScreen: React.FC = () => {
                 disabled={ctaDisabled || isProcessing}
                 onPress={() => confirmCta('podcast')}
               >
-                <Icon name="graphic-eq" size={18} color="#111827" />
+                {activeCta === 'podcast' && isProcessing ? (
+                  <ActivityIndicator size="small" color="#111827" />
+                ) : (
+                  <Icon name="graphic-eq" size={18} color="#111827" />
+                )}
                 <Text style={styles.ctaButtonText}>
                   {language === 'tr'
                     ? 'Podcast Oluştur'
@@ -809,7 +820,11 @@ const LiroScreen: React.FC = () => {
                 disabled={ctaDisabled || isProcessing}
                 onPress={() => confirmCta('tts')}
               >
-                <Icon name="volume-up" size={18} color="#111827" />
+                {activeCta === 'tts' && isProcessing ? (
+                  <ActivityIndicator size="small" color="#111827" />
+                ) : (
+                  <Icon name="volume-up" size={18} color="#111827" />
+                )}
                 <Text style={styles.ctaButtonText}>
                   {language === 'tr'
                     ? 'Metni Seslendir'

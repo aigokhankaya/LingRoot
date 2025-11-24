@@ -28,8 +28,8 @@ const HomeScreen: React.FC = () => {
   const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
   const [featuresLoading, setFeaturesLoading] = useState(true);
 
-  const fadeAnim = React.useRef(new Animated.Value(0)).current;
-  const translateYAnim = React.useRef(new Animated.Value(12)).current;
+  const fadeAnim = React.useRef(new Animated.Value(1)).current;
+  const translateYAnim = React.useRef(new Animated.Value(0)).current;
 
   // All available features
   const allFeatures = [
@@ -246,10 +246,7 @@ const HomeScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: translateYAnim }] }}>
-        <ScrollView style={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-
-
+      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             {stats.loading ? (
@@ -331,7 +328,6 @@ const HomeScreen: React.FC = () => {
           </View>
         </View>
       </ScrollView>
-      </Animated.View>
     </SafeAreaView>
   );
 };

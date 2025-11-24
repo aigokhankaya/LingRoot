@@ -525,15 +525,19 @@ const Welcome: React.FC = () => {
         // n8n'den gelen vtt_subtitles zaten Supabase URL'si
         const vttUrl = result.vtt_subtitles || '';
         const topic = result.data?.metadata?.topic || podcastTopic;
-        
+        const transcriptText = result.transcript || result.message || topic;
+
+        // Persist MFA alignment data on audioResult so web player can sync precisely
         setAudioResult({
-          message: result.transcript || result.message || topic,
+          message: transcriptText,
           mp3_url: result.podcast_url,
           vtt_url: vttUrl,
           level: englishLevel,
           duration_seconds: result.duration_seconds,
           file_name: result.file_name,
-          topic: topic
+          topic: topic,
+          timepoints: result.timepoints || [],
+          words: result.words || [],
         });
         console.log('🎙️ [PODCAST] Podcast created successfully:', {
           topic: topic,
@@ -543,6 +547,24 @@ const Welcome: React.FC = () => {
           level: englishLevel,
           costs: result.data?.metadata?.costs
         });
+
+        // Podcast'i contenthistory tablosuna kaydet (mevcut submitContent akışını kullanarak)
+        try {
+          await submitContent(
+            topic,
+            'podcast',
+            englishLevel.toUpperCase(),
+            result.podcast_url,
+            transcriptText,
+            transcriptText,
+            undefined,
+            result.timepoints,
+            result.words,
+          );
+          console.log('🎙️ [PODCAST] Podcast submitted to contenthistory via submitContent');
+        } catch (submitErr) {
+          console.error('🎙️ [PODCAST] submitContent failed for podcast:', submitErr);
+        }
       } else {
         throw new Error(result.message || 'Podcast oluşturulamadı');
       }

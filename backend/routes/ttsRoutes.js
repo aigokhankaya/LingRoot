@@ -25,6 +25,10 @@ const jobQueue = require('../utils/jobQueue');
 const { sendPushNotification, getUnreadNotifications, markNotificationAsRead } = require('../utils/pushNotification');
 const fetch = require('node-fetch');
 const { supabase } = require('../utils/supabaseClient');
+const fs = require('fs').promises;
+const path = require('path');
+const os = require('os');
+const { mfaAligner } = require('../utils/mfaAligner');
 
 const router = express.Router();
 
@@ -440,6 +444,133 @@ router.post("/create-podcast", authenticate, async (req, res) => {
         message: 'Podcast service did not return audioUrl',
       });
     }
+    // UI için: label'lı transcript 
+    const transcriptText = n8nResult.transcript || '';
+    // MFA ve wordsForTiming için: mümkünse label'siz versiyon
+    const transcriptForMFA = n8nResult.transcriptPlain || transcriptText;
+    let wordsForTiming = null;
+    let timepoints = null;
+
+    const useMFAAlignment = process.env.USE_MFA_ALIGNMENT;
+    if (useMFAAlignment && transcriptForMFA && audioUrl) {
+      try {
+        const tempFileName = `podcast_mfa_${Date.now()}.mp3`;
+        const tempAudioPath = path.join(os.tmpdir(), tempFileName);
+        const audioResp = await fetch(audioUrl);
+        if (audioResp.ok) {
+          const audioBuffer = await audioResp.buffer();
+          await fs.writeFile(tempAudioPath, audioBuffer);
+
+          const voiceChoice = body.voiceChoice ? String(body.voiceChoice) : '';
+          const locale = voiceChoice.includes('GB') ? 'en_GB' : 'en_US';
+
+          const mfaWordTimings = await mfaAligner.generateWordTimestamps(
+            tempAudioPath,
+            transcriptForMFA,
+            locale
+          );
+
+          await fs.unlink(tempAudioPath).catch(() => {});
+
+          if (Array.isArray(mfaWordTimings) && mfaWordTimings.length > 0) {
+            wordsForTiming = transcriptForMFA.split(/\s+/).filter(w => w.length > 0);
+            timepoints = mfaWordTimings.map((timing, index) => ({
+              word: timing.word,
+              timeSeconds: timing.startTime,
+              endTimeSeconds: timing.endTime,
+              index,
+              hasRealTiming: true,
+              source: 'mfa',
+            }));
+            logger.info('[PODCAST] MFA alignment completed for podcast', {
+              timepointCount: timepoints.length,
+            });
+          }
+        } else {
+          logger.warn('[PODCAST] Failed to download audio for MFA alignment', {
+            status: audioResp.status,
+          });
+        }
+      } catch (mfaErr) {
+        logger.warn('[PODCAST] MFA alignment failed, continuing without timepoints', {
+          message: mfaErr.message,
+        });
+      }
+    }
+
+    if (!timepoints && Array.isArray(n8nResult.timepoints)) {
+      timepoints = n8nResult.timepoints;
+    }
+    if (!wordsForTiming && Array.isArray(n8nResult.words)) {
+      wordsForTiming = n8nResult.words;
+    }
+    if (!wordsForTiming && transcriptText) {
+      wordsForTiming = transcriptText.split(/\s+/).filter(w => w.length > 0);
+    }
+    let contentHistoryId = null;
+    try {
+      const userId = req.user && req.user.id;
+      if (!supabase) {
+        logger.warn('[PODCAST] Supabase client not initialized, skipping contenthistory save');
+      } else if (!userId) {
+        logger.warn('[PODCAST] No user ID on request, skipping contenthistory save');
+      } else {
+        const durationSeconds = Number(n8nResult.duration || n8nResult.duration_seconds || 0) || null;
+        const insertData = {
+          user_id: userId,
+          level: level || 'B1',
+          mp3_url: audioUrl,
+          input: topic,
+          translated_text: transcriptText,
+          adapted_text: transcriptText,
+          input_type: 'podcast',
+          created_at: new Date().toISOString(),
+          // contenthistory.words/timepoints kolonları TEXT olduğu için JSON string olarak sakla
+          words: Array.isArray(wordsForTiming) && wordsForTiming.length > 0 ? JSON.stringify(wordsForTiming) : null,
+          timepoints: Array.isArray(timepoints) && timepoints.length > 0 ? JSON.stringify(timepoints) : null,
+          openai_prompt_tokens: 0,
+          openai_completion_tokens: 0,
+          openai_total_tokens: 0,
+          openai_cost_usd: 0,
+          tts_characters: 0,
+          tts_category: 'podcast',
+          tts_cost_usd: 0,
+          total_cost_usd: 0,
+          tts_provider: null,
+          tts_voice_name: null,
+          audio_duration_seconds: durationSeconds,
+          entry_source: 'podcast',
+        };
+
+        logger.info('[PODCAST] Attempting to save podcast to contenthistory', {
+          userId,
+          durationSeconds,
+          transcriptLength: transcriptText ? transcriptText.length : 0,
+          insertData: JSON.stringify(insertData).slice(0, 500),
+        });
+
+        const { data, error } = await supabase
+          .from('contenthistory')
+          .insert(insertData)
+          .select();
+
+        if (error) {
+          logger.error('[PODCAST] Error saving podcast to contenthistory:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code,
+          });
+        } else if (data && data.length > 0) {
+          contentHistoryId = data[0].id;
+          logger.info(`[PODCAST] Podcast saved to contenthistory with id=${contentHistoryId}`);
+        } else {
+          logger.warn('[PODCAST] Insert into contenthistory returned no data array');
+        }
+      }
+    } catch (dbErr) {
+      logger.error('[PODCAST] Exception while saving podcast to contenthistory:', dbErr);
+    }
     const responseBody = {
       success: true,
       status: 'success',
@@ -452,7 +583,10 @@ router.post("/create-podcast", authenticate, async (req, res) => {
       duration_seconds: n8nResult.duration || n8nResult.duration_seconds || '',
       topic: n8nResult.topic || topic,
       level,
-      transcript: n8nResult.transcript || '',
+      transcript: transcriptText,
+      words: wordsForTiming || null,
+      timepoints: timepoints || null,
+      contenthistory_id: contentHistoryId,
       data: n8nResult,
     };
     return res.json(responseBody);
