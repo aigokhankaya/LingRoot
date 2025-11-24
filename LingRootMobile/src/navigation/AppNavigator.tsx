@@ -500,6 +500,17 @@ const AppNavigator = () => {
           <>
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen
+              name="Vocabulary"
+              component={VocabularyScreen}
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: '#007AFF' },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: 'bold' },
+                headerTitle: language === 'tr' ? 'Kelimelerim' : 'My Vocabulary',
+              }}
+            />
+            <Stack.Screen
               name="Liro"
               component={LiroScreen}
               options={{

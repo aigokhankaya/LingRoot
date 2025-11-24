@@ -611,6 +611,59 @@ export const apiService = {
     }
   },
 
+  // İçerik ve ses dosyasını contenthistory tablosuna kaydet (web submitContent ile aynı endpoint)
+  async submitContent(
+    input: string,
+    inputType: string,
+    level: string,
+    mp3Url: string,
+    translatedText?: string,
+    adaptedText?: string,
+    chapterId?: string | number,
+    timepoints?: any[],
+    words?: any[]
+  ): Promise<APIResponse> {
+    try {
+      const payload: any = {
+        input,
+        input_type: inputType,
+        level,
+        mp3_url: mp3Url,
+        translated_text: translatedText || '',
+        adapted_text: adaptedText || '',
+        chapter_id: chapterId ?? null,
+      };
+
+      // Podcast senaryosunda MFA timepoints/words varsa backend'e ilet
+      if (Array.isArray(timepoints) && timepoints.length > 0) {
+        payload.timepoints = timepoints;
+      }
+      if (Array.isArray(words) && words.length > 0) {
+        payload.words = words;
+      }
+
+      console.log('[Mobile][submitContent] Sending payload to /api/content/submit', {
+        inputPreview: input ? input.substring(0, 80) : 'EMPTY',
+        inputType,
+        level,
+        hasMp3Url: !!mp3Url,
+        translatedPreview: translatedText ? translatedText.substring(0, 80) : 'EMPTY',
+        adaptedPreview: adaptedText ? adaptedText.substring(0, 80) : 'EMPTY',
+        chapterId: chapterId ?? null,
+      });
+
+      const response = await apiClient.post<APIResponse>('/api/content/submit', payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('[Mobile][submitContent] Error while saving contenthistory:', {
+        message: error?.message,
+        status: error?.response?.status,
+        data: error?.response?.data,
+      });
+      throw new Error(error.response?.data?.message || 'İçerik kaydedilemedi');
+    }
+  },
+
   // Forgot password (email)
   async forgotPassword(email: string): Promise<APIResponse> {
     const response = await apiClient.post<APIResponse>(`/api/auth/forgot-password`, { email });

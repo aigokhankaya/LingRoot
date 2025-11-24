@@ -1,4 +1,4 @@
-import React, { useState, useCallback, memo, useMemo } from 'react';
+import React, { useState, useCallback, memo, useMemo, useEffect } from 'react';
 import { useWordSync } from '../hooks/useWordSync';
 import { addWordWithTranslation, getApiUrl } from '../lib/api';
 
@@ -53,6 +53,8 @@ interface NewSyncedTextPlayerProps {
     timepointsCount?: number;
   };
   onPlay?: () => void;
+  onActiveSegmentChange?: (segmentIndex: number) => void;
+  hideText?: boolean;
 }
 
 interface ContextMenu {
@@ -75,7 +77,9 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   topic,
   downloadUrls,
   stats,
-  onPlay
+  onPlay,
+  onActiveSegmentChange,
+  hideText = false
 }: NewSyncedTextPlayerProps) {
   
   // Use useWordSync hook directly in component
@@ -113,6 +117,48 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   const [isAddingWord, setIsAddingWord] = useState(false);
   const [hasReportedPlay, setHasReportedPlay] = useState(false);
 
+  const dialogueLines = useMemo(
+    () =>
+      originalText
+        ? originalText
+            .split(/\r?\n/)
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+        : [],
+    [originalText]
+  );
+
+  const dialogueLineRanges = useMemo(() => {
+    if (!dialogueLines.length) return [] as { lineIndex: number; startIndex: number; endIndex: number }[];
+
+    // Only treat as dialogue if at least one line looks like "Speaker A:" / "Speaker B:"
+    const hasDialogueFormat = dialogueLines.some(line => /Speaker\s+[AB]:/i.test(line));
+    if (!hasDialogueFormat) return [] as { lineIndex: number; startIndex: number; endIndex: number }[];
+
+    const ranges: { lineIndex: number; startIndex: number; endIndex: number }[] = [];
+    let globalIndex = 0;
+
+    dialogueLines.forEach((line, lineIndex) => {
+      // Speaker label'lerini ("Speaker A:" / "Speaker B:") kelime sayımından çıkar,
+      // böylece globalIndex MFA'nin label'siz transcriptPlain'indeki kelime indexleriyle hizalanır.
+      const match = line.match(/^(Speaker\s+[AB]):\s*(.*)$/i);
+      const textOnly = match ? match[2] : line;
+      const wordsInLine = textOnly.split(/\s+/).filter(word => word.length > 0);
+      if (!wordsInLine.length) {
+        return;
+      }
+
+      const startIndex = globalIndex;
+      const endIndex = globalIndex + wordsInLine.length - 1;
+      ranges.push({ lineIndex, startIndex, endIndex });
+      globalIndex += wordsInLine.length;
+    });
+
+    return ranges;
+  }, [dialogueLines]);
+
+  const [activeSegmentIndex, setActiveSegmentIndex] = useState<number>(-1);
+
   // Load patterns from backend
   const loadPatterns = async () => {
     if (loadingPatterns || !originalText || !level) return;
@@ -147,9 +193,11 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
 
   // Format time helper
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    const totalMs = Math.floor(seconds * 1000);
+    const mins = Math.floor(totalMs / 60000);
+    const secs = Math.floor((totalMs % 60000) / 1000);
+    const ms = totalMs % 1000;
+    return `${mins}:${secs.toString().padStart(2, '0')}:${ms.toString().padStart(3, '0')}`;
   };
 
   // Handle playback rate change
@@ -245,6 +293,35 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
       hideContextMenu();
     }
   };
+
+  // Map activeWordIndex from useWordSync to a dialogue line index (for Speaker A/B transcripts)
+  useEffect(() => {
+    if (!dialogueLineRanges.length) {
+      if (activeSegmentIndex !== -1) {
+        setActiveSegmentIndex(-1);
+        if (onActiveSegmentChange) {
+          onActiveSegmentChange(-1);
+        }
+      }
+      return;
+    }
+
+    if (activeWordIndex < 0) {
+      return;
+    }
+
+    const matchedRange = dialogueLineRanges.find(
+      range => activeWordIndex >= range.startIndex && activeWordIndex <= range.endIndex
+    );
+    const newIndex = matchedRange ? matchedRange.lineIndex : -1;
+
+    if (newIndex !== activeSegmentIndex) {
+      setActiveSegmentIndex(newIndex);
+      if (onActiveSegmentChange) {
+        onActiveSegmentChange(newIndex);
+      }
+    }
+  }, [activeWordIndex, dialogueLineRanges, activeSegmentIndex, onActiveSegmentChange]);
 
   // Render text with highlighting (word or sentence based)
   const renderText = () => {
@@ -562,9 +639,11 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
       {/* GIZLENDI - Vurgulama türü default cümle olacak bu yüzden ekrandaki "Vurgulama türü" alanını frontend de gizle */}
 
       {/* Text Display */}
-      <div className="mb-6 p-4 bg-gray-50 rounded-lg min-h-[200px] overflow-y-auto max-h-[400px]">
-        {renderText()}
-      </div>
+      {!hideText && (
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg min-h-[200px] overflow-y-auto max-h-[400px]">
+          {renderText()}
+        </div>
+      )}
 
       {/* Audio Controls */}
       {showControls && (

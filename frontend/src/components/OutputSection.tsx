@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import NewSyncedTextPlayer from './NewSyncedTextPlayer';
-import { markTopicAudioListened } from '../lib/api';
+import { markTopicAudioListened, addWordWithTranslation } from '../lib/api';
 
 interface TtsResponseData {
   success?: boolean;
@@ -35,6 +35,71 @@ interface OutputSectionProps {
 
 export default function OutputSection({ audioResult, isLoggedIn }: OutputSectionProps) {
   const [showTranslation, setShowTranslation] = useState(false);
+  const [activeDialogueIndex, setActiveDialogueIndex] = useState<number | null>(null);
+
+  const handleDialogueWordRightClick = async (e: React.MouseEvent, rawWord: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const cleanWord = rawWord.replace(/[.,!?;:]/g, '').trim();
+    if (!cleanWord) return;
+
+    const ok = window.confirm(`"${cleanWord}" kelimesini kelime listenize eklemek istiyor musunuz?`);
+    if (!ok) return;
+
+    try {
+      const originalText = audioResult.message || '';
+      let context = '';
+      let originalSentence = '';
+
+      if (originalText) {
+        const lower = originalText.toLowerCase();
+        const pos = lower.indexOf(cleanWord.toLowerCase());
+        if (pos >= 0) {
+          const start = Math.max(0, pos - 50);
+          const end = Math.min(originalText.length, pos + 50);
+          context = originalText.substring(start, end).trim();
+        }
+
+        const sentences = originalText
+          .split(/[.!?;]+/)
+          .map(s => s.trim())
+          .filter(s => s.length > 5);
+        originalSentence =
+          sentences.find(s => s.toLowerCase().includes(cleanWord.toLowerCase())) || context;
+      }
+
+      if (!context) {
+        context = `The word "${cleanWord}" appears in an English text.`;
+      }
+
+      const result = await addWordWithTranslation(cleanWord, context, '', originalSentence);
+
+      if (result.isExisting) {
+        alert(
+          `"${cleanWord}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${
+            result.data?.definition || 'Belirtilmemiş'
+          }\nÖrnek: ${result.data?.example_sentence || 'Belirtilmemiş'}`
+        );
+      } else if (result.translationError) {
+        alert(
+          `"${cleanWord}" kelimesi eklendi ancak çeviri yapılamadı. Anlamı manuel olarak ekleyebilirsiniz.`
+        );
+      } else {
+        alert(
+          `"${cleanWord}" kelimesi başarıyla eklendi!\n\nAnlam: ${
+            result.data?.definition
+          }\nÖrnek Cümle: ${result.data?.example_sentence}\nSeviye: ${result.data?.level}`
+        );
+      }
+    } catch (error: any) {
+      console.error('Dialogue word add error:', error);
+      alert(`Kelime eklenirken hata oluştu: ${error?.message || 'Bilinmeyen hata'}`);
+    }
+  };
+
+  const hasDialogueTranscript =
+    !!audioResult.message && /Speaker\s+[AB]:/i.test(audioResult.message);
 
   // URL conversion for different environments
   const convertToPlayableUrl = (url: string): string => {
@@ -128,7 +193,7 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
       </div>
 
       {/* Podcast Dialogue View (if message is dialogue-style transcript) */}
-      {audioResult.message && /Speaker\s+[AB]:/i.test(audioResult.message) && (
+      {hasDialogueTranscript && (
         <div className="mb-6 space-y-3">
           {audioResult.message
             .split(/\r?\n/)
@@ -139,6 +204,7 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
               const speakerLabel = match ? match[1] : '';
               const text = match ? match[2] : line;
               const isSpeakerA = /Speaker\s+A/i.test(speakerLabel);
+              const isActive = activeDialogueIndex === index;
 
               return (
                 <div
@@ -146,11 +212,11 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
                   className={`flex ${isSpeakerA ? 'justify-start' : 'justify-end'}`}
                 >
                   <div
-                    className={`max-w-3xl rounded-2xl px-4 py-2 text-sm shadow-sm border ${
+                    className={`max-w-3xl rounded-2xl px-4 py-2 text-sm shadow-sm border transition-transform ${
                       isSpeakerA
                         ? 'bg-blue-50 border-blue-100 text-gray-800'
                         : 'bg-green-50 border-green-100 text-gray-800'
-                    }`}
+                    } ${isActive ? 'ring-2 ring-primary shadow-md scale-[1.01]' : ''}`}
                   >
                     {speakerLabel && (
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
@@ -158,7 +224,19 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
                       </div>
                     )}
                     <div className="leading-relaxed whitespace-pre-wrap">
-                      {text}
+                      {text
+                        .split(/\s+/)
+                        .filter(word => word.length > 0)
+                        .map((word, wordIndex, arr) => (
+                          <span
+                            key={wordIndex}
+                            className="cursor-text"
+                            onContextMenu={e => handleDialogueWordRightClick(e, word)}
+                          >
+                            {word}
+                            {wordIndex < arr.length - 1 ? ' ' : ''}
+                          </span>
+                        ))}
                     </div>
                   </div>
                 </div>
@@ -234,6 +312,8 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
               console.error('markTopicAudioListened error:', e);
             }
           }}
+          onActiveSegmentChange={hasDialogueTranscript ? setActiveDialogueIndex : undefined}
+          hideText={hasDialogueTranscript}
         />
       </div>
 

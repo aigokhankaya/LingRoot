@@ -1517,6 +1517,18 @@ const Dashboard = () => {
               </Card>
             </div>
           </TabsContent>
+
+          <TabsContent value="vocabulary" className="mt-0">
+            <div className="mt-4">
+              <VocabularyTabContent user={user} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="paket-bilgilerim" className="mt-0">
+            <section className="mt-4">
+              <PackageInfo />
+            </section>
+          </TabsContent>
         </Tabs>
       </div>
     </div>

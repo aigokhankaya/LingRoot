@@ -38,8 +38,8 @@ const LoginScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute<any>();
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const translateYAnim = useRef(new Animated.Value(12)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const translateYAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Check if Apple Sign-In is available
@@ -222,7 +222,7 @@ const LoginScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: translateYAnim }] }}>
+      <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: translateYAnim }] }}>
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={styles.content}
@@ -359,6 +359,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 20,
     paddingBottom: 24,
+    justifyContent: 'center',
   },
   centerWrap: {
     flexGrow: 1,

@@ -538,12 +538,14 @@ export const submitContent = async (
     mp3Url: string,
     translatedText?: string,
     adaptedText?: string,
-    chapterId?: string | number
+    chapterId?: string | number,
+    timepoints?: any[],
+    words?: any[]
 ): Promise<ApiResponse> => {
     const url = getApiUrl('/content/submit');
     const headers = createHeaders("application/json");
 
-    const body = JSON.stringify({
+    const payload: any = {
         input,
         input_type: inputType,
         level,
@@ -551,7 +553,17 @@ export const submitContent = async (
         translated_text: translatedText || '',
         adapted_text: adaptedText || '',
         chapter_id: chapterId ?? null,
-    });
+    };
+
+    // Podcast senaryosunda MFA timepoints/words varsa backend'e ilet
+    if (Array.isArray(timepoints) && timepoints.length > 0) {
+        payload.timepoints = timepoints;
+    }
+    if (Array.isArray(words) && words.length > 0) {
+        payload.words = words;
+    }
+
+    const body = JSON.stringify(payload);
 
     try {
         console.log(`Calling Submit Content API: ${url}`);
@@ -1514,9 +1526,9 @@ export interface PodcastCreationParams {
 }
 
 export interface PodcastCreationResponse {
-  success: boolean;
-  message?: string;
+  success?: boolean;
   status?: string;
+  message?: string;
   podcast_url?: string;
   transcript?: string;
   audio_url?: string;
@@ -1524,6 +1536,14 @@ export interface PodcastCreationResponse {
   srt_subtitles?: string;
   duration_seconds?: string;
   file_name?: string;
+  // MFA alignment data from backend (for precise sync on web)
+  timepoints?: Array<{
+    timeSeconds: number;
+    endTimeSeconds?: number;
+    word?: string;
+    markName?: string;
+  }>;
+  words?: string[];
   data?: any;
 }
 
@@ -1612,6 +1632,9 @@ export const createPodcast = async (params: PodcastCreationParams): Promise<Podc
 			duration_seconds: result.duration_seconds,
 			file_name: result.file_name,
 			transcript: result.transcript || result.topic,
+			// Pass through MFA word timings so web player can use them directly
+			timepoints: Array.isArray(result.timepoints) ? result.timepoints : [],
+			words: Array.isArray(result.words) ? result.words : [],
 			data: result.data,
 		};
 

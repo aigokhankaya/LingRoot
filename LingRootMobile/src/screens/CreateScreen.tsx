@@ -145,6 +145,16 @@ const CreateScreen: React.FC = () => {
   const [podcastIncludeHumor, setPodcastIncludeHumor] = useState<boolean>(true);
   const [podcastIncludeFiller, setPodcastIncludeFiller] = useState<boolean>(true);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      if (mode === 'podcast') {
+        setPodcastTopic('');
+        setPodcastError(null);
+      }
+      return () => {};
+    }, [mode])
+  );
+
   // Helper: open external URL reliably without Expo WebBrowser
   const openExternalUrl = async (url: string) => {
     try {
@@ -1022,34 +1032,93 @@ const CreateScreen: React.FC = () => {
         );
       }
 
-      Alert.alert(
-        language === 'tr' ? 'Podcast hazır' : 'Podcast is ready',
-        language === 'tr'
-          ? 'Sesi dinlemek veya altyazıyı açmak için aşağıdaki seçenekleri kullan.'
-          : 'Use the options below to listen to the audio or open subtitles.',
-        [
-          audioUrl
-            ? {
-                text: language === 'tr' ? 'Sesi aç' : 'Open audio',
-                onPress: () => {
-                  Linking.openURL(audioUrl);
-                },
-              }
-            : undefined,
-          vttUrl
-            ? {
-                text: language === 'tr' ? 'Altyazıyı aç' : 'Open subtitles',
-                onPress: () => {
-                  Linking.openURL(vttUrl);
-                },
-              }
-            : undefined,
-          {
-            text: language === 'tr' ? 'Kapat' : 'Close',
-            style: 'cancel',
-          },
-        ].filter(Boolean) as any
-      );
+      // Podcast başarılı oluşturulduktan sonra, içeriği contenthistory tablosuna kaydet (web tarafındaki submitContent fallback'ine benzer)
+      let timepoints: any = response?.timepoints;
+      let words: any = response?.words;
+
+      const topicForTrack = response?.topic || podcastTopic.trim();
+      const transcriptForTrack =
+        response?.transcript ||
+        response?.message ||
+        podcastTopic.trim();
+
+      try {
+        if (typeof timepoints === 'string') {
+          timepoints = JSON.parse(timepoints);
+        }
+      } catch {}
+
+      try {
+        if (typeof words === 'string') {
+          words = JSON.parse(words);
+        }
+      } catch {}
+
+      const safeTimepoints = Array.isArray(timepoints) ? timepoints : [];
+      const safeWords = Array.isArray(words) ? words : [];
+
+      // Podcast içeriğini contenthistory'ye kaydederken varsa MFA timepoints/words'ü de gönder
+      try {
+        const topicForHistory = topicForTrack;
+        const transcriptText = transcriptForTrack;
+
+        await apiService.submitContent(
+          topicForHistory,
+          'podcast',
+          selectedLevel,
+          audioUrl,
+          transcriptText,
+          transcriptText,
+          undefined,
+          safeTimepoints,
+          safeWords
+        );
+        console.log('[Mobile][PODCAST] Podcast submitted to contenthistory via submitContent (with timings)');
+      } catch (submitErr) {
+        console.error('[Mobile][PODCAST] submitContent failed for podcast:', submitErr);
+        // DB kaydı fallback'inin başarısız olması kullanıcıya podcast oynatmayı engellemesin
+      }
+
+      let durationSecondsRaw: any = null;
+      if (typeof response?.duration_seconds === 'number') {
+        durationSecondsRaw = response.duration_seconds;
+      } else if (typeof response?.duration === 'number') {
+        durationSecondsRaw = response.duration;
+      } else if (typeof response?.duration_seconds === 'string') {
+        durationSecondsRaw = parseFloat(response.duration_seconds);
+      } else if (typeof response?.duration === 'string') {
+        durationSecondsRaw = parseFloat(response.duration);
+      } else if (typeof response?.data?.duration === 'number') {
+        durationSecondsRaw = response.data.duration;
+      } else if (typeof response?.data?.totalDuration === 'string') {
+        durationSecondsRaw = parseFloat(response.data.totalDuration);
+      }
+
+      const durationSeconds =
+        typeof durationSecondsRaw === 'number' && Number.isFinite(durationSecondsRaw) && durationSecondsRaw > 0
+          ? durationSecondsRaw
+          : 180;
+
+      const trackId = String(response?.contenthistory_id || Date.now().toString());
+
+      const newTrack: AudioTrack = {
+        id: trackId,
+        title: transcriptForTrack || topicForTrack,
+        url: audioUrl,
+        level: selectedLevel,
+        duration: durationSeconds,
+        created_at: new Date().toISOString(),
+        input_type: 'podcast',
+        translated_text: transcriptForTrack,
+        adapted_text: transcriptForTrack,
+        original_turkish: topicForTrack,
+        mp3_url: audioUrl,
+        timepoints: safeTimepoints,
+        words: safeWords,
+      };
+
+      setCreatedTrack(newTrack);
+      setShowPlayer(true);
     } catch (e: any) {
       const msg =
         e?.message ||

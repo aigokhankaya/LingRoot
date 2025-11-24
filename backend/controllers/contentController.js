@@ -394,7 +394,7 @@ exports.submitContent = async (req, res) => {
   let stepSequence = 1;
 
   try {
-    const { input, input_type, level, mp3_url, translated_text, adapted_text, chapter_id } = req.body;
+    const { input, input_type, level, mp3_url, translated_text, adapted_text, chapter_id, timepoints, words } = req.body;
     const user_id = req.user?.id;
     logger.info(`submitContent request received for user ID: ${user_id || 'anon'}`, { 
       input_type, 
@@ -468,12 +468,14 @@ exports.submitContent = async (req, res) => {
     }
 
     // Debug: Kaydedilecek verileri logla
-    console.log('🔍 [SUBMIT CONTENT DEBUG]', {
+    console.log(' [SUBMIT CONTENT DEBUG]', {
       input: input ? input.substring(0, 50) + '...' : 'EMPTY',
       translated_text: translated_text ? translated_text.substring(0, 50) + '...' : 'EMPTY',
       adapted_text: adapted_text ? adapted_text.substring(0, 50) + '...' : 'EMPTY',
       user_id: validUserId,
-      chapter_id: chapterIdValue
+      chapter_id: chapterIdValue,
+      hasTimepoints: Array.isArray(timepoints) && timepoints.length > 0,
+      hasWords: Array.isArray(words) && words.length > 0
     });
 
     // Supabase veritabanına kaydet (duplicate mp3_url için upsert mantığı)
@@ -501,37 +503,56 @@ exports.submitContent = async (req, res) => {
     let data, error;
     if (existingId) {
       // Güncelle
+      const updatePayload = {
+        input,
+        input_type,
+        level,
+        translated_text: translated_text || '',
+        adapted_text: adapted_text || '',
+        chapter_id: chapterIdValue,
+        updated_at: now,
+      };
+
+      // Podcast zamanlamas3i i e7in g f6nderilen timepoints/words varsa g fcncelle
+      // contenthistory.words/timepoints kolonlar31 TEXT oldu1fu i e7in JSON string olarak sakla
+      if (Array.isArray(timepoints) && timepoints.length > 0) {
+        updatePayload.timepoints = JSON.stringify(timepoints);
+      }
+      if (Array.isArray(words) && words.length > 0) {
+        updatePayload.words = JSON.stringify(words);
+      }
+
       ({ data, error } = await supabase
         .from('contenthistory')
-        .update({
-          input,
-          input_type,
-          level,
-          translated_text: translated_text || '',
-          adapted_text: adapted_text || '',
-          chapter_id: chapterIdValue,
-          updated_at: now,
-        })
+        .update(updatePayload)
         .eq('id', existingId)
         .select());
     } else {
       // Ekle
+      const insertPayload = {
+        input,
+        input_type,
+        level,
+        mp3_url: convertedMp3Url,
+        translated_text: translated_text || '',
+        adapted_text: adapted_text || '',
+        user_id: validUserId,
+        chapter_id: chapterIdValue,
+        created_at: now,
+        updated_at: now,
+      };
+
+      // Podcast zamanlamas3i i e7in g f6nderilen timepoints/words varsa JSON string olarak sakla
+      if (Array.isArray(timepoints) && timepoints.length > 0) {
+        insertPayload.timepoints = JSON.stringify(timepoints);
+      }
+      if (Array.isArray(words) && words.length > 0) {
+        insertPayload.words = JSON.stringify(words);
+      }
+
       ({ data, error } = await supabase
         .from('contenthistory')
-        .insert([
-          {
-            input,
-            input_type,
-            level,
-            mp3_url: convertedMp3Url,
-            translated_text: translated_text || '',
-            adapted_text: adapted_text || '',
-            user_id: validUserId,
-            chapter_id: chapterIdValue,
-            created_at: now,
-            updated_at: now,
-          },
-        ])
+        .insert([insertPayload])
         .select());
     }
 

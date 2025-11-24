@@ -194,6 +194,24 @@ const LibraryScreen: React.FC = () => {
         const tracks: AudioTrack[] = response.data.map((item: any) => {
           // Prefer backend-provided duration; fall back to 180 if missing
           const derivedDurationSec = typeof item?.duration === 'number' ? item.duration : 180;
+
+          // words/timepoints bazı eski kayıtlar için JSON string olarak saklanmış olabilir;
+          // burada güvenli şekilde parse edip diziye çeviriyoruz.
+          let words: any = item.words;
+          let timepoints: any = item.timepoints;
+
+          try {
+            if (typeof words === 'string') {
+              words = JSON.parse(words);
+            }
+          } catch {}
+
+          try {
+            if (typeof timepoints === 'string') {
+              timepoints = JSON.parse(timepoints);
+            }
+          } catch {}
+
           const track = {
             // ID'leri string olarak normalize et (favori eşleşmeleri için kritik)
             id: String(item.id),
@@ -207,12 +225,10 @@ const LibraryScreen: React.FC = () => {
             adapted_text: item.adapted_text,
             original_turkish: item.input || '',
             mp3_url: item.mp3_url,
-            timepoints: Array.isArray(item.timepoints) ? item.timepoints : [],
-            words: item.words || [],
+            timepoints: Array.isArray(timepoints) ? timepoints : [],
+            words: Array.isArray(words) ? words : [],
           };
-          
-          
-          
+
           return track;
         });
         
