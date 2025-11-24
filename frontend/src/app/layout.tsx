@@ -27,8 +27,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <ClientLayout>
-          {/* TODO: Add sufficient top margin to make sure headings are always visible */}
-          <div className="mt-12 pt-16">
+          <div className="mt-2 pt-2">
             {children}
           </div>
         </ClientLayout>

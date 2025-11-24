@@ -6,8 +6,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { io, Socket } from "socket.io-client";
-import { getApiBaseUrl } from "@/lib/api";
 
 interface Attachment {
   id: string;
@@ -62,7 +60,7 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [openUserKeys, setOpenUserKeys] = useState<string[]>([]);
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useRef<any | null>(null);
   const selectedConversationRef = useRef<string | null>(null);
 
   const scrollToBottom = () => {
@@ -322,53 +320,7 @@ const AdminChatInterface: React.FC<AdminChatInterfaceProps> = ({
     return result;
   }, [conversations]);
 
-  // Socket.IO ile gerçek zamanlı admin destek güncellemeleri
-  useEffect(() => {
-    const baseUrl = getApiBaseUrl();
-
-    const socket = io(baseUrl, {
-      path: '/socket.io',
-      transports: ['websocket', 'polling'],
-      withCredentials: true,
-    });
-
-    socketRef.current = socket;
-
-    socket.on('connect', () => {
-      console.log('[SupportSocket] connected:', socket.id);
-      socket.emit('join_admin_support_room');
-    });
-
-    socket.on('support:new_conversation', () => {
-      console.log('[SupportSocket] support:new_conversation received');
-      fetchConversations();
-    });
-
-    socket.on('support:new_message', (payload: { conversationId: string; isAdmin?: boolean }) => {
-      console.log('[SupportSocket] support:new_message received:', payload);
-      fetchConversations();
-
-      const currentConv = selectedConversationRef.current;
-      if (currentConv && payload?.conversationId === currentConv) {
-        fetchMessages(currentConv);
-      }
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log('[SupportSocket] disconnected:', reason);
-    });
-
-    return () => {
-      try {
-        socket.off('support:new_conversation');
-        socket.off('support:new_message');
-        socket.disconnect();
-      } catch (e) {
-        // ignore cleanup errors
-      }
-      socketRef.current = null;
-    };
-  }, [fetchConversations, fetchMessages]);
+  // Socket.IO gerçek zamanlı bağlantısı geçici olarak devre dışı.
 
   // Tüm kullanıcı grupları varsayılan olarak açık gelsin.
   // Yeni gelen kullanıcı grupları da otomatik olarak açık listeye eklenir.
