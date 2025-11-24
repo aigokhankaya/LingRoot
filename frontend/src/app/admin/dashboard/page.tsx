@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import * as echarts from 'echarts';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { deleteUser as deleteUserApi, deleteUsersBulk as deleteUsersBulkApi } from '@/services/userService';
 // Paket Bilgilerim kullanıcı dashboard'ına taşındı
 import AdminChatInterface from '@/components/AdminChatInterface';
@@ -137,19 +138,19 @@ const App: React.FC = () => {
     // Ortalama: 1 dakika video = ~150 kelime = ~200 token = ~1000 karakter
     // Toplam maliyet/dakika: ~$0.016 (TTS) + ~$0.0004 (OpenAI) ≈ $0.0165
     // 1 sayfa = ~500 kelime = ~3.3 dakika
-    
+
     const priceInUSD = price / 35; // ₺ to $ (yaklaşık kur)
     const costPerMinute = 0.0165;
     const minutesPerPage = 3.3;
-    
+
     const estimatedMinutes = Math.floor((priceInUSD * 0.7) / costPerMinute); // %70'ini içerik üretimine ayır
     const estimatedPages = Math.floor(estimatedMinutes / minutesPerPage);
-    
+
     let description = '';
     let features = '';
-    
+
     const nameLower = name.toLowerCase();
-    
+
     if (nameLower.includes('trial') || nameLower.includes('ücretsiz') || nameLower.includes('free')) {
       description = 'TR: Ücretsiz deneme paketi | EN: Free trial package';
       features = 'TR: 3 ses oluşturma hakkı, EN: 3 audio creation credits, TR: Her ses maksimum 10 dakika, EN: Each audio up to 10 minutes, TR: Tüm CEFR seviyeleri, EN: All CEFR levels';
@@ -163,7 +164,7 @@ const App: React.FC = () => {
       description = 'TR: Aylık paket | EN: Monthly package';
       features = `TR: Aylık ~${estimatedMinutes} dakika ses oluşturma, EN: Monthly ~${estimatedMinutes} minutes audio creation, TR: Yaklaşık ${estimatedPages} sayfa metin işleme, EN: Approximately ${estimatedPages} pages text processing, TR: Tüm CEFR seviyeleri, EN: All CEFR levels`;
     }
-    
+
     return {
       description,
       features,
@@ -283,7 +284,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkAuth = async () => {
       const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-      
+
       if (!token) {
         router.push('/admin/login');
         return;
@@ -321,7 +322,7 @@ const App: React.FC = () => {
         setLoading(false);
       }
     };
-    
+
     checkAuth();
   }, [router]);
 
@@ -330,19 +331,19 @@ const App: React.FC = () => {
     try {
       const token = localStorage.getItem('lingroot_token');
       console.log('[FETCH USERS] Starting fetch with token:', token ? 'present' : 'missing');
-      
+
       const response = await fetch('/api/admin/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       console.log('[FETCH USERS] Response status:', response.status);
 
       const data = await response.json();
       console.log('[FETCH USERS] Response data:', data);
-      
+
       if (response.ok && data.success) {
         // Backend'den gelen data formatını kullan (zaten transform edilmiş)
         setUsers(data.users || []);
@@ -601,8 +602,8 @@ const App: React.FC = () => {
   ];
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'tümü' || user.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -649,12 +650,18 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="px-6 py-3 flex justify-between items-center">
-          <div className="flex items-center space-x-3">
-            <i className="fas fa-language text-indigo-600 text-3xl"></i>
-            <h1 className="text-3xl font-bold text-gray-800">Dil Öğrenme Platformu</h1>
+        <div className="px-4 py-0.5 md:px-4 md:py-1 flex flex-wrap items-center gap-2 md:gap-3">
+          <div className="flex items-center space-x-2 md:space-x-3 min-w-0">
+            <Image
+              src="/lingroot-icon.svg"
+              alt="LingRoot Logo"
+              width={40}
+              height={40}
+              className="w-6 h-6 md:w-8 md:h-8"
+            />
+            <h1 className="text-xs sm:text-sm md:text-base lg:text-lg font-medium text-gray-800 truncate leading-tight">Dil Öğrenme Platformu</h1>
           </div>
-          <div className="flex items-center space-x-4 mr-4">
+          <div className="flex items-center space-x-2 md:space-x-4 ml-auto mr-2 md:mr-4">
             <Link href="/welcome">
               <Button
                 variant="outline"
@@ -662,8 +669,8 @@ const App: React.FC = () => {
                 className="!rounded-full border-indigo-500 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 shadow-sm flex items-center gap-2"
               >
                 <i className="fas fa-door-open text-indigo-500"></i>
-                <span className="hidden sm:inline">Welcome Sayfası</span>
-                <span className="sm:hidden">Welcome</span>
+                <span className="hidden xl:inline">Welcome Sayfası</span>
+                <span className="sr-only">Welcome</span>
               </Button>
             </Link>
             <div className="relative">
@@ -675,14 +682,15 @@ const App: React.FC = () => {
                 <AvatarImage src="https://readdy.ai/api/search-image?query=professional%20portrait%20of%20a%20Turkish%20admin%20person%20with%20short%20dark%20hair%20wearing%20business%20casual%20attire%2C%20neutral%20expression%2C%20studio%20lighting%2C%20high%20quality%2C%20photorealistic&width=100&height=100&seq=avatar1&orientation=squarish" />
                 <AvatarFallback>AD</AvatarFallback>
               </Avatar>
-              <span className="text-sm font-medium text-gray-700">Enes Yüzak</span>
+              <span className="hidden xl:inline text-sm font-medium text-gray-700">Enes Yüzak</span>
               <Button
                 onClick={handleLogout}
                 variant="outline"
                 size="sm"
                 className="text-red-600 border-red-600 hover:bg-red-50"
               >
-                Çıkış
+                <i className="fas fa-sign-out-alt xl:hidden"></i>
+                <span className="hidden xl:inline">Çıkış</span>
               </Button>
             </div>
           </div>
@@ -841,62 +849,62 @@ const App: React.FC = () => {
                         </TableRow>
                       ) : (
                         filteredUsers.map((user) => (
-                        <TableRow key={user.id} className="hover:bg-gray-50">
-                          <TableCell>
-                            <Checkbox
-                              id={`select-${user.id}`}
-                              checked={selectedUserIds.has(user.id)}
-                              onChange={(e) => toggleSelectOne(user.id, e.currentTarget.checked)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </TableCell>
-                          <TableCell onClick={() => handleUserClick(user.id)} className="cursor-pointer">
-                            <div className="flex items-center space-x-3">
-                              <Avatar className="h-8 w-8">
-                                <AvatarImage src={`https://readdy.ai/api/search-image?query=professional%20portrait%20of%20a%20Turkish%20person%20with%20neutral%20expression%2C%20studio%20lighting%2C%20high%20quality%2C%20photorealistic&width=100&height=100&seq=${user.id}&orientation=squarish`} />
-                                <AvatarFallback>{user.name.split(' ').map((n: string) => n[0]).join('')}</AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="font-medium">{user.name}</div>
-                                <div className="text-sm text-gray-500">{user.email}</div>
+                          <TableRow key={user.id} className="hover:bg-gray-50">
+                            <TableCell>
+                              <Checkbox
+                                id={`select-${user.id}`}
+                                checked={selectedUserIds.has(user.id)}
+                                onChange={(e) => toggleSelectOne(user.id, e.currentTarget.checked)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </TableCell>
+                            <TableCell onClick={() => handleUserClick(user.id)} className="cursor-pointer">
+                              <div className="flex items-center space-x-3">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage src={`https://readdy.ai/api/search-image?query=professional%20portrait%20of%20a%20Turkish%20person%20with%20neutral%20expression%2C%20studio%20lighting%2C%20high%20quality%2C%20photorealistic&width=100&height=100&seq=${user.id}&orientation=squarish`} />
+                                  <AvatarFallback>{user.name.split(' ').map((n: string) => n[0]).join('')}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <div className="font-medium">{user.name}</div>
+                                  <div className="text-sm text-gray-500">{user.email}</div>
+                                </div>
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={
-                              user.status === 'aktif' ? 'bg-green-100 text-green-800 hover:bg-green-100' :
-                              user.status === 'pasif' ? 'bg-gray-100 text-gray-800 hover:bg-gray-100' :
-                              'bg-amber-100 text-amber-800 hover:bg-amber-100'
-                            }>
-                              {user.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={
-                              user.package === 'Ücretsiz' ? 'bg-primary/10 text-primary hover:bg-primary/10' :
-                              user.package === 'Premium' ? 'bg-purple-100 text-purple-800 hover:bg-purple-100' :
-                              user.package === 'Pro' ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-100' :
-                              'bg-teal-100 text-teal-800 hover:bg-teal-100'
-                            }>
-                              {user.package}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{user.registrationDate}</TableCell>
-                          <TableCell>{user.lastLogin}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="inline-flex items-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 !rounded-button"
-                                onClick={(e) => { e.stopPropagation(); handleDeleteOne(user.id, user.email); }}
-                                title="Sil"
-                              >
-                                <i className="fas fa-trash-alt text-red-600"></i>
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={
+                                user.status === 'aktif' ? 'bg-green-100 text-green-800 hover:bg-green-100' :
+                                  user.status === 'pasif' ? 'bg-gray-100 text-gray-800 hover:bg-gray-100' :
+                                    'bg-amber-100 text-amber-800 hover:bg-amber-100'
+                              }>
+                                {user.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={
+                                user.package === 'Ücretsiz' ? 'bg-primary/10 text-primary hover:bg-primary/10' :
+                                  user.package === 'Premium' ? 'bg-purple-100 text-purple-800 hover:bg-purple-100' :
+                                    user.package === 'Pro' ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-100' :
+                                      'bg-teal-100 text-teal-800 hover:bg-teal-100'
+                              }>
+                                {user.package}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{user.registrationDate}</TableCell>
+                            <TableCell>{user.lastLogin}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="inline-flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 !rounded-button"
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteOne(user.id, user.email); }}
+                                  title="Sil"
+                                >
+                                  <i className="fas fa-trash-alt text-red-600"></i>
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
                         ))
                       )}
                     </TableBody>
@@ -1336,16 +1344,16 @@ const App: React.FC = () => {
                   <Card key={pkg.id} className="overflow-hidden">
                     <CardHeader className={
                       (pkg.name === 'Ücretsiz' || pkg.is_trial) ? 'bg-primary/5 border-b border-primary/20' :
-                      (pkg.name || '').toLowerCase().includes('premium') ? 'bg-purple-50 border-b border-purple-100' :
-                      (pkg.name || '').toLowerCase().includes('pro') ? 'bg-indigo-50 border-b border-indigo-100' :
-                      'bg-teal-50 border-b border-teal-100'
+                        (pkg.name || '').toLowerCase().includes('premium') ? 'bg-purple-50 border-b border-purple-100' :
+                          (pkg.name || '').toLowerCase().includes('pro') ? 'bg-indigo-50 border-b border-indigo-100' :
+                            'bg-teal-50 border-b border-teal-100'
                     }>
                       <div className="flex items-center justify-between mb-2">
                         <CardTitle className={
                           (pkg.name === 'Ücretsiz' || pkg.is_trial) ? 'text-primary' :
-                          (pkg.name || '').toLowerCase().includes('premium') ? 'text-purple-700' :
-                          (pkg.name || '').toLowerCase().includes('pro') ? 'text-indigo-700' :
-                          'text-teal-700'
+                            (pkg.name || '').toLowerCase().includes('premium') ? 'text-purple-700' :
+                              (pkg.name || '').toLowerCase().includes('pro') ? 'text-indigo-700' :
+                                'text-teal-700'
                         }>{pkg.name}</CardTitle>
                         <div className="flex items-center gap-2">
                           {pkg.apple_product_id && (
@@ -1654,28 +1662,28 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 </TabsContent>
-                
+
                 <TabsContent value="podcast">
                   <div className="bg-white rounded-lg shadow-sm p-6">
                     <h3 className="text-lg font-medium mb-4">Podcast İçerikleri</h3>
                     <p className="text-gray-500">Bu bölümde podcast içeriklerini yönetebilirsiniz.</p>
                   </div>
                 </TabsContent>
-                
+
                 <TabsContent value="video">
                   <div className="bg-white rounded-lg shadow-sm p-6">
                     <h3 className="text-lg font-medium mb-4">Video İçerikleri</h3>
                     <p className="text-gray-500">Bu bölümde video içeriklerini yönetebilirsiniz.</p>
                   </div>
                 </TabsContent>
-                
+
                 <TabsContent value="makale">
                   <div className="bg-white rounded-lg shadow-sm p-6">
                     <h3 className="text-lg font-medium mb-4">Makale İçerikleri</h3>
                     <p className="text-gray-500">Bu bölümde makale içeriklerini yönetebilirsiniz.</p>
                   </div>
                 </TabsContent>
-                
+
                 <TabsContent value="quiz">
                   <div className="bg-white rounded-lg shadow-sm p-6">
                     <h3 className="text-lg font-medium mb-4">Quiz İçerikleri</h3>
@@ -1918,11 +1926,11 @@ const App: React.FC = () => {
                 <p className="text-gray-600">TTS (Text-to-Speech) sağlayıcı ayarlarını yönetin</p>
               </div>
               <TtsProviderSelector />
-              
+
               <div className="mt-8">
                 <EnvironmentSelector />
               </div>
-              
+
               <div className="mt-8">
                 <PaymentEnvironmentSelector />
               </div>
@@ -2099,8 +2107,8 @@ const App: React.FC = () => {
           <div className="space-y-4">
             <div>
               <Label>Ad</Label>
-              <Input 
-                value={planForm.name} 
+              <Input
+                value={planForm.name}
                 onChange={(e) => {
                   const newName = e.target.value;
                   // İsim ve fiyat varsa açıklama ve özellikleri otomatik oluştur
@@ -2110,7 +2118,7 @@ const App: React.FC = () => {
                   } else {
                     setPlanForm({ ...planForm, name: newName });
                   }
-                }} 
+                }}
               />
             </div>
             <div>
@@ -2120,9 +2128,9 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label>Fiyat (₺)</Label>
-                <Input 
-                  type="number" 
-                  value={planForm.price} 
+                <Input
+                  type="number"
+                  value={planForm.price}
                   onChange={(e) => {
                     const newPrice = e.target.value;
                     // Fiyat ve isim varsa açıklama ve özellikleri otomatik oluştur
@@ -2132,7 +2140,7 @@ const App: React.FC = () => {
                     } else {
                       setPlanForm({ ...planForm, price: newPrice });
                     }
-                  }} 
+                  }}
                 />
               </div>
               <div>

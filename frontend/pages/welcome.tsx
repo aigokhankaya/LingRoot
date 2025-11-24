@@ -200,7 +200,8 @@ const Welcome: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showPlanRequired, setShowPlanRequired] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  
+  const [showWelcomeLoader, setShowWelcomeLoader] = useState<boolean>(false);
+
   // Welcome guard: Eğer middleware çerezleri varsa (suppressWelcome/postLoginTarget), hemen hedefe yönlendir
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -220,6 +221,19 @@ const Welcome: React.FC = () => {
       }
     } catch {}
   }, [router]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const tsRaw = localStorage.getItem('justLoggedIn') || '0';
+      const ts = Number(tsRaw);
+      if (ts && Date.now() - ts < 5000) {
+        setShowWelcomeLoader(true);
+        const timeout = setTimeout(() => setShowWelcomeLoader(false), 1500);
+        return () => clearTimeout(timeout);
+      }
+    } catch {}
+  }, []);
 
   // 🎯 Chat'ten ve URL'den gelen parametreleri işle
   useEffect(() => {
@@ -707,7 +721,7 @@ const Welcome: React.FC = () => {
   // Haber kartı için tam metni getir
   const handleFetchArticleDetail = async (item: HashtagNewsItem) => {
     if (!item.url) {
-      setArticleDetailError('Bu haber için geçerli bir bağlantı bulunamadı.');
+      setArticleDetailError('Bu haber için geçerli bir bağlantısı bulunamadı.');
       return;
     }
 
@@ -1411,8 +1425,6 @@ const Welcome: React.FC = () => {
       level: englishLevel.toUpperCase(),
       SesHızı: speakingRate,
       voice: voiceType,
-      chapter: chapter.chapter_title,
-      chapter_id: chapter.id,
     };
 
     await handleSubmit(inputData);
@@ -1853,7 +1865,10 @@ const Welcome: React.FC = () => {
         <div className="text-center">
           <p className="mb-4">Oturum açmanız gerekiyor.</p>
           <button 
-            onClick={() => router.push('/login')}
+            onClick={() => {
+              const target = typeof window !== 'undefined' ? window.location.pathname + window.location.search + window.location.hash : '/welcome';
+              router.push(`/login?next=${encodeURIComponent(target)}`);
+            }}
             className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-md"
           >
             Giriş Yap
