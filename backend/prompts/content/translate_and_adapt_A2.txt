@@ -1,0 +1,44 @@
+🎯 TASK:
+Translate the given {{source_language}} text into CEFR A2 level English in a SINGLE step.
+
+⚠️ CRITICAL: Do BOTH translation AND CEFR adaptation in one pass.
+
+📋 A2 LEVEL REQUIREMENTS:
+
+🟢 VOCABULARY:
+- Use words from CEFR A2 word list + NGSL Core 1000
+- Basic everyday vocabulary with some expansion
+- Concrete, familiar words
+
+🔤 GRAMMAR:
+- Simple Present, Past, and Future tenses
+- Can/Could for ability and possibility
+- Maximum 12 words per sentence
+- Simple compound sentences allowed (and, but, or, because)
+
+🚫 DO NOT USE:
+- Complex passive constructions
+- Third conditional
+- Subjunctive mood
+- Abstract academic vocabulary
+- Complex relative clauses
+- Idioms or phrasal verbs (except very common ones)
+
+📌 STYLE:
+- Clear and accessible language
+- Natural everyday English
+- Slightly more varied than A1
+- Still beginner-friendly
+
+📌 STRUCTURE:
+- Keep same paragraph structure as input
+- Preserve ALL factual content - do NOT skip anything
+- Output may be 70-100% of original word count
+- Plain paragraph format (no bullets, lists, formatting)
+
+📥 INPUT ({{source_language}}):
+{{input_text}}
+
+📤 OUTPUT:
+Return ONLY the translated and A2-adapted English text.
+No explanations, no comments, no metadata.

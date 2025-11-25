@@ -5,6 +5,7 @@ const OpenAI = require("openai");
 require("dotenv").config();
 const logger = require("./logger");
 const { translateFromEnglish } = require("./translateFromEnglish");
+const { generateBilingualContent } = require("./translateAndAdapt");
 const { Readability } = require("@mozilla/readability");
 const pdf = require("pdf-parse");
 const mammoth = require("mammoth");
@@ -183,9 +184,10 @@ async function extractFromWebLink(url) {
 }
 
 /**
- * Konu başlığından İki adımda içerik üretir:
- * 1. content_generation_*.txt ile İngilizce içerik üretir (hedef CEFR seviyesinde)
- * 2. translate_from_english_*.txt ile kullanıcı diline çevirir (seviye korunarak)
+ * OPTIMIZED: Konu başlığından TEK LLM çağrısı ile ikili içerik üretir.
+ * Eski yöntem (2 çağrı) yerine generateBilingualContent kullanır.
+ * Token tasarrufu: ~33%
+ * 
  * @returns {{englishText: string, translatedText: string}} - İngilizce içerik (TTS için) ve çevrilmiş içerik (kayıt için)
  */
 async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'Turkish', requestLogger) {
@@ -193,13 +195,48 @@ async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'T
         logger.error("OpenAI API key not found. Cannot generate narration for topic.");
         return null;
     }
-    logger.info(`Generating narration for topic: ${topic} at level ${level} for target language ${inputLanguage}`);
+    
+    logger.info(`[OPTIMIZED] Generating bilingual narration for topic: ${topic} at level ${level}`);
+    console.log(`🎯 [OPTIMIZED TOPIC GENERATION] Single LLM call for: "${topic}" (Level: ${level}, Lang: ${inputLanguage})`);
+    
+    try {
+        // OPTIMIZED: Single LLM call for both English and translated content
+        const result = await generateBilingualContent(topic, inputLanguage, level, requestLogger);
+        
+        if (!result || !result.englishText) {
+            logger.error("[OPTIMIZED] Bilingual generation failed, falling back to legacy method.");
+            // Fallback to legacy 2-step method if new method fails
+            return await generateNarrationForTopicLegacy(topic, level, inputLanguage, requestLogger);
+        }
+        
+        logger.info(`[OPTIMIZED] Generated ${result.englishText.length} chars EN + ${result.translatedText.length} chars ${inputLanguage}`);
+        console.log(`✅ [OPTIMIZED COMPLETE] EN: ${result.englishText.length} chars, ${inputLanguage}: ${result.translatedText.length} chars`);
+        console.log(`💰 [TOKEN SAVINGS] Used ${result.usage?.total_tokens || 'unknown'} tokens in single call`);
+        
+        return {
+            englishText: result.englishText,
+            translatedText: result.translatedText,
+            usage: result.usage,
+            model: result.model
+        };
+    } catch (error) {
+        logger.error(`[OPTIMIZED] Error in bilingual generation: ${error.message}, falling back to legacy.`);
+        // Fallback to legacy method on error
+        return await generateNarrationForTopicLegacy(topic, level, inputLanguage, requestLogger);
+    }
+}
+
+/**
+ * LEGACY: Eski 2-adımlı konu içerik üretimi (fallback olarak tutuldu)
+ * @deprecated Use generateNarrationForTopic which uses optimized single-call method
+ */
+async function generateNarrationForTopicLegacy(topic, level = 'A1', inputLanguage = 'Turkish', requestLogger) {
+    logger.warn(`[LEGACY FALLBACK] Using 2-step method for topic: ${topic}`);
     
     // STEP 1: Generate English content at target CEFR level
     const promptFile = `content_generation_${level.toUpperCase()}.txt`;
     const promptPath = path.join(__dirname, `../prompts/content/${promptFile}`);
-    console.log(`🎯 [INPUT EXTRACTOR - STEP 1] Using prompt file: ${promptFile} to generate English content for topic: "${topic}" (Level: ${level})`);
-    logger.info(`🎯 Input Extractor Step 1 - Selected prompt file: ${promptFile} for topic: "${topic}" (Level: ${level})`);
+    console.log(`🎯 [LEGACY - STEP 1] Using prompt file: ${promptFile}`);
     
     let promptTemplate = fs.readFileSync(promptPath, 'utf-8');
     const prompt = promptTemplate
@@ -207,11 +244,6 @@ async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'T
         .replace(/\{\{level\}\}/g, level.toUpperCase());
     
     try {
-        if (requestLogger) {
-            requestLogger.log(`[prompt:generateNarrationForTopic:step1][input]` + JSON.stringify({ promptName: promptFile, promptText: prompt }, null, 2));
-        }
-        logger.info({ promptName: promptFile, promptText: prompt }, 'generateNarrationForTopic Step 1: Generating English content');
-        
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
@@ -224,26 +256,15 @@ async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'T
         const englishText = completion.choices[0]?.message?.content?.trim();
         const cleanedEnglishText = englishText.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
         
-        logger.info(`Generated ${cleanedEnglishText.length} characters of English content at ${level} level`);
-        console.log(`✅ [INPUT EXTRACTOR - STEP 1] Generated English content (${cleanedEnglishText.length} chars)`);
-        
-        // STEP 2: Translate English content to target language (maintaining CEFR level)
-        console.log(`🎯 [INPUT EXTRACTOR - STEP 2] Translating English to ${inputLanguage} (Level: ${level})`);
-        logger.info(`🎯 Input Extractor Step 2 - Translating to ${inputLanguage} at ${level} level`);
-        
+        // STEP 2: Translate English content to target language
         const translationResult = await translateFromEnglish(cleanedEnglishText, inputLanguage, level, requestLogger);
-        const finalText = translationResult.text;
         
-        logger.info(`Translation to ${inputLanguage} complete: ${finalText.length} characters`);
-        console.log(`✅ [INPUT EXTRACTOR - STEP 2] Translation complete (${finalText.length} chars)`);
-        
-        // Return both English (for TTS) and translated text (for display/storage)
         return {
             englishText: cleanedEnglishText,
-            translatedText: finalText
+            translatedText: translationResult.text
         };
     } catch (error) {
-        logger.error(`Error generating narration for topic: ${error.message}`);
+        logger.error(`[LEGACY] Error generating narration for topic: ${error.message}`);
         return null;
     }
 }

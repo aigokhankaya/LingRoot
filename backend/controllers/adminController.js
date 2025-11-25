@@ -169,7 +169,7 @@ exports.getCostDashboard = async (req, res) => {
     // 5) Raw items list for per-operation tracking (limited for performance)
     const { data: itemRows, error: itemError } = await supabase
       .from('contenthistory')
-      .select('id, created_at, entry_source, input_type, audio_duration_seconds, openai_cost_usd, tts_cost_usd, total_cost_usd, tts_provider, tts_category, tts_voice_name')
+      .select('id, created_at, entry_source, input_type, audio_duration_seconds, openai_cost_usd, tts_cost_usd, total_cost_usd, tts_provider, tts_category, tts_voice_name, llm_usage_details, openai_prompt_tokens, openai_completion_tokens, openai_total_tokens')
       .gte('created_at', fromIso)
       .lt('created_at', toIso)
       .order('created_at', { ascending: false })
@@ -182,23 +182,43 @@ exports.getCostDashboard = async (req, res) => {
 
     const defaultLlmModel = process.env.OPENAI_DEFAULT_MODEL || 'gpt-4o';
 
-    const items = (itemRows || []).map(row => ({
-      id: row.id,
-      created_at: row.created_at,
-      entry_source: row.entry_source || row.input_type || 'unknown',
-      input_type: row.input_type || null,
-      audio_minutes: row.audio_duration_seconds ? Number((Number(row.audio_duration_seconds) / 60).toFixed(2)) : null,
-      // LLM side (currently OpenAI-only in this flow)
-      llm_service: (row.openai_cost_usd && Number(row.openai_cost_usd) > 0) ? 'openai' : null,
-      llm_model: (row.openai_cost_usd && Number(row.openai_cost_usd) > 0) ? defaultLlmModel : null,
-      llm_cost_usd: row.openai_cost_usd != null ? Number(Number(row.openai_cost_usd).toFixed(6)) : 0,
-      // TTS side
-      tts_provider: row.tts_provider || null,
-      tts_category: row.tts_category || null,
-      tts_voice_name: row.tts_voice_name || null,
-      tts_cost_usd: row.tts_cost_usd != null ? Number(Number(row.tts_cost_usd).toFixed(6)) : 0,
-      total_cost_usd: row.total_cost_usd != null ? Number(Number(row.total_cost_usd).toFixed(6)) : null,
-    }));
+    const items = (itemRows || []).map(row => {
+      // Parse llm_usage_details if it exists
+      let llmUsageDetails = null;
+      if (row.llm_usage_details) {
+        try {
+          llmUsageDetails = typeof row.llm_usage_details === 'string' 
+            ? JSON.parse(row.llm_usage_details) 
+            : row.llm_usage_details;
+        } catch (e) {
+          logger.warn(`[ADMIN COST] Failed to parse llm_usage_details for item ${row.id}`);
+        }
+      }
+
+      return {
+        id: row.id,
+        created_at: row.created_at,
+        entry_source: row.entry_source || row.input_type || 'unknown',
+        input_type: row.input_type || null,
+        audio_minutes: row.audio_duration_seconds ? Number((Number(row.audio_duration_seconds) / 60).toFixed(2)) : null,
+        // LLM side (currently OpenAI-only in this flow)
+        llm_service: (row.openai_cost_usd && Number(row.openai_cost_usd) > 0) ? 'openai' : null,
+        llm_model: (row.openai_cost_usd && Number(row.openai_cost_usd) > 0) ? defaultLlmModel : null,
+        llm_cost_usd: row.openai_cost_usd != null ? Number(Number(row.openai_cost_usd).toFixed(6)) : 0,
+        // Token details
+        openai_prompt_tokens: row.openai_prompt_tokens || 0,
+        openai_completion_tokens: row.openai_completion_tokens || 0,
+        openai_total_tokens: row.openai_total_tokens || 0,
+        // TTS side
+        tts_provider: row.tts_provider || null,
+        tts_category: row.tts_category || null,
+        tts_voice_name: row.tts_voice_name || null,
+        tts_cost_usd: row.tts_cost_usd != null ? Number(Number(row.tts_cost_usd).toFixed(6)) : 0,
+        total_cost_usd: row.total_cost_usd != null ? Number(Number(row.total_cost_usd).toFixed(6)) : null,
+        // Detailed LLM usage breakdown per prompt
+        llm_usage_details: llmUsageDetails,
+      };
+    });
 
     return res.status(200).json({
       success: true,

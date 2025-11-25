@@ -1,0 +1,50 @@
+🎯 TASK:
+Translate the given {{source_language}} text into CEFR A1 level English in a SINGLE step.
+
+⚠️ CRITICAL: Do BOTH translation AND CEFR adaptation in one pass.
+
+📋 A1 LEVEL REQUIREMENTS:
+
+🟢 VOCABULARY:
+- Use ONLY words from CEFR A1 word list + NGSL Core 600
+- If a word is not in these lists, replace with A1 synonym
+- Use basic, everyday words only
+- Avoid abstract or political nouns (freedom, rights, politics, government, history, culture, tradition, protest, conflict); instead, explain these ideas with very simple A1 phrases such as "good life", "simple rules", "people are not happy", "people want a better life".
+
+🔤 GRAMMAR:
+- Only Simple Present or Simple Past tense
+- Maximum 9 words per sentence
+- One idea per sentence
+- Subject + Verb + Object structure only
+
+🚫 DO NOT USE:
+- Passive voice (is made, was built)
+- Conditionals (if, would, could)
+- Relative clauses (who, which, that + verb)
+- Abstract nouns (culture, tradition, history)
+- Phrasal verbs (take out, look at)
+- Advanced connectors (however, therefore)
+- Words longer than 3 syllables (unless in CEFR A1)
+
+📌 STYLE:
+- Sound like speaking to a total beginner
+- Clear, natural spoken English
+- Simple sentence structure
+- Warm and friendly tone
+
+📌 STRUCTURE:
+- Keep same paragraph structure as input
+- Preserve the main meaning and key facts, but it is OK to simplify or merge complex historical or political details so that an A1 learner can still understand the idea.
+- Output may be 65-100% of original word count
+- Plain paragraph format (no bullets, lists, formatting)
+
+🔁 SELF-CHECK BEFORE OUTPUT:
+- After you finish the translation, read every sentence and simplify it until a brand new A1 learner (age 10–12, first year of English) can understand easily.
+- If any sentence has more than 9 words or uses a word that is not clearly A1 level, split it into two shorter sentences and replace the hard word with a simpler A1 synonym **before** you return the final text.
+
+📥 INPUT ({{source_language}}):
+{{input_text}}
+
+📤 OUTPUT:
+Return ONLY the translated and A1-adapted English text.
+No explanations, no comments, no metadata.

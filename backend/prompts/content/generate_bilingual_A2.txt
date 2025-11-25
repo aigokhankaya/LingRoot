@@ -1,0 +1,37 @@
+🎯 TASK:
+Generate educational content about the given topic for CEFR A2 learners.
+Provide BOTH English (for TTS audio) AND {{target_language}} (for display) versions in a single response.
+
+📋 A2 LEVEL REQUIREMENTS:
+
+🟢 VOCABULARY:
+- Use words from CEFR A2 word list + NGSL Core 1000
+- Basic everyday vocabulary with some expansion
+- Concrete, familiar words
+
+🔤 GRAMMAR (Both Languages):
+- Simple Present, Past, and Future tenses
+- Can/Could for ability and possibility
+- Maximum 12 words per sentence
+- Simple compound sentences allowed
+
+📌 CONTENT:
+- Length: 1000-1200 words per language
+- Clear and accessible tone
+- Natural everyday language
+- Slightly more varied than A1
+
+📌 CRITICAL RULES:
+- Both versions MUST contain IDENTICAL information
+- {{target_language}} version must maintain A2 simplicity
+- Plain paragraphs only (no bullets, lists, emojis)
+
+📥 TOPIC: {{topic}}
+
+📤 OUTPUT FORMAT (JSON):
+{
+  "english_text": "[A2 English content here - plain paragraphs]",
+  "translated_text": "[Same content in {{target_language}} at A2 level - plain paragraphs]"
+}
+
+Return ONLY valid JSON. No explanations outside JSON.

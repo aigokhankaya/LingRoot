@@ -1,0 +1,38 @@
+🎯 TASK:
+Generate educational content about the given topic for CEFR B1 learners.
+Provide BOTH English (for TTS audio) AND {{target_language}} (for display) versions in a single response.
+
+📋 B1 LEVEL REQUIREMENTS:
+
+🟢 VOCABULARY:
+- Use words from CEFR B1 word list + NGSL Core 2000
+- Intermediate vocabulary range
+- Some abstract concepts if clearly explained
+
+🔤 GRAMMAR (Both Languages):
+- All simple tenses + Present Perfect
+- First Conditional allowed
+- Maximum 15 words per sentence
+- Compound and some complex sentences
+- Simple passive voice allowed
+
+📌 CONTENT:
+- Length: 1200-1500 words per language
+- Clear and natural English
+- Good flow between sentences
+- Engaging but accessible
+
+📌 CRITICAL RULES:
+- Both versions MUST contain IDENTICAL information
+- {{target_language}} version must maintain B1 level
+- Plain paragraphs only (no bullets, lists, emojis)
+
+📥 TOPIC: {{topic}}
+
+📤 OUTPUT FORMAT (JSON):
+{
+  "english_text": "[B1 English content here - plain paragraphs]",
+  "translated_text": "[Same content in {{target_language}} at B1 level - plain paragraphs]"
+}
+
+Return ONLY valid JSON. No explanations outside JSON.

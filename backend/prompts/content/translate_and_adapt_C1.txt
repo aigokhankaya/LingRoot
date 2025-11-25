@@ -1,0 +1,48 @@
+🎯 TASK:
+Translate the given {{source_language}} text into CEFR C1 level English in a SINGLE step.
+
+⚠️ CRITICAL: Do BOTH translation AND CEFR adaptation in one pass.
+
+📋 C1 LEVEL REQUIREMENTS:
+
+🟢 VOCABULARY:
+- Advanced vocabulary range
+- Abstract and specialized terms allowed
+- Idiomatic expressions and collocations
+- Nuanced word choices for precise meaning
+
+🔤 GRAMMAR:
+- Full range of tenses and aspects
+- All conditional types
+- Advanced passive constructions
+- Complex sentence structures
+- Maximum 22 words per sentence (flexible)
+- Inversion for emphasis
+
+✅ CAN USE:
+- Cleft sentences (It was... that/who)
+- Mixed conditionals
+- Advanced relative clauses
+- Nominalization
+- Sophisticated discourse markers
+- Ellipsis and substitution
+
+📌 STYLE:
+- Near-native fluency
+- Varied and sophisticated sentence structure
+- Implicit meaning and inference
+- Academic and professional register
+- Natural flow and cohesion
+
+📌 STRUCTURE:
+- Keep same paragraph structure as input
+- Preserve ALL factual content with full nuance
+- Output may be 90-110% of original word count
+- Plain paragraph format
+
+📥 INPUT ({{source_language}}):
+{{input_text}}
+
+📤 OUTPUT:
+Return ONLY the translated and C1-adapted English text.
+No explanations, no comments, no metadata.

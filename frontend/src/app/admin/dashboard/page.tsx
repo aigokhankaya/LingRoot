@@ -127,6 +127,19 @@ const App: React.FC = () => {
   const [costItems, setCostItems] = useState<any[]>([]);
   const [costLoading, setCostLoading] = useState(false);
   const [costError, setCostError] = useState<string | null>(null);
+  const [expandedCostRows, setExpandedCostRows] = useState<Set<string>>(new Set());
+  
+  const toggleCostRowExpansion = (itemId: string) => {
+    setExpandedCostRows(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
   const resetPlanForm = () => setPlanForm({
     name: '', description: '', price: '', interval: 'monthly', features: '', is_active: true, is_trial: false, trial_days: 7, apple_product_id: '', google_product_id: ''
   });
@@ -1143,26 +1156,118 @@ const App: React.FC = () => {
                                 </TableCell>
                               </TableRow>
                             )}
-                            {costItems.map((item, idx) => (
-                              <TableRow key={item.id || idx}>
-                                <TableCell className="w-40 text-xs text-gray-500">
-                                  {item.created_at ? new Date(item.created_at).toLocaleString('tr-TR') : '-'}
-                                </TableCell>
-                                <TableCell className="w-24 text-sm">
-                                  {item.audio_minutes != null ? (item.audio_minutes?.toFixed?.(2) ?? item.audio_minutes) : '-'}
-                                </TableCell>
-                                <TableCell className="text-sm text-gray-700">{item.entry_source || 'unknown'}</TableCell>
-                                <TableCell className="text-sm text-gray-700">{item.input_type || '-'}</TableCell>
-                                <TableCell className="text-sm text-gray-700">{item.llm_service || '-'}</TableCell>
-                                <TableCell className="text-sm text-gray-700">{item.llm_model || '-'}</TableCell>
-                                <TableCell className="text-right text-sm">{item.llm_cost_usd?.toFixed?.(4) ?? item.llm_cost_usd}</TableCell>
-                                <TableCell className="text-sm text-gray-700">{item.tts_provider || '-'}</TableCell>
-                                <TableCell className="text-sm text-gray-700">{item.tts_category || '-'}</TableCell>
-                                <TableCell className="text-sm text-gray-700">{item.tts_voice_name || '-'}</TableCell>
-                                <TableCell className="text-right text-sm">{item.tts_cost_usd?.toFixed?.(4) ?? item.tts_cost_usd}</TableCell>
-                                <TableCell className="text-right text-sm font-semibold">{item.total_cost_usd?.toFixed?.(4) ?? item.total_cost_usd}</TableCell>
-                              </TableRow>
-                            ))}
+                            {costItems.map((item, idx) => {
+                              const itemId = item.id || `item-${idx}`;
+                              const isExpanded = expandedCostRows.has(itemId);
+                              const hasDetails = item.llm_usage_details && Array.isArray(item.llm_usage_details) && item.llm_usage_details.length > 0;
+                              
+                              return (
+                                <React.Fragment key={itemId}>
+                                  <TableRow 
+                                    className={`${hasDetails ? 'cursor-pointer hover:bg-gray-50' : ''} ${isExpanded ? 'bg-blue-50' : ''}`}
+                                    onClick={() => hasDetails && toggleCostRowExpansion(itemId)}
+                                  >
+                                    <TableCell className="w-40 text-xs text-gray-500">
+                                      <div className="flex items-center gap-1">
+                                        {hasDetails && (
+                                          <span className="text-blue-500">{isExpanded ? '▼' : '▶'}</span>
+                                        )}
+                                        {item.created_at ? new Date(item.created_at).toLocaleString('tr-TR') : '-'}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="w-24 text-sm">
+                                      {item.audio_minutes != null ? (item.audio_minutes?.toFixed?.(2) ?? item.audio_minutes) : '-'}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-gray-700">{item.entry_source || 'unknown'}</TableCell>
+                                    <TableCell className="text-sm text-gray-700">{item.input_type || '-'}</TableCell>
+                                    <TableCell className="text-sm text-gray-700">{item.llm_service || '-'}</TableCell>
+                                    <TableCell className="text-sm text-gray-700">{item.llm_model || '-'}</TableCell>
+                                    <TableCell className="text-right text-sm">{item.llm_cost_usd?.toFixed?.(4) ?? item.llm_cost_usd}</TableCell>
+                                    <TableCell className="text-sm text-gray-700">{item.tts_provider || '-'}</TableCell>
+                                    <TableCell className="text-sm text-gray-700">{item.tts_category || '-'}</TableCell>
+                                    <TableCell className="text-sm text-gray-700">{item.tts_voice_name || '-'}</TableCell>
+                                    <TableCell className="text-right text-sm">{item.tts_cost_usd?.toFixed?.(4) ?? item.tts_cost_usd}</TableCell>
+                                    <TableCell className="text-right text-sm font-semibold">{item.total_cost_usd?.toFixed?.(4) ?? item.total_cost_usd}</TableCell>
+                                  </TableRow>
+                                  {/* Expanded detail row */}
+                                  {isExpanded && hasDetails && (
+                                    <TableRow className="bg-blue-50/50">
+                                      <TableCell colSpan={12} className="p-0">
+                                        <div className="p-4 border-l-4 border-blue-400">
+                                          <h4 className="text-sm font-semibold text-gray-700 mb-3">🔍 Prompt Bazlı LLM Maliyet Detayları</h4>
+                                          <div className="overflow-x-auto">
+                                            <table className="w-full text-sm border-collapse">
+                                              <thead>
+                                                <tr className="bg-gray-100">
+                                                  <th className="text-left p-2 border">Prompt Adı</th>
+                                                  <th className="text-left p-2 border">LLM Model</th>
+                                                  <th className="text-right p-2 border">Input Token</th>
+                                                  <th className="text-right p-2 border">Output Token</th>
+                                                  <th className="text-right p-2 border">Toplam Token</th>
+                                                  <th className="text-right p-2 border">Tahmini Maliyet</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {item.llm_usage_details.map((detail: any, detailIdx: number) => {
+                                                  // Calculate cost per detail
+                                                  const pricing: Record<string, { input: number; output: number }> = {
+                                                    'gpt-4o': { input: 0.005, output: 0.015 },
+                                                    'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+                                                    'o4-mini': { input: 0.0025, output: 0.005 },
+                                                  };
+                                                  const modelPricing = pricing[detail.model] || pricing['gpt-4o'];
+                                                  const inputCost = ((detail.prompt_tokens || 0) / 1000) * modelPricing.input;
+                                                  const outputCost = ((detail.completion_tokens || 0) / 1000) * modelPricing.output;
+                                                  const totalDetailCost = inputCost + outputCost;
+                                                  
+                                                  return (
+                                                    <tr key={detailIdx} className="hover:bg-gray-50">
+                                                      <td className="p-2 border font-medium text-blue-600">
+                                                        {detail.prompt_name || 'unknown'}
+                                                      </td>
+                                                      <td className="p-2 border text-gray-600">
+                                                        {detail.model || '-'}
+                                                      </td>
+                                                      <td className="p-2 border text-right text-gray-600">
+                                                        {detail.prompt_tokens?.toLocaleString() || 0}
+                                                      </td>
+                                                      <td className="p-2 border text-right text-gray-600">
+                                                        {detail.completion_tokens?.toLocaleString() || 0}
+                                                      </td>
+                                                      <td className="p-2 border text-right font-medium">
+                                                        {detail.total_tokens?.toLocaleString() || 0}
+                                                      </td>
+                                                      <td className="p-2 border text-right font-semibold text-green-600">
+                                                        ${totalDetailCost.toFixed(6)}
+                                                      </td>
+                                                    </tr>
+                                                  );
+                                                })}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                          {/* Summary row */}
+                                          <div className="mt-3 flex gap-6 text-sm text-gray-600">
+                                            <span>
+                                              <strong>Toplam Token:</strong> {item.openai_total_tokens?.toLocaleString() || 0}
+                                            </span>
+                                            <span>
+                                              <strong>Input:</strong> {item.openai_prompt_tokens?.toLocaleString() || 0}
+                                            </span>
+                                            <span>
+                                              <strong>Output:</strong> {item.openai_completion_tokens?.toLocaleString() || 0}
+                                            </span>
+                                            <span className="text-green-600 font-semibold">
+                                              <strong>Toplam LLM Maliyeti:</strong> ${item.llm_cost_usd?.toFixed(6) || '0.000000'}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
                           </TableBody>
                         </Table>
                       </ScrollArea>
