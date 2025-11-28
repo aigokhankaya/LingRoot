@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/router';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useTranslation } from '@/lib/i18n';
@@ -8,6 +9,7 @@ import { useTranslation } from '@/lib/i18n';
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const { t } = useTranslation();
+  const router = useRouter();
 
   return (
     <header className="flex items-center justify-between py-4 px-6 bg-white/90 border-b border-border backdrop-blur-sm">
@@ -49,7 +51,13 @@ const Header: React.FC = () => {
                 Profil
               </Button>
             </Link>
-            <Button onClick={logout} className="ml-2 text-xs md:text-sm">
+            <Button
+              onClick={() => {
+                logout();
+                router.push('/');
+              }}
+              className="ml-2 text-xs md:text-sm"
+            >
               {t('logout')}
             </Button>
           </>
