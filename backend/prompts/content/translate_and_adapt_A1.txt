@@ -1,46 +1,45 @@
 🎯 TASK:
-Translate the given {{source_language}} text into CEFR A1 level English in a SINGLE step.
+Translate the given {{source_language}} text into CEFR A1 level English in a SINGLE optimized step.
 
 ⚠️ CRITICAL: Do BOTH translation AND CEFR adaptation in one pass.
 
 📋 A1 LEVEL REQUIREMENTS:
 
 🟢 VOCABULARY:
-- Use ONLY words from CEFR A1 word list + NGSL Core 600
-- If a word is not in these lists, replace with A1 synonym
-- Use basic, everyday words only
-- Avoid abstract or political nouns (freedom, rights, politics, government, history, culture, tradition, protest, conflict); instead, explain these ideas with very simple A1 phrases such as "good life", "simple rules", "people are not happy", "people want a better life".
+- Use ONLY words from CEFR A1 word list + NGSL Core 600.
+- If a word is not in these lists, replace with a simpler A1 synonym that keeps the meaning.
+- Use basic, high-frequency everyday words.
+- Avoid abstract nouns (freedom, rights, politics); replace with simple phrases ("good life", "fair rules").
 
 🔤 GRAMMAR:
-- Only Simple Present or Simple Past tense
-- Maximum 9 words per sentence
-- One idea per sentence
-- Subject + Verb + Object structure only
+- Only Simple Present or Simple Past tense.
+- Maximum 9 words per sentence.
+- One idea per sentence.
+- Subject + Verb + Object structure only.
+- No passive voice, conditionals, or relative clauses.
+
+✨ QUALITY & NATURALNESS (CRITICAL):
+- **Natural Flow:** The output must sound like natural English spoken by a native speaker to a child or beginner. Avoid awkward, robotic, or "translation-like" phrasing.
+- **Context Retention:** Preserve the core meaning, emotion, and key facts of the original text.
+- **Simplification Strategy:** If a sentence is complex, break it down into 2-3 simple sentences. Do not lose information; simplify the *delivery*.
+- **Educational Focus:** Ensure the text is clear and easy to follow, suitable for a learning environment.
 
 🚫 DO NOT USE:
 - Passive voice (is made, was built)
 - Conditionals (if, would, could)
 - Relative clauses (who, which, that + verb)
-- Abstract nouns (culture, tradition, history)
 - Phrasal verbs (take out, look at)
 - Advanced connectors (however, therefore)
-- Words longer than 3 syllables (unless in CEFR A1)
-
-📌 STYLE:
-- Sound like speaking to a total beginner
-- Clear, natural spoken English
-- Simple sentence structure
-- Warm and friendly tone
+- Words longer than 3 syllables (unless strictly A1)
 
 📌 STRUCTURE:
-- Keep same paragraph structure as input
-- Preserve the main meaning and key facts, but it is OK to simplify or merge complex historical or political details so that an A1 learner can still understand the idea.
-- Output may be 65-100% of original word count
-- Plain paragraph format (no bullets, lists, formatting)
+- Keep same paragraph structure as input.
+- Output may be 65-100% of original word count.
+- Plain paragraph format (no bullets, lists, formatting).
 
 🔁 SELF-CHECK BEFORE OUTPUT:
-- After you finish the translation, read every sentence and simplify it until a brand new A1 learner (age 10–12, first year of English) can understand easily.
-- If any sentence has more than 9 words or uses a word that is not clearly A1 level, split it into two shorter sentences and replace the hard word with a simpler A1 synonym **before** you return the final text.
+- Read every sentence. Is it simple? Is it natural?
+- If a sentence is >9 words or sounds "translated", fix it immediately.
 
 📥 INPUT ({{source_language}}):
 {{input_text}}

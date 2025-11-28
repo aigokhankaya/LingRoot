@@ -204,9 +204,8 @@ async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'T
         const result = await generateBilingualContent(topic, inputLanguage, level, requestLogger);
         
         if (!result || !result.englishText) {
-            logger.error("[OPTIMIZED] Bilingual generation failed, falling back to legacy method.");
-            // Fallback to legacy 2-step method if new method fails
-            return await generateNarrationForTopicLegacy(topic, level, inputLanguage, requestLogger);
+            logger.error("[OPTIMIZED] Bilingual generation failed.");
+            return null;
         }
         
         logger.info(`[OPTIMIZED] Generated ${result.englishText.length} chars EN + ${result.translatedText.length} chars ${inputLanguage}`);
@@ -220,51 +219,7 @@ async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'T
             model: result.model
         };
     } catch (error) {
-        logger.error(`[OPTIMIZED] Error in bilingual generation: ${error.message}, falling back to legacy.`);
-        // Fallback to legacy method on error
-        return await generateNarrationForTopicLegacy(topic, level, inputLanguage, requestLogger);
-    }
-}
-
-/**
- * LEGACY: Eski 2-adımlı konu içerik üretimi (fallback olarak tutuldu)
- * @deprecated Use generateNarrationForTopic which uses optimized single-call method
- */
-async function generateNarrationForTopicLegacy(topic, level = 'A1', inputLanguage = 'Turkish', requestLogger) {
-    logger.warn(`[LEGACY FALLBACK] Using 2-step method for topic: ${topic}`);
-    
-    // STEP 1: Generate English content at target CEFR level
-    const promptFile = `content_generation_${level.toUpperCase()}.txt`;
-    const promptPath = path.join(__dirname, `../prompts/content/${promptFile}`);
-    console.log(`🎯 [LEGACY - STEP 1] Using prompt file: ${promptFile}`);
-    
-    let promptTemplate = fs.readFileSync(promptPath, 'utf-8');
-    const prompt = promptTemplate
-        .replace(/\{\{topic\}\}/g, topic)
-        .replace(/\{\{level\}\}/g, level.toUpperCase());
-    
-    try {
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                { role: "system", content: `You are a professional language educator specializing in creating CEFR ${level} level English educational content.` },
-                { role: "user", content: prompt },
-            ],
-            temperature: 0.7,
-        });
-        
-        const englishText = completion.choices[0]?.message?.content?.trim();
-        const cleanedEnglishText = englishText.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
-        
-        // STEP 2: Translate English content to target language
-        const translationResult = await translateFromEnglish(cleanedEnglishText, inputLanguage, level, requestLogger);
-        
-        return {
-            englishText: cleanedEnglishText,
-            translatedText: translationResult.text
-        };
-    } catch (error) {
-        logger.error(`[LEGACY] Error generating narration for topic: ${error.message}`);
+        logger.error(`[OPTIMIZED] Error in bilingual generation: ${error.message}`);
         return null;
     }
 }

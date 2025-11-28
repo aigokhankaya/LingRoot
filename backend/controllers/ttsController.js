@@ -540,47 +540,12 @@ const processTtsRequest = async (req, res) => {
                 logRequestStep(requestId, 'translateAndAdapt:success', { resultLength: textToAdapt.length });
                 
             } catch (optimizedError) {
-                // Fallback to legacy 2-step method if optimized fails
-                logger.warn(`[${requestId}] [OPTIMIZED FALLBACK] Single-call failed: ${optimizedError.message}, using legacy 2-step`);
-                console.log(`⚠️ [FALLBACK] Using legacy 2-step translate+adapt`);
-                
-                try {
-                    // Legacy Step 1: Translate
-                    const trResult = await translateToEnglishWithOpenAI(cleanedText, level);
-                    openaiCallCount += 1;
-                    translationResult = typeof trResult === 'object' ? trResult.text : String(trResult || '');
-                    textToAdapt = translationResult;
-                    
-                    if (trResult?.usage) {
-                        openaiUsage.prompt_tokens += trResult.usage.prompt_tokens || 0;
-                        openaiUsage.completion_tokens += trResult.usage.completion_tokens || 0;
-                        openaiUsage.total_tokens += trResult.usage.total_tokens || 0;
-                    }
-                    
-                    // Legacy Step 2: Adapt
-                    const adaptedResult = await adaptToCEFRFunc(textToAdapt, level);
-                    openaiCallCount += 1;
-                    
-                    if (typeof adaptedResult === 'object' && adaptedResult?.text) {
-                        textToAdapt = adaptedResult.text;
-                        if (adaptedResult.usage) {
-                            openaiUsage.prompt_tokens += adaptedResult.usage.prompt_tokens || 0;
-                            openaiUsage.completion_tokens += adaptedResult.usage.completion_tokens || 0;
-                            openaiUsage.total_tokens += adaptedResult.usage.total_tokens || 0;
-                        }
-                    } else {
-                        textToAdapt = adaptedResult;
-                    }
-                    
-                    logger.info(`[${requestId}] [LEGACY FALLBACK] 2-step translate+adapt complete`);
-                } catch (legacyError) {
-                    logger.error(`[${requestId}] Both optimized and legacy methods failed: ${legacyError.message}`);
-                    return res.status(422).json({
-                        success: false,
-                        message: 'Translation and adaptation failed',
-                        error: legacyError.message
-                    });
-                }
+                logger.error(`[${requestId}] Optimized translate+adapt failed: ${optimizedError.message}`);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Translation and adaptation failed',
+                    error: optimizedError.message
+                });
             }
             
             logStep({

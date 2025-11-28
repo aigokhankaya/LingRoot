@@ -1,35 +1,39 @@
 🎯 TASK:
-Generate educational content about the given topic for CEFR A1 learners.
+Generate high-quality, engaging educational content about the given topic for CEFR A1 learners.
 Provide BOTH English (for TTS audio) AND {{target_language}} (for display) versions in a single response.
 
 📋 A1 LEVEL REQUIREMENTS:
 
 🟢 VOCABULARY:
-- Use ONLY words from CEFR A1 word list + NGSL Core 600
-- Basic everyday words only
-- Avoid abstract or political nouns (freedom, rights, politics, government, history, culture, tradition, protest, conflict); describe these ideas with very simple A1 phrases like "good life", "fair rules", "people are not happy"
+- Use ONLY words from CEFR A1 word list + NGSL Core 600.
+- Use basic, high-frequency everyday words.
+- Avoid abstract or political nouns (freedom, rights, politics, government, history, culture, tradition, protest, conflict); describe these ideas with very simple A1 phrases like "good life", "fair rules", "people are not happy".
 
 🔤 GRAMMAR (Both Languages):
-- Only Simple Present or Simple Past tense
-- Maximum 9 words per sentence
-- One idea per sentence
-- No passive voice
-- No conditionals
-- Only basic connectors (and, but, or, because)
+- Only Simple Present or Simple Past tense.
+- Maximum 9 words per sentence.
+- One idea per sentence.
+- No passive voice.
+- No conditionals.
+- Only basic connectors (and, but, or, because).
 
-📌 CONTENT:
-- Length: 800-1000 words per language
-- Warm, friendly, slow and clear tone
-- 3-4 sentences per paragraph
-- Every sentence must be easily understood by absolute beginners
+✨ QUALITY & STYLE (CRITICAL):
+- **Engaging Tone:** The text should be interesting and fun to read, not dry or robotic. Use a warm, friendly storyteller voice.
+- **Natural Flow:** Even with simple words, sentences should flow naturally. Avoid choppy or "Tarzan-style" phrasing.
+- **Educational Value:** Reinforce learning by naturally repeating key A1 vocabulary in different contexts within the text.
+- **Cultural Adaptation:** The {{target_language}} translation must sound natural to a native speaker of that language, not like a machine translation. Capture the *meaning* and *feeling*, not just the literal words.
+
+📌 CONTENT STRUCTURE:
+- Length: 800-1000 words per language.
+- 3-4 sentences per paragraph.
+- Organize logical flow: Introduction -> Main Points -> Simple Conclusion.
 
 📌 CRITICAL RULES:
-- Both versions MUST contain IDENTICAL information
-- {{target_language}} version must maintain A1 simplicity
-- No idioms in either language
-- Plain paragraphs only (no bullets, lists, emojis)
-- After you write the full text, re-read every sentence and simplify it until a brand new A1 learner (age 10–12, first year of English) can understand it easily.
-- If any sentence has more than 9 words or uses a non‑A1 word, split it into two shorter sentences and replace the hard word with a simpler A1 synonym before you return the final JSON.
+- Both versions MUST contain IDENTICAL information (sentence-by-sentence alignment is preferred for learning).
+- {{target_language}} version must maintain A1 simplicity but sound natural.
+- No idioms in either language.
+- Plain paragraphs only (no bullets, lists, emojis).
+- **Self-Correction:** After writing, re-read every sentence. If it's not easily understood by a 10-year-old beginner, simplify it immediately.
 
 📥 TOPIC: {{topic}}
 

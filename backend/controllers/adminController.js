@@ -195,6 +195,29 @@ exports.getCostDashboard = async (req, res) => {
         }
       }
 
+      // Determine effective LLM model for the operation:
+      // - If there is exactly one usage record, use that record's model
+      // - If there are multiple records but all share the same model, use that model
+      // - Otherwise, fall back to the default model
+      let effectiveModel = null;
+      const hasLlmCost = row.openai_cost_usd && Number(row.openai_cost_usd) > 0;
+      if (hasLlmCost) {
+        if (Array.isArray(llmUsageDetails) && llmUsageDetails.length === 1 && llmUsageDetails[0]?.model) {
+          effectiveModel = llmUsageDetails[0].model;
+        } else if (Array.isArray(llmUsageDetails) && llmUsageDetails.length > 1) {
+          const uniqueModels = [...new Set(llmUsageDetails
+            .map(d => d && d.model)
+            .filter(Boolean))];
+          if (uniqueModels.length === 1) {
+            effectiveModel = uniqueModels[0];
+          }
+        }
+
+        if (!effectiveModel) {
+          effectiveModel = defaultLlmModel;
+        }
+      }
+
       return {
         id: row.id,
         created_at: row.created_at,
@@ -202,8 +225,8 @@ exports.getCostDashboard = async (req, res) => {
         input_type: row.input_type || null,
         audio_minutes: row.audio_duration_seconds ? Number((Number(row.audio_duration_seconds) / 60).toFixed(2)) : null,
         // LLM side (currently OpenAI-only in this flow)
-        llm_service: (row.openai_cost_usd && Number(row.openai_cost_usd) > 0) ? 'openai' : null,
-        llm_model: (row.openai_cost_usd && Number(row.openai_cost_usd) > 0) ? defaultLlmModel : null,
+        llm_service: hasLlmCost ? 'openai' : null,
+        llm_model: hasLlmCost ? effectiveModel : null,
         llm_cost_usd: row.openai_cost_usd != null ? Number(Number(row.openai_cost_usd).toFixed(6)) : 0,
         // Token details
         openai_prompt_tokens: row.openai_prompt_tokens || 0,

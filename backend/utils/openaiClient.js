@@ -78,6 +78,7 @@ class OpenAIClient {
         maxTokens = this.maxTokens,
         systemPrompt = this.getSystemPrompt(),
         topP = 0.9,
+        model = this.chatModel, // Allow overriding model
       } = options;
 
       // Prepare messages with system prompt
@@ -91,7 +92,7 @@ class OpenAIClient {
 
       logger.info('🤖 Calling OpenAI Chat API...', { 
         messageCount: messages.length,
-        model: this.chatModel 
+        model: model 
       });
 
       const response = await fetch(this.chatApiUrl, {
@@ -101,7 +102,7 @@ class OpenAIClient {
           'Authorization': `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: this.chatModel,
+          model: model,
           messages: apiMessages,
           temperature,
           max_tokens: maxTokens,

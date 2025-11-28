@@ -171,7 +171,7 @@ const sendMessage = async (req, res) => {
        FROM messages 
        WHERE conversation_id = $1 
        ORDER BY created_at ASC 
-       LIMIT 50`,
+       LIMIT 15`,
       [conversationId]
     );
     
@@ -204,14 +204,25 @@ const sendMessage = async (req, res) => {
       experienceLevel: userProfile.learningProgress?.experienceLevel
     });
     
+    // Hybrid Model Selection for Chat
+    // Use gpt-4o-mini for A1-B1 levels (faster, cheaper)
+    // Use gpt-4o for B2-C2 levels (better nuance)
+    const userLevel = userProfile?.learningProgress?.experienceLevel || 'B1';
+    const isAdvanced = ['B2', 'C1', 'C2'].includes(userLevel);
+    const selectedModel = isAdvanced ? 'gpt-4o' : 'gpt-4o-mini';
+    
+    logger.info(`🤖 Liro Chat Model Selected: ${selectedModel} (Level: ${userLevel})`);
+    
     // Get AI response with Liro's personalized prompting
     let assistantContent;
     let openaiUsage = null;
-    const openaiModel = openaiClient.chatModel || process.env.OPENAI_CHAT_MODEL || 'gpt-4o';
+    const openaiModel = selectedModel; // Used for cost tracking later
+
     try {
       const response = await openaiClient.generateChatCompletion(messageHistory, {
         systemPrompt: liroSystemPrompt,
         temperature: 0.8,
+        model: selectedModel
       });
       assistantContent = response.content;
       openaiUsage = response.usage || null;

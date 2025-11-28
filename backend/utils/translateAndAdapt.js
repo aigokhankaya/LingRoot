@@ -51,8 +51,13 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
     const promptFile = `translate_and_adapt_${level.toUpperCase()}.txt`;
     const promptPath = path.join(__dirname, `../prompts/content/${promptFile}`);
     
+    // HYBRID MODEL STRATEGY: Use mini for simple levels, 4o for complex levels
+    const isSimpleLevel = ['A1', 'A2', 'B1'].includes(level.toUpperCase());
+    const model = process.env.OPENAI_TRANSLATE_ADAPT_MODEL || (isSimpleLevel ? "gpt-4o-mini" : "gpt-4o");
+
     console.log(`🎯 [TRANSLATE+ADAPT OPTIMIZED] Using unified prompt: ${promptFile} (Level: ${level})`);
     logger.info(`🎯 TranslateAndAdapt - Unified prompt: ${promptFile} for ${sourceLanguage} → EN at ${level}`);
+    console.log(`🧠 [MODEL SELECTION] Level: ${level} -> Selected Model: ${model} (${isSimpleLevel ? 'Cost Optimized' : 'Quality Optimized'})`);
     
     let promptTemplate;
     try {
@@ -70,9 +75,6 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
     let promptTokensTotal = 0;
     let completionTokensTotal = 0;
     let totalTokensTotal = 0;
-    
-    // Use gpt-4o for unified translation+adaptation (better than gpt-4-turbo for this task)
-    const model = process.env.OPENAI_TRANSLATE_ADAPT_MODEL || "gpt-4o";
     
     for (let i = 0; i < chunks.length; i++) {
         const prompt = promptTemplate
@@ -204,8 +206,11 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
         }, null, 2));
     }
     
-    // Use gpt-4o for bilingual generation
-    const model = process.env.OPENAI_BILINGUAL_MODEL || "gpt-4o";
+    // HYBRID MODEL STRATEGY: Use mini for simple levels, 4o for complex levels
+    const isSimpleLevel = ['A1', 'A2', 'B1'].includes(level.toUpperCase());
+    const model = process.env.OPENAI_BILINGUAL_MODEL || (isSimpleLevel ? "gpt-4o-mini" : "gpt-4o");
+    
+    console.log(`🧠 [MODEL SELECTION] Level: ${level} -> Selected Model: ${model} (${isSimpleLevel ? 'Cost Optimized' : 'Quality Optimized'})`);
     
     try {
         logger.info(`[GenerateBilingual] Generating bilingual content with ${model}`);

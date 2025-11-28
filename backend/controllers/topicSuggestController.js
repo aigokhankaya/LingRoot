@@ -22,7 +22,7 @@ exports.suggestTopics = async (req, res) => {
       return res.status(503).json({ success: false, message: "Topic suggestions temporarily unavailable (missing OPENAI_API_KEY)." });
     }
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "You are a helpful assistant for topic suggestions." },
         { role: "user", content: prompt }

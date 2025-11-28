@@ -84,8 +84,13 @@ exports.rewriteToNarration = async (req, res) => {
     if (!openai) {
       return res.status(503).json({ success: false, message: "Narration rewrite unavailable (missing OPENAI_API_KEY)." });
     }
+    // Hybrid Model Strategy
+    const isSimpleLevel = ['A1', 'A2', 'B1'].includes((level || 'A1').toUpperCase());
+    const model = isSimpleLevel ? "gpt-4o-mini" : "gpt-4o";
+    logger.info(`[NarrationRewrite] Selected model: ${model} for level ${level || 'A1'}`);
+
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: model,
       messages: [
         { role: "system", content: `You are a professional language educator specializing in creating educational content at CEFR ${level || 'A1'} level.` },
         { role: "user", content: prompt }

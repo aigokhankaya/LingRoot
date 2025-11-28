@@ -101,7 +101,7 @@ exports.processTopicToEnglishText = async (req, res) => {
       logger.info(`[${requestId}] 📋 Prompt: ${suggestionsPrompt.substring(0, 500)}${suggestionsPrompt.length > 500 ? '...' : ''}`);
       
       const suggestionsCompletion = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: "Sen bir içerik oluşturma uzmanısın. Verilen konularla ilgili detaylı alt başlıklar öneriyorsun." },
           { role: "user", content: suggestionsPrompt }
@@ -177,103 +177,8 @@ exports.processTopicToEnglishText = async (req, res) => {
       }
       
     } catch (optimizedError) {
-      // Fallback to legacy 3-step method
-      logger.warn(`[${requestId}] [FALLBACK] Optimized bilingual failed: ${optimizedError.message}, using legacy 3-step`);
-      console.log(`⚠️ [FALLBACK] Using legacy 3-step content generation`);
-      
-      // LEGACY STEP 2: Generate Content
-      const contentPromptFile = getPromptFileByLevel(level);
-      const contentPromptPath = path.join(__dirname, '../prompts/content', contentPromptFile);
-      let contentTemplate = fs.readFileSync(contentPromptPath, 'utf8');
-      
-      const narrationPrompt = contentTemplate
-        .replace(/{{topic}}/g, result.selected_subtopic)
-        .replace(/{{level}}/g, level)
-        .replace(/{{input_language}}/g, targetLanguage);
-      
-      const narrationCompletion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: `You are a professional language educator specializing in creating educational content at CEFR ${level} level.` },
-          { role: "user", content: narrationPrompt }
-        ],
-        temperature: 0.7,
-      });
-      
-      result.narration_tr = narrationCompletion.choices[0]?.message?.content?.trim() || "";
-      result.narration_tr = result.narration_tr.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
-      result.usage.narration = narrationCompletion.usage;
-      
-      // LEGACY STEP 3: Translate
-      const translatePromptPath = path.join(__dirname, '../prompts/translate_to_english.txt');
-      let translateTemplate = fs.readFileSync(translatePromptPath, 'utf8');
-      const translationChunks = chunkText(result.narration_tr);
-      let translatedChunks = [];
-      let translationUsageTotal = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
-      
-      for (let i = 0; i < translationChunks.length; i++) {
-        const translatePrompt = translateTemplate
-          .replace('{{input_text}}', translationChunks[i])
-          .replace('{{level}}', level);
-        
-        const translateCompletion = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: "You are a translation assistant specializing in educational content." },
-            { role: "user", content: translatePrompt }
-          ],
-          temperature: 0.3,
-        });
-        
-        let translated = translateCompletion.choices[0]?.message?.content?.trim() || "";
-        translated = translated.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
-        translatedChunks.push(translated);
-        
-        if (translateCompletion.usage) {
-          translationUsageTotal.prompt_tokens += translateCompletion.usage.prompt_tokens || 0;
-          translationUsageTotal.completion_tokens += translateCompletion.usage.completion_tokens || 0;
-          translationUsageTotal.total_tokens += translateCompletion.usage.total_tokens || 0;
-        }
-      }
-      
-      result.translation_en = translatedChunks.join('\n\n');
-      result.usage.translation = translationUsageTotal;
-      
-      // LEGACY STEP 4: CEFR Adaptation
-      const cefrPromptPath = path.join(__dirname, `../prompts/cefr_${level}.txt`);
-      let cefrTemplate = fs.readFileSync(cefrPromptPath, 'utf8');
-      const adaptationChunks = chunkText(result.translation_en);
-      let adaptedChunks = [];
-      let adaptationUsageTotal = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
-      const cefrModel = process.env.OPENAI_CEFR_MODEL || "gpt-4-turbo";
-      
-      for (let i = 0; i < adaptationChunks.length; i++) {
-        const cefrPrompt = cefrTemplate.replace('{{input_text}}', adaptationChunks[i]);
-        
-        const cefrCompletion = await openai.chat.completions.create({
-          model: cefrModel,
-          messages: [
-            { role: "system", content: "You are a professional English teacher specializing in CEFR-leveled content." },
-            { role: "user", content: cefrPrompt }
-          ],
-          temperature: 0.6,
-        });
-        
-        let adapted = cefrCompletion.choices[0]?.message?.content?.trim() || "";
-        adapted = adapted.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
-        adaptedChunks.push(adapted);
-        
-        if (cefrCompletion.usage) {
-          adaptationUsageTotal.prompt_tokens += cefrCompletion.usage.prompt_tokens || 0;
-          adaptationUsageTotal.completion_tokens += cefrCompletion.usage.completion_tokens || 0;
-          adaptationUsageTotal.total_tokens += cefrCompletion.usage.total_tokens || 0;
-        }
-      }
-      
-      result.adapted_text = adaptedChunks.join('\n\n');
-      result.usage.adaptation = adaptationUsageTotal;
-      
-      logger.info(`[${requestId}] [LEGACY FALLBACK] 3-step content generation complete`);
+      logger.error(`[${requestId}] Bilingual generation failed: ${optimizedError.message}`);
+      throw optimizedError;
     }
     
     // ==========================================
@@ -433,7 +338,7 @@ exports.getTopicSuggestions = async (req, res) => {
     }
     
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "Sen bir içerik oluşturma uzmanısın. Verilen konularla ilgili detaylı alt başlıklar öneriyorsun." },
         { role: "user", content: prompt }
