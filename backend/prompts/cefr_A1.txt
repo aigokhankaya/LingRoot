@@ -1,47 +1,46 @@
 🎯 TASK:
-Rewrite the given English text into strict CEFR level A1.
+Rewrite the given English text into STRICT CEFR level A1.
+The output must be understandable by a 6-year-old child or a student in their first week of English.
 
-⚠️ RULES — Apply exactly and completely:
+⚠️ CRITICAL FAILURES TO AVOID (Do NOT use these):
+❌ "Community" (Use "people")
+❌ "Festival" / "Celebrate" (Use "party", "fun day", "have fun")
+❌ "Event" (Use "fun things")
+❌ "Local" (Remove it or use "here")
+❌ "Hope" / "Joy" / "Happiness" (Use "happy" or "good")
+❌ "Beauty" (Use "pretty" or "nice")
+❌ "Museum" (Use "old house" or "place")
+❌ "Season" (Use "summer and winter")
+❌ "Approximately" / "About" (Use numbers only, or remove)
+❌ "Various" / "Different" (Use "many")
 
-🟢 VOCABULARY RULES:
-- Use only words from:
-  • CEFR A1 official word list
-  • First 600 words of the NGSL Core list
-- Do NOT use any word outside these two lists.
-- If a word is not in these lists, replace it with an A1 synonym or remove it.
+📋 A1 LEVEL REQUIREMENTS:
 
-🔤 GRAMMAR RULES:
-- Only use Simple Present or Simple Past tense.
-- Every sentence must:
-  • Have 9 words or fewer.
-  • Express only one idea.
-  • Be easy to understand for absolute beginners.
+🟢 VOCABULARY:
+- Use ONLY the most basic words: man, woman, child, people, house, school, food, water, dog, cat, big, small, good, bad, happy, sad, go, come, eat, drink, sleep.
+- NO abstract nouns. If you cannot touch it, do not use the word.
+- NO adverbs ending in -ly.
 
-🚫 DO NOT USE:
-- Passive voice (e.g., “is made”, “was built”)
-- Conditionals (e.g., “if”, “would”, “could”)
-- Relative clauses (e.g., “who”, “which”, “that + verb”)
-- Abstract nouns (e.g., “culture”, “tradition”, “history”, “power”)
-- Phrasal verbs (e.g., “take out”, “look at”)
-- Advanced connectors (e.g., “however”, “therefore”, “such as”)
-- Any word longer than 3 syllables unless it’s in CEFR A1
+🔤 GRAMMAR:
+- Use ONLY Simple Present or Simple Past.
+- STRICT Maximum 7 words per sentence.
+- STRICT Subject + Verb + Object.
+- NO "There is" / "There are". Start with the subject.
+- NO compound sentences. NO "and" between verbs. NO "but".
+- NO passive voice, conditionals, relative clauses, or future tense.
 
-📌 STYLE:
-- Sound like you’re speaking to a total beginner.
-- Use very clear and natural spoken English.
-- Keep sentence structure simple and clear.
-- Do not try to make it academic, poetic, or descriptive.
+✨ SIMPLIFICATION EXAMPLES:
+- Bad: "The community is strong." -> Good: "The people are good."
+- Bad: "People celebrate festivals." -> Good: "People have parties."
+- Bad: "It is a city of hope." -> Good: "People are happy here."
 
 📌 STRUCTURE:
-- Keep the same number of paragraphs as the input.
-- Keep all ideas and facts. Do NOT skip important content.
-- Output may be 65-100% of the original word count (compression allowed for clarity).
-- Simplify abstract ideas into concrete, basic examples.
-- Use paragraph format. No bullets, emojis, or formatting.
+- Keep the same number of paragraphs.
+- Paragraph format only. No bullets.
 
 📥 INPUT:
 {{input_text}}
 
 📤 OUTPUT:
-Return ONLY the rewritten text in strict CEFR A1 level.  
+Return ONLY the rewritten text in strict CEFR A1 level.
 Do not explain, comment, or add anything.

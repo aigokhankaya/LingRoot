@@ -90,7 +90,17 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
         
         try {
             logger.info(`[TranslateAndAdapt] Processing chunk ${i + 1}/${chunks.length} with ${model}`);
-            
+            if (logger.llmCall) {
+                logger.llmCall({
+                    scope: 'translateAndAdapt',
+                    step: `chunk_${i + 1}/${chunks.length}`,
+                    model,
+                    promptName: promptFile,
+                    level,
+                    provider: 'openai',
+                    note: 'translate+adapt chunk',
+                });
+            }
             const completion = await openai.chat.completions.create({
                 model,
                 messages: [
@@ -138,6 +148,19 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
     const estimatedOldTokens = totalTokensTotal * 1.75; // Old method used ~75% more tokens
     const savedTokens = Math.round(estimatedOldTokens - totalTokensTotal);
     console.log(`💰 [TOKEN SAVINGS] Estimated savings: ~${savedTokens} tokens (${Math.round(savedTokens/estimatedOldTokens*100)}%)`);
+
+    if (logger.llmCall) {
+        logger.llmCall({
+            scope: 'translateAndAdapt',
+            step: 'summary',
+            model,
+            promptName: promptFile,
+            level,
+            provider: 'openai',
+            tokens: usage,
+            note: 'translate+adapt summary',
+        });
+    }
     
     if (requestLogger) {
         requestLogger.log(`[openai:usage:translateAndAdapt]` + JSON.stringify({ usage, model, savedTokens }));
@@ -214,6 +237,17 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
     
     try {
         logger.info(`[GenerateBilingual] Generating bilingual content with ${model}`);
+        if (logger.llmCall) {
+            logger.llmCall({
+                scope: 'generateBilingual',
+                step: 'call',
+                model,
+                promptName: promptFile,
+                level,
+                provider: 'openai',
+                note: `topic="${topic}" → EN + ${targetLanguage}`,
+            });
+        }
         
         const completion = await openai.chat.completions.create({
             model,
@@ -255,6 +289,19 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
         const estimatedOldTokens = usage.total_tokens * 1.5; // Old method used ~50% more tokens
         const savedTokens = Math.round(estimatedOldTokens - usage.total_tokens);
         console.log(`💰 [TOKEN SAVINGS] Estimated savings: ~${savedTokens} tokens (${Math.round(savedTokens/estimatedOldTokens*100)}%)`);
+
+        if (logger.llmCall) {
+            logger.llmCall({
+                scope: 'generateBilingual',
+                step: 'summary',
+                model,
+                promptName: promptFile,
+                level,
+                provider: 'openai',
+                tokens: usage,
+                note: 'generateBilingual summary',
+            });
+        }
         
         if (requestLogger) {
             requestLogger.log(`[openai:usage:generateBilingual]` + JSON.stringify({ usage, model, savedTokens }));

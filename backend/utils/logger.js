@@ -119,5 +119,42 @@ const logger = winston.createLogger({
 // Log initialization message
 logger.info(`Logger initialized with level: ${level}`);
 
+// Helper: Structured LLM call logger for prompts/models/usage
+/**
+ * Logs a highlighted LLM call line so it is easy to spot in console logs.
+ * Usage: logger.llmCall({ requestId, scope, step, model, promptName, level, provider, tokens, note })
+ */
+logger.llmCall = function llmCall(details = {}) {
+  const {
+    requestId,
+    scope,
+    step,
+    model,
+    promptName,
+    level: cefrLevel,
+    provider = 'openai',
+    tokens,
+    note,
+  } = details;
+
+  const tokenInfo = tokens
+    ? ` | tokens in=${tokens.prompt_tokens || 0}, out=${tokens.completion_tokens || 0}, total=${tokens.total_tokens || 0}`
+    : '';
+
+  const core = [
+    requestId ? `req=${requestId}` : null,
+    scope ? `scope=${scope}` : null,
+    step ? `step=${step}` : null,
+    model ? `model=${model}` : null,
+    promptName ? `prompt=${promptName}` : null,
+    cefrLevel ? `level=${cefrLevel}` : null,
+    provider ? `provider=${provider}` : null,
+  ].filter(Boolean).join(' | ');
+
+  const suffix = note ? ` | ${note}` : '';
+
+  logger.info(`🧠 [LLM_CALL] ${core}${tokenInfo}${suffix}`);
+};
+
 module.exports = logger;
 

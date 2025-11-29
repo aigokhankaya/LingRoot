@@ -25,7 +25,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
   audioStateByTopic,
   onOpenAudioModal,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(depth === 0); // Ana konular açık başlar
+  const [isExpanded, setIsExpanded] = useState(false); // Ana konular açık başlar
   const [isGenerating, setIsGenerating] = useState(false);
   const [showSubtopicModal, setShowSubtopicModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);

@@ -36,6 +36,22 @@ import PaymentEnvironmentSelector from '@/components/admin/PaymentEnvironmentSel
 const App: React.FC = () => {
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState("kullanici-yonetimi");
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const savedTab = localStorage.getItem('admin_active_tab');
+    if (savedTab) {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
+  const handleChangeActiveTab = (tab: string) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin_active_tab', tab);
+    }
+  };
+
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [showUserDetails, setShowUserDetails] = useState(false);
   const [showPackageForm, setShowPackageForm] = useState(false);
@@ -672,7 +688,7 @@ const App: React.FC = () => {
               height={40}
               className="w-6 h-6 md:w-8 md:h-8"
             />
-            <h1 className="text-xs sm:text-sm md:text-base lg:text-lg font-medium text-gray-800 truncate leading-tight">Dil Öğrenme Platformu</h1>
+            <h1 className="text-[10px] sm:text-xs md:text-sm lg:text-base font-medium text-gray-800 truncate leading-tight">Dil Öğrenme Platformu</h1>
           </div>
           <div className="flex items-center space-x-2 md:space-x-4 ml-auto mr-2 md:mr-4">
             <Link href="/welcome">
@@ -715,11 +731,11 @@ const App: React.FC = () => {
         <aside className="w-64 bg-white border-r border-gray-200 h-full flex-shrink-0">
           <nav className="p-4">
             <div className="space-y-2">
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("kullanici-yonetimi")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("kullanici-yonetimi")}>
                 <i className="fas fa-users mr-3 text-lg"></i>
                 <span>Kullanıcı Yönetimi</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("paket-yonetimi")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("paket-yonetimi")}>
                 <i className="fas fa-box mr-3 text-lg"></i>
                 <span>Paket Yönetimi</span>
               </Button>
@@ -732,31 +748,31 @@ const App: React.FC = () => {
                 <i className="fas fa-plug mr-3 text-lg"></i>
                 <span>Dış Servisler</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("icerik-yonetimi")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("icerik-yonetimi")}>
                 <i className="fas fa-file-alt mr-3 text-lg"></i>
                 <span>İçerik Yönetimi</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("analitik")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("analitik")}>
                 <i className="fas fa-chart-line mr-3 text-lg"></i>
                 <span>Analitik</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("maliyet-takibi")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("maliyet-takibi")}>
                 <i className="fas fa-coins mr-3 text-lg"></i>
                 <span>Maliyet Takibi</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("kampanya-yonetimi")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("kampanya-yonetimi")}>
                 <i className="fas fa-percentage mr-3 text-lg"></i>
                 <span>Kampanya Yönetimi</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("destek")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("destek")}>
                 <i className="fas fa-headset mr-3 text-lg"></i>
                 <span>Destek</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("test-ayarlari")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("test-ayarlari")}>
                 <i className="fas fa-microphone-alt mr-3 text-lg"></i>
                 <span>Test Ayarları</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("ayarlar")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("ayarlar")}>
                 <i className="fas fa-cog mr-3 text-lg"></i>
                 <span>Ayarlar</span>
               </Button>
@@ -960,6 +976,47 @@ const App: React.FC = () => {
 
               {!costLoading && !costError && costOverview && (
                 <>
+                  {/* By entry source (sections like konu, konu ağacı, metin, podcast, Liro) */}
+                  <Card className="overflow-hidden">
+                    <CardHeader>
+                      <CardTitle>Kullanım Kaynağı (Sekmeler / Servisler)</CardTitle>
+                      <CardDescription>entry_source alanına göre maliyet kırılımı</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <ScrollArea className="h-64">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Kaynak</TableHead>
+                              <TableHead className="text-right">Dakika</TableHead>
+                              <TableHead className="text-right">TTS $</TableHead>
+                              <TableHead className="text-right">OpenAI $</TableHead>
+                              <TableHead className="text-right">Toplam $</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {costBySource.length === 0 && (
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center text-sm text-gray-500 py-4">
+                                  Kayıt bulunamadı.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            {costBySource.map((row, idx) => (
+                              <TableRow key={`${row.entry_source || 'unknown'}-${idx}`}>
+                                <TableCell className="text-sm text-gray-700">{row.entry_source || 'unknown'}</TableCell>
+                                <TableCell className="text-right text-sm">{row.audio_minutes?.toFixed?.(1) ?? row.audio_minutes}</TableCell>
+                                <TableCell className="text-right text-sm">{row.tts_cost_usd?.toFixed?.(3) ?? row.tts_cost_usd}</TableCell>
+                                <TableCell className="text-right text-sm">{row.openai_cost_usd?.toFixed?.(3) ?? row.openai_cost_usd}</TableCell>
+                                <TableCell className="text-right text-sm font-semibold">{row.total_cost_usd?.toFixed?.(3) ?? row.total_cost_usd}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+
                   {/* Overview cards */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Card>
@@ -1081,47 +1138,6 @@ const App: React.FC = () => {
                       </CardContent>
                     </Card>
                   </div>
-
-                  {/* By entry source (sections like konu, konu ağacı, metin, podcast, Liro) */}
-                  <Card className="overflow-hidden">
-                    <CardHeader>
-                      <CardTitle>Kullanım Kaynağı (Sekmeler / Servisler)</CardTitle>
-                      <CardDescription>entry_source alanına göre maliyet kırılımı</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <ScrollArea className="h-64">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Kaynak</TableHead>
-                              <TableHead className="text-right">Dakika</TableHead>
-                              <TableHead className="text-right">TTS $</TableHead>
-                              <TableHead className="text-right">OpenAI $</TableHead>
-                              <TableHead className="text-right">Toplam $</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {costBySource.length === 0 && (
-                              <TableRow>
-                                <TableCell colSpan={5} className="text-center text-sm text-gray-500 py-4">
-                                  Kayıt bulunamadı.
-                                </TableCell>
-                              </TableRow>
-                            )}
-                            {costBySource.map((row, idx) => (
-                              <TableRow key={`${row.entry_source || 'unknown'}-${idx}`}>
-                                <TableCell className="text-sm text-gray-700">{row.entry_source || 'unknown'}</TableCell>
-                                <TableCell className="text-right text-sm">{row.audio_minutes?.toFixed?.(1) ?? row.audio_minutes}</TableCell>
-                                <TableCell className="text-right text-sm">{row.tts_cost_usd?.toFixed?.(3) ?? row.tts_cost_usd}</TableCell>
-                                <TableCell className="text-right text-sm">{row.openai_cost_usd?.toFixed?.(3) ?? row.openai_cost_usd}</TableCell>
-                                <TableCell className="text-right text-sm font-semibold">{row.total_cost_usd?.toFixed?.(3) ?? row.total_cost_usd}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
 
                   {/* Per-operation detailed list */}
                   <Card className="overflow-hidden mt-6">
