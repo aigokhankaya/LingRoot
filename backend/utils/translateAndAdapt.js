@@ -174,6 +174,23 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
 }
 
 /**
+ * Calculate target word count based on duration in minutes
+ * Average speaking rate for language learners: ~150 WPM
+ * @param {number} durationMinutes - Target duration (1.5, 5, 10, 15)
+ * @returns {{min: number, max: number, target: number}}
+ */
+function calculateWordCountFromDuration(durationMinutes) {
+    const WPM = 150; // Words per minute for clear, learner-friendly speech
+    const target = Math.round(durationMinutes * WPM);
+    const tolerance = 0.15; // ±15% tolerance
+    return {
+        min: Math.round(target * (1 - tolerance)),
+        max: Math.round(target * (1 + tolerance)),
+        target: target
+    };
+}
+
+/**
  * OPTIMIZED: Generates bilingual content (English + target language) in a SINGLE LLM call.
  * Replaces the old 2-step process: generateEnglish → translateToTarget
  * 
@@ -183,9 +200,10 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
  * @param {string} targetLanguage - Target language for translation (e.g., "Turkish")
  * @param {string} level - CEFR level (A1, A2, B1, B2, C1, C2)
  * @param {object} requestLogger - Optional request logger
+ * @param {number} targetDurationMinutes - Optional target duration in minutes (1.5, 5, 10, 15)
  * @returns {Promise<{englishText: string, translatedText: string, usage: object, model: string}>}
  */
-async function generateBilingualContent(topic, targetLanguage, level, requestLogger) {
+async function generateBilingualContent(topic, targetLanguage, level, requestLogger, targetDurationMinutes = null) {
     if (!openai) {
         logger.error("[GenerateBilingual] OpenAI client not initialized.");
         throw new Error("OpenAI client not initialized");
@@ -216,9 +234,25 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
         throw new Error(`Prompt file not found: ${promptFile}`);
     }
 
-    const prompt = promptTemplate
+    // Calculate word count based on duration if specified
+    let wordCountInstruction = '';
+    if (targetDurationMinutes && targetDurationMinutes > 0) {
+        const wordCount = calculateWordCountFromDuration(targetDurationMinutes);
+        wordCountInstruction = `\n\n⚠️ CRITICAL DURATION OVERRIDE:\n- Target audio duration: ${targetDurationMinutes} minutes\n- REQUIRED word count: ${wordCount.target} words per language (±15% tolerance: ${wordCount.min}-${wordCount.max} words)\n- This OVERRIDES the default "Length" requirement in the prompt.\n- Generate EXACTLY this amount of content, NOT the default 800-1500 words.`;
+        console.log(`⏱️ [DURATION] Target: ${targetDurationMinutes} min → ${wordCount.target} words (${wordCount.min}-${wordCount.max})`);
+    }
+
+    // Build prompt with topic and language replacements
+    let prompt = promptTemplate
         .replace(/\{\{topic\}\}/g, topic)
         .replace(/\{\{target_language\}\}/g, targetLanguage);
+    
+    // If duration specified, append it right before the OUTPUT FORMAT section
+    if (wordCountInstruction) {
+        // Insert duration instruction before 📤 OUTPUT FORMAT
+        prompt = prompt.replace(/📤 OUTPUT FORMAT/i, wordCountInstruction + '\n\n📤 OUTPUT FORMAT');
+        console.log(`📝 [PROMPT] Duration instruction added before OUTPUT FORMAT section`);
+    }
     
     if (requestLogger) {
         requestLogger.log(`[generateBilingual:prompt][input]` + JSON.stringify({ 
@@ -229,12 +263,25 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
         }, null, 2));
     }
     
-    // HYBRID MODEL STRATEGY: Use mini for simple levels, 4o for complex levels
+    // HYBRID MODEL STRATEGY: Use mini for simple levels, 4o for complex levels.
+    // For long-duration content (>= 10 minutes), prefer full gpt-4o for better instruction-following.
     const isSimpleLevel = ['A1', 'A2', 'B1'].includes(level.toUpperCase());
-    const model = process.env.OPENAI_BILINGUAL_MODEL || (isSimpleLevel ? "gpt-4o-mini" : "gpt-4o");
-    
-    console.log(`🧠 [MODEL SELECTION] Level: ${level} -> Selected Model: ${model} (${isSimpleLevel ? 'Cost Optimized' : 'Quality Optimized'})`);
-    
+    const isLongDuration = targetDurationMinutes && targetDurationMinutes >= 10;
+    let model = process.env.OPENAI_BILINGUAL_MODEL;
+    if (!model) {
+        if (isLongDuration) {
+            model = "gpt-4o";
+        } else {
+            model = isSimpleLevel ? "gpt-4o-mini" : "gpt-4o";
+        }
+    }
+
+    const modelMode = isLongDuration ? 'Long-Form Precision' : (isSimpleLevel ? 'Cost Optimized' : 'Quality Optimized');
+    console.log(`🧠 [MODEL SELECTION] Level: ${level}, Duration: ${targetDurationMinutes || 'n/a'} -> Selected Model: ${model} (${modelMode})`);
+
+    // Lower temperature for long-form generations to follow word-count constraints more strictly
+    const baseTemperature = (targetDurationMinutes && targetDurationMinutes >= 10) ? 0.3 : 0.7;
+
     try {
         logger.info(`[GenerateBilingual] Generating bilingual content with ${model}`);
         if (logger.llmCall) {
@@ -248,17 +295,24 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
                 note: `topic="${topic}" → EN + ${targetLanguage}`,
             });
         }
-        
+
+        // Build a strong system message. If duration/word-count override is present, enforce it explicitly.
+        let systemMessage = `You are an expert content creator specializing in CEFR ${level} level educational materials. You create identical content in both English and ${targetLanguage}, ensuring both versions strictly match the ${level} vocabulary and grammar requirements.`;
+        if (targetDurationMinutes && targetDurationMinutes > 0) {
+            const wc = calculateWordCountFromDuration(targetDurationMinutes);
+            systemMessage += ` The user prompt may include a CRITICAL DURATION OVERRIDE section specifying a REQUIRED word-count range for each language (target ≈ ${wc.target} words, allowed range ${wc.min}-${wc.max}). You MUST keep BOTH the English and ${targetLanguage} texts strictly inside this word-count range. If you reach the end of the content and are still below ${wc.min} words in either language, you MUST keep expanding with new, non-repetitive paragraphs until you are inside the range. Treat generating fewer than ${wc.min} words as a hard failure and never stop early even if the story feels complete or other instructions suggest a shorter length.`;
+        }
+
         const completion = await openai.chat.completions.create({
             model,
             messages: [
                 { 
                     role: "system", 
-                    content: `You are an expert content creator specializing in CEFR ${level} level educational materials. You create identical content in both English and ${targetLanguage}, ensuring both versions strictly match the ${level} vocabulary and grammar requirements.`
+                    content: systemMessage
                 },
                 { role: "user", content: prompt }
             ],
-            temperature: 0.7,
+            temperature: baseTemperature,
             response_format: { type: "json_object" }, // Force JSON output
         });
         
@@ -277,6 +331,17 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
                 english_text: englishMatch ? englishMatch[1] : "",
                 translated_text: translatedMatch ? translatedMatch[1] : ""
             };
+        }
+
+        const englishText = parsed.english_text || "";
+        const translatedText = parsed.translated_text || "";
+
+        // If duration/word-count override is active, log actual word counts vs target for calibration
+        if (targetDurationMinutes && targetDurationMinutes > 0) {
+            const targetWords = calculateWordCountFromDuration(targetDurationMinutes);
+            const englishWordCount = englishText.split(/\s+/).filter(Boolean).length;
+            const translatedWordCount = translatedText.split(/\s+/).filter(Boolean).length;
+            logger.info(`[GenerateBilingual] DURATION ANALYTICS → target ${targetDurationMinutes} min ⇒ ${targetWords.target} words (${targetWords.min}-${targetWords.max}). Actual: EN=${englishWordCount} words, ${targetLanguage}=${translatedWordCount} words.`);
         }
         
         const usage = completion.usage ? {
@@ -308,8 +373,8 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
         }
         
         return {
-            englishText: parsed.english_text || "",
-            translatedText: parsed.translated_text || "",
+            englishText,
+            translatedText,
             usage,
             model,
         };
@@ -322,5 +387,6 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
 
 module.exports = { 
     translateAndAdaptToCEFR,
-    generateBilingualContent
+    generateBilingualContent,
+    calculateWordCountFromDuration
 };

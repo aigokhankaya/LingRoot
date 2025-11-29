@@ -34,7 +34,7 @@ The output must be understandable by a 6-year-old child or a student in their fi
 - Bad: "People celebrate festivals." -> Good: "People have parties."
 
 📌 CONTENT STRUCTURE:
-- Length: 800-1000 words per language.
+- Length: 800-1000 words per language when NO explicit duration or target word count is provided by the system. If the system specifies a duration or word-count range, you MUST follow that instruction instead, even if it conflicts with this default length.
 - Short paragraphs (3-4 sentences).
 - Organize: Introduction -> Main Points -> Simple Conclusion.
 

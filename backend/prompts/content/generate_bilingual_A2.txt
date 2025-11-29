@@ -16,7 +16,7 @@ Provide BOTH English (for TTS audio) AND {{target_language}} (for display) versi
 - Simple compound sentences allowed
 
 📌 CONTENT:
-- Length: 1000-1200 words per language
+- Length: 1000-1200 words per language when NO explicit duration or target word count is provided by the system. If the system specifies a duration or word-count range, you MUST follow that instruction instead, even if it conflicts with this default length.
 - Clear and accessible tone
 - Natural everyday language
 - Slightly more varied than A1

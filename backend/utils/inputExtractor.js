@@ -190,7 +190,7 @@ async function extractFromWebLink(url) {
  * 
  * @returns {{englishText: string, translatedText: string}} - İngilizce içerik (TTS için) ve çevrilmiş içerik (kayıt için)
  */
-async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'Turkish', requestLogger) {
+async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'Turkish', requestLogger, targetDurationMinutes = null) {
     if (!openai) {
         logger.error("OpenAI API key not found. Cannot generate narration for topic.");
         return null;
@@ -201,7 +201,12 @@ async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'T
     
     try {
         // OPTIMIZED: Single LLM call for both English and translated content
-        const result = await generateBilingualContent(topic, inputLanguage, level, requestLogger);
+        // Pass targetDurationMinutes to control content length based on desired audio duration
+        const result = await generateBilingualContent(topic, inputLanguage, level, requestLogger, targetDurationMinutes);
+        
+        if (targetDurationMinutes) {
+            logger.info(`[OPTIMIZED] Duration target: ${targetDurationMinutes} minutes`);
+        }
         
         if (!result || !result.englishText) {
             logger.error("[OPTIMIZED] Bilingual generation failed.");
@@ -230,7 +235,7 @@ async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'T
  * Text tipi için: Doğrudan metni döndürür.
  * File, weblink ve chapter tipleri için ilgili extraction fonksiyonlarını çağırır.
  */
-async function extractTextFromInput(inputData, inputType, file, chapter, level = "A1", detectedLanguage = "en", requestLogger) {
+async function extractTextFromInput(inputData, inputType, file, chapter, level = "A1", detectedLanguage = "en", requestLogger, targetDurationMinutes = null) {
     logger.info(`Extracting text for input type: ${inputType}`);
     switch (inputType) {
         case "text":
@@ -245,7 +250,7 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
             if (typeof inputData === "string") {
                 // content_generation prompt'u ile seviyeye uygun detaylı anlatım üret
                 const inputLanguage = detectedLanguage === 'tr' || detectedLanguage === 'tr-TR' ? 'Turkish' : 'English';
-                const narration = await generateNarrationForTopic(inputData, level, inputLanguage, requestLogger);
+                const narration = await generateNarrationForTopic(inputData, level, inputLanguage, requestLogger, targetDurationMinutes);
                 if (!narration || !narration.englishText) {
                     logger.error("OpenAI could not generate narration from topic. User should provide a more descriptive topic.");
                     return null;

@@ -141,6 +141,7 @@ const App: React.FC = () => {
   const [costByProvider, setCostByProvider] = useState<any[]>([]);
   const [costBySource, setCostBySource] = useState<any[]>([]);
   const [costItems, setCostItems] = useState<any[]>([]);
+  const [costItemsLoading, setCostItemsLoading] = useState(false);
   const [costLoading, setCostLoading] = useState(false);
   const [costError, setCostError] = useState<string | null>(null);
   const [expandedCostRows, setExpandedCostRows] = useState<Set<string>>(new Set());
@@ -155,6 +156,14 @@ const App: React.FC = () => {
       }
       return next;
     });
+  };
+
+  const formatMinutesToMinSec = (minutes: number | null | undefined) => {
+    if (minutes == null || isNaN(Number(minutes))) return '-';
+    const totalSeconds = Math.round(Number(minutes) * 60);
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
   const resetPlanForm = () => setPlanForm({
     name: '', description: '', price: '', interval: 'monthly', features: '', is_active: true, is_trial: false, trial_days: 7, apple_product_id: '', google_product_id: ''
@@ -230,6 +239,30 @@ const App: React.FC = () => {
       setCostError(e?.message || 'Maliyet verileri yüklenemedi');
     } finally {
       setCostLoading(false);
+    }
+  };
+
+  const fetchCostItems = async () => {
+    try {
+      setCostItemsLoading(true);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+      const res = await fetch('/api/admin/cost-dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token || ''}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.message || 'Maliyet verileri getirilemedi');
+      }
+      const data = json.data || {};
+      setCostItems(Array.isArray(data.items) ? data.items : []);
+    } catch (e: any) {
+      console.error('Cost items fetch error:', e);
+      setCostError(e?.message || 'Maliyet verileri yüklenemedi');
+    } finally {
+      setCostItemsLoading(false);
     }
   };
   const openCreatePlan = () => { setEditingPlan(null); resetPlanForm(); setShowPackageForm(true); };
@@ -688,7 +721,7 @@ const App: React.FC = () => {
               height={40}
               className="w-6 h-6 md:w-8 md:h-8"
             />
-            <h1 className="text-[10px] sm:text-xs md:text-sm lg:text-base font-medium text-gray-800 truncate leading-tight">Dil Öğrenme Platformu</h1>
+            <span className="text-xs sm:text-sm md:text-base lg:text-lg font-medium text-gray-800 truncate leading-tight">Admin</span>
           </div>
           <div className="flex items-center space-x-2 md:space-x-4 ml-auto mr-2 md:mr-4">
             <Link href="/welcome">
@@ -1142,8 +1175,19 @@ const App: React.FC = () => {
                   {/* Per-operation detailed list */}
                   <Card className="overflow-hidden mt-6">
                     <CardHeader>
-                      <CardTitle>İşlem Bazında Detaylı Maliyet</CardTitle>
-                      <CardDescription>Her satır tek bir içerik üretim işlemini temsil eder</CardDescription>
+                      <div className="flex items-center gap-2">
+                        <CardTitle>İşlem Bazında Detaylı Maliyet</CardTitle>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="!rounded-full border-gray-300 text-gray-600 hover:bg-gray-50"
+                          onClick={fetchCostItems}
+                          disabled={costItemsLoading}
+                          title="Yenile"
+                        >
+                          <i className={`fas fa-sync-alt ${costItemsLoading ? 'animate-spin' : ''}`}></i>
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent className="p-0">
                       <ScrollArea className="h-[420px]">
@@ -1151,7 +1195,7 @@ const App: React.FC = () => {
                           <TableHeader>
                             <TableRow>
                               <TableHead className="w-40">Tarih / Saat</TableHead>
-                              <TableHead className="w-24">Süre (dk)</TableHead>
+                              <TableHead className="w-24">Süre</TableHead>
                               <TableHead>Kaynak</TableHead>
                               <TableHead>Girdi Tipi</TableHead>
                               <TableHead>LLM Servisi</TableHead>
@@ -1192,7 +1236,7 @@ const App: React.FC = () => {
                                       </div>
                                     </TableCell>
                                     <TableCell className="w-24 text-sm">
-                                      {item.audio_minutes != null ? (item.audio_minutes?.toFixed?.(2) ?? item.audio_minutes) : '-'}
+                                      {formatMinutesToMinSec(item.audio_minutes)}
                                     </TableCell>
                                     <TableCell className="text-sm text-gray-700">{item.entry_source || 'unknown'}</TableCell>
                                     <TableCell className="text-sm text-gray-700">{item.input_type || '-'}</TableCell>

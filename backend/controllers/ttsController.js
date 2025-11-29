@@ -284,6 +284,20 @@ const processTtsRequest = async (req, res) => {
             return res.status(400).json({ success: false, message: "Missing required input parameters (type, input/file, level)" });
         }
 
+        // Parse targetDurationMinutes from request body
+        // Valid options: 1.5, 5, 10, 15 (minutes)
+        let targetDurationMinutes = null;
+        const rawDuration = req.body.targetDurationMinutes || req.body.target_duration_minutes || req.body.durationMinutes;
+        if (rawDuration) {
+            const parsedDuration = parseFloat(rawDuration);
+            if ([1.5, 5, 10, 15].includes(parsedDuration)) {
+                targetDurationMinutes = parsedDuration;
+                logger.info(`[${requestId}] ⏱️ Target duration set: ${targetDurationMinutes} minutes`);
+            } else {
+                logger.warn(`[${requestId}] Invalid duration ${rawDuration}, ignoring. Valid options: 1.5, 5, 10, 15`);
+            }
+        }
+
         // Detect language for topic input (check for Turkish characters)
         if (inputType === "topic" && inputData) {
             const hasTurkishChars = /[ğüşıöçĞÜŞİÖÇ]/g.test(inputData);
@@ -312,7 +326,8 @@ const processTtsRequest = async (req, res) => {
         if (inputType === "topic") {
             logger.info(`[${requestId}] ✅ TOPIC FLOW ACTIVATED!`);
             // Topic input returns {englishText, translatedText, usage, model}
-            const topicResult = await extractTextFromInput(inputData, inputType, file, undefined, level, detectedLang);
+            // Pass targetDurationMinutes to control content length
+            const topicResult = await extractTextFromInput(inputData, inputType, file, undefined, level, detectedLang, null, targetDurationMinutes);
             if (!topicResult || !topicResult.englishText) {
                 logger.error(`[${requestId}] Failed to generate narration for topic.`);
                 return res.status(500).json({ success: false, message: "Failed to generate narration for topic." });

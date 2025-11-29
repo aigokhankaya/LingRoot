@@ -17,7 +17,7 @@ Provide BOTH English (for TTS audio) AND {{target_language}} (for display) versi
 - Complex sentences with multiple clauses
 
 📌 CONTENT:
-- Length: 1500-1800 words per language
+- Length: 1500-1800 words per language when NO explicit duration or target word count is provided by the system. If the system specifies a duration or word-count range, you MUST follow that instruction instead, even if it conflicts with this default length.
 - Fluent and natural English
 - Good variety in sentence structure
 - Sophisticated but accessible
