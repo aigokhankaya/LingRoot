@@ -9,6 +9,7 @@ router.use(authenticate);
 // Conversation routes
 router.get('/conversations', aiChatController.getConversations);
 router.post('/conversations', aiChatController.createConversation);
+router.put('/conversations/:conversationId', aiChatController.updateConversationTitle);
 router.delete('/conversations/:conversationId', aiChatController.deleteConversation);
 
 // Message routes

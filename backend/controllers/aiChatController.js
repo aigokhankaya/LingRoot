@@ -9,8 +9,7 @@ const liroPromptGenerator = require('../utils/liroPromptGenerator');
 const liroContentGraph = require('../utils/liroContentGraph');
 const { supabase } = require('../utils/supabaseClient');
 const { calculateOpenAiCost } = require('../utils/costTracker');
-// Temporarily disabled - requires topics table migration
-// const { suggestTopicsForUser, extractAndStoreTopic } = require('../lib/rag');
+const { suggestTopicsForUser, extractAndStoreTopic } = require('../lib/rag');
 
 /**
  * Get all AI conversations for a user
@@ -18,7 +17,7 @@ const { calculateOpenAiCost } = require('../utils/costTracker');
 const getConversations = async (req, res) => {
   try {
     const userId = req.user.id;
-    
+
     const query = `
       SELECT 
         id,
@@ -31,9 +30,9 @@ const getConversations = async (req, res) => {
       ORDER BY updated_at DESC
       LIMIT 50
     `;
-    
+
     const result = await db.query(query, [userId]);
-    
+
     res.json({
       success: true,
       conversations: result.rows
@@ -54,22 +53,22 @@ const createConversation = async (req, res) => {
   try {
     const userId = req.user.id;
     const { title } = req.body;
-    
+
     if (!title || title.trim().length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Başlık gereklidir'
       });
     }
-    
+
     const query = `
       INSERT INTO conversations (user_id, subject)
       VALUES ($1, $2)
       RETURNING id, user_id, subject as title, created_at, updated_at
     `;
-    
+
     const result = await db.query(query, [userId, title.trim()]);
-    
+
     res.json({
       success: true,
       conversation: result.rows[0]
@@ -90,20 +89,20 @@ const getMessages = async (req, res) => {
   try {
     const userId = req.user.id;
     const { conversationId } = req.params;
-    
+
     // Verify conversation belongs to user
     const convCheck = await db.query(
       'SELECT id FROM conversations WHERE id = $1 AND user_id = $2',
       [conversationId, userId]
     );
-    
+
     if (convCheck.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Konuşma bulunamadı'
       });
     }
-    
+
     const query = `
       SELECT 
         id,
@@ -118,9 +117,9 @@ const getMessages = async (req, res) => {
       WHERE conversation_id = $1
       ORDER BY created_at ASC
     `;
-    
+
     const result = await db.query(query, [conversationId]);
-    
+
     res.json({
       success: true,
       messages: result.rows
@@ -142,27 +141,27 @@ const sendMessage = async (req, res) => {
     const userId = req.user.id;
     const { conversationId } = req.params;
     const { content } = req.body;
-    
+
     if (!content || content.trim().length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Mesaj içeriği gereklidir'
       });
     }
-    
+
     // Verify conversation belongs to user
     const convCheck = await db.query(
       'SELECT id, subject as title FROM conversations WHERE id = $1 AND user_id = $2',
       [conversationId, userId]
     );
-    
+
     if (convCheck.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Konuşma bulunamadı'
       });
     }
-    
+
     // Get conversation history
     const historyResult = await db.query(
       `SELECT 
@@ -177,16 +176,16 @@ const sendMessage = async (req, res) => {
        LIMIT 15`,
       [conversationId]
     );
-    
+
     // Build message history
     const messageHistory = historyResult.rows;
-    
+
     // Add current user message
     messageHistory.push({
       role: 'user',
       content: content.trim()
     });
-    
+
     // Save user message
     const userMessageResult = await db.query(
       `INSERT INTO messages (conversation_id, sender_id, sender_type, content)
@@ -194,7 +193,7 @@ const sendMessage = async (req, res) => {
        RETURNING id, conversation_id, 'user' as role, content, created_at`,
       [conversationId, userId, content.trim()]
     );
-    
+
     logger.info('🧠 Generating user profile for Liro...');
     const userProfile = await userProfileAnalyzer.generateUserProfile(userId);
 
@@ -211,21 +210,21 @@ const sendMessage = async (req, res) => {
     if (overviewPrompt) {
       liroSystemPrompt = `${liroSystemPrompt}\n\n${overviewPrompt}`;
     }
-    logger.debug('📝 Liro prompt generated:', { 
+    logger.debug('📝 Liro prompt generated:', {
       username: userProfile.basicInfo?.username,
       interests: userProfile.interests?.count,
       experienceLevel: userProfile.learningProgress?.experienceLevel
     });
-    
+
     // Hybrid Model Selection for Chat
     // Use gpt-4o-mini for A1-B1 levels (faster, cheaper)
     // Use gpt-4o for B2-C2 levels (better nuance)
     const userLevel = userProfile?.learningProgress?.experienceLevel || 'B1';
     const isAdvanced = ['B2', 'C1', 'C2'].includes(userLevel);
     const selectedModel = isAdvanced ? 'gpt-4o' : 'gpt-4o-mini';
-    
+
     logger.info(`🤖 Liro Chat Model Selected: ${selectedModel} (Level: ${userLevel})`);
-    
+
     // Get AI response with Liro's personalized prompting
     let assistantContent;
     let openaiUsage = null;
@@ -254,7 +253,7 @@ const sendMessage = async (req, res) => {
         });
       }
     }
-    
+
     // Save assistant message (sender_id as user for now, sender_type as admin indicates AI)
     const assistantMessageResult = await db.query(
       `INSERT INTO messages (conversation_id, sender_id, sender_type, content)
@@ -262,13 +261,13 @@ const sendMessage = async (req, res) => {
        RETURNING id, conversation_id, 'assistant' as role, content, created_at`,
       [conversationId, userId, assistantContent]
     );
-    
+
     // Update conversation's updated_at
     await db.query(
       'UPDATE conversations SET updated_at = NOW() WHERE id = $1',
       [conversationId]
     );
-    
+
     // Cost tracking: log OpenAI usage for Liro Chat into contenthistory (no TTS)
     try {
       if (openaiUsage && userId) {
@@ -300,12 +299,12 @@ const sendMessage = async (req, res) => {
           audio_duration_seconds: null,
           entry_source: 'liro_chat',
         };
-        
+
         const { data: chData, error: chError } = await supabase
           .from('contenthistory')
           .insert(insertData)
           .select();
-        
+
         if (chError) {
           logger.error('💰 [LIRO COST] Failed to insert contenthistory record for chat:', chError);
         } else {
@@ -315,21 +314,21 @@ const sendMessage = async (req, res) => {
     } catch (costError) {
       logger.error('💰 [LIRO COST] Unexpected error while logging chat cost:', costError);
     }
-    
+
     // Extract and store topic if conversation is mature enough (background task)
-    // Temporarily disabled - requires topics table migration
-    // if (messageHistory.length >= 6) {
-    //   extractAndStoreTopic(conversationId, userId).catch(err => {
-    //     logger.error('Background topic extraction failed:', err);
-    //   });
-    // }
-    
+
+    if (messageHistory.length >= 6) {
+      extractAndStoreTopic(conversationId, userId).catch(err => {
+        logger.error('Background topic extraction failed:', err);
+      });
+    }
+
     res.json({
       success: true,
       userMessage: userMessageResult.rows[0],
       assistantMessage: assistantMessageResult.rows[0]
     });
-    
+
   } catch (error) {
     logger.error('Error sending message:', error);
     res.status(500).json({
@@ -364,19 +363,19 @@ const deleteConversation = async (req, res) => {
   try {
     const userId = req.user.id;
     const { conversationId } = req.params;
-    
+
     const result = await db.query(
       'DELETE FROM conversations WHERE id = $1 AND user_id = $2 RETURNING id',
       [conversationId, userId]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Konuşma bulunamadı'
       });
     }
-    
+
     res.json({
       success: true,
       message: 'Konuşma silindi'
@@ -391,31 +390,71 @@ const deleteConversation = async (req, res) => {
 };
 
 /**
+ * Update conversation title
+ */
+const updateConversationTitle = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId } = req.params;
+    const { title } = req.body || {};
+
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Başlık gereklidir',
+      });
+    }
+
+    const result = await db.query(
+      `UPDATE conversations 
+       SET subject = $1, updated_at = NOW()
+       WHERE id = $2 AND user_id = $3
+       RETURNING id, user_id, subject as title, created_at, updated_at`,
+      [title.trim(), conversationId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Konuşma bulunamadı',
+      });
+    }
+
+    res.json({
+      success: true,
+      conversation: result.rows[0],
+    });
+  } catch (error) {
+    logger.error('Error updating AI conversation title:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Konuşma güncellenemedi',
+    });
+  }
+};
+
+/**
  * Get topic suggestions for user
  */
 const getTopicSuggestions = async (req, res) => {
   try {
-    // Temporarily return empty array - requires topics table migration
-    // TODO: Re-enable after running topics migration
-    
+    const { suggestTopicsForUser } = require('../lib/rag');
+    const userId = req.user.id;
+    const { conversationId } = req.params;
+    let conversationContext = '';
+    if (conversationId) {
+      const messagesResult = await db.query(
+        `SELECT content FROM messages WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 5`,
+        [conversationId]
+      );
+      conversationContext = messagesResult.rows.map(r => r.content).join('\n');
+    }
+    const suggestions = await suggestTopicsForUser(userId, conversationContext);
+
     res.json({
       success: true,
-      suggestions: []
+      suggestions
     });
-    
-    // Original code (commented out):
-    // const userId = req.user.id;
-    // const { conversationId } = req.params;
-    // let conversationContext = '';
-    // if (conversationId) {
-    //   const messagesResult = await db.query(
-    //     `SELECT content FROM messages WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 5`,
-    //     [conversationId]
-    //   );
-    //   conversationContext = messagesResult.rows.map(r => r.content).join('\n');
-    // }
-    // const suggestions = await suggestTopicsForUser(userId, conversationContext);
-    
   } catch (error) {
     logger.error('Error getting topic suggestions:', error);
     res.status(500).json({
@@ -430,20 +469,14 @@ const getTopicSuggestions = async (req, res) => {
  */
 const getPopularTopics = async (req, res) => {
   try {
-    // Temporarily return empty array - requires topics table migration
-    // TODO: Re-enable after running topics migration
-    
-    logger.info('📊 Retrieved popular topics');
+    const { getPopularTopics: getPopular } = require('../lib/rag');
+    const limit = parseInt(req.query.limit) || 10;
+    const topics = await getPopular(limit);
+
     res.json({
       success: true,
-      topics: []
+      topics
     });
-    
-    // Original code (commented out):
-    // const { getPopularTopics: getPopular } = require('../lib/rag');
-    // const limit = parseInt(req.query.limit) || 10;
-    // const topics = await getPopular(limit);
-    
   } catch (error) {
     logger.error('Error getting popular topics:', error);
     res.status(500).json({
@@ -594,9 +627,14 @@ const getDailySuggestions = async (req, res) => {
       'Görevin, verilen kullanıcı profili (user_profile), aday öneriler (candidates), ' +
       'geri bildirim (feedback) ve içerik özeti (content_overview) alanlarından yola çıkarak ' +
       'kullanıcıya bugüne özel en fazla 3 kısa ve aksiyon odaklı öneri kartı sunmak. ' +
-      'Adaylar dizisindeki her obje bir fikir taslağıdır; özellikle type="content_item" veya ' +
-      'content_key alanı dolu olan adayları, suggestions içindeki kartlara dönüştürürken ' +
-      'ilgili suggestion.content_key alanına aynı content_key değerini yaz. ' +
+      'ÖNCELİK: Eğer content_overview.recommended_next alanında veya candidates dizisinde type="content_item" olan adaylar varsa, kartlarını ÖNCE bu içeriklere dayandır; bunlar kullanıcının konu ağacı ve geçmiş ilerlemesiyle ilişkilidir. ' +
+      'Hobi/ilgi alanı tabanlı type="new_chat" gibi adayları yalnızca içerik/geçmişe dayalı mantıklı bir öneri üretemediğinde kullan. ' +
+      'Her suggestion objesinde zorunlu alanlar: id (string), title_tr (string), short_description_tr (string), action_type (string), action_payload (object). ' +
+      'action_type alanı SADECE şu değerlerden biri olabilir: "continue_chat", "start_chat_topic", "start_motiv_recording", "start_podcast_topic". ' +
+      'Eşleştirme kuralları: candidates.type="continue_chat" ise action_type="continue_chat" ve action_payload={"conversationId": candidate.conversationId, "topic_hint": candidate.topic_hint}. ' +
+      'candidates.type="new_chat" ise action_type="start_chat_topic" ve action_payload={"topic": candidate.interest}. ' +
+      'candidates.type="motiv" ise action_type="start_motiv_recording" ve action_payload={}. ' +
+      'candidates.type="content_item" veya content_key dolu ise, action_type genellikle "start_chat_topic" olmalı ve action_payload={"topic": suggestion.title_tr veya candidate.title}. Ayrıca suggestion.content_key alanına candidate.content_key değerini KESİNLİKLE yaz. ' +
       'Her zaman geçerli ve minify edilmiş JSON döndür. Kod bloğu veya açıklama ekleme. ' +
       'Şema: {"daily_message_tr": string, "suggestions": Array, "fallback_questions_tr": Array}.';
 
@@ -606,11 +644,11 @@ const getDailySuggestions = async (req, res) => {
       feedback,
       content_overview: contentOverview
         ? {
-            current_main_topic: contentOverview.current_main_topic,
-            recent_items: (contentOverview.recent_items || []).slice(0, 5),
-            incomplete_items: (contentOverview.incomplete_items || []).slice(0, 5),
-            recommended_next: (contentOverview.recommended_next || []).slice(0, 3),
-          }
+          current_main_topic: contentOverview.current_main_topic,
+          recent_items: (contentOverview.recent_items || []).slice(0, 5),
+          incomplete_items: (contentOverview.incomplete_items || []).slice(0, 5),
+          recommended_next: (contentOverview.recommended_next || []).slice(0, 3),
+        }
         : null,
     };
 
@@ -818,6 +856,7 @@ module.exports = {
   getMessages,
   sendMessage,
   deleteConversation,
+  updateConversationTitle,
   getTopicSuggestions,
   getPopularTopics,
   getDailySuggestions,

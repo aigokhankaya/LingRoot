@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { MessageSquare, Plus, Home, Settings, LogOut } from 'lucide-react';
+import { MessageSquare, Plus, Home, Settings, LogOut, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from '../../lib/auth';
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getApiUrl } from '../../lib/api';
 
 interface Conversation {
   id: string;
@@ -25,13 +26,15 @@ interface ConversationListProps {
   currentConversationId?: string;
   onNewChat: () => void;
   isLoading?: boolean;
+  onRefreshConversations?: () => void;
 }
 
 export const ConversationList: React.FC<ConversationListProps> = ({
   conversations,
   currentConversationId,
   onNewChat,
-  isLoading = false
+  isLoading = false,
+  onRefreshConversations,
 }) => {
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -40,17 +43,71 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   const displayName = (user as any)?.name || user?.email || 'Kullanıcı';
   const avatar = (user as any)?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 24) {
-      return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-    } else if (diffInHours < 24 * 7) {
-      return date.toLocaleDateString('tr-TR', { weekday: 'short' });
-    } else {
-      return date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' });
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (typeof window !== 'undefined') {
+      const confirmed = window.confirm('Bu sohbeti silmek istiyor musun?');
+      if (!confirmed) return;
+    }
+
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+      const response = await fetch(getApiUrl(`/api/ai-chat/conversations/${conversationId}`), {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token || ''}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.error('Sohbet silinemedi', await response.text());
+        if (typeof window !== 'undefined') {
+          window.alert('Sohbet silinemedi. Lütfen tekrar dene.');
+        }
+        return;
+      }
+
+      // Eğer mevcut açık sohbet silindiyse yeni sohbete yönlendir
+      if (currentConversationId === conversationId) {
+        router.push('/chat/new');
+      }
+
+      onRefreshConversations?.();
+    } catch (error) {
+      console.error('Sohbet silme hatası:', error);
+      if (typeof window !== 'undefined') {
+        window.alert('Sohbet silinirken bir hata oluştu.');
+      }
+    }
+  };
+
+  const handleRenameConversation = async (conv: Conversation) => {
+    if (typeof window === 'undefined') return;
+
+    const currentTitle = conv.title || 'Yeni Sohbet';
+    const newTitle = window.prompt('Yeni sohbet başlığını gir:', currentTitle);
+    if (!newTitle || newTitle.trim() === '' || newTitle === currentTitle) return;
+
+    try {
+      const token = localStorage.getItem('lingroot_token');
+      const response = await fetch(getApiUrl(`/api/ai-chat/conversations/${conv.id}`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token || ''}`,
+        },
+        body: JSON.stringify({ title: newTitle.trim() }),
+      });
+
+      if (!response.ok) {
+        console.error('Sohbet güncellenemedi', await response.text());
+        window.alert('Sohbet başlığı güncellenemedi. Lütfen tekrar dene.');
+        return;
+      }
+
+      onRefreshConversations?.();
+    } catch (error) {
+      console.error('Sohbet başlığı güncelleme hatası:', error);
+      window.alert('Sohbet başlığı güncellenirken bir hata oluştu.');
     }
   };
 
@@ -100,27 +157,65 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             </div>
           ) : (
             conversations.map((conv) => (
-              <Link key={conv.id} href={`/chat/${conv.id}`}>
-                <div
-                  className={`group p-2.5 md:p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                    currentConversationId === conv.id
-                      ? 'bg-gray-200 text-gray-900'
-                      : 'hover:bg-gray-100 text-gray-700 hover:text-gray-900'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm md:text-[15px] font-normal font-sans truncate leading-snug">
-                        {conv.title || 'Yeni Sohbet'}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatDate(conv.created_at)}
-                      </p>
-                    </div>
-                    <MessageSquare className="w-4 h-4 text-gray-400 group-hover:text-gray-600 flex-shrink-0 transition-colors" />
+              <div
+                key={conv.id}
+                className={`group p-2.5 md:p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                  currentConversationId === conv.id
+                    ? 'bg-gray-200 text-gray-900'
+                    : 'hover:bg-gray-100 text-gray-700 hover:text-gray-900'
+                }`}
+                onClick={() => router.push(`/chat/${conv.id}`)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm md:text-[15px] font-normal font-sans truncate leading-snug">
+                      {conv.title || 'Yeni Sohbet'}
+                    </p>
                   </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-200 flex-shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        aria-label="Sohbet işlemleri"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      side="bottom"
+                      className="w-44 bg-white border border-gray-200 text-gray-700"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleRenameConversation(conv);
+                        }}
+                      >
+                        <Edit2 className="w-3 h-3 mr-2" />
+                        Başlığı Düzenle
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="cursor-pointer text-red-600 focus:text-red-600"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDeleteConversation(conv.id);
+                        }}
+                      >
+                        <Trash2 className="w-3 h-3 mr-2" />
+                        Sohbeti Sil
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              </Link>
+              </div>
             ))
           )}
         </div>

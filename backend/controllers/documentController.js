@@ -3,6 +3,8 @@ const logger = require("../utils/logger");
 const { v4: uuidv4 } = require("uuid");
 const pdfParse = require("pdf-parse");
 const bookTextExtractor = require("../utils/bookTextExtractor");
+const openaiClient = require("../utils/openaiClient");
+const { storeTopic } = require("../lib/rag");
 
 /**
  * Uploads a PDF document, extracts text, splits it into sections and
@@ -114,8 +116,8 @@ exports.uploadDocument = async (req, res) => {
           typeof s.word_count === "number" && Number.isFinite(s.word_count)
             ? s.word_count
             : normalizedText
-            ? normalizedText.split(/\s+/).length
-            : 0;
+              ? normalizedText.split(/\s+/).length
+              : 0;
 
         return {
           ...s,
@@ -196,11 +198,36 @@ exports.uploadDocument = async (req, res) => {
       sectionCount: insertedSections?.length || 0,
     });
 
-    return res.status(201).json({
+    // Send response immediately
+    const responseObj = res.status(201).json({
       success: true,
       document,
       sections: insertedSections || [],
     });
+
+    // Background Task: Extract and store topic for RAG
+    // We don't await this to keep response fast
+    (async () => {
+      try {
+        logger.info("[uploadDocument] Starting background topic extraction...");
+        const extracted = await openaiClient.extractTopicFromText(rawText);
+
+        if (extracted && extracted.topic) {
+          await storeTopic({
+            title: extracted.topic,
+            description: extracted.description || `Extracted from document: ${title}`,
+            userId: userId,
+            sourceType: 'pdf',
+            sourceId: document.id
+          });
+          logger.info("[uploadDocument] Topic extracted and stored:", extracted.topic);
+        }
+      } catch (bgError) {
+        logger.error("[uploadDocument] Background topic extraction failed:", bgError);
+      }
+    })();
+
+    // Response already sent
   } catch (error) {
     logger.error("[uploadDocument] Unexpected error", { requestId, error: error.message });
     return res.status(500).json({
@@ -452,8 +479,8 @@ exports.createDocumentFromText = async (req, res) => {
           typeof s.word_count === "number" && Number.isFinite(s.word_count)
             ? s.word_count
             : normalizedText
-            ? normalizedText.split(/\s+/).length
-            : 0;
+              ? normalizedText.split(/\s+/).length
+              : 0;
 
         return {
           ...s,

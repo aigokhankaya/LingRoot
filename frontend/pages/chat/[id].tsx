@@ -25,25 +25,6 @@ interface Conversation {
   created_at: string;
 }
 
-interface DailySuggestion {
-  id: string;
-  content_key?: string;
-  title_tr: string;
-  short_description_tr?: string;
-  skill_focus?: string;
-  estimated_time_min?: number;
-  reason_tr?: string;
-  action_label_tr?: string;
-  action_type: string;
-  action_payload?: { [key: string]: any };
-}
-
-interface DailySuggestionsResponse {
-  daily_message_tr: string;
-  suggestions: DailySuggestion[];
-  fallback_questions_tr?: string[];
-}
-
 export default function ChatPage() {
   const router = useRouter();
   const { id } = router.query;
@@ -56,8 +37,6 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [audioResult, setAudioResult] = useState<any>(null);
-  const [dailySuggestions, setDailySuggestions] = useState<DailySuggestionsResponse | null>(null);
-  const [isDailyLoading, setIsDailyLoading] = useState(false);
   
   // CTA butonları için state
   const [konuSecildi, setKonuSecildi] = useState(false);
@@ -244,36 +223,6 @@ export default function ChatPage() {
     }
   };
 
-  const fetchDailySuggestions = async () => {
-    try {
-      setIsDailyLoading(true);
-      const token = localStorage.getItem('lingroot_token');
-      const response = await fetch(getApiUrl('/api/ai-chat/daily-suggestions'), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const payload: DailySuggestionsResponse = {
-          daily_message_tr: data.daily_message_tr || '',
-          suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
-          fallback_questions_tr: Array.isArray(data.fallback_questions_tr)
-            ? data.fallback_questions_tr
-            : [],
-        };
-        if (payload.suggestions.length > 0) {
-          setDailySuggestions(payload);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch daily suggestions:', error);
-    } finally {
-      setIsDailyLoading(false);
-    }
-  };
-
   // Fetch messages for current conversation
   const fetchMessages = async (conversationId: string) => {
     if (!conversationId || conversationId === 'new') return;
@@ -326,15 +275,17 @@ export default function ChatPage() {
   };
 
   // Send message to Liro
-  const sendMessage = async (content: string) => {
-    if (!content.trim()) return;
+  const sendMessage = async (content?: string | null) => {
+    if (typeof content !== 'string') return;
+    const trimmed = content.trim();
+    if (!trimmed) return;
 
     setError(null);
     let conversationId = id as string;
 
     // Create new conversation if needed
     if (!conversationId || conversationId === 'new') {
-      const newConv = await createNewConversation(content);
+      const newConv = await createNewConversation(trimmed);
       if (!newConv) {
         setError('Sohbet oluşturulamadı');
         return;
@@ -348,7 +299,7 @@ export default function ChatPage() {
       id: `temp-${Date.now()}`,
       conversation_id: conversationId,
       role: 'user',
-      content,
+      content: trimmed,
       created_at: new Date().toISOString(),
     };
     setMessages(prev => [...prev, userMessage]);
@@ -362,7 +313,7 @@ export default function ChatPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: trimmed }),
       });
 
       if (!response.ok) {
@@ -395,73 +346,10 @@ export default function ChatPage() {
     router.push('/chat/new');
   };
 
-  const handleDailySuggestionClick = async (suggestion: DailySuggestion) => {
-    const actionType = suggestion.action_type;
-    const payload = suggestion.action_payload || {};
-
-    // Fire-and-forget feedback logging
-    try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-      if (token && suggestion.id) {
-        fetch(getApiUrl('/api/ai-chat/daily-suggestions/feedback'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            suggestion_id: suggestion.id,
-            action_type: suggestion.action_type,
-            clicked: true,
-            reason: 'accepted',
-            content_key:
-              suggestion.content_key ||
-              (typeof (payload as any).content_key === 'string'
-                ? (payload as any).content_key
-                : undefined),
-          }),
-        }).catch((err) => {
-          console.error('Failed to send daily suggestion feedback:', err);
-        });
-      }
-    } catch (err) {
-      console.error('Unexpected error while sending daily suggestion feedback:', err);
-    }
-
-    if (actionType === 'continue_chat' && payload.conversationId) {
-      router.push(`/chat/${payload.conversationId}`);
-      return;
-    }
-
-    if (actionType === 'start_chat_topic') {
-      const topic = (payload.topic as string) || suggestion.title_tr;
-      const prompt = `Bugün ${topic} hakkında İngilizce konuşma pratiği yapmak istiyorum. Bana buna göre sorular sor.`;
-      await sendMessage(prompt);
-      return;
-    }
-
-    if (actionType === 'start_motiv_recording') {
-      const prompt =
-        'Kısa bir motivasyon konuşması için 3 cümlelik basit bir İngilizce metin hazırlar mısın?';
-      await sendMessage(prompt);
-      return;
-    }
-
-    if (actionType === 'start_podcast_topic') {
-      const topic = (payload.topic as string) || suggestion.title_tr;
-      const prompt = `${topic} hakkında B1 seviyesinde yaklaşık 10 dakikalık bir podcast senaryosu hazırlayalım.`;
-      await sendMessage(prompt);
-      return;
-    }
-
-    await sendMessage(suggestion.title_tr);
-  };
-
   // Load conversations on mount
   useEffect(() => {
     if (isAuthenticated) {
       fetchConversations();
-      fetchDailySuggestions();
     }
   }, [isAuthenticated]);
 
@@ -501,6 +389,7 @@ export default function ChatPage() {
           currentConversationId={id as string}
           onNewChat={handleNewChat}
           isLoading={false}
+          onRefreshConversations={fetchConversations}
         />
 
         {/* Main Chat Area */}
@@ -508,58 +397,6 @@ export default function ChatPage() {
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-white">
             <div className="max-w-4xl mx-auto px-4 py-4">
-              {dailySuggestions && dailySuggestions.suggestions.length > 0 && (
-                <div className="mb-6">
-                  <div className="mb-3 text-sm font-medium text-gray-800">
-                    {dailySuggestions.daily_message_tr}
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {dailySuggestions.suggestions.map((suggestion) => (
-                      <div
-                        key={suggestion.id}
-                        className="flex flex-col justify-between p-4 rounded-xl border border-gray-200 bg-white shadow-sm"
-                      >
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900">
-                            {suggestion.title_tr}
-                          </div>
-                          {suggestion.short_description_tr && (
-                            <div className="mt-1 text-xs text-gray-600">
-                              {suggestion.short_description_tr}
-                            </div>
-                          )}
-                          {suggestion.reason_tr && (
-                            <div className="mt-2 text-xs text-gray-500">
-                              {suggestion.reason_tr}
-                            </div>
-                          )}
-                          {(suggestion.skill_focus ||
-                            typeof suggestion.estimated_time_min === 'number') && (
-                            <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-gray-500">
-                              {suggestion.skill_focus && (
-                                <span className="px-2 py-0.5 rounded-full bg-gray-100">
-                                  {suggestion.skill_focus}
-                                </span>
-                              )}
-                              {typeof suggestion.estimated_time_min === 'number' && (
-                                <span className="px-2 py-0.5 rounded-full bg-gray-100">
-                                  {suggestion.estimated_time_min} dk
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => handleDailySuggestionClick(suggestion)}
-                          className="mt-4 inline-flex items-center justify-center px-3 py-2 text-xs font-medium text-white bg-primary hover:bg-primary/90 rounded-lg"
-                        >
-                          {suggestion.action_label_tr || 'Başla'}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
               {error && (
                 <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 shadow-sm">
                   <div className="flex items-center gap-2">
