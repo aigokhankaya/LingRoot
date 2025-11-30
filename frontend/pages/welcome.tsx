@@ -39,6 +39,7 @@ import { Card, CardContent } from "../src/components/ui/card";
 import { Badge } from "../src/components/ui/badge";
 import BrandWordmark from "../src/components/BrandWordmark";
 import LiroAvatar from "../src/components/LiroAvatar";
+import { ProfileDropdownMenu } from "../src/components/shared/ProfileDropdownMenu";
 
 interface InputData {
   type: ProcessInputData['type'];
@@ -1994,88 +1995,13 @@ const Welcome: React.FC = () => {
                 <i className="fas fa-bell"></i>
               </Button>
               {isAuthenticated && (
-                <div className="relative">
-                  <div
-                    className="flex items-center space-x-3 cursor-pointer"
-                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  >
-                    <img
-                      src={avatar}
-                      alt={displayName}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                    <div className="text-sm">
-                      <div className="font-medium">{displayName}</div>
-                      <div className="text-gray-500 text-xs">{user?.email}</div>
-                    </div>
-                    <i className={`fas fa-chevron-${profileMenuOpen ? 'up' : 'down'} ml-2 text-gray-500 transition-transform duration-200`}></i>
-                  </div>
-                  <div
-                    className={`absolute right-0 w-48 mt-2 bg-white rounded-lg shadow-lg py-2 ${profileMenuOpen ? 'block' : 'hidden'} z-10`}
-                  >
-                    <Link
-                      href="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <i className="fas fa-user-circle mr-2"></i>
-                      Profil Bilgilerim
-                    </Link>
-                    <Link
-                      href="/dashboard?tab=paket-bilgilerim"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <i className="fas fa-box mr-2"></i>
-                      Paket Bilgilerim
-                    </Link>
-                    <Link
-                      href="/settings"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <i className="fas fa-cog mr-2"></i>
-                      Hesap Ayarları
-                    </Link>
-                    <Link
-                      href="/dashboard?tab=reading-history"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <i className="fas fa-history mr-2"></i>
-                      Okuma Geçmişim
-                    </Link>
-                    <a
-                      href="#"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <i className="fas fa-heart mr-2"></i>
-                      Favorilerim
-                    </a>
-                    <Link
-                      href="/settings?section=language"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <i className="fas fa-globe mr-2"></i>
-                      Dil Ayarları
-                    </Link>
-                    <a
-                      href="#"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <i className="fas fa-question-circle mr-2"></i>
-                      Yardım ve Destek
-                    </a>
-                    <div className="border-t border-gray-100 mt-2 pt-2">
-                      <button
-                        onClick={() => {
-                          logout();
-                          router.push('/');
-                        }}
-                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 cursor-pointer"
-                      >
-                        <i className="fas fa-sign-out-alt mr-2"></i>
-                        Çıkış Yap
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <ProfileDropdownMenu
+                  align="end"
+                  side="bottom"
+                  avatarSize="md"
+                  showUserInfo={true}
+                  showChevron={true}
+                />
               )}
             </div>
           </div>

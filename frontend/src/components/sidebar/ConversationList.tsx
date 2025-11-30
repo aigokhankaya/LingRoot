@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { MessageSquare, Plus, Home, Settings, LogOut, MoreVertical, Edit2, Trash2 } from 'lucide-react';
+import { MessageSquare, Plus, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from '../../lib/auth';
@@ -9,11 +9,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getApiUrl } from '../../lib/api';
+import { ProfileDropdownMenu } from '../shared/ProfileDropdownMenu';
 
 interface Conversation {
   id: string;
@@ -36,12 +35,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   isLoading = false,
   onRefreshConversations,
 }) => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-
-  const displayName = (user as any)?.name || user?.email || 'Kullanıcı';
-  const avatar = (user as any)?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
 
   const handleDeleteConversation = async (conversationId: string) => {
     if (typeof window !== 'undefined') {
@@ -226,75 +221,15 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         {/* User Profile with Dropdown Menu */}
         {user && (
           <div className="p-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="flex items-center gap-2 w-full rounded-xl p-2 hover:bg-gray-100 focus-visible:outline-none transition-colors"
-                  aria-label="Kullanıcı menüsü"
-                >
-                  <Avatar className="h-8 w-8 flex-shrink-0">
-                    <AvatarFallback className="bg-gray-700 text-white">
-                      {displayName.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm text-gray-700 truncate flex-1 text-left">{user?.email}</span>
-                </button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent
-                align="end"
-                side="top"
-                className="w-56 bg-white border-gray-200 text-gray-700"
-              >
-                <DropdownMenuItem asChild className="focus:bg-gray-100 cursor-pointer">
-                  <Link href="/" className="flex items-center gap-2">
-                    <Home className="h-4 w-4" />
-                    Ana Sayfaya Dön
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem asChild className="focus:bg-gray-100 cursor-pointer">
-                  <Link href="/profile" className="flex items-center gap-2">
-                    <i className="fas fa-user-circle w-4 text-center"></i>
-                    Profil Bilgilerim
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem asChild className="focus:bg-gray-100 cursor-pointer">
-                  <Link href="/dashboard?tab=paket-bilgilerim" className="flex items-center gap-2">
-                    <i className="fas fa-box w-4 text-center"></i>
-                    Paket Bilgilerim
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem asChild className="focus:bg-gray-100 cursor-pointer">
-                  <Link href="/settings" className="flex items-center gap-2">
-                    <Settings className="h-4 w-4" />
-                    Hesap Ayarları
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem asChild className="focus:bg-gray-100 cursor-pointer">
-                  <Link href="/dashboard?tab=reading-history" className="flex items-center gap-2">
-                    <i className="fas fa-history w-4 text-center"></i>
-                    Okuma Geçmişim
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator className="bg-gray-200" />
-
-                <DropdownMenuItem 
-                  className="focus:bg-gray-100 cursor-pointer text-red-600 focus:text-red-600"
-                  onClick={() => {
-                    logout();
-                    router.push('/');
-                  }}
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Çıkış Yap
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <ProfileDropdownMenu
+              align="end"
+              side="top"
+              avatarSize="sm"
+              showUserInfo={false}
+              showChevron={false}
+              showHomeLink={true}
+              triggerClassName="w-full rounded-xl p-2 hover:bg-gray-100 transition-colors"
+            />
           </div>
         )}
         
