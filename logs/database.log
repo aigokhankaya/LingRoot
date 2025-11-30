@@ -1,0 +1,2 @@
+{"database":"postgres","host":"aws-0-eu-central-***","isSupabaseHost":true,"level":"info","message":"[DB] Connecting to PostgreSQL","port":"5432","ssl":true,"timestamp":"2025-11-30T05:53:39.511Z"}
+{"level":"debug","message":"[DB] Resolved host (unmasked): aws-0-eu-central-1.pooler.supabase.com","timestamp":"2025-11-30T05:53:39.513Z"}

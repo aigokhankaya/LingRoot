@@ -1,9 +1,12 @@
 const db = require('../config/db');
 const logger = require('../utils/logger');
+const fs = require('fs');
+const path = require('path');
 const claudeClient = require('../utils/claudeClient');
 const openaiClient = require('../utils/openaiClient');
 const userProfileAnalyzer = require('../utils/userProfileAnalyzer');
 const liroPromptGenerator = require('../utils/liroPromptGenerator');
+const liroContentGraph = require('../utils/liroContentGraph');
 const { supabase } = require('../utils/supabaseClient');
 const { calculateOpenAiCost } = require('../utils/costTracker');
 // Temporarily disabled - requires topics table migration
@@ -192,12 +195,22 @@ const sendMessage = async (req, res) => {
       [conversationId, userId, content.trim()]
     );
     
-    // 🧠 Generate comprehensive user profile for Liro
     logger.info('🧠 Generating user profile for Liro...');
     const userProfile = await userProfileAnalyzer.generateUserProfile(userId);
-    
-    // 🎯 Generate personalized Liro system prompt
-    const liroSystemPrompt = liroPromptGenerator.generateSystemPrompt(userProfile);
+
+    let contentOverview = null;
+    let overviewPrompt = '';
+    try {
+      contentOverview = await liroContentGraph.getUserOverview(userId);
+      overviewPrompt = liroContentGraph.buildOverviewPromptSection(contentOverview);
+    } catch (overviewError) {
+      logger.warn('Failed to build content overview for Liro:', overviewError);
+    }
+
+    let liroSystemPrompt = liroPromptGenerator.generateSystemPrompt(userProfile);
+    if (overviewPrompt) {
+      liroSystemPrompt = `${liroSystemPrompt}\n\n${overviewPrompt}`;
+    }
     logger.debug('📝 Liro prompt generated:', { 
       username: userProfile.basicInfo?.username,
       interests: userProfile.interests?.count,
@@ -440,6 +453,365 @@ const getPopularTopics = async (req, res) => {
   }
 };
 
+const getDailySuggestions = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const userProfile = await userProfileAnalyzer.generateUserProfile(userId);
+
+    // Read last feedback (if any)
+    const lastFeedbackResult = await db.query(
+      `SELECT suggestion_id, action_type, clicked, reason, raw_text, created_at
+       FROM user_daily_suggestion_logs
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [userId]
+    );
+
+    const lastFeedback = lastFeedbackResult.rows[0] || null;
+
+    // Read recently shown suggestions to avoid repetition
+    let recentlyShownIds = [];
+    try {
+      const recentlyShownResult = await db.query(
+        `SELECT suggestion_id
+         FROM user_daily_suggestions_shown
+         WHERE user_id = $1
+           AND shown_at > NOW() - INTERVAL '3 days'
+         ORDER BY shown_at DESC
+         LIMIT 20`,
+        [userId]
+      );
+      recentlyShownIds = recentlyShownResult.rows.map(r => r.suggestion_id).filter(Boolean);
+    } catch (recentErr) {
+      logger.warn('Failed to read recently shown daily suggestions:', recentErr);
+    }
+
+    const profileSummary = {
+      name: userProfile?.basicInfo?.username || 'Kullanıcı',
+      cefr_level: userProfile?.contentHistory?.preferredLevel || 'B1',
+      interest_tags: userProfile?.interests?.list || [],
+      recent_topics: userProfile?.conversationHistory?.recentTopics || [],
+      popular_topics: (userProfile?.conversationHistory?.popularTopics || []).map(t => t.topic),
+      experience_level: userProfile?.learningProgress?.experienceLevel || 'intermediate',
+      account_age_days: userProfile?.basicInfo?.accountAge?.days || null,
+    };
+
+    const candidates = [];
+
+    const lastConversationResult = await db.query(
+      `SELECT 
+         c.id,
+         c.subject as topic,
+         c.updated_at,
+         (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) as message_count
+       FROM conversations c
+       WHERE c.user_id = $1
+       ORDER BY c.updated_at DESC
+       LIMIT 1`,
+      [userId]
+    );
+
+    if (lastConversationResult.rows.length > 0) {
+      const conv = lastConversationResult.rows[0];
+      const messageCount = parseInt(conv.message_count, 10) || 0;
+      if (messageCount >= 3) {
+        candidates.push({
+          id: conv.id,
+          type: 'continue_chat',
+          conversationId: conv.id,
+          topic_hint: conv.topic || 'Sohbet',
+          estimated_time_min: 5,
+        });
+      }
+    }
+
+    const unusedInterests = userProfile?.recommendations?.unusedInterests || [];
+    const recentInterests = userProfile?.interests?.recent || [];
+    const allInterests = userProfile?.interests?.list || [];
+
+    let primaryInterest = null;
+    if (unusedInterests.length > 0) {
+      primaryInterest = unusedInterests[0];
+    } else if (recentInterests.length > 0) {
+      primaryInterest = recentInterests[0];
+    } else if (allInterests.length > 0) {
+      primaryInterest = allInterests[0];
+    }
+
+    if (primaryInterest) {
+      candidates.push({
+        id: `interest_${primaryInterest}`,
+        type: 'new_chat',
+        interest: primaryInterest,
+        estimated_time_min: 7,
+      });
+    }
+
+    if (candidates.length < 3) {
+      candidates.push({
+        id: 'quick_motiv_speaking',
+        type: 'motiv',
+        skill: 'speaking',
+        estimated_time_min: 3,
+      });
+    }
+
+    const feedback = {
+      last_suggestion_rejected: !!(lastFeedback && lastFeedback.reason === 'not_relevant'),
+      last_reason: lastFeedback?.reason || null,
+      last_raw_text: lastFeedback?.raw_text || null,
+      disliked_tags: [],
+      recently_shown_ids: recentlyShownIds,
+    };
+
+    let contentOverview = null;
+    try {
+      contentOverview = await liroContentGraph.getUserOverview(userId);
+      if (contentOverview && Array.isArray(contentOverview.recommended_next)) {
+        const graphItems = contentOverview.recommended_next.slice(0, 3);
+        graphItems.forEach((item) => {
+          const contentKey = item.key || item.content_key || item.contentKey;
+          if (!contentKey) return;
+          const candidateId = `content_${contentKey}`;
+          if (candidates.some((c) => c.id === candidateId)) return;
+          candidates.push({
+            id: candidateId,
+            type: 'content_item',
+            content_key: contentKey,
+            title: item.title || null,
+            estimated_time_min: item.estimated_duration_min || null,
+          });
+        });
+      }
+    } catch (overviewError) {
+      logger.warn('Failed to get content overview for daily suggestions:', overviewError);
+    }
+
+    const systemPrompt =
+      'Sen Liro\'sun, LingRoot\'un AI destekli İngilizce öğrenme asistanısın. ' +
+      'Görevin, verilen kullanıcı profili (user_profile), aday öneriler (candidates), ' +
+      'geri bildirim (feedback) ve içerik özeti (content_overview) alanlarından yola çıkarak ' +
+      'kullanıcıya bugüne özel en fazla 3 kısa ve aksiyon odaklı öneri kartı sunmak. ' +
+      'Adaylar dizisindeki her obje bir fikir taslağıdır; özellikle type="content_item" veya ' +
+      'content_key alanı dolu olan adayları, suggestions içindeki kartlara dönüştürürken ' +
+      'ilgili suggestion.content_key alanına aynı content_key değerini yaz. ' +
+      'Her zaman geçerli ve minify edilmiş JSON döndür. Kod bloğu veya açıklama ekleme. ' +
+      'Şema: {"daily_message_tr": string, "suggestions": Array, "fallback_questions_tr": Array}.';
+
+    const payload = {
+      user_profile: profileSummary,
+      candidates,
+      feedback,
+      content_overview: contentOverview
+        ? {
+            current_main_topic: contentOverview.current_main_topic,
+            recent_items: (contentOverview.recent_items || []).slice(0, 5),
+            incomplete_items: (contentOverview.incomplete_items || []).slice(0, 5),
+            recommended_next: (contentOverview.recommended_next || []).slice(0, 3),
+          }
+        : null,
+    };
+
+    let parsed;
+
+    try {
+      const completion = await openaiClient.generateChatCompletion(
+        [
+          {
+            role: 'user',
+            content: JSON.stringify(payload),
+          },
+        ],
+        {
+          systemPrompt,
+          temperature: 0.7,
+          maxTokens: 800,
+          model: 'gpt-4o-mini',
+        }
+      );
+
+      const raw = completion.content || '';
+      parsed = JSON.parse(raw);
+    } catch (aiError) {
+      logger.error('Error generating daily suggestions with OpenAI:', aiError);
+    }
+
+    if (!parsed) {
+      parsed = buildFallbackDailySuggestions(profileSummary, candidates);
+    }
+
+    // Log which suggestions were shown today (best-effort, non-blocking for user)
+    try {
+      if (parsed && Array.isArray(parsed.suggestions) && parsed.suggestions.length > 0) {
+        const validSuggestions = parsed.suggestions.filter(
+          (s) => s && typeof s.id === 'string' && s.id.trim().length > 0
+        );
+
+        if (validSuggestions.length > 0) {
+          const values = [];
+          const placeholders = [];
+
+          validSuggestions.forEach((s, idx) => {
+            values.push(userId, s.id);
+            const base = idx * 2;
+            placeholders.push(`($${base + 1}, $${base + 2})`);
+          });
+
+          await db.query(
+            `INSERT INTO user_daily_suggestions_shown (user_id, suggestion_id)
+             VALUES ${placeholders.join(', ')}`,
+            values
+          );
+        }
+      }
+    } catch (logError) {
+      logger.warn('Failed to log daily suggestions shown:', logError);
+    }
+
+    res.json({
+      success: true,
+      ...parsed,
+    });
+  } catch (error) {
+    logger.error('Error in getDailySuggestions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Öneriler getirilemedi',
+    });
+  }
+};
+
+function buildFallbackDailySuggestions(profileSummary, candidates) {
+  const name = profileSummary?.name || 'Bugün';
+  const interests = profileSummary?.interest_tags || [];
+  const firstInterest = interests[0] || null;
+
+  const suggestions = [];
+
+  if (candidates.length > 0) {
+    const first = candidates[0];
+    if (first.type === 'continue_chat') {
+      suggestions.push({
+        id: first.id,
+        title_tr: 'Son sohbetine kısa bir devam',
+        short_description_tr:
+          'Önceki konuşmana birkaç yeni soru ekleyerek yaklaşık 5 dakikalık bir pratik yapıyorsun.',
+        skill_focus: 'speaking',
+        estimated_time_min: first.estimated_time_min || 5,
+        reason_tr:
+          'Devam eden sohbetleri tamamlamak akıcılığını ve özgüvenini artırır.',
+        action_label_tr: 'Sohbete Devam Et',
+        action_type: 'continue_chat',
+        action_payload: {
+          conversationId: first.conversationId,
+          topic_hint: first.topic_hint || null,
+        },
+      });
+    }
+  }
+
+  if (firstInterest && suggestions.length < 2) {
+    suggestions.push({
+      id: `interest_${firstInterest}`,
+      title_tr: `${firstInterest} hakkında mini sohbet`,
+      short_description_tr: `${firstInterest} temasında 4-5 soruluk kısa bir günlük konuşma pratiği yapıyorsun.`,
+      skill_focus: 'speaking',
+      estimated_time_min: 7,
+      reason_tr: `${firstInterest} zaten ilgi alanın olduğu için bu konuda konuşmak motivasyonunu yükseltir.`,
+      action_label_tr: 'Sohbete Başla',
+      action_type: 'start_chat_topic',
+      action_payload: {
+        topic: firstInterest,
+      },
+    });
+  }
+
+  if (suggestions.length < 2) {
+    suggestions.push({
+      id: 'quick_motiv_speaking',
+      title_tr: '3 cümlelik motivasyon kaydı',
+      short_description_tr:
+        'Bugünkü ruh halini anlatan 3 cümlelik kısa bir ses kaydı hazırlıyorsun ve telaffuzunu pratik ediyorsun.',
+      skill_focus: 'pronunciation',
+      estimated_time_min: 3,
+      reason_tr: 'Kısa ses kayıtları telaffuzunu hızlıca geliştirir ve özgüven kazandırır.',
+      action_label_tr: 'Motiv Ses Kaydet',
+      action_type: 'start_motiv_recording',
+      action_payload: {},
+    });
+  }
+
+  const dailyMessage = firstInterest
+    ? `${name}, bugün ${firstInterest} üzerinden konuşma pratiği yapalım. İstersen son sohbetine de kısa bir devam ekleyebilirsin.`
+    : `${name}, bugün sana hemen başlayabileceğin 1-2 kısa İngilizce pratik önerisi hazırladım.`;
+
+  return {
+    daily_message_tr: dailyMessage,
+    suggestions,
+    fallback_questions_tr: [
+      'Bugün hangi konular sana daha çekici geliyor? Futbol, iş hayatı mı yoksa günlük sohbet mi?',
+    ],
+  };
+}
+
+const saveDailySuggestionFeedback = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { suggestion_id, action_type, clicked, reason, raw_text, content_key } = req.body || {};
+
+    if (!suggestion_id || typeof suggestion_id !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'suggestion_id gereklidir',
+      });
+    }
+
+    const insertQuery = `
+      INSERT INTO user_daily_suggestion_logs (user_id, suggestion_id, action_type, clicked, reason, raw_text)
+      VALUES ($1, $2, $3, COALESCE($4, true), $5, $6)
+      RETURNING id, user_id, suggestion_id, action_type, clicked, reason, raw_text, created_at
+    `;
+
+    const isClicked = typeof clicked === 'boolean' ? clicked : true;
+
+    const params = [
+      userId,
+      suggestion_id,
+      action_type || null,
+      isClicked,
+      reason || null,
+      raw_text || null,
+    ];
+
+    const result = await db.query(insertQuery, params);
+
+    try {
+      const isClicked = typeof clicked === 'boolean' ? clicked : true;
+      if (content_key && isClicked) {
+        await liroContentGraph.markInteraction(userId, content_key, {
+          status: reason === 'accepted' ? 'completed' : undefined,
+          viaMode: 'chat',
+        });
+      }
+    } catch (interactionError) {
+      logger.warn('Failed to mark interaction from daily suggestion feedback:', interactionError);
+    }
+
+    res.json({
+      success: true,
+      feedback: result.rows[0],
+    });
+  } catch (error) {
+    logger.error('Error saving daily suggestion feedback:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Geri bildirim kaydedilemedi',
+    });
+  }
+};
+
 module.exports = {
   getConversations,
   createConversation,
@@ -448,4 +820,6 @@ module.exports = {
   deleteConversation,
   getTopicSuggestions,
   getPopularTopics,
+  getDailySuggestions,
+  saveDailySuggestionFeedback,
 };
