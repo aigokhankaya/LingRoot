@@ -108,6 +108,8 @@ Release Keystore (Google Play):
 
 Iphone Local Test:
 npx react-native start --reset-cache --host 0.0.0.0
+ip  bulma = ipconfig getifaddr en0
+EXPO_PUBLIC_API_URL=http://192.168.1.23:5001
 
 
 Android Lokal test:

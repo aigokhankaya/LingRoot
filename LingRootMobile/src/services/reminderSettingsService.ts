@@ -104,7 +104,11 @@ export class ReminderSettingsService {
     const totalDurationMinutes = totalDurationMs / (1000 * 60);
 
     // Always schedule the full desired number of reminders
-    const wordsToRemind = settings.wordsPerDay;
+    // but never exceed available unlearned words to avoid repeating the same word
+    const maxAvailable = typeof unlearnedWordsCount === 'number' && unlearnedWordsCount > 0
+      ? unlearnedWordsCount
+      : settings.wordsPerDay;
+    const wordsToRemind = Math.min(settings.wordsPerDay, maxAvailable);
     
     if (wordsToRemind <= 0 || totalDurationMinutes <= 0) {
       return notifications;

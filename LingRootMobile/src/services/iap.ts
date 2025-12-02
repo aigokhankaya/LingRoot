@@ -194,29 +194,37 @@ export async function requestSubscription(productId: string): Promise<{ ok: bool
           console.log('[IAP] Raw receipt type:', typeof receipt);
           console.log('[IAP] Raw receipt value:', receipt);
           
-          // If receipt is an object, extract the base64 string
+          // If receipt is an object, try to extract the base64 string
           if (Platform.OS === 'ios' && receipt) {
             if (typeof receipt === 'object') {
               console.log('[IAP] Receipt is an object, extracting base64 string...');
               console.log('[IAP] Receipt object keys:', Object.keys(receipt));
               
               // Try to find the actual receipt data in the object
-              receipt = receipt.transactionReceipt 
-                     || receipt.receiptData 
-                     || receipt.appStoreReceipt 
-                     || receipt.receipt
-                     || receipt.data
-                     || receipt.base64
-                     || JSON.stringify(receipt);
+              const possible =
+                (receipt as any).transactionReceipt ||
+                (receipt as any).receiptData ||
+                (receipt as any).appStoreReceipt ||
+                (receipt as any).receipt ||
+                (receipt as any).data ||
+                (receipt as any).base64;
+
+              receipt = typeof possible === 'string' ? possible : '';
             }
-            
-            // If still not a string, try to get the app receipt
-            if (typeof receipt !== 'string' || receipt.length < 100) {
+
+            // Validate that receipt looks like a real base64 app receipt
+            const isProbablyBase64 =
+              typeof receipt === 'string' &&
+              receipt.length > 100 &&
+              /^[A-Za-z0-9+/=]+$/.test(receipt as string);
+
+            // If not a valid-looking base64 string, try to get the app receipt
+            if (!isProbablyBase64) {
               console.log('[IAP] Receipt invalid, trying to get app receipt...');
               try {
                 // forceRefresh = true to get latest receipt
                 const appReceipt = await RNIap.getReceiptIOS({ forceRefresh: true });
-                if (appReceipt) {
+                if (typeof appReceipt === 'string') {
                   console.log('[IAP] Got app receipt from getReceiptIOS()');
                   receipt = appReceipt;
                 }

@@ -23,6 +23,7 @@ import { useRoute, useFocusEffect, useNavigation } from '@react-navigation/nativ
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiService, saveDefaultVoiceSetting, getUserSettings, getMyPlanFeatures, PlanFeatures } from '../services/api';
 import AudioPlayer from '../components/AudioPlayer';
+import { getVoiceDisplayName } from '../utils/voiceDisplayNames';
 
 const CreateScreen: React.FC = () => {
   const route = useRoute<any>();
@@ -263,11 +264,11 @@ const CreateScreen: React.FC = () => {
   };
 
 
-  // Voice selection states - Default to Emma
-  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('neural');
-  const [selectedVoice, setSelectedVoice] = useState<string>('Emma');
-  const [selectedAccent, setSelectedAccent] = useState<string>('american');
-  const [selectedGender, setSelectedGender] = useState<string>('female');
+  // Voice selection states - Default to empty
+  const [selectedVoiceCategory, setSelectedVoiceCategory] = useState<string>('standard');
+  const [selectedVoice, setSelectedVoice] = useState<string>('');
+  const [selectedAccent, setSelectedAccent] = useState<string>('all');
+  const [selectedGender, setSelectedGender] = useState<string>('all');
   const [availableVoices, setAvailableVoices] = useState<Voice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState<boolean>(false);
   const [showVoiceSelection, setShowVoiceSelection] = useState<boolean>(false);
@@ -722,16 +723,9 @@ const CreateScreen: React.FC = () => {
       try {
         await fetchAvailableVoices();
         const settings = await getUserSettings();
-        if (settings?.default_voice) {
-          const dv = settings.default_voice;
-          setSelectedVoice(dv);
-          const derived = deriveFiltersFromVoiceName(dv);
-          setSelectedVoiceCategory(derived.category);
-          setSelectedAccent(derived.accent);
-          setSelectedGender('all');
-          // Refresh list with filters to ensure default voice is included
-          await fetchFilteredVoices(derived.accent, 'all', derived.category);
-          // Ensure the selected voice remains selected after list refresh
+        const dv = settings?.default_voice;
+        // Only apply default voice automatically if it looks like a Lingroot ID
+        if (dv && typeof dv === 'string' && dv.startsWith('lr_')) {
           setSelectedVoice(dv);
           setShouldPromoteSelectedVoiceTop(true);
         }
@@ -1768,29 +1762,31 @@ const CreateScreen: React.FC = () => {
           <Text style={styles.levelDescription}>{levelDescriptions[selectedLevel]}</Text>
         </View>
 
-        <View style={styles.settingsSection}>
-          <Text style={styles.sectionTitle}>{t('create.speed.title')}</Text>
-          <View style={styles.speedContainer}>
-            <TouchableOpacity
-              style={styles.speedButton}
-              onPress={() => setSpeechRate(Math.max(0.5, speechRate - 0.1))}
-            >
-              <Icon name="remove" size={24} color="#007AFF" />
-            </TouchableOpacity>
-            <Text style={styles.speedText}>{speechRate.toFixed(1)}x</Text>
-            <TouchableOpacity
-              style={styles.speedButton}
-              onPress={() => setSpeechRate(Math.min(2.0, speechRate + 0.1))}
-            >
-              <Icon name="add" size={24} color="#007AFF" />
-            </TouchableOpacity>
+        {false && (
+          <View style={styles.settingsSection}>
+            <Text style={styles.sectionTitle}>{t('create.speed.title')}</Text>
+            <View style={styles.speedContainer}>
+              <TouchableOpacity
+                style={styles.speedButton}
+                onPress={() => setSpeechRate(Math.max(0.5, speechRate - 0.1))}
+              >
+                <Icon name="remove" size={24} color="#007AFF" />
+              </TouchableOpacity>
+              <Text style={styles.speedText}>{speechRate.toFixed(1)}x</Text>
+              <TouchableOpacity
+                style={styles.speedButton}
+                onPress={() => setSpeechRate(Math.min(2.0, speechRate + 0.1))}
+              >
+                <Icon name="add" size={24} color="#007AFF" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.speedLabels}>
+              <Text style={styles.speedLabel}>{t('create.speed.slow')}</Text>
+              <Text style={styles.speedLabel}>{t('create.speed.normal')}</Text>
+              <Text style={styles.speedLabel}>{t('create.speed.fast')}</Text>
+            </View>
           </View>
-          <View style={styles.speedLabels}>
-            <Text style={styles.speedLabel}>{t('create.speed.slow')}</Text>
-            <Text style={styles.speedLabel}>{t('create.speed.normal')}</Text>
-            <Text style={styles.speedLabel}>{t('create.speed.fast')}</Text>
-          </View>
-        </View>
+        )}
 
         {/* Voice Selection Section */}
         <View style={styles.settingsSection}>
@@ -1908,7 +1904,9 @@ const CreateScreen: React.FC = () => {
             <Icon name="record-voice-over" size={24} color="#007AFF" />
             <View style={styles.voiceSelectionInfo}>
               <Text style={styles.voiceSelectionText}>
-                {selectedVoice || t('create.voice.selectPrompt')}
+                {selectedVoice
+                  ? getVoiceDisplayName(selectedVoice, language, selectedVoice)
+                  : t('create.voice.selectPrompt')}
               </Text>
               <Text style={styles.voiceSelectionSubtext}>
                 {getFilteredVoicesByCategory().find(v => v.name === selectedVoice)?.description || t('create.voice.selectHint')}
@@ -1957,7 +1955,9 @@ const CreateScreen: React.FC = () => {
                         }}
                       >
                         <View style={styles.voiceItemInfo}>
-                          <Text style={styles.voiceItemName}>{item.name}</Text>
+                          <Text style={styles.voiceItemName}>
+                            {getVoiceDisplayName(item.name, language, item.name)}
+                          </Text>
                           <Text style={styles.voiceItemDescription}>
                             {(item.accent === 'american' && t('create.voice.accents.american')) ||
                               (item.accent === 'british' && t('create.voice.accents.british')) ||

@@ -369,7 +369,9 @@ exports.getMyPlanFeatures = async (req, res) => {
               file_upload: false,
               podcast: false,
               topic_suggestions: true,
-              book: false
+              book: false,
+              liro: false,
+              daily_usage_patterns: false,
             },
             voice_categories: {
               standard: true,

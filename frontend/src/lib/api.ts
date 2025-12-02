@@ -1398,6 +1398,8 @@ export interface PlanFeatures {
     podcast?: boolean;
     topic_suggestions?: boolean;
     book?: boolean;
+    liro?: boolean;
+    daily_usage_patterns?: boolean;
   };
   voice_categories?: {
     standard?: boolean;
@@ -1445,7 +1447,9 @@ export const getDefaultPlanFeatures = (): UserPlanFeatures => {
         file_upload: false,
         podcast: false,
         topic_suggestions: true,
-        book: false
+        book: false,
+        liro: false,
+        daily_usage_patterns: false,
       },
       voice_categories: {
         standard: true,
