@@ -44,7 +44,7 @@ exports.getTopicDetailSuggestions = async (req, res) => {
       return res.status(503).json({ success: false, message: "Topic detail suggestions unavailable (missing OPENAI_API_KEY)." });
     }
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "Sen bir içerik oluşturma uzmanısın. Kullanıcının verdiği konularla ilgili öneriler hazırlıyorsun." },
         { role: "user", content: prompt }

@@ -36,6 +36,22 @@ import PaymentEnvironmentSelector from '@/components/admin/PaymentEnvironmentSel
 const App: React.FC = () => {
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState("kullanici-yonetimi");
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const savedTab = localStorage.getItem('admin_active_tab');
+    if (savedTab) {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
+  const handleChangeActiveTab = (tab: string) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin_active_tab', tab);
+    }
+  };
+
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [showUserDetails, setShowUserDetails] = useState(false);
   const [showPackageForm, setShowPackageForm] = useState(false);
@@ -125,8 +141,30 @@ const App: React.FC = () => {
   const [costByProvider, setCostByProvider] = useState<any[]>([]);
   const [costBySource, setCostBySource] = useState<any[]>([]);
   const [costItems, setCostItems] = useState<any[]>([]);
+  const [costItemsLoading, setCostItemsLoading] = useState(false);
   const [costLoading, setCostLoading] = useState(false);
   const [costError, setCostError] = useState<string | null>(null);
+  const [expandedCostRows, setExpandedCostRows] = useState<Set<string>>(new Set());
+  
+  const toggleCostRowExpansion = (itemId: string) => {
+    setExpandedCostRows(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+
+  const formatMinutesToMinSec = (minutes: number | null | undefined) => {
+    if (minutes == null || isNaN(Number(minutes))) return '-';
+    const totalSeconds = Math.round(Number(minutes) * 60);
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
   const resetPlanForm = () => setPlanForm({
     name: '', description: '', price: '', interval: 'monthly', features: '', is_active: true, is_trial: false, trial_days: 7, apple_product_id: '', google_product_id: ''
   });
@@ -201,6 +239,30 @@ const App: React.FC = () => {
       setCostError(e?.message || 'Maliyet verileri yüklenemedi');
     } finally {
       setCostLoading(false);
+    }
+  };
+
+  const fetchCostItems = async () => {
+    try {
+      setCostItemsLoading(true);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
+      const res = await fetch('/api/admin/cost-dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token || ''}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.message || 'Maliyet verileri getirilemedi');
+      }
+      const data = json.data || {};
+      setCostItems(Array.isArray(data.items) ? data.items : []);
+    } catch (e: any) {
+      console.error('Cost items fetch error:', e);
+      setCostError(e?.message || 'Maliyet verileri yüklenemedi');
+    } finally {
+      setCostItemsLoading(false);
     }
   };
   const openCreatePlan = () => { setEditingPlan(null); resetPlanForm(); setShowPackageForm(true); };
@@ -659,7 +721,7 @@ const App: React.FC = () => {
               height={40}
               className="w-6 h-6 md:w-8 md:h-8"
             />
-            <h1 className="text-xs sm:text-sm md:text-base lg:text-lg font-medium text-gray-800 truncate leading-tight">Dil Öğrenme Platformu</h1>
+            <span className="text-xs sm:text-sm md:text-base lg:text-lg font-medium text-gray-800 truncate leading-tight">Admin</span>
           </div>
           <div className="flex items-center space-x-2 md:space-x-4 ml-auto mr-2 md:mr-4">
             <Link href="/welcome">
@@ -702,11 +764,11 @@ const App: React.FC = () => {
         <aside className="w-64 bg-white border-r border-gray-200 h-full flex-shrink-0">
           <nav className="p-4">
             <div className="space-y-2">
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("kullanici-yonetimi")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("kullanici-yonetimi")}>
                 <i className="fas fa-users mr-3 text-lg"></i>
                 <span>Kullanıcı Yönetimi</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("paket-yonetimi")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("paket-yonetimi")}>
                 <i className="fas fa-box mr-3 text-lg"></i>
                 <span>Paket Yönetimi</span>
               </Button>
@@ -719,31 +781,31 @@ const App: React.FC = () => {
                 <i className="fas fa-plug mr-3 text-lg"></i>
                 <span>Dış Servisler</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("icerik-yonetimi")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("icerik-yonetimi")}>
                 <i className="fas fa-file-alt mr-3 text-lg"></i>
                 <span>İçerik Yönetimi</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("analitik")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("analitik")}>
                 <i className="fas fa-chart-line mr-3 text-lg"></i>
                 <span>Analitik</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("maliyet-takibi")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("maliyet-takibi")}>
                 <i className="fas fa-coins mr-3 text-lg"></i>
                 <span>Maliyet Takibi</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("kampanya-yonetimi")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("kampanya-yonetimi")}>
                 <i className="fas fa-percentage mr-3 text-lg"></i>
                 <span>Kampanya Yönetimi</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("destek")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("destek")}>
                 <i className="fas fa-headset mr-3 text-lg"></i>
                 <span>Destek</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("test-ayarlari")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("test-ayarlari")}>
                 <i className="fas fa-microphone-alt mr-3 text-lg"></i>
                 <span>Test Ayarları</span>
               </Button>
-              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => setActiveTab("ayarlar")}>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("ayarlar")}>
                 <i className="fas fa-cog mr-3 text-lg"></i>
                 <span>Ayarlar</span>
               </Button>
@@ -947,6 +1009,47 @@ const App: React.FC = () => {
 
               {!costLoading && !costError && costOverview && (
                 <>
+                  {/* By entry source (sections like konu, konu ağacı, metin, podcast, Liro) */}
+                  <Card className="overflow-hidden">
+                    <CardHeader>
+                      <CardTitle>Kullanım Kaynağı (Sekmeler / Servisler)</CardTitle>
+                      <CardDescription>entry_source alanına göre maliyet kırılımı</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <ScrollArea className="h-64">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Kaynak</TableHead>
+                              <TableHead className="text-right">Dakika</TableHead>
+                              <TableHead className="text-right">TTS $</TableHead>
+                              <TableHead className="text-right">OpenAI $</TableHead>
+                              <TableHead className="text-right">Toplam $</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {costBySource.length === 0 && (
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center text-sm text-gray-500 py-4">
+                                  Kayıt bulunamadı.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            {costBySource.map((row, idx) => (
+                              <TableRow key={`${row.entry_source || 'unknown'}-${idx}`}>
+                                <TableCell className="text-sm text-gray-700">{row.entry_source || 'unknown'}</TableCell>
+                                <TableCell className="text-right text-sm">{row.audio_minutes?.toFixed?.(1) ?? row.audio_minutes}</TableCell>
+                                <TableCell className="text-right text-sm">{row.tts_cost_usd?.toFixed?.(3) ?? row.tts_cost_usd}</TableCell>
+                                <TableCell className="text-right text-sm">{row.openai_cost_usd?.toFixed?.(3) ?? row.openai_cost_usd}</TableCell>
+                                <TableCell className="text-right text-sm font-semibold">{row.total_cost_usd?.toFixed?.(3) ?? row.total_cost_usd}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+
                   {/* Overview cards */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <Card>
@@ -1069,52 +1172,22 @@ const App: React.FC = () => {
                     </Card>
                   </div>
 
-                  {/* By entry source (sections like konu, konu ağacı, metin, podcast, Liro) */}
-                  <Card className="overflow-hidden">
-                    <CardHeader>
-                      <CardTitle>Kullanım Kaynağı (Sekmeler / Servisler)</CardTitle>
-                      <CardDescription>entry_source alanına göre maliyet kırılımı</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <ScrollArea className="h-64">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Kaynak</TableHead>
-                              <TableHead className="text-right">Dakika</TableHead>
-                              <TableHead className="text-right">TTS $</TableHead>
-                              <TableHead className="text-right">OpenAI $</TableHead>
-                              <TableHead className="text-right">Toplam $</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {costBySource.length === 0 && (
-                              <TableRow>
-                                <TableCell colSpan={5} className="text-center text-sm text-gray-500 py-4">
-                                  Kayıt bulunamadı.
-                                </TableCell>
-                              </TableRow>
-                            )}
-                            {costBySource.map((row, idx) => (
-                              <TableRow key={`${row.entry_source || 'unknown'}-${idx}`}>
-                                <TableCell className="text-sm text-gray-700">{row.entry_source || 'unknown'}</TableCell>
-                                <TableCell className="text-right text-sm">{row.audio_minutes?.toFixed?.(1) ?? row.audio_minutes}</TableCell>
-                                <TableCell className="text-right text-sm">{row.tts_cost_usd?.toFixed?.(3) ?? row.tts_cost_usd}</TableCell>
-                                <TableCell className="text-right text-sm">{row.openai_cost_usd?.toFixed?.(3) ?? row.openai_cost_usd}</TableCell>
-                                <TableCell className="text-right text-sm font-semibold">{row.total_cost_usd?.toFixed?.(3) ?? row.total_cost_usd}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
-
                   {/* Per-operation detailed list */}
                   <Card className="overflow-hidden mt-6">
                     <CardHeader>
-                      <CardTitle>İşlem Bazında Detaylı Maliyet</CardTitle>
-                      <CardDescription>Her satır tek bir içerik üretim işlemini temsil eder</CardDescription>
+                      <div className="flex items-center gap-2">
+                        <CardTitle>İşlem Bazında Detaylı Maliyet</CardTitle>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="!rounded-full border-gray-300 text-gray-600 hover:bg-gray-50"
+                          onClick={fetchCostItems}
+                          disabled={costItemsLoading}
+                          title="Yenile"
+                        >
+                          <i className={`fas fa-sync-alt ${costItemsLoading ? 'animate-spin' : ''}`}></i>
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent className="p-0">
                       <ScrollArea className="h-[420px]">
@@ -1122,7 +1195,7 @@ const App: React.FC = () => {
                           <TableHeader>
                             <TableRow>
                               <TableHead className="w-40">Tarih / Saat</TableHead>
-                              <TableHead className="w-24">Süre (dk)</TableHead>
+                              <TableHead className="w-24">Süre</TableHead>
                               <TableHead>Kaynak</TableHead>
                               <TableHead>Girdi Tipi</TableHead>
                               <TableHead>LLM Servisi</TableHead>
@@ -1143,26 +1216,118 @@ const App: React.FC = () => {
                                 </TableCell>
                               </TableRow>
                             )}
-                            {costItems.map((item, idx) => (
-                              <TableRow key={item.id || idx}>
-                                <TableCell className="w-40 text-xs text-gray-500">
-                                  {item.created_at ? new Date(item.created_at).toLocaleString('tr-TR') : '-'}
-                                </TableCell>
-                                <TableCell className="w-24 text-sm">
-                                  {item.audio_minutes != null ? (item.audio_minutes?.toFixed?.(2) ?? item.audio_minutes) : '-'}
-                                </TableCell>
-                                <TableCell className="text-sm text-gray-700">{item.entry_source || 'unknown'}</TableCell>
-                                <TableCell className="text-sm text-gray-700">{item.input_type || '-'}</TableCell>
-                                <TableCell className="text-sm text-gray-700">{item.llm_service || '-'}</TableCell>
-                                <TableCell className="text-sm text-gray-700">{item.llm_model || '-'}</TableCell>
-                                <TableCell className="text-right text-sm">{item.llm_cost_usd?.toFixed?.(4) ?? item.llm_cost_usd}</TableCell>
-                                <TableCell className="text-sm text-gray-700">{item.tts_provider || '-'}</TableCell>
-                                <TableCell className="text-sm text-gray-700">{item.tts_category || '-'}</TableCell>
-                                <TableCell className="text-sm text-gray-700">{item.tts_voice_name || '-'}</TableCell>
-                                <TableCell className="text-right text-sm">{item.tts_cost_usd?.toFixed?.(4) ?? item.tts_cost_usd}</TableCell>
-                                <TableCell className="text-right text-sm font-semibold">{item.total_cost_usd?.toFixed?.(4) ?? item.total_cost_usd}</TableCell>
-                              </TableRow>
-                            ))}
+                            {costItems.map((item, idx) => {
+                              const itemId = item.id || `item-${idx}`;
+                              const isExpanded = expandedCostRows.has(itemId);
+                              const hasDetails = item.llm_usage_details && Array.isArray(item.llm_usage_details) && item.llm_usage_details.length > 0;
+                              
+                              return (
+                                <React.Fragment key={itemId}>
+                                  <TableRow 
+                                    className={`${hasDetails ? 'cursor-pointer hover:bg-gray-50' : ''} ${isExpanded ? 'bg-blue-50' : ''}`}
+                                    onClick={() => hasDetails && toggleCostRowExpansion(itemId)}
+                                  >
+                                    <TableCell className="w-40 text-xs text-gray-500">
+                                      <div className="flex items-center gap-1">
+                                        {hasDetails && (
+                                          <span className="text-blue-500">{isExpanded ? '▼' : '▶'}</span>
+                                        )}
+                                        {item.created_at ? new Date(item.created_at).toLocaleString('tr-TR') : '-'}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="w-24 text-sm">
+                                      {formatMinutesToMinSec(item.audio_minutes)}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-gray-700">{item.entry_source || 'unknown'}</TableCell>
+                                    <TableCell className="text-sm text-gray-700">{item.input_type || '-'}</TableCell>
+                                    <TableCell className="text-sm text-gray-700">{item.llm_service || '-'}</TableCell>
+                                    <TableCell className="text-sm text-gray-700">{item.llm_model || '-'}</TableCell>
+                                    <TableCell className="text-right text-sm">{item.llm_cost_usd?.toFixed?.(4) ?? item.llm_cost_usd}</TableCell>
+                                    <TableCell className="text-sm text-gray-700">{item.tts_provider || '-'}</TableCell>
+                                    <TableCell className="text-sm text-gray-700">{item.tts_category || '-'}</TableCell>
+                                    <TableCell className="text-sm text-gray-700">{item.tts_voice_name || '-'}</TableCell>
+                                    <TableCell className="text-right text-sm">{item.tts_cost_usd?.toFixed?.(4) ?? item.tts_cost_usd}</TableCell>
+                                    <TableCell className="text-right text-sm font-semibold">{item.total_cost_usd?.toFixed?.(4) ?? item.total_cost_usd}</TableCell>
+                                  </TableRow>
+                                  {/* Expanded detail row */}
+                                  {isExpanded && hasDetails && (
+                                    <TableRow className="bg-blue-50/50">
+                                      <TableCell colSpan={12} className="p-0">
+                                        <div className="p-4 border-l-4 border-blue-400">
+                                          <h4 className="text-sm font-semibold text-gray-700 mb-3">🔍 Prompt Bazlı LLM Maliyet Detayları</h4>
+                                          <div className="overflow-x-auto">
+                                            <table className="w-full text-sm border-collapse">
+                                              <thead>
+                                                <tr className="bg-gray-100">
+                                                  <th className="text-left p-2 border">Prompt Adı</th>
+                                                  <th className="text-left p-2 border">LLM Model</th>
+                                                  <th className="text-right p-2 border">Input Token</th>
+                                                  <th className="text-right p-2 border">Output Token</th>
+                                                  <th className="text-right p-2 border">Toplam Token</th>
+                                                  <th className="text-right p-2 border">Tahmini Maliyet</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {item.llm_usage_details.map((detail: any, detailIdx: number) => {
+                                                  // Calculate cost per detail
+                                                  const pricing: Record<string, { input: number; output: number }> = {
+                                                    'gpt-4o': { input: 0.005, output: 0.015 },
+                                                    'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+                                                    'o4-mini': { input: 0.0025, output: 0.005 },
+                                                  };
+                                                  const modelPricing = pricing[detail.model] || pricing['gpt-4o'];
+                                                  const inputCost = ((detail.prompt_tokens || 0) / 1000) * modelPricing.input;
+                                                  const outputCost = ((detail.completion_tokens || 0) / 1000) * modelPricing.output;
+                                                  const totalDetailCost = inputCost + outputCost;
+                                                  
+                                                  return (
+                                                    <tr key={detailIdx} className="hover:bg-gray-50">
+                                                      <td className="p-2 border font-medium text-blue-600">
+                                                        {detail.prompt_name || 'unknown'}
+                                                      </td>
+                                                      <td className="p-2 border text-gray-600">
+                                                        {detail.model || '-'}
+                                                      </td>
+                                                      <td className="p-2 border text-right text-gray-600">
+                                                        {detail.prompt_tokens?.toLocaleString() || 0}
+                                                      </td>
+                                                      <td className="p-2 border text-right text-gray-600">
+                                                        {detail.completion_tokens?.toLocaleString() || 0}
+                                                      </td>
+                                                      <td className="p-2 border text-right font-medium">
+                                                        {detail.total_tokens?.toLocaleString() || 0}
+                                                      </td>
+                                                      <td className="p-2 border text-right font-semibold text-green-600">
+                                                        ${totalDetailCost.toFixed(6)}
+                                                      </td>
+                                                    </tr>
+                                                  );
+                                                })}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                          {/* Summary row */}
+                                          <div className="mt-3 flex gap-6 text-sm text-gray-600">
+                                            <span>
+                                              <strong>Toplam Token:</strong> {item.openai_total_tokens?.toLocaleString() || 0}
+                                            </span>
+                                            <span>
+                                              <strong>Input:</strong> {item.openai_prompt_tokens?.toLocaleString() || 0}
+                                            </span>
+                                            <span>
+                                              <strong>Output:</strong> {item.openai_completion_tokens?.toLocaleString() || 0}
+                                            </span>
+                                            <span className="text-green-600 font-semibold">
+                                              <strong>Toplam LLM Maliyeti:</strong> ${item.llm_cost_usd?.toFixed(6) || '0.000000'}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
                           </TableBody>
                         </Table>
                       </ScrollArea>

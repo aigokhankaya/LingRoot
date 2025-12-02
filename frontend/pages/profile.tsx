@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../src/lib/auth';
 import { useMembership } from '../src/context/MembershipContext';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { FaUserEdit, FaVolumeUp, FaCheckCircle, FaExclamationCircle, FaChartLine, FaHeadphones, FaMicrophone, FaClock, FaFire, FaTrophy } from 'react-icons/fa';
 import { getContentHistory, getUsageSummary } from '../src/lib/api';
 import { computeEstimates, formatEstimate, type UsageSummary, computeCostAwareEstimates, COST_PER_1K, CHARS_PER_VIDEO_MINUTE, CHARS_PER_A4_PAGE, type VoiceCategory, type CostAwarePerCategory } from '../src/lib/usageEstimates';
@@ -11,6 +12,7 @@ import BrandWordmark from '../src/components/BrandWordmark';
 
 export default function Profile() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
+  const router = useRouter();
   const { badge, dailyLimit, remaining, currentPlanName } = useMembership();
   const [activities, setActivities] = useState<any[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
@@ -203,7 +205,10 @@ export default function Profile() {
                 <span className="text-gray-700 text-sm font-medium">{displayName || 'Kullanıcı'}</span>
               </Link>
               <button
-                onClick={logout}
+                onClick={() => {
+                  logout();
+                  router.push('/');
+                }}
                 className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition border border-red-100"
               >
                 Çıkış Yap

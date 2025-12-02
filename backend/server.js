@@ -43,6 +43,7 @@ const patternRoutes = require("./routes/patternRoutes"); // Daily usage patterns
 const mfaRoutes = require("./routes/mfaRoutes"); // MFA alignment routes
 const topicHierarchyRoutes = require("./routes/topicHierarchy"); // Topic Hierarchy (multi-level content tree)
 const documentRoutes = require("./routes/documentRoutes"); // Document/PDF workflow
+const favoritesRoutes = require("./routes/favoritesRoutes"); // Favorites management
 
 // Initialize Express app
 const app = express();
@@ -66,7 +67,7 @@ app.use(requestIdMiddleware);
 // CORS middleware
 const allowedOrigins = [
   "http://localhost:3000",
-  "http://localhost:3001", 
+  "http://localhost:3001",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:3001",
   "https://lingroot.com",
@@ -88,7 +89,7 @@ app.use(
       if (process.env.NODE_ENV === 'development') {
         return callback(null, true);
       }
-      
+
       // Production ortamında sadece belirli origins kabul edilir
       if (!origin || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
@@ -159,6 +160,7 @@ app.use("/api/patterns", patternRoutes); // Daily usage patterns
 app.use("/api/mfa", mfaRoutes); // MFA alignment routes
 app.use("/api/topic-hierarchy", topicHierarchyRoutes); // Topic Hierarchy (multi-level content tree)
 app.use("/api/documents", documentRoutes); // Document/PDF workflow
+app.use("/api/favorites", favoritesRoutes); // Favorites management
 
 // Account deletion page (legacy)
 app.get('/delete-account', (req, res) => {

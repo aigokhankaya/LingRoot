@@ -230,7 +230,7 @@ JSON formatında döndür:
     logger.info('[TOPIC HIERARCHY] Calling OpenAI for subtopic generation');
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',

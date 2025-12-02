@@ -1,5 +1,38 @@
 const db = require('../config/db');
 const logger = require('./logger');
+const userKnowledgeAnalyzer = require('./userKnowledgeAnalyzer');
+
+const LOW_QUALITY_TOPICS = [
+  'selam',
+  'merhaba',
+  'hi',
+  'hello',
+  'hey',
+  'test',
+  'deneme',
+  'bugün ne var',
+  'bugun ne var',
+  'bugün ne önerirsin bana',
+  'bugun ne onerirsin bana',
+];
+
+function normalizeTopicSubject(subject) {
+  if (!subject) return '';
+  return subject
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[!?.…]+$/g, '');
+}
+
+function isLowQualityTopic(subject) {
+  const norm = normalizeTopicSubject(subject);
+  if (!norm) return true;
+  if (LOW_QUALITY_TOPICS.includes(norm)) return true;
+  if (norm === 'selam :)' || norm === 'selam :d') return true;
+  if (norm.startsWith('selam') || norm.startsWith('merhaba')) return true;
+  return false;
+}
 
 /**
  * 🧠 User Profile Analyzer for Liro
@@ -26,6 +59,9 @@ class UserProfileAnalyzer {
         behavioralPatterns: await this.getBehavioralPatterns(userId),
         learningProgress: await this.getLearningProgress(userId),
         recommendations: await this.generateRecommendations(userId),
+        // New Modules
+        knowledgeProfile: await userKnowledgeAnalyzer.generateKnowledgeProfile(userId),
+        topicTreeStatus: await this.getTopicTreeStatus(userId),
       };
 
       return profile;
@@ -163,10 +199,20 @@ class UserProfileAnalyzer {
       const popularTopics = topicsResult.rows;
       const recentMessages = recentMessagesResult.rows;
 
+      const recentTopics = conversations
+        .map(c => c.subject)
+        .filter(Boolean)
+        .filter(t => !isLowQualityTopic(t))
+        .slice(0, 5);
+
+      const filteredPopularTopics = popularTopics.filter(
+        t => t.subject && !isLowQualityTopic(t.subject)
+      );
+
       return {
         totalConversations: conversations.length,
-        recentTopics: conversations.slice(0, 5).map(c => c.subject),
-        popularTopics: popularTopics.map(t => ({
+        recentTopics,
+        popularTopics: filteredPopularTopics.map(t => ({
           topic: t.subject,
           messageCount: parseInt(t.message_count),
           lastDiscussed: t.last_message_at,
@@ -236,10 +282,20 @@ class UserProfileAnalyzer {
       const topicAnalysis = topicAnalysisResult.rows;
       const preferredLevel = levelPreferenceResult.rows[0];
 
+      const recentTopics = contents
+        .map(c => c.topic)
+        .filter(Boolean)
+        .filter(t => !isLowQualityTopic(t))
+        .slice(0, 10);
+
+      const filteredTopicAnalysis = topicAnalysis.filter(
+        t => t.topic && !isLowQualityTopic(t.topic)
+      );
+
       return {
         totalContent: contents.length,
-        recentTopics: contents.slice(0, 10).map(c => c.topic).filter(Boolean),
-        popularTopics: topicAnalysis.map(t => ({
+        recentTopics,
+        popularTopics: filteredTopicAnalysis.map(t => ({
           topic: t.topic,
           count: parseInt(t.count),
           avgLevel: this.numericToLevel(Math.round(t.avg_level_numeric)),
@@ -418,10 +474,10 @@ class UserProfileAnalyzer {
 
       const progress = progressResult.rows[0];
 
-      const totalActivities = 
-        parseInt(progress.total_content) + 
-        parseInt(progress.total_vocabulary) + 
-        parseInt(progress.total_conversations) + 
+      const totalActivities =
+        parseInt(progress.total_content) +
+        parseInt(progress.total_vocabulary) +
+        parseInt(progress.total_conversations) +
         parseInt(progress.total_audio);
 
       return {
@@ -541,6 +597,54 @@ class UserProfileAnalyzer {
   }
 
   /**
+   * 10. Konu Ağacı Durumu (Topic Tree)
+   */
+  async getTopicTreeStatus(userId) {
+    try {
+      // Find the current active node in the topic tree
+      // Logic: Find the most recent content item the user interacted with,
+      // get its topic, and find the next sibling or child in the tree.
+
+      const query = `
+        SELECT 
+          tn.id,
+          tn.title as current_node,
+          tn.path,
+          tn.level as node_level
+        FROM user_content_progress ucp
+        JOIN content_items ci ON ci.id = ucp.content_item_id
+        JOIN topic_nodes tn ON tn.id = ci.topic_id
+        WHERE ucp.user_id = $1
+        ORDER BY ucp.last_interaction_at DESC
+        LIMIT 1
+      `;
+
+      const result = await db.query(query, [userId]);
+      const currentNode = result.rows[0];
+
+      if (!currentNode) {
+        return { currentNode: null, nextNode: null, status: 'not_started' };
+      }
+
+      // Find next node (mock logic: just finding a node with higher order or next ID)
+      // In a real tree, we'd query parent/children relationships.
+      // Assuming topic_nodes has 'order_index' or similar.
+      // For now, let's just return the current node info.
+
+      return {
+        currentNode: currentNode.current_node,
+        currentPath: currentNode.path,
+        level: currentNode.node_level,
+        status: 'active'
+      };
+
+    } catch (error) {
+      // Table might not exist
+      return { currentNode: null, nextNode: null, status: 'unknown' };
+    }
+  }
+
+  /**
    * Varsayılan profil (hata durumunda)
    */
   getDefaultProfile() {
@@ -554,6 +658,8 @@ class UserProfileAnalyzer {
       behavioralPatterns: { isRegularUser: false },
       learningProgress: { totalActivities: 0, experienceLevel: 'beginner' },
       recommendations: { unusedInterests: [], shouldSuggestNewTopics: false },
+      knowledgeProfile: { uploads: { count: 0 }, extractedTopics: [], favorites: [] },
+      topicTreeStatus: { status: 'unknown' }
     };
   }
 }

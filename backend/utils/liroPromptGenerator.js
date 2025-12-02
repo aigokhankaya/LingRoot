@@ -23,7 +23,7 @@ class LiroPromptGenerator {
     try {
       const promptPath = path.join(__dirname, '../prompts/liro_system_personalized.txt');
       let promptTemplate = fs.readFileSync(promptPath, 'utf-8');
-      
+
       // Remove comments
       promptTemplate = promptTemplate
         .split('\n')
@@ -39,6 +39,8 @@ class LiroPromptGenerator {
         vocabularyStats,
         learningProgress,
         recommendations,
+        knowledgeProfile,
+        topicTreeStatus,
       } = userProfile;
 
       const username = basicInfo?.username || 'Kullanıcı';
@@ -53,6 +55,8 @@ class LiroPromptGenerator {
       const learningPreferences = this.generateLearningPreferences(userProfile);
       const focusSection = this.generateFocusSection(focusAreas);
       const personalizedOpening = this.generatePersonalizedOpening(userProfile);
+      const knowledgeSection = this.generateKnowledgeSection(knowledgeProfile);
+      const topicTreeSection = this.generateTopicTreeSection(topicTreeStatus);
 
       // Replace all placeholders
       return promptTemplate
@@ -64,7 +68,9 @@ class LiroPromptGenerator {
         .replace(/{{avoidanceNotes}}/g, avoidanceNotes)
         .replace(/{{focusSection}}/g, focusSection)
         .replace(/{{personalizedOpening}}/g, personalizedOpening)
-        .replace(/{{preferredLevel}}/g, preferredLevel);
+        .replace(/{{preferredLevel}}/g, preferredLevel)
+        .replace(/{{knowledgeBase}}/g, knowledgeSection)
+        .replace(/{{topicTreeStatus}}/g, topicTreeSection);
     } catch (error) {
       logger.error('Failed to load personalized prompt template:', error);
       return this.getDefaultPrompt();
@@ -76,7 +82,7 @@ class LiroPromptGenerator {
    */
   generateProfileSection(profile) {
     const { basicInfo, interests, vocabularyStats, contentHistory, learningProgress } = profile;
-    
+
     let section = [];
 
     // Hesap yaşı ve deneyim
@@ -105,7 +111,7 @@ class LiroPromptGenerator {
     if (interests.count > 0) {
       const interestList = interests.list.slice(0, 8).join(', ');
       section.push(`- İlgi alanları: ${interestList}`);
-      
+
       if (interests.recent.length > 0) {
         section.push(`- Son eklenen ilgiler: ${interests.recent.slice(0, 3).join(', ')}`);
       }
@@ -121,7 +127,7 @@ class LiroPromptGenerator {
    */
   generateLearningPreferences(profile) {
     const { conversationHistory, contentHistory, audioPreferences } = profile;
-    
+
     let prefs = [];
 
     // Popüler konular
@@ -190,35 +196,42 @@ Bu konuları AYNEN tekrar önerme! Ancak:
 
     let strategy = [];
 
-    // 1. Kullanılmamış ilgi alanları
-    if (recommendations.unusedInterests.length > 0) {
-      const unused = recommendations.unusedInterests.slice(0, 3).join('", "');
-      strategy.push(`🎯 ÖNCELİK 1: Kullanıcının şu ilgi alanları henüz içeriğe dönüşmemiş: "${unused}"`);
-      strategy.push(`   → Bunlardan birine odaklan ve spesifik bir alt konu öner!`);
+    // 1. İçerik / Geçmiş ve Konu Ağacı odaklı öneriler
+    if (contentHistory.hasCreatedContent || conversationHistory.hasHistory) {
+      strategy.push('🎯 ÖNCELİK 1: System prompt\'un sonundaki "Kullanıcının içerik/geçmiş özeti" ve "Konu Ağacı Durumu" bölümlerine bak.');
+      strategy.push('   → Özellikle bu özet içindeki "Tamamlanmamış (ÖNCELİKLİ)" ve "Önerilen sıradaki içerikler" satırlarında geçen başlıkları kullan.');
+      strategy.push('   → Önce yarım kalan veya sıradaki ünite/konuları öner, tamamen yeni bir hobi konusuna ancak bunlar mantıklı değilse geç.');
     }
 
-    // 2. Seri içerik fırsatları
+    // 2. Seri içerik fırsatları (popüler sohbet konuları)
     if (conversationHistory.popularTopics.length > 0) {
       const popularTopic = conversationHistory.popularTopics[0].topic;
       strategy.push(`🎯 ÖNCELİK 2: "${popularTopic}" konusu çok popüler - Seri içerik sun!`);
-      strategy.push(`   → "Bu konunun 2. bölümünde..." veya "Daha derin bir bakış: ..."`);
+      strategy.push('   → "Bu konunun 2. bölümünde..." veya "Daha derin bir bakış: ..."');
     }
 
-    // 3. Seviye ilerleme
+    // 3. Seviye ilerleme (var olan içerikler üzerinden)
     if (contentHistory.hasCreatedContent) {
       strategy.push(`🎯 ÖNCELİK 3: Kullanıcı ${contentHistory.preferredLevel} seviyesinde rahat`);
       strategy.push(`   → Arada bir ${this.getNextLevel(contentHistory.preferredLevel)} seviyesi deneyebilir`);
     }
 
-    // 4. Yeni keşifler
+    // 4. Kullanılmamış ilgi alanları (hobiler) – sadece geçmişe dayalı öneri yoksa
+    if (recommendations.unusedInterests.length > 0) {
+      const unused = recommendations.unusedInterests.slice(0, 3).join('\", \"');
+      strategy.push(`🎯 ÖNCELİK 4: Kullanıcının şu ilgi alanları henüz içeriğe dönüşmemiş: "${unused}"`);
+      strategy.push('   → İçerik/geçmiş özetinde devam ettirecek net bir konu yoksa bunlardan birine odaklan ve spesifik bir alt konu öner.');
+    }
+
+    // 5. İlgi alanlarını birleştirme (keşif modu)
     if (interests.list.length > 3) {
-      strategy.push(`🎯 ÖNCELİK 4: İlgi alanlarını birleştir!`);
+      strategy.push('🎯 ÖNCELİK 5: İlgi alanlarını birleştir!');
       strategy.push(`   → Örnek: "${interests.list[0]}" + "${interests.list[1]}" kombinasyonu`);
     }
 
-    return strategy.length > 0 
-      ? strategy.join('\n') 
-      : '🎯 Kullanıcıyla sohbet ederek ilgi alanlarını keşfet ve özel öneriler sun!';
+    return strategy.length > 0
+      ? strategy.join('\n')
+      : '🎯 Önce içerik/geçmiş özetinden anlamlı devam konuları bul, ancak bulamazsan kullanıcının hobilerinden yola çıkar!';
   }
 
   /**
@@ -226,7 +239,7 @@ Bu konuları AYNEN tekrar önerme! Ancak:
    */
   determineFocusAreas(profile) {
     const { vocabularyStats, conversationHistory, contentHistory, learningProgress } = profile;
-    
+
     const areas = [];
 
     // Yeni kullanıcı
@@ -279,6 +292,47 @@ Bu konuları AYNEN tekrar önerme! Ancak:
   }
 
   /**
+   * Bilgi Tabanı bölümü oluştur
+   */
+  generateKnowledgeSection(knowledgeProfile) {
+    if (!knowledgeProfile || !knowledgeProfile.hasKnowledgeBase) {
+      return '';
+    }
+
+    const { uploads, extractedTopics, favorites } = knowledgeProfile;
+    let section = ['📚 KULLANICI BİLGİ TABANI (Knowledge Base):'];
+
+    if (uploads.count > 0) {
+      section.push(`- Yüklenen Materyaller: ${uploads.recent.join(', ')}`);
+    }
+
+    if (extractedTopics.length > 0) {
+      section.push(`- Dış Kaynaklardan Çıkarılan Konular: ${extractedTopics.map(t => t.title).join(', ')}`);
+    }
+
+    if (favorites.length > 0) {
+      section.push(`- ⭐ Favoriler: ${favorites.join(', ')}`);
+    }
+
+    return section.join('\n');
+  }
+
+  /**
+   * Konu Ağacı bölümü oluştur
+   */
+  generateTopicTreeSection(topicTreeStatus) {
+    if (!topicTreeStatus || topicTreeStatus.status !== 'active') {
+      return '';
+    }
+
+    return `
+🌳 KONU AĞACI DURUMU:
+- Şu anki konum: "${topicTreeStatus.currentNode}"
+- Seviye: ${topicTreeStatus.level}
+- ÖNERİ: Kullanıcıyı bu konuyu tamamlamaya veya bir sonraki adıma geçmeye teşvik et.`;
+  }
+
+  /**
    * Karşılama stili belirle
    */
   determineGreetingStyle(basicInfo, learningProgress) {
@@ -289,7 +343,7 @@ Bu konuları AYNEN tekrar önerme! Ancak:
     if (basicInfo.accountAge?.isNew) {
       return 'LingRoot\'a hoş geldin! Ben senin öğrenme yolculuğunda rehberin olacağım. 🌟';
     }
-    
+
     if (learningProgress.experienceLevel === 'expert') {
       return 'Seni tekrar görmek harika! Birlikte harika içerikler ürettik. 🚀';
     }
@@ -301,34 +355,43 @@ Bu konuları AYNEN tekrar önerme! Ancak:
    * Kişiselleştirilmiş açılış cümlesi
    */
   generatePersonalizedOpening(profile) {
-    const { interests, conversationHistory, contentHistory, recommendations } = profile;
+    const { interests, conversationHistory, contentHistory, recommendations, audioPreferences } = profile;
 
-    // Kullanılmamış ilgi alanı varsa
-    if (recommendations.unusedInterests.length > 0) {
-      const interest = recommendations.unusedInterests[0];
-      return `${interest} konusuyla ilgili bir içerik oluşturmaya ne dersin? Çok ilginç bir bakış açısı buldum! 🎯`;
+    // 1. İçerik / geçmişten devam (özellikle oluşturulmuş içerikler)
+    if (contentHistory.recentTopics && contentHistory.recentTopics.length > 0) {
+      const lastContentTopic = contentHistory.recentTopics[0];
+      const formatHint = audioPreferences && audioPreferences.usesAudio
+        ? 'Bunu kısa bir podcast / sesli içerik olarak hazırlayabilirim.'
+        : 'Bununla ilgili kısa bir metin veya diyalog hazırlayabilirim.';
+      return `Son oluşturduğun içeriklerden biri "${lastContentTopic}" üzerindeydi. ${formatHint} 💡`;
     }
 
-    // Son konuşmanın devamı
+    // 2. Son konuşmanın devamı
     if (conversationHistory.recentTopics.length > 0) {
       const lastTopic = conversationHistory.recentTopics[0];
       return `Geçen sefer "${lastTopic}" hakkında konuşmuştuk. Bunun devamı için harika fikirlerim var! 💡`;
     }
 
-    // Popüler konu
+    // 3. Popüler sohbet konusu
     if (conversationHistory.popularTopics.length > 0) {
       const popularTopic = conversationHistory.popularTopics[0].topic;
       return `"${popularTopic}" konusunda seri içerik yapabiliriz! İlk bölümü çok beğenmiştin. 📚`;
     }
 
-    // İlgi alanına göre
+    // 4. Kullanılmamış ilgi alanı varsa (hobiler)
+    if (recommendations.unusedInterests.length > 0) {
+      const interest = recommendations.unusedInterests[0];
+      return `${interest} konusuyla ilgili bir içerik oluşturmaya ne dersin? Çok ilginç bir bakış açısı buldum! 🎯`;
+    }
+
+    // 5. Genel ilgi alanına göre
     if (interests.list.length > 0) {
       const interest = interests.list[0];
       return `${interest} hakkında güncel ve çok ilginç bir konu buldum! Dinlemek ister misin? 🎧`;
     }
 
-    // Varsayılan
-    return `Bugün hangi konuda içerik oluşturalım? Sana özel birkaç öneri hazırladım! 🌟`;
+    // 6. Varsayılan
+    return 'Bugün hangi konuda içerik oluşturalım? Sana özel birkaç öneri hazırladım! 🌟';
   }
 
   /**
@@ -347,14 +410,14 @@ Bu konuları AYNEN tekrar önerme! Ancak:
     try {
       const promptPath = path.join(__dirname, '../prompts/liro_system_default.txt');
       let prompt = fs.readFileSync(promptPath, 'utf-8');
-      
+
       // Remove comments
       prompt = prompt
         .split('\n')
         .filter(line => !line.trim().startsWith('//'))
         .join('\n')
         .trim();
-      
+
       return prompt;
     } catch (error) {
       logger.error('Failed to load default prompt:', error);

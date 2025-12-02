@@ -38,6 +38,8 @@ import { Slider } from "../src/components/ui/slider";
 import { Card, CardContent } from "../src/components/ui/card";
 import { Badge } from "../src/components/ui/badge";
 import BrandWordmark from "../src/components/BrandWordmark";
+import LiroAvatar from "../src/components/LiroAvatar";
+import { ProfileDropdownMenu } from "../src/components/shared/ProfileDropdownMenu";
 
 interface InputData {
   type: ProcessInputData['type'];
@@ -312,9 +314,19 @@ const Welcome: React.FC = () => {
   const [isFetchingSubtitle, setIsFetchingSubtitle] = useState<boolean>(false);
   const [subtitleError, setSubtitleError] = useState<string | null>(null);
   
+  // İçerik süresi seçenekleri (tüm modlar için ortak)
+  // 1.5 dk, 5 dk, 10 dk, 15 dk seçenekleri
+  const DURATION_OPTIONS = [
+    { value: 1.5, label: '1.5 dk', description: '~225 kelime' },
+    { value: 5, label: '5 dk', description: '~750 kelime' },
+    { value: 10, label: '10 dk', description: '~1500 kelime' },
+    { value: 15, label: '15 dk', description: '~2250 kelime' },
+  ];
+  const [contentDuration, setContentDuration] = useState<number>(5); // Varsayılan 5 dakika
+
   // Podcast state'leri
   const [podcastTopic, setPodcastTopic] = useState<string>('');
-  const [podcastDuration, setPodcastDuration] = useState<number>(3);
+  const [podcastDuration, setPodcastDuration] = useState<number>(5); // Podcast için varsayılan 5 dk
   const [podcastStyleType, setPodcastStyleType] = useState<string>('friendly_chat');
   const [podcastVoiceChoice, setPodcastVoiceChoice] = useState<string>('english_female');
   const [podcastPersonalityA, setPodcastPersonalityA] = useState<string>('curious_enthusiast');
@@ -1088,7 +1100,6 @@ const Welcome: React.FC = () => {
         const settings = await getUserSettings();
         if (settings?.default_voice) {
           setSavedDefaultVoice(settings.default_voice);
-          setVoiceType(settings.default_voice);
           // Varsayılan sese göre filtreleri ayarla (liste o sesi içersin)
           const name: string = settings.default_voice;
           // Kategori
@@ -1181,6 +1192,17 @@ const Welcome: React.FC = () => {
       fetchAvailableVoices();
     }
   }, [selectedAccent, selectedGender, emotionType, selectedVoiceCategory]);
+
+  useEffect(() => {
+    const voices = getFilteredVoices();
+    if (!voices || voices.length === 0) return;
+    const first: any = voices[0];
+    const firstId: string | undefined = (first.name || first.id);
+    if (!firstId) return;
+    if (firstId !== voiceType) {
+      setVoiceType(firstId);
+    }
+  }, [availableVoices, selectedAccent, selectedGender, selectedVoiceCategory, emotionType]);
 
   // Content history'yi çeken fonksiyon
   const fetchContentHistory = async () => {
@@ -1500,13 +1522,15 @@ const Welcome: React.FC = () => {
         
         // Backend'de content_generation ve translate_from_english promptları kullanılacak
         // Type'ı olduğu gibi bırak, backend normalize edecek
+        // contentDuration'ı targetDurationMinutes olarak gönder
         processInput = {
           ...processInput,
           type: inputData.type, // 'subject' veya 'topic' olarak kalsın
-          input: inputData.text || inputData.input || ''
+          input: inputData.text || inputData.input || '',
+          targetDurationMinutes: contentDuration, // Süre parametresi
         };
         
-        console.log(`${typeLabel} will be processed by backend with content_generation prompts`);
+        console.log(`${typeLabel} will be processed by backend with content_generation prompts, duration: ${contentDuration} min`);
       }
 
       // Kullanım/abonelik kontrolü
@@ -1971,88 +1995,13 @@ const Welcome: React.FC = () => {
                 <i className="fas fa-bell"></i>
               </Button>
               {isAuthenticated && (
-                <div className="relative">
-                  <div
-                    className="flex items-center space-x-3 cursor-pointer"
-                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  >
-                    <img
-                      src={avatar}
-                      alt={displayName}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                    <div className="text-sm">
-                      <div className="font-medium">{displayName}</div>
-                      <div className="text-gray-500 text-xs">{user?.email}</div>
-                    </div>
-                    <i className={`fas fa-chevron-${profileMenuOpen ? 'up' : 'down'} ml-2 text-gray-500 transition-transform duration-200`}></i>
-                  </div>
-                  <div
-                    className={`absolute right-0 w-48 mt-2 bg-white rounded-lg shadow-lg py-2 ${profileMenuOpen ? 'block' : 'hidden'} z-10`}
-                  >
-                    <Link
-                      href="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <i className="fas fa-user-circle mr-2"></i>
-                      Profil Bilgilerim
-                    </Link>
-                    <Link
-                      href="/dashboard?tab=paket-bilgilerim"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <i className="fas fa-box mr-2"></i>
-                      Paket Bilgilerim
-                    </Link>
-                    <Link
-                      href="/settings"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <i className="fas fa-cog mr-2"></i>
-                      Hesap Ayarları
-                    </Link>
-                    <Link
-                      href="/dashboard?tab=reading-history"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <i className="fas fa-history mr-2"></i>
-                      Okuma Geçmişim
-                    </Link>
-                    <a
-                      href="#"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <i className="fas fa-heart mr-2"></i>
-                      Favorilerim
-                    </a>
-                    <Link
-                      href="/settings?section=language"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <i className="fas fa-globe mr-2"></i>
-                      Dil Ayarları
-                    </Link>
-                    <a
-                      href="#"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                    >
-                      <i className="fas fa-question-circle mr-2"></i>
-                      Yardım ve Destek
-                    </a>
-                    <div className="border-t border-gray-100 mt-2 pt-2">
-                      <button
-                        onClick={() => {
-                          logout();
-                          router.push('/');
-                        }}
-                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 cursor-pointer"
-                      >
-                        <i className="fas fa-sign-out-alt mr-2"></i>
-                        Çıkış Yap
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <ProfileDropdownMenu
+                  align="end"
+                  side="bottom"
+                  avatarSize="md"
+                  showUserInfo={true}
+                  showChevron={true}
+                />
               )}
             </div>
           </div>
@@ -2111,7 +2060,7 @@ const Welcome: React.FC = () => {
               </div>
               <div className="ml-6">
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <MessageSquare className="w-8 h-8 text-primary group-hover:translate-x-1 transition-transform" />
+                  <LiroAvatar className="w-12 h-12 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
             </div>
@@ -2654,18 +2603,32 @@ const Welcome: React.FC = () => {
                           />
                         </div>
 
+                        {/* Podcast Süresi Seçici */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Süre (dakika):
+                            <i className="fas fa-clock mr-2"></i>
+                            Podcast Süresi:
                           </label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="30"
-                            value={podcastDuration}
-                            onChange={(e) => setPodcastDuration(parseInt(e.target.value) || 3)}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
-                          />
+                          <div className="grid grid-cols-4 gap-2">
+                            {DURATION_OPTIONS.map((option) => (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => setPodcastDuration(option.value)}
+                                className={`p-3 rounded-lg border-2 transition-all text-center ${
+                                  podcastDuration === option.value
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
+                                }`}
+                              >
+                                <div className="font-semibold">{option.label}</div>
+                                <div className="text-xs text-gray-500">{option.description}</div>
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Oluşturulacak podcast'in yaklaşık süresi (±%15 tolerans)
+                          </p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3224,7 +3187,7 @@ const Welcome: React.FC = () => {
 
                 </div>
 
-                {/* Sağ Kolon - Ses Kategorisi */}
+                {/* Sağ Kolon - Ses Kategorisi ve İçerik Süresi kopyası */}
                 <div>
                   <h3 className="text-lg font-medium text-gray-700 mb-3">Ses Kategorisi</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
@@ -3274,6 +3237,34 @@ const Welcome: React.FC = () => {
                       </Button>
                     ))}
                   </div>
+
+                  {(contentType === 'subject' || contentType === 'topic' || contentType === 'topic_tree') && (
+                    <div className="mt-4">
+                      <h4 className="text-md font-medium text-gray-600 mb-2">
+                        <i className="fas fa-clock mr-2"></i>
+                        İçerik Süresi
+                      </h4>
+                      <div className="grid grid-cols-4 gap-2">
+                        {DURATION_OPTIONS.map((option) => (
+                          <Button
+                            key={option.value}
+                            onClick={() => setContentDuration(option.value)}
+                            variant={contentDuration === option.value ? "default" : "outline"}
+                            size="sm"
+                            className={`!rounded-button cursor-pointer flex flex-col h-auto py-2 ${
+                              contentDuration === option.value ? 'bg-primary text-primary-foreground' : ''
+                            }`}
+                          >
+                            <span className="font-semibold">{option.label}</span>
+                            <span className="text-xs opacity-80">{option.description}</span>
+                          </Button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Oluşturulacak ses içeriğinin yaklaşık süresi (±%15 tolerans)
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -3501,6 +3492,7 @@ const Welcome: React.FC = () => {
               <TopicHierarchySection
                 userId={user.id}
                 level={englishLevel}
+                targetDurationMinutes={contentDuration}
               />
             </div>
           )}

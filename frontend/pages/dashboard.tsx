@@ -16,6 +16,7 @@ import TopicHierarchySection from '../src/components/TopicHierarchy/TopicHierarc
 import BrandWordmark from '../src/components/BrandWordmark';
 import InterestManager from '../src/components/InterestManager';
 import OutputSection from '../src/components/OutputSection';
+import { ProfileDropdownMenu } from '../src/components/shared/ProfileDropdownMenu';
 
 interface ContentHistoryItem {
   id: string;
@@ -358,6 +359,18 @@ const Dashboard = () => {
   const membershipStatus = user.membershipStatus || 'free';
   const profileImageUrl = avatar;
   const backgroundImageUrl = 'https://readdy.ai/api/search-image?query=Abstract%2520professional%2520background%2520with%2520soft%2520teal%2520and%2520slate%2520tones%252C%2520subtle%2520geometric%2520patterns%252C%2520clean%2520modern%2520design%252C%2520perfect%2520for%2520profile%2520page%2520header%252C%2520minimalist%2520aesthetic%252C%2520high%2520quality%2520digital%2520art&width=1440&height=300&seq=bg1&orientation=landscape';
+
+  // Her giriş tipine göre toplam ses sayısını hesapla (örn. topic, book, podcast)
+  const historyCountsByType = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const item of contentHistory) {
+      const typeKey = (item.input_type || '').toLowerCase();
+      if (!typeKey) continue;
+      counts[typeKey] = (counts[typeKey] || 0) + 1;
+    }
+    return counts;
+  }, [contentHistory]);
+
   const filteredHistory = contentHistory.filter((item) => {
     const typeKey = (item.input_type || '').toLowerCase();
     if (!activeHistoryTypes || activeHistoryTypes.length === 0) return true;
@@ -400,7 +413,7 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background fadeIn">
       {/* Top Navigation Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4">
+        <div className="w-full px-4">
           <div className="flex justify-between items-center h-16">
             {/* Left: Logo & Navigation */}
             <div className="flex items-center space-x-6">
@@ -431,63 +444,13 @@ const Dashboard = () => {
             {/* Right: Profile Menu */}
             <div className="flex items-center space-x-4">
               {isAuthenticated && (
-                <div className="relative">
-                  <div
-                    className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 rounded-lg px-3 py-2 transition-colors"
-                    onClick={() => {
-                      const menu = document.getElementById('dashboard-profile-menu');
-                      if (menu) menu.classList.toggle('hidden');
-                    }}
-                  >
-                    <img
-                      src={profileImageUrl}
-                      alt={displayName}
-                      className="w-9 h-9 rounded-full object-cover border-2 border-gray-200"
-                    />
-                    <div className="text-sm hidden md:block">
-                      <div className="font-medium text-gray-900">{displayName}</div>
-                      <div className="text-gray-500 text-xs">{user.email}</div>
-                    </div>
-                    <i className="fas fa-chevron-down text-gray-400 text-xs"></i>
-                  </div>
-                  
-                  {/* Dropdown Menu */}
-                  <div
-                    id="dashboard-profile-menu"
-                    className="hidden absolute right-0 w-56 mt-2 bg-white rounded-lg shadow-lg py-2 border border-gray-100 z-50"
-                  >
-                    <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                      <i className="fas fa-user-circle mr-2 w-4 text-center"></i>
-                      Profil Bilgilerim
-                    </Link>
-                    <Link href="/dashboard?tab=paket-bilgilerim" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                      <i className="fas fa-box mr-2 w-4 text-center"></i>
-                      Paket Bilgilerim
-                    </Link>
-                    <Link href="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                      <i className="fas fa-cog mr-2 w-4 text-center"></i>
-                      Hesap Ayarları
-                    </Link>
-                    <Link href="/dashboard?tab=reading-history" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                      <i className="fas fa-history mr-2 w-4 text-center"></i>
-                      Okuma Geçmişim
-                    </Link>
-                    <div className="border-t border-gray-100 mt-2 pt-2">
-                      <button
-                        onClick={() => {
-                          if (typeof window !== 'undefined') {
-                            localStorage.removeItem('lingroot_token');
-                            window.location.href = '/';
-                          }
-                        }}
-                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer"
-                      >
-                        <i className="fas fa-sign-out-alt mr-2 w-4 text-center"></i>
-                        Çıkış Yap
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <ProfileDropdownMenu
+                  align="end"
+                  side="bottom"
+                  avatarSize="md"
+                  showUserInfo={true}
+                  showChevron={true}
+                />
               )}
             </div>
           </div>
@@ -495,20 +458,19 @@ const Dashboard = () => {
       </div>
 
       {/* Profile Header */}
-      <div className="relative w-full h-[220px] md:h-[250px] overflow-hidden mb-8 slideUp">
+      <div className="relative w-full h-[160px] md:h-[190px] overflow-hidden mb-8 slideUp">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${backgroundImageUrl})` }}
         ></div>
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/70 via-slate-900/40 to-slate-900/10"></div>
-        <div className="container mx-auto px-6 relative h-full flex items-end pb-6">
+        <div className="w-full px-4 relative h-full flex items-end pb-6">
           <div className="flex items-end">
             <div className="relative mr-6">
-              <img src={profileImageUrl} alt={displayName} className="w-28 h-28 md:w-32 md:h-32 border-4 border-white shadow-lg rounded-full object-cover" />
+              <img src={profileImageUrl} alt={displayName} className="w-20 h-20 md:w-24 md:h-24 border-4 border-white shadow-lg rounded-full object-cover" />
             </div>
             <div className="mb-4 text-white">
               <h1 className="text-3xl font-bold">{displayName}</h1>
-              <p className="text-slate-200">{user.email}</p>
               <div className="flex mt-2 gap-2">
                 <MembershipBadge status={membershipStatus} />
                 <Badge className="bg-primary text-primary-foreground">B1 İngilizce</Badge>
@@ -520,7 +482,8 @@ const Dashboard = () => {
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-8">
+      <div className="w-full px-4 py-8 flex justify-center">
+        <div className="w-[90%]">
         <Tabs value={tab} onValueChange={(v) => {
           setTab(v);
           if (typeof window !== 'undefined') {
@@ -531,46 +494,47 @@ const Dashboard = () => {
             window.history.replaceState({}, '', url.toString());
           }
         }} className="w-full">
-          <TabsList className="flex flex-wrap justify-start gap-2 mb-6 bg-white p-2 rounded-lg shadow-sm border">
+          {/* Sekmeler: tek satır, eşit genişlik */}
+          <TabsList className="flex flex-nowrap justify-between gap-2 mb-6 bg-white px-4 py-3 rounded-xl shadow-sm border w-full">
             {/* 1. Dashboard */}
-            <TabsTrigger value="dashboard" className="!rounded-button whitespace-nowrap cursor-pointer">
+            <TabsTrigger value="dashboard" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-chart-line mr-2"></i>
               Dashboard
             </TabsTrigger>
             {/* 2. Okuma Geçmişim */}
-            <TabsTrigger value="reading-history" className="!rounded-button whitespace-nowrap cursor-pointer">
+            <TabsTrigger value="reading-history" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-history mr-2"></i>
               Okuma Geçmişim
             </TabsTrigger>
             {/* 3. Konularım */}
-            <TabsTrigger value="achievements" className="!rounded-button whitespace-nowrap cursor-pointer">
+            <TabsTrigger value="achievements" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-sitemap mr-2"></i>
               Konularım
             </TabsTrigger>
             {/* 4. Kitaplarım */}
-            <TabsTrigger value="book" className="!rounded-button whitespace-nowrap cursor-pointer">
+            <TabsTrigger value="book" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-book mr-2"></i>
               Kitaplarım
             </TabsTrigger>
-            <TabsTrigger value="hobbies" className="!rounded-button whitespace-nowrap cursor-pointer">
+            <TabsTrigger value="hobbies" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-heart mr-2"></i>
               Hobilerim
             </TabsTrigger>
             {/* 5. Podcastlerim (şimdilik placeholder) */}
-            <TabsTrigger value="podcasts" className="!rounded-button whitespace-nowrap cursor-pointer">
+            <TabsTrigger value="podcasts" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-podcast mr-2"></i>
               Podcastlerim
             </TabsTrigger>
             {/* 6. Dokümanlar */}
-            <TabsTrigger value="pdf" className="!rounded-button whitespace-nowrap cursor-pointer">
+            <TabsTrigger value="pdf" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-file-alt mr-2"></i>
               Dokümanlarım
             </TabsTrigger>
-            <TabsTrigger value="vocabulary" className="!rounded-button whitespace-nowrap cursor-pointer">
+            <TabsTrigger value="vocabulary" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-language mr-2"></i>
               Kelimelerim
             </TabsTrigger>
-            <TabsTrigger value="paket-bilgilerim" className="!rounded-button whitespace-nowrap cursor-pointer">
+            <TabsTrigger value="paket-bilgilerim" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-box mr-2"></i>
               Paket Bilgilerim
             </TabsTrigger>
@@ -861,85 +825,9 @@ const Dashboard = () => {
             </div>
           </TabsContent>
 
-          {/* Reading History Tab - only overview & shortcuts */}
+          {/* Reading History Tab - Ses geçmişi listesi */}
           <TabsContent value="reading-history" className="mt-0">
-            <Card className="border-none shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-bold text-gray-800">Okuma Geçmişim</CardTitle>
-                <CardDescription>Konu ağacınız ve kitap dinleme geçmişiniz burada özetlenir.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <Card className="group bg-muted rounded-2xl border border-border shadow-md hover:shadow-2xl transition-all duration-300 hover:border-primary/40 transform hover:-translate-y-1 cursor-pointer">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg font-semibold flex items-center group-hover:text-primary transition-colors">
-                        <i className="fas fa-sitemap mr-2 text-primary"></i>
-                        Konularım
-                      </CardTitle>
-                      <CardDescription>Konu ağacınızdan oluşturduğunuz tüm konular.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-gray-600 mb-3">
-                        Detaylı konu geçmişinizi görmek için aşağıdaki butona tıklayın.
-                      </p>
-                      <button
-                        className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-full flex items-center space-x-2 cursor-pointer"
-                        onClick={() => setTab('achievements')}
-                      >
-                        <span>Konularımı Gör</span>
-                        <i className="fas fa-arrow-right"></i>
-                      </button>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="group bg-muted rounded-2xl border border-border shadow-md hover:shadow-2xl transition-all duration-300 hover:border-primary/40 transform hover:-translate-y-1 cursor-pointer">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg font-semibold flex items-center group-hover:text-primary transition-colors">
-                        <i className="fas fa-book mr-2 text-primary"></i>
-                        Kitaplarım
-                      </CardTitle>
-                      <CardDescription>Dinlediğiniz kitaplar ve bölümler.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-gray-600 mb-3">
-                        Kitap dinleme geçmişinizi görmek için aşağıdaki butona tıklayın.
-                      </p>
-                      <button
-                        className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-full flex items-center space-x-2 cursor-pointer"
-                        onClick={() => setTab('book')}
-                      >
-                        <span>Kitaplarımı Gör</span>
-                        <i className="fas fa-arrow-right"></i>
-                      </button>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="group bg-muted rounded-2xl border border-border shadow-md hover:shadow-2xl transition-all duration-300 hover:border-primary/40 transform hover:-translate-y-1 cursor-pointer">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg font-semibold flex items-center group-hover:text-primary transition-colors">
-                        <i className="fas fa-heart mr-2 text-primary"></i>
-                        Hobilerim
-                      </CardTitle>
-                      <CardDescription>Kaydettiğiniz hobi ve ilgi alanları.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-gray-600 mb-3">
-                        Hobilerinizi güncellemek ve yeni konular keşfetmek için aşağıdaki butona tıklayın.
-                      </p>
-                      <button
-                        className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-full flex items-center space-x-2 cursor-pointer"
-                        onClick={() => setTab('hobbies')}
-                      >
-                        <span>Hobilerimi Gör</span>
-                        <i className="fas fa-arrow-right"></i>
-                      </button>
-                    </CardContent>
-                  </Card>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="mt-8 border border-border shadow-lg rounded-2xl bg-white">
+            <Card className="border border-border shadow-lg rounded-2xl bg-white">
               <CardContent className="p-6">
                 <div className="flex flex-col gap-4 mb-6">
                   <div className="flex items-center justify-between">
@@ -972,6 +860,8 @@ const Dashboard = () => {
                     <div className="flex flex-wrap gap-2">
                       {historyTypeOptions.map((option) => {
                         const isActive = activeHistoryTypes.includes(option.id);
+                        const count = historyCountsByType[option.id] || 0;
+                        const labelWithCount = count > 0 ? `${option.label} (${count})` : option.label;
                         return (
                           <button
                             key={option.id}
@@ -992,7 +882,7 @@ const Dashboard = () => {
                                 : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
                             }`}
                           >
-                            {option.label}
+                            {labelWithCount}
                           </button>
                         );
                       })}
@@ -1015,14 +905,14 @@ const Dashboard = () => {
                         className="bg-white rounded-xl border border-gray-200 hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden"
                       >
                         <div
-                          className="p-4 md:p-5 cursor-pointer hover:bg-primary/5 transition-colors"
+                          className="p-3 md:p-3 cursor-pointer hover:bg-primary/5 transition-colors"
                           onClick={() => {
                             setExpandedHistoryItem(expandedHistoryItem === item.id ? null : item.id);
                           }}
                         >
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2 text-xs">
+                              <div className="flex items-center gap-2 mb-1 text-xs">
                                 <Badge variant="outline" className="text-xs">
                                   {getHistoryTypeLabel(item.input_type)}
                                 </Badge>
@@ -1039,7 +929,7 @@ const Dashboard = () => {
                                   })}
                                 </span>
                               </div>
-                              <div className="mb-3">
+                              <div className="mb-2">
                                 <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">İngilizce Metin (Seviyenize Uyarlanmış):</h4>
                                 <p className="text-sm text-gray-700 line-clamp-2">
                                   {item.adapted_text || item.input}
@@ -1066,7 +956,7 @@ const Dashboard = () => {
                         </div>
 
                         {expandedHistoryItem === item.id && (
-                          <div className="border-t border-gray-200 bg-white p-6">
+                          <div className="border-t border-gray-200 bg-white p-4 md:p-5">
                             {(() => {
                               const audioResult = {
                                 message: item.adapted_text || item.input,
@@ -1095,7 +985,7 @@ const Dashboard = () => {
                               );
                             })()}
 
-                            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -1530,6 +1420,7 @@ const Dashboard = () => {
             </section>
           </TabsContent>
         </Tabs>
+        </div>
       </div>
     </div>
   );
