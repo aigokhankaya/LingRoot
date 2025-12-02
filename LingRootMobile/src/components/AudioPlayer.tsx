@@ -48,7 +48,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   initialHighlightMode = 'word',
 }) => {
   const insets = useSafeAreaInsets();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const { setCurrentTrack, setIsPlaying, isPlaying, currentTrack, sound, setSound, stopAllAudio } = useAudioContext();
   const [isLoading, setIsLoading] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -692,27 +692,26 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const updateWordHighlighting = useCallback((currentTime: number) => {
     if (!timepoints || timepoints.length === 0) return;
 
-    // For podcast-style dialogue transcripts, apply only a very small delay
-    // so that dialogue transitions feel snappy while still not getting ahead
-    // of the spoken audio.
     let effectiveTime = currentTime;
     if (isPodcastTranscript) {
       const PODCAST_HIGHLIGHT_OFFSET_SECONDS = 0.3;
       effectiveTime = Math.max(0, currentTime - PODCAST_HIGHLIGHT_OFFSET_SECONDS);
     }
 
-    const newWordIndex = findWordIndexLinear(effectiveTime, timepoints);
+    const newWordIndexInArray = findWordIndexLinear(effectiveTime, timepoints);
 
-    // Debug: Log every 30 seconds to check sync
     if (Math.floor(currentTime) % 30 === 0 && Math.floor(currentTime * 10) % 10 === 0) {
-      const tp = timepoints[newWordIndex];
-      console.log(`[SYNC CHECK] Time: ${currentTime.toFixed(2)}s | Index: ${newWordIndex} | Word: "${tp?.word}" | WordStart: ${tp?.timeSeconds.toFixed(2)}s | WordEnd: ${tp?.endTimeSeconds?.toFixed(2)}s | Drift: ${(currentTime - tp?.timeSeconds).toFixed(2)}s`);
+      const tp = timepoints[newWordIndexInArray];
+      console.log(`[SYNC CHECK] Time: ${currentTime.toFixed(2)}s | IndexInArray: ${newWordIndexInArray} | Word: "${tp?.word}" | WordStart: ${tp?.timeSeconds.toFixed(2)}s | WordEnd: ${tp?.endTimeSeconds?.toFixed(2)}s | Drift: ${(currentTime - tp?.timeSeconds).toFixed(2)}s`);
     }
 
-    // Only update if word changed
-    if (newWordIndex !== -1 && newWordIndex !== currentWordIndex) {
-      setCurrentWordIndex(newWordIndex);
-      scrollToWord(newWordIndex);
+    if (newWordIndexInArray !== -1) {
+      const tp = timepoints[newWordIndexInArray];
+      const globalIndex = typeof tp.index === 'number' ? tp.index : newWordIndexInArray;
+      if (globalIndex !== currentWordIndex) {
+        setCurrentWordIndex(globalIndex);
+        scrollToWord(globalIndex);
+      }
     }
   }, [timepoints, currentWordIndex, findWordIndexLinear, scrollToWord, isPodcastTranscript]);
 
@@ -847,21 +846,20 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         }
       }
       
-      // If we already know the word index (from word press), use it directly
       if (knownWordIndex !== undefined) {
         console.log(`🎯 [SEEK] Using known word index ${knownWordIndex}`);
         setCurrentWordIndex(knownWordIndex);
         scrollToWord(knownWordIndex);
       } else {
-        // Otherwise, find word index from time
         const currentTimeInSeconds = positionMs / 1000;
         if (timepoints && timepoints.length > 0) {
-          const newWordIndex = findWordIndexLinear(currentTimeInSeconds, timepoints);
-          if (newWordIndex !== -1) {
-            const foundWord = timepoints[newWordIndex];
-            console.log(`🎯 [SEEK] Seeked to ${currentTimeInSeconds.toFixed(2)}s → Found word index ${newWordIndex}: "${foundWord?.word}" (${foundWord?.timeSeconds.toFixed(2)}s - ${foundWord?.endTimeSeconds?.toFixed(2)}s)`);
-            setCurrentWordIndex(newWordIndex);
-            scrollToWord(newWordIndex);
+          const newWordIndexInArray = findWordIndexLinear(currentTimeInSeconds, timepoints);
+          if (newWordIndexInArray !== -1) {
+            const foundWord = timepoints[newWordIndexInArray];
+            const globalIndex = typeof foundWord.index === 'number' ? foundWord.index : newWordIndexInArray;
+            console.log(`🎯 [SEEK] Seeked to ${currentTimeInSeconds.toFixed(2)}s → Found word array index ${newWordIndexInArray}, global index ${globalIndex}: "${foundWord?.word}" (${foundWord?.timeSeconds.toFixed(2)}s - ${foundWord?.endTimeSeconds?.toFixed(2)}s)`);
+            setCurrentWordIndex(globalIndex);
+            scrollToWord(globalIndex);
           } else {
             console.warn(`⚠️ [SEEK] No word found for time ${currentTimeInSeconds.toFixed(2)}s`);
           }
@@ -894,89 +892,92 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }
     }
   };
-
   const handleWordPress = useCallback(async (wordIndex: number) => {
-    console.log(`📍 [WORD PRESS] Clicked word index: ${wordIndex}, word: "${wordsArray[wordIndex]}"`);
+    const clickedWord = wordsArray[wordIndex];
+    console.log(`📍 [WORD PRESS] Clicked word index: ${wordIndex}, word: "${clickedWord}"`);
     console.log(`📍 [WORD PRESS] Timepoints length: ${timepoints.length}, Words length: ${wordsArray.length}`);
-    
-    // CRITICAL: Update currentWordIndex immediately for instant highlight
+
     setCurrentWordIndex(wordIndex);
-    
-    if (timepoints.length > 0 && timepoints[wordIndex]) {
-      const timepoint = timepoints[wordIndex];
-      const clickedWord = wordsArray[wordIndex];
-      
-      console.log(`📍 [WORD PRESS] Clicked word from array: "${clickedWord}"`);
-      console.log(`📍 [WORD PRESS] Timepoint word: "${timepoint.word}", time=${timepoint.timeSeconds.toFixed(2)}s`);
-      
-      // Find "idea" words near clicked word (within 30 words)
-      const nearbyIdeas = timepoints
-        .map((tp, idx) => ({ tp, idx }))
-        .filter(({ tp, idx }) => 
-          tp.word?.toLowerCase() === 'idea' && 
-          Math.abs(idx - wordIndex) < 30
-        );
-      
-      if (nearbyIdeas.length > 0) {
-        console.log(`🔍 [DEBUG] Found ${nearbyIdeas.length} "idea" word(s) near index ${wordIndex}:`);
-        nearbyIdeas.forEach(({ tp, idx }) => {
-          console.log(`  - Index ${idx}: time=${tp.timeSeconds.toFixed(2)}s (distance: ${idx - wordIndex})`);
+
+    const normalize = (w?: string) =>
+      (w || '').toLowerCase().replace(/[.,!?;:]/g, '');
+
+    if (timepoints.length > 0) {
+      let targetIndex = -1;
+
+      const backendIndex = timepoints.findIndex(tp => typeof tp.index === 'number' && tp.index === wordIndex);
+      if (backendIndex !== -1) {
+        targetIndex = backendIndex;
+        console.log(`📍 [WORD PRESS] Using backend index match: timepoints[${backendIndex}].index=${timepoints[backendIndex].index} for clicked index ${wordIndex}`);
+      } else {
+        const clickedClean = normalize(clickedWord);
+        let bestDistance = Number.POSITIVE_INFINITY;
+        const MAX_DISTANCE = 80;
+
+        timepoints.forEach((tp, idx) => {
+          if (!tp.word) return;
+          const tpClean = normalize(tp.word);
+          if (tpClean === clickedClean) {
+            const distance = Math.abs(idx - wordIndex);
+            if (distance < bestDistance && distance <= MAX_DISTANCE) {
+              bestDistance = distance;
+              targetIndex = idx;
+            }
+          }
         });
-      }
-      
-      // CRITICAL: Check if words match!
-      // Remove punctuation AND hyphens for comparison
-      const clickedClean = clickedWord.toLowerCase().replace(/[.,!?;:]/g, '');
-      const timepointClean = timepoint.word?.toLowerCase().replace(/[.,!?;:]/g, '') || '';
-      if (clickedClean !== timepointClean) {
-        console.error(`❌ [WORD MISMATCH] Clicked "${clickedWord}" (index ${wordIndex}) but timepoint says "${timepoint.word}"`);
-        console.error(`   Cleaned: "${clickedClean}" vs "${timepointClean}"`);
-      }
-      
-      // Debug: Check previous words to see if timing is correct
-      if (wordIndex > 0) {
-        const prevWord = timepoints[wordIndex - 1];
-        console.log(`📍 [WORD PRESS] Previous word: "${prevWord.word}" at ${prevWord.timeSeconds.toFixed(2)}s`);
-      }
-      if (wordIndex > 1) {
-        const prevWord2 = timepoints[wordIndex - 2];
-        console.log(`📍 [WORD PRESS] 2 words before: "${prevWord2.word}" at ${prevWord2.timeSeconds.toFixed(2)}s`);
-      }
-      
-      const positionMs = timepoint.timeSeconds * 1000;
-      
-      // 1. Seek to position (pass wordIndex to avoid recalculation)
-      await handleSeek(positionMs, wordIndex);
-      
-      // 2. Verify actual audio position after seek
-      if (sound) {
-        const status = await sound.getStatusAsync();
-        if (status.isLoaded) {
-          const actualPositionMs = status.positionMillis;
-          const actualPositionS = actualPositionMs / 1000;
-          console.log(`🔊 [AUDIO] Actual position after seek: ${actualPositionS.toFixed(2)}s (expected: ${timepoint.timeSeconds.toFixed(2)}s)`);
+
+        if (targetIndex === -1 && timepoints[wordIndex]) {
+          targetIndex = wordIndex;
         }
       }
-      
-      // 3. Play audio if not already playing
-      if (!isPlaying && sound) {
-        console.log('▶️ [WORD PRESS] Starting playback from clicked word');
-        await sound.playAsync();
-        setIsPlaying(true);
-        playStartTimeRef.current = Date.now();
-        accumulatedTimeRef.current = elapsedTime;
+
+      if (targetIndex === -1) {
+        console.warn(`⚠️ [WORD PRESS] No matching timepoint found for word "${clickedWord}" (index ${wordIndex})`);
+      } else {
+        const timepoint = timepoints[targetIndex];
+        const highlightIndex = typeof timepoint.index === 'number' ? timepoint.index : wordIndex;
+
+        console.log(`📍 [WORD PRESS] Using timepoint array index ${targetIndex}, global index ${highlightIndex} for word "${clickedWord}" → "${timepoint.word}" at ${timepoint.timeSeconds.toFixed(2)}s`);
+
+        if (targetIndex > 0) {
+          const prevWord = timepoints[targetIndex - 1];
+          console.log(`📍 [WORD PRESS] Previous word: "${prevWord.word}" at ${prevWord.timeSeconds.toFixed(2)}s`);
+        }
+        if (targetIndex > 1) {
+          const prevWord2 = timepoints[targetIndex - 2];
+          console.log(`📍 [WORD PRESS] 2 words before: "${prevWord2.word}" at ${prevWord2.timeSeconds.toFixed(2)}s`);
+        }
+
+        const positionMs = timepoint.timeSeconds * 1000;
+
+        await handleSeek(positionMs, highlightIndex);
+
+        if (sound) {
+          const status = await sound.getStatusAsync();
+          if (status.isLoaded) {
+            const actualPositionMs = status.positionMillis;
+            const actualPositionS = actualPositionMs / 1000;
+            console.log(`🔊 [AUDIO] Actual position after seek: ${actualPositionS.toFixed(2)}s (expected: ${timepoint.timeSeconds.toFixed(2)}s)`);
+          }
+        }
+
+        if (!isPlaying && sound) {
+          console.log('▶️ [WORD PRESS] Starting playback from clicked word');
+          await sound.playAsync();
+          setIsPlaying(true);
+          playStartTimeRef.current = Date.now();
+          accumulatedTimeRef.current = elapsedTime;
+        }
       }
     } else {
-      console.warn(`⚠️ [WORD PRESS] No timepoint for index ${wordIndex}, using fallback estimation`);
-      // Fallback: estimate position based on word index
+      console.warn(`⚠️ [WORD PRESS] No timepoints available, using fallback estimation`);
       const totalDuration = duration / 1000;
       if (totalDuration > 0 && wordsArray.length > 0) {
         const estimatedTime = (wordIndex / wordsArray.length) * totalDuration;
         const positionMs = estimatedTime * 1000;
         console.log(`📍 [WORD PRESS] Estimated time: ${estimatedTime.toFixed(2)}s`);
         await handleSeek(positionMs, wordIndex);
-        
-        // Play audio if not already playing
+
         if (!isPlaying && sound) {
           await sound.playAsync();
           setIsPlaying(true);
@@ -1378,21 +1379,23 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           >
             <Icon name="close" size={24} color="#333" />
           </TouchableOpacity>
-          <View style={styles.centerBadge}>
-            <TouchableOpacity
-              onPress={() => {
-                console.log(`🔄 [AudioPlayer] Toggling patterns: ${showPatterns} -> ${!showPatterns}, pageIndex: ${pageIndex}`);
-                setShowPatterns(!showPatterns);
-              }}
-              style={[styles.patternToggle, showPatterns && styles.patternToggleActive]}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Icon name="highlight" size={18} color={showPatterns ? '#FFF' : '#666'} />
-              <Text style={[styles.patternToggleText, showPatterns && styles.patternToggleTextActive]}>
-                Patterns
-              </Text>
-            </TouchableOpacity>
-          </View>
+          {isTestEnvironment && (
+            <View style={styles.centerBadge}>
+              <TouchableOpacity
+                onPress={() => {
+                  console.log(`🔄 [AudioPlayer] Toggling patterns: ${showPatterns} -> ${!showPatterns}, pageIndex: ${pageIndex}`);
+                  setShowPatterns(!showPatterns);
+                }}
+                style={[styles.patternToggle, showPatterns && styles.patternToggleActive]}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Icon name="highlight" size={18} color={showPatterns ? '#FFF' : '#666'} />
+                <Text style={[styles.patternToggleText, showPatterns && styles.patternToggleTextActive]}>
+                  Patterns
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
           {pageIndex === 0 ? (
             <TouchableOpacity 
               style={styles.originalTextButton}
@@ -1401,7 +1404,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               }}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
-              <Text style={styles.originalTextButtonText}>Orijinal Metin</Text>
+              <Text style={styles.originalTextButtonText}>
+                {t('audioPlayer.originalTextButton')}
+              </Text>
               <Icon name="chevron-right" size={20} color="#007AFF" />
             </TouchableOpacity>
           ) : (
@@ -1413,7 +1418,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
               <Icon name="chevron-left" size={20} color="#007AFF" />
-              <Text style={styles.originalTextButtonText}>Geri Dön</Text>
+              <Text style={styles.originalTextButtonText}>
+                {t('audioPlayer.backToTranslationButton')}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1514,16 +1521,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             >
               <Pressable>
                 <View style={styles.originalHeader}>
-                  <Text style={styles.originalTitle}>Orijinal Türkçe Metin</Text>
+                  <Text style={styles.originalTitle}>
+                    {t('audioPlayer.originalTurkishTitle')}
+                  </Text>
                   <TouchableOpacity
                     onPress={() => {
                       const textToCopy = originalText || track.original_turkish || '';
                       if (textToCopy) {
                         Clipboard.setString(textToCopy);
                         Alert.alert(
-                          language === 'tr' ? 'Kopyalandı!' : 'Copied!',
-                          language === 'tr' ? 'Türkçe metin panoya kopyalandı.' : 'Turkish text copied to clipboard.',
-                          [{ text: language === 'tr' ? 'Tamam' : 'OK' }]
+                          t('audioPlayer.copySuccessTitle'),
+                          t('audioPlayer.copySuccessMessage'),
+                          [{ text: t('common.ok') }]
                         );
                       }
                     }}
@@ -1533,7 +1542,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   </TouchableOpacity>
                 </View>
                 {originalLoading ? (
-                  <Text style={styles.originalText}>Yükleniyor...</Text>
+                  <Text style={styles.originalText}>
+                    {t('audioPlayer.originalLoading')}
+                  </Text>
                 ) : (
                   <Text style={styles.originalText}>{originalText || track.original_turkish || '—'}</Text>
                 )}
@@ -1741,6 +1752,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    marginLeft: 'auto',
   },
   originalTextButtonText: {
     fontSize: 14,

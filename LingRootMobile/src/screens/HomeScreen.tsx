@@ -79,7 +79,7 @@ const HomeScreen: React.FC = () => {
       icon: 'auto-awesome',
       color: '#F59E0B',
       screenName: 'PatternList',
-      featureKey: null, // Always show
+      featureKey: 'daily_usage_patterns', // Always show
     },
     {
       id: 4,
@@ -271,28 +271,30 @@ const HomeScreen: React.FC = () => {
         </View>
 
         <View style={styles.featuresContainer}>
-          <View style={styles.liroBanner}>
-            <TouchableOpacity
-              style={styles.liroButton}
-              activeOpacity={0.9}
-              onPress={() => (navigation as any).navigate('Liro')}
-            >
-              <View style={styles.liroIcon}>
-                <Icon name="auto-awesome" size={26} color="#27BEAA" />
-              </View>
-              <View style={styles.liroContent}>
-                <Text style={styles.liroTitle}>
-                  {language === 'tr' ? 'LIRO ile Öğren' : 'Learn with LIRO'}
-                </Text>
-                <Text style={styles.liroDescription}>
-                  {language === 'tr'
-                    ? 'Sevdiğin içerikleri seviyene göre dinlemek için LIRO ekranını aç.'
-                    : 'Open the LIRO screen to listen to your favorite content at your level.'}
-                </Text>
-              </View>
-              <Icon name="chevron-right" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          </View>
+          {planFeatures?.homepage_features?.liro === true && (
+            <View style={styles.liroBanner}>
+              <TouchableOpacity
+                style={styles.liroButton}
+                activeOpacity={0.9}
+                onPress={() => (navigation as any).navigate('Liro')}
+              >
+                <View style={styles.liroIcon}>
+                  <Icon name="auto-awesome" size={26} color="#27BEAA" />
+                </View>
+                <View style={styles.liroContent}>
+                  <Text style={styles.liroTitle}>
+                    {language === 'tr' ? 'LIRO ile Öğren' : 'Learn with LIRO'}
+                  </Text>
+                  <Text style={styles.liroDescription}>
+                    {language === 'tr'
+                      ? 'Sevdiğin içerikleri seviyene göre dinlemek için LIRO ekranını aç.'
+                      : 'Open the LIRO screen to listen to your favorite content at your level.'}
+                  </Text>
+                </View>
+                <Icon name="chevron-right" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+          )}
           <Text style={styles.sectionTitle}>{t('home.features')}</Text>
           <View style={styles.featuresGrid}>
             {features.map((feature) => (

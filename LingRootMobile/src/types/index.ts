@@ -121,6 +121,9 @@ export interface Timepoint {
   timeSeconds: number;
   endTimeSeconds?: number;
   word?: string;
+  index?: number;
+  hasRealTiming?: boolean;
+  source?: string;
 }
 
 // Navigation Types

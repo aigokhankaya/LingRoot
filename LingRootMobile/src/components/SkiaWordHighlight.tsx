@@ -375,21 +375,24 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     }
   };
   
-  const createLongPressHandler = (chunkStartY: number) => (event: GestureResponderEvent) => {
+  // Handle long press for vocabulary add – mirror chunk-relative logic from createTouchHandler
+  const createLongPressHandler = (chunk: { startY: number; endY: number; index: number }) => (event: GestureResponderEvent) => {
     const { locationX, locationY } = event.nativeEvent;
-    
-    // Adjust Y coordinate: chunk-relative Y + chunk offset - scroll offset (scroll moves content up)
-    const scrollOffset = scrollOffsetRef?.current || 0;
-    const adjustedY = locationY + chunkStartY - scrollOffset;
-    
-    const touchedWord = wordBoundaries.find(
-      (boundary) =>
+
+    // Use the same chunk-relative boundaries as normal taps
+    const chunkBoundaries = getChunkWordBoundaries(chunk);
+    const relativeY = locationY;
+
+    const touchedWord = chunkBoundaries.find((boundary) => {
+      const boundaryRelativeY = boundary.y - chunk.startY;
+      return (
         locationX >= boundary.x &&
         locationX <= boundary.x + boundary.width &&
-        adjustedY >= boundary.y &&
-        adjustedY <= boundary.y + boundary.height
-    );
-    
+        relativeY >= boundaryRelativeY &&
+        relativeY <= boundaryRelativeY + boundary.height
+      );
+    });
+
     if (touchedWord && onWordLongPress) {
       onWordLongPress(words[touchedWord.index], touchedWord.index);
     }
@@ -412,6 +415,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
           const isHighlighted = index === currentWordIndex;
           const isSelected = selectedWords.has(cleanWord);
           const isPattern = isWordInPattern(index);
+
           return (
             <TouchableOpacity
               key={index}
@@ -452,7 +456,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
             <TouchableOpacity
               activeOpacity={1}
               onPress={createTouchHandler(chunk)}
-              onLongPress={createLongPressHandler(chunk.startY)}
+              onLongPress={createLongPressHandler(chunk)}
               delayLongPress={500}
             >
               <Canvas style={{ width: containerWidth, height: chunk.height }}>

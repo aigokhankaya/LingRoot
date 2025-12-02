@@ -172,6 +172,10 @@ class NotificationService {
       const unlearned = Array.isArray(words)
         ? words.filter(w => w && (w.is_learned === false || typeof w.is_learned === 'undefined'))
         : [];
+      if (unlearned.length === 0) {
+        console.log('⚠️ [iOS Notifications] No unlearned vocabulary, skipping reminders');
+        return;
+      }
       const times = ReminderSettingsService.calculateNotificationTimes(settings, unlearned.length);
       const selected = this.pickWordsForSlots(unlearned, words as any, times.length);
 

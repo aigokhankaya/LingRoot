@@ -105,6 +105,7 @@ If you encounter any issues during testing, please let us know the specific erro
 - **iOS Deployment Target:** iOS 13.0+
 - **Test Environment:** Both production and sandbox environments supported
 - **Backend:** Deployed on Render (https://lingloops-backend.onrender.com)
+ - **Push Notifications (FCM):** For long‑running text-to-speech requests, audio generation is processed asynchronously on our backend. When processing completes, we send a push notification via Firebase Cloud Messaging (over APNs) to inform the user that the audio is ready and allow them to open the playback screen. Notifications are only used for this user-initiated flow.
 
 Thank you for your patience and thorough review process. We are committed to providing a seamless user experience.
 
