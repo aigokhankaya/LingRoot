@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../src/lib/auth';
 import { api } from '../src/lib/api';
 import Head from 'next/head';
+import { useTranslation } from '../src/lib/i18n';
 
 interface Plan {
   id: string;
@@ -15,6 +16,7 @@ interface Plan {
 export default function Checkout() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
+  const { t } = useTranslation();
   const { plan: planId } = router.query;
   
   const [loading, setLoading] = useState(false);
@@ -54,7 +56,7 @@ export default function Checkout() {
 
   const handleCheckout = async () => {
     if (!planDetails) {
-      setError('Plan bilgisi bulunamadı');
+      setError(t('checkout_error_plan_not_found'));
       return;
     }
 
@@ -70,11 +72,11 @@ export default function Checkout() {
         // Stripe checkout sayfasına yönlendir
         window.location.href = response.data.sessionUrl;
       } else {
-        setError(response.data.message || 'Ödeme oturumu oluşturulamadı');
+        setError(response.data.message || t('checkout_error_session_failed'));
       }
     } catch (err: any) {
       console.error('Checkout error:', err);
-      setError(err.response?.data?.message || 'Bir hata oluştu. Lütfen tekrar deneyin.');
+      setError(err.response?.data?.message || t('checkout_error_generic'));
     } finally {
       setLoading(false);
     }
@@ -95,62 +97,62 @@ export default function Checkout() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Head>
-        <title>Ödeme | LingRoot</title>
+        <title>{t('checkout_title')} | LingRoot</title>
       </Head>
 
       <div className="max-w-md mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Ödeme</h1>
-          <p className="text-gray-600">Seçtiğiniz planı onaylayın ve ödemeye geçin</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('checkout_title')}</h1>
+          <p className="text-gray-600">{t('checkout_subtitle')}</p>
         </div>
 
         {planDetails ? (
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Plan Detayları</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('checkout_plan_details')}</h2>
             
             <div className="border-b border-gray-200 pb-4 mb-4">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600">Plan:</span>
+                <span className="text-gray-600">{t('checkout_plan_label')}</span>
                 <span className="font-semibold text-gray-900">{planDetails.name}</span>
               </div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600">Fiyat:</span>
+                <span className="text-gray-600">{t('checkout_price_label')}</span>
                 <span className="font-semibold text-gray-900">{planDetails.price} ₺</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Periyot:</span>
+                <span className="text-gray-600">{t('checkout_period_label')}</span>
                 <span className="font-semibold text-gray-900">
-                  {planDetails.interval === 'monthly' ? 'Aylık' : 'Yıllık'}
+                  {planDetails.interval === 'monthly' ? t('checkout_period_monthly') : t('checkout_period_yearly')}
                 </span>
               </div>
             </div>
 
             <div className="bg-primary/5 rounded-lg p-4 mb-6">
-              <h3 className="font-semibold text-primary mb-2">Plan Özellikleri:</h3>
+              <h3 className="font-semibold text-primary mb-2">{t('checkout_features_title')}</h3>
               <ul className="space-y-2 text-sm text-gray-800">
                 <li className="flex items-start">
                   <svg className="h-5 w-5 text-primary mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Sınırsız içerik dönüştürme
+                  {t('checkout_feature1')}
                 </li>
                 <li className="flex items-start">
                   <svg className="h-5 w-5 text-primary mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Tüm seviyelere erişim (A1-C2)
+                  {t('checkout_feature2')}
                 </li>
                 <li className="flex items-start">
                   <svg className="h-5 w-5 text-primary mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Gelişmiş kelime havuzu
+                  {t('checkout_feature3')}
                 </li>
                 <li className="flex items-start">
                   <svg className="h-5 w-5 text-primary mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Çevrimdışı erişim
+                  {t('checkout_feature4')}
                 </li>
               </ul>
             </div>
@@ -172,21 +174,21 @@ export default function Checkout() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  İşleniyor...
+                  {t('checkout_button_loading')}
                 </span>
               ) : (
-                'Ödemeye Geç'
+                t('checkout_button')
               )}
             </button>
 
             <p className="text-xs text-gray-500 text-center mt-4">
-              Güvenli ödeme Stripe ile yapılmaktadır
+              {t('checkout_secure_payment')}
             </p>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-lg p-6 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-gray-600">Plan bilgileri yükleniyor...</p>
+            <p className="text-gray-600">{t('checkout_loading')}</p>
           </div>
         )}
 
@@ -195,7 +197,7 @@ export default function Checkout() {
             onClick={() => router.push('/fiyatlandirma')}
             className="text-primary hover:text-primary/80 text-sm font-medium"
           >
-            ← Planlara Geri Dön
+            {t('checkout_back_button')}
           </button>
         </div>
       </div>

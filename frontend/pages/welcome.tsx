@@ -91,33 +91,6 @@ interface ContentHistoryItem {
   }>;
 }
 
-const HISTORY_TYPE_LABELS: Record<string, string> = {
-  text: 'Metin',
-  subject: 'Konu',
-  topic: 'Konu Ağacı',
-  book: 'Kitap',
-  podcast: 'Podcast',
-  youtube: 'YouTube',
-  file: 'Dosya',
-  document: 'Doküman',
-  weblink: 'Web Bağlantısı',
-};
-
-const historyTypeOptions = [
-  { id: 'topic', label: 'Konu Ağacı' },
-  { id: 'book', label: 'Kitap' },
-  { id: 'document', label: 'Doküman' },
-  { id: 'podcast', label: 'Podcast' },
-  { id: 'youtube', label: 'YouTube' },
-  { id: 'weblink', label: 'Web Bağlantısı' },
-  { id: 'text', label: 'Metin' },
-  { id: 'subject', label: 'Konu' },
-];
-
-const getHistoryTypeLabel = (inputType: string): string => {
-  const key = (inputType || '').toLowerCase();
-  return HISTORY_TYPE_LABELS[key] || (inputType ? inputType.toUpperCase() : 'DİĞER');
-};
 
 interface Book {
   id: string;
@@ -166,6 +139,33 @@ const Welcome: React.FC = () => {
   const { t } = useTranslation();
   const router = useRouter();
 
+  const getHistoryTypeLabel = (inputType: string): string => {
+    const key = (inputType || '').toLowerCase();
+    const labels: Record<string, string> = {
+      text: t('text'),
+      subject: t('subject'),
+      topic: t('content_type_topic_tree'),
+      book: t('book'),
+      podcast: t('podcast'),
+      youtube: t('youtube'),
+      file: t('upload_file'),
+      document: t('document'),
+      weblink: t('web_link'),
+    };
+    return labels[key] || (inputType ? inputType.toUpperCase() : 'DİĞER');
+  };
+
+  const historyTypeOptions = [
+    { id: 'topic', label: t('content_type_topic_tree') },
+    { id: 'book', label: t('book') },
+    { id: 'document', label: t('document') },
+    { id: 'podcast', label: t('podcast') },
+    { id: 'youtube', label: t('youtube') },
+    { id: 'weblink', label: t('web_link') },
+    { id: 'text', label: t('text') },
+    { id: 'subject', label: t('subject') },
+  ];
+
   const normalizedPlanName = (currentPlanName || '').toLowerCase();
   const isPlatinumPlan =
     normalizedPlanName.includes('platin') || normalizedPlanName.includes('platinum');
@@ -184,11 +184,11 @@ const Welcome: React.FC = () => {
       if (fullName) return fullName;
       if ((user as any)?.name) return (user as any).name as string;
       if (user?.email) return user.email.split('@')[0];
-      return 'Kullanıcı';
+      return t('user_default');
     } catch {
       return (
         ((user as any)?.name as string) ||
-        (user?.email ? user.email.split('@')[0] : 'Kullanıcı')
+        (user?.email ? user.email.split('@')[0] : t('user_default'))
       );
     }
   };
@@ -221,7 +221,7 @@ const Welcome: React.FC = () => {
         // Yönlendir
         router.replace(target.startsWith('/') ? target : '/dashboard');
       }
-    } catch {}
+    } catch { }
   }, [router]);
 
   useEffect(() => {
@@ -234,13 +234,13 @@ const Welcome: React.FC = () => {
         const timeout = setTimeout(() => setShowWelcomeLoader(false), 1500);
         return () => clearTimeout(timeout);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   // 🎯 Chat'ten ve URL'den gelen parametreleri işle
   useEffect(() => {
     if (!router.isReady) return;
-    
+
     const { topic, action, text, contentType: contentTypeFromQuery } = router.query;
 
     // URL'den içerik türü (ör: ?contentType=book)
@@ -254,13 +254,13 @@ const Welcome: React.FC = () => {
       setTextInput(topic);
       console.log('📝 Chat\'ten konu alındı:', topic);
     }
-    
+
     // action: 'audio' -> Metin sekmesi + text yerleştir
     if (action === 'audio' && typeof text === 'string') {
       setContentType('text');
       setTextInput(text);
       console.log('🎵 Chat\'ten metin alındı (ses oluşturma)');
-      
+
       // Otomatik scroll (opsiyonel)
       setTimeout(() => {
         window.scrollTo({ top: 400, behavior: 'smooth' });
@@ -313,14 +313,14 @@ const Welcome: React.FC = () => {
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
   const [isFetchingSubtitle, setIsFetchingSubtitle] = useState<boolean>(false);
   const [subtitleError, setSubtitleError] = useState<string | null>(null);
-  
+
   // İçerik süresi seçenekleri (tüm modlar için ortak)
   // 1.5 dk, 5 dk, 10 dk, 15 dk seçenekleri
   const DURATION_OPTIONS = [
-    { value: 1.5, label: '1.5 dk', description: '~225 kelime' },
-    { value: 5, label: '5 dk', description: '~750 kelime' },
-    { value: 10, label: '10 dk', description: '~1500 kelime' },
-    { value: 15, label: '15 dk', description: '~2250 kelime' },
+    { value: 1.5, label: `1.5 ${t('duration_min')}`, description: t('duration_words_approx').replace('{count}', '225') },
+    { value: 5, label: `5 ${t('duration_min')}`, description: t('duration_words_approx').replace('{count}', '750') },
+    { value: 10, label: `10 ${t('duration_min')}`, description: t('duration_words_approx').replace('{count}', '1500') },
+    { value: 15, label: `15 ${t('duration_min')}`, description: t('duration_words_approx').replace('{count}', '2250') },
   ];
   const [contentDuration, setContentDuration] = useState<number>(5); // Varsayılan 5 dakika
 
@@ -335,7 +335,7 @@ const Welcome: React.FC = () => {
   const [podcastIncludeFiller, setPodcastIncludeFiller] = useState<boolean>(true);
   const [isCreatingPodcast, setIsCreatingPodcast] = useState<boolean>(false);
   const [podcastError, setPodcastError] = useState<string | null>(null);
-  
+
   // Kitap arama ve seçim state'leri
   const [bookSearchQuery, setBookSearchQuery] = useState<string>('');
   const [bookTitleSearch, setBookTitleSearch] = useState<string>('');
@@ -351,27 +351,27 @@ const Welcome: React.FC = () => {
   const [isCheckingExistingAudio, setIsCheckingExistingAudio] = useState<boolean>(false);
   const [activeTopicId, setActiveTopicId] = useState<string | null>(null);
   const [favoriteBookIds, setFavoriteBookIds] = useState<number[]>([]);
-  
+
   // Content history expanded view state
   const [expandedHistoryItem, setExpandedHistoryItem] = useState<string | null>(null);
   const [activeHistoryTypes, setActiveHistoryTypes] = useState<string[]>(
     historyTypeOptions.map((t) => t.id)
   );
-  
+
   // İçerik türü seçenekleri
   const contentTypeOptions: ContentTypeOption[] = [
-    { id: 'topic_tree', name: 'Konu Ağacı', icon: <FaSitemap /> },
-    { id: 'book', name: 'Kitap', icon: <FaBook /> },
-    { id: 'podcast', name: 'Podcast', icon: <FaPodcast /> },
-    { id: 'topic', name: 'Hobi', icon: <FaLightbulb /> },
-    { id: 'youtube', name: 'YouTube', icon: <FaYoutube /> },
-    { id: 'document', name: 'Doküman', icon: <FaFileWord /> },
-    { id: 'text', name: 'Metin', icon: <FaFileAlt /> },
-    { id: 'weblink', name: 'Web Bağlantısı', icon: <FaLink /> },
-    { id: 'subject', name: 'Konu', icon: <FaGraduationCap /> },
-    { id: 'custom', name: 'Öneriler', icon: <FaPlus /> },
+    { id: 'topic_tree', name: t('content_type_topic_tree'), icon: <FaSitemap /> },
+    { id: 'book', name: t('book'), icon: <FaBook /> },
+    { id: 'podcast', name: t('podcast'), icon: <FaPodcast /> },
+    { id: 'topic', name: t('content_type_hobbies'), icon: <FaLightbulb /> },
+    { id: 'youtube', name: t('youtube'), icon: <FaYoutube /> },
+    { id: 'document', name: t('document'), icon: <FaFileWord /> },
+    { id: 'text', name: t('text'), icon: <FaFileAlt /> },
+    { id: 'weblink', name: t('web_link'), icon: <FaLink /> },
+    { id: 'subject', name: t('subject'), icon: <FaGraduationCap /> },
+    { id: 'custom', name: t('content_type_custom'), icon: <FaPlus /> },
   ];
-  
+
   const levelOptions = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   const rateOptions = [
     { value: 0.7, label: '0.7x' },
@@ -380,91 +380,99 @@ const Welcome: React.FC = () => {
     { value: 1.2, label: '1.2x' },
   ];
   const accentOptions = [
-    { value: 'all', label: 'Tümü' },
-    { value: 'american', label: 'Amerikan' },
-    { value: 'british', label: 'İngiliz' },
-    { value: 'australian', label: 'Avustralya' },
-    { value: 'canadian', label: 'Kanada' },
-    { value: 'indian', label: 'Hindistan' },
-    { value: 'international', label: 'Uluslararası' }
+    { value: 'all', label: t('voice_accent_all') },
+    { value: 'american', label: t('voice_accent_american') },
+    { value: 'british', label: t('voice_accent_british') },
+    { value: 'australian', label: t('voice_accent_australian') },
+    { value: 'canadian', label: t('voice_accent_canadian') },
+    { value: 'indian', label: t('voice_accent_indian') },
+    { value: 'international', label: t('voice_accent_international') }
   ];
-  
+
   const emotionOptions = [
-    { value: 'all', label: 'Tümü' },
-    { value: 'neutral', label: 'Nötr' },
-    { value: 'cheerful', label: 'Neşeli' },
-    { value: 'serious', label: 'Ciddi' },
-    { value: 'professional', label: 'Profesyonel' },
-    { value: 'excited', label: 'Heyecanlı' },
-    { value: 'calm', label: 'Sakin' },
-    { value: 'friendly', label: 'Samimi' }
+    { value: 'all', label: t('emotion_all') },
+    { value: 'neutral', label: t('emotion_neutral') },
+    { value: 'cheerful', label: t('emotion_cheerful') },
+    { value: 'serious', label: t('emotion_serious') },
+    { value: 'professional', label: t('emotion_professional') },
+    { value: 'excited', label: t('emotion_excited') },
+    { value: 'calm', label: t('emotion_calm') },
+    { value: 'friendly', label: t('emotion_friendly') }
   ];
   const formatOptions = ['MP3', 'WAV', 'AAC', 'FLAC', 'OGG'];
 
   // Ses kategorileri - TTS provider'a göre dinamik
-  const voiceCategories = ttsProvider === 'google' 
+  const voiceCategories = ttsProvider === 'google'
     ? [
-        { value: 'standard', label: 'Standart Sesler', icon: 'fas fa-volume-up', ssmlSupport: false },
-        { value: 'wavenet', label: 'WaveNet Sesleri', icon: 'fas fa-star', badge: 'Premium', ssmlSupport: true },
-        { value: 'neural2', label: 'Neural2 Sesleri', icon: 'fas fa-brain', badge: 'Premium', ssmlSupport: true },
-        { value: 'studio', label: 'Studio Sesleri', icon: 'fas fa-crown', badge: 'Platinium', ssmlSupport: true },
-        { value: 'chirp3d', label: 'Chirp 3D', icon: 'fas fa-gem', badge: 'Gold', ssmlSupport: true }
-      ]
+      { value: 'standard', label: t('voice_cat_standard'), icon: 'fas fa-volume-up', ssmlSupport: false },
+      { value: 'wavenet', label: t('voice_cat_wavenet'), icon: 'fas fa-star', badge: 'Premium', badgeLabel: t('badge_premium'), ssmlSupport: true },
+      { value: 'neural2', label: t('voice_cat_neural2'), icon: 'fas fa-brain', badge: 'Premium', badgeLabel: t('badge_premium'), ssmlSupport: true },
+      { value: 'studio', label: t('voice_cat_studio'), icon: 'fas fa-crown', badge: 'Platinium', badgeLabel: t('badge_platinum'), ssmlSupport: true },
+      { value: 'chirp3d', label: t('voice_cat_chirp3d'), icon: 'fas fa-gem', badge: 'Gold', badgeLabel: t('badge_gold'), ssmlSupport: true }
+    ]
     : [ // Amazon Polly categories
-        { value: 'standard', label: 'Standard', icon: 'fas fa-volume-up', ssmlSupport: false },
-        { value: 'neural', label: 'Neural', icon: 'fas fa-star', badge: 'Premium', ssmlSupport: true }
-      ];
+      { value: 'standard', label: 'Standard', icon: 'fas fa-volume-up', ssmlSupport: false },
+      { value: 'neural', label: 'Neural', icon: 'fas fa-star', badge: 'Premium', badgeLabel: t('badge_premium'), ssmlSupport: true }
+    ];
+
+  const getVoiceName = (voice: any) => {
+    const accentKey = `voice_accent_${voice.accent}`;
+    const accent = t(accentKey) !== accentKey ? t(accentKey) : voice.accent; // fallback if key missing
+    const gender = voice.gender === 'male' ? t('male_voice') : t('female_voice');
+    const suffix = voice.id.split('-').pop();
+    return `${accent} - ${gender} ${suffix}`;
+  };
 
   const detailedVoices = {
     wavenet: [
-      { id: 'en-US-Wavenet-A', name: 'ABD İngilizcesi - Erkek A', accent: 'american', gender: 'male', category: 'wavenet', ssmlSupport: true },
-      { id: 'en-US-Wavenet-F', name: 'ABD İngilizcesi - Kadın F', accent: 'american', gender: 'female', category: 'wavenet', ssmlSupport: true },
-      { id: 'en-GB-Wavenet-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'wavenet', ssmlSupport: true },
-      { id: 'en-GB-Wavenet-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'wavenet', ssmlSupport: true },
-      { id: 'en-AU-Wavenet-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'wavenet', ssmlSupport: true },
-      { id: 'en-AU-Wavenet-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'wavenet', ssmlSupport: true }
+      { id: 'en-US-Wavenet-A', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Wavenet-A' }), accent: 'american', gender: 'male', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-US-Wavenet-F', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Wavenet-F' }), accent: 'american', gender: 'female', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-GB-Wavenet-B', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Wavenet-B' }), accent: 'british', gender: 'male', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-GB-Wavenet-C', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Wavenet-C' }), accent: 'british', gender: 'female', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-AU-Wavenet-A', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Wavenet-A' }), accent: 'australian', gender: 'female', category: 'wavenet', ssmlSupport: true },
+      { id: 'en-AU-Wavenet-D', name: getVoiceName({ accent: 'australian', gender: 'male', id: 'en-AU-Wavenet-D' }), accent: 'australian', gender: 'male', category: 'wavenet', ssmlSupport: true }
     ],
     neural2: [
-      { id: 'en-US-Neural2-J', name: 'ABD İngilizcesi - Erkek J', accent: 'american', gender: 'male', category: 'neural2', ssmlSupport: true },
-      { id: 'en-US-Neural2-H', name: 'ABD İngilizcesi - Kadın H', accent: 'american', gender: 'female', category: 'neural2', ssmlSupport: true },
-      { id: 'en-GB-Neural2-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'neural2', ssmlSupport: true },
-      { id: 'en-GB-Neural2-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'neural2', ssmlSupport: true },
-      { id: 'en-AU-Neural2-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'neural2', ssmlSupport: true },
-      { id: 'en-AU-Neural2-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'neural2', ssmlSupport: true },
-      { id: 'en-AU-Neural2-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'neural2', ssmlSupport: true }
+      { id: 'en-US-Neural2-J', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Neural2-J' }), accent: 'american', gender: 'male', category: 'neural2', ssmlSupport: true },
+      { id: 'en-US-Neural2-H', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Neural2-H' }), accent: 'american', gender: 'female', category: 'neural2', ssmlSupport: true },
+      { id: 'en-GB-Neural2-B', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Neural2-B' }), accent: 'british', gender: 'male', category: 'neural2', ssmlSupport: true },
+      { id: 'en-GB-Neural2-C', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Neural2-C' }), accent: 'british', gender: 'female', category: 'neural2', ssmlSupport: true },
+      { id: 'en-AU-Neural2-A', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Neural2-A' }), accent: 'australian', gender: 'female', category: 'neural2', ssmlSupport: true },
+      { id: 'en-AU-Neural2-C', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Neural2-C' }), accent: 'australian', gender: 'female', category: 'neural2', ssmlSupport: true },
+      { id: 'en-AU-Neural2-D', name: getVoiceName({ accent: 'australian', gender: 'male', id: 'en-AU-Neural2-D' }), accent: 'australian', gender: 'male', category: 'neural2', ssmlSupport: true }
     ],
     studio: [
-      { id: 'en-US-Studio-M', name: 'ABD İngilizcesi - Erkek M', accent: 'american', gender: 'male', category: 'studio', ssmlSupport: true },
-      { id: 'en-US-Studio-Q', name: 'ABD İngilizcesi - Kadın Q', accent: 'american', gender: 'female', category: 'studio', ssmlSupport: true },
-      { id: 'en-GB-Studio-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'studio', ssmlSupport: true },
-      { id: 'en-GB-Studio-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'studio', ssmlSupport: true }
+      { id: 'en-US-Studio-M', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Studio-M' }), accent: 'american', gender: 'male', category: 'studio', ssmlSupport: true },
+      { id: 'en-US-Studio-Q', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Studio-Q' }), accent: 'american', gender: 'female', category: 'studio', ssmlSupport: true },
+      { id: 'en-GB-Studio-B', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Studio-B' }), accent: 'british', gender: 'male', category: 'studio', ssmlSupport: true },
+      { id: 'en-GB-Studio-C', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Studio-C' }), accent: 'british', gender: 'female', category: 'studio', ssmlSupport: true }
     ],
     chirp3d: [
-      { id: 'en-US-Journey-D', name: 'ABD İngilizcesi - Kadın D', accent: 'american', gender: 'female', category: 'chirp3d', ssmlSupport: true },
-      { id: 'en-US-Journey-O', name: 'ABD İngilizcesi - Erkek O', accent: 'american', gender: 'male', category: 'chirp3d', ssmlSupport: true },
-      { id: 'en-GB-Journey-F', name: 'İngiliz İngilizcesi - Kadın F', accent: 'british', gender: 'female', category: 'chirp3d', ssmlSupport: true },
-      { id: 'en-GB-Journey-M', name: 'İngiliz İngilizcesi - Erkek M', accent: 'british', gender: 'male', category: 'chirp3d', ssmlSupport: true }
+      { id: 'en-US-Journey-D', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Journey-D' }), accent: 'american', gender: 'female', category: 'chirp3d', ssmlSupport: true },
+      { id: 'en-US-Journey-O', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Journey-O' }), accent: 'american', gender: 'male', category: 'chirp3d', ssmlSupport: true },
+      { id: 'en-GB-Journey-F', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Journey-F' }), accent: 'british', gender: 'female', category: 'chirp3d', ssmlSupport: true },
+      { id: 'en-GB-Journey-M', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Journey-M' }), accent: 'british', gender: 'male', category: 'chirp3d', ssmlSupport: true }
     ],
     standard: [
-      { id: 'en-US-Standard-B', name: 'ABD İngilizcesi - Erkek B', accent: 'american', gender: 'male', category: 'standard', ssmlSupport: false },
-      { id: 'en-US-Standard-C', name: 'ABD İngilizcesi - Kadın C', accent: 'american', gender: 'female', category: 'standard', ssmlSupport: false },
-      { id: 'en-US-Standard-D', name: 'ABD İngilizcesi - Erkek D', accent: 'american', gender: 'male', category: 'standard', ssmlSupport: false },
-      { id: 'en-US-Standard-E', name: 'ABD İngilizcesi - Kadın E', accent: 'american', gender: 'female', category: 'standard', ssmlSupport: false },
-      { id: 'en-GB-Standard-A', name: 'İngiliz İngilizcesi - Kadın A', accent: 'british', gender: 'female', category: 'standard', ssmlSupport: false },
-      { id: 'en-GB-Standard-B', name: 'İngiliz İngilizcesi - Erkek B', accent: 'british', gender: 'male', category: 'standard', ssmlSupport: false },
-      { id: 'en-GB-Standard-C', name: 'İngiliz İngilizcesi - Kadın C', accent: 'british', gender: 'female', category: 'standard', ssmlSupport: false },
-      { id: 'en-GB-Standard-D', name: 'İngiliz İngilizcesi - Erkek D', accent: 'british', gender: 'male', category: 'standard', ssmlSupport: false },
-      { id: 'en-AU-Standard-A', name: 'Avustralya İngilizcesi - Kadın A', accent: 'australian', gender: 'female', category: 'standard', ssmlSupport: false },
-      { id: 'en-AU-Standard-B', name: 'Avustralya İngilizcesi - Erkek B', accent: 'australian', gender: 'male', category: 'standard', ssmlSupport: false },
-      { id: 'en-AU-Standard-C', name: 'Avustralya İngilizcesi - Kadın C', accent: 'australian', gender: 'female', category: 'standard', ssmlSupport: false },
-      { id: 'en-AU-Standard-D', name: 'Avustralya İngilizcesi - Erkek D', accent: 'australian', gender: 'male', category: 'standard', ssmlSupport: false }
+      { id: 'en-US-Standard-B', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Standard-B' }), accent: 'american', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-US-Standard-C', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Standard-C' }), accent: 'american', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-US-Standard-D', name: getVoiceName({ accent: 'american', gender: 'male', id: 'en-US-Standard-D' }), accent: 'american', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-US-Standard-E', name: getVoiceName({ accent: 'american', gender: 'female', id: 'en-US-Standard-E' }), accent: 'american', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-GB-Standard-A', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Standard-A' }), accent: 'british', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-GB-Standard-B', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Standard-B' }), accent: 'british', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-GB-Standard-C', name: getVoiceName({ accent: 'british', gender: 'female', id: 'en-GB-Standard-C' }), accent: 'british', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-GB-Standard-D', name: getVoiceName({ accent: 'british', gender: 'male', id: 'en-GB-Standard-D' }), accent: 'british', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-AU-Standard-A', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Standard-A' }), accent: 'australian', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-AU-Standard-B', name: getVoiceName({ accent: 'australian', gender: 'male', id: 'en-AU-Standard-B' }), accent: 'australian', gender: 'male', category: 'standard', ssmlSupport: false },
+      { id: 'en-AU-Standard-C', name: getVoiceName({ accent: 'australian', gender: 'female', id: 'en-AU-Standard-C' }), accent: 'australian', gender: 'female', category: 'standard', ssmlSupport: false },
+      { id: 'en-AU-Standard-D', name: getVoiceName({ accent: 'australian', gender: 'male', id: 'en-AU-Standard-D' }), accent: 'australian', gender: 'male', category: 'standard', ssmlSupport: false }
     ]
   };
 
   // YouTube altyazı çekme
   const handleFetchYoutubeSubtitle = async () => {
     if (!youtubeUrl || !/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(youtubeUrl)) {
-      setSubtitleError('Geçerli bir YouTube linki girin.');
+      setSubtitleError(t('welcome_youtube_invalid_url'));
       return;
     }
     setIsFetchingSubtitle(true);
@@ -483,23 +491,23 @@ const Welcome: React.FC = () => {
         try { body = await res.json(); } catch { body = await res.text().catch(() => ''); }
         const noSubs = (body && (body?.errorCode === 'NO_SUBTITLES' || body?.detail?.error_code === 'NO_SUBTITLES'));
         if (noSubs) {
-          throw new Error('Bu videoda altyazı bulunmamaktadır');
+          throw new Error(t('welcome_youtube_no_subtitles'));
         }
-        throw new Error(`API hatası: ${res.status} ${res.statusText}`);
+        throw new Error(t('welcome_api_error').replace('{status}', `${res.status} ${res.statusText}`));
       }
       const data: any = await res.json();
       if (data?.errorCode === 'NO_SUBTITLES' || data?.detail?.error_code === 'NO_SUBTITLES') {
-        throw new Error('Bu videoda altyazı bulunmamaktadır');
+        throw new Error(t('welcome_youtube_no_subtitles'));
       }
       const subtitleText = data?.text || '';
       if (!subtitleText || subtitleText.trim().length === 0) {
-        throw new Error('Bu videoda altyazı bulunmamaktadır');
+        throw new Error(t('welcome_youtube_no_subtitles'));
       }
       setTextInput(subtitleText);
       console.log('🎬 [YOUTUBE] Subtitles fetched. Length:', subtitleText.length);
     } catch (e: any) {
       console.error('❌ [YOUTUBE] Altyazı çekme hatası:', e);
-      setSubtitleError(e?.message || 'Altyazı çekilemedi.');
+      setSubtitleError(e?.message || t('welcome_youtube_fetch_failed'));
     } finally {
       setIsFetchingSubtitle(false);
     }
@@ -508,13 +516,13 @@ const Welcome: React.FC = () => {
   // Podcast oluşturma fonksiyonu
   const handleCreatePodcast = async () => {
     if (!podcastTopic || podcastTopic.trim().length === 0) {
-      setPodcastError('Lütfen bir podcast konusu girin.');
+      setPodcastError(t('validation_enter_podcast_topic'));
       return;
     }
-    
+
     setIsCreatingPodcast(true);
     setPodcastError(null);
-    
+
     try {
       // n8n webhook formatı: { topic, level, duration }
       const params: PodcastCreationParams = {
@@ -528,10 +536,10 @@ const Welcome: React.FC = () => {
         includeHumor: podcastIncludeHumor,
         includeFiller: podcastIncludeFiller,
       };
-      
+
       console.log('🎙️ [PODCAST] Creating podcast with params:', params);
       const result = await createPodcast(params);
-      
+
       if (result.success && result.podcast_url) {
         // Podcast başarıyla oluşturuldu
         // n8n'den gelen vtt_subtitles zaten Supabase URL'si
@@ -578,11 +586,11 @@ const Welcome: React.FC = () => {
           console.error('🎙️ [PODCAST] submitContent failed for podcast:', submitErr);
         }
       } else {
-        throw new Error(result.message || 'Podcast oluşturulamadı');
+        throw new Error(result.message || t('welcome_podcast_create_failed'));
       }
     } catch (e: any) {
       console.error('❌ [PODCAST] Podcast oluşturma hatası:', e);
-      setPodcastError(e?.message || 'Podcast oluşturulamadı.');
+      setPodcastError(e?.message || t('welcome_podcast_create_failed'));
     } finally {
       setIsCreatingPodcast(false);
     }
@@ -591,7 +599,7 @@ const Welcome: React.FC = () => {
   // Konu önerileri alma fonksiyonu
   const handleGetTopicSuggestions = async () => {
     if (!textInput || textInput.trim().length === 0) {
-      setError('Lütfen bir konu girin.');
+      setError(t('validation_enter_topic'));
       return;
     }
 
@@ -602,18 +610,18 @@ const Welcome: React.FC = () => {
 
     try {
       console.log('📝 Konu önerileri alınıyor:', textInput);
-      
+
       const result = await getTopicDetailSuggestions(textInput, englishLevel.toUpperCase());
-      
+
       if (result.success && result.data?.suggestions) {
         setTopicDetailSuggestions(result.data.suggestions);
         console.log('✅ Konu önerileri alındı:', result.data.suggestions.length);
       } else {
-        throw new Error(result.message || 'Konu önerileri alınamadı');
+        throw new Error(result.message || t('welcome_error_topic_suggestions').replace('{error}', t('welcome_error_unknown')));
       }
     } catch (e: any) {
       console.error('❌ Konu önerileri hatası:', e);
-      setError(e?.message || 'Konu önerileri alınamadı.');
+      setError(e?.message || t('welcome_error_topic_suggestions').replace('{error}', t('welcome_error_unknown')));
       setTopicDetailSuggestions([]);
     } finally {
       setIsLoadingTopicSuggestions(false);
@@ -623,7 +631,7 @@ const Welcome: React.FC = () => {
   // Hobi için 200 öneri oluştur
   const handleGenerateHobbySuggestions = async () => {
     if (!selectedInterest) {
-      setError('Lütfen bir hobi seçin.');
+      setError(t('validation_select_hobby'));
       return;
     }
 
@@ -633,18 +641,18 @@ const Welcome: React.FC = () => {
     try {
       console.log('🎨 Hobi önerileri oluşturuluyor:', selectedInterest);
       const result = await generateHobbySuggestions(selectedInterest);
-      
+
       if (result.success) {
         console.log('✅ Hobi önerileri oluşturuldu:', result.data.count);
         setHobbyExists(true);
         // Otomatik olarak 5 rastgele getir
         await handleGetRandomHobbySuggestions();
       } else {
-        throw new Error(result.message || 'Hobi önerileri oluşturulamadı');
+        throw new Error(result.message || t('welcome_hobby_suggestions_create_failed'));
       }
     } catch (e: any) {
       console.error('❌ Hobi önerileri oluşturma hatası:', e);
-      setError(e?.message || 'Hobi önerileri oluşturulamadı.');
+      setError(e?.message || t('welcome_hobby_suggestions_create_failed'));
     } finally {
       setIsGeneratingHobbySuggestions(false);
     }
@@ -653,7 +661,7 @@ const Welcome: React.FC = () => {
   // Hobi için rastgele 5 öneri getir
   const handleGetRandomHobbySuggestions = async () => {
     if (!selectedInterest) {
-      setError('Lütfen bir hobi seçin.');
+      setError(t('validation_select_hobby'));
       return;
     }
 
@@ -665,7 +673,7 @@ const Welcome: React.FC = () => {
     try {
       console.log('🎲 Rastgele hobi önerileri getiriliyor:', selectedInterest);
       const result = await getRandomHobbySuggestions(selectedInterest);
-      
+
       if (result.success && result.data?.suggestions) {
         setTopicDetailSuggestions(result.data.suggestions);
         console.log('✅ Rastgele hobi önerileri geldi:', result.data.suggestions.length);
@@ -674,11 +682,11 @@ const Welcome: React.FC = () => {
         console.log('⚠️ Öneri bulunamadı, oluşturuluyor...');
         await handleGenerateHobbySuggestions();
       } else {
-        throw new Error(result.message || 'Hobi önerileri getirilemedi');
+        throw new Error(result.message || t('welcome_hobby_suggestions_get_failed'));
       }
     } catch (e: any) {
       console.error('❌ Hobi önerileri getirme hatası:', e);
-      setError(e?.message || 'Hobi önerileri getirilemedi.');
+      setError(e?.message || t('welcome_hobby_suggestions_get_failed'));
       setTopicDetailSuggestions([]);
     } finally {
       setIsLoadingTopicSuggestions(false);
@@ -688,13 +696,13 @@ const Welcome: React.FC = () => {
   // Seçili hobi için en güncel haberleri getir
   const handleFetchHobbyNews = async () => {
     if (!selectedInterest) {
-      setError('Lütfen bir hobi seçin.');
+      setError(t('validation_select_hobby'));
       return;
     }
 
     const query = selectedInterest.trim();
     if (!query) {
-      setError('Lütfen bir hobi seçin.');
+      setError(t('validation_select_hobby'));
       return;
     }
 
@@ -821,16 +829,16 @@ const Welcome: React.FC = () => {
   }, [selectedInterest, contentType]);
 
   const genderOptions = [
-    { value: 'all', label: 'Tümü' },
-    { value: 'male', label: 'Erkek' },
-    { value: 'female', label: 'Kadın' }
+    { value: 'all', label: t('gender_all') },
+    { value: 'male', label: t('gender_male') },
+    { value: 'female', label: t('gender_female') }
   ];
 
   const accentVoiceOptions = [
-    { value: 'all', label: 'Tümü' },
-    { value: 'american', label: 'Amerikan' },
-    { value: 'british', label: 'İngiliz' },
-    { value: 'australian', label: 'Avustralya' }
+    { value: 'all', label: t('accent_all') },
+    { value: 'american', label: t('accent_american') },
+    { value: 'british', label: t('accent_british') },
+    { value: 'australian', label: t('accent_australian') }
   ];
 
 
@@ -856,11 +864,11 @@ const Welcome: React.FC = () => {
       // Fallback: backend çalışmıyorsa hardcoded sesler (sadece geliştirme için)
       console.log('🔍 Fallback - hardcoded sesler kullanılıyor');
       const categoryVoices = detailedVoices[selectedVoiceCategory as keyof typeof detailedVoices] || [];
-      
+
       const filtered = categoryVoices.filter(voice => {
         const genderMatch = selectedGender === 'all' || voice.gender === selectedGender;
         const accentMatch = selectedAccent === 'all' || voice.accent === selectedAccent;
-        
+
         return genderMatch && accentMatch;
       });
       return filtered;
@@ -882,16 +890,16 @@ const Welcome: React.FC = () => {
   // URL conversion fonksiyonu
   const convertToPlayableUrl = (url: string): string => {
     if (!url) return '';
-    
+
     console.log("🔄 Converting URL:", url);
-    
+
     try {
       // TTS audio URL'leri için /api prefix'i ekle
       if (url.startsWith('/tts/')) {
         url = `/api${url}`;
         console.log("✅ Added /api prefix to TTS URL:", url);
       }
-      
+
       // API yolu kontrolü
       if (url.startsWith('/api/')) {
         // Development ortamında
@@ -900,24 +908,24 @@ const Welcome: React.FC = () => {
           console.log("🏠 Local development URL:", finalUrl);
           return finalUrl;
         }
-        
+
         // Production ortamında
         if (typeof window !== 'undefined' && window.location.hostname.includes('lingroot.com')) {
           const finalUrl = `https://lingloops-backend.onrender.com${url}`;
           console.log("🌐 Production URL:", finalUrl);
           return finalUrl;
         }
-        
+
         console.log("📍 Using relative path:", url);
         return url;
       }
-      
+
       // Tam URL kontrolü
       if (url.startsWith('https://')) {
         console.log("🔗 Full HTTPS URL:", url);
         return url;
       }
-      
+
       console.log("❓ Unknown URL format:", url);
       return url;
     } catch (error) {
@@ -931,21 +939,21 @@ const Welcome: React.FC = () => {
     setLoadingVoices(true);
     try {
       console.log('fetchAvailableVoices başlatılıyor...');
-      
+
       // API endpoint'ini belirle
       const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
         ? 'http://localhost:5001/api/tts/voices'
         : '/api/tts/voices';
-      
+
       const response = await fetch(apiUrl);
       const data = await response.json();
-      
+
       console.log('Voices API response:', data);
-      
+
       if (data.voices && Array.isArray(data.voices)) {
         setAvailableVoices(data.voices);
         console.log('Available voices set edildi:', data.voices.length, 'voice');
-        
+
         // İlk sesi varsayılan olarak seç (eğer henüz seçilmemişse)
         if (!voiceType && data.voices.length > 0) {
           setVoiceType(data.voices[0].name);
@@ -968,36 +976,36 @@ const Welcome: React.FC = () => {
     setLoadingVoices(true);
     try {
       console.log('🎯 Filtrelenmiş sesler çekiliyor...', { accent, emotion, gender, category });
-      
+
       // API endpoint'ini belirle
       const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
         ? 'http://localhost:5001/api/tts/voices/filter'
         : '/api/tts/voices/filter';
-      
+
       // Query parametrelerini oluştur
       const params = new URLSearchParams();
       if (accent && accent !== 'all') params.append('accent', accent);
       if (emotion && emotion !== 'all') params.append('emotion', emotion);
       if (gender && gender !== 'all') params.append('gender', gender);
       if (category && category !== 'all') params.append('category', category);
-      
+
       const apiUrl = `${baseUrl}?${params.toString()}`;
       console.log('🔗 Filter API URL:', apiUrl);
-      
+
       const response = await fetch(apiUrl);
       const data = await response.json();
-      
+
       console.log('🎯 Filtered Voices API response:', data);
-      
+
       if (data.voices && Array.isArray(data.voices)) {
         let voices = data.voices as any[];
 
         // Web tarafı fallback: Wavenet + AU/CA/IN boş gelirse bir ses enjekte et
-        if (voices.length === 0 && category === 'wavenet' && accent && ['australian','canadian','indian'].includes(accent)) {
-          const map: Record<string, { male: string; female: string; lang: string } > = {
+        if (voices.length === 0 && category === 'wavenet' && accent && ['australian', 'canadian', 'indian'].includes(accent)) {
+          const map: Record<string, { male: string; female: string; lang: string }> = {
             australian: { male: 'en-AU-Wavenet-D', female: 'en-AU-Wavenet-A', lang: 'en-AU' },
-            canadian:   { male: 'en-CA-Wavenet-D', female: 'en-CA-Wavenet-A', lang: 'en-CA' },
-            indian:     { male: 'en-IN-Wavenet-D', female: 'en-IN-Wavenet-A', lang: 'en-IN' },
+            canadian: { male: 'en-CA-Wavenet-D', female: 'en-CA-Wavenet-A', lang: 'en-CA' },
+            indian: { male: 'en-IN-Wavenet-D', female: 'en-IN-Wavenet-A', lang: 'en-IN' },
           };
           const cfg = map[accent];
           const chosen = (gender === 'male') ? cfg.male : (gender === 'female') ? cfg.female : cfg.female;
@@ -1069,10 +1077,10 @@ const Welcome: React.FC = () => {
         const apiUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
           ? 'http://localhost:5001/api/admin/settings/tts-provider'
           : '/api/admin/settings/tts-provider';
-        
+
         const response = await fetch(apiUrl);
         const data = await response.json();
-        
+
         if (data.success && data.tts_provider) {
           console.log('🎙️ TTS Provider from settings:', data.tts_provider);
           setTtsProvider(data.tts_provider);
@@ -1082,7 +1090,7 @@ const Welcome: React.FC = () => {
         setTtsProvider('amazon'); // Default to Amazon
       }
     };
-    
+
     fetchTtsProvider();
   }, []);
 
@@ -1117,7 +1125,7 @@ const Welcome: React.FC = () => {
           // Cinsiyet: emin değilsek all bırak
           setDefaultApplied(false); // apply on next filtered list load
         }
-      } catch {}
+      } catch { }
     })();
   }, [isAuthenticated]);
 
@@ -1136,7 +1144,7 @@ const Welcome: React.FC = () => {
           setShowPlanRequired(true);
           return;
         }
-      } catch {}
+      } catch { }
       // For all other alerts on this page, suppress native alert entirely
       return;
     };
@@ -1152,7 +1160,7 @@ const Welcome: React.FC = () => {
       const text = String(error);
       const shouldOpen = text.includes('Aktif paketiniz yok') || text.includes('Paket kullanım sınırınız aşıldı');
       if (shouldOpen) setShowPlanRequired(true);
-    } catch {}
+    } catch { }
   }, [error]);
 
   // Safety: handle unhandled 402 errors (promise rejections) without native alert
@@ -1169,7 +1177,7 @@ const Welcome: React.FC = () => {
           setError(noPlan ? 'Aktif paketiniz yok' : 'Paket kullanım sınırınız aşıldı');
           setShowPlanRequired(true);
         }
-      } catch {}
+      } catch { }
     };
     window.addEventListener('unhandledrejection', handler);
     return () => window.removeEventListener('unhandledrejection', handler);
@@ -1178,11 +1186,11 @@ const Welcome: React.FC = () => {
   // Filtreler değiştiğinde sesleri yeniden çek
   useEffect(() => {
     const hasActiveFilters = selectedAccent !== 'all' || selectedGender !== 'all' || emotionType !== 'all' || selectedVoiceCategory !== 'standard';
-    
+
     if (hasActiveFilters) {
-      console.log('🎯 Filtre değişti, sesler yeniden çekiliyor...', { 
-        selectedAccent, 
-        selectedGender, 
+      console.log('🎯 Filtre değişti, sesler yeniden çekiliyor...', {
+        selectedAccent,
+        selectedGender,
         emotionType,
         selectedVoiceCategory
       });
@@ -1211,7 +1219,7 @@ const Welcome: React.FC = () => {
       console.log('fetchContentHistory başlatılıyor...');
       const response = await getContentHistory();
       console.log('getContentHistory response:', response);
-      
+
       if (response.success && response.data) {
         console.log('Content history data:', response.data);
         // Backend'den gelen data yapısını kontrol et
@@ -1241,7 +1249,7 @@ const Welcome: React.FC = () => {
       console.log('fetchUserInterests başlatılıyor...');
       const response = await getUserInterests();
       console.log('getUserInterests response:', response);
-      
+
       if (response && Array.isArray(response)) {
         // Backend'den gelen format: [{ interest_keyword: "İngilizce" }, ...]
         const interests = response.map((item: any) => item.interest_keyword || item);
@@ -1262,15 +1270,15 @@ const Welcome: React.FC = () => {
   // Konu önerisi fonksiyonu - mevcut InputSection yapısına uyarlanmış
   const handleTopicSuggestion = async () => {
     if (contentType !== 'topic') return;
-    
+
     if (!selectedInterest) {
-      setError('Lütfen önce bir hobi/ilgi alanı seçin.');
+      setError(t('validation_select_hobby_first'));
       return;
     }
-    
+
     setIsLoadingTopicSuggestions(true);
     setError(null);
-    
+
     try {
       const response = await getTopicDetailSuggestions(selectedInterest, englishLevel);
       if (response.success && response.data.suggestions) {
@@ -1278,12 +1286,12 @@ const Welcome: React.FC = () => {
         console.log(`${selectedInterest} konusu için ${response.data.suggestions.length} öneri alındı`);
       } else {
         console.error("Konu önerileri alınamadı:", response);
-        setError("Konu önerileri alınamadı: " + (response.message || "Bilinmeyen hata"));
+        setError(t('welcome_error_topic_suggestions').replace('{error}', response.message || t('welcome_error_unknown')));
       }
     } catch (error: any) {
       console.error("Konu önerileri alınırken hata oluştu:", error);
-      const errorMessage = error.message || "Bilinmeyen bir hata oluştu";
-      setError(`Konu önerileri alınamadı: ${errorMessage}`);
+      const errorMessage = error.message || t('welcome_error_unknown');
+      setError(t('welcome_error_topic_suggestions').replace('{error}', errorMessage));
     } finally {
       setIsLoadingTopicSuggestions(false);
     }
@@ -1303,9 +1311,9 @@ const Welcome: React.FC = () => {
       console.log('🔍 [BOOK SEARCH] No search criteria provided');
       return;
     }
-    
+
     console.log('🔍 [BOOK SEARCH] Starting search with:', { query, title, author, page });
-    
+
     setIsSearchingBooks(true);
     try {
       // URL parametrelerini oluştur
@@ -1315,14 +1323,14 @@ const Welcome: React.FC = () => {
       if (author?.trim()) searchParams.append('author', author.trim());
       searchParams.append('page', page.toString());
       searchParams.append('per_page', '10');
-      
+
       const searchUrl = `/api/books/search?${searchParams.toString()}`;
       console.log('🔍 [BOOK SEARCH] Fetching URL:', searchUrl);
-      
+
       const response = await fetch(searchUrl);
       console.log('🔍 [BOOK SEARCH] Response status:', response.status);
       console.log('🔍 [BOOK SEARCH] Response headers:', Object.fromEntries(response.headers.entries()));
-      
+
       if (response.ok) {
         const data: BookSearchResult = await response.json();
         console.log('🔍 [BOOK SEARCH] Success! Found:', data.total, 'books');
@@ -1377,11 +1385,11 @@ const Welcome: React.FC = () => {
       } else {
         const errorData = await response.json();
         console.error('Bölüm yükleme hatası:', errorData);
-        setError(`Bölüm yükleme hatası: ${errorData.error || response.statusText}`);
+        setError(t('welcome_error_chapter_load_detail').replace('{error}', errorData.error || response.statusText));
       }
     } catch (error) {
       console.error('Bölüm yükleme hatası:', error);
-      setError('Bölümler yüklenirken bir hata oluştu. Lütfen tekrar deneyin.');
+      setError(t('welcome_error_chapter_load'));
     } finally {
       setIsLoadingChapters(false);
     }
@@ -1393,7 +1401,7 @@ const Welcome: React.FC = () => {
       console.error('No book selected for audio check');
       return null;
     }
-    
+
     setIsCheckingExistingAudio(true);
     try {
       const response = await fetch(`/api/books/${selectedBook.id}/chapters/${chapterId}/audio?voice_model=${voiceModel}&speaking_rate=${speakingRate}&level=${level}`);
@@ -1450,7 +1458,7 @@ const Welcome: React.FC = () => {
   const handleChapterSelect = async (chapter: Chapter) => {
     setSelectedChapter(chapter);
     setTextInput(chapter.chapter_text);
-    
+
     // Mevcut ses kontrolü yap
     await checkExistingAudio(chapter.id, voiceType, speakingRate, englishLevel);
   };
@@ -1459,7 +1467,7 @@ const Welcome: React.FC = () => {
   const handleGenerateForChapter = async (chapter: Chapter) => {
     const text = (chapter.chapter_text || '').trim();
     if (!text) {
-      setError('Bu bölüm için metin bulunamadı.');
+      setError(t('welcome_chapter_no_text'));
       return;
     }
 
@@ -1506,7 +1514,7 @@ const Welcome: React.FC = () => {
       if (inputData.type === 'youtube') {
         const subtitle = (inputData.text || inputData.input || textInput || '').trim();
         if (!subtitle) {
-          throw new Error('Önce "Altyazı çek" ile metni yükleyin.');
+          throw new Error(t('welcome_error_youtube_subtitle'));
         }
         processInput = {
           ...processInput,
@@ -1519,7 +1527,7 @@ const Welcome: React.FC = () => {
       if (inputData.type === 'subject' || inputData.type === 'topic') {
         const typeLabel = inputData.type === 'subject' ? 'Subject (Konu)' : 'Topic (Hobi)';
         console.log(`${typeLabel} type detected, sending directly to backend for content generation...`);
-        
+
         // Backend'de content_generation ve translate_from_english promptları kullanılacak
         // Type'ı olduğu gibi bırak, backend normalize edecek
         // contentDuration'ı targetDurationMinutes olarak gönder
@@ -1529,7 +1537,7 @@ const Welcome: React.FC = () => {
           input: inputData.text || inputData.input || '',
           targetDurationMinutes: contentDuration, // Süre parametresi
         };
-        
+
         console.log(`${typeLabel} will be processed by backend with content_generation prompts, duration: ${contentDuration} min`);
       }
 
@@ -1557,7 +1565,7 @@ const Welcome: React.FC = () => {
       console.log('🔄 [DEBUG] About to call processTts with:', processInput);
       const result = await processTts({ ...processInput, suppressPlanAlerts: true });
       console.log('✅ [DEBUG] processTts completed with result:', result);
-      
+
       // CRITICAL DEBUG: Check why setAudioResult is not called
       console.log('🚨 [CRITICAL DEBUG] Validation checks:', {
         hasResult: !!result,
@@ -1567,7 +1575,7 @@ const Welcome: React.FC = () => {
         mp3UrlType: typeof result?.mp3_url,
         conditionResult: !!(result && result.mp3_url)
       });
-      
+
       // Debug: TTS sonucunu logla
       console.log('🔍 [FRONTEND DEBUG] Full TTS Result:', result);
       console.log('🔍 [FRONTEND DEBUG] TTS Result Analysis:', {
@@ -1593,72 +1601,72 @@ const Welcome: React.FC = () => {
         // All keys in result
         resultKeys: result ? Object.keys(result) : []
       });
-        
-        if (result && result.mp3_url) {
-          console.log('🚀 [DEBUG] About to call setAudioResult with:', {
-            mp3_url: result.mp3_url,
-            timepoints_length: result.timepoints?.length,
-            words_length: result.words?.length
-          });
-          
-          setAudioResult({
-            success: true,
-            message: result.message || t('audio_generated_success'),
-            mp3_url: result.mp3_url,
-            vtt_url: result.vtt_url,
-            level: inputData.level,
-            timepoints: result.timepoints || [],
-            words: result.words || [],
-            speaking_rate: (result as any).speaking_rate || 1.0,
-            original_turkish: (result as any).original_turkish || ''
-          });
-          
-          // DEBUG: setAudioResult sonrası kontrol
-          console.log('✅ [DEBUG] setAudioResult called successfully');
-          
-          // Input değerini belirle - kitap bölümü için chapter title kullan
-          let input = processInput.input || inputData.input || inputData.text;
-          if (processInput.type === 'book' && (inputData.chapter || selectedChapter?.chapter_title)) {
-            input = inputData.chapter || selectedChapter?.chapter_title;
-          }
 
-          const chapterIdForSubmit = inputData.chapter_id || selectedChapter?.id;
-          
-          try {
-            await submitContent(
-              input || 'Unknown input', 
-              processInput.type, 
-              inputData.level, 
-              result.mp3_url, 
-              result.translated_text || result.translatedText || '',
-              result.adapted_text || result.adaptedText || '',
-              chapterIdForSubmit
-            );
-            console.log('İçerik başarıyla kaydedildi');
-            // Content history'yi yeniden yükle
-            fetchContentHistory();
-          } catch (submitError: any) {
-            console.error('İçerik kaydetme hatası (ses oluşturma başarılı):', submitError);
-            const errMsg = String(submitError?.message || '');
-            const errJson = (() => {
-              try { return JSON.parse(errMsg.split(' - ').pop() || '{}'); } catch { return {}; }
-            })();
-            const serverError = String((errJson as any)?.error || '');
-            const isDuplicate = errMsg.toLowerCase().includes('duplicate key') 
-              || serverError.toLowerCase().includes('duplicate key')
-              || errMsg.includes('ux_contenthistory_user_mp3') 
-              || serverError.includes('ux_contenthistory_user_mp3');
-            if (isDuplicate) {
-              // Aynı mp3_url için kayıt zaten var → uyarıyı kullanıcıya göstermeyelim
-              console.warn('Duplicate contenthistory entry detected; suppressing user-facing error.');
-            } else {
-              // Diğer hataları normal şekilde göster
-              setError(`Ses başarıyla oluşturuldu ancak kaydetme sırasında hata oluştu: ${submitError.message}`);
-            }
-          }
-        } else {
-          setError(result.message || t('audio_generation_failed'));
+      if (result && result.mp3_url) {
+        console.log('🚀 [DEBUG] About to call setAudioResult with:', {
+          mp3_url: result.mp3_url,
+          timepoints_length: result.timepoints?.length,
+          words_length: result.words?.length
+        });
+
+        setAudioResult({
+          success: true,
+          message: result.message || t('audio_generated_success'),
+          mp3_url: result.mp3_url,
+          vtt_url: result.vtt_url,
+          level: inputData.level,
+          timepoints: result.timepoints || [],
+          words: result.words || [],
+          speaking_rate: (result as any).speaking_rate || 1.0,
+          original_turkish: (result as any).original_turkish || ''
+        });
+
+        // DEBUG: setAudioResult sonrası kontrol
+        console.log('✅ [DEBUG] setAudioResult called successfully');
+
+        // Input değerini belirle - kitap bölümü için chapter title kullan
+        let input = processInput.input || inputData.input || inputData.text;
+        if (processInput.type === 'book' && (inputData.chapter || selectedChapter?.chapter_title)) {
+          input = inputData.chapter || selectedChapter?.chapter_title;
         }
+
+        const chapterIdForSubmit = inputData.chapter_id || selectedChapter?.id;
+
+        try {
+          await submitContent(
+            input || 'Unknown input',
+            processInput.type,
+            inputData.level,
+            result.mp3_url,
+            result.translated_text || result.translatedText || '',
+            result.adapted_text || result.adaptedText || '',
+            chapterIdForSubmit
+          );
+          console.log('İçerik başarıyla kaydedildi');
+          // Content history'yi yeniden yükle
+          fetchContentHistory();
+        } catch (submitError: any) {
+          console.error('İçerik kaydetme hatası (ses oluşturma başarılı):', submitError);
+          const errMsg = String(submitError?.message || '');
+          const errJson = (() => {
+            try { return JSON.parse(errMsg.split(' - ').pop() || '{}'); } catch { return {}; }
+          })();
+          const serverError = String((errJson as any)?.error || '');
+          const isDuplicate = errMsg.toLowerCase().includes('duplicate key')
+            || serverError.toLowerCase().includes('duplicate key')
+            || errMsg.includes('ux_contenthistory_user_mp3')
+            || serverError.includes('ux_contenthistory_user_mp3');
+          if (isDuplicate) {
+            // Aynı mp3_url için kayıt zaten var → uyarıyı kullanıcıya göstermeyelim
+            console.warn('Duplicate contenthistory entry detected; suppressing user-facing error.');
+          } else {
+            // Diğer hataları normal şekilde göster
+            setError(`Ses başarıyla oluşturuldu ancak kaydetme sırasında hata oluştu: ${submitError.message}`);
+          }
+        }
+      } else {
+        setError(result.message || t('audio_generation_failed'));
+      }
     } catch (error: any) {
       console.error('Error generating audio:', error);
       const message = String(error?.message || '');
@@ -1683,7 +1691,7 @@ const Welcome: React.FC = () => {
             }
           }
         }
-      } catch {}
+      } catch { }
       setError(message || t('unexpected_error'));
     } finally {
       setIsLoading(false);
@@ -1694,13 +1702,13 @@ const Welcome: React.FC = () => {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     // Dosya boyutu kontrolü (10MB limit)
     if (file.size > 10 * 1024 * 1024) {
       alert('Dosya boyutu 10MB\'dan büyük olamaz.');
       return;
     }
-    
+
     // Dosya türü kontrolü
     const allowedTypes = [
       'application/pdf',
@@ -1713,39 +1721,39 @@ const Welcome: React.FC = () => {
       'application/vnd.oasis.opendocument.text',
       'application/epub+zip'
     ];
-    
+
     if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|txt|md|rtf|html|odt|epub)$/i)) {
-      alert('Desteklenmeyen dosya türü. Lütfen PDF, DOC, DOCX, TXT, MD, RTF, HTML, ODT veya EPUB dosyası seçin.');
+      alert(t('validation_unsupported_file'));
       return;
     }
-    
+
     console.log('Dosya yükleniyor:', file.name, 'Boyut:', file.size, 'Tür:', file.type);
-    
+
     try {
       setUploadingFile(true);
-      
+
       const formData = new FormData();
       formData.append('file', file);
-      
+
       // API URL'ini oluştur - Welcome sayfası için direkt backend URL kullan
-      const apiUrl = process.env.NODE_ENV === 'development' 
+      const apiUrl = process.env.NODE_ENV === 'development'
         ? 'http://localhost:5001/api/content/upload'
         : 'https://lingloops-backend.onrender.com/api/content/upload';
-      
+
       console.log('Upload API URL:', apiUrl);
-      
-      const res = await fetch(apiUrl, { 
-        method: 'POST', 
+
+      const res = await fetch(apiUrl, {
+        method: 'POST',
         body: formData,
         credentials: 'include'
       });
-      
+
       console.log('Upload response status:', res.status);
-      
+
       if (!res.ok) {
         const errorText = await res.text();
         console.error('Upload error response:', errorText);
-        
+
         let errorMessage = `Upload failed: ${res.status} ${res.statusText}`;
         if (res.status === 404) {
           errorMessage = 'Upload API endpoint bulunamadı. Backend çalışıyor mu?';
@@ -1756,26 +1764,26 @@ const Welcome: React.FC = () => {
         } else if (res.status === 415) {
           errorMessage = 'Desteklenmeyen dosya türü.';
         }
-        
+
         throw new Error(errorMessage);
       }
-      
+
       const data = await res.json();
       console.log('Upload response data:', data);
-      
+
       if (data.text) {
         setTextInput(data.text);
         // Doküman sekmesinde kal, çıkarılan metni sadece burada göster
-        alert(`Dosya başarıyla yüklendi! ${data.text.length} karakter metin çıkarıldı.`);
+        alert(t('welcome_file_upload_success').replace('{count}', String(data.text.length)));
       } else if (data.error) {
         throw new Error(data.error);
       } else {
-        throw new Error('Dosyadan metin çıkarılamadı.');
+        throw new Error(t('welcome_file_extract_failed'));
       }
     } catch (error: any) {
       console.error('File upload error:', error);
-      alert(`Dosya yükleme hatası: ${error.message || 'Bilinmeyen hata'}`);
-      
+      alert(t('welcome_error_file_upload').replace('{error}', error.message || t('welcome_error_unknown')));
+
       // Input'u temizle
       if (e.target) {
         e.target.value = '';
@@ -1791,12 +1799,12 @@ const Welcome: React.FC = () => {
     const text = textInput.trim();
 
     if (!title) {
-      setError('Lütfen doküman için bir isim girin.');
+      setError(t('validation_enter_document_name'));
       return;
     }
 
     if (!text) {
-      setError('Önce bir doküman yükleyip metni çıkartın.');
+      setError(t('validation_upload_document_first'));
       return;
     }
 
@@ -1807,7 +1815,7 @@ const Welcome: React.FC = () => {
       const response = await createDocumentFromText(title, text);
 
       if (!response.success) {
-        throw new Error(response.message || 'Doküman oluşturulamadı.');
+        throw new Error(response.message || t('welcome_document_create_failed'));
       }
 
       console.log('📚 Doküman oluşturuldu:', {
@@ -1818,10 +1826,10 @@ const Welcome: React.FC = () => {
       setLastCreatedDocument(response.document);
       setLastDocumentSections(response.sections || []);
 
-      alert(`Doküman kaydedildi. Toplam ${response.sections?.length || 0} bölüm oluşturuldu.`);
+      alert(t('welcome_document_saved').replace('{count}', String(response.sections?.length || 0)));
     } catch (err: any) {
       console.log('createDocumentFromText error:', err);
-      setError(err.message || 'Doküman oluşturulamadı.');
+      setError(err.message || t('welcome_document_create_failed'));
     } finally {
       setCreatingDocument(false);
     }
@@ -1830,7 +1838,7 @@ const Welcome: React.FC = () => {
   const handlePlayDocumentSection = async (section: DocumentSection) => {
     const baseText = (section.section_text || '').toString().trim();
     if (!baseText) {
-      setError('Bu bölüm için metin bulunamadı.');
+      setError(t('welcome_chapter_no_text'));
       return;
     }
 
@@ -1852,13 +1860,13 @@ const Welcome: React.FC = () => {
 
     // Metne dayalı modlarda boş içerik engeli
     if ((contentType === 'text' || contentType === 'subject' || contentType === 'topic') && !trimmed) {
-      setError('Lütfen bir metin girin.');
+      setError(t('validation_enter_text'));
       return;
     }
 
     // Limit kontrolü
     if (remaining <= 0) {
-      setError('Ses oluşturma hakkınız bitti. Premium pakete geçerek sınırsız ses oluşturabilirsiniz.');
+      setError(t('welcome_limit_exceeded'));
       return;
     }
 
@@ -1898,7 +1906,7 @@ const Welcome: React.FC = () => {
       <main className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Yükleniyor...</p>
+          <p className="text-lg text-gray-600">{t('welcome_loading')}</p>
         </div>
       </main>
     );
@@ -1909,15 +1917,15 @@ const Welcome: React.FC = () => {
     return (
       <main className="min-h-screen flex items-center justify-center text-xl text-gray-500">
         <div className="text-center">
-          <p className="mb-4">Oturum açmanız gerekiyor.</p>
-          <button 
+          <p className="mb-4">{t('welcome_login_required')}</p>
+          <button
             onClick={() => {
               const target = typeof window !== 'undefined' ? window.location.pathname + window.location.search + window.location.hash : '/welcome';
               router.push(`/login?next=${encodeURIComponent(target)}`);
             }}
             className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-md"
           >
-            Giriş Yap
+            {t('welcome_login_button')}
           </button>
         </div>
       </main>
@@ -1979,13 +1987,13 @@ const Welcome: React.FC = () => {
                 <Link href="/">
                   <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
                     <i className="fas fa-home mr-2"></i>
-                    Ana Sayfa
+                    {t('welcome_nav_home')}
                   </Button>
                 </Link>
                 <Link href="/dashboard?tab=reading-history">
                   <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
                     <i className="fas fa-history mr-2"></i>
-                    Okuma Geçmişim
+                    {t('welcome_nav_reading_history')}
                   </Button>
                 </Link>
               </div>
@@ -2018,13 +2026,13 @@ const Welcome: React.FC = () => {
           <div className="container mx-auto px-6">
             <div className="max-w-2xl">
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                Liro ile Kişiselleştirilmiş İngilizce Öğrenimi
+                {t('welcome_hero_title')}
               </h1>
               <p className="text-xl text-white/80 mb-8">
-                Her seviyeye uygun kişiselleştirilmiş İngilizce içerik oluşturun ve ses dönüşümleriyle öğrenme deneyiminizi geliştirin.
+                {t('welcome_hero_desc')}
               </p>
               <Button className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 text-lg !rounded-button whitespace-nowrap cursor-pointer">
-                Hemen Başlayın
+                {t('welcome_hero_button')}
               </Button>
             </div>
           </div>
@@ -2045,17 +2053,17 @@ const Welcome: React.FC = () => {
           )}
 
           {/* AI Content Entry Card */}
-          <div 
+          <div
             onClick={() => router.push('/chat/assistant')}
             className="max-w-4xl mx-auto mb-8 bg-white rounded-xl shadow-md hover:shadow-lg cursor-pointer transition-all duration-300 group hover-lift slideUp"
           >
             <div className="p-6 flex items-center justify-between">
               <div className="flex-1">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors">
-                  Liro ile İçerik Oluştur
+                  {t('welcome_ai_card_title')}
                 </h3>
                 <p className="text-gray-600 text-base">
-                  AI asistanınla sohbet ederek seviyene uygun içerik oluşturmaya hemen başla.
+                  {t('welcome_ai_card_desc')}
                 </p>
               </div>
               <div className="ml-6">
@@ -2073,7 +2081,7 @@ const Welcome: React.FC = () => {
                   <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold mr-4">
                     1
                   </div>
-                  <h2 className="text-2xl font-bold text-foreground">İçerik Türü ve Giriş</h2>
+                  <h2 className="text-2xl font-bold text-foreground">{t('welcome_content_type_title')}</h2>
                 </div>
                 <Button
                   onClick={handleGenerate}
@@ -2083,36 +2091,34 @@ const Welcome: React.FC = () => {
                   {isLoading ? (
                     <>
                       <i className="fas fa-circle-notch fa-spin"></i>
-                      <span>Ses Oluşturuluyor...</span>
+                      <span>{t('welcome_audio_generating')}</span>
                     </>
                   ) : (
                     <>
                       <i className="fas fa-volume-up"></i>
-                      <span>Ses Oluştur</span>
+                      <span>{t('welcome_generate_button')}</span>
                     </>
                   )}
                 </Button>
               </div>
               <div className="mb-8">
-                <h3 className="text-lg font-medium text-gray-700 mb-3">İçerik Türü</h3>
+                <h3 className="text-lg font-medium text-gray-700 mb-3">{t('welcome_content_type_label')}</h3>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
                   {contentTypeOptions.map((option) => (
                     <div
                       key={option.id}
                       onClick={() => setContentType(option.id)}
-                      className={`group flex flex-col items-center justify-center p-4 rounded-lg border cursor-pointer transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-md ${
-                        contentType === option.id
-                          ? 'bg-primary/10 border-primary/40'
-                          : 'bg-muted border-border hover:bg-muted/80'
-                      }`}
+                      className={`group flex flex-col items-center justify-center p-4 rounded-lg border cursor-pointer transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-md ${contentType === option.id
+                        ? 'bg-primary/10 border-primary/40'
+                        : 'bg-muted border-border hover:bg-muted/80'
+                        }`}
                     >
                       <div className="mb-2 text-primary text-2xl transition-transform group-hover:scale-110 flex items-center justify-center">
                         {option.icon}
                       </div>
                       <span
-                        className={`text-sm text-center transition-colors ${
-                          contentType === option.id ? 'text-primary font-medium' : 'text-gray-700'
-                        }`}
+                        className={`text-sm text-center transition-colors ${contentType === option.id ? 'text-primary font-medium' : 'text-gray-700'
+                          }`}
                       >
                         {option.name}
                       </span>
@@ -2123,7 +2129,7 @@ const Welcome: React.FC = () => {
               </div>
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-lg font-medium text-gray-700">İçerik Girişi</h3>
+                  <h3 className="text-lg font-medium text-gray-700">{t('welcome_content_input_label')}</h3>
                   {contentType === 'topic' && (
                     <div className="flex space-x-2">
                       <Button
@@ -2133,18 +2139,17 @@ const Welcome: React.FC = () => {
                         type="button"
                         onClick={() => setShowInterestManager(!showInterestManager)}
                       >
-                        <i className="fas fa-heart mr-2"></i> Hobilerimi Yönet
+                        <i className="fas fa-heart mr-2"></i> {t('welcome_manage_hobbies')}
                       </Button>
                     </div>
                   )}
                 </div>
                 {contentType === 'document' ? (
                   <div className="space-y-4">
-                    <div className={`flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors ${
-                      uploadingFile
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary'
-                    }`}>
+                    <div className={`flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors ${uploadingFile
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary'
+                      }`}>
                       <div className="space-y-1 text-center">
                         {uploadingFile ? (
                           <>
@@ -2153,9 +2158,9 @@ const Welcome: React.FC = () => {
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
                             <div className="text-sm text-primary font-medium">
-                              Dosya yükleniyor...
+                              {t('welcome_file_uploading')}
                             </div>
-                            <p className="text-xs text-primary/80">Lütfen bekleyin</p>
+                            <p className="text-xs text-primary/80">{t('welcome_file_upload_wait')}</p>
                           </>
                         ) : (
                           <>
@@ -2163,12 +2168,11 @@ const Welcome: React.FC = () => {
                               <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4-4m4-4h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                             <div className="flex text-sm text-gray-600">
-                              <label htmlFor="file-upload" className={`relative rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary ${
-                                uploadingFile
-                                  ? 'cursor-not-allowed text-gray-400'
-                                  : 'cursor-pointer bg-white text-primary hover:text-primary/80'
-                              }`}>
-                                <span>Dosya Yükle</span>
+                              <label htmlFor="file-upload" className={`relative rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary ${uploadingFile
+                                ? 'cursor-not-allowed text-gray-400'
+                                : 'cursor-pointer bg-white text-primary hover:text-primary/80'
+                                }`}>
+                                <span>{t('welcome_file_upload_label')}</span>
                                 <input
                                   id="file-upload"
                                   name="file-upload"
@@ -2179,38 +2183,38 @@ const Welcome: React.FC = () => {
                                   disabled={uploadingFile}
                                 />
                               </label>
-                              <p className="pl-1">veya sürükleyip bırakın</p>
+                              <p className="pl-1">{t('welcome_file_upload_hint')}</p>
                             </div>
-                            <p className="text-xs text-gray-500">PDF, DOC, DOCX, TXT, MD, RTF, HTML, ODT, EPUB</p>
+                            <p className="text-xs text-gray-500">{t('welcome_file_upload_types')}</p>
                           </>
                         )}
                       </div>
                     </div>
-                    
+
                     {textInput && (
                       <div className="mt-4 space-y-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Çıkarılan Metin:
+                            {t('welcome_extracted_text_label')}
                           </label>
                           <textarea
                             value={textInput}
                             onChange={(e) => setTextInput(e.target.value)}
                             className="w-full min-h-[150px] p-4 border border-input rounded-lg focus:border-primary focus:ring-primary resize-none"
-                            placeholder="Dosyadan çıkarılan metin burada görünecek..."
+                            placeholder={t('welcome_extracted_text_placeholder')}
                           />
                         </div>
 
                         <div className="grid gap-3 md:grid-cols-[2fr,auto] items-end">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Doküman Adı
+                              {t('welcome_document_name_label')}
                             </label>
                             <Input
                               type="text"
                               value={documentTitle}
                               onChange={(e) => setDocumentTitle(e.target.value)}
-                              placeholder="Örn: PDF dokümanınızın adı"
+                              placeholder={t('welcome_document_name_placeholder')}
                               className="w-full"
                             />
                           </div>
@@ -2218,21 +2222,20 @@ const Welcome: React.FC = () => {
                             type="button"
                             onClick={handleCreateDocumentFromText}
                             disabled={creatingDocument || !documentTitle.trim() || !textInput.trim()}
-                            className={`!rounded-button whitespace-nowrap px-4 py-2.5 flex items-center justify-center ${
-                              creatingDocument || !documentTitle.trim() || !textInput.trim()
-                                ? 'bg-gray-400 cursor-not-allowed'
-                                : 'bg-primary hover:bg-primary/90 cursor-pointer'
-                            }`}
+                            className={`!rounded-button whitespace-nowrap px-4 py-2.5 flex items-center justify-center ${creatingDocument || !documentTitle.trim() || !textInput.trim()
+                              ? 'bg-gray-400 cursor-not-allowed'
+                              : 'bg-primary hover:bg-primary/90 cursor-pointer'
+                              }`}
                           >
                             {creatingDocument ? (
                               <>
                                 <i className="fas fa-circle-notch fa-spin mr-2"></i>
-                                Metin kaydediliyor...
+                                {t('welcome_saving_document')}
                               </>
                             ) : (
                               <>
                                 <i className="fas fa-book-open mr-2"></i>
-                                Metni bölümlere ayır ve kaydet
+                                {t('welcome_save_document_button')}
                               </>
                             )}
                           </Button>
@@ -2242,7 +2245,7 @@ const Welcome: React.FC = () => {
                           <div className="mt-6 border-t border-gray-200 pt-4">
                             <h4 className="text-sm font-semibold text-gray-800 mb-2 flex items-center">
                               <i className="fas fa-file-alt mr-2 text-primary"></i>
-                              Son Kaydedilen Doküman
+                              {t('welcome_last_saved_document')}
                             </h4>
                             <div className="text-sm text-gray-700 mb-3">
                               {lastCreatedDocument.title}
@@ -2256,10 +2259,10 @@ const Welcome: React.FC = () => {
                                   >
                                     <div className="flex items-center justify-between gap-2">
                                       <div className="text-xs font-semibold text-gray-800 truncate">
-                                        {section.section_index}. {section.section_title || 'Bölüm'}
+                                        {section.section_index}. {section.section_title || t('welcome_section_label')}
                                       </div>
                                       <span className="text-[11px] text-gray-500 whitespace-nowrap">
-                                        {section.word_count || 0} kelime
+                                        {section.word_count || 0} {t('welcome_word_count')}
                                       </span>
                                     </div>
                                     <p className="text-xs text-gray-600 line-clamp-2 whitespace-pre-line">
@@ -2273,7 +2276,7 @@ const Welcome: React.FC = () => {
                                         onClick={() => handlePlayDocumentSection(section)}
                                       >
                                         <i className="fas fa-volume-up mr-1"></i>
-                                        Bu Bölümle Ses Oluştur
+                                        {t('welcome_play_section_button')}
                                       </Button>
                                     </div>
                                   </div>
@@ -2293,13 +2296,13 @@ const Welcome: React.FC = () => {
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <label className="block text-sm font-medium text-gray-700">
-                              Hobiler/İlgi Alanlarınız:
+                              {t('welcome_hobbies_label')}
                             </label>
                           </div>
                           {loadingInterests ? (
                             <div className="flex items-center justify-center p-4 border border-gray-300 rounded-lg">
                               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                              <span className="ml-2 text-gray-600">İlgi alanları yükleniyor...</span>
+                              <span className="ml-2 text-gray-600">{t('welcome_hobbies_loading')}</span>
                             </div>
                           ) : userInterests.length > 0 ? (
                             <div className="flex gap-3">
@@ -2309,7 +2312,7 @@ const Welcome: React.FC = () => {
                                   value={selectedInterest}
                                   onChange={(e) => setSelectedInterest(e.target.value)}
                                 >
-                                  <option value="">Hobi/İlgi alanı seçin...</option>
+                                  <option value="">{t('welcome_hobbies_select')}</option>
                                   {userInterests.map((interest, index) => (
                                     <option key={index} value={interest}>
                                       {interest}
@@ -2329,23 +2332,22 @@ const Welcome: React.FC = () => {
                               </div>
                               <Button
                                 type="button"
-                                className={`px-6 py-3 !rounded-button whitespace-nowrap ${
-                                  selectedInterest && !isLoadingHobbyNews
-                                    ? 'bg-green-600 hover:bg-green-700 cursor-pointer' 
-                                    : 'bg-gray-400 cursor-not-allowed'
-                                }`}
+                                className={`px-6 py-3 !rounded-button whitespace-nowrap ${selectedInterest && !isLoadingHobbyNews
+                                  ? 'bg-green-600 hover:bg-green-700 cursor-pointer'
+                                  : 'bg-gray-400 cursor-not-allowed'
+                                  }`}
                                 disabled={!selectedInterest || isLoadingHobbyNews}
                                 onClick={handleFetchHobbyNews}
                               >
                                 {isLoadingHobbyNews ? (
                                   <>
                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
-                                    Güncel Konular Yükleniyor...
+                                    {t('welcome_loading_news')}
                                   </>
                                 ) : (
                                   <>
                                     <i className="fas fa-stream mr-2"></i>
-                                    Güncel Konuları Listele
+                                    {t('welcome_list_current_topics')}
                                   </>
                                 )}
                               </Button>
@@ -2353,22 +2355,22 @@ const Welcome: React.FC = () => {
                           ) : (
                             <div className="p-4 border border-yellow-300 bg-yellow-50 rounded-lg">
                               <p className="text-yellow-800 text-sm">
-                                Hobi/İlgi alanlarınız bulunamadı. Profil ayarlarınızdan ilgi alanlarınızı ekleyebilirsiniz.
+                                {t('welcome_no_hobbies_message')}
                               </p>
                             </div>
                           )}
                         </div>
 
                         {showInterestManager && (
-                            <div className="mt-4">
-                              <InterestManager
-                                showTitle={false}
-                                className="bg-white rounded-lg shadow p-4"
-                                isEditing
-                                onUpdate={fetchUserInterests}
-                              />
-                            </div>
-                          )}
+                          <div className="mt-4">
+                            <InterestManager
+                              showTitle={false}
+                              className="bg-white rounded-lg shadow p-4"
+                              isEditing
+                              onUpdate={fetchUserInterests}
+                            />
+                          </div>
+                        )}
 
                         {/* Detaylı öneriler combobox'ı */}
                         {hobbyNewsError && (
@@ -2385,9 +2387,9 @@ const Welcome: React.FC = () => {
                           <div className="space-y-2">
                             <div className="flex items-center justify-between mb-1">
                               <label className="block text-sm font-medium text-gray-700">
-                                Güncel Konular / Haberler:
+                                {t('welcome_current_news_label')}
                               </label>
-                              <span className="text-xs text-gray-500">{hobbyNews.length} sonuç</span>
+                              <span className="text-xs text-gray-500">{t('welcome_results_count').replace('{count}', String(hobbyNews.length))}</span>
                             </div>
                             <div className="space-y-2 max-h-80 overflow-y-auto">
                               {hobbyNews.map((item, index) => (
@@ -2432,12 +2434,12 @@ const Welcome: React.FC = () => {
                                       {loadingArticleId === (item.id || item.url) ? (
                                         <>
                                           <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current mr-1 inline-block"></div>
-                                          Detay Yükleniyor...
+                                          {t('welcome_loading_detail')}
                                         </>
                                       ) : (
                                         <>
                                           <i className="fas fa-file-alt mr-1"></i>
-                                          Detayı Getir
+                                          {t('welcome_fetch_detail')}
                                         </>
                                       )}
                                     </Button>
@@ -2448,7 +2450,7 @@ const Welcome: React.FC = () => {
                                       onClick={() => handlePlayHobbyNewsItem(item)}
                                     >
                                       <i className="fas fa-volume-up mr-1"></i>
-                                      Bu Haberle Ses Oluştur
+                                      {t('welcome_audio_generate_news')}
                                     </Button>
                                   </div>
                                   {(() => {
@@ -2473,13 +2475,13 @@ const Welcome: React.FC = () => {
                     {contentType === 'subject' && (
                       <div className="space-y-4">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Konu:
+                          {t('welcome_subject_label')}
                         </label>
                         <div className="relative">
                           <textarea
                             value={textInput}
                             onChange={(e) => setTextInput(e.target.value)}
-                            placeholder="Öğrenmek istediğiniz konuyu yazın..."
+                            placeholder={t('welcome_text_placeholder')}
                             className="w-full min-h-[200px] p-4 border border-input rounded-lg focus:border-primary focus:ring-primary resize-none"
                           />
                           <button className="absolute bottom-3 right-3 text-gray-500 hover:text-primary cursor-pointer">
@@ -2492,21 +2494,20 @@ const Welcome: React.FC = () => {
                           type="button"
                           onClick={handleGetTopicSuggestions}
                           disabled={isLoadingTopicSuggestions || !textInput.trim()}
-                          className={`w-full py-3 !rounded-button ${
-                            !isLoadingTopicSuggestions && textInput.trim()
-                              ? 'bg-primary hover:bg-primary/90 cursor-pointer'
-                              : 'bg-gray-400 cursor-not-allowed'
-                          }`}
+                          className={`w-full py-3 !rounded-button ${!isLoadingTopicSuggestions && textInput.trim()
+                            ? 'bg-primary hover:bg-primary/90 cursor-pointer'
+                            : 'bg-gray-400 cursor-not-allowed'
+                            }`}
                         >
                           {isLoadingTopicSuggestions ? (
                             <>
                               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
-                              Konu önerileri yükleniyor...
+                              {t('welcome_loading_topics')}
                             </>
                           ) : (
                             <>
                               <i className="fas fa-lightbulb mr-2"></i>
-                              Konu Öner
+                              {t('welcome_suggest_topic')}
                             </>
                           )}
                         </Button>
@@ -2515,7 +2516,7 @@ const Welcome: React.FC = () => {
                         {topicDetailSuggestions.length > 0 && (
                           <div className="mt-4 space-y-2">
                             <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                              Önerilen Alt Konular:
+                              {t('welcome_suggested_subtopics')}
                             </h3>
                             <div className="grid grid-cols-1 gap-2">
                               {topicDetailSuggestions.map((suggestion, index) => (
@@ -2525,11 +2526,10 @@ const Welcome: React.FC = () => {
                                     setSelectedDetailTopic(suggestion);
                                     setTextInput(suggestion);
                                   }}
-                                  className={`text-left p-3 rounded-lg border-2 transition-all ${
-                                    selectedDetailTopic === suggestion
-                                      ? 'border-primary/60 bg-primary/5'
-                                      : 'border-gray-200 hover:border-gray-300 bg-white'
-                                  }`}
+                                  className={`text-left p-3 rounded-lg border-2 transition-all ${selectedDetailTopic === suggestion
+                                    ? 'border-primary/60 bg-primary/5'
+                                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                                    }`}
                                 >
                                   <div className="text-sm">
                                     {index + 1}. {suggestion}
@@ -2541,12 +2541,12 @@ const Welcome: React.FC = () => {
                         )}
                       </div>
                     )}
-                    
+
                     {/* YouTube sekmesi - link girişi ve altyazı çekme */}
                     {contentType === 'youtube' && (
                       <div className="space-y-3">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          YouTube Linki:
+                          {t('youtube_link_label')}
                         </label>
                         <div className="flex gap-2">
                           <input
@@ -2559,20 +2559,19 @@ const Welcome: React.FC = () => {
                           <Button
                             type="button"
                             onClick={handleFetchYoutubeSubtitle}
-                            className={`px-6 py-3 !rounded-button whitespace-nowrap ${
-                              !isFetchingSubtitle ? 'bg-primary hover:bg-primary/90 cursor-pointer' : 'bg-gray-400 cursor-not-allowed'
-                            }`}
+                            className={`px-6 py-3 !rounded-button whitespace-nowrap ${!isFetchingSubtitle ? 'bg-primary hover:bg-primary/90 cursor-pointer' : 'bg-gray-400 cursor-not-allowed'
+                              }`}
                             disabled={isFetchingSubtitle}
                           >
                             {isFetchingSubtitle ? (
                               <>
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                Altyazı çekiliyor...
+                                {t('welcome_youtube_fetching')}
                               </>
                             ) : (
                               <>
                                 <i className="fas fa-closed-captioning mr-2"></i>
-                                Altyazı çek
+                                {t('welcome_youtube_fetch_button')}
                               </>
                             )}
                           </Button>
@@ -2583,7 +2582,7 @@ const Welcome: React.FC = () => {
                           </div>
                         )}
                         <p className="text-xs text-gray-500">
-                          Not: Altyazı metni başarıyla alındığında aşağıdaki metin kutusuna otomatik olarak yapıştırılır.
+                          {t('welcome_youtube_note')}
                         </p>
                       </div>
                     )}
@@ -2593,12 +2592,12 @@ const Welcome: React.FC = () => {
                       <div className="space-y-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Podcast Konusu:
+                            {t('welcome_podcast_topic_label')}
                           </label>
                           <textarea
                             value={podcastTopic}
                             onChange={(e) => setPodcastTopic(e.target.value)}
-                            placeholder="Podcast için bir konu girin (Örn: The history of the Internet)..."
+                            placeholder={t('welcome_podcast_topic_placeholder')}
                             className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary resize-none"
                           />
                         </div>
@@ -2607,7 +2606,7 @@ const Welcome: React.FC = () => {
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             <i className="fas fa-clock mr-2"></i>
-                            Podcast Süresi:
+                            {t('welcome_podcast_duration_label')}
                           </label>
                           <div className="grid grid-cols-4 gap-2">
                             {DURATION_OPTIONS.map((option) => (
@@ -2615,11 +2614,10 @@ const Welcome: React.FC = () => {
                                 key={option.value}
                                 type="button"
                                 onClick={() => setPodcastDuration(option.value)}
-                                className={`p-3 rounded-lg border-2 transition-all text-center ${
-                                  podcastDuration === option.value
-                                    ? 'border-primary bg-primary/10 text-primary'
-                                    : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
-                                }`}
+                                className={`p-3 rounded-lg border-2 transition-all text-center ${podcastDuration === option.value
+                                  ? 'border-primary bg-primary/10 text-primary'
+                                  : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
+                                  }`}
                               >
                                 <div className="font-semibold">{option.label}</div>
                                 <div className="text-xs text-gray-500">{option.description}</div>
@@ -2627,42 +2625,42 @@ const Welcome: React.FC = () => {
                             ))}
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            Oluşturulacak podcast'in yaklaşık süresi (±%15 tolerans)
+                            {t('welcome_podcast_duration_tolerance')}
                           </p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Konuşma Stili:
+                              {t('welcome_podcast_style_label')}
                             </label>
                             <select
                               value={podcastStyleType}
                               onChange={(e) => setPodcastStyleType(e.target.value)}
                               className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                             >
-                              <option value="friendly_chat">Samimi Sohbet</option>
-                              <option value="professional">Profesyonel</option>
-                              <option value="educational">Eğitici</option>
-                              <option value="casual">Rahat</option>
+                              <option value="friendly_chat">{t('podcast_style_friendly_chat')}</option>
+                              <option value="professional">{t('podcast_style_professional')}</option>
+                              <option value="educational">{t('podcast_style_educational')}</option>
+                              <option value="casual">{t('podcast_style_casual')}</option>
                             </select>
                           </div>
-                          
+
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Ses Seçimi:
+                              {t('welcome_podcast_voice_label')}
                             </label>
                             <select
                               value={podcastVoiceChoice}
                               onChange={(e) => setPodcastVoiceChoice(e.target.value)}
                               className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                             >
-                              <option value="english_female">İngilizce - Kadın</option>
-                              <option value="english_male">İngilizce - Erkek</option>
-                              <option value="american_female">Amerikan - Kadın</option>
-                              <option value="american_male">Amerikan - Erkek</option>
-                              <option value="british_female">İngiliz - Kadın</option>
-                              <option value="british_male">İngiliz - Erkek</option>
+                              <option value="english_female">{t('voice_english_female')}</option>
+                              <option value="english_male">{t('voice_english_male')}</option>
+                              <option value="american_female">{t('voice_american_female')}</option>
+                              <option value="american_male">{t('voice_american_male')}</option>
+                              <option value="british_female">{t('voice_british_female')}</option>
+                              <option value="british_male">{t('voice_british_male')}</option>
                             </select>
                           </div>
                         </div>
@@ -2670,33 +2668,33 @@ const Welcome: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Kişilik A:
+                              {t('welcome_podcast_personality_a_label')}
                             </label>
                             <select
                               value={podcastPersonalityA}
                               onChange={(e) => setPodcastPersonalityA(e.target.value)}
                               className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                             >
-                              <option value="curious_enthusiast">Meraklı Coşkulu</option>
-                              <option value="skeptical_analyst">Şüpheci Analist</option>
-                              <option value="friendly_guide">Samimi Rehber</option>
-                              <option value="professional_expert">Profesyonel Uzman</option>
+                              <option value="curious_enthusiast">{t('podcast_personality_curious_enthusiast')}</option>
+                              <option value="skeptical_analyst">{t('podcast_personality_skeptical_analyst')}</option>
+                              <option value="friendly_guide">{t('podcast_personality_friendly_guide')}</option>
+                              <option value="professional_expert">{t('podcast_personality_professional_expert')}</option>
                             </select>
                           </div>
-                          
+
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Kişilik B:
+                              {t('welcome_podcast_personality_b_label')}
                             </label>
                             <select
                               value={podcastPersonalityB}
                               onChange={(e) => setPodcastPersonalityB(e.target.value)}
                               className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                             >
-                              <option value="knowledgeable_friend">Bilgili Arkadaş</option>
-                              <option value="experienced_mentor">Deneyimli Mentor</option>
-                              <option value="curious_learner">Meraklı Öğrenci</option>
-                              <option value="witty_commentator">Esprili Yorumcu</option>
+                              <option value="knowledgeable_friend">{t('podcast_personality_knowledgeable_friend')}</option>
+                              <option value="experienced_mentor">{t('podcast_personality_experienced_mentor')}</option>
+                              <option value="curious_learner">{t('podcast_personality_curious_learner')}</option>
+                              <option value="witty_commentator">{t('podcast_personality_witty_commentator')}</option>
                             </select>
                           </div>
                         </div>
@@ -2709,9 +2707,9 @@ const Welcome: React.FC = () => {
                               onChange={(e) => setPodcastIncludeHumor(e.target.checked)}
                               className="w-4 h-4 text-primary rounded focus:ring-primary"
                             />
-                            <span className="text-sm text-gray-700">Mizah Ekle</span>
+                            <span className="text-sm text-gray-700">{t('welcome_podcast_add_humor')}</span>
                           </label>
-                          
+
                           <label className="flex items-center space-x-2 cursor-pointer">
                             <input
                               type="checkbox"
@@ -2719,7 +2717,7 @@ const Welcome: React.FC = () => {
                               onChange={(e) => setPodcastIncludeFiller(e.target.checked)}
                               className="w-4 h-4 text-primary rounded focus:ring-primary"
                             />
-                            <span className="text-sm text-gray-700">Dolgu Kelimeler Ekle</span>
+                            <span className="text-sm text-gray-700">{t('welcome_filler_words_label')}</span>
                           </label>
                         </div>
 
@@ -2727,22 +2725,21 @@ const Welcome: React.FC = () => {
                           <Button
                             type="button"
                             onClick={handleCreatePodcast}
-                            className={`px-8 py-3 !rounded-button whitespace-nowrap ${
-                              !isCreatingPodcast && podcastTopic.trim()
-                                ? 'bg-primary hover:bg-primary/90 cursor-pointer'
-                                : 'bg-gray-400 cursor-not-allowed'
-                            }`}
+                            className={`px-8 py-3 !rounded-button whitespace-nowrap ${!isCreatingPodcast && podcastTopic.trim()
+                              ? 'bg-primary hover:bg-primary/90 cursor-pointer'
+                              : 'bg-gray-400 cursor-not-allowed'
+                              }`}
                             disabled={isCreatingPodcast || !podcastTopic.trim()}
                           >
                             {isCreatingPodcast ? (
                               <>
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                Podcast Oluşturuluyor...
+                                {t('welcome_podcast_creating')}
                               </>
                             ) : (
                               <>
                                 <i className="fas fa-podcast mr-2"></i>
-                                Podcast Oluştur
+                                {t('welcome_podcast_create_button')}
                               </>
                             )}
                           </Button>
@@ -2753,10 +2750,10 @@ const Welcome: React.FC = () => {
                             {podcastError}
                           </div>
                         )}
-                        
+
                         <div className="p-3 bg-primary/5 border border-primary/20 rounded text-xs text-primary">
                           <i className="fas fa-info-circle mr-1"></i>
-                          Podcast oluşturma işlemi birkaç dakika sürebilir. Lütfen bekleyin.
+                          {t('welcome_podcast_wait_notice')}
                         </div>
                       </div>
                     )}
@@ -2767,19 +2764,19 @@ const Welcome: React.FC = () => {
                         {/* Kitap Arama */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-3">
-                            Kitap Ara:
+                            {t('welcome_book_search_label')}
                           </label>
                           <form onSubmit={handleBookSearch} className="space-y-4">
                             {/* Genel Arama */}
                             <div>
                               <label className="block text-xs font-medium text-gray-600 mb-1">
-                                Genel Arama (İsteğe Bağlı)
+                                {t('welcome_book_general_search_label')}
                               </label>
                               <input
                                 type="text"
                                 value={bookSearchQuery}
                                 onChange={(e) => setBookSearchQuery(e.target.value)}
-                                placeholder="Herhangi bir kelime girin..."
+                                placeholder={t('welcome_book_search_placeholder')}
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                               />
                             </div>
@@ -2788,25 +2785,25 @@ const Welcome: React.FC = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                                  Kitap İsmi
+                                  {t('welcome_book_title_label')}
                                 </label>
                                 <input
                                   type="text"
                                   value={bookTitleSearch}
                                   onChange={(e) => setBookTitleSearch(e.target.value)}
-                                  placeholder="Örn: Frankenstein"
+                                  placeholder={t('welcome_book_title_placeholder')}
                                   className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                                 />
                               </div>
                               <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                                  Yazar İsmi
+                                  {t('welcome_book_author_label')}
                                 </label>
                                 <input
                                   type="text"
                                   value={bookAuthorSearch}
                                   onChange={(e) => setBookAuthorSearch(e.target.value)}
-                                  placeholder="Örn: Mary Shelley"
+                                  placeholder={t('welcome_book_author_placeholder')}
                                   className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                                 />
                               </div>
@@ -2814,24 +2811,23 @@ const Welcome: React.FC = () => {
 
                             {/* Arama Butonu */}
                             <div className="flex justify-center">
-                              <Button 
+                              <Button
                                 type="submit"
-                                className={`px-8 py-3 !rounded-button whitespace-nowrap ${
-                                  (bookSearchQuery.trim() || bookTitleSearch.trim() || bookAuthorSearch.trim()) && !isSearchingBooks
-                                    ? 'bg-primary hover:bg-primary/90 cursor-pointer' 
-                                    : 'bg-gray-400 cursor-not-allowed'
-                                }`}
+                                className={`px-8 py-3 !rounded-button whitespace-nowrap ${(bookSearchQuery.trim() || bookTitleSearch.trim() || bookAuthorSearch.trim()) && !isSearchingBooks
+                                  ? 'bg-primary hover:bg-primary/90 cursor-pointer'
+                                  : 'bg-gray-400 cursor-not-allowed'
+                                  }`}
                                 disabled={!(bookSearchQuery.trim() || bookTitleSearch.trim() || bookAuthorSearch.trim()) || isSearchingBooks}
                               >
                                 {isSearchingBooks ? (
                                   <>
                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                    Aranıyor...
+                                    {t('welcome_book_searching')}
                                   </>
                                 ) : (
                                   <>
                                     <i className="fas fa-search mr-2"></i>
-                                    Kitap Ara
+                                    {t('welcome_book_search_button')}
                                   </>
                                 )}
                               </Button>
@@ -2840,7 +2836,7 @@ const Welcome: React.FC = () => {
                             {/* Arama İpucu */}
                             <div className="text-xs text-gray-500 text-center">
                               <i className="fas fa-info-circle mr-1"></i>
-                              En az bir arama kriteri girin. Tüm alanları birlikte kullanabilirsiniz.
+                              {t('welcome_book_search_hint')}
                             </div>
                           </form>
                         </div>
@@ -2852,10 +2848,10 @@ const Welcome: React.FC = () => {
                               <div>
                                 <h4 className="text-md font-semibold text-gray-800 flex items-center">
                                   <i className="fas fa-book-open mr-2 text-primary"></i>
-                                  Arama Sonuçları
+                                  {t('common_search_results')}
                                 </h4>
                                 <p className="text-xs text-gray-500 mt-0.5">
-                                  {bookSearchResults.total} kitap bulundu. Bir kartı seçerek bölümlerini görebilirsiniz.
+                                  {t('welcome_book_search_results').replace('{count}', String(bookSearchResults.total))}
                                 </p>
                               </div>
                               {bookSearchResults.total_pages > 1 && (
@@ -2891,9 +2887,8 @@ const Welcome: React.FC = () => {
                                   <div
                                     key={book.id}
                                     onClick={() => handleBookSelect(book)}
-                                    className={`bg-white rounded-lg shadow-sm border cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 ${
-                                      selectedBook?.id === book.id ? 'border-primary ring-1 ring-primary/40' : 'border-gray-200'
-                                    }`}
+                                    className={`bg-white rounded-lg shadow-sm border cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 ${selectedBook?.id === book.id ? 'border-primary ring-1 ring-primary/40' : 'border-gray-200'
+                                      }`}
                                   >
                                     <div className="relative w-full h-40 bg-gray-100">
                                       {book.cover_image ? (
@@ -2914,15 +2909,14 @@ const Welcome: React.FC = () => {
                                         className="absolute top-2 left-2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center shadow-sm hover:bg-white cursor-pointer"
                                       >
                                         <i
-                                          className={`fas fa-heart text-sm ${
-                                            favoriteBookIds.includes(Number(book.id)) ? 'text-red-500' : 'text-gray-300'
-                                          }`}
+                                          className={`fas fa-heart text-sm ${favoriteBookIds.includes(Number(book.id)) ? 'text-red-500' : 'text-gray-300'
+                                            }`}
                                         ></i>
                                       </button>
                                       {selectedBook?.id === book.id && (
                                         <span className="absolute top-2 right-2 bg-primary text-white text-[10px] px-2 py-1 rounded-full flex items-center">
                                           <i className="fas fa-check-circle mr-1"></i>
-                                          Seçili
+                                          {t('welcome_selected')}
                                         </span>
                                       )}
                                     </div>
@@ -2937,7 +2931,7 @@ const Welcome: React.FC = () => {
                                       <div className="flex items-center justify-between mt-auto pt-1">
                                         <div className="flex items-center space-x-2">
                                           <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                                            {book.total_chapters} bölüm
+                                            {book.total_chapters} {t('welcome_book_chapters_suffix')}
                                           </Badge>
                                           {book.genre && (
                                             <Badge variant="outline" className="text-[10px] px-2 py-0.5">
@@ -2946,7 +2940,7 @@ const Welcome: React.FC = () => {
                                           )}
                                         </div>
                                         <span className="text-[10px] text-primary flex items-center">
-                                          Bölümleri Gör
+                                          {t('welcome_book_view_chapters')}
                                           <i className="fas fa-arrow-right ml-1"></i>
                                         </span>
                                       </div>
@@ -2963,7 +2957,7 @@ const Welcome: React.FC = () => {
                           <div>
                             <div className="flex items-center justify-between mb-3">
                               <h4 className="text-md font-medium text-gray-700">
-                                "{selectedBook.title}" Bölümleri
+                                {t('welcome_book_chapters_title').replace('{title}', selectedBook.title)}
                               </h4>
                               {isLoadingChapters && (
                                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
@@ -2972,9 +2966,9 @@ const Welcome: React.FC = () => {
                             {isLoadingChapters ? (
                               <div className="flex flex-col items-center justify-center p-8 border border-gray-200 rounded-lg">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                                <span className="ml-3 text-gray-600 mt-2">Bölümler yükleniyor...</span>
+                                <span className="ml-3 text-gray-600 mt-2">{t('welcome_book_chapters_loading')}</span>
                                 <span className="text-sm text-gray-500 mt-1">
-                                  {selectedBook?.text_url ? 'Kitap metni URL\'den çıkarılıyor...' : 'Veritabanından yükleniyor...'}
+                                  {selectedBook?.text_url ? t('welcome_book_chapters_loading_from_url') : t('welcome_book_chapters_loading_from_db')}
                                 </span>
                               </div>
                             ) : bookChapters.length > 0 ? (
@@ -2983,17 +2977,16 @@ const Welcome: React.FC = () => {
                                   <div
                                     key={chapter.id}
                                     onClick={() => handleChapterSelect(chapter)}
-                                    className={`p-3 border-b border-gray-100 cursor-pointer hover:bg-green-50 transition-colors ${
-                                      selectedChapter?.id === chapter.id ? 'bg-green-50 border-green-200' : ''
-                                    }`}
+                                    className={`p-3 border-b border-gray-100 cursor-pointer hover:bg-green-50 transition-colors ${selectedChapter?.id === chapter.id ? 'bg-green-50 border-green-200' : ''
+                                      }`}
                                   >
                                     <div className="flex items-center justify-between gap-3">
                                       <div>
                                         <h6 className="font-medium text-gray-900">
-                                          Bölüm {chapter.chapter_index}: {chapter.chapter_title}
+                                          {t('welcome_chapter_prefix')} {chapter.chapter_index}: {chapter.chapter_title}
                                         </h6>
                                         <p className="text-sm text-gray-600">
-                                          {chapter.chapter_text ? `${chapter.chapter_text.split(' ').length} kelime` : 'Kelime sayısı hesaplanıyor...'}
+                                          {chapter.chapter_text ? t('welcome_chapter_word_count').replace('{count}', String(chapter.chapter_text.split(' ').length)) : t('welcome_chapter_word_count_calculating')}
                                         </p>
                                       </div>
                                       <div className="flex items-center space-x-2">
@@ -3010,7 +3003,7 @@ const Welcome: React.FC = () => {
                                           }}
                                         >
                                           <i className="fas fa-volume-up mr-1"></i>
-                                          Ses Oluştur
+                                          {t('welcome_audio_generate_button')}
                                         </Button>
                                       </div>
                                     </div>
@@ -3019,7 +3012,7 @@ const Welcome: React.FC = () => {
                               </div>
                             ) : (
                               <div className="p-4 border border-gray-200 rounded-lg text-center text-gray-500">
-                                Bu kitap için bölüm bulunamadı.
+                                {t('welcome_book_no_chapters')}
                               </div>
                             )}
                           </div>
@@ -3031,10 +3024,9 @@ const Welcome: React.FC = () => {
                             <div className="flex items-start space-x-3">
                               <i className="fas fa-info-circle text-green-600 mt-1"></i>
                               <div>
-                                <h5 className="font-medium text-green-800">Mevcut Ses Bulundu!</h5>
+                                <h5 className="font-medium text-green-800">{t('welcome_existing_audio_title')}</h5>
                                 <p className="text-sm text-green-700 mt-1">
-                                  Bu bölüm için aynı ayarlarla ({existingAudio.voice_model}, {existingAudio.speaking_rate}x hız, {existingAudio.level?.toUpperCase() || 'Bilinmeyen'} seviye) 
-                                  daha önce oluşturulmuş ses dosyası mevcut. Yeni ses oluşturmak yerine mevcut sesi kullanabilirsiniz.
+                                  {t('welcome_error_chapter_load_detail').replace('{error}', `${existingAudio.voice_model}, ${existingAudio.speaking_rate}x, ${existingAudio.level?.toUpperCase() || 'Bilinmeyen'}`)}
                                 </p>
                                 <Button
                                   onClick={() => {
@@ -3049,7 +3041,7 @@ const Welcome: React.FC = () => {
                                   size="sm"
                                 >
                                   <i className="fas fa-play mr-2"></i>
-                                  Mevcut Sesi Kullan
+                                  {t('welcome_existing_audio_use_button')}
                                 </Button>
                               </div>
                             </div>
@@ -3060,17 +3052,17 @@ const Welcome: React.FC = () => {
                         {selectedChapter && (
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Seçilen Bölüm İçeriği:
+                              {t('welcome_book_selected_section_label')}
                             </label>
                             <div className="relative">
                               <textarea
                                 value={textInput}
                                 onChange={(e) => setTextInput(e.target.value)}
                                 className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary resize-none"
-                                placeholder="Bölüm içeriği burada görünecek..."
+                                placeholder={t('welcome_extracted_text_placeholder')}
                               />
                               <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded text-xs text-gray-500">
-                                {selectedChapter.chapter_text ? selectedChapter.chapter_text.split(' ').length : 0} kelime
+                                {selectedChapter.chapter_text ? selectedChapter.chapter_text.split(' ').length : 0} {t('welcome_word_count')}
                               </div>
                             </div>
                           </div>
@@ -3084,7 +3076,7 @@ const Welcome: React.FC = () => {
                         <textarea
                           value={textInput}
                           onChange={(e) => setTextInput(e.target.value)}
-                          placeholder="İngilizce'ye çevirmek veya ses oluşturmak istediğiniz metni buraya girin..."
+                          placeholder={t('welcome_general_text_placeholder')}
                           className="w-full min-h-[200px] p-4 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary resize-none"
                         />
                         <button className="absolute bottom-3 right-3 text-gray-500 hover:text-primary cursor-pointer">
@@ -3104,36 +3096,34 @@ const Welcome: React.FC = () => {
                 <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold mr-4">
                   2
                 </div>
-                <h2 className="text-2xl font-bold text-primary">Ses Ayarları</h2>
+                <h2 className="text-2xl font-bold text-primary">{t('welcome_audio_settings_title')}</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Sol Kolon - İngilizce Seviyesi ve Konuşma Hızı */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">İngilizce Seviyesi</h3>
+                  <h3 className="text-lg font-medium text-gray-700 mb-3">{t('welcome_english_level_label')}</h3>
                   <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
                     {levelOptions.map((level) => (
                       <Button
                         key={level}
                         onClick={() => setEnglishLevel(level.toLowerCase())}
                         variant={englishLevel === level.toLowerCase() ? "default" : "outline"}
-                        className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                          englishLevel === level.toLowerCase() ? 'bg-primary text-primary-foreground' : ''
-                        }`}
+                        className={`!rounded-button whitespace-nowrap cursor-pointer ${englishLevel === level.toLowerCase() ? 'bg-primary text-primary-foreground' : ''
+                          }`}
                       >
                         {level}
                       </Button>
                     ))}
                   </div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">Konuşma Hızı</h3>
+                  <h3 className="text-lg font-medium text-gray-700 mb-3">{t('welcome_speaking_rate_label')}</h3>
                   <div className="grid grid-cols-4 gap-2 mb-6">
                     {rateOptions.map((rate) => (
                       <Button
                         key={rate.value}
                         onClick={() => setSpeakingRate(rate.value)}
                         variant={speakingRate === rate.value ? "default" : "outline"}
-                        className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                          speakingRate === rate.value ? 'bg-primary text-primary-foreground' : ''
-                        }`}
+                        className={`!rounded-button whitespace-nowrap cursor-pointer ${speakingRate === rate.value ? 'bg-primary text-primary-foreground' : ''
+                          }`}
                       >
                         {rate.label}
                       </Button>
@@ -3143,7 +3133,7 @@ const Welcome: React.FC = () => {
                   {/* Cinsiyet ve Aksan Filtreleri */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
-                      <h4 className="text-md font-medium text-gray-600 mb-2">Cinsiyet</h4>
+                      <h4 className="text-md font-medium text-gray-600 mb-2">{t('welcome_gender_label')}</h4>
                       <div className="grid grid-cols-3 gap-2">
                         {genderOptions.map((gender) => (
                           <Button
@@ -3151,18 +3141,17 @@ const Welcome: React.FC = () => {
                             onClick={() => setSelectedGender(gender.value)}
                             variant={selectedGender === gender.value ? "default" : "outline"}
                             size="sm"
-                            className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                              selectedGender === gender.value ? 'bg-primary text-primary-foreground' : ''
-                            }`}
+                            className={`!rounded-button whitespace-nowrap cursor-pointer ${selectedGender === gender.value ? 'bg-primary text-primary-foreground' : ''
+                              }`}
                           >
                             {gender.label}
                           </Button>
                         ))}
                       </div>
                     </div>
-                    
+
                     <div>
-                      <h4 className="text-md font-medium text-gray-600 mb-2">Aksan</h4>
+                      <h4 className="text-md font-medium text-gray-600 mb-2">{t('welcome_accent_label')}</h4>
                       <div className="grid grid-cols-2 gap-2">
                         {accentVoiceOptions.map((accent) => (
                           <Button
@@ -3170,9 +3159,8 @@ const Welcome: React.FC = () => {
                             onClick={() => setSelectedAccent(accent.value)}
                             variant={selectedAccent === accent.value ? "default" : "outline"}
                             size="sm"
-                            className={`!rounded-button whitespace-nowrap cursor-pointer ${
-                              selectedAccent === accent.value ? 'bg-primary text-primary-foreground' : ''
-                            }`}
+                            className={`!rounded-button whitespace-nowrap cursor-pointer ${selectedAccent === accent.value ? 'bg-primary text-primary-foreground' : ''
+                              }`}
                           >
                             {accent.label}
                           </Button>
@@ -3189,7 +3177,7 @@ const Welcome: React.FC = () => {
 
                 {/* Sağ Kolon - Ses Kategorisi ve İçerik Süresi kopyası */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">Ses Kategorisi</h3>
+                  <h3 className="text-lg font-medium text-gray-700 mb-3">{t('welcome_voice_category_label')}</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                     {voiceCategories.map((category) => (
                       <Button
@@ -3203,31 +3191,29 @@ const Welcome: React.FC = () => {
                           }
                         }}
                         variant={selectedVoiceCategory === category.value ? "default" : "outline"}
-                        className={`!rounded-button cursor-pointer h-auto flex flex-col items-center justify-center p-2 text-center transition-all duration-200 ${
-                          selectedVoiceCategory === category.value ? 'bg-primary text-primary-foreground' : ''
-                        }`}
+                        className={`!rounded-button cursor-pointer h-auto flex flex-col items-center justify-center p-2 text-center transition-all duration-200 ${selectedVoiceCategory === category.value ? 'bg-primary text-primary-foreground' : ''
+                          }`}
                       >
                         {/* İkon ve Label */}
                         <div className="flex items-center justify-center space-x-1 mb-1 min-h-[24px]">
                           <i className={`${category.icon} text-xs`}></i>
                           <span className="font-medium text-xs leading-none">{category.label}</span>
                         </div>
-                        
+
                         {/* Badge */}
                         {category.badge && (
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs px-1.5 py-0.5 mb-1 ${
-                              category.badge === 'Ücretsiz' ? 'bg-green-100 text-green-700 border-green-200' :
+                          <Badge
+                            variant="outline"
+                            className={`text-xs px-1.5 py-0.5 mb-1 ${category.badge === 'Ücretsiz' ? 'bg-green-100 text-green-700 border-green-200' :
                               category.badge === 'Premium' ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                              category.badge === 'Gold' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                              category.badge === 'Platinium' ? 'bg-gray-100 text-gray-700 border-gray-200' : ''
-                            }`}
+                                category.badge === 'Gold' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                                  category.badge === 'Platinium' ? 'bg-gray-100 text-gray-700 border-gray-200' : ''
+                              }`}
                           >
-                            {category.badge}
+                            {category.badgeLabel || category.badge}
                           </Badge>
                         )}
-                        
+
                         {/* SSML Support */}
                         {category.ssmlSupport && (
                           <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full leading-none">
@@ -3242,7 +3228,7 @@ const Welcome: React.FC = () => {
                     <div className="mt-4">
                       <h4 className="text-md font-medium text-gray-600 mb-2">
                         <i className="fas fa-clock mr-2"></i>
-                        İçerik Süresi
+                        {t('content_duration_label')}
                       </h4>
                       <div className="grid grid-cols-4 gap-2">
                         {DURATION_OPTIONS.map((option) => (
@@ -3251,9 +3237,8 @@ const Welcome: React.FC = () => {
                             onClick={() => setContentDuration(option.value)}
                             variant={contentDuration === option.value ? "default" : "outline"}
                             size="sm"
-                            className={`!rounded-button cursor-pointer flex flex-col h-auto py-2 ${
-                              contentDuration === option.value ? 'bg-primary text-primary-foreground' : ''
-                            }`}
+                            className={`!rounded-button cursor-pointer flex flex-col h-auto py-2 ${contentDuration === option.value ? 'bg-primary text-primary-foreground' : ''
+                              }`}
                           >
                             <span className="font-semibold">{option.label}</span>
                             <span className="text-xs opacity-80">{option.description}</span>
@@ -3261,7 +3246,7 @@ const Welcome: React.FC = () => {
                         ))}
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        Oluşturulacak ses içeriğinin yaklaşık süresi (±%15 tolerans)
+                        {t('approx_duration_note')}
                       </p>
                     </div>
                   )}
@@ -3271,13 +3256,13 @@ const Welcome: React.FC = () => {
               {/* Mevcut Sesler - Full Width */}
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-md font-medium text-gray-600">Mevcut Sesler</h4>
+                  <h4 className="text-md font-medium text-gray-600">{t('available_voices_title')}</h4>
                   {/* Aktif Filtre Göstergesi */}
                   {(selectedAccent !== 'all' || selectedGender !== 'all' || selectedVoiceCategory !== 'standard') && (
                     <div className="flex items-center space-x-2 text-xs">
                       <i className="fas fa-filter text-primary"></i>
                       <span className="text-primary font-medium">
-                        Filtre aktif:
+                        {t('filter_active_label')}
                         {selectedVoiceCategory !== 'standard' && ` ${selectedVoiceCategory.charAt(0).toUpperCase() + selectedVoiceCategory.slice(1)}`}
                         {selectedAccent !== 'all' && ` ${selectedAccent}`}
                         {selectedGender !== 'all' && ` ${selectedGender}`}
@@ -3290,66 +3275,65 @@ const Welcome: React.FC = () => {
                   <div className="max-h-40 overflow-y-auto pr-1">
                     {getFilteredVoices().length > 0 ? (
                       <div className="space-y-2">
-                      {getFilteredVoices().map((voice) => {
-                        // Backend voices use 'name' as ID, hardcoded voices use 'id'
-                        const voiceId = voice.name || voice.id;
-                        const voiceName = voice.displayName || (voice.name ? voice.name.replace(/^[a-z]{2}-[A-Z]{2}-/, '') : voice.id);
-                        const isDefault = savedDefaultVoice && ((voice.name || voice.id) === savedDefaultVoice);
-                        
-                        return (
-                          <label
-                            key={voiceId}
-                            className={`flex items-center p-2 rounded cursor-pointer border transition-colors ${
-                              isDefault ? 'bg-green-50 border-green-300 ring-1 ring-green-300' : 'hover:bg-gray-50 border-transparent'
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name="voice"
-                              value={voiceId}
-                              checked={voiceType === voiceId}
-                              onChange={(e) => setVoiceType(e.target.value)}
-                              className="mr-3 text-primary"
-                            />
-                            <div className="flex-1">
-                              <div className="font-medium text-sm">
-                                {voiceName} <span className="text-gray-400 font-mono">[{voiceId}]</span>
-                                {isDefault && (
-                                  <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                                    Varsayılan
-                                  </span>
-                                )}
-                                {voice.ssmlSupport && (
-                                  <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                                    SSML destekler
-                                  </span>
-                                )}
+                        {getFilteredVoices().map((voice) => {
+                          // Backend voices use 'name' as ID, hardcoded voices use 'id'
+                          const voiceId = voice.name || voice.id;
+                          const voiceName = voice.displayName || (voice.name ? voice.name.replace(/^[a-z]{2}-[A-Z]{2}-/, '') : voice.id);
+                          const isDefault = savedDefaultVoice && ((voice.name || voice.id) === savedDefaultVoice);
+
+                          return (
+                            <label
+                              key={voiceId}
+                              className={`flex items-center p-2 rounded cursor-pointer border transition-colors ${isDefault ? 'bg-green-50 border-green-300 ring-1 ring-green-300' : 'hover:bg-gray-50 border-transparent'
+                                }`}
+                            >
+                              <input
+                                type="radio"
+                                name="voice"
+                                value={voiceId}
+                                checked={voiceType === voiceId}
+                                onChange={(e) => setVoiceType(e.target.value)}
+                                className="mr-3 text-primary"
+                              />
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">
+                                  {voiceName} <span className="text-gray-400 font-mono">[{voiceId}]</span>
+                                  {isDefault && (
+                                    <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                      {t('voice_default')}
+                                    </span>
+                                  )}
+                                  {voice.ssmlSupport && (
+                                    <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                      {t('voice_ssml_support')}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {/* Accent bilgisi */}
+                                  {voice.accent === 'american' || voice.languageCode?.includes('US') ? t('accent_american') :
+                                    voice.accent === 'british' || voice.languageCode?.includes('GB') ? t('accent_british') :
+                                      voice.accent === 'australian' || voice.languageCode?.includes('AU') ? t('accent_australian') :
+                                        voice.accent || voice.languageCode || t('voice_unknown')} •
+                                  {/* Gender bilgisi */}
+                                  {voice.gender === 'MALE' || voice.gender === 'male' ? t('gender_male') :
+                                    voice.gender === 'FEMALE' || voice.gender === 'female' ? t('gender_female') : t('voice_unknown')}
+                                  {/* Voice type bilgisi backend'den geliyorsa */}
+                                  {voice.category && (
+                                    <span className="ml-1">
+                                      • {voice.category.charAt(0).toUpperCase() + voice.category.slice(1)}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="text-xs text-gray-500">
-                                {/* Accent bilgisi */}
-                                {voice.accent === 'american' || voice.languageCode?.includes('US') ? 'Amerikan' : 
-                                 voice.accent === 'british' || voice.languageCode?.includes('GB') ? 'İngiliz' : 
-                                 voice.accent === 'australian' || voice.languageCode?.includes('AU') ? 'Avustralya' : 
-                                 voice.accent || voice.languageCode || 'Bilinmeyen'} • 
-                                {/* Gender bilgisi */}
-                                {voice.gender === 'MALE' || voice.gender === 'male' ? 'Erkek' : 
-                                 voice.gender === 'FEMALE' || voice.gender === 'female' ? 'Kadın' : 'Bilinmeyen'}
-                                {/* Voice type bilgisi backend'den geliyorsa */}
-                                {voice.category && (
-                                  <span className="ml-1">
-                                    • {voice.category.charAt(0).toUpperCase() + voice.category.slice(1)}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </label>
-                        );
-                      })}
+                            </label>
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="text-center text-gray-500 py-4">
                         <i className="fas fa-info-circle mb-2"></i>
-                        <p>Seçilen filtrelere uygun ses bulunamadı.</p>
+                        <p>{t('voice_no_match')}</p>
                       </div>
                     )}
                   </div>
@@ -3360,14 +3344,14 @@ const Welcome: React.FC = () => {
                           try {
                             const { saveDefaultVoice } = await import('../src/lib/api');
                             await saveDefaultVoice(voiceType);
-                            alert('Varsayılan ses kaydedildi');
+                            alert(t('welcome_default_voice_saved'));
                           } catch (e: any) {
-                            alert('Kaydedilemedi: ' + (e.message || 'Bilinmeyen hata'));
+                            alert(t('welcome_default_voice_save_failed').replace('{error}', e.message || t('welcome_error_unknown')));
                           }
                         }}
                         className="bg-green-600 hover:bg-green-700 text-white !rounded-button cursor-pointer"
                       >
-                        Varsayılan Ses Seç
+                        {t('welcome_default_voice_button')}
                       </Button>
                     </div>
                   )}
@@ -3392,7 +3376,7 @@ const Welcome: React.FC = () => {
                 ))}
               </div>
               */}
-              
+
               {/* ÇIKTI FORMATı - Geçici olarak gizlendi */}
               {/*
               <h3 className="text-lg font-medium text-gray-700 mb-3">Çıktı Formatı</h3>
@@ -3411,21 +3395,20 @@ const Welcome: React.FC = () => {
                 ))}
               </div>
               */}
-              
+
               <div className="mt-4">
                 <div className="mb-6 p-4 bg-muted rounded-lg border border-border">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium text-primary">Mevcut Üyelik Planınız</h3>
+                    <h3 className="text-lg font-medium text-primary">{t('welcome_current_plan_title')}</h3>
                     <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                      {currentPlanName || 'Ücretsiz Plan'}
+                      {currentPlanName || t('welcome_free_plan')}
                     </Badge>
                   </div>
                   <div className="text-sm">
                     {isPlatinumPlan ? (
                       <>
                         <p className="mb-3 text-xs text-gray-600">
-                          Detaylı limit ve kullanım bilgisi için paket özetinizi ve plan karşılaştırmalarını
-                          inceleyebilirsiniz.
+                          {t('welcome_plan_info_message')}
                         </p>
                         <div className="flex items-center mt-3">
                           <a
@@ -3436,7 +3419,7 @@ const Welcome: React.FC = () => {
                               router.push('/fiyatlandirma');
                             }}
                           >
-                            Tüm planları karşılaştır
+                            {t('welcome_compare_all_plans')}
                           </a>
                         </div>
                       </>
@@ -3446,36 +3429,36 @@ const Welcome: React.FC = () => {
                           <>
                             <p className="mb-2 font-semibold">
                               <i className="fas fa-exclamation-triangle mr-2"></i>
-                              Ses oluşturma hakkınız bitti!
+                              {t('welcome_audio_limit_exceeded')}
                             </p>
                             <p className="mb-3 text-xs">
-                              Premium pakete yükselterek daha fazla ses oluşturabilirsiniz.
+                              {t('welcome_audio_upgrade_message')}
                             </p>
                           </>
                         ) : (
                           <p className="mb-2">
                             <i className="fas fa-info-circle mr-2"></i>
-                            Günlük {remaining}/{dailyLimit} ses dönüşümü hakkınız kaldı.
+                            {t('welcome_audio_remaining').replace('{remaining}', String(remaining)).replace('{limit}', String(dailyLimit))}
                           </p>
                         )}
                         <div className="flex items-center mt-3">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             className="mr-3 !rounded-button whitespace-nowrap cursor-pointer"
                             onClick={() => router.push('/fiyatlandirma')}
                           >
                             <i className="fas fa-crown text-yellow-500 mr-2"></i>
-                            Premium'a Yükselt
+                            {t('welcome_upgrade_to_premium')}
                           </Button>
-                          <a 
-                            href="/fiyatlandirma" 
+                          <a
+                            href="/fiyatlandirma"
                             className="text-primary hover:text-primary/80 text-sm"
                             onClick={(e) => {
                               e.preventDefault();
                               router.push('/fiyatlandirma');
                             }}
                           >
-                            Tüm planları karşılaştır
+                            {t('welcome_compare_all_plans')}
                           </a>
                         </div>
                       </div>
@@ -3506,12 +3489,12 @@ const Welcome: React.FC = () => {
               {isLoading ? (
                 <>
                   <i className="fas fa-circle-notch fa-spin"></i>
-                  <span>Ses Oluşturuluyor...</span>
+                  <span>{t('welcome_audio_generating')}</span>
                 </>
               ) : (
                 <>
                   <i className="fas fa-volume-up"></i>
-                  <span>Ses Oluştur</span>
+                  <span>{t('welcome_audio_generate_button')}</span>
                 </>
               )}
             </Button>
@@ -3525,10 +3508,10 @@ const Welcome: React.FC = () => {
                   <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-bold mr-4">
                     <i className="fas fa-check"></i>
                   </div>
-                  <h2 className="text-2xl font-bold text-green-600">Ses Oluşturuldu</h2>
+                  <h2 className="text-2xl font-bold text-green-600">{t('welcome_audio_created_title')}</h2>
                 </div>
-                <OutputSection 
-                  audioResult={audioResult} 
+                <OutputSection
+                  audioResult={audioResult}
                   isLoggedIn={isAuthenticated}
                 />
               </CardContent>
@@ -3545,23 +3528,23 @@ const Welcome: React.FC = () => {
                       <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold mr-4 shadow-sm">
                         <i className="fas fa-history"></i>
                       </div>
-                      <h2 className="text-2xl font-bold text-primary tracking-tight">Ses Geçmişim</h2>
+                      <h2 className="text-2xl font-bold text-primary tracking-tight">{t('welcome_audio_history_title')}</h2>
                     </div>
-                    <Button 
+                    <Button
                       onClick={fetchContentHistory}
-                      variant="outline" 
+                      variant="outline"
                       className="!rounded-button whitespace-nowrap cursor-pointer"
                       disabled={loadingHistory}
                     >
                       {loadingHistory ? (
                         <>
                           <i className="fas fa-circle-notch fa-spin mr-2"></i>
-                          Yükleniyor
+                          {t('welcome_loading')}
                         </>
                       ) : (
                         <>
                           <i className="fas fa-refresh mr-2"></i>
-                          Yenile
+                          {t('welcome_refresh')}
                         </>
                       )}
                     </Button>
@@ -3585,11 +3568,10 @@ const Welcome: React.FC = () => {
                                 return [...prev, option.id];
                               });
                             }}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
-                              isActive
-                                ? 'bg-primary text-primary-foreground border-primary'
-                                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                            }`}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${isActive
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                              }`}
                           >
                             {option.label}
                           </button>
@@ -3597,7 +3579,7 @@ const Welcome: React.FC = () => {
                       })}
                     </div>
                     <div className="text-xs text-gray-500 whitespace-nowrap">
-                      {filteredHistory.length} kayıt görüntüleniyor
+                      {filteredHistory.length} {t('records_viewing_suffix')}
                     </div>
                   </div>
                 </div>
@@ -3648,14 +3630,14 @@ const Welcome: React.FC = () => {
                                 </span>
                               </div>
                               <div className="mb-3">
-                                <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">İngilizce Metin (Seviyenize Uyarlanmış):</h4>
+                                <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">{t('welcome_adapted_text_label')}</h4>
                                 <p className="text-sm text-gray-700 line-clamp-2">
                                   {item.adapted_text || item.input}
                                 </p>
                                 {item.adapted_text && (
                                   <details className="mt-2">
                                     <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
-                                      Orijinal Türkçe metni göster
+                                      {t('welcome_show_original_text')}
                                     </summary>
                                     <p className="text-xs text-gray-500 mt-1 p-2 bg-gray-100 rounded">
                                       {item.input}
@@ -3666,7 +3648,7 @@ const Welcome: React.FC = () => {
                             </div>
                             <div className="flex items-center gap-2">
                               <div className="text-xs text-gray-500">
-                                {expandedHistoryItem === item.id ? 'Daralt' : 'Oynatıcıyı Aç'}
+                                {expandedHistoryItem === item.id ? t('collapse_button') : t('open_player_button')}
                               </div>
                               <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
                             </div>
@@ -3677,7 +3659,7 @@ const Welcome: React.FC = () => {
                         {expandedHistoryItem === item.id && (
                           <div className="border-t border-gray-200 bg-white p-6">
                             {/* GİZLENDİ - Senkronize Oynatıcı başlığı ve debug console.log */}
-                            
+
                             {/* Use OutputSection component for full functionality */}
                             {(() => {
                               const audioResult = {
@@ -3704,7 +3686,7 @@ const Welcome: React.FC = () => {
                                 original_turkish: item.input,
                                 speaking_rate: 1.0
                               };
-                              
+
                               console.log('🔍 [OUTPUT DEBUG] About to pass to OutputSection:', {
                                 hasMessage: !!audioResult.message,
                                 hasMp3Url: !!audioResult.mp3_url,
@@ -3714,12 +3696,12 @@ const Welcome: React.FC = () => {
                                 mp3_url: audioResult.mp3_url,
                                 firstFewWords: audioResult.words?.slice(0, 5)
                               });
-                              
+
                               return (
-                                <OutputSection 
+                                <OutputSection
                                   audioResult={audioResult}
-                              isLoggedIn={isAuthenticated}
-                            />
+                                  isLoggedIn={isAuthenticated}
+                                />
                               );
                             })()}
 
@@ -3735,9 +3717,9 @@ const Welcome: React.FC = () => {
                                 }}
                               >
                                 <i className="fas fa-external-link-alt mr-2"></i>
-                                Yeni Sekmede Aç
+                                {t('open_in_new_tab')}
                               </Button>
-                              
+
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -3748,23 +3730,23 @@ const Welcome: React.FC = () => {
                                 }}
                               >
                                 <i className="fas fa-times mr-2"></i>
-                                Kapat
+                                {t('close_button')}
                               </Button>
                             </div>
                           </div>
                         )}
                       </div>
                     ))}
-                    
+
                     {contentHistory.length > 5 && (
                       <div className="text-center pt-4">
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           className="!rounded-button whitespace-nowrap cursor-pointer"
                           onClick={() => setShowAllHistory(!showAllHistory)}
                         >
                           <i className={`fas ${showAllHistory ? 'fa-chevron-up' : 'fa-chevron-down'} mr-2`}></i>
-                          {showAllHistory ? 'Daha Az Göster' : 'Daha Fazla Göster'}
+                          {showAllHistory ? t('welcome_show_less') : t('welcome_show_more')}
                         </Button>
                       </div>
                     )}
@@ -3774,8 +3756,8 @@ const Welcome: React.FC = () => {
                     <div className="text-gray-400 mb-4">
                       <i className="fas fa-microphone-slash text-4xl"></i>
                     </div>
-                    <h3 className="text-lg font-medium text-gray-500 mb-2">Henüz ses kaydınız yok</h3>
-                    <p className="text-gray-400">İlk ses kaydınızı oluşturmak için yukarıdaki formu kullanın.</p>
+                    <h3 className="text-lg font-medium text-gray-500 mb-2">{t('welcome_no_audio_yet')}</h3>
+                    <p className="text-gray-400">{t('welcome_no_audio_hint')}</p>
                   </div>
                 )}
               </CardContent>

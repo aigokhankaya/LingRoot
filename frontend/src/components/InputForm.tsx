@@ -159,6 +159,10 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
               onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
               accept=".pdf, .docx, application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             />
+            <p className="text-xs text-amber-700 mt-1">
+              Bu alana yüklediğiniz dosyaların (PDF/DOCX) içeriğinin hukuka ve telif haklarına uygunluğundan tamamen siz sorumlusunuz.
+              LingRoot, kullanıcılar tarafından yüklenen dosya içeriklerinden doğabilecek hiçbir hukuki, idari veya cezai sorumluluğu üstlenmez.
+            </p>
           </div>
         )}
         <div className="space-y-2">

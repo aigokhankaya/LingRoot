@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { getApiUrl } from '../src/lib/api';
+import { useTranslation } from '../src/lib/i18n';
 
 export default function VerifyPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { token } = router.query as { token?: string };
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState<string>('');
@@ -13,30 +15,30 @@ export default function VerifyPage() {
     const run = async () => {
       if (!token || typeof token !== 'string') return;
       setStatus('loading');
-      setMessage('Hesabınız doğrulanıyor...');
+      setMessage(t('verify_verifying'));
       try {
         const url = getApiUrl(`auth/verify-email/${encodeURIComponent(token)}`);
         const res = await fetch(url, { method: 'GET', credentials: 'include' });
         const json = await res.json().catch(() => ({}));
         if (res.ok && json?.success) {
           setStatus('success');
-          setMessage(json.message || 'E-posta başarıyla doğrulandı. Giriş sayfasına buradan gidebilirsiniz.');
+          setMessage(json.message || t('verify_success'));
         } else {
           setStatus('error');
           setMessage(json?.message || `Doğrulama başarısız (HTTP ${res.status}).`);
         }
       } catch (e: any) {
         setStatus('error');
-        setMessage(e?.message || 'Doğrulama sırasında bir hata oluştu.');
+        setMessage(e?.message || t('content_selection_error_generic'));
       }
     };
     run();
-  }, [token, router]);
+  }, [token, router, t]);
 
   return (
     <>
       <Head>
-        <title>E-posta Doğrulama - LingRoot</title>
+        <title>{t('verify_title')} - LingRoot</title>
       </Head>
       <div style={{
         minHeight: '60vh',
@@ -47,24 +49,23 @@ export default function VerifyPage() {
         textAlign: 'center'
       }}>
         <div>
-          <h1 style={{ marginBottom: '1rem' }}>E-posta Doğrulama</h1>
+          <h1 style={{ marginBottom: '1rem' }}>{t('verify_title')}</h1>
           {status === 'loading' && <p>{message}</p>}
           {status === 'success' && (
             <>
               <p style={{ color: 'green' }}>{message}</p>
-              <p><a href="/login">Giriş</a> sayfasına gidebilirsiniz.</p>
+              <p><a href="/login">{t('verify_success_link')}</a></p>
             </>
           )}
           {status === 'error' && (
             <>
               <p style={{ color: 'crimson' }}>{message}</p>
               <p>
-                Bağlantınızın süresi dolmuş olabilir. Lütfen <a href="/login">giriş</a> yapmayı deneyin ve 
-                doğrulama e-postasını yeniden gönderin.
+                {t('verify_error_expired')}
               </p>
             </>
           )}
-          {status === 'idle' && <p>Token bekleniyor...</p>}
+          {status === 'idle' && <p>{t('verify_waiting')}</p>}
         </div>
       </div>
     </>

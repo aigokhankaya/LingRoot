@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { useTranslation } from '../src/lib/i18n';
 
 interface Attachment {
   id: string;
@@ -35,6 +36,7 @@ interface Conversation {
 
 const DestekPage: React.FC = () => {
   const router = useRouter();
+  const { t } = useTranslation();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -102,7 +104,7 @@ const DestekPage: React.FC = () => {
 
   const createNewConversation = async () => {
     if (!newSubject.trim() || !newContent.trim()) {
-      alert('Lütfen konu ve mesaj alanlarını doldurun');
+      alert(t('support_alert_fill_fields'));
       return;
     }
 
@@ -131,11 +133,11 @@ const DestekPage: React.FC = () => {
         setSelectedConversation(data.conversation.id);
         await fetchMessages(data.conversation.id);
       } else {
-        alert(data.message || 'Konuşma oluşturulamadı');
+        alert(data.message || t('support_alert_created_error'));
       }
     } catch (error) {
       console.error('Error creating conversation:', error);
-      alert('Bir hata oluştu');
+      alert(t('support_alert_generic_error'));
     } finally {
       setSending(false);
     }
@@ -143,7 +145,7 @@ const DestekPage: React.FC = () => {
 
   const sendMessage = async () => {
     if (!newMessage.trim() && selectedFiles.length === 0) {
-      alert('Lütfen bir mesaj yazın veya dosya ekleyin');
+      alert(t('support_alert_message_empty'));
       return;
     }
     if (!selectedConversation) return;
@@ -176,11 +178,11 @@ const DestekPage: React.FC = () => {
         setSelectedFiles([]);
         await fetchConversations(); // Refresh conversation list
       } else {
-        alert(data.message || 'Mesaj gönderilemedi');
+        alert(data.message || t('support_alert_message_send_error'));
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Bir hata oluştu');
+      alert(t('support_alert_generic_error'));
     } finally {
       setSending(false);
     }
@@ -213,11 +215,11 @@ const DestekPage: React.FC = () => {
         await fetchConversations();
         await fetchMessages(selectedConversation);
       } else {
-        alert(data.message || 'Konuşma yeniden açılamadı');
+        alert(data.message || t('support_alert_reopen_error'));
       }
     } catch (err) {
       console.error('Error reopening conversation:', err);
-      alert('Bir hata oluştu');
+      alert(t('support_alert_generic_error'));
     }
   };
 
@@ -234,11 +236,11 @@ const DestekPage: React.FC = () => {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'open': return 'Açık';
-      case 'in_progress': return 'İşlemde';
-      case 'waiting': return 'Beklemede';
-      case 'resolved': return 'Çözüldü';
-      case 'closed': return 'Kapatıldı';
+      case 'open': return t('support_status_open');
+      case 'in_progress': return t('support_status_in_progress');
+      case 'waiting': return t('support_status_waiting');
+      case 'resolved': return t('support_status_resolved');
+      case 'closed': return t('support_status_closed');
       default: return status;
     }
   };
@@ -258,13 +260,13 @@ const DestekPage: React.FC = () => {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (files.length + selectedFiles.length > 5) {
-      alert('En fazla 5 dosya ekleyebilirsiniz');
+      alert(t('support_alert_max_files'));
       return;
     }
     
     const validFiles = files.filter(file => {
       if (file.size > 20 * 1024 * 1024) {
-        alert(`${file.name} dosyası çok büyük (maksimum 20MB)`);
+        alert(`${file.name} ${t('support_alert_file_too_large')}`);
         return false;
       }
       return true;
@@ -325,7 +327,7 @@ const DestekPage: React.FC = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-gray-600">Yükleniyor...</p>
+          <p className="mt-4 text-gray-600">{t('loading')}</p>
         </div>
       </div>
     );
@@ -334,7 +336,7 @@ const DestekPage: React.FC = () => {
   return (
     <>
       <Head>
-        <title>Destek - LingRoot</title>
+        <title>{t('support_title')}</title>
       </Head>
       
       <div className="min-h-screen bg-gray-50">
@@ -351,13 +353,13 @@ const DestekPage: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <h1 className="text-2xl font-bold text-gray-900">Destek</h1>
+                <h1 className="text-2xl font-bold text-gray-900">{t('support_header_title')}</h1>
               </div>
               <button
                 onClick={() => setShowNewConversation(true)}
                 className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
               >
-                Yeni Talep
+                {t('support_new_ticket_button')}
               </button>
             </div>
           </div>
@@ -369,14 +371,14 @@ const DestekPage: React.FC = () => {
               {/* Conversations List */}
               <div className="w-1/3 border-r border-gray-200 flex flex-col">
                 <div className="p-4 border-b border-gray-200">
-                  <h2 className="text-lg font-semibold text-gray-900">Konuşmalarım</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">{t('support_conversations_title')}</h2>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto">
                   {conversations.length === 0 ? (
                     <div className="p-4 text-center text-gray-500">
-                      <p>Henüz konuşmanız yok</p>
-                      <p className="text-sm mt-1">Yeni bir destek talebi oluşturun</p>
+                      <p>{t('support_no_conversations_title')}</p>
+                      <p className="text-sm mt-1">{t('support_no_conversations_desc')}</p>
                     </div>
                   ) : (
                     conversations.map((conversation) => (
@@ -407,7 +409,7 @@ const DestekPage: React.FC = () => {
                         
                         {conversation.last_message_content && (
                           <p className="text-sm text-gray-600 truncate">
-                            {conversation.last_message_sender_type === 'admin' ? '👨‍💼 ' : ''}
+                            {conversation.last_message_sender_type === 'admin' ? `${t('admin_prefix')} ` : ''}
                             {conversation.last_message_content}
                           </p>
                         )}
@@ -437,7 +439,7 @@ const DestekPage: React.FC = () => {
                           >
                             <div className="flex justify-between items-center mb-1">
                               <span className="text-xs font-medium opacity-75">
-                                {message.sender_type === 'user' ? 'Siz' : message.sender_name}
+                                {message.sender_type === 'user' ? t('support_sender_you') : message.sender_name}
                               </span>
                               <span className="text-xs opacity-75 ml-2">
                                 {formatDate(message.created_at)}
@@ -456,13 +458,13 @@ const DestekPage: React.FC = () => {
                       {isSelectedConversationClosed() && (
                         <div className="mb-3 p-3 rounded-md bg-gray-50 border border-gray-200 flex items-center justify-between">
                           <div className="text-sm text-gray-700">
-                            Bu konuşma kapatılmış. Yeni mesaj gönderemezsiniz.
+                            {t('support_closed_message')}
                           </div>
                           <button
                             onClick={reopenSelectedConversation}
                             className="bg-primary text-primary-foreground px-3 py-2 rounded-md hover:bg-primary/90"
                           >
-                            Yeniden Aç
+                            {t('support_reopen_button')}
                           </button>
                         </div>
                       )}
@@ -470,12 +472,12 @@ const DestekPage: React.FC = () => {
                       {selectedFiles.length > 0 && (
                         <div className="mb-3 p-3 bg-gray-50 rounded-lg border">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-700">Seçilen Dosyalar ({selectedFiles.length}/5)</span>
+                            <span className="text-sm font-medium text-gray-700">{t('support_selected_files_title')} ({selectedFiles.length}/5)</span>
                             <button
                               onClick={() => setSelectedFiles([])}
                               className="text-xs text-red-600 hover:text-red-800"
                             >
-                              Tümünü Kaldır
+                              {t('support_remove_all_button')}
                             </button>
                           </div>
                           <div className="space-y-2">
@@ -508,7 +510,7 @@ const DestekPage: React.FC = () => {
                           value={newMessage}
                           onChange={(e) => setNewMessage(e.target.value)}
                           onKeyPress={(e) => e.key === 'Enter' && !sending && sendMessage()}
-                          placeholder="Mesajınızı yazın..."
+                          placeholder={t('support_message_input_placeholder')}
                           className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           disabled={sending || isSelectedConversationClosed()}
                         />
@@ -526,7 +528,7 @@ const DestekPage: React.FC = () => {
                           onClick={() => fileInputRef.current?.click()}
                           disabled={sending || isSelectedConversationClosed() || selectedFiles.length >= 5}
                           className="border border-gray-300 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          title="Dosya Ekle"
+                          title={t('support_file_add_title')}
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
@@ -538,7 +540,7 @@ const DestekPage: React.FC = () => {
                           disabled={sending || (!newMessage.trim() && selectedFiles.length === 0) || isSelectedConversationClosed()}
                           className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
-                          {sending ? 'Gönderiliyor...' : 'Gönder'}
+                          {sending ? t('support_sending_button') : t('support_send_button')}
                         </button>
                       </div>
                     </div>
@@ -549,7 +551,7 @@ const DestekPage: React.FC = () => {
                       <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
-                      <p>Bir konuşma seçin veya yeni bir talep oluşturun</p>
+                      <p>{t('support_select_conversation_placeholder')}</p>
                     </div>
                   </div>
                 )}
@@ -562,30 +564,30 @@ const DestekPage: React.FC = () => {
         {showNewConversation && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-              <h2 className="text-xl font-bold mb-4">Yeni Destek Talebi</h2>
+              <h2 className="text-xl font-bold mb-4">{t('support_new_conversation_modal_title')}</h2>
               
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Konu
+                    {t('support_subject_label')}
                   </label>
                   <input
                     type="text"
                     value={newSubject}
                     onChange={(e) => setNewSubject(e.target.value)}
-                    placeholder="Talebinizin konusunu yazın"
+                    placeholder={t('support_subject_placeholder')}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mesaj
+                    {t('support_message_label')}
                   </label>
                   <textarea
                     value={newContent}
                     onChange={(e) => setNewContent(e.target.value)}
-                    placeholder="Sorununuzu detaylı olarak açıklayın"
+                    placeholder={t('support_message_placeholder')}
                     rows={4}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
@@ -598,14 +600,14 @@ const DestekPage: React.FC = () => {
                   className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
                   disabled={sending}
                 >
-                  İptal
+                  {t('support_cancel_button')}
                 </button>
                 <button
                   onClick={createNewConversation}
                   disabled={sending || !newSubject.trim() || !newContent.trim()}
                   className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {sending ? 'Oluşturuluyor...' : 'Oluştur'}
+                  {sending ? t('support_creating_button') : t('support_create_button')}
                 </button>
               </div>
             </div>

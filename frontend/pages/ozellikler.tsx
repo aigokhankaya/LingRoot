@@ -2,13 +2,16 @@ import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Footer from '../src/components/Footer';
+import { useTranslation } from '../src/lib/i18n';
 
 export default function Ozellikler() {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Head>
-        <title>Özellikler | LingRoot</title>
-        <meta name="description" content="LingRoot'un benzersiz özellikleri ile İngilizce öğrenme deneyiminizi bir üst seviyeye taşıyın." />
+        <title>{t('features')} | LingRoot</title>
+        <meta name="description" content={t('features_hero_desc')} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/lingroot-icon.svg" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -61,29 +64,29 @@ export default function Ozellikler() {
         
         <nav className="hidden md:flex items-center space-x-8">
           <Link href="/about" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Hakkımızda
+            {t('about')}
           </Link>
           <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Nasıl Çalışır?
+            {t('how_it_works')}
           </Link>
           <Link href="/ozellikler" className="text-primary hover:text-primary/80 font-semibold transition-colors duration-200">
-            Özellikler
+            {t('features')}
           </Link>
           <Link href="/fiyatlandirma" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Fiyatlandırma
+            {t('pricing')}
           </Link>
           <Link href="/blog" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Blog
+            {t('blog')}
           </Link>
         </nav>
 
         <div className="flex items-center space-x-4">
           <Link href="/login" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Giriş Yap
+            {t('login')}
           </Link>
           <Link href="/register" 
             className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-            Ücretsiz Başla
+            {t('register_now')}
           </Link>
         </div>
       </header>
@@ -94,13 +97,13 @@ export default function Ozellikler() {
           <div className="max-w-6xl mx-auto text-center">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
               <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
-              Platform Özellikleri
+              {t('features_hero_badge')}
             </div>
             <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
-              LingRoot <span className="text-primary">Özellikleri</span>
+              {t('features_hero_title')} <span className="text-primary">{t('features_hero_highlight')}</span>
             </h1>
             <p className="text-xl md:text-2xl text-white/80 max-w-4xl mx-auto leading-relaxed">
-              Benzersiz özelliklerimizle İngilizce öğrenme deneyiminizi tamamen değiştiriyoruz.
+              {t('features_hero_desc')}
             </p>
           </div>
         </section>
@@ -109,10 +112,10 @@ export default function Ozellikler() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                Platform <span className="text-primary">Özelliklerimiz</span>
+                {t('features_main_title')} <span className="text-primary">{t('features_main_highlight')}</span>
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Teknoloji destekli öğrenme deneyimi için özel olarak tasarlanmış özellikler
+                {t('features_main_desc')}
               </p>
             </div>
             
@@ -123,8 +126,8 @@ export default function Ozellikler() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-primary transition-all duration-300">Kişiselleştirilmiş Öğrenme</h3>
-                <p className="text-gray-600 leading-relaxed">Her içerik, sizin seviyenize ve ilgi alanlarınıza göre özel olarak uyarlanır. Kendi hızınızda ve tarzınızda öğrenin.</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-primary transition-all duration-300">{t('feature_personalized_title')}</h3>
+                <p className="text-gray-600 leading-relaxed">{t('feature_personalized_desc')}</p>
               </div>
               
               <div className="bg-white p-6 md:p-8 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-[#28a745] group hover:-translate-y-1">
@@ -133,8 +136,8 @@ export default function Ozellikler() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">Telaffuz Pratiği</h3>
-                <p className="text-gray-600">Gelişmiş yapay zeka ile konuşma becerilerinizi ve telaffuzunuzu interaktif alıştırmalarla mükemmelleştirin.</p>
+                <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">{t('feature_pronunciation_title')}</h3>
+                <p className="text-gray-600">{t('feature_pronunciation_desc')}</p>
               </div>
               
               <div className="bg-white p-6 md:p-8 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-[#28a745] group hover:-translate-y-1">
@@ -143,8 +146,8 @@ export default function Ozellikler() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">Geniş Kelime Havuzu</h3>
-                <p className="text-gray-600">Karşılaştığınız yeni kelimeleri kolayca öğrenin, hafızanızda kalıcı hale getirin ve aktif kelime dağarcığınızı genişletin.</p>
+                <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">{t('feature_vocabulary_title')}</h3>
+                <p className="text-gray-600">{t('feature_vocabulary_desc')}</p>
               </div>
               
               <div className="bg-white p-6 md:p-8 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-[#28a745] group hover:-translate-y-1">
@@ -154,8 +157,8 @@ export default function Ozellikler() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">Gerçek Dünya İçerikleri</h3>
-                <p className="text-gray-600">Sıkıcı ders kitapları yerine, sevdiğiniz videoları, podcast'leri ve gerçek hayattan içerikleri kullanarak öğrenin.</p>
+                <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">{t('feature_realworld_title')}</h3>
+                <p className="text-gray-600">{t('feature_realworld_desc')}</p>
               </div>
               
               <div className="bg-white p-6 md:p-8 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-[#28a745] group hover:-translate-y-1">
@@ -164,8 +167,8 @@ export default function Ozellikler() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">İlerleme Takibi</h3>
-                <p className="text-gray-600">Gelişiminizi adım adım takip edin, analizlerinizi görüntüleyin ve motivasyonunuzu her zaman yüksek tutun.</p>
+                <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">{t('feature_progress_title')}</h3>
+                <p className="text-gray-600">{t('feature_progress_desc')}</p>
               </div>
               
               <div className="bg-white p-6 md:p-8 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-[#28a745] group hover:-translate-y-1">
@@ -174,27 +177,27 @@ export default function Ozellikler() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">Esnek ve Erişilebilir</h3>
-                <p className="text-gray-600">İstediğiniz zaman, istediğiniz yerden öğrenme özgürlüğünün tadını çıkarın. Günlük programınıza göre esnek öğrenme.</p>
+                <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">{t('feature_flexible_title')}</h3>
+                <p className="text-gray-600">{t('feature_flexible_desc')}</p>
               </div>
             </div>
             
             <div className="mt-16 bg-[#f1f9ee] rounded-xl p-8 border border-[#d1e7dd] shadow-md">
               <div className="flex flex-col md:flex-row items-center">
                 <div className="md:w-2/3 mb-6 md:mb-0 md:pr-8">
-                  <h3 className="text-2xl font-bold text-gray-800 mb-3">En Önemli Özelliğimiz: 6 Seviyeli İçerikler</h3>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-3">{t('features_promo_title')}</h3>
                   <p className="text-gray-600 mb-6">
-                    LingRoot'un en benzersiz özelliği, aynı içeriği A1'den C2'ye kadar 6 farklı zorluk seviyesinde sunabilmesidir. Böylece sevdiğiniz bir içeriği önce kendi seviyenizde anlayabilir, sonra daha zor seviyelere geçerek İngilizcenizi geliştirebilirsiniz.
+                    {t('features_promo_desc')}
                   </p>
                   <div className="flex flex-wrap gap-3 mb-4">
                     {["A1", "A2", "B1", "B2", "C1", "C2"].map(level => (
                       <div key={level} className="px-3 py-1.5 bg-white border border-[#28a745] text-[#28a745] rounded-lg text-sm font-medium">
-                        {level} Seviyesi
+                        {level} {t('features_promo_level_suffix')}
                       </div>
                     ))}
                   </div>
                   <Link href="/register" className="inline-flex items-center px-6 py-3 bg-[#fd7e14] hover:bg-[#e76b02] text-white font-semibold rounded shadow-md transition-all duration-300">
-                    <span>Hemen Deneyin</span>
+                    <span>{t('features_promo_button')}</span>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>
@@ -215,7 +218,7 @@ export default function Ozellikler() {
         <section className="py-16 bg-gray-50">
           <div className="max-w-6xl mx-auto px-6">
             <h2 className="text-3xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-12 text-center">
-              Teknik Özelliklerimiz
+              {t('features_tech_title')}
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -224,9 +227,9 @@ export default function Ozellikler() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Yapay Zeka Destekli İçerik Dönüşümü
+                  {t('feature_tech_ai_title')}
                 </h3>
-                <p className="text-gray-600">Gelişmiş yapay zeka algoritmamız, metinleri ve videoları otomatik olarak farklı İngilizce seviyelerine uyarlar, kelime dağarcığını ve gramer yapısını kişiselleştirerek öğrenme sürecinizi optimize eder.</p>
+                <p className="text-gray-600">{t('feature_tech_ai_desc')}</p>
               </div>
               
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -234,9 +237,9 @@ export default function Ozellikler() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Otomatik Altyazı Oluşturma
+                  {t('feature_tech_subtitle_title')}
                 </h3>
-                <p className="text-gray-600">Her video için otomatik olarak doğru ve zaman kodlu altyazılar oluşturur. İstediğiniz seviyede altyazı gösterebilir, kelimelere tıklayarak anlamlarını öğrenebilirsiniz.</p>
+                <p className="text-gray-600">{t('feature_tech_subtitle_desc')}</p>
               </div>
               
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -244,9 +247,9 @@ export default function Ozellikler() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Kelime ve İfade Kaydetme
+                  {t('feature_tech_vocab_title')}
                 </h3>
-                <p className="text-gray-600">İçeriklerde karşılaştığınız yeni kelime ve ifadeleri kişisel sözlüğünüze kaydedebilir, daha sonra özel oluşturulmuş alıştırmalarla pekiştirebilirsiniz.</p>
+                <p className="text-gray-600">{t('feature_tech_vocab_desc')}</p>
               </div>
               
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -254,15 +257,15 @@ export default function Ozellikler() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Çevrimdışı Erişim
+                  {t('feature_tech_offline_title')}
                 </h3>
-                <p className="text-gray-600">Favori içeriklerinizi indirerek internet bağlantısı olmadan da erişebilir, öğrenmeye her yerde ve her zaman devam edebilirsiniz.</p>
+                <p className="text-gray-600">{t('feature_tech_offline_desc')}</p>
               </div>
             </div>
             
             <div className="mt-16 text-center">
               <Link href="/register" className="inline-block px-6 py-3 bg-[#28a745] text-white rounded shadow-sm font-medium hover:bg-[#218838] transition-colors">
-                Ücretsiz Hesap Oluştur
+                {t('features_cta_button')}
               </Link>
             </div>
           </div>
@@ -272,4 +275,4 @@ export default function Ozellikler() {
       <Footer />
     </div>
   );
-} 
+}

@@ -3,13 +3,16 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
+import { useTranslation } from '../src/lib/i18n';
 
 export default function NasilCalisir() {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Head>
-        <title>Nasıl Çalışır? | LingRoot</title>
-        <meta name="description" content="LingRoot nasıl çalışır? İngilizce öğrenme platformumuzun çalışma şekli ve temel özellikleri hakkında bilgi edinin." />
+        <title>{t('how_it_works')} | LingRoot</title>
+        <meta name="description" content={t('how_hero_desc')} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/lingroot-icon.svg" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -25,29 +28,29 @@ export default function NasilCalisir() {
         {/* Navigation Menu - Right Side */}
         <nav className="hidden md:flex items-center space-x-8">
           <Link href="/about" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Hakkımızda
+            {t('about')}
           </Link>
           <Link href="/nasil-calisir" className="text-primary hover:text-primary/90 font-semibold transition-colors duration-200">
-            Nasıl Çalışır?
+            {t('how_it_works')}
           </Link>
           <Link href="/ozellikler" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Özellikler
+            {t('features')}
           </Link>
           <Link href="/fiyatlandirma" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Fiyatlandırma
+            {t('pricing')}
           </Link>
           <Link href="/blog" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Blog
+            {t('blog')}
           </Link>
         </nav>
 
         <div className="flex items-center space-x-4">
           <Link href="/login" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Giriş Yap
+            {t('login')}
           </Link>
           <Link href="/register" 
             className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-            Ücretsiz Başla
+            {t('register_now')}
           </Link>
         </div>
       </header>
@@ -58,14 +61,13 @@ export default function NasilCalisir() {
           <div className="max-w-6xl mx-auto text-center">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
               <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
-              Üç Basit Adım
+              {t('how_hero_badge')}
             </div>
             <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
-              LingRoot <span className="text-primary/80">Nasıl Çalışır?</span>
+              {t('how_hero_title')} <span className="text-primary/80">{t('how_hero_title_highlight')}</span>
             </h1>
             <p className="text-xl md:text-2xl text-slate-200 max-w-3xl mx-auto leading-relaxed">
-              Sevdiğin içerikleri kendi İngilizce seviyende dinlemek için sadece üç adım yeterli. 
-              Yapay zeka teknolojimiz, içerikleri analiz eder ve seviyenize uygun hale getirir.
+              {t('how_hero_desc')}
             </p>
           </div>
         </section>
@@ -73,11 +75,10 @@ export default function NasilCalisir() {
         <section className="py-12 bg-[#f1f9ee]">
           <div className="max-w-6xl mx-auto px-6">
             <h1 className="text-4xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-6 text-center">
-              LingRoot <span className="text-[#28a745]">Nasıl Çalışır?</span>
+              {t('how_steps_title')} <span className="text-[#28a745]">{t('how_steps_highlight')}</span>
             </h1>
             <p className="text-lg text-gray-700 mb-12 text-center max-w-3xl mx-auto">
-              Sevdiğin içerikleri kendi İngilizce seviyende dinlemek için sadece üç adım yeterli. 
-              Yapay zeka teknolojimiz, içerikleri analiz eder ve seviyenize uygun hale getirir.
+              {t('how_steps_desc')}
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
@@ -92,10 +93,9 @@ export default function NasilCalisir() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-bold text-[#28a745] mb-3">İçeriğinizi Seçin</h3>
+                  <h3 className="text-xl font-bold text-[#28a745] mb-3">{t('how_step1_title')}</h3>
                   <p className="text-gray-600">
-                    YouTube videosu, Spotify podcast'i, bir haber yazısı… Sadece linki yapıştır veya metni yükle. 
-                    LingRoot, farklı kaynaklardan gelen içerikleri destekleyecek esneklikte tasarlanmıştır.
+                    {t('how_step1_desc')}
                   </p>
                 </div>
               </div>
@@ -108,10 +108,9 @@ export default function NasilCalisir() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-bold text-[#28a745] mb-3">Seviyenizi Belirleyin</h3>
+                  <h3 className="text-xl font-bold text-[#28a745] mb-3">{t('how_step2_title')}</h3>
                   <p className="text-gray-600">
-                    A1'den C2'ye kadar İngilizce seviyenizi seçin. İçerik, senin anlayabileceğin İngilizceye otomatik olarak çevrilir. 
-                    Dil işleme modeli, cümle yapılarını ve kelime dağarcığını seçilen seviyeye uyarlar.
+                    {t('how_step2_desc')}
                   </p>
                 </div>
               </div>
@@ -125,10 +124,9 @@ export default function NasilCalisir() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-bold text-[#28a745] mb-3">Dinle ve Öğren</h3>
+                  <h3 className="text-xl font-bold text-[#28a745] mb-3">{t('how_step3_title')}</h3>
                   <p className="text-gray-600">
-                    İçerik yapay zeka tarafından seslendirilir, altyazı eklenir ve seviyene özel hale gelir. 
-                    Artık sevdiğin şeyleri dinleyerek İngilizce öğrenebilirsin. Senkronize altyazılar ve anlık çeviri özellikleriyle dinleme deneyimini kontrol edebilirsin.
+                    {t('how_step3_desc')}
                   </p>
                 </div>
               </div>
@@ -141,74 +139,74 @@ export default function NasilCalisir() {
           <div className="max-w-6xl mx-auto px-6">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-6">
-                Teknik <span className="text-[#28a745]">Detaylar</span>
+                {t('how_tech_title')} <span className="text-[#28a745]">{t('how_tech_highlight')}</span>
               </h2>
               <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                LingRoot'un arka planında çalışan yapay zeka sisteminin nasıl işlediğini daha detaylı inceleyelim.
+                {t('how_tech_desc')}
               </p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div>
-                <h3 className="text-2xl font-bold text-[#333333] mb-6">İçerik İşleme Süreci</h3>
+                <h3 className="text-2xl font-bold text-[#333333] mb-6">{t('how_process_title')}</h3>
                 <div className="space-y-6">
                   <div className="flex items-start">
                     <div className="w-8 h-8 bg-[#28a745] rounded-full flex items-center justify-center text-white font-bold text-sm mr-4 mt-1">1</div>
                     <div>
-                      <h4 className="font-bold text-[#333333] mb-2">Metin Analizi</h4>
-                      <p className="text-gray-600">Yapay zeka, içeriğin zorluğunu, kullanılan dil yapılarını ve kelime dağarcığını analiz eder.</p>
+                      <h4 className="font-bold text-[#333333] mb-2">{t('how_process_step1_title')}</h4>
+                      <p className="text-gray-600">{t('how_process_step1_desc')}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-start">
                     <div className="w-8 h-8 bg-[#28a745] rounded-full flex items-center justify-center text-white font-bold text-sm mr-4 mt-1">2</div>
                     <div>
-                      <h4 className="font-bold text-[#333333] mb-2">Seviye Uyarlama</h4>
-                      <p className="text-gray-600">CEFR standartlarına göre cümle yapıları sadeleştirilir, karmaşık kelimeler daha basit alternatiflerle değiştirilir.</p>
+                      <h4 className="font-bold text-[#333333] mb-2">{t('how_process_step2_title')}</h4>
+                      <p className="text-gray-600">{t('how_process_step2_desc')}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-start">
                     <div className="w-8 h-8 bg-[#28a745] rounded-full flex items-center justify-center text-white font-bold text-sm mr-4 mt-1">3</div>
                     <div>
-                      <h4 className="font-bold text-[#333333] mb-2">Ses Sentezi</h4>
-                      <p className="text-gray-600">Sadeleştirilen metin, doğal telaffuzla seslendirilir ve senkronize altyazılar oluşturulur.</p>
+                      <h4 className="font-bold text-[#333333] mb-2">{t('how_process_step3_title')}</h4>
+                      <p className="text-gray-600">{t('how_process_step3_desc')}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-start">
                     <div className="w-8 h-8 bg-[#28a745] rounded-full flex items-center justify-center text-white font-bold text-sm mr-4 mt-1">4</div>
                     <div>
-                      <h4 className="font-bold text-[#333333] mb-2">Optimizasyon</h4>
-                      <p className="text-gray-600">İçerik, öğrenme açısından en uygun hız ve tonlamada sunulur.</p>
+                      <h4 className="font-bold text-[#333333] mb-2">{t('how_process_step4_title')}</h4>
+                      <p className="text-gray-600">{t('how_process_step4_desc')}</p>
                     </div>
                   </div>
                 </div>
               </div>
               
               <div className="bg-gradient-to-br from-[#28a745]/10 to-[#28a745]/5 rounded-2xl p-8">
-                <h3 className="text-xl font-bold text-[#333333] mb-6">Örnek Dönüşüm</h3>
+                <h3 className="text-xl font-bold text-[#333333] mb-6">{t('how_example_title')}</h3>
                 
                 <div className="mb-6">
-                  <h4 className="text-sm font-bold text-red-600 mb-2">Orijinal (C2 Seviyesi):</h4>
+                  <h4 className="text-sm font-bold text-red-600 mb-2">{t('how_example_original_label')}</h4>
                   <p className="text-sm text-gray-700 bg-white p-3 rounded border-l-4 border-red-300">
                     "The unprecedented technological advancement has engendered profound transformations in contemporary society."
                   </p>
                 </div>
                 
                 <div className="mb-6">
-                  <h4 className="text-sm font-bold text-[#28a745] mb-2">A2 Seviyesine Uyarlanmış:</h4>
+                  <h4 className="text-sm font-bold text-[#28a745] mb-2">{t('how_example_adapted_label')}</h4>
                   <p className="text-sm text-gray-700 bg-white p-3 rounded border-l-4 border-[#28a745]">
                     "New technology has made big changes in our society today."
                   </p>
                 </div>
                 
                 <div className="bg-primary/5 p-4 rounded-lg border border-primary/20">
-                  <h5 className="font-bold text-primary text-sm mb-2">Yapılan Değişiklikler:</h5>
+                  <h5 className="font-bold text-primary text-sm mb-2">{t('how_changes_title')}</h5>
                   <ul className="text-sm text-gray-700 space-y-1">
-                    <li>• Karmaşık kelimeler basitleştirildi</li>
-                    <li>• Cümle yapısı sadeleştirildi</li>
-                    <li>• A2 seviyesi kelime dağarcığı kullanıldı</li>
+                    <li>• {t('how_change1')}</li>
+                    <li>• {t('how_change2')}</li>
+                    <li>• {t('how_change3')}</li>
                   </ul>
                 </div>
               </div>
@@ -219,34 +217,34 @@ export default function NasilCalisir() {
         <section className="py-16 bg-white">
           <div className="max-w-6xl mx-auto px-6">
             <h2 className="text-3xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-8 text-center">
-              Sık Sorulan Sorular
+              {t('how_faq_title')}
             </h2>
             
             <div className="space-y-6 max-w-4xl mx-auto">
               <div className="bg-gray-50 rounded-lg p-6 shadow-sm border border-gray-100">
-                <h3 className="text-xl font-bold text-[#28a745] mb-2">LingRoot'un diğer dil öğrenme uygulamalarından farkı nedir?</h3>
-                <p className="text-gray-700">LingRoot, aynı içeriği 6 farklı seviyede (A1-C2) dinlemenize olanak tanıyan tek platformdur. Sevdiğiniz içerikleri kendi seviyenize göre dinleyerek daha hızlı ve etkili öğrenirsiniz.</p>
+                <h3 className="text-xl font-bold text-[#28a745] mb-2">{t('how_faq_q1')}</h3>
+                <p className="text-gray-700">{t('how_faq_a1')}</p>
               </div>
               
               <div className="bg-gray-50 rounded-lg p-6 shadow-sm border border-gray-100">
-                <h3 className="text-xl font-bold text-[#28a745] mb-2">İçerikler nasıl farklı seviyelere dönüştürülüyor?</h3>
-                <p className="text-gray-700">Gelişmiş yapay zeka sistemimiz, içerikleri analiz eder ve her seviye için uygun kelime dağarcığı, gramer yapıları ve konuşma hızıyla yeniden oluşturur, böylece öğrenme süreciniz için en uygun formatı sunar.</p>
+                <h3 className="text-xl font-bold text-[#28a745] mb-2">{t('how_faq_q2')}</h3>
+                <p className="text-gray-700">{t('how_faq_a2')}</p>
               </div>
               
               <div className="bg-gray-50 rounded-lg p-6 shadow-sm border border-gray-100">
-                <h3 className="text-xl font-bold text-[#28a745] mb-2">Hangi tür içerikleri kullanabilirim?</h3>
-                <p className="text-gray-700">YouTube videoları, podcast'ler, kendi metin veya ses dosyalarınız gibi çeşitli içerikleri platforma yükleyebilir ve seviyenize göre dönüştürebilirsiniz.</p>
+                <h3 className="text-xl font-bold text-[#28a745] mb-2">{t('how_faq_q3')}</h3>
+                <p className="text-gray-700">{t('how_faq_a3')}</p>
               </div>
               
               <div className="bg-gray-50 rounded-lg p-6 shadow-sm border border-gray-100">
-                <h3 className="text-xl font-bold text-[#28a745] mb-2">LingRoot hangi İngilizce seviyelerine uygun?</h3>
-                <p className="text-gray-700">A1'den C2'ye kadar tüm CEFR seviyelerine uygun içerikler sunuyoruz. Başlangıç seviyesindeyseniz de, ileri seviyedeyseniz de size uygun içerikler bulacaksınız.</p>
+                <h3 className="text-xl font-bold text-[#28a745] mb-2">{t('how_faq_q4')}</h3>
+                <p className="text-gray-700">{t('how_faq_a4')}</p>
               </div>
             </div>
             
             <div className="mt-12 text-center">
               <Link href="/register" className="inline-block px-6 py-3 bg-[#fd7e14] text-white rounded shadow-sm font-medium hover:bg-[#e76b02] transition-colors">
-                Hemen Ücretsiz Deneyin!
+                {t('how_cta_button')}
               </Link>
             </div>
           </div>
@@ -256,4 +254,4 @@ export default function NasilCalisir() {
       <Footer />
     </div>
   );
-} 
+}

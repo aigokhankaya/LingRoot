@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../src/lib/auth';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { saveInterfaceLanguage } from '../src/lib/api';
+import { useTranslation, useLanguage } from '../src/lib/i18n';
 import { 
   FaUser, FaLock, FaBell, FaGlobe, FaVolumeUp, FaEye, 
   FaShieldAlt, FaCreditCard, FaSave, FaArrowLeft, FaCog,
@@ -12,6 +14,8 @@ import {
 export default function Settings() {
   const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const router = useRouter();
+  const { t } = useTranslation();
+  const { changeLanguage } = useLanguage();
   const [activeSection, setActiveSection] = useState('profile');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{type: 'success'|'error', text: string}|null>(null);
@@ -57,7 +61,9 @@ export default function Settings() {
       setFirstName(localStorage.getItem('lingroot_firstName') || '');
       setLastName(localStorage.getItem('lingroot_lastName') || '');
       setPhone(localStorage.getItem('lingroot_phone') || '');
-      setInterfaceLanguage((localStorage.getItem('lingroot_interfaceLanguage') as any) || 'tr');
+      const storedInterfaceLang = localStorage.getItem('lingroot_interfaceLanguage') as any;
+      const storedGlobalLang = localStorage.getItem('lingroot_language') as any;
+      setInterfaceLanguage((storedInterfaceLang || storedGlobalLang || 'tr') as 'tr' | 'en');
       setNativeLanguage(localStorage.getItem('lingroot_locale') || 'tr-TR');
       setDefaultLevel((localStorage.getItem('lingroot_defaultLevel') as any) || 'B1');
       setPlaybackSpeed(parseFloat(localStorage.getItem('lingroot_playbackSpeed') || '1.0'));
@@ -80,14 +86,17 @@ export default function Settings() {
           break;
         case 'password':
           if (newPassword !== confirmPassword) {
-            setMessage({type: 'error', text: 'Şifreler eşleşmiyor!'});
+            setMessage({type: 'error', text: t('passwords_do_not_match')});
             setSaving(false);
             return;
           }
           break;
         case 'language':
           localStorage.setItem('lingroot_interfaceLanguage', interfaceLanguage);
+          localStorage.setItem('lingroot_language', interfaceLanguage);
           localStorage.setItem('lingroot_locale', nativeLanguage);
+          await saveInterfaceLanguage(interfaceLanguage);
+          changeLanguage(interfaceLanguage as any);
           break;
         case 'content':
           localStorage.setItem('lingroot_defaultLevel', defaultLevel);
@@ -100,25 +109,25 @@ export default function Settings() {
           localStorage.setItem('lingroot_theme', theme);
           break;
       }
-      setMessage({type: 'success', text: 'Ayarlar başarıyla kaydedildi!'});
+      setMessage({type: 'success', text: t('settings_saved_success')});
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      setMessage({type: 'error', text: 'Ayarlar kaydedilirken bir hata oluştu.'});
+      setMessage({type: 'error', text: t('settings_saved_error')});
     } finally {
       setSaving(false);
     }
   };
 
   const sections = [
-    { id: 'profile', label: 'Profil Bilgileri', icon: <FaUser /> },
-    { id: 'password', label: 'Şifre ve Güvenlik', icon: <FaLock /> },
-    { id: 'language', label: 'Dil ve Bölge', icon: <FaGlobe /> },
-    { id: 'content', label: 'İçerik Tercihleri', icon: <FaLanguage /> },
-    { id: 'audio', label: 'Ses ve Oynatma', icon: <FaVolumeUp /> },
-    { id: 'notifications', label: 'Bildirimler', icon: <FaBell /> },
-    { id: 'appearance', label: 'Görünüm', icon: <FaEye /> },
-    { id: 'privacy', label: 'Gizlilik', icon: <FaShieldAlt /> },
-    { id: 'subscription', label: 'Abonelik', icon: <FaCreditCard /> },
+    { id: 'profile', label: t('settings_section_profile'), icon: <FaUser /> },
+    { id: 'password', label: t('settings_section_password'), icon: <FaLock /> },
+    { id: 'language', label: t('settings_section_language'), icon: <FaGlobe /> },
+    { id: 'content', label: t('settings_section_content'), icon: <FaLanguage /> },
+    { id: 'audio', label: t('settings_section_audio'), icon: <FaVolumeUp /> },
+    { id: 'notifications', label: t('settings_section_notifications'), icon: <FaBell /> },
+    { id: 'appearance', label: t('settings_section_appearance'), icon: <FaEye /> },
+    { id: 'privacy', label: t('settings_section_privacy'), icon: <FaShieldAlt /> },
+    { id: 'subscription', label: t('settings_section_subscription'), icon: <FaCreditCard /> },
   ];
 
   if (authLoading) {
@@ -133,8 +142,8 @@ export default function Settings() {
     return (
       <main className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="mb-4 text-gray-600">Oturum açmanız gerekiyor.</p>
-          <Link href="/login" className="bg-primary text-primary-foreground px-6 py-2 rounded-md hover:bg-primary/90">Giriş Yap</Link>
+          <p className="mb-4 text-gray-600">{t('settings_login_required_message')}</p>
+          <Link href="/login" className="bg-primary text-primary-foreground px-6 py-2 rounded-md hover:bg-primary/90">{t('login')}</Link>
         </div>
       </main>
     );
@@ -154,7 +163,7 @@ export default function Settings() {
               </Link>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center">
                 <FaCog className="mr-3 text-primary" />
-                Ayarlar
+                {t('settings_title')}
               </h1>
             </div>
             <button
@@ -164,7 +173,7 @@ export default function Settings() {
               }}
               className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
             >
-              Çıkış
+              {t('logout')}
             </button>
           </div>
         </div>
@@ -208,32 +217,32 @@ export default function Settings() {
               
               {activeSection === 'profile' && (
                 <div className="space-y-6">
-                  <h2 className="text-2xl font-bold mb-6">Profil Bilgileri</h2>
+                  <h2 className="text-2xl font-bold mb-6">{t('settings_profile_title')}</h2>
                   <div className="flex items-center space-x-6 mb-8">
                     <div className="w-24 h-24 bg-gradient-to-br from-primary to-primary/60 rounded-full flex items-center justify-center text-primary-foreground text-3xl font-bold">
                       {displayName.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}
                     </div>
                     <button className="px-4 py-2 bg-primary/5 text-primary rounded-lg hover:bg-primary/10">
-                      <FaCamera className="inline mr-2" />Fotoğraf Değiştir
+                      <FaCamera className="inline mr-2" />{t('settings_change_photo_button')}
                     </button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Ad</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('firstName')}</label>
                       <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="Adınız" />
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder={t('firstName_placeholder')} />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Soyad</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('lastName')}</label>
                       <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="Soyadınız" />
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder={t('lastName_placeholder')} />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaEnvelope className="inline mr-2"/>E-posta</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaEnvelope className="inline mr-2"/>{t('email')}</label>
                       <input type="email" value={email} disabled className="w-full px-4 py-2 border rounded-lg bg-gray-50" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaPhone className="inline mr-2"/>Telefon</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaPhone className="inline mr-2"/>{t('phoneNumber')}</label>
                       <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="+90 5xx xxx xx xx" />
                     </div>
@@ -241,7 +250,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('profile')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2"/>{saving ? 'Kaydediliyor...' : 'Kaydet'}
+                      <FaSave className="inline mr-2"/>{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>
@@ -249,20 +258,20 @@ export default function Settings() {
 
               {activeSection === 'password' && (
                 <div className="space-y-6">
-                  <h2 className="text-2xl font-bold mb-6">Şifre ve Güvenlik</h2>
+                  <h2 className="text-2xl font-bold mb-6">{t('settings_password_title')}</h2>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaKey className="inline mr-2"/>Mevcut Şifre</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaKey className="inline mr-2"/>{t('settings_current_password_label')}</label>
                       <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="••••••••" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Yeni Şifre</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('settings_new_password_label')}</label>
                       <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="••••••••" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Yeni Şifre (Tekrar)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('settings_new_password_confirm_label')}</label>
                       <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary" placeholder="••••••••" />
                     </div>
@@ -270,7 +279,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('password')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2"/>{saving ? 'Kaydediliyor...' : 'Şifreyi Güncelle'}
+                      <FaSave className="inline mr-2"/>{saving ? t('settings_saving') : t('settings_update_password_button')}
                     </button>
                   </div>
                 </div>
@@ -278,33 +287,29 @@ export default function Settings() {
 
               {activeSection === 'language' && (
                 <div className="space-y-6">
-                  <h2 className="text-2xl font-bold mb-6">Dil ve Bölge Ayarları</h2>
+                  <h2 className="text-2xl font-bold mb-6">{t('settings_language_title')}</h2>
                   <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaGlobe className="inline mr-2"/>Arayüz Dili</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaGlobe className="inline mr-2"/>{t('settings_interface_language_label')}</label>
                       <select value={interfaceLanguage} onChange={(e) => setInterfaceLanguage(e.target.value as 'tr'|'en')}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary">
-                        <option value="tr">Türkçe</option>
-                        <option value="en">English</option>
+                        <option value="tr">{t('language_tr')}</option>
+                        <option value="en">{t('language_en')}</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaHeadphones className="inline mr-2"/>Ana Dil (Seslendirme)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2"><FaHeadphones className="inline mr-2"/>{t('settings_native_language_label')}</label>
                       <select value={nativeLanguage} onChange={(e) => setNativeLanguage(e.target.value)}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary">
                         <option value="tr-TR">Türkçe (TR)</option>
                         <option value="en-US">English (US)</option>
-                        <option value="en-GB">English (UK)</option>
-                        <option value="de-DE">Deutsch</option>
-                        <option value="fr-FR">Français</option>
-                        <option value="es-ES">Español</option>
                       </select>
                     </div>
                   </div>
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('language')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2"/>{saving ? 'Kaydediliyor...' : 'Kaydet'}
+                      <FaSave className="inline mr-2"/>{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>
@@ -312,9 +317,9 @@ export default function Settings() {
 
               {activeSection === 'content' && (
                 <div className="space-y-6">
-                  <h2 className="text-2xl font-bold mb-6">İçerik Tercihleri</h2>
+                  <h2 className="text-2xl font-bold mb-6">{t('settings_content_title')}</h2>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2"><FaLanguage className="inline mr-2"/>Varsayılan İngilizce Seviyesi</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2"><FaLanguage className="inline mr-2"/>{t('settings_default_level_label')}</label>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
                       {(['A1','A2','B1','B2','C1','C2'] as const).map((level) => (
                         <button key={level} onClick={() => setDefaultLevel(level)}
@@ -327,7 +332,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('content')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2"/>{saving ? 'Kaydediliyor...' : 'Kaydet'}
+                      <FaSave className="inline mr-2"/>{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>
@@ -335,10 +340,10 @@ export default function Settings() {
 
               {activeSection === 'audio' && (
                 <div className="space-y-6">
-                  <h2 className="text-2xl font-bold mb-6">Ses ve Oynatma</h2>
+                  <h2 className="text-2xl font-bold mb-6">{t('settings_audio_title')}</h2>
                   <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Oynatma Hızı: {playbackSpeed}x</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('settings_playback_speed_label')} {playbackSpeed}x</label>
                       <input type="range" min="0.5" max="2.0" step="0.1" value={playbackSpeed} 
                         onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
@@ -347,7 +352,7 @@ export default function Settings() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <span className="font-medium">Otomatik Oynat</span>
+                      <span className="font-medium">{t('settings_auto_play_label')}</span>
                       <button onClick={() => setAutoPlay(!autoPlay)}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full ${autoPlay ? 'bg-primary' : 'bg-gray-300'}`}>
                         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${autoPlay ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -357,7 +362,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('audio')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2"/>{saving ? 'Kaydediliyor...' : 'Kaydet'}
+                      <FaSave className="inline mr-2"/>{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>
@@ -365,11 +370,11 @@ export default function Settings() {
 
               {activeSection === 'notifications' && (
                 <div className="space-y-6">
-                  <h2 className="text-2xl font-bold mb-6">Bildirim Ayarları</h2>
+                  <h2 className="text-2xl font-bold mb-6">{t('settings_notifications_title')}</h2>
                   <div className="space-y-4">
                     {[
-                      {state: emailNotifications, setState: setEmailNotifications, label: 'E-posta Bildirimleri'},
-                      {state: pushNotifications, setState: setPushNotifications, label: 'Push Bildirimleri'}
+                      {state: emailNotifications, setState: setEmailNotifications, label: t('settings_email_notifications_label')},
+                      {state: pushNotifications, setState: setPushNotifications, label: t('settings_push_notifications_label')}
                     ].map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                         <span className="font-medium">{item.label}</span>
@@ -385,14 +390,14 @@ export default function Settings() {
 
               {activeSection === 'appearance' && (
                 <div className="space-y-6">
-                  <h2 className="text-2xl font-bold mb-6">Görünüm Ayarları</h2>
+                  <h2 className="text-2xl font-bold mb-6">{t('settings_appearance_title')}</h2>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">Tema</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">{t('settings_theme_label')}</label>
                     <div className="grid grid-cols-3 gap-4">
                       {[
-                        {value: 'light', label: 'Açık'},
-                        {value: 'dark', label: 'Koyu'},
-                        {value: 'system', label: 'Sistem'}
+                        {value: 'light', label: t('settings_theme_light')},
+                        {value: 'dark', label: t('settings_theme_dark')},
+                        {value: 'system', label: t('settings_theme_system')}
                       ].map((t) => (
                         <button key={t.value} onClick={() => setTheme(t.value as any)}
                           className={`px-6 py-4 rounded-lg font-semibold ${
@@ -404,7 +409,7 @@ export default function Settings() {
                   <div className="flex justify-end pt-4">
                     <button onClick={() => saveSettings('appearance')} disabled={saving}
                       className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
-                      <FaSave className="inline mr-2"/>{saving ? 'Kaydediliyor...' : 'Kaydet'}
+                      <FaSave className="inline mr-2"/>{saving ? t('settings_saving') : t('settings_save')}
                     </button>
                   </div>
                 </div>
@@ -412,18 +417,18 @@ export default function Settings() {
 
               {activeSection === 'privacy' && (
                 <div className="space-y-6">
-                  <h2 className="text-2xl font-bold mb-6">Gizlilik ve Güvenlik</h2>
-                  <p className="text-gray-600">Gizlilik ayarları yakında eklenecek.</p>
+                  <h2 className="text-2xl font-bold mb-6">{t('settings_privacy_title')}</h2>
+                  <p className="text-gray-600">{t('settings_privacy_coming_soon')}</p>
                 </div>
               )}
 
               {activeSection === 'subscription' && (
                 <div className="space-y-6">
-                  <h2 className="text-2xl font-bold mb-6">Abonelik Bilgileri</h2>
+                  <h2 className="text-2xl font-bold mb-6">{t('settings_subscription_title')}</h2>
                   <div className="p-6 bg-muted rounded-lg">
-                    <p className="text-gray-700">Mevcut paketiniz: <strong className="text-primary">Ücretsiz</strong></p>
+                    <p className="text-gray-700">{t('settings_subscription_current_plan_prefix')} <strong className="text-primary">{t('settings_subscription_free_plan_label')}</strong></p>
                     <Link href="/fiyatlandirma" className="inline-block mt-4 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90">
-                      Premium'a Yükselt
+                      {t('settings_subscription_upgrade_button')}
                     </Link>
                   </div>
                 </div>

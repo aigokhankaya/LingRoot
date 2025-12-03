@@ -2,6 +2,7 @@ import React, { useState, KeyboardEvent } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Loader2 } from 'lucide-react';
+import { useTranslation } from '../../lib/i18n';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -9,11 +10,13 @@ interface ChatInputProps {
   placeholder?: string;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ 
-  onSend, 
-  disabled = false, 
-  placeholder = "Mesajınızı yazın..." 
+export const ChatInput: React.FC<ChatInputProps> = ({
+  onSend,
+  disabled = false,
+  placeholder
 }) => {
+  const { t } = useTranslation();
+  const inputPlaceholder = placeholder || t('chat_placeholder');
   const [message, setMessage] = useState('');
 
   const handleSend = () => {
@@ -38,7 +41,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={placeholder}
+            placeholder={inputPlaceholder}
             disabled={disabled}
             className="min-h-[52px] max-h-[200px] resize-none rounded-full px-5 py-3 pr-14 border-gray-300 dark:border-gray-700 focus:border-primary focus:ring-primary text-sm placeholder:text-gray-400"
             rows={1}
@@ -58,7 +61,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       </div>
       <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
-        Enter ile gönder • Shift+Enter ile yeni satır
+        {t('chat_input_hint')}
       </p>
     </div>
   );

@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../../lib/auth';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User, Package, Settings, History, Heart, Globe, HelpCircle, LogOut, Home } from 'lucide-react';
+import { useTranslation } from '../../lib/i18n';
 
 interface ProfileDropdownMenuProps {
   /** Menünün hangi taraftan açılacağı */
@@ -35,12 +36,13 @@ export const ProfileDropdownMenu: React.FC<ProfileDropdownMenuProps> = ({
   showUserInfo = true,
   showChevron = true,
 }) => {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const router = useRouter();
 
   if (!user) return null;
 
-  const displayName = (user as any)?.name || user?.email || 'Kullanıcı';
+  const displayName = (user as any)?.name || user?.email || t('profile_menu_user_default');
   const avatarUrl = (user as any)?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`;
   const initials = displayName.charAt(0).toUpperCase();
 
@@ -75,49 +77,49 @@ export const ProfileDropdownMenu: React.FC<ProfileDropdownMenuProps> = ({
     ...(showHomeLink ? [{
       href: '/',
       icon: <Home className="h-4 w-4" />,
-      label: 'Ana Sayfa',
+      label: t('profile_menu_home'),
       iconClass: 'fas fa-home',
     }] : []),
     {
       href: '/profile',
       icon: <User className="h-4 w-4" />,
-      label: 'Profil Bilgilerim',
+      label: t('profile_menu_profile'),
       iconClass: 'fas fa-user-circle',
     },
     {
       href: '/dashboard?tab=paket-bilgilerim',
       icon: <Package className="h-4 w-4" />,
-      label: 'Paket Bilgilerim',
+      label: t('profile_menu_package'),
       iconClass: 'fas fa-box',
     },
     {
       href: '/settings',
       icon: <Settings className="h-4 w-4" />,
-      label: 'Hesap Ayarları',
+      label: t('profile_menu_settings'),
       iconClass: 'fas fa-cog',
     },
     {
       href: '/dashboard?tab=reading-history',
       icon: <History className="h-4 w-4" />,
-      label: 'Okuma Geçmişim',
+      label: t('profile_menu_reading_history'),
       iconClass: 'fas fa-history',
     },
     {
       href: '/dashboard?tab=favorilerim',
       icon: <Heart className="h-4 w-4" />,
-      label: 'Favorilerim',
+      label: t('profile_menu_favorites'),
       iconClass: 'fas fa-heart',
     },
     {
       href: '/settings?section=language',
       icon: <Globe className="h-4 w-4" />,
-      label: 'Dil Ayarları',
+      label: t('profile_menu_language'),
       iconClass: 'fas fa-globe',
     },
     {
       href: '/help',
       icon: <HelpCircle className="h-4 w-4" />,
-      label: 'Yardım ve Destek',
+      label: t('profile_menu_help'),
       iconClass: 'fas fa-question-circle',
     },
   ];
@@ -131,7 +133,7 @@ export const ProfileDropdownMenu: React.FC<ProfileDropdownMenuProps> = ({
     <div className="relative" ref={containerRef}>
       <button
         className={`flex items-center gap-2 cursor-pointer focus:outline-none ${triggerClassName}`}
-        aria-label="Kullanıcı menüsü"
+        aria-label={t('profile_menu_aria_label')}
         onClick={() => setOpen((prev) => !prev)}
       >
         <Avatar className={avatarSizeClass}>
@@ -179,7 +181,7 @@ export const ProfileDropdownMenu: React.FC<ProfileDropdownMenuProps> = ({
               className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer flex items-center gap-3"
             >
               <LogOut className="h-4 w-4" />
-              <span>Çıkış Yap</span>
+              <span>{t('profile_menu_logout')}</span>
             </button>
           </div>
         </div>

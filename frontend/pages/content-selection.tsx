@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { useTranslation } from '../src/lib/i18n';
 
 const ContentSelectionPage: React.FC = () => {
   const router = useRouter();
+  const { t } = useTranslation();
   const [contentType, setContentType] = useState<string>('youtube');
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
   const [spotifyUrl, setSpotifyUrl] = useState<string>('');
@@ -52,14 +54,14 @@ const ContentSelectionPage: React.FC = () => {
         content = textContent;
         break;
       default:
-        setError('Lütfen bir içerik türü seçin');
+        setError(t('content_selection_select_content_type_error'));
         setIsLoading(false);
         return;
     }
 
     // Boş içerik kontrolü
     if (!content.trim()) {
-      setError('Lütfen içerik girin');
+      setError(t('content_selection_enter_content_error'));
       setIsLoading(false);
       return;
     }
@@ -86,18 +88,18 @@ const ContentSelectionPage: React.FC = () => {
         router.push(`/lesson/${data.lessonId}`);
       } else {
         // Hata mesajını göster
-        setError(data.message || 'İçerik işlenirken bir hata oluştu');
+        setError(data.message || t('content_selection_process_error_generic'));
       }
     } catch (error) {
       console.error('Content process error:', error);
-      setError('Bir hata oluştu, lütfen tekrar deneyin');
+      setError(t('content_selection_error_generic'));
     } finally {
       setIsLoading(false);
     }
   };
 
   if (!user) {
-    return <div className="min-h-screen flex items-center justify-center bg-muted">Yükleniyor...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-muted">{t('loading')}</div>;
   }
 
   return (
@@ -109,7 +111,7 @@ const ContentSelectionPage: React.FC = () => {
           </div>
           <div className="flex items-center space-x-4">
             <div className="text-gray-600">
-              Merhaba, <span className="font-semibold">{user.name}</span>
+              {t('content_selection_user_greeting')} <span className="font-semibold">{user.name}</span>
             </div>
             <button 
               onClick={() => {
@@ -119,7 +121,7 @@ const ContentSelectionPage: React.FC = () => {
               }}
               className="text-primary hover:text-primary/80"
             >
-              Çıkış Yap
+              {t('content_selection_logout_button')}
             </button>
           </div>
         </div>
@@ -127,11 +129,11 @@ const ContentSelectionPage: React.FC = () => {
 
       <main className="container mx-auto px-6 py-8">
         <div className="max-w-2xl mx-auto">
-          <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">İçerik Seçimi</h2>
+          <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">{t('content_selection_title')}</h2>
           
           <div className="bg-white rounded-lg shadow-lg p-8">
             <div className="mb-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">İşlemek istediğiniz içerik türünü seçin</h3>
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">{t('content_selection_subtitle')}</h3>
               
               <div className="flex flex-wrap gap-4 mb-6">
                 <button
@@ -144,7 +146,7 @@ const ContentSelectionPage: React.FC = () => {
                   }`}
                 >
                   <i className="fab fa-youtube text-xl mr-2"></i>
-                  YouTube Video
+                  {t('content_selection_youtube_video')}
                 </button>
                 
                 <button
@@ -157,7 +159,7 @@ const ContentSelectionPage: React.FC = () => {
                   }`}
                 >
                   <i className="fab fa-spotify text-xl mr-2"></i>
-                  Spotify Podcast
+                  {t('content_selection_spotify_podcast')}
                 </button>
                 
                 <button
@@ -170,7 +172,7 @@ const ContentSelectionPage: React.FC = () => {
                   }`}
                 >
                   <i className="fas fa-file-alt text-xl mr-2"></i>
-                  Metin İçeriği
+                  {t('content_selection_text_content')}
                 </button>
               </div>
             </div>
@@ -179,12 +181,12 @@ const ContentSelectionPage: React.FC = () => {
               {contentType === 'youtube' && (
                 <div className="mb-6">
                   <label htmlFor="youtube-url" className="block text-gray-700 mb-2">
-                    YouTube Video URL'si
+                    {t('content_selection_youtube_url_label')}
                   </label>
                   <input
                     type="url"
                     id="youtube-url"
-                    placeholder="https://www.youtube.com/watch?v=..."
+                    placeholder={t('content_selection_youtube_url_placeholder')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
                     value={youtubeUrl}
                     onChange={(e) => setYoutubeUrl(e.target.value)}
@@ -195,12 +197,12 @@ const ContentSelectionPage: React.FC = () => {
               {contentType === 'spotify' && (
                 <div className="mb-6">
                   <label htmlFor="spotify-url" className="block text-gray-700 mb-2">
-                    Spotify Podcast URL'si
+                    {t('content_selection_spotify_url_label')}
                   </label>
                   <input
                     type="url"
                     id="spotify-url"
-                    placeholder="https://open.spotify.com/episode/..."
+                    placeholder={t('content_selection_spotify_url_placeholder')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
                     value={spotifyUrl}
                     onChange={(e) => setSpotifyUrl(e.target.value)}
@@ -211,11 +213,11 @@ const ContentSelectionPage: React.FC = () => {
               {contentType === 'text' && (
                 <div className="mb-6">
                   <label htmlFor="text-content" className="block text-gray-700 mb-2">
-                    Metin İçeriği
+                    {t('content_selection_text_content_label')}
                   </label>
                   <textarea
                     id="text-content"
-                    placeholder="İşlemek istediğiniz metni buraya yapıştırın..."
+                    placeholder={t('content_selection_text_content_placeholder')}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary min-h-[200px]"
                     value={textContent}
                     onChange={(e) => setTextContent(e.target.value)}
@@ -225,7 +227,7 @@ const ContentSelectionPage: React.FC = () => {
               
               <div className="mb-6">
                 <label htmlFor="level" className="block text-gray-700 mb-2">
-                  İngilizce Seviyeniz
+                  {t('content_selection_english_level_label')}
                 </label>
                 <select
                   id="level"
@@ -257,10 +259,10 @@ const ContentSelectionPage: React.FC = () => {
                 {isLoading ? (
                   <span className="flex items-center justify-center">
                     <i className="fas fa-spinner fa-spin mr-2"></i>
-                    İşleniyor...
+                    {t('content_selection_processing_button')}
                   </span>
                 ) : (
-                  'İçeriği İşle'
+                  t('content_selection_process_content_button')
                 )}
               </button>
             </form>
@@ -271,4 +273,4 @@ const ContentSelectionPage: React.FC = () => {
   );
 };
 
-export default ContentSelectionPage; 
+export default ContentSelectionPage;

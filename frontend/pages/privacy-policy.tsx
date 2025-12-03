@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Footer from '../src/components/Footer';
@@ -8,14 +8,11 @@ import BrandWordmark from '../src/components/BrandWordmark';
 export default function PrivacyPolicy() {
   const { t } = useTranslation();
   
-  const pageTitle = useMemo(() => String(t('privacy_policy_title') || 'Privacy Policy'), [t]);
-  const pageDescription = useMemo(() => String(t('privacy_policy_subtitle') || 'Privacy Policy'), [t]);
-  
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Head>
-        <title>{pageTitle} | LingRoot</title>
-        <meta name="description" content={pageDescription} />
+        <title>{t('privacy_policy_title')} | LingRoot</title>
+        <meta name="description" content={t('privacy_policy_subtitle')} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/lingroot-icon.svg" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -30,23 +27,23 @@ export default function PrivacyPolicy() {
         
         <nav className="hidden md:flex items-center space-x-8">
           <Link href="/about" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            {String(t('about'))}
+            {t('about')}
           </Link>
           <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            {String(t('how_it_works'))}
+            {t('how_it_works')}
           </Link>
           <Link href="/contact" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            {String(t('contact'))}
+            {t('contact')}
           </Link>
         </nav>
 
         <div className="flex items-center space-x-4">
           <Link href="/login" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            {String(t('login'))}
+            {t('login')}
           </Link>
           <Link href="/register" 
             className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-            {String(t('register_now'))}
+            {t('register_now')}
           </Link>
         </div>
       </header>
@@ -170,7 +167,7 @@ export default function PrivacyPolicy() {
                   <div className="bg-muted rounded-2xl p-8 border border-border shadow-lg">
                     <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mb-6">
                       <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
                     </div>
                     <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('privacy_development')}</h3>
@@ -247,7 +244,7 @@ export default function PrivacyPolicy() {
                 <Link href="/contact" 
                   className="inline-flex items-center px-8 py-4 bg-white text-primary rounded-xl font-semibold hover:bg-gray-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                   {t('privacy_contact_us')}
                 </Link>
@@ -261,4 +258,4 @@ export default function PrivacyPolicy() {
       <Footer />
     </div>
   );
-} 
+}
