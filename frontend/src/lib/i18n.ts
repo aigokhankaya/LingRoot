@@ -3347,6 +3347,99 @@ export const translations: Translations = {
     all_rights_reserved: "Alle Rechte vorbehalten.",
     terms_of_service: "Nutzungsbedingungen",
     cookie_policy: "Cookie-Richtlinie",
+    cookie_title: "Cookie-Richtlinie",
+    cookie_hero_title: "Cookie-Richtlinie",
+    cookie_hero_subtitle:
+      "Transparente Informationen über die Cookies, die wir auf unserer Website verwenden, und ihre Zwecke.",
+    cookie_last_updated: "Zuletzt aktualisiert",
+    cookie_intro_title: "Cookies und ihre Verwendungszwecke",
+    cookie_intro_text1:
+      "Wir verwenden Cookies, um unsere Website funktionaler und benutzerfreundlicher zu machen. Auf dieser Seite erklären wir, welche Cookies wir einsetzen und zu welchen Zwecken.",
+    cookie_intro_text2:
+      "Wenn Sie unsere Website weiter nutzen, akzeptieren Sie die Verwendung von Cookies. Sie können Ihre Cookie-Einstellungen jederzeit in den Browsereinstellungen ändern.",
+    cookie_section1_title: "Was sind Cookies?",
+    cookie_section1_subtitle: "Definition von Cookies",
+    cookie_section1_text:
+      "Cookies sind kleine Textdateien, die von Websites auf Ihrem Computer oder Mobilgerät gespeichert werden. Sie dienen dazu, die Funktionalität der Website zu verbessern und Ihnen ein besseres Nutzungserlebnis zu bieten.",
+    cookie_section1_list1: "Sitzungsverwaltung und Sicherheit",
+    cookie_section1_list2: "Speichern von Benutzerpräferenzen",
+    cookie_section1_list3: "Analyse der Website-Performance",
+    cookie_section1_list4: "Bereitstellung personalisierter Inhalte",
+    cookie_section2_title: "Welche Cookie-Typen wir verwenden",
+    cookie_section2_mandatory_title: "Notwendige Cookies",
+    cookie_section2_mandatory_desc: "Diese Cookies sind für den Betrieb der Website erforderlich.",
+    cookie_section2_mandatory_list1:
+      "Sitzungscookies: Speichern Ihren Anmeldestatus und Sicherheitstoken.",
+    cookie_section2_mandatory_list2:
+      "Sicherheitscookies: CSRF-Schutz und weitere Sicherheitsprüfungen.",
+    cookie_section2_mandatory_list3:
+      "Load-Balancer-Cookies zur technischen Lastverteilung.",
+    cookie_section2_functional_title: "Funktionale Cookies",
+    cookie_section2_functional_desc:
+      "Merken sich Ihre Präferenzen und personalisieren das Erlebnis.",
+    cookie_section2_functional_list1: "Spracheinstellung: Merkt sich Ihre gewählte Sprache.",
+    cookie_section2_functional_list2: "Theme: Speichert Ihre Hell/Dunkel-Theme-Präferenz.",
+    cookie_section2_functional_list3:
+      "Lerneinstellungen: CEFR-Niveau und Lernpräferenzen.",
+    cookie_section2_analytics_title: "Analyse-Cookies",
+    cookie_section2_analytics_desc:
+      "Analysieren die Nutzung der Website und messen die Performance.",
+    cookie_section2_analytics_list1: "Google Analytics: Besuchsstatistiken und Seitenaufrufe.",
+    cookie_section2_analytics_list2:
+      "Performance-Metriken: Seitenladezeiten und Fehlertracking.",
+    cookie_section2_analytics_list3:
+      "Nutzungsanalyse: Meistgenutzte Funktionen und Seitenflüsse.",
+    cookie_section2_marketing_title: "Marketing-Cookies",
+    cookie_section2_marketing_desc:
+      "Für personalisierte Werbung und Kampagnen.",
+    cookie_section2_marketing_list1:
+      "Facebook Pixel: Retargeting für Social-Media-Werbung.",
+    cookie_section2_marketing_list2:
+      "Google Ads: Such- und Display-Werbung.",
+    cookie_section2_marketing_list3:
+      "E-Mail-Marketing: Newsletter- und Kampagnenpersonalisierung.",
+    cookie_section3_title: "Cookie-Verwaltung",
+    cookie_section3_browser_title: "Browsereinstellungen",
+    cookie_section3_browser_text:
+      "Die meisten Browser akzeptieren Cookies standardmäßig, Sie können diese Einstellungen jedoch ändern:",
+    cookie_section3_browser_list1:
+      "Chrome: Einstellungen  Datenschutz und Sicherheit  Cookies",
+    cookie_section3_browser_list2:
+      "Firefox: Einstellungen  Datenschutz & Sicherheit  Cookies",
+    cookie_section3_browser_list3:
+      "Safari: Einstellungen  Datenschutz  Cookies blockieren",
+    cookie_section3_browser_list4:
+      "Edge: Einstellungen  Websiteberechtigungen  Cookies",
+    cookie_section3_disable_title: "Cookies deaktivieren",
+    cookie_section3_disable_text:
+      "Wenn Sie Cookies deaktivieren, funktionieren einige Funktionen möglicherweise nicht richtig:",
+    cookie_section3_disable_list1: "Kein automatisches Login",
+    cookie_section3_disable_list2: "Ihre Präferenzen werden nicht gespeichert",
+    cookie_section3_disable_list3: "Weniger personalisierte Erfahrung",
+    cookie_section3_disable_list4: "Manche Seiten funktionieren eventuell nicht korrekt",
+    cookie_section4_title: "Cookies von Drittanbietern",
+    cookie_section4_subtitle: "Integrierte Dienste",
+    cookie_section4_text:
+      "LingRoot integriert bestimmte Dienste von Drittanbietern, die eigene Cookies verwenden können:",
+    cookie_section4_google_title: "Google-Dienste",
+    cookie_section4_google_list1: "Analytics",
+    cookie_section4_google_list2: "Google Fonts",
+    cookie_section4_google_list3: "reCAPTCHA",
+    cookie_section4_social_title: "Soziale Netzwerke",
+    cookie_section4_social_list1: "Facebook",
+    cookie_section4_social_list2: "Twitter",
+    cookie_section4_social_list3: "LinkedIn",
+    cookie_section4_payment_title: "Zahlungssysteme",
+    cookie_section4_payment_list1: "Stripe",
+    cookie_section4_payment_list2: "PayPal",
+    cookie_section4_payment_list3: "Iyzico",
+    cookie_section4_note:
+      "Für die Cookie-Richtlinien dieser Dienste besuchen Sie bitte die Websites der jeweiligen Anbieter.",
+    cookie_section5_title: "Kontakt",
+    cookie_section5_subtitle: "Haben Sie Fragen zu unseren Cookies?",
+    cookie_section5_text:
+      "Wenn Sie Fragen zu unserer Cookie-Verwendung oder Ihrem Datenschutz haben, können Sie uns jederzeit kontaktieren.",
+    cookie_contact_button: "Kontakt aufnehmen",
     no_audio_yet: "Noch kein Audio generiert",
     enter_text_to_generate_audio: "Geben Sie Ihren Text ein und wählen Sie ein Niveau, um Audio zu generieren",
     language_tr: "Türkisch",
@@ -3358,6 +3451,113 @@ export const translations: Translations = {
     language_hi: "Hindi",
     language_id: "Bahasa Indonesia",
     language_ar: "العربية",
+    landing_hero_badge: "🎧 Ändere dein Leben nicht, verbessere dein Englisch",
+    landing_hero_title: "Mach deine Routinen zu Englisch. ",
+    landing_hero_highlight: "Höre Inhalte, die du liebst, auf deinem Niveau.",
+    landing_hero_desc:
+      "YouTube-Videos, Bücher, Podcasts und aktuelle Nachrichten … LingRoot vereinfacht Inhalte zu deinen Lieblingsthemen, liest sie vor und fügt Untertitel hinzu – abgestimmt auf dein Englischniveau. Lerne durchs Zuhören, ohne extra Zeit einzuplanen.",
+    landing_hero_button_try: "Kostenlos testen",
+    landing_hero_button_watch: "So funktioniert es",
+    landing_nav_howItWorks: "Wie funktioniert es?",
+    landing_nav_features: "Funktionen",
+    landing_nav_testimonials: "Erfahrungsberichte",
+    landing_nav_blog: "Blog",
+    landing_nav_login: "Anmelden",
+    landing_nav_signup: "Kostenlos registrieren",
+    landing_how_title: "Wie funktioniert LingRoot?",
+    landing_how_desc:
+      "Nur drei einfache Schritte, um Inhalte, die du liebst, auf deinem Englischniveau zu hören.",
+    landing_how_step1_title: "Wähle deinen Inhalt",
+    landing_how_step1_desc:
+      "YouTube-Video, Spotify-Podcast, ein Artikel … füge einfach den Link ein oder lade den Text hoch.",
+    landing_how_step2_title: "Lege dein Niveau fest",
+    landing_how_step2_desc:
+      "Von A1 bis C2 – der Inhalt wird automatisch in verständliches Englisch für dich umgewandelt.",
+    landing_how_step3_title: "Hören und lernen",
+    landing_how_step3_desc:
+      "Die Inhalte werden von der KI vorgelesen, mit Untertiteln versehen und auf dein Niveau angepasst. So lernst du Englisch, während du zuhörst.",
+    landing_demo_title: "Gleicher Inhalt, dein Niveau",
+    landing_demo_desc:
+      "Wähle dein Niveau und sieh, wie sich derselbe Text verändert. Verbessere dein Englisch, indem du auf deinem Level zuhörst.",
+    landing_demo_select: "Wähle dein Niveau und entdecke den Unterschied",
+    landing_demo_original: "Originalinhalt (C2)",
+    landing_demo_your: "Dein Niveau",
+    landing_demo_try: "Probiere deinen eigenen Inhalt",
+    landing_demo_level0:
+      "LingRoot macht aus deinen Lieblingsinhalten einfaches Englisch. Du kannst auf deinem Niveau zuhören und verstehen.",
+    landing_demo_level1:
+      "LingRoot passt deine Lieblingsinhalte an dein Englischniveau an und liest sie dir vor – so lernst du leichter beim Zuhören.",
+    landing_demo_level2:
+      "LingRoot wandelt die Inhalte, die du auswählst, in dein Englischniveau um und liest sie dir natürlich vor, damit du Lernen und Zuhören verbinden kannst.",
+    landing_demo_level3:
+      "LingRoot passt Inhalte, die du magst, an dein Englischniveau an und vertont sie neu, sodass du spannende Themen leichter verfolgen und verstehen kannst.",
+    landing_demo_level4:
+      "LingRoot personalisiert deine Lieblingsinhalte und vertont sie entsprechend deiner Englischkenntnisse, damit du dich natürlich weiterentwickelst, während du dich mit interessanten Themen beschäftigst.",
+    landing_demo_level5:
+      "LingRoot verwandelt jeden von dir gewählten Inhalt in professionell vertontes Englisch, das genau zu deinem Niveau passt – so werden auch komplexe Informationen gut zugänglich.",
+    landing_demo_original_desc:
+      "LingRoot personalisiert und vertont deine Lieblingsinhalte entsprechend deiner Englischkenntnisse, sodass du dich natürlich weiterentwickelst, während du dich mit spannenden Themen beschäftigst.",
+    landing_routine_title: "Deine tägliche Routine = deine Englischstunde",
+    landing_routine_desc:
+      "Du brauchst keine zusätzliche Zeit – lerne Englisch, während du sowieso deine täglichen Dinge machst.",
+    landing_routine_act1_title: "Beim Spazierengehen",
+    landing_routine_act1_desc: "Höre deine Lieblingspodcasts auf deinem Niveau.",
+    landing_routine_act2_title: "Beim Training",
+    landing_routine_act2_desc:
+      "Höre motivierende Videos in einem Englisch, das zu dir passt.",
+    landing_routine_act3_title: "Beim Autofahren",
+    landing_routine_act3_desc:
+      "Nutze Staus, um Inhalte zu hören, die du magst.",
+    landing_routine_act4_title: "Bei der Hausarbeit",
+    landing_routine_act4_desc:
+      "Lerne weiter, während du putzt oder kochst.",
+    landing_routine_button: "Inhalt an mein Niveau anpassen",
+    landing_features_title: "Warum LingRoot?",
+    landing_features_desc:
+      "LingRoot macht das Englischlernen realistischer, persönlicher und besser mit deinem Alltag vereinbar.",
+    landing_features_item1_title: "Echte Inhalte",
+    landing_features_item1_desc:
+      "Lerne mit Videos und Artikeln aus dem echten Leben statt nur mit Lehrbüchern.",
+    landing_features_item2_title: "Personalisierte Erfahrung",
+    landing_features_item2_desc:
+      "Inhalte, die speziell auf dein Niveau und deine Interessen abgestimmt sind.",
+    landing_features_item3_title: "Nur durchs Zuhören lernen",
+    landing_features_item3_desc:
+      "Passives Lernen mit hochwertiger Vertonung, Untertiteln und Wiederholungsfunktionen.",
+    landing_features_item4_title: "Keine zusätzliche Zeit nötig",
+    landing_features_item4_desc:
+      "Lerne Englisch innerhalb deiner täglichen Routine, ohne extra Aufwand.",
+    landing_testimonials_title: "Was unsere Nutzer sagen",
+    landing_testimonials_desc:
+      "Erfahrungsberichte von Nutzerinnen und Nutzern, die mit LingRoot Englisch lernen.",
+    landing_testimonials_user1_quote:
+      "Dank LingRoot habe ich keine Angst mehr vor englischen Videos. Dasselbe Material auf A2- und B1-Niveau zu hören, motiviert enorm.",
+    landing_testimonials_user1_level: "Nutzer auf B1-Niveau",
+    landing_testimonials_user2_quote:
+      "Ich merke, dass ich nur durchs Zuhören lerne. Die Inhalte, die ich mir sowieso täglich ansehe, helfen jetzt meinem Englisch.",
+    landing_testimonials_user2_level: "Nutzer auf A2-Niveau",
+    landing_testimonials_user3_quote:
+      "Die Podcasts auf meinem morgendlichen Lauf sind jetzt mein Englischlehrer. Ich mache jeden Tag Fortschritte, ohne extra Zeit einzuplanen.",
+    landing_testimonials_user3_level: "Nutzer auf B2-Niveau",
+    landing_testimonials_user4_quote:
+      "Ich habe viele Apps ausprobiert, aber keine war so effektiv wie LingRoot. Mit Inhalten zu lernen, die ich mag, macht viel mehr Spaß.",
+    landing_testimonials_user4_level: "Nutzer auf A1-Niveau",
+    landing_testimonials_user5_quote:
+      "Obwohl ich fortgeschritten bin, lerne ich mit LingRoot weiter neue Wörter. Besonders akademische Inhalte auf meinem Niveau sind sehr hilfreich.",
+    landing_testimonials_user5_level: "Nutzer auf C1-Niveau",
+    landing_trynow_title: "Starte einfach, indem du einen Link teilst",
+    landing_trynow_placeholder: "Füge einen YouTube-, Spotify- oder anderen Inhaltslink ein...",
+    landing_trynow_button: "Jetzt ausprobieren",
+    landing_trynow_desc:
+      "Wähle dein Niveau und beginne sofort, Inhalte zu hören. Die Registrierung dauert nur 1 Minute.",
+    landing_cta_title:
+      "Ändere dein Leben nicht, um Englisch zu lernen. Hör einfach weiter zu.",
+    landing_cta_desc:
+      "Die Inhalte, die du ohnehin täglich hörst, sind jetzt dein Englischlehrer. Lerne, indem du Dinge hörst, die du liebst – ohne extra Zeit.",
+    landing_cta_button: "Jetzt starten – kostenlos und sofort",
+    landing_cta_benefit1: "In 1 Minute registrieren",
+    landing_cta_benefit2: "Keine Kreditkarte erforderlich",
+    landing_cta_benefit3: "Sofort loslegen",
     topics_tree_title: 'Mein Themenbaum',
     topics_tree_description:
       'Erstelle deine Hauptthemen, erhalte Unterthemen-Vorschläge von der KI und generiere Audio-Inhalte auf jedem Niveau.',
