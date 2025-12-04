@@ -147,19 +147,28 @@ const data = await api.post('/tts/process-text', payload);
 
 ## Internationalization
 
-The `i18n.ts` file (236KB) contains translations for:
-- Turkish (primary)
-- English
-- German
-- French
-- Spanish
+The `i18n.ts` file (~236KB) contains the main translation dictionary and helper hooks.
+
+- **Locales (type `Locale`):** `tr`, `en`, `de`, `fr`, `es`, `pt`, `hi`, `id`, `ar`
+- **UI supported locales (`supportedLocales`):** `['tr', 'en', 'de', 'ar']`
+- **RTL locales:** currently `['ar']` (handled via `RTLProvider` + global RTL CSS)
+
+Frontend components use the following API:
 
 ```typescript
-import { t } from '@/lib/i18n';
+import { useTranslation, useLanguage } from '@/lib/i18n';
 
-// Usage
-const label = t('common.submit', locale);
+const { t } = useTranslation();
+const { currentLocale, changeLanguage, supportedLocales } = useLanguage();
 ```
+
+Each locale dictionary is a flat key–value map (e.g. `welcome_audio_generate_button`, `profile_welcome`, `landing_how_step1_title`, ...).
+
+**Process rule:** When adding or changing any user-facing UI text, you **must** update the translation entries for all UI locales in `supportedLocales` (currently `['tr','en','de','ar']`) in the same change.
+
+For a step‑by‑step guide on adding a **new language**, see:
+
+- `docs/codebase/hooks-utils.md` → **Internationalization (`lib/i18n.ts`) – Yeni Dil Ekleme (Frontend Checklist)**
 
 ## Styling
 

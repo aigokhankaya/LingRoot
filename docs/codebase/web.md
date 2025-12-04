@@ -293,26 +293,51 @@ export function cn(...inputs: ClassValue[]) {
 
 ## Internationalization
 
+The web app uses a custom i18n utility in `lib/i18n.ts`.
+
+- **Locales (`Locale` union):** `tr`, `en`, `de`, `fr`, `es`, `pt`, `hi`, `id`, `ar`
+- **User-selectable locales (`supportedLocales`):** `['tr', 'en', 'de', 'ar']`
+- **RTL locales:** `['ar']` (handled via `RTLProvider` + `globals.css` RTL rules)
+
 ```typescript
-// lib/i18n.ts (236KB)
-const translations = {
-  tr: {
-    common: {
-      submit: 'Gönder',
-      cancel: 'İptal',
-      // ... 5000+ keys
-    }
-  },
-  en: {...},
-  de: {...},
-  fr: {...},
-  es: {...}
+// lib/i18n.ts (≈236KB, truncated for brevity)
+export type Locale = 'tr' | 'en' | 'de' | 'fr' | 'es' | 'pt' | 'hi' | 'id' | 'ar';
+
+export const translations: Translations = {
+  tr: { /* ... */ },
+  en: { /* ... */ },
+  de: { /* ... */ },
+  fr: { /* ... */ },
+  es: { /* ... */ },
+  pt: { /* ... */ },
+  hi: { /* ... */ },
+  id: { /* ... */ },
+  ar: arTranslations
 };
 
-export function t(key: string, locale: string): string {
-  return get(translations[locale], key) || key;
-}
+export const supportedLocales: Locale[] = ['tr', 'en', 'de', 'ar'];
+
+export const useLanguage = () => {
+  const currentLocale = getCurrentLanguage();
+  const changeLanguage = (locale: Locale) => { /* persist + reload */ };
+  return { currentLocale, changeLanguage, supportedLocales };
+};
+
+export const useTranslation = (localeOverride?: Locale) => {
+  const { t, currentLocale } = getTranslation(localeOverride ?? getCurrentLanguage());
+  return { t, currentLocale };
+};
+
+// Example usage in components
+const { t } = useTranslation();
+const { currentLocale, changeLanguage } = useLanguage();
 ```
+
+**Process rule:** Whenever you add or change any **user-facing text** in the web UI, you **must** update the translation dictionaries for **all UI locales** in `supportedLocales` (currently `tr`, `en`, `de`, `ar`) in the same change.
+
+For a detailed **"Yeni Dil Ekleme"** checklist, see:
+
+- `docs/codebase/hooks-utils.md` → Internationalization (`lib/i18n.ts`).
 
 ## Performance Optimizations
 

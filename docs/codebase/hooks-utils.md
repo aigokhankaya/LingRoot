@@ -99,69 +99,135 @@ function Component() {
 
 ### Internationalization (`lib/i18n.ts`)
 
-**Size:** 236KB  
-**Purpose:** Multi-language support
+**Size:** ~236KB  
+**Purpose:** UI çevirileri, dil seçimi ve RTL yönetimi
+
+#### Temel Yapı
 
 ```typescript
-// Supported languages
-type Locale = 'tr' | 'en' | 'de' | 'fr' | 'es';
+// Desteklenen locale tipi
+export type Locale = 'tr' | 'en' | 'de' | 'fr' | 'es' | 'pt' | 'hi' | 'id' | 'ar';
 
-// Translation function
-function t(key: string, locale: Locale = 'tr'): string {
-  return translations[locale]?.[key] || key;
-}
+// Aktif UI dilleri (header / selector vs.)
+export const supportedLocales: Locale[] = ['tr', 'en', 'de', 'ar'];
 
-// Usage
-const label = t('common.submit', 'en'); // "Submit"
-const label = t('common.submit', 'tr'); // "Gönder"
+// RTL diller
+export const rtlLocales: Locale[] = ['ar'];
+export const isRTL = (locale: Locale) => rtlLocales.includes(locale);
 
-// With interpolation
-function t(key: string, params: Record<string, string>, locale: Locale) {
-  let text = translations[locale][key];
-  Object.entries(params).forEach(([k, v]) => {
-    text = text.replace(`{${k}}`, v);
-  });
-  return text;
-}
-
-// Usage
-t('greeting.hello', { name: 'John' }, 'en'); // "Hello, John!"
-```
-
-#### Translation Structure
-
-```typescript
-const translations = {
-  tr: {
-    common: {
-      submit: 'Gönder',
-      cancel: 'İptal',
-      save: 'Kaydet',
-      delete: 'Sil',
-      loading: 'Yükleniyor...',
-      error: 'Hata',
-      success: 'Başarılı'
-    },
-    auth: {
-      login: 'Giriş Yap',
-      register: 'Kayıt Ol',
-      logout: 'Çıkış Yap',
-      email: 'E-posta',
-      password: 'Şifre'
-    },
-    chat: {
-      newChat: 'Yeni Sohbet',
-      sendMessage: 'Mesaj Gönder',
-      typing: 'Yazıyor...'
-    },
-    // ... 5000+ keys
-  },
-  en: { ... },
-  de: { ... },
-  fr: { ... },
-  es: { ... }
+// Ana sözlük (özet)
+export const translations: Translations = {
+  tr: { /* ... */ },
+  en: { /* ... */ },
+  de: { /* ... */ },
+  fr: { /* ... */ },
+  es: { /* ... */ },
+  pt: { /* ... */ },
+  hi: { /* ... */ },
+  id: { /* ... */ },
+  ar: arTranslations
 };
+
+// Dil durumu & değişimi
+export const useLanguage = () => {
+  const currentLocale = getCurrentLanguage();
+  const changeLanguage = (locale: Locale) => {
+    if (!supportedLocales.includes(locale)) return;
+    setStoredLanguage(locale);             // localStorage
+    if (typeof window !== 'undefined') {
+      window.location.reload();            // tüm UI'yi yeni dile geçir
+    }
+  };
+  return { currentLocale, changeLanguage, supportedLocales };
+};
+
+// Çeviri erişimi
+export const useTranslation = (localeOverride?: Locale) => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const effectiveLocale = localeOverride || (mounted ? getCurrentLanguage() : defaultLocale);
+  const { t, currentLocale } = getTranslation(effectiveLocale);
+  const memoizedT = useCallback(t, [currentLocale]);
+  return { t: memoizedT, currentLocale };
+};
+
+// Kullanım
+const { t } = useTranslation();
+const { currentLocale, changeLanguage, supportedLocales } = useLanguage();
 ```
+
+> **Not:** `RTLProvider` bileşeni, `currentLocale` değerine göre `document.documentElement.dir` ve `body` class’larını (`rtl` / `ltr`) otomatik yönetir.
+
+#### Yeni Dil Ekleme (Frontend Checklist)
+
+Yeni bir locale (ör. `it`) eklerken aşağıdaki adımlar **eksiksiz** uygulanmalıdır:
+
+1. **Locale tipini güncelle**  
+   - `frontend/src/lib/i18n.ts` içinde `Locale` tipine yeni kodu ekle:  
+     `export type Locale = 'tr' | 'en' | ... | 'ar' | 'it';`
+
+2. **Çeviri sözlüğünü ekle**  
+   - Tercihen `frontend/src/lib/translations/it.ts` benzeri bir dosya oluştur (`arTranslations` yapısına paralel).  
+   - En azından şu gruplar doldurulmalı:
+     - Genel UI: login/register/header/footer
+     - Landing & welcome: `landing_*`, `welcome_*`
+     - Dashboard & profile: `dashboard_*`, `profile_*`
+     - Settings & content-selection: `settings_*`, `content_selection_*`
+
+3. **Ana sözlüğe bağla**  
+   - `i18n.ts` başında yeni dosyayı import et:  
+     `import { itTranslations } from './translations/it';`
+   - `translations` objesine ekle:  
+     `it: itTranslations,`
+
+4. **Dil isimlerini ekle**  
+   - Tüm mevcut dillerde (özellikle `tr`, `en`, `ar`) şu anahtarı ekle:  
+     `language_it: 'Italiano'`  
+   - Böylece `LanguageSelector` bileşenleri `t('language_it')` ile doğru etiketi gösterebilir.
+
+5. **Kullanıcıya açılacak mı?**  
+   - UI’de seçilebilir olmasını istiyorsan `supportedLocales` dizisine ekle:  
+     `export const supportedLocales: Locale[] = ['tr', 'en', 'ar', 'it'];`
+   - Sadece arka planda (ör. TTS / çeviri) kullanılacaksa `supportedLocales`’a ekleme.
+
+6. **RTL gereksinimini belirle**  
+   - Dil sağdan sola ise (ör. Farsça, Urduca):
+     - `rtlLocales` dizisine ekle (örn. `['ar', 'fa']`).
+     - Gerekirse `globals.css` içinde ek RTL class’ları tanımla.
+
+7. **Hard-coded alanları ve özel bölümleri gözden geçir**  
+   Aşağıdaki yerlerde genellikle el ile liste/metin tutuluyor; yeni dili buraya da ekle:
+   - `pages/index.tsx` → header dil seçimi / butonlar
+   - `pages/profile.tsx` → profil hero & istatistik alanları (`profile_*`, `content_selection_*`)
+   - `pages/terms.tsx` → kullanım şartları / legal doküman metinleri (`terms_*`, `legal_documents`)
+   - `pages/settings.tsx` → interface & native language dropdown’ları
+   - `components/shared/ProfileDropdownMenu.tsx` → `profile_menu_*` (profil menüsü maddeleri)
+   - **Topic hierarchy** bileşenleri:  
+     - `TopicHierarchySection`, `TopicTree` → `topics_*`, `topics_input_*` metinleri (welcome & dashboard)  
+     - `TopicNode` → `topics_node_*` rozetler, durum etiketleri ve aksiyon butonları  
+     - `SubtopicModal` → `topics_subtopic_modal_*` başlıklar, açıklamalar, butonlar  
+     - `ManualSubtopicModal` → `topics_manual_modal_*` başlıklar, placeholder'lar, butonlar
+   - Herhangi başka bir `select` / buton içinde `tr`, `en` sabit yazılmış yerler
+
+8. **Test & doğrulama**  
+   - `npx tsc --noEmit` (TypeScript hatası olmamalı)
+   - `npm run dev` ile şu sayfaları yeni locale ile tek tek kontrol et:
+     - `/` (landing)
+     - `/welcome`
+     - `/dashboard`, `/profile`, `/settings`, `/content-selection`
+   - UI’de **hiçbir yerde** ham key (`welcome_...`, `profile_...`) görünmemeli.
+
+9. **Yeni UI metni ekleme kuralı (zorunlu)**  
+   - Frontend’de yeni bir kullanıcıya dönük metin eklediğinde veya mevcut bir metni değiştirdiğinde:  
+     - En az tüm **UI dilleri** için (şu an: `supportedLocales = ['tr','en','de','ar']`) karşılıklarını ekle/güncelle.  
+     - Yani aynı PR’da/commit’te: 
+       - `tr` ve `en` sözlükleri (`i18n.ts`)  
+       - `de` sözlüğü (`i18n.ts` içi Almanca blok)  
+       - `ar` sözlüğü (`lib/translations/ar.ts`)  
+       güncel olmalı.  
+   - Sadece Türkçe metin ekleyip diğer dilleri boş bırakmak **kabul edilmez**; bu durum üretimde yarım çeviri (TR/EN/DE/AR karışık) görünmesine neden olur.
+
+Bu checklist, gelecekte eklenecek tüm diller için (ör. İtalyanca, Rusça vb.) referans olarak kullanılmalıdır.
 
 ---
 

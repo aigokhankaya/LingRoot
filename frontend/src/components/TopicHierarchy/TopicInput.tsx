@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card, CardContent } from '../ui/card';
+import { useTranslation } from '../../lib/i18n';
 
 interface TopicInputProps {
   onCreateTopic: (title: string, description?: string) => Promise<void>;
@@ -16,6 +17,7 @@ const TopicInput: React.FC<TopicInputProps> = ({
   isLoading,
   level
 }) => {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [showDescription, setShowDescription] = useState(false);
@@ -41,19 +43,19 @@ const TopicInput: React.FC<TopicInputProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              📚 Ana Konu Başlığı
+              📚 {t('topics_input_title_label')}
             </label>
             <Input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Örn: Osmanlı Devleti, Bilim Tarihi, Sanat Akımları..."
+              placeholder={t('topics_input_title_placeholder')}
               className="text-base"
               disabled={isLoading}
               maxLength={200}
             />
             <p className="text-xs text-gray-500 mt-1">
-              Bir ana konu girin ve sistem size alt konular önerecek
+              {t('topics_input_title_helper')}
             </p>
           </div>
 
@@ -61,12 +63,12 @@ const TopicInput: React.FC<TopicInputProps> = ({
           {showDescription ? (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                📝 Açıklama (İsteğe Bağlı)
+                📝 {t('topics_input_desc_label')}
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Konu hakkında kısa bir açıklama yazabilirsiniz..."
+                placeholder={t('topics_input_desc_placeholder')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
                 rows={3}
                 disabled={isLoading}
@@ -81,7 +83,7 @@ const TopicInput: React.FC<TopicInputProps> = ({
                   }}
                   className="text-xs text-gray-500 hover:text-gray-700"
                 >
-                  Açıklamayı kaldır
+                  {t('topics_input_desc_remove')}
                 </button>
                 <span className="text-xs text-gray-500">
                   {description.length}/500
@@ -96,7 +98,7 @@ const TopicInput: React.FC<TopicInputProps> = ({
               disabled={isLoading}
             >
               <i className="fas fa-plus-circle"></i>
-              <span>Açıklama ekle</span>
+              <span>{t('topics_input_desc_add')}</span>
             </button>
           )}
 
@@ -104,11 +106,11 @@ const TopicInput: React.FC<TopicInputProps> = ({
           <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <i className="fas fa-layer-group"></i>
-              <span>Seviye:</span>
+              <span>{t('topics_input_level_label')}:</span>
               <span className="font-semibold text-primary">{level.toUpperCase()}</span>
             </div>
             <div className="text-xs text-gray-500">
-              Alt konular bu seviyede oluşturulacak
+              {t('topics_input_level_hint')}
             </div>
           </div>
 
@@ -121,12 +123,12 @@ const TopicInput: React.FC<TopicInputProps> = ({
             {isLoading ? (
               <>
                 <i className="fas fa-spinner fa-spin mr-2"></i>
-                Oluşturuluyor...
+                {t('topics_input_submit_loading')}
               </>
             ) : (
               <>
                 <i className="fas fa-plus-circle mr-2"></i>
-                Ana Konu Oluştur
+                {t('topics_input_submit_button')}
               </>
             )}
           </Button>

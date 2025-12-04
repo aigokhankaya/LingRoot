@@ -210,7 +210,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           const settings: any = await getUserSettings();
           const rawSettings = (settings && settings.settings) || {};
           const lang = rawSettings.interface_language || rawSettings.interfaceLanguage;
-          if (lang === 'tr' || lang === 'en') {
+          if (lang === 'tr' || lang === 'en' || lang === 'de' || lang === 'ar') {
             const { setStoredLanguage } = await import('./i18n');
             setStoredLanguage(lang as any);
             try {
@@ -356,7 +356,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           const settings: any = await getUserSettings();
           const rawSettings = (settings && settings.settings) || {};
           const lang = rawSettings.interface_language || rawSettings.interfaceLanguage;
-          if (lang === 'tr' || lang === 'en') {
+          if (lang === 'tr' || lang === 'en' || lang === 'de' || lang === 'ar') {
             const { setStoredLanguage } = await import('./i18n');
             setStoredLanguage(lang as any);
             try {

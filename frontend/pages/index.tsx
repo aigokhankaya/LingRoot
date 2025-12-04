@@ -7,7 +7,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../src/lib/auth';
 import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
-import { useTranslation, useLanguage } from '../src/lib/i18n';
+import { useTranslation, useLanguage, Locale } from '../src/lib/i18n';
 
 // shadcn/ui ve diğer kütüphane importları
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ import { initializeGoogleAuth, signInWithGoogle } from "../src/lib/googleAuth";
 const App: React.FC = () => {
 
     const { t, currentLocale } = useTranslation();
-    const { changeLanguage } = useLanguage();
+    const { changeLanguage, supportedLocales } = useLanguage();
     const language = currentLocale;
     
     // --- YENİ TASARIMDAN GELEN STATE'LER ---
@@ -266,13 +266,17 @@ const App: React.FC = () => {
                     
                     {/* Desktop Buttons */}
                     <div className="hidden md:flex items-center space-x-4">
-                        <Button
-                            variant="ghost"
-                            className="!rounded-button whitespace-nowrap"
-                            onClick={() => changeLanguage(language === 'tr' ? 'en' : 'tr')}
+                        <select
+                            value={language}
+                            onChange={(e) => changeLanguage(e.target.value as Locale)}
+                            className="appearance-none bg-transparent px-3 py-2 text-gray-600 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                         >
-                            {language === 'tr' ? 'EN' : 'TR'}
-                        </Button>
+                            {supportedLocales.map((locale: Locale) => (
+                                <option key={locale} value={locale}>
+                                    {t(`language_${locale}`)}
+                                </option>
+                            ))}
+                        </select>
                         
                         {/* GİRİŞ YAP MODALI */}
                         <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
@@ -379,13 +383,17 @@ const App: React.FC = () => {
           
                     {/* Mobile Menu Button */}
                     <div className="md:hidden flex items-center space-x-2">
-                        <Button
-                            variant="ghost"
-                            className="p-2 text-xs"
-                            onClick={() => changeLanguage(language === 'tr' ? 'en' : 'tr')}
+                        <select
+                            value={language}
+                            onChange={(e) => changeLanguage(e.target.value as Locale)}
+                            className="appearance-none bg-transparent px-2 py-1 text-gray-600 border border-gray-200 rounded-lg cursor-pointer text-xs"
                         >
-                            {language === 'tr' ? 'EN' : 'TR'}
-                        </Button>
+                            {supportedLocales.map((locale: Locale) => (
+                                <option key={locale} value={locale}>
+                                    {locale.toUpperCase()}
+                                </option>
+                            ))}
+                        </select>
                         <Button 
                             variant="ghost" 
                             className="p-2" 

@@ -27,7 +27,7 @@ export default function Profile() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
-  const [interfaceLanguage, setInterfaceLanguage] = useState<'tr' | 'en'>('tr');
+  const [interfaceLanguage, setInterfaceLanguage] = useState<'tr' | 'en' | 'de' | 'ar'>('tr');
   const [defaultLevel, setDefaultLevel] = useState<'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'>('B1');
   const [loginTotal, setLoginTotal] = useState(0);
   const [lastLogin, setLastLogin] = useState<string | null>(null);
@@ -105,7 +105,13 @@ export default function Profile() {
         setFirstName(localStorage.getItem('lingroot_firstName') || '');
         setLastName(localStorage.getItem('lingroot_lastName') || '');
         setPhone(localStorage.getItem('lingroot_phone') || '');
-        setInterfaceLanguage((localStorage.getItem('lingroot_interfaceLanguage') as 'tr' | 'en') || 'tr');
+        const storedInterfaceLang = localStorage.getItem('lingroot_interfaceLanguage') as string | null;
+        const rawLang = (storedInterfaceLang || 'tr') as string;
+        if (rawLang === 'tr' || rawLang === 'en' || rawLang === 'de' || rawLang === 'ar') {
+          setInterfaceLanguage(rawLang);
+        } else {
+          setInterfaceLanguage('tr');
+        }
         setDefaultLevel((localStorage.getItem('lingroot_defaultLevel') as any) || 'B1');
       }
     } catch {}
@@ -133,7 +139,7 @@ export default function Profile() {
 
   const handleLocaleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value || 'tr-TR';
-    const langCode = value.split('-')[0] as 'tr' | 'en';
+    const langCode = value.split('-')[0] as 'tr' | 'en' | 'de' | 'ar';
     
     setLocale(value);
     setInterfaceLanguage(langCode);
@@ -264,6 +270,8 @@ export default function Profile() {
               >
                 <option value="tr-TR">Türkçe (TR)</option>
                 <option value="en-US">English (US)</option>
+                <option value="de-DE">Deutsch (DE)</option>
+                <option value="ar-AE">العربية (AE)</option>
               </select>
             </div>
           </div>
@@ -364,7 +372,19 @@ export default function Profile() {
                 <div className="bg-white rounded-xl p-4 shadow-sm">
                   <div className="text-xs uppercase text-gray-500 font-semibold mb-1">{t('profile_interface_language_label')}</div>
                   <div className="text-base font-semibold text-gray-900">
-                    {interfaceLanguage === 'en' ? t('language_english') : t('language_turkish')}
+                    {(() => {
+                      const key =
+                        interfaceLanguage === 'tr'
+                          ? 'language_tr'
+                          : interfaceLanguage === 'en'
+                          ? 'language_en'
+                          : interfaceLanguage === 'de'
+                          ? 'language_de'
+                          : interfaceLanguage === 'ar'
+                          ? 'language_ar'
+                          : 'language_en';
+                      return t(key);
+                    })()}
                   </div>
                 </div>
                 <div className="bg-white rounded-xl p-4 shadow-sm">

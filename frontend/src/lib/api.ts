@@ -860,7 +860,7 @@ export const saveDefaultVoice = async (voice: string): Promise<void> => {
   }
 };
 
-export const saveInterfaceLanguage = async (language: 'tr' | 'en'): Promise<void> => {
+export const saveInterfaceLanguage = async (language: 'tr' | 'en' | 'de' | 'ar'): Promise<void> => {
   const url = getApiUrl('/user-settings/interface-language');
   const headers = createHeaders('application/json');
   const res = await fetch(url, {

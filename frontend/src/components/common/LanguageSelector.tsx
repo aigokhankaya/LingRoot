@@ -1,15 +1,17 @@
+'use client';
+
 import React from 'react';
-import { useTranslation, useLanguage } from '@/lib/i18n';
+import { useTranslation, useLanguage, Locale } from '@/lib/i18n';
 
 const LanguageSelector: React.FC = () => {
   const { t } = useTranslation();
   const { currentLocale, changeLanguage, supportedLocales } = useLanguage();
 
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-block" dir="ltr">
       <select
         value={currentLocale}
-        onChange={e => changeLanguage(e.target.value as any)}
+        onChange={e => changeLanguage(e.target.value as Locale)}
         className="appearance-none bg-white border border-gray-300 rounded-lg py-2 pl-3 pr-8 text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
       >
         {supportedLocales.map(locale => (

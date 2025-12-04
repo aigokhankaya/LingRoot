@@ -28,7 +28,7 @@ export default function Settings() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [interfaceLanguage, setInterfaceLanguage] = useState<'tr'|'en'>('tr');
+  const [interfaceLanguage, setInterfaceLanguage] = useState<'tr'|'en'|'de'|'ar'>('tr');
   const [nativeLanguage, setNativeLanguage] = useState('tr-TR');
   const [defaultLevel, setDefaultLevel] = useState<'A1'|'A2'|'B1'|'B2'|'C1'|'C2'>('B1');
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
@@ -61,9 +61,14 @@ export default function Settings() {
       setFirstName(localStorage.getItem('lingroot_firstName') || '');
       setLastName(localStorage.getItem('lingroot_lastName') || '');
       setPhone(localStorage.getItem('lingroot_phone') || '');
-      const storedInterfaceLang = localStorage.getItem('lingroot_interfaceLanguage') as any;
-      const storedGlobalLang = localStorage.getItem('lingroot_language') as any;
-      setInterfaceLanguage((storedInterfaceLang || storedGlobalLang || 'tr') as 'tr' | 'en');
+      const storedInterfaceLang = localStorage.getItem('lingroot_interfaceLanguage') as string | null;
+      const storedGlobalLang = localStorage.getItem('lingroot_language') as string | null;
+      const rawLang = (storedInterfaceLang || storedGlobalLang || 'tr') as string;
+      if (rawLang === 'tr' || rawLang === 'en' || rawLang === 'de' || rawLang === 'ar') {
+        setInterfaceLanguage(rawLang);
+      } else {
+        setInterfaceLanguage('tr');
+      }
       setNativeLanguage(localStorage.getItem('lingroot_locale') || 'tr-TR');
       setDefaultLevel((localStorage.getItem('lingroot_defaultLevel') as any) || 'B1');
       setPlaybackSpeed(parseFloat(localStorage.getItem('lingroot_playbackSpeed') || '1.0'));
@@ -291,10 +296,12 @@ export default function Settings() {
                   <div className="space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2"><FaGlobe className="inline mr-2"/>{t('settings_interface_language_label')}</label>
-                      <select value={interfaceLanguage} onChange={(e) => setInterfaceLanguage(e.target.value as 'tr'|'en')}
+                      <select value={interfaceLanguage} onChange={(e) => setInterfaceLanguage(e.target.value as 'tr'|'en'|'de'|'ar')}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary">
                         <option value="tr">{t('language_tr')}</option>
                         <option value="en">{t('language_en')}</option>
+                        <option value="de">{t('language_de')}</option>
+                        <option value="ar">{t('language_ar')}</option>
                       </select>
                     </div>
                     <div>
@@ -303,6 +310,7 @@ export default function Settings() {
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary">
                         <option value="tr-TR">Türkçe (TR)</option>
                         <option value="en-US">English (US)</option>
+                        <option value="ar-AE">العربية (AE)</option>
                       </select>
                     </div>
                   </div>
