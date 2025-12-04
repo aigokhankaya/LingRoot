@@ -10,17 +10,17 @@
 
 | Category | Documents | Validated | Needs Review |
 |----------|-----------|-----------|--------------|
-| Architecture | 5 | 5 | 0 |
-| Codebase | 3 | 3 | 0 |
-| API | 2 | 2 | 0 |
-| Prompts | 2 | 2 | 0 |
-| DevOps | 2 | 2 | 0 |
-| Database | 1 | 1 | 0 |
-| Testing | 2 | 2 | 0 |
-| Integrations | 4 | 4 | 0 |
+| Architecture | 6 | 6 | 0 |
+| Codebase | 4 | 4 | 0 |
+| API | 3 | 3 | 0 |
+| Prompts | 7 | 7 | 0 |
+| DevOps | 4 | 4 | 0 |
+| Database | 2 | 2 | 0 |
+| Testing | 3 | 3 | 0 |
+| Integrations | 6 | 6 | 0 |
 | UI | 2 | 2 | 0 |
-| Review | 2 | 2 | - |
-| **Total** | **25** | **25** | **0** |
+| Review | 4 | 4 | - |
+| **Total** | **41** | **41** | **0** |
 
 ---
 
@@ -35,6 +35,7 @@
 | `admin-structure.md` | ✅ Valid | Routes match code |
 | `api-architecture.md` | ✅ Valid | Middleware stack correct |
 | `ai-pipeline.md` | ✅ Valid | Pipeline flow accurate |
+| `mobile-structure.md` | ✅ Valid | React Native structure documented |
 
 ### ✅ Codebase Documents
 
@@ -43,10 +44,12 @@
 | `web.md` | ✅ Valid | File sizes accurate |
 | `api-services.md` | ✅ Valid | Controller list complete |
 | `hooks-utils.md` | ✅ Valid | Updated to match codebase |
+| `admin.md` | ✅ Valid | Admin panel code structure |
 
 **Resolved Items:**
 - [x] Removed non-existent `useApi` and `useToast` hooks
 - [x] Added documentation for `useWordSync` hook
+- [x] Added admin panel codebase documentation
 
 ### ✅ API Documents
 
@@ -54,12 +57,14 @@
 |----------|--------|-------|
 | `endpoints.md` | ✅ Valid | All routes covered |
 | `errors.md` | ✅ Valid | Error codes match implementation |
+| `request-examples.md` | ✅ Valid | HTTP request/response examples |
 
 **Resolved Items:**
 - [x] Added `/api/vocabulary` endpoints
 - [x] Added `/api/favorites` endpoints
 - [x] Added `/api/topic-suggestions` endpoints
 - [x] Added `/api/patterns` endpoints
+- [x] Added practical request/response examples
 
 ### ✅ Prompt Documents
 
@@ -67,6 +72,11 @@
 |----------|--------|-------|
 | `cefr-conversion.md` | ✅ Valid | Matches prompt files |
 | `liro-assistant.md` | ✅ Valid | System prompts accurate |
+| `translation.md` | ✅ Valid | Translation pipeline documented |
+| `topic-generation.md` | ✅ Valid | Topic generation prompts |
+| `daily-patterns.md` | ✅ Valid | Usage pattern analysis |
+| `tts-ssml.md` | ✅ Valid | SSML generation rules |
+| `subtitles.md` | ✅ Valid | VTT/SRT generation |
 
 ### ✅ DevOps Documents
 
@@ -74,17 +84,21 @@
 |----------|--------|-------|
 | `local-setup.md` | ✅ Valid | Steps verified |
 | `environment-variables.md` | ✅ Valid | All vars listed |
+| `production-deploy.md` | ✅ Valid | Production deployment guide |
+| `scaling-strategy.md` | ✅ Valid | Scaling and capacity planning |
 
 ### ✅ Database Documents
 
 | Document | Status | Notes |
 |----------|--------|-------|
 | `schema-overview.md` | ✅ Valid | Verified against migrations |
+| `erd-diagram.md` | ✅ Valid | Entity relationship overview |
 
 **Resolved Items:**
 - [x] Cross-checked with migration files
 - [x] Corrected `user_vocabulary` table schema
 - [x] Corrected `user_favorites` table schema
+- [x] Added textual ERD diagram
 
 ### ✅ Testing Documents
 
@@ -92,6 +106,7 @@
 |----------|--------|-------|
 | `qa-checklist.md` | ✅ Valid | Comprehensive coverage |
 | `worst-case-scenarios.md` | ✅ Valid | Scenarios realistic |
+| `test-plan.md` | ✅ Valid | E2E and regression test plan |
 
 ### ✅ Integration Documents
 
@@ -101,6 +116,8 @@
 | `google-tts.md` | ✅ Valid | Voice list accurate |
 | `supabase.md` | ✅ Valid | Query patterns correct |
 | `mfa.md` | ✅ Valid | TOTP implementation correct |
+| `cloudflare.md` | ✅ Valid | Tunnel setup documented |
+| `push-notifications.md` | ✅ Valid | iOS/Android push system |
 
 ### ✅ UI Documents
 
@@ -140,8 +157,8 @@
 | MFA | ✅ | ✅ |
 | Vocabulary | ✅ | ⚠️ Partial |
 | Favorites | ✅ | ⚠️ Partial |
-| Daily Patterns | ✅ | ❌ Missing |
-| Push Notifications | ✅ | ❌ Missing |
+| Daily Patterns | ✅ | ✅ Documented |
+| Push Notifications | ✅ | ✅ Documented |
 
 ---
 

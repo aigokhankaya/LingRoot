@@ -25,7 +25,7 @@ Language/Frameworks:
 Web: Next.js (React)
 Admin Panel: React
 Mobil: React Native (Expo)
-Backend: FastAPI / Flask (TTS Worker + Whisper Transcription)
+Backend: Express.js (Node.js) API + ayrı TTS / Whisper worker servisleri
 Edge Workers: Supabase Functions
 Automation: n8n
 AI: OpenAI (GPT-5.1, GPT-4o, GPT-4o-mini), Gemini 2.0 Pro (bazı görevlerde)
