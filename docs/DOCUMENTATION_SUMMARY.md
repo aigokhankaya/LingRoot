@@ -1,8 +1,20 @@
-# LingRoot Full Documentation Package
+# LingRoot Full Documentation Package & Inventory
 
-**Generated:** December 4, 2025  
-**Generator:** Windsurf AI  
+**Generated:** December 5, 2025  
+**Status:** ✅ Complete Inventory  
 **Codebase:** LingRoot (Web + Admin + Backend + Mobile + Pipelines)
+
+---
+
+## 🧠 Project Memory & Rules (CRITICAL)
+
+These files are the single source of truth (SSOT) for the project and take precedence over all other documentation.
+
+| File | Location | Description | Status |
+|------|----------|-------------|--------|
+| `PROJECT_MEMORY.md` | Root | Project vision, architecture rules, prompts, and active laws | ✅ Active |
+| `dokumankuralları.md` | `.windsurf/rules/` | AI Agent rules and documentation standards | ✅ Active |
+| `DOCUMENTATION_AUDIT_REPORT.md` | Root | Audit report of documentation currency and compliance | ✅ Active |
 
 ---
 

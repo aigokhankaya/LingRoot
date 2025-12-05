@@ -34,9 +34,17 @@ LingRoot/
 │   ├── android/          # Android native konfigürasyonu
 │   └── Docs/             # Mobil dokümantasyon
 ├── docs/                 # Proje geneli dokümantasyon
+│   ├── ONBOARDING.md     # 🆕 Yeni geliştiriciler için 5 günlük rehber
+│   ├── templates/        # 🆕 Doküman şablonları
+│   ├── architecture/     # Mimari dokümanlar
+│   ├── api/              # API referansı
+│   ├── testing/          # Test planları
+│   └── database/         # Veritabanı şeması
 ├── analiz/               # Analiz ve raporlar
 └── scripts/              # Global utility scriptleri
 ```
+
+**🚀 Yeni Başlıyorsanız:** [`docs/ONBOARDING.md`](docs/ONBOARDING.md) dosyasını okuyun!
 
 ## Features
 
