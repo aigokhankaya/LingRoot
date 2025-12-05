@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { addWordToVocabulary, addWordWithTranslation } from '../lib/api';
+import { addWordToVocabulary, addWordWithTranslation, lookupVocabularyWord } from '../lib/api';
 
 interface Timepoint {
   timeSeconds: number;
@@ -120,6 +120,7 @@ export default function SyncedTextPlayer({
   const [timingOffset, setTimingOffset] = useState<number>(0); // Metin vurgusu timing offset (saniye)
   const [contextMenu, setContextMenu] = useState<ContextMenu>({ show: false, x: 0, y: 0, word: '', wordIndex: -1 });
   const [isAddingWord, setIsAddingWord] = useState(false);
+  const [isLookingUp, setIsLookingUp] = useState(false);
 
   // VTT dosyasını fetch et ve parse et
   useEffect(() => {
@@ -789,22 +790,101 @@ export default function SyncedTextPlayer({
   };
 
   // Context menu handling
-  const handleWordRightClick = (e: React.MouseEvent, word: string, wordIndex: number) => {
+  const handleWordRightClick = async (e: React.MouseEvent, word: string, wordIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
+
+    const cleanWord = word.replace(/[.,!?;:]/g, '').trim();
+    if (!cleanWord) return;
+
+    // CASE 1: Eğer kelime vocabulary + user_vocabulary'de bu kullanıcı için zaten varsa
+    // doğrudan anlam popup'ı göster ve herhangi bir menü açma
+    try {
+      const result = await lookupVocabularyWord(cleanWord);
+      if (result.found && result.data && result.hasUserWord) {
+        const w = result.data;
+        const messageLines = [
+          `"${w.original_word || w.word}"`,
+          '',
+          `Anlam: ${w.definition || '-'}`,
+          `Seviye: ${(w.level || '').toUpperCase() || '-'}`,
+          `Örnek Cümle: ${w.example_sentence || '-'}`,
+          `Türkçe Örnek: ${w.example_sentence_turkish || '-'}`,
+        ];
+
+        alert(messageLines.join('\n'));
+        return;
+      }
+    } catch (err) {
+      console.error('Error during vocabulary lookup on right click:', err);
+      // Hata durumunda ekleme akışına devam et
+    }
+
+    // CASE 2 & 3: Kelime bu kullanıcı için listede değilse, ekleme öncesi kısa bir onay sor
+    const shouldAdd = window.confirm(
+      `"${cleanWord}" kelimesini kelime listenize eklemek istiyor musunuz?`
+    );
+    if (!shouldAdd) return;
+
+    // handleAddToVocabulary mevcut contextMenu.state'ini kullanıyor, bu yüzden
+    // kelime ve index bilgilerini set edip show:false bırakıyoruz
     setContextMenu({
-      show: true,
+      show: false,
       x: e.clientX,
       y: e.clientY,
-      word: word.replace(/[.,!?;:]/g, ''), // Remove punctuation
+      word: cleanWord,
       wordIndex
     });
+
+    try {
+      await handleAddToVocabulary();
+    } catch (err) {
+      console.error('Error adding word to vocabulary from right click:', err);
+    }
   };
 
   const hideContextMenu = () => {
     setContextMenu({ show: false, x: 0, y: 0, word: '', wordIndex: -1 });
+  };
+
+  // Sadece sözlükteki anlamı/örneği göster - yeni kayıt oluşturmaz
+  const handleShowWordInfo = async () => {
+    if (!contextMenu.word || isLookingUp) return;
+
+    setIsLookingUp(true);
+    try {
+      const lookupWord = contextMenu.word.trim();
+      if (!lookupWord) {
+        return;
+      }
+
+      const result = await lookupVocabularyWord(lookupWord);
+
+      if (!result.found || !result.data) {
+        alert(
+          `"${lookupWord}" kelimesi için henüz sözlük kaydı bulunamadı.\n\n` +
+          'Bu kelimeyi "Kelime Listesine Ekle" seçeneği ile ekleyebilirsiniz.'
+        );
+        return;
+      }
+
+      const w = result.data;
+
+      const messageLines = [
+        `"${w.original_word || w.word}"`,
+        '',
+        `Anlam: ${w.definition || '-'}),`,
+        `Seviye: ${(w.level || '').toUpperCase() || '-'}`,
+        `Örnek Cümle: ${w.example_sentence || '-'}`,
+        `Türkçe Örnek: ${w.example_sentence_turkish || '-'}`,
+      ];
+
+      alert(messageLines.join('\n'));
+    } catch (error: any) {
+      alert('Kelime bilgisi yüklenirken hata oluştu: ' + (error?.message || 'Bilinmeyen hata'));
+    } finally {
+      setIsLookingUp(false);
+    }
   };
 
   const handleAddToVocabulary = async () => {
@@ -975,7 +1055,7 @@ export default function SyncedTextPlayer({
       {/* Context Menu */}
       {contextMenu.show && (
         <div
-          className="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg py-2 min-w-[150px]"
+          className="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg py-2 min-w-[180px]"
           style={{
             left: contextMenu.x,
             top: contextMenu.y,
@@ -985,6 +1065,23 @@ export default function SyncedTextPlayer({
           <div className="px-3 py-1 text-xs text-gray-500 border-b border-gray-200">
             "{contextMenu.word}"
           </div>
+          <button
+            onClick={handleShowWordInfo}
+            disabled={isLookingUp}
+            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLookingUp ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                Yükleniyor...
+              </>
+            ) : (
+              <>
+                <i className="fas fa-book-open mr-2 text-blue-600"></i>
+                Anlamını Göster (Eğer varsa)
+              </>
+            )}
+          </button>
           <button
             onClick={handleAddToVocabulary}
             disabled={isAddingWord}

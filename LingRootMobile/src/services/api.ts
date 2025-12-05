@@ -755,6 +755,20 @@ export const apiService = {
     }
   },
 
+  // Vocabulary lookup - sadece sözlükteki kaydı döndürür, kullanıcıya ekleme yapmaz
+  async lookupVocabularyWord(word: string): Promise<{ success: boolean; found: boolean; data?: any; hasUserWord?: boolean }> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.get('/api/vocabulary/lookup', {
+        params: { word },
+      });
+      return response.data;
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || error?.message || 'Kelime aranırken hata oluştu';
+      throw new Error(msg);
+    }
+  },
+
   // Konu önerileri alma
   async getTopicSuggestions(topic: string, level: string): Promise<any> {
     try {

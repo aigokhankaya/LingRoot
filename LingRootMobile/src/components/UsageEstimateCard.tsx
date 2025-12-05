@@ -49,6 +49,21 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
   const exceeded = !!summary?.isExceeded;
   const isFreeTrialExhausted = !!(summary as any)?.isFreeTrialExhausted;
   const planName = (summary as any)?.plan?.name || (summary as any)?.plantype;
+  const subscription: any = (summary as any)?.subscription;
+  const rawEnd = subscription?.current_period_end || subscription?.enddate || subscription?.endDate;
+  let formattedEnd = '—';
+  if (rawEnd) {
+    try {
+      const localeTag = language === 'tr' ? 'tr-TR' : 'en-US';
+      formattedEnd = new Intl.DateTimeFormat(localeTag, { dateStyle: 'medium' }).format(new Date(rawEnd));
+    } catch (e) {
+      try {
+        formattedEnd = new Date(rawEnd).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US');
+      } catch {
+        formattedEnd = String(rawEnd);
+      }
+    }
+  }
   const isFreeTrialPlan = planName === 'Free Trial';
 
   // Free Trial için özel görünüm
@@ -110,6 +125,25 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
       </View>
 
       {/* Top headline metrics removed per request */}
+
+      <View style={{ marginTop: 4 }}>
+        <View style={styles.row}>
+          <Text style={styles.label}>
+            {language === 'tr' ? 'Paket' : 'Plan'}
+          </Text>
+          <Text style={styles.value}>
+            {planName || '—'}
+          </Text>
+        </View>
+        <View style={styles.row}>
+          <Text style={styles.label}>
+            {language === 'tr' ? 'Geçerlilik' : 'Valid until'}
+          </Text>
+          <Text style={styles.value}>
+            {formattedEnd}
+          </Text>
+        </View>
+      </View>
 
       {/* Paket Fiyat Bilgisi bölümü mobilde kaldırıldı */}
 

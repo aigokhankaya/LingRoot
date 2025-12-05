@@ -1,6 +1,6 @@
 import React, { useState, useCallback, memo, useMemo, useEffect } from 'react';
 import { useWordSync } from '../hooks/useWordSync';
-import { addWordWithTranslation, getApiUrl } from '../lib/api';
+import { addWordWithTranslation, lookupVocabularyWord, getApiUrl } from '../lib/api';
 
 interface Timepoint {
   timeSeconds: number;
@@ -115,7 +115,9 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     show: false, x: 0, y: 0, word: '', wordIndex: -1 
   });
   const [isAddingWord, setIsAddingWord] = useState(false);
+  const [isLookingUp, setIsLookingUp] = useState(false);
   const [hasReportedPlay, setHasReportedPlay] = useState(false);
+  const [wordPopup, setWordPopup] = useState<any | null>(null);
 
   const dialogueLines = useMemo(
     () =>
@@ -213,8 +215,54 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     seek(seekTime);
   };
 
-  // Handle word click
-  const handleWordClick = (wordIndex: number) => {
+  const handleWordVocabularyAction = async (rawWord: string, wordIndex: number) => {
+    const cleanWord = (rawWord || '').replace(/[.,!?;:]/g, '').trim();
+    if (!cleanWord) return;
+
+    console.log('📚 [VOCAB ACTION] Word:', cleanWord, 'index:', wordIndex);
+
+    let result: any = null;
+    try {
+      result = await lookupVocabularyWord(cleanWord);
+    } catch (err) {
+      console.error('Error during vocabulary lookup (NewSyncedTextPlayer):', err);
+    }
+
+    // Context, handleAddToVocabulary için gerekli
+    setContextMenu({
+      show: false,
+      x: 0,
+      y: 0,
+      word: cleanWord,
+      wordIndex
+    });
+
+    if (result && result.found && result.data && result.hasUserWord) {
+      const w = result.data;
+      setWordPopup({
+        mode: 'info',
+        word: cleanWord,
+        data: {
+          original_word: w.original_word,
+          word: w.word,
+          definition: w.definition,
+          example_sentence: w.example_sentence,
+          example_sentence_turkish: w.example_sentence_turkish,
+          level: w.level,
+        },
+      });
+      return;
+    }
+
+    setWordPopup({
+      mode: 'confirm',
+      word: cleanWord,
+      data: result?.data || null,
+    });
+  };
+
+  // Handle word click (artık hem ses konumunu günceller hem de vocabulary aksiyonunu tetikler)
+  const handleWordClick = async (wordIndex: number) => {
     const timestamp = wordTimestamps[wordIndex];
     const clickedWord = textWords[wordIndex];
     
@@ -225,41 +273,60 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
       console.log(`📍 [WEB WORD PRESS] Clicked word from array: "${clickedWord}"`);
       console.log(`📍 [WEB WORD PRESS] Timepoint word: "${timestamp.word}", time=${timestamp.startTime.toFixed(2)}s`);
       
-      // Find "idea" words near clicked word (within 30 words)
-      const nearbyIdeas = wordTimestamps
-        .map((tp, idx) => ({ tp, idx }))
-        .filter(({ tp, idx }) => 
-          tp.word.toLowerCase() === 'idea' && 
-          Math.abs(idx - wordIndex) < 30
-        );
-      
-      if (nearbyIdeas.length > 0) {
-        console.log(`🔍 [WEB DEBUG] Found ${nearbyIdeas.length} "idea" word(s) near index ${wordIndex}:`);
-        nearbyIdeas.forEach(({ tp, idx }) => {
-          console.log(`  - Index ${idx}: time=${tp.startTime.toFixed(2)}s (distance: ${idx - wordIndex})`);
-        });
-      }
-      
       seek(timestamp.startTime);
     }
+
+    // Ardından vocabulary lookup / ekleme akışını çalıştır
+    await handleWordVocabularyAction(clickedWord, wordIndex);
   };
 
-  // Context menu handling
-  const handleWordRightClick = (e: React.MouseEvent, word: string, wordIndex: number) => {
+  // Context menu handling - sadece vocabulary aksiyonunu tetikler
+  const handleWordRightClick = async (e: React.MouseEvent, word: string, wordIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    setContextMenu({
-      show: true,
-      x: e.clientX,
-      y: e.clientY,
-      word: word.replace(/[.,!?;:]/g, ''), // Remove punctuation
-      wordIndex
-    });
+
+    await handleWordVocabularyAction(word, wordIndex);
   };
 
   const hideContextMenu = () => {
     setContextMenu({ show: false, x: 0, y: 0, word: '', wordIndex: -1 });
+  };
+
+  // Sadece global vocabulary tablosundan anlam/örnek göster
+  const handleShowWordInfo = async () => {
+    if (!contextMenu.word || isLookingUp) return;
+
+    setIsLookingUp(true);
+    try {
+      const lookupWord = contextMenu.word.trim();
+      if (!lookupWord) return;
+
+      const result = await lookupVocabularyWord(lookupWord);
+
+      if (!result.found || !result.data) {
+        alert(
+          `"${lookupWord}" kelimesi için henüz sözlük kaydı bulunamadı.\n\n` +
+          'Bu kelimeyi "Kelime Listesine Ekle" seçeneği ile ekleyebilirsiniz.'
+        );
+        return;
+      }
+
+      const w = result.data;
+      const messageLines = [
+        `"${w.original_word || w.word}"`,
+        '',
+        `Anlam: ${w.definition || '-'}`,
+        `Seviye: ${(w.level || '').toUpperCase() || '-'}`,
+        `Örnek Cümle: ${w.example_sentence || '-'}`,
+        `Türkçe Örnek: ${w.example_sentence_turkish || '-'}`,
+      ];
+
+      alert(messageLines.join('\n'));
+    } catch (error: any) {
+      alert('Kelime bilgisi yüklenirken hata oluştu: ' + (error?.message || 'Bilinmeyen hata'));
+    } finally {
+      setIsLookingUp(false);
+    }
   };
 
   // Add word to vocabulary
@@ -754,7 +821,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
           </div>
 
           {/* Download Links - GİZLENDİ */}
-          {/* GIZLENDI - MP3 indir ve VTT indir linklerini de gizle */}
+          {/* GIZLENDİ - MP3 indir ve VTT indir linklerini de gizle */}
         </div>
       )}
 
@@ -766,16 +833,33 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
             onClick={hideContextMenu}
           />
           <div
-            className="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg py-2 min-w-[150px]"
+            className="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg py-2 min-w-[180px]"
             style={{
               left: `${contextMenu.x}px`,
               top: `${contextMenu.y}px`,
             }}
           >
             <button
+              onClick={handleShowWordInfo}
+              disabled={isLookingUp}
+              className="w-full px-4 py-2 text-left hover:bg-blue-50 text-sm text-gray-700 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLookingUp ? (
+                <span className="flex items-center">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500 mr-2"></div>
+                  Yükleniyor...
+                </span>
+              ) : (
+                <span className="flex items-center">
+                  <i className="fas fa-book-open mr-2 text-blue-600"></i>
+                  Anlamını Göster (Eğer varsa)
+                </span>
+              )}
+            </button>
+            <button
               onClick={handleAddToVocabulary}
               disabled={isAddingWord}
-              className="w-full px-4 py-2 text-left hover:bg-gray-100 disabled:opacity-50"
+              className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center disabled:opacity-50"
             >
               {isAddingWord ? (
                 <span className="flex items-center">
@@ -785,7 +869,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
               ) : (
                 <span className="flex items-center">
                   <i className="fas fa-plus-circle mr-2 text-green-600"></i>
-                  Kelime Listesine Ekle
+                  Kelime Listesine Ekle (AI Çeviri)
                 </span>
               )}
             </button>
@@ -793,65 +877,79 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
         </>
       )}
 
-      {/* Pattern Popup Modal */}
-      {selectedPattern && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black bg-opacity-60"
-          onClick={() => setSelectedPattern(null)}
+      {wordPopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+          onClick={() => setWordPopup(null)}
         >
-          <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-5"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="flex justify-between items-center p-5 bg-gray-50 border-b-2 border-gray-200 rounded-t-2xl">
-              <h3 className="text-lg font-bold text-gray-800">{selectedPattern.pattern}</h3>
-              <button
-                onClick={() => setSelectedPattern(null)}
-                className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 text-gray-600 font-semibold"
-              >
-                ✕
-              </button>
+            <div className="mb-3 text-sm text-gray-500">Seçilen kelime</div>
+            <div className="mb-4 text-lg font-semibold text-gray-900">
+              "{wordPopup.data?.original_word || wordPopup.data?.word || wordPopup.word}"
             </div>
 
-            {/* Content */}
-            <div className="p-4 space-y-3">
-              {/* Anlamı - Yellow Card */}
-              <div className="p-4 bg-yellow-50 border-2 border-yellow-400 rounded-xl">
-                <div className="flex items-center mb-2">
-                  <span className="text-base mr-2">🇹🇷</span>
-                  <span className="text-xs font-bold text-gray-700">Anlamı</span>
+            {wordPopup.mode === 'info' ? (
+              <div className="space-y-2 text-sm text-gray-800">
+                <div>
+                  <span className="font-semibold">Anlam: </span>
+                  <span>{wordPopup.data?.definition || '-'}</span>
                 </div>
-                <p className="text-sm text-gray-800 leading-5">{selectedPattern.pattern_tr || '-'}</p>
-              </div>
-
-              {/* Örnek Cümle - Blue Card */}
-              <div className="p-4 bg-primary/5 border-2 border-primary/40 rounded-xl">
-                <div className="flex items-center mb-2">
-                  <span className="text-base mr-2">🇬🇧</span>
-                  <span className="text-xs font-bold text-gray-700">Örnek Cümle</span>
+                <div>
+                  <span className="font-semibold">Seviye: </span>
+                  <span>{(wordPopup.data?.level || '').toUpperCase() || '-'}</span>
                 </div>
-                <p className="text-sm text-gray-800 leading-5">{selectedPattern.example_sentence || '-'}</p>
-              </div>
-
-              {/* Çeviri - Green Card */}
-              <div className="p-4 bg-green-50 border-2 border-green-400 rounded-xl">
-                <div className="flex items-center mb-2">
-                  <span className="text-base mr-2">💬</span>
-                  <span className="text-xs font-bold text-gray-700">Çeviri</span>
+                <div>
+                  <span className="font-semibold">Örnek Cümle: </span>
+                  <span>{wordPopup.data?.example_sentence || '-'}</span>
                 </div>
-                <p className="text-sm text-gray-800 leading-5">{selectedPattern.example_sentence_tr || '-'}</p>
+                <div>
+                  <span className="font-semibold">Türkçe Örnek: </span>
+                  <span>{wordPopup.data?.example_sentence_turkish || '-'}</span>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={() => setWordPopup(null)}
+                    className="px-4 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  >
+                    Kapat
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4 text-sm text-gray-800">
+                <p>
+                  "{wordPopup.word}" kelimesini kelime listenize eklemek istiyor musunuz?
+                </p>
+                <div className="flex justify-end space-x-2">
+                  <button
+                    onClick={() => setWordPopup(null)}
+                    className="px-4 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  >
+                    İptal
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await handleAddToVocabulary();
+                        setWordPopup(null);
+                      } catch (err) {
+                        console.error('Error adding word to vocabulary from popup (NewSyncedTextPlayer):', err);
+                      }
+                    }}
+                    disabled={isAddingWord}
+                    className="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    Kelimeyi Ekle
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
-
-      {/* Usage Instructions - GİZLENDİ */}
-      {/* GIZLENDI - "Yeni Senkronizasyon Mimarisi" başlıklı alanı kaldır */}
-
-      {/* Debug Info - GİZLENDİ */}
-      {/* GIZLENDI - div class="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-600" olan alanı kaldır */}
     </div>
   );
 });

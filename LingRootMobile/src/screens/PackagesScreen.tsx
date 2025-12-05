@@ -40,6 +40,7 @@ const PackagesScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [purchasingPlanId, setPurchasingPlanId] = useState<number | null>(null);
   const [activePackageName, setActivePackageName] = useState<string | null>(null);
+  const [activePackageEndRaw, setActivePackageEndRaw] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
 
   useEffect(() => {
@@ -73,21 +74,30 @@ const PackagesScreen: React.FC = () => {
   const fetchActivePackage = async () => {
     try {
       const response = await apiService.getUsageSummary();
-      
-      // Önce plan objesinden al
-      if (response.success && response.data?.plan?.name) {
-        setActivePackageName(response.data.plan.name);
-      } 
-      // Sonra subscription.plantype'dan al
-      else if (response.success && response.data?.subscription?.plantype) {
-        setActivePackageName(response.data.subscription.plantype);
-      }
-      // Son olarak plantype'dan al
-      else if (response.success && response.data?.plantype) {
-        setActivePackageName(response.data.plantype);
+      const data: any = response?.data;
+
+      if (response.success && data) {
+        if (data.plan?.name) {
+          setActivePackageName(data.plan.name);
+        } else if (data.subscription?.plantype) {
+          setActivePackageName(data.subscription.plantype);
+        } else if (data.plantype) {
+          setActivePackageName(data.plantype);
+        }
+
+        const sub = data.subscription;
+        if (sub) {
+          const end = sub.current_period_end || sub.enddate || sub.endDate || null;
+          setActivePackageEndRaw(typeof end === 'string' ? end : null);
+        } else {
+          setActivePackageEndRaw(null);
+        }
+      } else {
+        setActivePackageEndRaw(null);
       }
     } catch (error) {
       // Silent error handling
+      setActivePackageEndRaw(null);
     }
   };
 
@@ -256,6 +266,20 @@ const PackagesScreen: React.FC = () => {
     return description;
   };
 
+  const formatEndDate = (iso?: string | null) => {
+    if (!iso) return '—';
+    try {
+      const localeTag = language === 'tr' ? 'tr-TR' : 'en-US';
+      return new Intl.DateTimeFormat(localeTag, { dateStyle: 'medium' }).format(new Date(iso));
+    } catch (e) {
+      try {
+        return new Date(iso).toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US');
+      } catch {
+        return String(iso);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -330,6 +354,17 @@ const PackagesScreen: React.FC = () => {
                     /{language === 'tr' ? 'ay' : 'month'}
                   </Text>
                 </View>
+
+                {isActive && (
+                  <View style={styles.validityContainer}>
+                    <Text style={styles.validityLabel}>
+                      {language === 'tr' ? 'Geçerlilik' : 'Valid until'}
+                    </Text>
+                    <Text style={styles.validityValue}>
+                      {formatEndDate(activePackageEndRaw)}
+                    </Text>
+                  </View>
+                )}
 
                 {/* Features list */}
                 {features.length > 0 && (
@@ -572,6 +607,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6B7280',
     marginTop: 4,
+  },
+  validityContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  validityLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  validityValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
   },
   purchaseButton: {
     paddingVertical: 16,
