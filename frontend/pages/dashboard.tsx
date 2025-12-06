@@ -974,6 +974,9 @@ const Dashboard = () => {
                                 mp3_url: item.mp3_url,
                                 vtt_url: item.mp3_url.replace('.mp3', '.vtt'),
                                 level: item.level,
+                                adapted_text: item.adapted_text || item.input,
+                                translated_text: item.input, // Original Turkish text
+                                topic: getHistoryTypeLabel(item.input_type),
                                 timepoints: Array.isArray(item.timepoints)
                                   ? item.timepoints
                                   : item.timepoints

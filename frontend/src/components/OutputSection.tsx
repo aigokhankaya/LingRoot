@@ -36,6 +36,49 @@ interface OutputSectionProps {
 export default function OutputSection({ audioResult, isLoggedIn }: OutputSectionProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [activeDialogueIndex, setActiveDialogueIndex] = useState<number | null>(null);
+  const [activeWordIndex, setActiveWordIndex] = useState<number>(-1);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+
+  // Handle word change from audio player
+  const handleWordChange = (wordIndex: number, playing: boolean) => {
+    setActiveWordIndex(wordIndex);
+    setIsAudioPlaying(playing);
+  };
+
+  // Parse adapted text into words for highlighting
+  const adaptedText = audioResult.adapted_text || audioResult.adaptedText || '';
+  const adaptedTextWords = adaptedText.split(/\s+/).filter((word: string) => word.length > 0);
+
+  // Parse Turkish text
+  const translatedText = audioResult.translated_text || audioResult.translatedText || '';
+
+  // Split texts into sentences for cross-language highlighting
+  const splitIntoSentences = (text: string): string[] => {
+    return text
+      .split(/(?<=[.!?])\s+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+  };
+
+  const englishSentences = splitIntoSentences(adaptedText);
+  const turkishSentences = splitIntoSentences(translatedText);
+
+  // Calculate which sentence the current word is in
+  const getActiveSentenceIndex = (wordIndex: number): number => {
+    if (wordIndex < 0) return -1;
+    
+    let wordCount = 0;
+    for (let i = 0; i < englishSentences.length; i++) {
+      const sentenceWords = englishSentences[i].split(/\s+/).filter(w => w.length > 0);
+      wordCount += sentenceWords.length;
+      if (wordIndex < wordCount) {
+        return i;
+      }
+    }
+    return -1;
+  };
+
+  const activeSentenceIndex = isAudioPlaying ? getActiveSentenceIndex(activeWordIndex) : -1;
 
   const handleDialogueWordRightClick = async (e: React.MouseEvent, rawWord: string) => {
     e.preventDefault();
@@ -249,7 +292,7 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
       {(audioResult.adapted_text || audioResult.adaptedText) && (
         <div className="mb-6">
           <div className={`grid gap-4 ${showTranslation && (audioResult.translated_text || audioResult.translatedText) ? 'grid-cols-2' : 'grid-cols-1'}`}>
-            {/* English Column */}
+            {/* English Column with Word Highlighting */}
             <div className="bg-gray-50 rounded-lg p-6 relative">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">ENGLISH</h3>
@@ -260,7 +303,22 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
                 </button>
               </div>
               <div className="text-gray-800 leading-relaxed" style={{ fontSize: '15px', lineHeight: '1.8' }}>
-                {audioResult.adapted_text || audioResult.adaptedText}
+                {adaptedTextWords.map((word: string, index: number) => {
+                  const isCurrentWord = isAudioPlaying && index === activeWordIndex;
+                  return (
+                    <span
+                      key={index}
+                      className={`transition-all duration-100 ${
+                        isCurrentWord
+                          ? 'bg-yellow-300 text-yellow-900 font-semibold px-1 py-0.5 rounded shadow-sm'
+                          : ''
+                      }`}
+                      style={{ display: 'inline' }}
+                    >
+                      {word}{' '}
+                    </span>
+                  );
+                })}
               </div>
             </div>
 
@@ -276,7 +334,22 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
                   </button>
                 </div>
                 <div className="text-gray-800 leading-relaxed" style={{ fontSize: '15px', lineHeight: '1.8' }}>
-                  {audioResult.translated_text || audioResult.translatedText}
+                  {turkishSentences.map((sentence: string, index: number) => {
+                    const isActiveSentence = activeSentenceIndex === index;
+                    return (
+                      <span
+                        key={index}
+                        className={`transition-all duration-200 ${
+                          isActiveSentence
+                            ? 'bg-yellow-200 text-yellow-900 px-1 py-0.5 rounded'
+                            : ''
+                        }`}
+                        style={{ display: 'inline' }}
+                      >
+                        {sentence}{' '}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -290,7 +363,7 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
           audioUrl={playableAudioUrl}
           words={audioResult.words || []}
           timepoints={audioResult.timepoints || []}
-          originalText={audioResult.message}
+          originalText={adaptedText || audioResult.message}
           className=""
           showControls={true}
           level={audioResult.level}
@@ -313,7 +386,8 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
             }
           }}
           onActiveSegmentChange={hasDialogueTranscript ? setActiveDialogueIndex : undefined}
-          hideText={hasDialogueTranscript}
+          onWordChange={handleWordChange}
+          hideText={true}
         />
       </div>
 

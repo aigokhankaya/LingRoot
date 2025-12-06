@@ -72,6 +72,8 @@ interface AudioResult {
   duration_seconds?: string;
   file_name?: string;
   topic?: string;
+  adapted_text?: string;
+  translated_text?: string;
 }
 
 interface ContentHistoryItem {
@@ -1618,8 +1620,11 @@ const Welcome: React.FC = () => {
           timepoints: result.timepoints || [],
           words: result.words || [],
           speaking_rate: (result as any).speaking_rate || 1.0,
-          original_turkish: (result as any).original_turkish || ''
-        });
+          original_turkish: (result as any).original_turkish || '',
+          adapted_text: (result as any).adapted_text || result.message,
+          translated_text: (result as any).original_turkish || (result as any).translated_text || '',
+          topic: inputData.type === 'book' ? 'Kitap' : inputData.type === 'text' ? 'Metin' : inputData.type === 'topic' ? 'Konu' : 'İçerik'
+        } as any);
 
         // DEBUG: setAudioResult sonrası kontrol
         console.log('✅ [DEBUG] setAudioResult called successfully');
@@ -3667,6 +3672,9 @@ const Welcome: React.FC = () => {
                                 mp3_url: item.mp3_url,
                                 vtt_url: item.mp3_url.replace('.mp3', '.vtt'), // Assume VTT exists
                                 level: item.level,
+                                adapted_text: item.adapted_text || item.input,
+                                translated_text: item.input, // Original Turkish text
+                                topic: getHistoryTypeLabel(item.input_type),
                                 timepoints: (() => {
                                   try {
                                     return Array.isArray(item.timepoints) ? item.timepoints : (item.timepoints ? JSON.parse(item.timepoints) : []);

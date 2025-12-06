@@ -54,6 +54,7 @@ interface NewSyncedTextPlayerProps {
   };
   onPlay?: () => void;
   onActiveSegmentChange?: (segmentIndex: number) => void;
+  onWordChange?: (wordIndex: number, isPlaying: boolean) => void;
   hideText?: boolean;
 }
 
@@ -79,6 +80,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   stats,
   onPlay,
   onActiveSegmentChange,
+  onWordChange,
   hideText = false
 }: NewSyncedTextPlayerProps) {
   
@@ -116,6 +118,13 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   });
   const [isAddingWord, setIsAddingWord] = useState(false);
   const [hasReportedPlay, setHasReportedPlay] = useState(false);
+
+  // Call onWordChange callback when activeWordIndex or isPlaying changes
+  useEffect(() => {
+    if (onWordChange) {
+      onWordChange(activeWordIndex, isPlaying);
+    }
+  }, [activeWordIndex, isPlaying, onWordChange]);
 
   const dialogueLines = useMemo(
     () =>
@@ -620,20 +629,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
         aria-label="Currently playing word"
       />
 
-      {/* Stats - Topic, Hız ve Seviye bilgisi */}
-      {(topic || level || stats) && (
-        <div className="mb-4 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-          {topic && (
-            <div className="mb-2 text-base font-semibold text-gray-800">
-              🎙️ {topic}
-            </div>
-          )}
-          <div className="flex justify-between">
-            {level && <span>📈 Seviye: {level}</span>}
-            {stats && stats.timepointsCount && <span>⏱️ Süre: {formatTime(duration)}</span>}
-          </div>
-        </div>
-      )}
+      {/* Stats - Topic, Hız ve Seviye bilgisi - GİZLENDİ */}
+      {/* GIZLENDI - Seviye ve Süre bilgisi üst alanda zaten gösteriliyor */}
 
       {/* Vurgulama Türü Kontrolü - GİZLENDİ */}
       {/* GIZLENDI - Vurgulama türü default cümle olacak bu yüzden ekrandaki "Vurgulama türü" alanını frontend de gizle */}
