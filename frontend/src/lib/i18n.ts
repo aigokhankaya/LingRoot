@@ -774,12 +774,15 @@ export const translations: Translations = {
     landing_features_item4_desc: "Günlük rutinin içinde, ek bir çaba harcamadan İngilizce öğren",
     landing_testimonials_title: "Kullanıcılarımız Ne Diyor?",
     landing_testimonials_desc: "LingRoot ile İngilizce öğrenme deneyimlerini paylaşan kullanıcılarımızın yorumları.",
-    landing_testimonials_user1_quote: "LingRoot sayesinde artık yabancı videolardan korkmuyorum. Aynı içeriği hem A2 hem B1 seviyede dinlemek inanılmaz motive edici.",
-    landing_testimonials_user1_level: "B1 seviyesinde kullanıcı",
-    landing_testimonials_user2_quote: "Sadece dinleyerek öğrendiğimi fark ettim. Her gün izlediğim içerikler artık İngilizce gelişimime katkı sağlıyor.",
+    landing_testimonials_user1_quote:
+      "LingRoot sayesinde artık kendi seçtiğim videoları ve yazıları B2 seviyeme göre dinleyebiliyorum. Gerçek içerikleri anlayarak dinlemek beni çok motive ediyor.",
+    landing_testimonials_user1_level: "B2 seviyesinde kullanıcı",
+    landing_testimonials_user2_quote:
+      "I pick the podcasts and topics I like, and LingRoot rewrites them for my A2 level. Now I can listen and understand, not only a few words. I also select the words I want to learn, and LingRoot creates short audio stories that repeat those words again and again in different sentences.",
     landing_testimonials_user2_level: "A2 seviyesinde kullanıcı",
-    landing_testimonials_user3_quote: "Sabah koşumda dinlediğim podcast'ler artık İngilizce öğretmenim. Hiç ekstra zaman harcamadan her gün ilerliyorum.",
-    landing_testimonials_user3_level: "B2 seviyesinde kullanıcı",
+    landing_testimonials_user3_quote:
+      "LingRoot lets me listen to my favorite tech and news content in English that matches my level. I understand much more because the sentences are clear and not too fast. I can mark new words I care about, and the app generates new listening exercises on any topic I choose, repeating those words until they really stick.",
+    landing_testimonials_user3_level: "B1 seviyesinde kullanıcı",
     landing_testimonials_user4_quote: "İngilizce öğrenmek için daha önce birçok uygulama denedim ama hiçbiri LingRoot kadar etkili olmadı. Sevdiğim içeriklerle öğrenmek çok daha keyifli.",
     landing_testimonials_user4_level: "A1 seviyesinde kullanıcı",
     landing_testimonials_user5_quote: "İleri seviyede olmama rağmen, LingRoot ile yeni kelimeler öğrenmeye devam ediyorum. Özellikle akademik içerikleri kendi seviyemde dinlemek çok faydalı.",
@@ -2424,12 +2427,15 @@ export const translations: Translations = {
     landing_features_item4_desc: "Learn English within your daily routine, without extra effort",
     landing_testimonials_title: "What Our Users Say",
     landing_testimonials_desc: "Reviews from our users sharing their English learning experiences with LingRoot.",
-    landing_testimonials_user1_quote: "Thanks to LingRoot, I'm no longer afraid of foreign videos. Listening to the same content at both A2 and B1 levels is incredibly motivating.",
-    landing_testimonials_user1_level: "B1 level user",
-    landing_testimonials_user2_quote: "I realized I'm learning just by listening. The content I watch every day now contributes to my English development.",
-    landing_testimonials_user2_level: "A2 level user",
-    landing_testimonials_user3_quote: "The podcasts I listen to during my morning run are now my English teacher. I progress every day without spending any extra time.",
-    landing_testimonials_user3_level: "B2 level user",
+    landing_testimonials_user1_quote:
+      "With LingRoot I finally listen to the content I actually like, at my own English level. I choose YouTube videos and articles, and LingRoot turns them into audio that I can really follow from start to finish. It feels like real-life content, but I can understand almost everything.",
+    landing_testimonials_user1_level: "B2 level learner",
+    landing_testimonials_user2_quote:
+      "I pick the podcasts and topics I like, and LingRoot rewrites them for my A2 level. Now I can listen and understand, not only a few words. I also select the words I want to learn, and LingRoot creates short audio stories that repeat those words again and again in different sentences.",
+    landing_testimonials_user2_level: "A2 level learner",
+    landing_testimonials_user3_quote:
+      "LingRoot lets me listen to my favorite tech and news content in English that matches my level. I understand much more because the sentences are clear and not too fast. I can mark new words I care about, and the app generates new listening exercises on any topic I choose, repeating those words until they really stick.",
+    landing_testimonials_user3_level: "B1 level learner",
     landing_testimonials_user4_quote: "I've tried many apps to learn English before, but none were as effective as LingRoot. Learning with content I love is much more enjoyable.",
     landing_testimonials_user4_level: "A1 level user",
     landing_testimonials_user5_quote: "Despite being at an advanced level, I continue to learn new words with LingRoot. Listening to academic content at my own level is especially useful.",

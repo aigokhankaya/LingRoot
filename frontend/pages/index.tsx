@@ -13,7 +13,7 @@ import { useTranslation, useLanguage, Locale } from '../src/lib/i18n';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -232,11 +232,9 @@ const App: React.FC = () => {
     ];
 
     const testimonialsUsers = [
-        { name: "Mert Y.", level: t('landing_testimonials_user1_level'), quote: t('landing_testimonials_user1_quote') },
-        { name: "Zeynep K.", level: t('landing_testimonials_user2_level'), quote: t('landing_testimonials_user2_quote') },
-        { name: "Ahmet S.", level: t('landing_testimonials_user3_level'), quote: t('landing_testimonials_user3_quote') },
-        { name: "Ayşe D.", level: t('landing_testimonials_user4_level'), quote: t('landing_testimonials_user4_quote') },
-        { name: "Emre T.", level: t('landing_testimonials_user5_level'), quote: t('landing_testimonials_user5_quote') }
+        { name: "Emre T.", gender: "male", level: t('landing_testimonials_user1_level'), quote: t('landing_testimonials_user1_quote') },
+        { name: "Siti R.", gender: "female", level: t('landing_testimonials_user2_level'), quote: t('landing_testimonials_user2_quote') },
+        { name: "Omar H.", gender: "male", level: t('landing_testimonials_user3_level'), quote: t('landing_testimonials_user3_quote') }
     ];
 
     const ctaBenefits = [
@@ -728,11 +726,9 @@ const App: React.FC = () => {
                                     <CardContent className="p-8">
                                         <div className="flex items-center mb-6">
                                             <Avatar className="h-12 w-12 mr-4">
-                                                <AvatarImage
-                                                    src={`https://readdy.ai/api/search-image?query=Professional headshot of a ${index % 2 === 0 ? 'Turkish man' : 'Turkish woman'} ${index === 0 ? 'in his late 20s with short dark hair' : index === 1 ? 'in her mid 20s with long dark hair' : index === 2 ? 'middle-aged with glasses and a professional appearance' : index === 3 ? 'with a headscarf and a friendly smile' : 'in his 30s with a beard and professional appearance'} and a ${index === 3 ? 'warm' : 'friendly'} smile. The photo has a clean, neutral background and professional lighting, suitable for a testimonial or profile picture.&width=100&height=100&seq=user${index+1}&orientation=squarish`}
-                                                    alt={testimonial.name}
-                                                />
-                                                <AvatarFallback>{testimonial.name.charAt(0)}</AvatarFallback>
+                                                <AvatarFallback className={testimonial.gender === "female" ? "bg-pink-100 text-pink-700" : "bg-blue-100 text-blue-700"}>
+                                                    {testimonial.name.charAt(0)}
+                                                </AvatarFallback>
                                             </Avatar>
                                             <div>
                                                 <h4 className="font-bold">{testimonial.name}</h4>
