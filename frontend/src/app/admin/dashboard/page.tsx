@@ -793,6 +793,14 @@ const App: React.FC = () => {
                 <i className="fas fa-coins mr-3 text-lg"></i>
                 <span>Maliyet Takibi</span>
               </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => router.push('/admin/payment-providers')}>
+                <i className="fas fa-credit-card mr-3 text-lg"></i>
+                <span>Ödeme Sağlayıcıları</span>
+              </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => router.push('/admin/card-transactions')}>
+                <i className="fas fa-receipt mr-3 text-lg"></i>
+                <span>Kredi Kartı İşlemleri</span>
+              </Button>
               <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => handleChangeActiveTab("kampanya-yonetimi")}>
                 <i className="fas fa-percentage mr-3 text-lg"></i>
                 <span>Kampanya Yönetimi</span>

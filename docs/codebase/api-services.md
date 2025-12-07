@@ -26,19 +26,23 @@ backend/
 ├── server.js               # Entry point (10KB)
 ├── config/
 │   └── database.js         # DB configuration
-├── controllers/            # 29 controllers
+├── controllers/            # 31 controllers
 │   ├── authController.js          # (53KB) Auth operations
 │   ├── ttsController.js           # (109KB) TTS processing
 │   ├── aiChatController.js        # (28KB) Liro assistant
 │   ├── adminController.js         # (53KB) Admin operations
 │   ├── subscriptionController.js  # (31KB) Subscriptions
+│   ├── iyzicoController.js        # (15KB) iyzico payments
+│   ├── stripeController.js        # (12KB) Stripe payments
 │   ├── chatController.js          # (20KB) Support chat
 │   ├── topicHierarchyController.js # (21KB) Topics
 │   └── ... (22 more)
-├── routes/                 # 31 route modules
+├── routes/                 # 33 route modules
 │   ├── authRoutes.js
 │   ├── ttsRoutes.js
 │   ├── aiChat.js
+│   ├── iyzicoRoutes.js
+│   ├── stripeRoutes.js
 │   └── ... (28 more)
 ├── middleware/             # 8 middleware modules
 │   ├── auth.js

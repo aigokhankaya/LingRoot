@@ -22,6 +22,8 @@ The Admin Panel provides system administrators with tools for user management, c
 ├── /packages               # Subscription plans
 │   ├── /                   # Plan list
 │   └── /create             # Create plan
+├── /payment-providers      # Payment provider settings (iyzico, Stripe)
+├── /card-transactions      # Credit card transaction management
 ├── /payments               # Payment history
 ├── /statistics             # Analytics dashboard
 ├── /external-services      # External service config
@@ -144,7 +146,59 @@ interface Plan {
 - Link to IAP products
 - Activate/deactivate
 
-## Payment History
+## Payment Providers (`/admin/payment-providers`)
+
+Manage credit card payment providers (iyzico, Stripe).
+
+### Features
+
+1. **Provider Configuration**
+   - API Key / Secret Key management
+   - Environment selection (Sandbox / Production)
+   - Commission rate settings
+   - Supported features toggle
+
+2. **Connection Testing**
+   - Test API connectivity
+   - View test results and timestamps
+
+3. **Provider Types**
+   - **iyzico:** Turkish credit cards, installments, 3D Secure
+   - **Stripe:** International cards, subscriptions, recurring
+
+## Card Transactions (`/admin/card-transactions`)
+
+View and manage all credit card payment transactions.
+
+### Data Displayed
+
+| Field | Description |
+|-------|-------------|
+| Date | Transaction timestamp |
+| Customer | Email / User ID |
+| Amount | Payment amount |
+| Net Amount | After commission |
+| Status | pending/completed/failed/refunded |
+| Card | Last 4 digits, card type |
+| Installment | Number of installments |
+| Provider | iyzico / Stripe |
+
+### Features
+
+1. **Filtering**
+   - By status (Completed, Pending, Failed, Refunded)
+   - By date range
+   - By provider
+
+2. **Refund Processing**
+   - Full refund
+   - Partial refund
+   - Refund reason tracking
+
+3. **Export**
+   - CSV export of transaction data
+
+## Payment History (Legacy)
 
 ### Data Displayed
 
@@ -153,7 +207,7 @@ interface Plan {
 | User | Customer name/email |
 | Plan | Subscription plan |
 | Amount | Payment amount |
-| Provider | Apple/Google/Stripe |
+| Provider | Apple/Google/Stripe/iyzico |
 | Status | Success/Failed/Refunded |
 | Date | Transaction timestamp |
 

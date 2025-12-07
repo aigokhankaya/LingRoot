@@ -21,6 +21,8 @@ The LingRoot API is a RESTful service built with Express.js, providing endpoints
 ├── /topic-pipeline          # Automated content generation
 ├── /subscriptions           # Subscription management
 ├── /iap                     # In-app purchase verification
+├── /iyzico                  # iyzico credit card payments
+├── /stripe                  # Stripe credit card payments
 ├── /admin                   # Admin operations
 ├── /vocabulary              # User vocabulary
 ├── /favorites               # User favorites
@@ -29,7 +31,7 @@ The LingRoot API is a RESTful service built with Express.js, providing endpoints
 └── /stats                   # Usage statistics
 ```
 
-## Controllers (29 Total)
+## Controllers (31 Total)
 
 | Controller | Endpoints | Responsibility |
 |------------|-----------|----------------|
@@ -40,6 +42,8 @@ The LingRoot API is a RESTful service built with Express.js, providing endpoints
 | `adminController.js` | 20+ | User/content/plan management |
 | `subscriptionController.js` | 10+ | Plan subscriptions, billing |
 | `iapController.js` | 5+ | Apple/Google IAP verification |
+| `iyzicoController.js` | 10+ | iyzico 3D Secure payments, installments, refunds |
+| `stripeController.js` | 8+ | Stripe checkout, payment intents, refunds |
 | `topicHierarchyController.js` | 8+ | Topic tree management |
 | `topicPipelineController.js` | 5+ | Content pipeline execution |
 | `contentController.js` | 8+ | Content history, management |

@@ -300,6 +300,109 @@ CREATE INDEX idx_subscriptions_user_id ON subscriptions(user_id);
 CREATE INDEX idx_subscriptions_status ON subscriptions(status);
 ```
 
+### payment_providers
+
+Payment provider configurations (iyzico, Stripe, etc.).
+
+```sql
+CREATE TABLE payment_providers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(50) NOT NULL UNIQUE,            -- 'iyzico', 'stripe'
+    display_name VARCHAR(100) NOT NULL,
+    is_active BOOLEAN DEFAULT FALSE,
+    is_default BOOLEAN DEFAULT FALSE,
+    environment VARCHAR(20) DEFAULT 'sandbox',   -- sandbox, production
+    api_key TEXT,
+    secret_key TEXT,
+    base_url VARCHAR(255),
+    settings JSONB DEFAULT '{}',
+    supported_features JSONB,                    -- creditCard, installment, threeDSecure, refund, recurring
+    commission_rates JSONB,                      -- creditCard, debitCard, installment rates
+    last_tested_at TIMESTAMP WITH TIME ZONE,
+    test_result BOOLEAN,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_payment_providers_name ON payment_providers(name);
+CREATE INDEX idx_payment_providers_is_active ON payment_providers(is_active);
+```
+
+### card_transactions
+
+Credit card transaction records for iyzico and Stripe payments.
+
+```sql
+CREATE TABLE card_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    payment_provider_id UUID REFERENCES payment_providers(id),
+    subscription_id UUID REFERENCES subscriptions(id),
+    plan_id UUID,
+    
+    -- Transaction info
+    transaction_type VARCHAR(20) DEFAULT 'payment',  -- payment, refund, partial_refund, chargeback
+    status VARCHAR(20) DEFAULT 'pending',            -- pending, processing, completed, failed, cancelled, refunded
+    amount DECIMAL(10, 2) NOT NULL,
+    currency VARCHAR(3) DEFAULT 'TRY',
+    
+    -- Card info (masked)
+    card_last_four_digits VARCHAR(4),
+    card_type VARCHAR(50),                           -- VISA, MASTERCARD, TROY
+    card_association VARCHAR(50),
+    card_family VARCHAR(50),
+    
+    -- Installment
+    installment_count INTEGER DEFAULT 1,
+    installment_amount DECIMAL(10, 2),
+    
+    -- iyzico specific
+    iyzico_conversation_id VARCHAR(100),
+    iyzico_payment_id VARCHAR(100) UNIQUE,
+    iyzico_payment_transaction_id VARCHAR(100),
+    
+    -- Stripe specific
+    stripe_payment_intent_id VARCHAR(100),
+    stripe_session_id VARCHAR(100),
+    stripe_subscription_id VARCHAR(100),
+    stripe_customer_id VARCHAR(100),
+    
+    -- 3D Secure
+    three_d_secure BOOLEAN DEFAULT FALSE,
+    
+    -- Commission
+    commission_rate DECIMAL(5, 2),
+    commission_amount DECIMAL(10, 2),
+    net_amount DECIMAL(10, 2),
+    
+    -- Error info
+    error_code VARCHAR(50),
+    error_message TEXT,
+    
+    -- Refund info
+    refunded_amount DECIMAL(10, 2) DEFAULT 0,
+    refunded_at TIMESTAMP WITH TIME ZONE,
+    refund_reason TEXT,
+    
+    -- Customer info
+    customer_email VARCHAR(255),
+    customer_ip VARCHAR(45),
+    
+    -- Meta
+    metadata JSONB DEFAULT '{}',
+    raw_response JSONB,
+    processed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_card_transactions_user_id ON card_transactions(user_id);
+CREATE INDEX idx_card_transactions_provider_id ON card_transactions(payment_provider_id);
+CREATE INDEX idx_card_transactions_status ON card_transactions(status);
+CREATE INDEX idx_card_transactions_created_at ON card_transactions(created_at);
+CREATE INDEX idx_card_transactions_stripe_pi ON card_transactions(stripe_payment_intent_id);
+```
+
 ## Support Tables
 
 ### user_vocabulary
@@ -364,6 +467,7 @@ Migrations are located in `/backend/migrations/` and should be run in order:
 create_chat_tables.sql
 create_books_tables.sql
 create_topics_table.sql
+add_payment_provider_tables.sql       # iyzico & Stripe entegrasyonu
 ...
 ```
 

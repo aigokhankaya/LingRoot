@@ -579,6 +579,115 @@ Authorization: Bearer <token>
 
 ---
 
+## Credit Card Payments (iyzico)
+
+### Initialize 3D Secure Checkout
+```http
+POST /api/iyzico/checkout/init
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "planId": "uuid",
+  "cardHolderName": "JOHN DOE",
+  "cardNumber": "5528790000000008",
+  "expireMonth": "12",
+  "expireYear": "30",
+  "cvc": "123",
+  "installment": 1
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "threeDSHtmlContent": "<html>...",
+  "transactionId": "uuid"
+}
+```
+
+### 3D Secure Callback
+```http
+POST /api/iyzico/callback
+Content-Type: application/x-www-form-urlencoded
+```
+
+### Check BIN Number
+```http
+POST /api/iyzico/check-bin
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "binNumber": "552879"
+}
+```
+
+### Get Installment Options
+```http
+POST /api/iyzico/installments
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "binNumber": "552879",
+  "price": 99.99
+}
+```
+
+---
+
+## Credit Card Payments (Stripe)
+
+### Create Checkout Session
+```http
+POST /api/stripe/checkout
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "planId": "uuid",
+  "successUrl": "https://example.com/success",
+  "cancelUrl": "https://example.com/cancel"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "sessionId": "cs_xxx",
+  "sessionUrl": "https://checkout.stripe.com/..."
+}
+```
+
+### Create Payment Intent
+```http
+POST /api/stripe/payment-intent
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "planId": "uuid"
+}
+```
+
+### Get Payment Status
+```http
+GET /api/stripe/payment-status/:paymentIntentId
+Authorization: Bearer <token>
+```
+
+### Stripe Webhook
+```http
+POST /api/stripe/webhook
+Stripe-Signature: <signature>
+Content-Type: application/json
+```
+
+---
+
 ## Admin Endpoints
 
 ### List Users
@@ -602,6 +711,67 @@ Content-Type: application/json
 {
   "planId": 3,
   "reason": "Customer support upgrade"
+}
+```
+
+### Payment Provider Management
+
+#### List Payment Providers
+```http
+GET /api/iyzico/admin/providers
+Authorization: Bearer <admin_token>
+```
+
+#### Create/Update Payment Provider
+```http
+POST /api/iyzico/admin/providers
+PUT /api/iyzico/admin/providers/:id
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
+{
+  "name": "iyzico",
+  "displayName": "iyzico",
+  "isActive": true,
+  "isDefault": true,
+  "environment": "sandbox",
+  "apiKey": "sandbox-xxx",
+  "secretKey": "sandbox-xxx"
+}
+```
+
+#### Test Provider Connection
+```http
+POST /api/iyzico/admin/providers/:id/test
+POST /api/stripe/admin/test-connection
+Authorization: Bearer <admin_token>
+```
+
+### Card Transaction Management
+
+#### List Transactions
+```http
+GET /api/iyzico/admin/transactions?page=1&limit=20&status=completed
+Authorization: Bearer <admin_token>
+```
+
+#### Get Transaction Summary
+```http
+GET /api/iyzico/admin/transactions/summary
+Authorization: Bearer <admin_token>
+```
+
+#### Process Refund
+```http
+POST /api/iyzico/admin/refund
+POST /api/stripe/admin/refund
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
+{
+  "transactionId": "uuid",
+  "amount": 50.00,
+  "reason": "Customer request"
 }
 ```
 

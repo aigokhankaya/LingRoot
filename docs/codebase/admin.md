@@ -37,10 +37,12 @@ Typical routes (exact file names may vary):
   - `/admin/users/[id]/package` – Subscription details
 - `/admin/packages` – Subscription plans
   - `/admin/packages/[id]` – Plan detail/edit
+- `/admin/payment-providers` – Credit card payment provider settings (iyzico, Stripe)
+- `/admin/card-transactions` – Credit card transaction management & refunds
 - `/admin/statistics` – System and usage statistics
 - `/admin/tts-test` – TTS test and diagnostics page
 - `/admin/content` – Content and prompts related tools
-- `/admin/payments` – Payment / environment tooling
+- `/admin/payments` – Payment / environment tooling (legacy)
 
 The admin routes use the same `layout.tsx` pattern as the main app but with an admin‑specific shell.
 
