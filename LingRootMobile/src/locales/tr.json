@@ -1,0 +1,297 @@
+{
+  "profile": {
+    "title": "Profil",
+    "accountSettings": "Hesap Ayarları", 
+    "language": "Uygulama Dili",
+    "audioHistory": "Ses Geçmişi",
+    "membership": "Üyelik",
+    "testNotification": "Test Bildirimi",
+    "notificationStatus": "Bildirim Durumu",
+    "quickDebug": "🔧 Hızlı Debug",
+    "help": "Yardım",
+    "about": "Hakkında",
+    "signOut": "Çıkış Yap",
+    "signOutConfirm": "Hesabınızdan çıkış yapmak istediğinize emin misiniz?",
+    "cancel": "İptal",
+    "user": "Kullanıcı"
+  },
+  "languages": {
+    "turkish": "Türkçe",
+    "english": "English"
+  },
+  "notifications": {
+    "disabled": "Bildirimler Kapalı",
+    "permissionRequired": "Bildirimler için izin gereklidir. Lütfen ayarlardan bildirim izinlerini açınız.",
+    "testSent": "Test Bildirimi",
+    "testSentMessage": "kelimesi için test bildirimi gönderildi!",
+    "noWordsFound": "Kelime Bulunamadı",
+    "noWordsFoundMessage": "Öğrenilmemiş kelime bulunamadı. Bu durum şu nedenlerden kaynaklanabilir:\n\n• Kelime listeniz boş\n• Tüm kelimeler öğrenilmiş olarak işaretli\n• Oturum süresi dolmuş (lütfen tekrar giriş yapın)",
+    "error": "Hata",
+    "testFailed": "Test bildirimi gönderilemedi.",
+    "sessionExpired": "Oturum süresi dolmuş. Lütfen çıkış yapıp tekrar giriş yapın.",
+    "statusError": "Bildirim durumu alınamadı.",
+    "debugCompleted": "🔧 Debug Tamamlandı",
+    "debugCompletedMessage": "Akıllı bildirimler yeniden başlatıldı!\n\nProfil → Bildirim Durumu ile kontrol edin.",
+    "debugFailed": "Debug işlemi başarısız: ",
+    "unknownError": "Bilinmeyen hata",
+    "signOutFailed": "Çıkış yapılamadı"
+  },
+  "home": {
+    "title": "Ana Sayfa",
+    "welcome": "Hoş Geldiniz",
+    "audioCreated": "Oluşturulan Ses",
+    "minutesContent": "Dakika İçerik",
+    "features": "Özellikler",
+    "quickActions": "Hızlı İşlemler",
+    "createNewAudio": "Yeni Ses Oluştur",
+    "listenToAudio": "Seslerimi Dinle",
+    "tip": "İpucu",
+    "tipText": "CEFR seviyenizi seçerek, metinlerin size uygun şekilde uyarlanmasını sağlayabilirsiniz.",
+    "textToSpeech": "Metin → Ses",
+    "textToSpeechDesc": "Metni sese dönüştür",
+    "uploadFile": "Dosya Yükle",
+    "uploadFileDesc": "PDF/Word dosyalarını işle",
+    "vocabulary": "Kelime Listem",
+    "vocabularyDesc": "Öğrendiğin kelimeleri görüntüle",
+    "topicSuggestions": "Konu Önerileri",
+    "topicSuggestionsDesc": "AI ile konu önerileri al",
+    "audioLibrary": "Ses Kütüphanesi",
+    "audioLibraryDesc": "Oluşturduğun sesleri dinle",
+    "bookSearch": "Kitaplardan Ara",
+    "bookSearchDesc": "Başlığa, yazara veya genel terime göre kitap ara"
+  },
+  "vocabulary": {
+    "title": "Kelime Listesi",
+    "headerTitle": "Kelime Listeleri",
+    "loading": "Kelimeler yükleniyor...",
+    "error": "Kelimeler yüklenirken hata oluştu: ",
+    "retry": "Tekrar Dene",
+    "statistics": "İstatistikler",
+    "totalWords": "Toplam Kelime",
+    "learned": "Öğrenildi",
+    "notLearned": "Öğrenilmemiş",
+    "cefrLevels": "CEFR Seviyeleri",
+    "progress": "İlerleme",
+    "words": "kelime",
+    "view": "Görüntüle",
+    "searchPlaceholder": "Kelime veya anlam ara...",
+    "allLevels": "Tüm Seviyeler",
+    "allWords": "Tüm Kelimeler",
+    "noWordsTitle": "Henüz kelime eklenmemiş",
+    "noWordsText": "Metin oynatıcısında kelimelere uzun basarak kelime ekleyebilirsiniz.",
+    "noResultsTitle": "Sonuç bulunamadı",
+    "noResultsText": "Arama kriterlerinize uygun kelime bulunamadı.",
+    "exampleSentence": "Örnek Cümle:",
+    "originalSentence": "Orijinal Cümle:",
+    "delete": "Sil",
+    "deleteConfirm": "Bu kelimeyi silmek istediğinizden emin misiniz?",
+    "cancel": "İptal",
+    "deleteWord": "Kelimeyi Sil",
+    "deleteError": "Kelime silinirken hata oluştu: ",
+    "newWord": "Yeni Kelime",
+    "save": "Kaydet",
+    "wordLabel": "Kelime *",
+    "meaningLabel": "Anlam *",
+    "levelLabel": "Seviye",
+    "exampleLabel": "Örnek Cümle",
+    "wordRequired": "Kelime ve anlam alanları zorunludur.",
+    "wordAdded": "Kelime başarıyla eklendi!",
+    "addError": "Kelime eklenirken hata oluştu: ",
+    "updateError": "Kelime durumu güncellenirken hata oluştu: ",
+    "meaningPlaceholder": "Anlam eklenmemiş",
+    "authRequired": "Kelime listenizi görmek için oturum açmanız gerekiyor.",
+    "login": "Giriş Yap",
+    "reminderSuccess": "Hatırlatma ayarları kaydedildi ve bildirimler yeniden programlandı.",
+    "reminderError": "Ayarlar kaydedilirken bir hata oluştu.",
+    "success": "Başarılı!",
+    "wordPlaceholder": "Örn: beautiful",
+    "meaningPlaceholderExample": "Örn: güzel, hoş",
+    "examplePlaceholder": "Örn: She is very beautiful."
+  },
+  "suggestions": {
+    "title": "Öneriler",
+    "subtitle": "AI ile kişiselleştirilmiş konu önerileri alın",
+    "input": {
+      "title": "Konu",
+      "placeholder": "İlgilendiğiniz konuyu yazın (örn: seyahat, teknoloji, spor)"
+    },
+    "cefr": {
+      "title": "CEFR Seviyesi"
+    },
+    "cefrDescriptions": {
+      "A1": "Başlangıç - Temel kelimeler ve ifadeler",
+      "A2": "Temel - Günlük konuşma seviyesi",
+      "B1": "Orta - İş ve eğitim konuları",
+      "B2": "Orta-İleri - Karmaşık metinler",
+      "C1": "İleri - Akıcı ve etkili kullanım",
+      "C2": "Uzman - Ana dil seviyesi"
+    },
+    "buttons": {
+      "getSuggestions": "Öneriler Al",
+      "loading": "Öneriler Hazırlanıyor..."
+    },
+    "results": {
+      "title": "Öneriler ({{count}} adet)"
+    },
+    "empty": {
+      "title": "Henüz öneri yok",
+      "description": "Bir konu girin ve seviyenizi seçin, size özel öneriler hazırlayalım"
+    },
+    "alerts": {
+      "pleaseEnterTopic": "Lütfen bir konu girin",
+      "noSuggestions": "Bu konu için öneri bulunamadı",
+      "fetchFailed": "Öneriler alınamadı"
+    },
+    "select": {
+      "title": "Öneri Seçildi",
+      "message": "Bu öneriyi kullanarak ses oluşturmak ister misiniz?",
+      "navigateInfo": "Create ekranına yönlendirileceksiniz..."
+    }
+  },
+  "create": {
+    "title": "Oluştur",
+    "subtitle": "Metni AI ile CEFR seviyesine uyarla ve sese dönüştür",
+    "input": {
+      "title": "Metin Girişi",
+      "placeholder": "Dönüştürmek istediğiniz metni buraya yazın...",
+      "placeholderDisabled": "Dosya seçildi - metin girişi devre dışı",
+      "charCount": "{{count}} karakter",
+      "expand": "Genişlet",
+      "collapse": "Daralt"
+    },
+    "file": {
+      "uploadButton": "Dosya Yükle (PDF, Word)"
+    },
+    "cefr": {
+      "title": "CEFR Seviyesi"
+    },
+    "cefrDescriptions": {
+      "A1": "Başlangıç - Temel kelimeler ve ifadeler",
+      "A2": "Temel - Günlük konuşma seviyesi",
+      "B1": "Orta - İş ve eğitim konuları",
+      "B2": "Orta-İleri - Karmaşık metinler",
+      "C1": "İleri - Akıcı ve etkili kullanım",
+      "C2": "Uzman - Ana dil seviyesi"
+    },
+    "speed": {
+      "title": "Konuşma Hızı",
+      "slow": "Yavaş",
+      "normal": "Normal",
+      "fast": "Hızlı"
+    },
+    "voice": {
+      "title": "Ses Seçimi",
+      "selectPrompt": "Ses seçin",
+      "selectHint": "Dokunarak ses seçin",
+      "categories": {
+        "standard": "Standart",
+        "wavenet": "WaveNet",
+        "neural2": "Neural2",
+        "studio": "Studio",
+        "chirp3d": "Chirp 3D"
+      },
+      "badge": {
+        "free": "Ücretsiz",
+        "premium": "Premium",
+        "platinum": "Platinium",
+        "gold": "Gold"
+      },
+      "filters": {
+        "accent": "Aksan",
+        "gender": "Cinsiyet",
+        "all": "Tümü"
+      },
+      "accents": {
+        "american": "Amerikan",
+        "british": "İngiliz",
+        "australian": "Avustralya",
+        "canadian": "Kanada",
+        "indian": "Hint"
+      },
+      "genders": {
+        "male": "Erkek",
+        "female": "Kadın"
+      },
+      "modal": {
+        "title": "Ses Seçin",
+        "ssmlSupported": "SSML Destekli"
+      }
+    },
+    "buttons": {
+      "createAudio": "Ses Oluştur",
+      "processing": "Oluşturuluyor...",
+      "processingFile": "Dosya işleniyor... (Bu birkaç dakika sürebilir)"
+    },
+    "alerts": {
+      "enterTextOrFile": "Lütfen metin girin veya dosya seçin",
+      "fileProcessed": "Dosya başarıyla işlendi ve ses oluşturuldu. Kütüphane sekmesinden dinleyebilirsiniz.",
+      "fileProcessFailed": "Dosya işlenemedi",
+      "audioCreated": "Ses dosyası başarıyla oluşturuldu. Kütüphane sekmesinden dinleyebilirsiniz.",
+      "audioCreateFailed": "Ses oluşturulamadı",
+      "fileSelectedTitle": "Dosya Seçildi",
+      "fileSelectedMessage": "\"{{fileName}}\" dosyası seçildi. Ses oluşturmak için \"Ses Oluştur\" butonuna tıklayın.",
+      "filePickError": "Dosya seçilirken hata oluştu",
+      "fileCleared": "Seçilen dosya kaldırıldı"
+    },
+    "book": {
+      "title": "Kitap Arama",
+      "inputs": {
+        "qPlaceholder": "Genel arama (kelime)",
+        "titlePlaceholder": "Kitap adı",
+        "authorPlaceholder": "Yazar"
+      },
+      "buttons": {
+        "search": "Ara"
+      },
+      "emptyResults": "Arama sonuçları burada görünecek",
+      "noChapters": "Bu kitap için bölüm bulunamadı",
+      "alerts": {
+        "selectChapter": "Lütfen bir bölüm seçiniz",
+        "searchFailed": "Arama başarısız",
+        "chaptersFailed": "Bölümler alınamadı",
+        "ttsFailed": "Ses oluşturulamadı"
+      }
+    }
+  },
+  "common": {
+    "error": "Hata",
+    "success": "Başarılı!",
+    "ok": "Tamam",
+    "info": "Bilgi",
+    "or": "veya",
+    "unexpectedError": "Beklenmeyen bir hata oluştu"
+  },
+    "audioPlayer": {
+    "originalTextButton": "Orijinal Metin",
+    "backToTranslationButton": "Geri Dön",
+    "originalTurkishTitle": "Orijinal Türkçe Metin",
+    "copySuccessTitle": "Kopyalandı!",
+    "copySuccessMessage": "Türkçe metin panoya kopyalandı.",
+    "originalLoading": "Yükleniyor..."
+  },
+  "library": {
+    "title": "Kütüphane",
+    "all": "Tümü"
+  },
+  "register": {
+    "title": "Kayıt Ol",
+    "subtitle": "LingRoot'a katıl",
+    "fullName": "Ad Soyad",
+    "email": "E-posta",
+    "password": "Şifre",
+    "confirmPassword": "Şifre Tekrar",
+    "termsText": "Hizmet Şartları ve Gizlilik Politikasını kabul ediyorum",
+    "cta": "Kayıt Ol",
+    "registering": "Kayıt yapılıyor...",
+    "haveAccount": "Zaten hesabın var mı? Giriş yap",
+    "success": "Kayıt tamamlandı. Lütfen e-postanızı kontrol edin.",
+    "errors": {
+      "fullNameRequired": "Lütfen ad soyad girin",
+      "emailInvalid": "Lütfen geçerli bir e-posta girin",
+      "passwordShort": "Şifre en az 6 karakter olmalıdır",
+      "passwordMismatch": "Şifreler eşleşmiyor",
+      "acceptTerms": "Lütfen şartları kabul edin",
+      "generic": "Kayıt başarısız"
+    }
+  }
+}
