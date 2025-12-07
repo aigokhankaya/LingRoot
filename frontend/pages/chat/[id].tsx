@@ -275,15 +275,17 @@ export default function ChatPage() {
   };
 
   // Send message to Liro
-  const sendMessage = async (content: string) => {
-    if (!content.trim()) return;
+  const sendMessage = async (content?: string | null) => {
+    if (typeof content !== 'string') return;
+    const trimmed = content.trim();
+    if (!trimmed) return;
 
     setError(null);
     let conversationId = id as string;
 
     // Create new conversation if needed
     if (!conversationId || conversationId === 'new') {
-      const newConv = await createNewConversation(content);
+      const newConv = await createNewConversation(trimmed);
       if (!newConv) {
         setError('Sohbet oluşturulamadı');
         return;
@@ -297,7 +299,7 @@ export default function ChatPage() {
       id: `temp-${Date.now()}`,
       conversation_id: conversationId,
       role: 'user',
-      content,
+      content: trimmed,
       created_at: new Date().toISOString(),
     };
     setMessages(prev => [...prev, userMessage]);
@@ -311,7 +313,7 @@ export default function ChatPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: trimmed }),
       });
 
       if (!response.ok) {
@@ -387,6 +389,7 @@ export default function ChatPage() {
           currentConversationId={id as string}
           onNewChat={handleNewChat}
           isLoading={false}
+          onRefreshConversations={fetchConversations}
         />
 
         {/* Main Chat Area */}

@@ -134,9 +134,18 @@ const CreateScreen: React.FC = () => {
   const [youtubeLoading, setYoutubeLoading] = useState<boolean>(false);
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
 
+  // --- İçerik Süresi Seçenekleri ---
+  // 1.5 dk, 5 dk, 10 dk, 15 dk seçenekleri (tüm modlar için ortak)
+  const DURATION_OPTIONS = [
+    { value: 1.5, label: '1.5 dk', description: '~225 kelime' },
+    { value: 5, label: '5 dk', description: '~750 kelime' },
+    { value: 10, label: '10 dk', description: '~1500 kelime' },
+    { value: 15, label: '15 dk', description: '~2250 kelime' },
+  ];
+
   // --- Podcast Mode State ---
   const [podcastTopic, setPodcastTopic] = useState<string>('');
-  const [podcastDuration, setPodcastDuration] = useState<number>(3);
+  const [podcastDuration, setPodcastDuration] = useState<number>(5); // Varsayılan 5 dk
   const [isCreatingPodcast, setIsCreatingPodcast] = useState<boolean>(false);
   const [podcastError, setPodcastError] = useState<string | null>(null);
   const [podcastStyleType, setPodcastStyleType] = useState<string>('friendly_chat');
@@ -1245,7 +1254,7 @@ const CreateScreen: React.FC = () => {
             />
             <View style={{ marginTop: 16 }}>
               <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
-                {language === 'tr' ? 'Süre (dakika)' : 'Duration (minutes)'}
+                {language === 'tr' ? 'İçerik Süresi' : 'Content Duration'}
               </Text>
               <View
                 style={{
@@ -1255,37 +1264,46 @@ const CreateScreen: React.FC = () => {
                   marginBottom: 6,
                 }}
               >
-                {[3, 5, 10].map((d) => (
+                {DURATION_OPTIONS.map((opt) => (
                   <TouchableOpacity
-                    key={d}
+                    key={opt.value}
                     style={{
                       flex: 1,
-                      marginHorizontal: 4,
+                      marginHorizontal: 3,
                       paddingVertical: 10,
                       borderRadius: 8,
-                      borderWidth: 1,
-                      borderColor: podcastDuration === d ? '#007AFF' : '#ddd',
-                      backgroundColor: podcastDuration === d ? '#E3F2FD' : '#fff',
+                      borderWidth: 2,
+                      borderColor: podcastDuration === opt.value ? '#007AFF' : '#ddd',
+                      backgroundColor: podcastDuration === opt.value ? '#E3F2FD' : '#fff',
                       alignItems: 'center',
                     }}
-                    onPress={() => setPodcastDuration(d)}
+                    onPress={() => setPodcastDuration(opt.value)}
                   >
                     <Text
                       style={{
-                        fontSize: 14,
-                        fontWeight: '500',
-                        color: podcastDuration === d ? '#007AFF' : '#333',
+                        fontSize: 13,
+                        fontWeight: '600',
+                        color: podcastDuration === opt.value ? '#007AFF' : '#333',
                       }}
                     >
-                      {d} {language === 'tr' ? 'dk' : 'min'}
+                      {opt.label}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        color: podcastDuration === opt.value ? '#007AFF' : '#888',
+                        marginTop: 2,
+                      }}
+                    >
+                      {opt.description}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={{ fontSize: 13, color: '#666' }}>
+              <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
                 {language === 'tr'
-                  ? `Hedef süre: yaklaşık ${podcastDuration} dakika`
-                  : `Target duration: around ${podcastDuration} minutes`}
+                  ? `Oluşturulacak içeriğin yaklaşık süresi (±%15 tolerans)`
+                  : `Approximate duration of the content (±15% tolerance)`}
               </Text>
             </View>
 

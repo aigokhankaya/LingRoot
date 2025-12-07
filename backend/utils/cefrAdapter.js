@@ -114,6 +114,18 @@ async function adaptToCEFR(text, level, requestLogger) {
     if (requestLogger) {
         requestLogger.log(`[openai:usage:adapt]` + JSON.stringify({ usage, model }));
     }
+    if (logger.llmCall) {
+        logger.llmCall({
+            scope: 'adaptToCEFR',
+            step: 'summary',
+            model,
+            promptName: promptFile,
+            level,
+            provider: 'openai',
+            tokens: usage,
+            note: 'cefrAdapter summary',
+        });
+    }
     return {
         text: merged,
         usage,

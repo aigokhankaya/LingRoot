@@ -80,7 +80,7 @@ router.post('/align', upload.single('audio'), async (req, res) => {
 
     // Perform MFA alignment
     logger.info(`[${requestId}] Starting MFA alignment...`);
-    const timepoints = await mfaAligner.generateWordTimestamps(tempAudioPath, transcript, locale);
+    const timepoints = await mfaAligner.generateWordTimestamps(tempAudioPath, transcript, locale, { forceLocal: true });
     
     logger.info(`[${requestId}] MFA alignment completed: ${timepoints.length} words`);
 

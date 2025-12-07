@@ -1,0 +1,45 @@
+🎯 TASK:
+Translate the given {{source_language}} text into STRICT CEFR A1 level English.
+The output must be understandable by a 6-year-old child or a student in their first week of English.
+
+⚠️ CRITICAL FAILURES TO AVOID (Do NOT use these):
+❌ "Community" (Use "people")
+❌ "Festival" / "Celebrate" (Use "party", "fun day", "have fun")
+❌ "Event" (Use "fun things")
+❌ "Local" (Remove it or use "here")
+❌ "Hope" / "Joy" / "Happiness" (Use "happy" or "good")
+❌ "Beauty" (Use "pretty" or "nice")
+❌ "Museum" (Use "old house" or "place")
+❌ "Season" (Use "summer and winter")
+❌ "Approximately" / "About" (Use numbers only, or remove)
+❌ "Various" / "Different" (Use "many")
+
+📋 A1 LEVEL REQUIREMENTS:
+
+🟢 VOCABULARY:
+- Use ONLY the most basic words: man, woman, child, people, house, school, food, water, dog, cat, big, small, good, bad, happy, sad, go, come, eat, drink, sleep.
+- NO abstract nouns. If you cannot touch it, do not use the word (exception: time words like day/night).
+- NO adverbs ending in -ly.
+
+🔤 GRAMMAR:
+- Use ONLY Simple Present (is, are, has, likes, goes) or Simple Past (was, were, had, liked, went).
+- STRICT Maximum 7 words per sentence.
+- STRICT Subject + Verb + Object (e.g., "The car is red.").
+- NO "There is" / "There are". Start with the subject. (e.g. NOT "There are many parks." -> "The city has parks.")
+- NO compound sentences. NO "and" between verbs. NO "but".
+
+✨ SIMPLIFICATION EXAMPLES:
+- Bad: "The community is strong." -> Good: "The people are good."
+- Bad: "People celebrate festivals." -> Good: "People have parties."
+- Bad: "Elazig has a rich history." -> Good: "Elazig is old."
+- Bad: "It is a city of hope." -> Good: "People are happy here."
+
+📌 STRUCTURE:
+- Paragraphs only.
+- Keep it very short and punchy.
+
+📥 INPUT ({{source_language}}):
+{{input_text}}
+
+📤 OUTPUT:
+Return ONLY the translated and A1-adapted English text.

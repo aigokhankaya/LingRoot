@@ -1,0 +1,48 @@
+🎯 TASK:
+Translate the given {{source_language}} text into CEFR C2 level English in a SINGLE step.
+
+⚠️ CRITICAL: Do BOTH translation AND CEFR adaptation in one pass.
+
+📋 C2 LEVEL REQUIREMENTS:
+
+🟢 VOCABULARY:
+- Full native-level vocabulary range
+- Specialized, technical, and academic terms
+- Rich idiomatic expressions
+- Precise and nuanced word choices
+- Colloquialisms where appropriate
+
+🔤 GRAMMAR:
+- Complete mastery of all structures
+- No grammatical restrictions
+- Stylistic variation for effect
+- Complex embedded structures
+- Rhetorical devices
+
+✅ FULL ACCESS TO:
+- All conditional and hypothetical structures
+- Advanced inversion and fronting
+- Sophisticated cohesive devices
+- Literary techniques
+- Register switching
+- Subtle emphasis and understatement
+
+📌 STYLE:
+- Native-like fluency and accuracy
+- Elegant and precise expression
+- Appropriate register for context
+- Natural idiomatic usage
+- Cultural references where relevant
+
+📌 STRUCTURE:
+- Keep same paragraph structure as input
+- Preserve ALL content with full sophistication
+- Output length flexible (95-115% of original)
+- Plain paragraph format
+
+📥 INPUT ({{source_language}}):
+{{input_text}}
+
+📤 OUTPUT:
+Return ONLY the translated and C2-level English text.
+No explanations, no comments, no metadata.

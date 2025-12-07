@@ -144,6 +144,19 @@ async function extractDailyUsagePatterns(adaptedText, level, requestId) {
     requestId
   });
 
+  if (logger.llmCall) {
+    logger.llmCall({
+      requestId,
+      scope: 'dailyPatternExtractor',
+      step: 'call',
+      model,
+      promptName: 'extract_daily_usage_patterns.txt',
+      level,
+      provider: 'openai',
+      note: 'daily usage patterns',
+    });
+  }
+
   const completion = await openaiClient.chat.completions.create({
     model,
     messages: [
@@ -156,10 +169,26 @@ async function extractDailyUsagePatterns(adaptedText, level, requestId) {
   const rawResponse = completion.choices[0]?.message?.content?.trim() || '';
   const parsed = parseJsonResponse(rawResponse, level);
 
+  const usage = completion.usage ? { ...completion.usage, model } : null;
+
+  if (logger.llmCall && usage) {
+    logger.llmCall({
+      requestId,
+      scope: 'dailyPatternExtractor',
+      step: 'summary',
+      model,
+      promptName: 'extract_daily_usage_patterns.txt',
+      level,
+      provider: 'openai',
+      tokens: usage,
+      note: 'daily patterns summary',
+    });
+  }
+
   return {
     parsed,
     rawResponse,
-    usage: completion.usage ? { ...completion.usage, model } : null
+    usage,
   };
 }
 

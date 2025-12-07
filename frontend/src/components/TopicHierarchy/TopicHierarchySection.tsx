@@ -21,6 +21,7 @@ interface TopicHierarchySectionProps {
   level: string;
   onContentCreated?: (result: any) => void;
   topicsFirst?: boolean;
+  targetDurationMinutes?: number;
 }
 
 const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
@@ -28,6 +29,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
   level,
   onContentCreated,
   topicsFirst = false,
+  targetDurationMinutes = 5,
 }) => {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -87,6 +89,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         type: 'subject',
         input: suggestedInput,
         level: level.toUpperCase(),
+        targetDurationMinutes: targetDurationMinutes,
       };
 
       const result = await processTts({

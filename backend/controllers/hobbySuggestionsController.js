@@ -61,7 +61,7 @@ exports.generateAndStoreHobbySuggestions = async (req, res) => {
     }
     
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "Sen bir hobi uzmanısın. Verilen hobi için 200 farklı, detaylı ve ilham verici alt konu önerisi oluşturuyorsun." },
         { role: "user", content: prompt }

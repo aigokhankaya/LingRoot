@@ -247,6 +247,7 @@ export interface ProcessInputData {
     chapter_id?: string;
     topic_id?: string;
     suppressPlanAlerts?: boolean;
+    targetDurationMinutes?: number; // İçerik süresi (1.5, 5, 10, 15 dakika)
 }
 
 export interface TtsResponseData {
@@ -434,7 +435,7 @@ async function handleApiResponse<T>(response: Response): Promise<ApiResponse<T>>
 }
 
 export const processTts = async (data: ProcessInputData): Promise<TtsResponseData> => {
-    const { type, input, file, level, SesHızı, voice, chapter_id, topic_id, suppressPlanAlerts } = data;
+    const { type, input, file, level, SesHızı, voice, chapter_id, topic_id, suppressPlanAlerts, targetDurationMinutes } = data;
     const url = `${getApiUrl("tts/process")}`;
     let headers: Record<string, string>;
     let body: string | FormData;
@@ -444,6 +445,9 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
         const payload = { input, type, level, SesHızı, voice, chapter_id } as any;
         if (topic_id) {
             (payload as any).topic_id = topic_id;
+        }
+        if (targetDurationMinutes) {
+            (payload as any).targetDurationMinutes = targetDurationMinutes;
         }
         console.log('🧭 [TTS PAYLOAD DEBUG] Prepared JSON payload:', payload);
         body = JSON.stringify(payload);
@@ -456,6 +460,7 @@ export const processTts = async (data: ProcessInputData): Promise<TtsResponseDat
         if (voice) formData.append("voice", voice);
         if (chapter_id) formData.append("chapter_id", chapter_id);
         if (topic_id) formData.append("topic_id", topic_id);
+        if (targetDurationMinutes) formData.append("targetDurationMinutes", targetDurationMinutes.toString());
 
         if (input && type !== "file") {
             formData.append("input", input);

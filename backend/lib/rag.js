@@ -13,7 +13,7 @@ const { embedText, findSimilar } = require('./embedding');
  * @returns {Promise<Object>} - Created topic
  */
 async function storeTopic(topicData) {
-  const { title, description, userId } = topicData;
+  const { title, description, userId, sourceType = 'chat', sourceId = null } = topicData;
 
   try {
     // Generate embedding
@@ -22,8 +22,8 @@ async function storeTopic(topicData) {
 
     // Store in database
     const query = `
-      INSERT INTO topics (title, description, user_id, embedding, created_at)
-      VALUES ($1, $2, $3, $4, NOW())
+      INSERT INTO topics (title, description, user_id, embedding, source_type, source_id, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW())
       RETURNING *
     `;
 
@@ -31,12 +31,14 @@ async function storeTopic(topicData) {
       title,
       description,
       userId,
-      JSON.stringify(embedding), // Store as JSON for now
+      JSON.stringify(embedding),
+      sourceType,
+      sourceId
     ]);
 
-    logger.info('✅ Topic stored with embedding', { 
+    logger.info('✅ Topic stored with embedding', {
       id: result.rows[0].id,
-      title 
+      title
     });
 
     return result.rows[0];
@@ -98,9 +100,9 @@ async function findSimilarTopics(query, options = {}) {
     // Find most similar
     const similar = findSimilar(queryEmbedding, topics, limit);
 
-    logger.info('🔍 Found similar topics', { 
+    logger.info('🔍 Found similar topics', {
       query: query.substring(0, 50),
-      count: similar.length 
+      count: similar.length
     });
 
     return similar;
@@ -154,10 +156,10 @@ async function suggestTopicsForUser(userId, conversationContext) {
       })),
     };
 
-    logger.info('💡 Generated topic suggestions', { 
+    logger.info('💡 Generated topic suggestions', {
       userId,
       previousCount: suggestions.yourPreviousTopics.length,
-      relatedCount: suggestions.relatedTopics.length 
+      relatedCount: suggestions.relatedTopics.length
     });
 
     return suggestions;
@@ -212,9 +214,9 @@ async function extractAndStoreTopic(conversationId, userId) {
       [extracted.topic, conversationId]
     );
 
-    logger.info('✅ Topic extracted and stored', { 
+    logger.info('✅ Topic extracted and stored', {
       conversationId,
-      topic: extracted.topic 
+      topic: extracted.topic
     });
 
     return topic;

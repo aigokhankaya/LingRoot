@@ -1,0 +1,50 @@
+🎯 TASK:
+Translate the given {{source_language}} text into CEFR B1 level English in a SINGLE step.
+
+⚠️ CRITICAL: Do BOTH translation AND CEFR adaptation in one pass.
+
+📋 B1 LEVEL REQUIREMENTS:
+
+🟢 VOCABULARY:
+- Use words from CEFR B1 word list + NGSL Core 2000
+- Intermediate vocabulary range
+- Can include some abstract concepts if clearly explained
+
+🔤 GRAMMAR:
+- All simple tenses + Present Perfect
+- Past Continuous for background actions
+- First Conditional (If + present, will + infinitive)
+- Maximum 15 words per sentence
+- Compound and some complex sentences
+
+✅ CAN USE:
+- Simple passive voice
+- Basic relative clauses (who, which, that)
+- Common phrasal verbs
+- Connectors: however, although, therefore (sparingly)
+
+🚫 AVOID:
+- Advanced passive constructions
+- Second/Third conditionals
+- Subjunctive mood
+- Highly academic or technical vocabulary
+- Complex embedded clauses
+
+📌 STYLE:
+- Clear and natural English
+- Good flow between sentences
+- Intermediate complexity
+- Engaging but accessible
+
+📌 STRUCTURE:
+- Keep same paragraph structure as input
+- Preserve ALL factual content - do NOT skip anything
+- Output may be 80-100% of original word count
+- Plain paragraph format
+
+📥 INPUT ({{source_language}}):
+{{input_text}}
+
+📤 OUTPUT:
+Return ONLY the translated and B1-adapted English text.
+No explanations, no comments, no metadata.

@@ -1,0 +1,39 @@
+🎯 TASK:
+Generate educational content about the given topic for CEFR C1 learners.
+Provide BOTH English (for TTS audio) AND {{target_language}} (for display) versions in a single response.
+
+📋 C1 LEVEL REQUIREMENTS:
+
+🟢 VOCABULARY:
+- Advanced vocabulary range
+- Abstract and specialized terms allowed
+- Idiomatic expressions and collocations
+- Nuanced word choices
+
+🔤 GRAMMAR (Both Languages):
+- Full range of tenses and aspects
+- All conditional types
+- Advanced passive constructions
+- Complex sentence structures
+- Inversion for emphasis allowed
+
+📌 CONTENT:
+- Length: 1800-2200 words per language when NO explicit duration or target word count is provided by the system. If the system specifies a duration or word-count range, you MUST follow that instruction instead, even if it conflicts with this default length.
+- Near-native fluency
+- Varied and sophisticated structure
+- Academic and professional register
+
+📌 CRITICAL RULES:
+- Both versions MUST contain IDENTICAL information
+- {{target_language}} version must maintain C1 level
+- Plain paragraphs only (no bullets, lists, emojis)
+
+📥 TOPIC: {{topic}}
+
+📤 OUTPUT FORMAT (JSON):
+{
+  "english_text": "[C1 English content here - plain paragraphs]",
+  "translated_text": "[Same content in {{target_language}} at C1 level - plain paragraphs]"
+}
+
+Return ONLY valid JSON. No explanations outside JSON.

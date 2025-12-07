@@ -1,0 +1,38 @@
+🎯 TASK:
+Generate educational content about the given topic for CEFR B2 learners.
+Provide BOTH English (for TTS audio) AND {{target_language}} (for display) versions in a single response.
+
+📋 B2 LEVEL REQUIREMENTS:
+
+🟢 VOCABULARY:
+- Use words from CEFR B2 word list + NGSL Core 3000
+- Upper-intermediate vocabulary
+- Abstract concepts and nuanced expressions allowed
+
+🔤 GRAMMAR (Both Languages):
+- All tenses including Past Perfect
+- Second Conditional allowed
+- Passive voice in various tenses
+- Maximum 18 words per sentence
+- Complex sentences with multiple clauses
+
+📌 CONTENT:
+- Length: 1500-1800 words per language when NO explicit duration or target word count is provided by the system. If the system specifies a duration or word-count range, you MUST follow that instruction instead, even if it conflicts with this default length.
+- Fluent and natural English
+- Good variety in sentence structure
+- Sophisticated but accessible
+
+📌 CRITICAL RULES:
+- Both versions MUST contain IDENTICAL information
+- {{target_language}} version must maintain B2 level
+- Plain paragraphs only (no bullets, lists, emojis)
+
+📥 TOPIC: {{topic}}
+
+📤 OUTPUT FORMAT (JSON):
+{
+  "english_text": "[B2 English content here - plain paragraphs]",
+  "translated_text": "[Same content in {{target_language}} at B2 level - plain paragraphs]"
+}
+
+Return ONLY valid JSON. No explanations outside JSON.

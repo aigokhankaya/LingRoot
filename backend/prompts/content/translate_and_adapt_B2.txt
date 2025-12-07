@@ -1,0 +1,51 @@
+🎯 TASK:
+Translate the given {{source_language}} text into CEFR B2 level English in a SINGLE step.
+
+⚠️ CRITICAL: Do BOTH translation AND CEFR adaptation in one pass.
+
+📋 B2 LEVEL REQUIREMENTS:
+
+🟢 VOCABULARY:
+- Use words from CEFR B2 word list + NGSL Core 3000
+- Upper-intermediate vocabulary
+- Abstract concepts and nuanced expressions allowed
+- Some idiomatic language acceptable
+
+🔤 GRAMMAR:
+- All tenses including Past Perfect
+- Second Conditional (If + past, would + infinitive)
+- Passive voice in various tenses
+- Maximum 18 words per sentence
+- Complex sentences with multiple clauses
+
+✅ CAN USE:
+- Relative clauses (defining and non-defining)
+- Reported speech
+- Common phrasal verbs
+- Discourse markers (furthermore, nevertheless, consequently)
+- Participle clauses
+
+🚫 AVOID:
+- Highly specialized technical jargon
+- Rare idiomatic expressions
+- Overly complex nested clauses
+- Literary or archaic vocabulary
+
+📌 STYLE:
+- Fluent and natural English
+- Good variety in sentence structure
+- Clear argumentation
+- Sophisticated but accessible
+
+📌 STRUCTURE:
+- Keep same paragraph structure as input
+- Preserve ALL factual content - do NOT skip anything
+- Output may be 85-105% of original word count
+- Plain paragraph format
+
+📥 INPUT ({{source_language}}):
+{{input_text}}
+
+📤 OUTPUT:
+Return ONLY the translated and B2-adapted English text.
+No explanations, no comments, no metadata.

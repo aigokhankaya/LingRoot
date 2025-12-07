@@ -14,13 +14,15 @@ interface SidebarProps {
   currentConversationId?: string;
   onNewChat: () => void;
   isLoading?: boolean;
+  onRefreshConversations?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   conversations,
   currentConversationId,
   onNewChat,
-  isLoading
+  isLoading,
+  onRefreshConversations,
 }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -61,6 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             setIsMobileOpen(false);
           }}
           isLoading={isLoading}
+          onRefreshConversations={onRefreshConversations}
         />
       </aside>
     </>
