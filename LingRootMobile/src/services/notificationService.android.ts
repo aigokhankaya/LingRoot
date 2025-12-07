@@ -215,9 +215,13 @@ class NotificationService {
       } catch (err) {
         // Silent error handling
       }
+      // If user has no unlearned words (or no words at all), skip scheduling reminders
       const unlearned = Array.isArray(words)
         ? words.filter(w => w && (w.is_learned === false || typeof w.is_learned === 'undefined'))
         : [];
+      if (unlearned.length === 0) {
+        return;
+      }
       const times = ReminderSettingsService.calculateNotificationTimes(settings, unlearned.length);
       const selected = this.pickWordsForSlots(unlearned, words as any, times.length);
 

@@ -20,6 +20,8 @@ interface PlanFeatures {
     podcast?: boolean;
     topic_suggestions?: boolean;
     book?: boolean;
+    liro?: boolean;
+    daily_usage_patterns?: boolean;
   };
   voice_categories?: {
     standard?: boolean;
@@ -90,6 +92,8 @@ export default function PackageDetailPage() {
       podcast: true,
       topic_suggestions: true,
       book: true,
+      liro: true,
+      daily_usage_patterns: true,
     },
     voice_categories: {
       standard: true,
@@ -465,6 +469,30 @@ export default function PackageDetailPage() {
                   <Label htmlFor="book" className="cursor-pointer">
                     <i className="fas fa-book mr-2 text-primary"></i>
                     Kitap
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="daily_usage_patterns"
+                    checked={planFeatures.homepage_features?.daily_usage_patterns ?? true}
+                    onChange={(e) => handleHomepageFeatureChange('daily_usage_patterns', e.target.checked)}
+                  />
+                  <Label htmlFor="daily_usage_patterns" className="cursor-pointer">
+                    <i className="fas fa-magic mr-2 text-yellow-500"></i>
+                    Günlük Kullanım Kalıpları
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="liro"
+                    checked={planFeatures.homepage_features?.liro ?? false}
+                    onChange={(e) => handleHomepageFeatureChange('liro', e.target.checked)}
+                  />
+                  <Label htmlFor="liro" className="cursor-pointer">
+                    <i className="fas fa-robot mr-2 text-indigo-500"></i>
+                    LIRO (AI Asistan)
                   </Label>
                 </div>
               </div>

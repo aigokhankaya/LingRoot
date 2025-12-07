@@ -401,7 +401,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
   // Auth loading state
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color="#374151" />
@@ -553,21 +553,12 @@ export default function VocabularyScreen({ navigation, route }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#374151" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('vocabulary.headerTitle')}</Text>
-        <TouchableOpacity onPress={() => setIsAddModalVisible(true)}>
-          <Ionicons name="add" size={24} color="#3B82F6" />
-        </TouchableOpacity>
-      </View>
-
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <ScrollView
         ref={scrollViewRef}
         style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -588,7 +579,12 @@ export default function VocabularyScreen({ navigation, route }: any) {
           <>
             {/* İstatistikler */}
             <View style={styles.statsContainer}>
-              <Text style={styles.sectionTitle}>{t('vocabulary.statistics')}</Text>
+              <View style={styles.statsHeader}>
+                <Text style={styles.sectionTitle}>{t('vocabulary.statistics')}</Text>
+                <TouchableOpacity onPress={() => setIsAddModalVisible(true)}>
+                  <Ionicons name="add" size={24} color="#3B82F6" />
+                </TouchableOpacity>
+              </View>
               <View style={styles.statsGrid}>
                 <View style={styles.statCard}>
                   <Text style={styles.statNumber}>{stats.total}</Text>
@@ -761,6 +757,10 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
+  contentContainer: {
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
@@ -768,8 +768,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   statsContainer: {
-    marginTop: 20,
     marginBottom: 24,
+  },
+  statsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   statsGrid: {
     flexDirection: 'row',

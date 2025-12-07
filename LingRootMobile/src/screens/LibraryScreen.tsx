@@ -633,15 +633,6 @@ const LibraryScreen: React.FC = () => {
         </TouchableOpacity>
         <View style={styles.headerButtons}>
           <TouchableOpacity 
-            style={[styles.modeToggle, highlightMode === 'sentence' && styles.modeToggleActive]} 
-            onPress={() => setHighlightMode(highlightMode === 'word' ? 'sentence' : 'word')}
-          >
-            <Icon name="text-fields" size={18} color={highlightMode === 'sentence' ? '#FF9800' : '#007AFF'} />
-            <Text style={[styles.modeToggleText, highlightMode === 'sentence' && styles.modeToggleTextActive]}>
-              {highlightMode === 'word' ? (language === 'tr' ? 'Kelime' : 'Word') : (language === 'tr' ? 'Cümle' : 'Sentence')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
             style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]} 
             onPress={handleToggleFavorites}
           >

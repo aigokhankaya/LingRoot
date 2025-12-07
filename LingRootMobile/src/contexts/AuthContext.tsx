@@ -190,9 +190,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             // Register FCM/APNs device token for push notifications
             try {
+              console.log('[AUTH][PushToken] Attempting push token registration (checkAuthState_response_ok)');
               await registerPushTokenWithBackend();
               setupPushTokenRefreshListener();
-            } catch {
+              console.log('[AUTH][PushToken] Push token registration finished (checkAuthState_response_ok)');
+            } catch (pushError) {
+              console.error('[AUTH][PushToken] Error during push token registration (checkAuthState_response_ok):', pushError);
               // Push token hatası uygulamayı bozmasın
             }
           } else {
@@ -206,6 +209,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               try {
                 const appUser: User = JSON.parse(storedUser);
                 setUser(appUser);
+                try {
+                  console.log('[AUTH][PushToken] Attempting push token registration (checkAuthState_response_not_ok)');
+                  await registerPushTokenWithBackend();
+                  setupPushTokenRefreshListener();
+                  console.log('[AUTH][PushToken] Push token registration finished (checkAuthState_response_not_ok)');
+                } catch (pushError) {
+                  console.error('[AUTH][PushToken] Error during push token registration (checkAuthState_response_not_ok):', pushError);
+                }
               } catch {}
             }
           }
@@ -214,6 +225,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           try {
             const appUser: User = JSON.parse(storedUser);
             setUser(appUser);
+            try {
+              console.log('[AUTH][PushToken] Attempting push token registration (checkAuthState_validateError)');
+              await registerPushTokenWithBackend();
+              setupPushTokenRefreshListener();
+              console.log('[AUTH][PushToken] Push token registration finished (checkAuthState_validateError)');
+            } catch (pushError) {
+              console.error('[AUTH][PushToken] Error during push token registration (checkAuthState_validateError):', pushError);
+            }
           } catch {
             // If parsing fails, do not clear token; just keep user null
           }
@@ -315,9 +334,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Backend oturumu kurulduktan sonra push token kaydını yap
         try {
+          console.log('[AUTH][PushToken] Attempting push token registration (signIn)');
           await registerPushTokenWithBackend();
           setupPushTokenRefreshListener();
-        } catch {
+          console.log('[AUTH][PushToken] Push token registration finished (signIn)');
+        } catch (pushError) {
+          console.error('[AUTH][PushToken] Error during push token registration (signIn):', pushError);
           // Push token hatası uygulamayı bozmasın
         }
         
@@ -452,9 +474,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Backend oturumu kurulduktan sonra push token kaydını yap
       try {
+        console.log('[AUTH][PushToken] Attempting push token registration (handleSocialAuth)');
         await registerPushTokenWithBackend();
         setupPushTokenRefreshListener();
-      } catch {
+        console.log('[AUTH][PushToken] Push token registration finished (handleSocialAuth)');
+      } catch (pushError) {
+        console.error('[AUTH][PushToken] Error during push token registration (handleSocialAuth):', pushError);
         // Push token hatası uygulamayı bozmasın
       }
     } else {

@@ -2,6 +2,7 @@ import UIKit
 import React
 import UserNotifications
 import FBSDKCoreKit
+import FirebaseCore
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -17,6 +18,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
       application,
       didFinishLaunchingWithOptions: launchOptions
     )
+    
+    // Initialize Firebase for React Native Firebase modules (App, Messaging, etc.)
+    FirebaseApp.configure()
     
     // Set notification center delegate to receive notifications in foreground and tap responses
     UNUserNotificationCenter.current().delegate = self
