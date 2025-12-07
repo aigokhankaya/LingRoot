@@ -1,0 +1,301 @@
+{
+  "profile": {
+    "title": "Profile",
+    "accountSettings": "Account Settings",
+    "language": "App Language", 
+    "audioHistory": "Audio History",
+    "membership": "Membership",
+    "testNotification": "Test Notification",
+    "notificationStatus": "Notification Status",
+    "quickDebug": "🔧 Quick Debug",
+    "help": "Help",
+    "about": "About",
+    "signOut": "Sign Out",
+    "signOutConfirm": "Are you sure you want to sign out of your account?",
+    "cancel": "Cancel",
+    "user": "User"
+  },
+  "languages": {
+    "turkish": "Türkçe",
+    "english": "English"
+  },
+  "notifications": {
+    "disabled": "Notifications Disabled",
+    "permissionRequired": "Permission is required for notifications. Please enable notification permissions from settings.",
+    "testSent": "Test Notification",
+    "testSentMessage": "test notification sent for word!",
+    "noWordsFound": "No Words Found",
+    "noWordsFoundMessage": "No unlearned words found. This may be because:\n\n• Your word list is empty\n• All words are marked as learned\n• Session has expired (please sign in again)",
+    "error": "Error",
+    "testFailed": "Test notification could not be sent.",
+    "sessionExpired": "Session has expired. Please sign out and sign in again.",
+    "statusError": "Notification status could not be retrieved.",
+    "debugCompleted": "🔧 Debug Completed",
+    "debugCompletedMessage": "Smart notifications restarted!\n\nCheck with Profile → Notification Status.",
+    "debugFailed": "Debug operation failed: ",
+    "unknownError": "Unknown error",
+    "signOutFailed": "Could not sign out"
+  },
+  "home": {
+    "title": "Home",
+    "welcome": "Welcome",
+    "audioCreated": "Audio Created",
+    "minutesContent": "Minutes Content",
+    "features": "Features",
+    "quickActions": "Quick Actions",
+    "createNewAudio": "Create New Audio",
+    "listenToAudio": "Listen to My Audio",
+    "tip": "Tip",
+    "tipText": "By selecting your CEFR level, you can have texts adapted to suit you.",
+    "textToSpeech": "Text → Speech",
+    "textToSpeechDesc": "Convert text to speech",
+    "uploadFile": "Upload File",
+    "uploadFileDesc": "Process PDF/Word files",
+    "vocabulary": "My Vocabulary",
+    "vocabularyDesc": "View your learned words",
+    "topicSuggestions": "Topic Suggestions",
+    "topicSuggestionsDesc": "Get AI topic suggestions",
+    "audioLibrary": "Audio Library",
+    "audioLibraryDesc": "Listen to your created audio",
+    "bookSearch": "Search Books",
+    "bookSearchDesc": "Search by title, author, or general term"
+  },
+  "vocabulary": {
+    "title": "Vocabulary",
+    "headerTitle": "Vocabulary Lists",
+    "loading": "Loading words...",
+    "error": "Error loading words: ",
+    "retry": "Try Again",
+    "statistics": "Statistics",
+    "totalWords": "Total Words",
+    "learned": "Learned",
+    "notLearned": "Not Learned",
+    "cefrLevels": "CEFR Levels",
+    "progress": "Progress",
+    "words": "words",
+    "view": "View",
+    "searchPlaceholder": "Search word or meaning...",
+    "allLevels": "All Levels",
+    "allWords": "All Words",
+    "noWordsTitle": "No words added yet",
+    "noWordsText": "You can add words by long pressing on words in the text player.",
+    "noResultsTitle": "No results found",
+    "noResultsText": "No words found matching your search criteria.",
+    "exampleSentence": "Example Sentence:",
+    "originalSentence": "Original Sentence:",
+    "delete": "Delete",
+    "deleteConfirm": "Are you sure you want to delete this word?",
+    "cancel": "Cancel",
+    "deleteWord": "Delete Word",
+    "deleteError": "Error deleting word: ",
+    "newWord": "New Word",
+    "save": "Save",
+    "wordLabel": "Word *",
+    "meaningLabel": "Meaning *",
+    "levelLabel": "Level",
+    "exampleLabel": "Example Sentence",
+    "wordRequired": "Word and meaning fields are required.",
+    "wordAdded": "Word added successfully!",
+    "addError": "Error adding word: ",
+    "updateError": "Error updating word status: ",
+    "meaningPlaceholder": "No meaning added",
+    "authRequired": "You need to sign in to view your vocabulary list.",
+    "login": "Sign In",
+    "reminderSuccess": "Reminder settings saved and notifications rescheduled.",
+    "reminderError": "An error occurred while saving settings.",
+    "success": "Successful!",
+    "wordPlaceholder": "e.g: beautiful",
+    "meaningPlaceholderExample": "e.g: güzel, hoş",
+    "examplePlaceholder": "e.g: She is very beautiful."
+  },
+  "suggestions": {
+    "title": "Suggestions",
+    "subtitle": "Get personalized topic suggestions with AI",
+    "input": {
+      "title": "Topic",
+      "placeholder": "Type a topic (e.g., travel, technology, sports)"
+    },
+    "cefr": {
+      "title": "CEFR Level"
+    },
+    "cefrDescriptions": {
+      "A1": "Beginner - Basic words and phrases",
+      "A2": "Elementary - Daily conversation",
+      "B1": "Intermediate - Work and education topics",
+      "B2": "Upper-Intermediate - Complex texts",
+      "C1": "Advanced - Fluent and effective use",
+      "C2": "Proficient - Near native level"
+    },
+    "buttons": {
+      "getSuggestions": "Get Suggestions",
+      "loading": "Preparing suggestions..."
+    },
+    "results": {
+      "title": "Suggestions ({{count}})"
+    },
+    "empty": {
+      "title": "No suggestions yet",
+      "description": "Enter a topic and select your level, we will prepare suggestions for you"
+    },
+    "alerts": {
+      "pleaseEnterTopic": "Please enter a topic",
+      "noSuggestions": "No suggestions found for this topic",
+      "fetchFailed": "Could not fetch suggestions"
+    },
+    "select": {
+      "title": "Suggestion Selected",
+      "message": "Would you like to create audio using this suggestion?",
+      "navigateInfo": "You will be redirected to the Create screen..."
+    }
+  },
+  "common": {
+    "cancel": "Cancel",
+    "yes": "Yes"
+  },
+  "create": {
+    "title": "Create",
+    "subtitle": "Adapt text to CEFR level with AI and convert to speech",
+    "input": {
+      "title": "Text Input",
+      "placeholder": "Type the text you want to convert...",
+      "placeholderDisabled": "File selected - text input disabled",
+      "charCount": "{{count}} characters",
+      "expand": "Expand",
+      "collapse": "Collapse"
+    },
+    "file": {
+      "uploadButton": "Upload File (PDF, Word)"
+    },
+    "cefr": {
+      "title": "CEFR Level"
+    },
+    "cefrDescriptions": {
+      "A1": "Beginner - Basic words and phrases",
+      "A2": "Elementary - Daily conversation",
+      "B1": "Intermediate - Work and education topics",
+      "B2": "Upper-Intermediate - Complex texts",
+      "C1": "Advanced - Fluent and effective use",
+      "C2": "Proficient - Near native level"
+    },
+    "speed": {
+      "title": "Speech Speed",
+      "slow": "Slow",
+      "normal": "Normal",
+      "fast": "Fast"
+    },
+    "voice": {
+      "title": "Voice Selection",
+      "selectPrompt": "Select a voice",
+      "selectHint": "Tap to select a voice",
+      "categories": {
+        "standard": "Standard",
+        "wavenet": "WaveNet",
+        "neural2": "Neural2",
+        "studio": "Studio",
+        "chirp3d": "Chirp 3D"
+      },
+      "badge": {
+        "free": "Free",
+        "premium": "Premium",
+        "platinum": "Platinum",
+        "gold": "Gold"
+      },
+      "filters": {
+        "accent": "Accent",
+        "gender": "Gender",
+        "all": "All"
+      },
+      "accents": {
+        "american": "American",
+        "british": "British",
+        "australian": "Australian",
+        "canadian": "Canadian",
+        "indian": "Indian"
+      },
+      "genders": {
+        "male": "Male",
+        "female": "Female"
+      },
+      "modal": {
+        "title": "Select Voice",
+        "ssmlSupported": "SSML Supported"
+      }
+    },
+    "buttons": {
+      "createAudio": "Create Audio",
+      "processing": "Creating...",
+      "processingFile": "Processing file... (This may take a few minutes)"
+    },
+    "alerts": {
+      "enterTextOrFile": "Please enter text or select a file",
+      "fileProcessed": "The file was processed and audio was created successfully. You can listen from the Library tab.",
+      "fileProcessFailed": "File could not be processed",
+      "audioCreated": "The audio file was created successfully. You can listen from the Library tab.",
+      "audioCreateFailed": "Audio could not be created",
+      "fileSelectedTitle": "File Selected",
+      "fileSelectedMessage": "\"{{fileName}}\" selected. Tap 'Create Audio' to proceed.",
+      "filePickError": "An error occurred while selecting the file",
+      "fileCleared": "Selected file was removed"
+    },
+    "book": {
+      "title": "Book Search",
+      "inputs": {
+        "qPlaceholder": "General search (keyword)",
+        "titlePlaceholder": "Book title",
+        "authorPlaceholder": "Author"
+      },
+      "buttons": {
+        "search": "Search"
+      },
+      "emptyResults": "Search results will appear here",
+      "noChapters": "No chapters found for this book",
+      "alerts": {
+        "selectChapter": "Please select a chapter",
+        "searchFailed": "Search failed",
+        "chaptersFailed": "Failed to fetch chapters",
+        "ttsFailed": "Failed to create audio"
+      }
+    }
+  },
+  "common": {
+    "error": "Error",
+    "success": "Successful!",
+    "ok": "OK",
+    "info": "Info",
+    "or": "or",
+    "unexpectedError": "An unexpected error occurred"
+  },
+    "audioPlayer": {
+    "originalTextButton": "Original Text",
+    "backToTranslationButton": "Back",
+    "originalTurkishTitle": "Original Turkish Text",
+    "copySuccessTitle": "Copied!",
+    "copySuccessMessage": "Turkish text copied to clipboard.",
+    "originalLoading": "Loading..."
+  },
+  "library": {
+    "title": "Library",
+    "all": "All"
+  },
+  "register": {
+    "title": "Create Account",
+    "subtitle": "Join LingRoot and start learning",
+    "fullName": "Full Name",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "termsText": "I accept the Terms of Service and Privacy Policy",
+    "cta": "Sign Up",
+    "registering": "Signing up...",
+    "haveAccount": "Already have an account? Sign in",
+    "success": "Registration completed. Please check your email.",
+    "errors": {
+      "fullNameRequired": "Please enter your full name",
+      "emailInvalid": "Please enter a valid email",
+      "passwordShort": "Password must be at least 6 characters",
+      "passwordMismatch": "Passwords do not match",
+      "acceptTerms": "Please accept the terms",
+      "generic": "Registration failed"
+    }
+  }
+}
