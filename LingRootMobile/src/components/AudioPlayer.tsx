@@ -118,6 +118,51 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   useEffect(() => {
     console.log(`📄 [AudioPlayer] pageIndex changed to: ${pageIndex}`);
   }, [pageIndex]);
+
+  const handleShowWordInfo = useCallback(async (word: string) => {
+    const cleanWord = word.replace(/[.,!?;:]/g, '');
+
+    try {
+      const result = await apiService.lookupVocabularyWord(cleanWord);
+
+      if (!result.found || !result.data) {
+        Alert.alert(
+          language === 'tr' ? 'Bilgi' : 'Info',
+          language === 'tr'
+            ? `"${cleanWord}" kelimesi için henüz sözlük kaydı bulunamadı.\n\nBu kelimeyi kelime listenize ekleyebilirsiniz.`
+            : `There is no dictionary entry yet for "${cleanWord}".\n\nYou can add this word to your vocabulary list.`,
+        );
+        return;
+      }
+
+      const w = result.data;
+
+      if (language === 'tr') {
+        const message = `"${w.original_word || w.word}"\n\n` +
+          `Anlam: ${w.definition || '-'}\n` +
+          `Seviye: ${(w.level || '').toUpperCase() || '-'}\n` +
+          `Örnek Cümle: ${w.example_sentence || '-'}\n` +
+          `Türkçe Örnek: ${w.example_sentence_turkish || '-'}`;
+
+        Alert.alert('Kelime Bilgisi', message);
+      } else {
+        const message = `"${w.original_word || w.word}"\n\n` +
+          `Meaning: ${w.definition || '-'}\n` +
+          `Level: ${(w.level || '').toUpperCase() || '-'}\n` +
+          `Example: ${w.example_sentence || '-'}\n` +
+          `Turkish Example: ${w.example_sentence_turkish || '-'}`;
+
+        Alert.alert('Word Info', message);
+      }
+    } catch (error: any) {
+      Alert.alert(
+        language === 'tr' ? 'Hata' : 'Error',
+        language === 'tr'
+          ? `Kelime bilgisi yüklenirken hata oluştu: ${error?.message || 'Bilinmeyen hata'}`
+          : `An error occurred while loading word info: ${error?.message || 'Unknown error'}`,
+      );
+    }
+  }, [language]);
   const [addingWord, setAddingWord] = useState(false); // Loading state for adding word
   const [addingWordText, setAddingWordText] = useState(''); // Text to show while adding
   const [elapsedTime, setElapsedTime] = useState(0); // Elapsed time since play started
@@ -988,28 +1033,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   }, [wordsArray, timepoints, duration, handleSeek, isPlaying, sound, elapsedTime]);
 
-  const handleWordLongPress = useCallback((word: string, wordIndex: number) => {
-    const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
-
-    Alert.alert(
-      language === 'tr' ? 'Kelime Seçimi' : 'Word Selection',
-      language === 'tr' 
-        ? `"${cleanWord}" kelimesini kelime listenize eklemek istiyor musunuz?`
-        : `Do you want to add "${cleanWord}" to your vocabulary list?`,
-      [
-        {
-          text: language === 'tr' ? 'İptal' : 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: language === 'tr' ? 'Kelime Ekle' : 'Add Word',
-          style: 'default',
-          onPress: () => handleAddWordToVocabulary(cleanWord, wordIndex),
-        },
-      ]
-    );
-  }, [language]);
-
   const handleAddWordToVocabulary = useCallback(async (word: string, wordIndex: number) => {
     const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
     
@@ -1105,6 +1128,61 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setAddingWordText('');
     }
   }, [wordsArray, textToHighlight, language]);
+
+  const handleWordLongPress = useCallback(async (word: string, wordIndex: number) => {
+    const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
+
+    // CASE 1: Kelime bu kullanıcı için zaten vocabulary + user_vocabulary'de kayıtlıysa
+    // doğrudan anlam popup'ı göster ve "Kelime Ekle" opsiyonu sunma
+    try {
+      const result = await apiService.lookupVocabularyWord(cleanWord);
+      if (result.found && result.data && result.hasUserWord) {
+        const w = result.data;
+
+        if (language === 'tr') {
+          const message = `"${w.original_word || w.word}"\n\n` +
+            `Anlam: ${w.definition || '-'}\n` +
+            `Seviye: ${(w.level || '').toUpperCase() || '-'}\n` +
+            `Örnek Cümle: ${w.example_sentence || '-'}\n` +
+            `Türkçe Örnek: ${w.example_sentence_turkish || '-'}`;
+
+          Alert.alert('Kelime Bilgisi', message);
+        } else {
+          const message = `"${w.original_word || w.word}"\n\n` +
+            `Meaning: ${w.definition || '-'}\n` +
+            `Level: ${(w.level || '').toUpperCase() || '-'}\n` +
+            `Example: ${w.example_sentence || '-'}\n` +
+            `Turkish Example: ${w.example_sentence_turkish || '-'}`;
+
+          Alert.alert('Word Info', message);
+        }
+
+        return;
+      }
+    } catch (err) {
+      console.error('Error during vocabulary lookup on long press:', err);
+      // Hata durumunda normal seçenekli diyaloğa devam et
+    }
+
+    // CASE 2 & 3: Kullanıcı için kelime kaydı yoksa - web ile aynı mantıkta kısa bir onay sor
+    Alert.alert(
+      language === 'tr' ? 'Kelime Ekle' : 'Add Word',
+      language === 'tr'
+        ? `"${cleanWord}" kelimesini kelime listenize eklemek istiyor musunuz?`
+        : `Do you want to add "${cleanWord}" to your vocabulary list?`,
+      [
+        {
+          text: language === 'tr' ? 'İptal' : 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: language === 'tr' ? 'Kelimeyi Ekle' : 'Add Word',
+          style: 'default',
+          onPress: () => handleAddWordToVocabulary(cleanWord, wordIndex),
+        },
+      ],
+    );
+  }, [language, handleAddWordToVocabulary]);
 
   const formatTime = (milliseconds: number) => {
     const totalSeconds = Math.floor(milliseconds / 1000);

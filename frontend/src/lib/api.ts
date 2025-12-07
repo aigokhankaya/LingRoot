@@ -203,6 +203,38 @@ export const apiRequest = async <T>(
   }
 };
 
+// Global vocabulary lookup - sadece sözlükteki kaydı döndürür, kullanıcıya ekleme yapmaz
+export const lookupVocabularyWord = async (
+  word: string
+): Promise<{ success: boolean; found: boolean; data: VocabularyWord | null; hasUserWord?: boolean }> => {
+  try {
+    const baseUrl = process.env.NODE_ENV === 'development'
+      ? 'http://localhost:5001/api/vocabulary/lookup'
+      : '/api/vocabulary/lookup';
+
+    const headers = createHeaders('application/json');
+
+    const url = `${baseUrl}?word=${encodeURIComponent(word)}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error looking up vocabulary word:', error);
+    throw error;
+  }
+};
+
 export interface ProcessInputData {
     type: "text" | "youtube" | "podcast" | "file" | "weblink" | "topic" | "book" | "subject";
     input?: string;

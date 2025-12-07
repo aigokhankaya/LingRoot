@@ -8,6 +8,11 @@ import { MembershipProvider } from '../src/context/MembershipContext';
 function MyApp({ Component, pageProps }: AppProps) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent || ''
+    );
+    if (!isMobile) return;
+
     const originalAlert = window.alert;
     // Completely suppress native alerts globally (mobile-friendly)
     window.alert = (...args: any[]) => {
