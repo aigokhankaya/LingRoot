@@ -55,7 +55,7 @@ const CreateScreen: React.FC = () => {
   const [createdTrack, setCreatedTrack] = useState<AudioTrack | null>(null);
   const [showPlayer, setShowPlayer] = useState(false);
   const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
-  // Keep mode in sync when screen gains focus (e.g., navigating from Home with different params)
+
   useFocusEffect(
     React.useCallback(() => {
       const checkActiveJob = async () => {
@@ -97,6 +97,28 @@ const CreateScreen: React.FC = () => {
 
       // Ekrana her odaklanıldığında aktif job durumunu kontrol et
       checkActiveJob();
+
+      // Topic Tree'den gelen hazır uzun metni sadece text modunda ve input boşken uygula
+      if (
+        nextMode === 'text' &&
+        (!inputText || inputText.trim().length === 0) &&
+        typeof route.params?.initialText === 'string' &&
+        route.params.initialText.trim().length > 0
+      ) {
+        setInputText(route.params.initialText);
+      }
+
+      // Topic Tree'den gelen seviye bilgisini (topicLevel) text modunda uygula
+      if (
+        nextMode === 'text' &&
+        typeof route.params?.topicLevel === 'string' &&
+        route.params.topicLevel.trim().length > 0
+      ) {
+        const lvl = route.params.topicLevel.trim().toUpperCase();
+        if (['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(lvl)) {
+          setSelectedLevel(lvl as CEFRLevel);
+        }
+      }
 
       // Her zaman suggestion mode'a girerken temizle
       if (nextMode === 'suggestion') {
@@ -902,6 +924,10 @@ const CreateScreen: React.FC = () => {
       } else {
         // Text/Book processing - ASYNC
         const textToProcess = mode === 'book' ? selectedChapterText : effectiveInputText;
+        const topicIdForRequest =
+          route.params && typeof (route.params as any).topicId === 'string'
+            ? (route.params as any).topicId
+            : undefined;
         const request: TTSRequest = {
           type: 'text',
           input: textToProcess,
@@ -912,6 +938,7 @@ const CreateScreen: React.FC = () => {
           voiceName: selectedVoice,
           gender: selectedGender as any,
           accent: selectedAccent as any,
+          topic_id: topicIdForRequest,
         };
 
         console.log('🎯 [CREATE] Calling processTextToSpeechAsync...');
@@ -1191,6 +1218,29 @@ const CreateScreen: React.FC = () => {
     setSelectedFile(null);
     Alert.alert(t('common.info'), t('create.alerts.fileCleared'));
   };
+
+  const isPodcastMode = mode === 'podcast';
+  const isGlobalCreateDisabled = isPodcastMode
+    ? isCreatingPodcast || !podcastTopic.trim()
+    : isLoading || isCreatingVoice || isTtsJobLocked;
+
+  const isGlobalCreateBusy = isPodcastMode
+    ? isCreatingPodcast
+    : isLoading || isCreatingVoice;
+
+  const globalCreateLabel = isPodcastMode
+    ? (isCreatingPodcast
+        ? (language === 'tr'
+          ? 'Podcast oluşturuluyor...'
+          : 'Creating podcast...')
+        : (language === 'tr'
+          ? 'Podcast Oluştur'
+          : 'Create Podcast'))
+    : (isLoading
+        ? (selectedFile ? t('create.buttons.processingFile') : t('create.buttons.processing'))
+        : isCreatingVoice
+          ? (language === 'tr' ? 'Ses oluşturuluyor...' : 'Creating Voice...')
+          : t('create.buttons.createAudio'));
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1474,30 +1524,6 @@ const CreateScreen: React.FC = () => {
             {podcastError && (
               <Text style={{ color: '#d32f2f', marginTop: 8 }}>{podcastError}</Text>
             )}
-            <TouchableOpacity
-              style={[
-                styles.createButton,
-                (isCreatingPodcast || !podcastTopic.trim()) && styles.createButtonDisabled,
-                { marginTop: 16, marginHorizontal: 0 },
-              ]}
-              onPress={handleCreatePodcast}
-              disabled={isCreatingPodcast || !podcastTopic.trim()}
-            >
-              {isCreatingPodcast ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <Icon name="graphic-eq" size={24} color="white" />
-              )}
-              <Text style={styles.createButtonText}>
-                {isCreatingPodcast
-                  ? language === 'tr'
-                    ? 'Podcast oluşturuluyor...'
-                    : 'Creating podcast...'
-                  : language === 'tr'
-                  ? 'Podcast Oluştur'
-                  : 'Create Podcast'}
-              </Text>
-            </TouchableOpacity>
           </View>
         )}
 
@@ -2025,31 +2051,23 @@ const CreateScreen: React.FC = () => {
             </View>
           </View>
         </Modal>
-
-        {mode !== 'podcast' && (
-          <TouchableOpacity
-            style={[
-              styles.createButton,
-              (isLoading || isCreatingVoice || isTtsJobLocked) && styles.createButtonDisabled,
-            ]}
-            onPress={handleCreateAudio}
-            disabled={isLoading || isCreatingVoice || isTtsJobLocked}
-          >
-            {isLoading || isCreatingVoice ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <Icon name="volume-up" size={24} color="white" />
-            )}
-            <Text style={styles.createButtonText}>
-              {isLoading
-                ? (selectedFile ? t('create.buttons.processingFile') : t('create.buttons.processing'))
-                : isCreatingVoice
-                  ? (language === 'tr' ? 'Ses oluşturuluyor...' : 'Creating Voice...')
-                  : t('create.buttons.createAudio')}
-            </Text>
-          </TouchableOpacity>
-        )}
       </ScrollView>
+
+      <TouchableOpacity
+        style={[
+          styles.createButton,
+          isGlobalCreateDisabled && styles.createButtonDisabled,
+        ]}
+        onPress={isPodcastMode ? handleCreatePodcast : handleCreateAudio}
+        disabled={isGlobalCreateDisabled}
+      >
+        {isGlobalCreateBusy ? (
+          <ActivityIndicator color="white" size="small" />
+        ) : (
+          <Icon name={isPodcastMode ? 'graphic-eq' : 'volume-up'} size={24} color="white" />
+        )}
+        <Text style={styles.createButtonText}>{globalCreateLabel}</Text>
+      </TouchableOpacity>
 
       {/* Audio Player Modal */}
       {createdTrack && (

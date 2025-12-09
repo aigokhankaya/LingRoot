@@ -57,8 +57,8 @@ android {
         applicationId 'com.nsyzk.lingrootmobile'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 29
-        versionName "1.8.3"
+        versionCode 32
+        versionName "1.9.1"
         // ABI support is now handled by splits.abi configuration below
         // Specify Google Play flavor for react-native-iap
         missingDimensionStrategy 'store', 'play'

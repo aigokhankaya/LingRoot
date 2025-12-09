@@ -25,6 +25,7 @@ import LibraryScreen from '../screens/LibraryScreen';
 import CreateScreen from '../screens/CreateScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import VocabularyScreen from '../screens/VocabularyScreen';
+import TopicTreeScreen from '../screens/TopicTreeScreen';
 import PatternListScreen from '../screens/PatternListScreen';
 import MembershipScreen from '../screens/MembershipScreen';
 import ChatScreen from '../screens/ChatScreen';
@@ -499,6 +500,17 @@ const AppNavigator = () => {
         {user ? (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen
+              name="TopicTree"
+              component={TopicTreeScreen}
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: '#007AFF' },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: 'bold' },
+                headerTitle: language === 'tr' ? 'Konu Ağacım' : 'My Topic Tree',
+              }}
+            />
             <Stack.Screen
               name="Vocabulary"
               component={VocabularyScreen}
