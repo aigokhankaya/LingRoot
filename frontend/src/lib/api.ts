@@ -1434,6 +1434,7 @@ export interface PlanFeatures {
     file_upload?: boolean;
     podcast?: boolean;
     topic_suggestions?: boolean;
+    topic_tree?: boolean;
     book?: boolean;
     liro?: boolean;
     daily_usage_patterns?: boolean;
@@ -1484,6 +1485,7 @@ export const getDefaultPlanFeatures = (): UserPlanFeatures => {
         file_upload: false,
         podcast: false,
         topic_suggestions: true,
+        topic_tree: false,
         book: false,
         liro: false,
         daily_usage_patterns: false,

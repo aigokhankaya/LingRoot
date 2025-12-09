@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, FlatList, TextInput, Alert, Modal } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { apiService } from '../services/api';
@@ -252,6 +252,12 @@ const SubtopicModalMobile: React.FC<SubtopicModalMobileProps> = ({
     language === 'tr' ? 'Turkish' : 'English'
   );
   const [angle, setAngle] = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      setSelectedLanguage(language === 'tr' ? 'Turkish' : 'English');
+    }
+  }, [visible, language]);
 
   if (!visible) return null;
 
@@ -530,6 +536,7 @@ const TopicTreeSection: React.FC<TopicTreeSectionProps> = ({
   const [globalCreateLoading, setGlobalCreateLoading] = useState(false);
   const [expandedPath, setExpandedPath] = useState<string[]>([]);
   const [comboPathsByRoot, setComboPathsByRoot] = useState<Record<string, string[]>>({});
+  const [selectedRootIdForActions, setSelectedRootIdForActions] = useState<string | null>(null);
   const [comboPickerVisible, setComboPickerVisible] = useState(false);
   const [comboPickerRootId, setComboPickerRootId] = useState<string | null>(null);
   const [comboPickerDepth, setComboPickerDepth] = useState<number>(0);
@@ -562,6 +569,45 @@ const TopicTreeSection: React.FC<TopicTreeSectionProps> = ({
 
   const handleRefresh = () => {
     loadTopicTree();
+  };
+
+  const handleDeleteRootTopic = (root: Topic) => {
+    Alert.alert(
+      language === 'tr' ? 'Konuyu Sil' : 'Delete Topic',
+      language === 'tr'
+        ? `"${root.title}" ana konusunu ve tüm alt konularını silmek istediğinizden emin misiniz?`
+        : `Are you sure you want to delete the main topic "${root.title}" and all its subtopics?`,
+      [
+        {
+          text: language === 'tr' ? 'İptal' : 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: language === 'tr' ? 'Sil' : 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiService.deleteTopicAndChildren(root.id);
+              setComboPathsByRoot((prev) => {
+                if (!prev[root.id]) return prev;
+                const next = { ...prev } as Record<string, string[]>;
+                delete next[root.id];
+                return next;
+              });
+              await loadTopicTree();
+            } catch (e: any) {
+              Alert.alert(
+                language === 'tr' ? 'Hata' : 'Error',
+                e?.message ||
+                  (language === 'tr'
+                    ? 'Konu silinemedi'
+                    : 'Failed to delete topic')
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
   const renderLevelSelector = () => {
@@ -634,28 +680,34 @@ const TopicTreeSection: React.FC<TopicTreeSectionProps> = ({
 
     topics.forEach((root) => {
       const path = comboPathsByRoot[root.id];
-      if (!path || path.length === 0) {
-        return;
-      }
+      if (path && path.length > 0) {
+        let current: Topic | null = root;
+        let lastSelected: Topic | null = null;
+        let lastDepth = -1;
 
-      let current: Topic | null = root;
-      let lastSelected: Topic | null = null;
-      let lastDepth = -1;
+        for (let i = 0; i < path.length; i += 1) {
+          if (!current || !Array.isArray(current.children)) break;
+          const next: Topic | null =
+            (current.children as Topic[]).find((c) => c.id === path[i]) || null;
+          if (!next) break;
+          lastSelected = next;
+          current = next;
+          lastDepth = i;
+        }
 
-      for (let i = 0; i < path.length; i += 1) {
-        if (!current || !Array.isArray(current.children)) break;
-        const next: Topic | null =
-          (current.children as Topic[]).find((c) => c.id === path[i]) || null;
-        if (!next) break;
-        lastSelected = next;
-        current = next;
-        lastDepth = i;
-      }
-
-      if (lastSelected && (best === null || lastDepth > best.depth)) {
-        best = { rootId: root.id, topic: lastSelected, depth: lastDepth };
+        if (lastSelected && (best === null || lastDepth > best.depth)) {
+          best = { rootId: root.id, topic: lastSelected, depth: lastDepth };
+        }
       }
     });
+
+    // Eğer hiçbir combobox seçimi yoksa, kullanıcı tarafından seçilmiş bir ana konuyu kullan.
+    if (!best && selectedRootIdForActions) {
+      const root = topics.find((t) => t.id === selectedRootIdForActions) || null;
+      if (root) {
+        best = { rootId: root.id, topic: root, depth: 0 };
+      }
+    }
 
     return best;
   };
@@ -664,10 +716,10 @@ const TopicTreeSection: React.FC<TopicTreeSectionProps> = ({
     const selection = getCurrentSelectionForActions();
     if (!selection) {
       Alert.alert(
-        language === 'tr' ? 'Alt konu seçin' : 'Select subtopic',
+        language === 'tr' ? 'Konu seçin' : 'Select topic',
         language === 'tr'
-          ? 'Lütfen önce bir alt konu seçin.'
-          : 'Please select a subtopic first.'
+          ? 'Lütfen önce bir konu veya alt konu seçin.'
+          : 'Please select a topic or subtopic first.'
       );
       return null;
     }
@@ -829,8 +881,39 @@ const TopicTreeSection: React.FC<TopicTreeSectionProps> = ({
     return (
       <View style={styles.comboSection}>
         {topics.map((root) => {
-          if (!Array.isArray(root.children) || root.children.length === 0) {
-            return null;
+          const hasChildren = Array.isArray(root.children) && root.children.length > 0;
+
+          // Eğer henüz alt konusu yoksa bile ana konuyu göster ve kullanıcıya
+          // buradan AI ile alt konu seçme imkanı ver.
+          if (!hasChildren) {
+            return (
+              <View key={root.id} style={{ marginBottom: 16 }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'flex-start',
+                  }}
+                >
+                  <TouchableOpacity
+                    style={[
+                      styles.rootSelectCard,
+                      selectedRootIdForActions === root.id && styles.rootSelectCardSelected,
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() =>
+                      setSelectedRootIdForActions((prev) => (prev === root.id ? null : root.id))
+                    }
+                  >
+                    <Text style={styles.headerTitle}>{root.title}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {root.description ? (
+                  <Text style={styles.infoDescription}>{root.description}</Text>
+                ) : null}
+              </View>
+            );
           }
 
           const levels = buildComboLevelsForRoot(root);
@@ -840,7 +923,28 @@ const TopicTreeSection: React.FC<TopicTreeSectionProps> = ({
 
           return (
             <View key={root.id} style={{ marginBottom: 16 }}>
-              <Text style={styles.headerTitle}>{root.title}</Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
+                  marginBottom: 4,
+                }}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.rootSelectCard,
+                    selectedRootIdForActions === root.id && styles.rootSelectCardSelected,
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    setSelectedRootIdForActions((prev) => (prev === root.id ? null : root.id))
+                  }
+                >
+                  <Text style={styles.headerTitle}>{root.title}</Text>
+                </TouchableOpacity>
+              </View>
+
               {root.description ? (
                 <Text style={styles.infoDescription}>{root.description}</Text>
               ) : null}
@@ -1319,9 +1423,13 @@ const TopicTreeSection: React.FC<TopicTreeSectionProps> = ({
       )}
 
       {!showLoading && topics.length === 0 && renderEmptyState()}
+    </>
+  );
 
+  const renderGlobalActionsSection = () => (
+    <>
       {selectedTopicForActions && hasExistingAudioForSelection && (
-        <View style={{ marginTop: 8, marginHorizontal: 4 }}>
+        <View style={{ marginTop: 4, marginHorizontal: 8 }}>
           <TouchableOpacity
             style={styles.listenButton}
             onPress={() => handleOpenAudioForTopic(selectedTopicForActions)}
@@ -1480,12 +1588,25 @@ const TopicTreeSection: React.FC<TopicTreeSectionProps> = ({
   );
 
   if (embedded) {
-    return <View>{content}</View>;
+    return (
+      <View>
+        {content}
+        {renderGlobalActionsSection()}
+      </View>
+    );
   }
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>{content}</ScrollView>
+      <View style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          style={{ flex: 1 }}
+        >
+          {content}
+        </ScrollView>
+      </View>
+      {renderGlobalActionsSection()}
     </View>
   );
 };
@@ -1593,6 +1714,20 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 16,
     gap: 8,
+  },
+  rootSelectCard: {
+    flex: 1,
+    marginRight: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  rootSelectCardSelected: {
+    borderColor: '#2563EB',
+    backgroundColor: '#DBEAFE',
   },
   comboBox: {
     borderRadius: 12,

@@ -42,6 +42,7 @@ backend/logs/requests/
 !*.config.json
 !*.test.json
 !package-lock.json
+!LingRootMobile/src/locales/*.json
 
 # Explicitly ignore the key file
 /google-tts-key.json
