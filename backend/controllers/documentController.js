@@ -7,6 +7,57 @@ const openaiClient = require("../utils/openaiClient");
 const { storeTopic } = require("../lib/rag");
 
 /**
+ * Cleans PDF text by removing common header/footer artifacts.
+ * These artifacts interrupt TTS flow when read aloud.
+ * @param {string} rawText - Raw text extracted from PDF
+ * @returns {string} Cleaned text
+ */
+function cleanPdfHeaderFooter(rawText) {
+    if (!rawText) return rawText;
+    
+    let cleaned = rawText;
+    
+    // Remove standalone page numbers (e.g., "45", "Page 45", "- 45 -", "| 45 |")
+    cleaned = cleaned.replace(/^[\s]*[-|]?\s*\d{1,4}\s*[-|]?[\s]*$/gm, '');
+    cleaned = cleaned.replace(/^[\s]*Page\s+\d{1,4}[\s]*$/gim, '');
+    cleaned = cleaned.replace(/^[\s]*p\.\s*\d{1,4}[\s]*$/gim, '');
+    cleaned = cleaned.replace(/^[\s]*\[\s*\d{1,4}\s*\][\s]*$/gm, '');
+    
+    // Remove inline page markers that interrupt sentences
+    cleaned = cleaned.replace(/\s+Page\s+\d{1,4}\s+/gi, ' ');
+    cleaned = cleaned.replace(/\s+p\.\s*\d{1,4}\s+/gi, ' ');
+    
+    // Remove common header patterns (typically repeated on every page)
+    // Copyright lines
+    cleaned = cleaned.replace(/^[\s]*©.*$/gm, '');
+    cleaned = cleaned.replace(/^[\s]*Copyright.*$/gim, '');
+    
+    // "All rights reserved" lines
+    cleaned = cleaned.replace(/^[\s]*All rights reserved.*$/gim, '');
+    
+    // ISBN lines
+    cleaned = cleaned.replace(/^[\s]*ISBN[\s:-]*[\d-X]+[\s]*$/gim, '');
+    
+    // Publisher info patterns (usually short repeated lines)
+    cleaned = cleaned.replace(/^[\s]*Published by.*$/gim, '');
+    cleaned = cleaned.replace(/^[\s]*Printed in.*$/gim, '');
+    
+    // Remove Table of Contents markers that might slip through
+    cleaned = cleaned.replace(/^[\s]*Table of Contents[\s]*$/gim, '');
+    cleaned = cleaned.replace(/^[\s]*Contents[\s]*$/gim, '');
+    
+    // Remove dotted/dashed leader lines (from TOC: "Chapter 1 .......... 45")
+    cleaned = cleaned.replace(/\.{5,}\s*\d+/g, '');
+    cleaned = cleaned.replace(/-{5,}\s*\d+/g, '');
+    
+    // Clean up excessive whitespace
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n'); // Max 2 newlines
+    cleaned = cleaned.replace(/[ \t]{2,}/g, ' '); // Multiple spaces to single
+    
+    return cleaned.trim();
+}
+
+/**
  * Uploads a PDF document, extracts text, splits it into sections and
  * saves both the document and its sections into Supabase.
  */
@@ -57,7 +108,17 @@ exports.uploadDocument = async (req, res) => {
     });
 
     const pdfData = await pdfParse(file.buffer);
-    const rawText = (pdfData.text || "").trim();
+    const rawTextDirty = (pdfData.text || "").trim();
+    
+    // Clean header/footer artifacts that interrupt TTS reading
+    const rawText = cleanPdfHeaderFooter(rawTextDirty);
+    
+    logger.info("[uploadDocument] PDF text cleaned", {
+      requestId,
+      originalLength: rawTextDirty.length,
+      cleanedLength: rawText.length,
+      removedChars: rawTextDirty.length - rawText.length,
+    });
 
     if (!rawText) {
       logger.warn("[uploadDocument] Extracted text is empty", { requestId });

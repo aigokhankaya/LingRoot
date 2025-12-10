@@ -186,10 +186,9 @@ docs/prompts/daily-patterns.md MEVCUT!
 
 ### Geliştiriciye Bırakılanlar
 
-1. PROJECT_MEMORY [2] Tech Stack düzeltmesi (FastAPI → Express)
-2. Kök seviye dosyaların organize edilmesi (archive klasörü)
-3. Mobile UI flows dokümanı
-4. n8n automation dokümanı
+1. Kök seviye dosyaların organize edilmesi (archive klasörü)
+2. Mobile UI flows dokümanı
+3. n8n automation dokümanı
 
 ---
 

@@ -111,6 +111,27 @@ These files are the single source of truth (SSOT) for the project and take prece
 | `review/folder-structure-proposal.md` | Structure improvements | ✅ Created |
 | `review/FULL_AUDIT_REPORT.md` | Comprehensive documentation audit | ✅ Created |
 
+### Legacy & Historical Docs (docs/ root)
+
+These files live at the root of `docs/` and are treated as historical/analysis or legacy documents. They are **not** counted in the 41-file primary documentation package above.
+
+| File | Role | Classification |
+|------|------|----------------|
+| `APPLE_REVIEW_RESPONSE.md` | App Store review response summary | Legacy / Archive candidate |
+| `AUDIOPLAYER_SYNC_ANALYSIS.md` | Audio player sync technical analysis | Legacy / Archive candidate |
+| `GOOGLE_CLOUD_RUN_REMOVAL_GUIDE.md` | Cloud Run removal guide | Legacy / Archive candidate |
+| `GOOGLE_PLAY_IAP_SETUP.md` | Google Play IAP setup guide | Active integration doc (root-level) |
+| `GOOGLE_TIMEPOINT_IMPLEMENTATION.md` | Old timepoint implementation notes | Legacy / Archive candidate |
+| `HYBRID_APPROACH_IMPLEMENTATION.md` | Hybrid architecture implementation notes | Legacy / Archive candidate |
+| `KULLANICI_KILAVUZU.md` | Turkish user guide | Active user guide (root-level) |
+| `LingRoot_User_Guide.md` | English user guide | Active user guide (root-level) |
+| `SYNC_ISSUE_TROUBLESHOOTING.md` | Sync troubleshooting guide | Support / Testing (root-level) |
+| `TOPIC_HIERARCHY_SETUP.md` | Topic hierarchy setup notes | Architecture-related (root-level) |
+| `To-Do List.md` | Project to-do list / notes | Legacy / Archive candidate |
+| `YOUTUBE_SUBTITLE_SYSTEM_ANALYSIS.md` | YouTube subtitle system analysis | Legacy / Archive candidate |
+| `analiz.md` | Mixed analysis notes | Legacy / Archive candidate |
+| `azure.md` | Azure TTS / services notes | Integration-related (root-level) |
+
 ---
 
 ## 📊 Statistics

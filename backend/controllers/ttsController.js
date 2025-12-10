@@ -512,12 +512,17 @@ const processTtsRequest = async (req, res) => {
             const hasTurkishChars = /[ğüşıöçĞÜŞİÖÇ]/g.test(cleanedText);
             const sourceLanguage = hasTurkishChars ? 'Turkish' : 'Auto-detect';
             
-            console.log(`🎯 [OPTIMIZED TTS] Using single-call translate+adapt for ${sourceLanguage} → EN (${level})`);
-            logger.info(`[${requestId}] [OPTIMIZED] Starting unified translate+adapt: ${sourceLanguage} → EN at ${level}`);
+            // Determine prompt variant: 'narrator' for book/document content, 'standard' otherwise
+            const isBookOrDocument = inputType === 'book' || inputType === 'document';
+            const promptVariant = isBookOrDocument ? 'narrator' : 'standard';
+            
+            console.log(`🎯 [OPTIMIZED TTS] Using single-call translate+adapt for ${sourceLanguage} → EN (${level}) [Variant: ${promptVariant}]`);
+            logger.info(`[${requestId}] [OPTIMIZED] Starting unified translate+adapt: ${sourceLanguage} → EN at ${level} (variant: ${promptVariant})`);
             
             try {
                 // OPTIMIZED: Single LLM call instead of 2 separate calls
-                const result = await translateAndAdaptToCEFR(cleanedText, sourceLanguage, level);
+                // Use narrator variant for book/document content (audiobook-style narration)
+                const result = await translateAndAdaptToCEFR(cleanedText, sourceLanguage, level, null, promptVariant);
                 openaiCallCount += 1; // Only 1 call now instead of 2!
                 
                 if (result && result.text) {

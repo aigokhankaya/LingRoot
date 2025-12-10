@@ -299,10 +299,19 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
             }
 
         case "book":
-            // Placeholder: Needs actual book content source (API, database, etc.)
-            logger.warn(`Book processing ('${inputData}', chapter '${chapter}') is not fully implemented. Returning placeholder text.`);
-            // For now, just return the input as text for testing the flow
-            return `Content for book "${inputData}", chapter "${chapter}" would be processed here. This is placeholder text.`;
+            // Book/Document content - text is passed from frontend (which fetched it from DB)
+            // inputData should contain the actual chapter/section text content
+            if (typeof inputData === "string" && inputData.trim().length > 0) {
+                logger.info(`Book content received: ${inputData.length} chars for chapter "${chapter || 'unknown'}"`);
+                return inputData; // Pass through to the Narrator Engine
+            }
+            // If inputData is an object with text property
+            if (inputData && typeof inputData === "object" && inputData.text) {
+                logger.info(`Book content (object) received: ${inputData.text.length} chars`);
+                return inputData.text;
+            }
+            logger.error(`Book input missing text content. inputData type: ${typeof inputData}, chapter: ${chapter}`);
+            return null;
 
         case "youtube":
             if (typeof inputData === "string") {

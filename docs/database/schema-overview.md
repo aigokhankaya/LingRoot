@@ -336,7 +336,7 @@ Credit card transaction records for iyzico and Stripe payments.
 CREATE TABLE card_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    payment_provider_id UUID REFERENCES payment_providers(id),
+    payment_provider_id UUID NOT NULL REFERENCES payment_providers(id),
     subscription_id UUID REFERENCES subscriptions(id),
     plan_id UUID,
     
@@ -351,6 +351,7 @@ CREATE TABLE card_transactions (
     card_type VARCHAR(50),                           -- VISA, MASTERCARD, TROY
     card_association VARCHAR(50),
     card_family VARCHAR(50),
+    bin_number VARCHAR(6),
     
     -- Installment
     installment_count INTEGER DEFAULT 1,
@@ -363,12 +364,14 @@ CREATE TABLE card_transactions (
     
     -- Stripe specific
     stripe_payment_intent_id VARCHAR(100),
+    stripe_payment_id VARCHAR(100),
     stripe_session_id VARCHAR(100),
     stripe_subscription_id VARCHAR(100),
     stripe_customer_id VARCHAR(100),
     
     -- 3D Secure
     three_d_secure BOOLEAN DEFAULT FALSE,
+    three_d_secure_id VARCHAR(100),
     
     -- Commission
     commission_rate DECIMAL(5, 2),
@@ -399,8 +402,10 @@ CREATE TABLE card_transactions (
 CREATE INDEX idx_card_transactions_user_id ON card_transactions(user_id);
 CREATE INDEX idx_card_transactions_provider_id ON card_transactions(payment_provider_id);
 CREATE INDEX idx_card_transactions_status ON card_transactions(status);
+CREATE INDEX idx_card_transactions_type ON card_transactions(transaction_type);
 CREATE INDEX idx_card_transactions_created_at ON card_transactions(created_at);
 CREATE INDEX idx_card_transactions_stripe_pi ON card_transactions(stripe_payment_intent_id);
+CREATE INDEX idx_card_transactions_stripe_session ON card_transactions(stripe_session_id);
 ```
 
 ## Support Tables

@@ -7,7 +7,7 @@
 const express = require('express');
 const router = express.Router();
 const stripeController = require('../controllers/stripeController');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticate, authorizeAdmin } = require('../middleware/auth');
 
 // ============================================
 // PUBLIC ENDPOINTS (Authentication required)
@@ -17,19 +17,19 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
  * Payment Intent oluştur (Embedded checkout için)
  * POST /api/stripe/payment-intent
  */
-router.post('/payment-intent', authenticateToken, stripeController.createPaymentIntent);
+router.post('/payment-intent', authenticate, stripeController.createPaymentIntent);
 
 /**
  * Checkout Session oluştur (Hosted checkout için)
  * POST /api/stripe/checkout
  */
-router.post('/checkout', authenticateToken, stripeController.createCheckoutSession);
+router.post('/checkout', authenticate, stripeController.createCheckoutSession);
 
 /**
  * Ödeme durumunu kontrol et
  * GET /api/stripe/payment-status/:paymentIntentId
  */
-router.get('/payment-status/:paymentIntentId', authenticateToken, stripeController.getPaymentStatus);
+router.get('/payment-status/:paymentIntentId', authenticate, stripeController.getPaymentStatus);
 
 // ============================================
 // WEBHOOK ENDPOINT (No authentication - Stripe signature verification)
@@ -52,18 +52,18 @@ router.post('/webhook', express.raw({ type: 'application/json' }), stripeControl
  * İade işlemi
  * POST /api/stripe/admin/refund
  */
-router.post('/admin/refund', authenticateToken, requireAdmin, stripeController.adminRefund);
+router.post('/admin/refund', authenticate, authorizeAdmin, stripeController.adminRefund);
 
 /**
  * Stripe bağlantı testi
  * POST /api/stripe/admin/test-connection
  */
-router.post('/admin/test-connection', authenticateToken, requireAdmin, stripeController.testConnection);
+router.post('/admin/test-connection', authenticate, authorizeAdmin, stripeController.testConnection);
 
 /**
  * Müşteri kayıtlı kartlarını getir
  * GET /api/stripe/admin/customer/:userId/cards
  */
-router.get('/admin/customer/:userId/cards', authenticateToken, requireAdmin, stripeController.getCustomerCards);
+router.get('/admin/customer/:userId/cards', authenticate, authorizeAdmin, stripeController.getCustomerCards);
 
 module.exports = router;
