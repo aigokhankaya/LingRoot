@@ -19,6 +19,7 @@ interface PlanFeatures {
     file_upload?: boolean;
     podcast?: boolean;
     topic_suggestions?: boolean;
+    topic_tree?: boolean;
     book?: boolean;
     liro?: boolean;
     daily_usage_patterns?: boolean;
@@ -91,6 +92,7 @@ export default function PackageDetailPage() {
       file_upload: true,
       podcast: true,
       topic_suggestions: true,
+      topic_tree: true,
       book: true,
       liro: true,
       daily_usage_patterns: true,
@@ -457,6 +459,18 @@ export default function PackageDetailPage() {
                   <Label htmlFor="topic_suggestions" className="cursor-pointer">
                     <i className="fas fa-lightbulb mr-2 text-yellow-600"></i>
                     Konu Önerileri
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="topic_tree"
+                    checked={planFeatures.homepage_features?.topic_tree ?? true}
+                    onChange={(e) => handleHomepageFeatureChange('topic_tree', e.target.checked)}
+                  />
+                  <Label htmlFor="topic_tree" className="cursor-pointer">
+                    <i className="fas fa-sitemap mr-2 text-green-600"></i>
+                    Konu Ağacı
                   </Label>
                 </div>
 

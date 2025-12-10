@@ -174,9 +174,10 @@ class MFAAligner {
     }
   }
 
-  async generateWordTimestamps(audioPath, transcript, locale = 'en_US') {
+  async generateWordTimestamps(audioPath, transcript, locale = 'en_US', options = {}) {
+    const { forceLocal = false } = options;
     // Check if we should use remote MFA service (production)
-    const useRemoteMFA = process.env.USE_REMOTE_MFA === 'true' || process.env.NODE_ENV === 'production';
+    const useRemoteMFA = !forceLocal && process.env.USE_REMOTE_MFA === 'true';
     
     if (useRemoteMFA) {
       return await this.generateWordTimestampsRemote(audioPath, transcript, locale);

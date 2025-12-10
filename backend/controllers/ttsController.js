@@ -1197,7 +1197,7 @@ const processTtsRequest = async (req, res) => {
         let mfaWordTimings = null;
         // const useMFA = false; // Temporarily disabled for debugging
         //const useMFA = true; // Force enable for debugging
-        const useMFA = process.env.USE_MFA_ALIGNMENT;
+        const useMFA = process.env.USE_MFA_ALIGNMENT === 'true';
         
         if (useMFA) {
             try {

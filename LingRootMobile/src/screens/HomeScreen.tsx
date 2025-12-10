@@ -15,6 +15,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiService, getMyPlanFeatures, PlanFeatures } from '../services/api';
 import { AudioTrack } from '../types';
+import { COLORS } from '../theme/colors';
 
 const HomeScreen: React.FC = () => {
   const { user } = useAuth();
@@ -38,7 +39,7 @@ const HomeScreen: React.FC = () => {
       title: t('home.textToSpeech'),
       description: t('home.textToSpeechDesc'),
       icon: 'text-fields',
-      color: '#007AFF',
+      color: COLORS.primary,
       screenName: 'Create',
       params: { mode: 'text' as const },
       featureKey: 'text_input',
@@ -80,6 +81,18 @@ const HomeScreen: React.FC = () => {
       color: '#F59E0B',
       screenName: 'PatternList',
       featureKey: 'daily_usage_patterns', // Always show
+    },
+    {
+      id: 10,
+      title: language === 'tr' ? 'Konu Ağacım' : 'My Topic Tree',
+      description:
+        language === 'tr'
+          ? 'Ana konularını ve alt konularını hiyerarşik olarak yönet'
+          : 'Manage your topics and subtopics hierarchically',
+      icon: 'account-tree',
+      color: '#10B981',
+      screenName: 'TopicTree',
+      featureKey: 'topic_tree',
     },
     {
       id: 4,
@@ -126,15 +139,26 @@ const HomeScreen: React.FC = () => {
   const features = allFeatures.filter(feature => {
     // Always show features without featureKey (Vocabulary, Library)
     if (!feature.featureKey) return true;
-    
+
     // If features not loaded yet, show default features
     if (!planFeatures?.homepage_features) {
       console.log('⚠️ [Mobile] Plan features not loaded yet, showing defaults');
-      return feature.featureKey === 'text_input' || feature.featureKey === 'topic_suggestions';
+      return (
+        feature.featureKey === 'text_input' ||
+        feature.featureKey === 'topic_suggestions' ||
+        feature.featureKey === 'topic_tree'
+      );
     }
-    
+
+    const homepage = planFeatures.homepage_features;
+    const key = feature.featureKey as keyof typeof homepage;
+    const rawValue = homepage[key];
+
     // Check if feature is enabled in plan
-    const isEnabled = planFeatures.homepage_features[feature.featureKey as keyof typeof planFeatures.homepage_features] === true;
+    const isEnabled =
+      rawValue === true ||
+      (feature.featureKey === 'topic_tree' && rawValue === undefined);
+
     console.log(`🔍 [Mobile] Feature ${feature.featureKey}: ${isEnabled}`);
     return isEnabled;
   });
@@ -250,7 +274,7 @@ const HomeScreen: React.FC = () => {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             {stats.loading ? (
-              <ActivityIndicator size="small" color="#007AFF" />
+              <ActivityIndicator size="small" color={COLORS.primary} />
             ) : (
               <>
                 <Text style={styles.statNumber}>{stats.audioCount}</Text>
@@ -260,7 +284,7 @@ const HomeScreen: React.FC = () => {
           </View>
           <View style={styles.statCard}>
             {stats.loading ? (
-              <ActivityIndicator size="small" color="#007AFF" />
+              <ActivityIndicator size="small" color={COLORS.primary} />
             ) : (
               <>
                 <Text style={styles.statNumber}>{stats.totalDuration}</Text>
@@ -365,7 +389,7 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: COLORS.primary,
     marginBottom: 5,
   },
   statLabel: {

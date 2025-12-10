@@ -7,6 +7,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Alert, View, ActivityIndicator, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Platform } from 'react-native';
 import { getEnvironmentConfig } from '../services/environmentConfig';
+import { COLORS } from '../theme/colors';
 
 import { useAuth } from '../contexts/AuthContext';
 import NotificationService from '../services/notificationService';
@@ -25,6 +26,7 @@ import LibraryScreen from '../screens/LibraryScreen';
 import CreateScreen from '../screens/CreateScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import VocabularyScreen from '../screens/VocabularyScreen';
+import TopicTreeScreen from '../screens/TopicTreeScreen';
 import PatternListScreen from '../screens/PatternListScreen';
 import MembershipScreen from '../screens/MembershipScreen';
 import ChatScreen from '../screens/ChatScreen';
@@ -45,7 +47,7 @@ let lastAudioNotificationHandledAt: number | null = null;
 
 const LoadingScreen = () => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-    <ActivityIndicator size="large" color="#007AFF" />
+    <ActivityIndicator size="large" color={COLORS.primary} />
   </View>
 );
 
@@ -184,11 +186,11 @@ const MainTabs = () => {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#007AFF',
+        tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: 'gray',
         headerShown: true,
         headerStyle: {
-          backgroundColor: '#007AFF',
+          backgroundColor: COLORS.primary,
         },
         headerTintColor: '#fff',
         headerTitleStyle: {
@@ -500,11 +502,22 @@ const AppNavigator = () => {
           <>
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen
+              name="TopicTree"
+              component={TopicTreeScreen}
+              options={{
+                headerShown: true,
+                headerStyle: { backgroundColor: COLORS.primary },
+                headerTintColor: '#fff',
+                headerTitleStyle: { fontWeight: 'bold' },
+                headerTitle: language === 'tr' ? 'Konu Ağacım' : 'My Topic Tree',
+              }}
+            />
+            <Stack.Screen
               name="Vocabulary"
               component={VocabularyScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: '#007AFF' },
+                headerStyle: { backgroundColor: COLORS.primary },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: language === 'tr' ? 'Kelimelerim' : 'My Vocabulary',
@@ -515,7 +528,7 @@ const AppNavigator = () => {
               component={LiroScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: '#007AFF' },
+                headerStyle: { backgroundColor: COLORS.primary },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: 'LIRO',
@@ -526,7 +539,7 @@ const AppNavigator = () => {
               component={AccountSettingsScreen}
               options={({ navigation }) => ({
                 headerShown: true,
-                headerStyle: { backgroundColor: '#007AFF' },
+                headerStyle: { backgroundColor: COLORS.primary },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: t('profile.accountSettings'),
@@ -537,7 +550,7 @@ const AppNavigator = () => {
               component={MembershipScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: '#007AFF' },
+                headerStyle: { backgroundColor: COLORS.primary },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
               }}
@@ -554,7 +567,7 @@ const AppNavigator = () => {
               component={ChatScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: '#007AFF' },
+                headerStyle: { backgroundColor: COLORS.primary },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: language === 'tr' ? 'Destek' : 'Support',
@@ -572,7 +585,7 @@ const AppNavigator = () => {
               component={PrivacyPolicyScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: '#007AFF' },
+                headerStyle: { backgroundColor: COLORS.primary },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy',
@@ -583,7 +596,7 @@ const AppNavigator = () => {
               component={TermsOfServiceScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: '#007AFF' },
+                headerStyle: { backgroundColor: COLORS.primary },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: language === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service',
@@ -594,7 +607,7 @@ const AppNavigator = () => {
               component={ReminderSettingsScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: '#007AFF' },
+                headerStyle: { backgroundColor: COLORS.primary },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: language === 'tr' ? 'Hatırlatıcı Ayarları' : 'Reminder Settings',

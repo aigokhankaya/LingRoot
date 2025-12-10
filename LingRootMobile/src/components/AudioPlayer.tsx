@@ -27,6 +27,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { SkiaWordHighlight } from './SkiaWordHighlight';
 import { SkiaSentenceHighlight } from './SkiaSentenceHighlight';
 import { getEnvironmentConfig } from '../services/environmentConfig';
+import { COLORS } from '../theme/colors';
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -118,6 +119,51 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   useEffect(() => {
     console.log(`📄 [AudioPlayer] pageIndex changed to: ${pageIndex}`);
   }, [pageIndex]);
+
+  const handleShowWordInfo = useCallback(async (word: string) => {
+    const cleanWord = word.replace(/[.,!?;:]/g, '');
+
+    try {
+      const result = await apiService.lookupVocabularyWord(cleanWord);
+
+      if (!result.found || !result.data) {
+        Alert.alert(
+          language === 'tr' ? 'Bilgi' : 'Info',
+          language === 'tr'
+            ? `"${cleanWord}" kelimesi için henüz sözlük kaydı bulunamadı.\n\nBu kelimeyi kelime listenize ekleyebilirsiniz.`
+            : `There is no dictionary entry yet for "${cleanWord}".\n\nYou can add this word to your vocabulary list.`,
+        );
+        return;
+      }
+
+      const w = result.data;
+
+      if (language === 'tr') {
+        const message = `"${w.original_word || w.word}"\n\n` +
+          `Anlam: ${w.definition || '-'}\n` +
+          `Seviye: ${(w.level || '').toUpperCase() || '-'}\n` +
+          `Örnek Cümle: ${w.example_sentence || '-'}\n` +
+          `Türkçe Örnek: ${w.example_sentence_turkish || '-'}`;
+
+        Alert.alert('Kelime Bilgisi', message);
+      } else {
+        const message = `"${w.original_word || w.word}"\n\n` +
+          `Meaning: ${w.definition || '-'}\n` +
+          `Level: ${(w.level || '').toUpperCase() || '-'}\n` +
+          `Example: ${w.example_sentence || '-'}\n` +
+          `Turkish Example: ${w.example_sentence_turkish || '-'}`;
+
+        Alert.alert('Word Info', message);
+      }
+    } catch (error: any) {
+      Alert.alert(
+        language === 'tr' ? 'Hata' : 'Error',
+        language === 'tr'
+          ? `Kelime bilgisi yüklenirken hata oluştu: ${error?.message || 'Bilinmeyen hata'}`
+          : `An error occurred while loading word info: ${error?.message || 'Unknown error'}`,
+      );
+    }
+  }, [language]);
   const [addingWord, setAddingWord] = useState(false); // Loading state for adding word
   const [addingWordText, setAddingWordText] = useState(''); // Text to show while adding
   const [elapsedTime, setElapsedTime] = useState(0); // Elapsed time since play started
@@ -988,28 +1034,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   }, [wordsArray, timepoints, duration, handleSeek, isPlaying, sound, elapsedTime]);
 
-  const handleWordLongPress = useCallback((word: string, wordIndex: number) => {
-    const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
-
-    Alert.alert(
-      language === 'tr' ? 'Kelime Seçimi' : 'Word Selection',
-      language === 'tr' 
-        ? `"${cleanWord}" kelimesini kelime listenize eklemek istiyor musunuz?`
-        : `Do you want to add "${cleanWord}" to your vocabulary list?`,
-      [
-        {
-          text: language === 'tr' ? 'İptal' : 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: language === 'tr' ? 'Kelime Ekle' : 'Add Word',
-          style: 'default',
-          onPress: () => handleAddWordToVocabulary(cleanWord, wordIndex),
-        },
-      ]
-    );
-  }, [language]);
-
   const handleAddWordToVocabulary = useCallback(async (word: string, wordIndex: number) => {
     const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
     
@@ -1105,6 +1129,61 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setAddingWordText('');
     }
   }, [wordsArray, textToHighlight, language]);
+
+  const handleWordLongPress = useCallback(async (word: string, wordIndex: number) => {
+    const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
+
+    // CASE 1: Kelime bu kullanıcı için zaten vocabulary + user_vocabulary'de kayıtlıysa
+    // doğrudan anlam popup'ı göster ve "Kelime Ekle" opsiyonu sunma
+    try {
+      const result = await apiService.lookupVocabularyWord(cleanWord);
+      if (result.found && result.data && result.hasUserWord) {
+        const w = result.data;
+
+        if (language === 'tr') {
+          const message = `"${w.original_word || w.word}"\n\n` +
+            `Anlam: ${w.definition || '-'}\n` +
+            `Seviye: ${(w.level || '').toUpperCase() || '-'}\n` +
+            `Örnek Cümle: ${w.example_sentence || '-'}\n` +
+            `Türkçe Örnek: ${w.example_sentence_turkish || '-'}`;
+
+          Alert.alert('Kelime Bilgisi', message);
+        } else {
+          const message = `"${w.original_word || w.word}"\n\n` +
+            `Meaning: ${w.definition || '-'}\n` +
+            `Level: ${(w.level || '').toUpperCase() || '-'}\n` +
+            `Example: ${w.example_sentence || '-'}\n` +
+            `Turkish Example: ${w.example_sentence_turkish || '-'}`;
+
+          Alert.alert('Word Info', message);
+        }
+
+        return;
+      }
+    } catch (err) {
+      console.error('Error during vocabulary lookup on long press:', err);
+      // Hata durumunda normal seçenekli diyaloğa devam et
+    }
+
+    // CASE 2 & 3: Kullanıcı için kelime kaydı yoksa - web ile aynı mantıkta kısa bir onay sor
+    Alert.alert(
+      language === 'tr' ? 'Kelime Ekle' : 'Add Word',
+      language === 'tr'
+        ? `"${cleanWord}" kelimesini kelime listenize eklemek istiyor musunuz?`
+        : `Do you want to add "${cleanWord}" to your vocabulary list?`,
+      [
+        {
+          text: language === 'tr' ? 'İptal' : 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: language === 'tr' ? 'Kelimeyi Ekle' : 'Add Word',
+          style: 'default',
+          onPress: () => handleAddWordToVocabulary(cleanWord, wordIndex),
+        },
+      ],
+    );
+  }, [language, handleAddWordToVocabulary]);
 
   const formatTime = (milliseconds: number) => {
     const totalSeconds = Math.floor(milliseconds / 1000);
@@ -1407,7 +1486,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               <Text style={styles.originalTextButtonText}>
                 {t('audioPlayer.originalTextButton')}
               </Text>
-              <Icon name="chevron-right" size={20} color="#007AFF" />
+              <Icon name="chevron-right" size={20} color={COLORS.primary} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity 
@@ -1417,7 +1496,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               }}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
-              <Icon name="chevron-left" size={20} color="#007AFF" />
+              <Icon name="chevron-left" size={20} color={COLORS.primary} />
               <Text style={styles.originalTextButtonText}>
                 {t('audioPlayer.backToTranslationButton')}
               </Text>
@@ -1538,7 +1617,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     }}
                     style={styles.copyButton}
                   >
-                    <Icon name="content-copy" size={20} color="#007AFF" />
+                    <Icon name="content-copy" size={20} color={COLORS.primary} />
                   </TouchableOpacity>
                 </View>
                 {originalLoading ? (
@@ -1557,7 +1636,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         {addingWord && (
           <View style={styles.loadingOverlay}>
             <View style={styles.loadingCard}>
-              <ActivityIndicator size="large" color="#007AFF" />
+              <ActivityIndicator size="large" color={COLORS.primary} />
               <Text style={styles.loadingText}>{addingWordText}</Text>
             </View>
           </View>
@@ -1646,12 +1725,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               disabled={isLoading}
             >
               {isLoading ? (
-                <Icon name="hourglass-empty" size={32} color="#007AFF" />
+                <Icon name="hourglass-empty" size={32} color={COLORS.primary} />
               ) : (
                 <Icon
                   name={isPlaying ? "pause" : "play-arrow"}
                   size={32}
-                  color="#007AFF"
+                  color={COLORS.primary}
                 />
               )}
             </TouchableOpacity>
@@ -1694,7 +1773,7 @@ const styles = StyleSheet.create({
     right: 0,
   },
   linkText: {
-    color: '#2563EB',
+    color: COLORS.primary,
     textDecorationLine: 'underline',
     fontSize: 13,
     marginLeft: 8,
@@ -1757,7 +1836,7 @@ const styles = StyleSheet.create({
   originalTextButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#007AFF',
+    color: COLORS.primary,
   },
   originalBox: {
     backgroundColor: '#fff',
@@ -1791,13 +1870,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   levelBadge: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   levelBadgeBottom: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -1842,7 +1921,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   highlightedWordTouchable: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.accent,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -1869,7 +1948,7 @@ const styles = StyleSheet.create({
     minWidth: 'auto',
   },
   highlightedWord: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.accent,
     borderRadius: 4,
   },
   word: {
@@ -1893,10 +1972,10 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
   highlightedSentence: {
-    backgroundColor: '#007AFF40',
-    borderColor: '#007AFF',
+    backgroundColor: 'rgba(76, 175, 80, 0.25)',
+    borderColor: COLORS.primary,
     borderWidth: 3,
-    shadowColor: '#007AFF',
+    shadowColor: COLORS.primary,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -1912,7 +1991,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   highlightedSentenceText: {
-    color: '#007AFF',
+    color: COLORS.primary,
     fontWeight: '600',
   },
   sentenceWordsContainer: {
@@ -1958,7 +2037,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 4,
   },
   podcastBubbleRight: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     borderTopRightRadius: 4,
   },
   podcastBubbleActive: {
@@ -2013,7 +2092,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   modeButtonActive: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
   },
   modeButtonText: {
     fontSize: 14,
@@ -2043,7 +2122,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     borderRadius: 4,
   },
   playbackControls: {
@@ -2155,7 +2234,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   seekButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,

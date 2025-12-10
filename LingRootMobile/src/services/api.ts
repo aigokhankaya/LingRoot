@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { TTSRequest, TTSResponse, APIResponse, BookSearchResponse, BookChapter } from '../types';
+import { TTSRequest, TTSResponse, APIResponse, BookSearchResponse, BookChapter, Topic } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApiBaseUrl } from './environmentConfig';
 import { EXPO_PUBLIC_MFA_API_URL } from '@env';
@@ -396,6 +396,32 @@ export const apiService = {
     }
   },
 
+  // Topic narration generation (text only, no TTS) from a short subject/topic
+  async generateTopicNarrationFromSubject(
+    subject: string,
+    level: string
+  ): Promise<APIResponse<{ adapted_text: string; translated_text: string; level: string }>> {
+    try {
+      await wakeBackendIfNeeded();
+      const payload: any = {
+        input: subject,
+        type: 'subject',
+        level,
+        no_tts: true,
+      };
+
+      const response = await apiClient.post<
+        APIResponse<{ adapted_text: string; translated_text: string; level: string }>
+      >('/api/tts/process', payload, {
+        timeout: 600000,
+      });
+
+      return response.data as any;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Metin oluşturulamadı');
+    }
+  },
+
   // Podcast creation API (Sync) - mirrors web podcast flow
   async createPodcast(params: {
     topic: string;
@@ -611,6 +637,32 @@ export const apiService = {
     }
   },
 
+  // Fast audio count for Home statistics
+  async getUserAudioCount(userId: string): Promise<number> {
+    try {
+      const response = await apiClient.get(`/api/users/${userId}/audio-count`);
+      const data: any = response.data;
+      if (data && data.success === true && typeof data.count === 'number') {
+        return data.count;
+      }
+      return 0;
+    } catch (error) {
+      console.error('Error fetching audio count:', error);
+      return 0;
+    }
+  },
+
+  // Full content history for fallback counting when page is capped
+  async getFullContentHistory(): Promise<APIResponse> {
+    try {
+      const response = await apiClient.get<APIResponse>('/api/content/history');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching full content history:', error?.response?.data || error?.message || error);
+      return { success: false, data: [] } as any;
+    }
+  },
+
   // İçerik ve ses dosyasını contenthistory tablosuna kaydet (web submitContent ile aynı endpoint)
   async submitContent(
     input: string,
@@ -664,87 +716,6 @@ export const apiService = {
     }
   },
 
-  // Forgot password (email)
-  async forgotPassword(email: string): Promise<APIResponse> {
-    const response = await apiClient.post<APIResponse>(`/api/auth/forgot-password`, { email });
-    return response.data;
-  },
-
-  // Reset password with code
-  async resetPassword(email: string, code: string, newPassword: string): Promise<APIResponse> {
-    const response = await apiClient.post<APIResponse>(`/api/auth/reset-password`, { email, code, newPassword });
-    return response.data;
-  },
-
-  // Fast count endpoint
-  async getUserAudioCount(userId: string): Promise<number | null> {
-    try {
-      const response = await apiClient.get(`/api/users/${userId}/audio-count`);
-      if (response.data?.success) return typeof response.data.count === 'number' ? response.data.count : 0;
-      return null;
-    } catch (e) {
-      // silent in production
-      return null;
-    }
-  },
-
-  // Favorites
-  async getUserFavorites(): Promise<string[]> {
-    try {
-      const response = await apiClient.get('/api/user-favorites');
-      return response.data?.data || [];
-    } catch (e) {
-      // silent in production
-      return [];
-    }
-  },
-
-  // Favorite items with full details in a single call
-  async getUserFavoriteDetails(): Promise<any[]> {
-    try {
-      await wakeBackendIfNeeded();
-      const response = await apiClient.get('/api/user-favorites/details');
-      return response.data?.data || [];
-    } catch (e) {
-      // silent in production
-      return [];
-    }
-  },
-
-  // Current authenticated user info (used to prefill phone)
-  async getMe(): Promise<any> {
-    try {
-      await wakeBackendIfNeeded();
-      const res = await apiClient.get('/api/auth/me');
-      // Backend sometimes returns { success, user } or { success, data }
-      const user = res.data?.user || res.data?.data || res.data;
-      return user || {};
-    } catch (e: any) {
-      // Return empty object on failure to avoid breaking UI
-      return {};
-    }
-  },
-
-  async saveUserFavorites(ids: string[]): Promise<boolean> {
-    try {
-      const response = await apiClient.post('/api/user-favorites', { ids });
-      return !!response.data?.success;
-    } catch (e) {
-      // silent in production
-      return false;
-    }
-  },
-
-  // Tüm içerik geçmişini getirme (limit yok) - sadece gerekirse kullanılmalı
-  async getFullContentHistory(): Promise<APIResponse> {
-    try {
-      const response = await apiClient.get<APIResponse>(`/api/content/history`);
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'İçerik geçmişi alınamadı');
-    }
-  },
-
   // Health check
   async healthCheck(): Promise<APIResponse> {
     try {
@@ -755,26 +726,141 @@ export const apiService = {
     }
   },
 
-  // Konu önerileri alma
-  async getTopicSuggestions(topic: string, level: string): Promise<any> {
+  // Vocabulary lookup - sadece sözlükteki kaydı döndürür, kullanıcıya ekleme yapmaz
+  async lookupVocabularyWord(word: string): Promise<{ success: boolean; found: boolean; data?: any; hasUserWord?: boolean }> {
     try {
-      const response = await apiClient.post('/api/topic-detail/suggestions', {
-        topic,
-        level,
+      await wakeBackendIfNeeded();
+      const response = await apiClient.get('/api/vocabulary/lookup', {
+        params: { word },
       });
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Konu önerileri alınamadı');
+      const msg = error?.response?.data?.error || error?.message || 'Kelime aranırken hata oluştu';
+      throw new Error(msg);
     }
   },
 
-  // Mevcut sesleri getirme
-  async getAvailableVoices(): Promise<APIResponse> {
+  async getTopicTree(): Promise<APIResponse<{ topics: Topic[]; total: number }>> {
     try {
-      const response = await apiClient.get<APIResponse>('/api/tts/voices');
+      await wakeBackendIfNeeded();
+      const response = await apiClient.get<APIResponse<{ topics: Topic[]; total: number }>>(
+        '/api/topic-hierarchy/topics/tree'
+      );
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Sesler yüklenemedi');
+      throw new Error(error.response?.data?.message || 'Konu ağacı alınamadı');
+    }
+  },
+
+  async createMainTopic(data: {
+    title: string;
+    description?: string;
+    level?: string;
+  }): Promise<APIResponse<{ topic: Topic }>> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post<APIResponse<{ topic: Topic }>>(
+        '/api/topic-hierarchy/topics',
+        data
+      );
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Ana konu oluşturulamadı');
+    }
+  },
+
+  async generateSubtopics(
+    topicId: string,
+    data: {
+      count?: number;
+      language?: string;
+      angle?: string;
+    }
+  ): Promise<APIResponse<{ subtopics: Topic[] }>> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post<APIResponse<{ subtopics: Topic[] }>>(
+        `/api/topic-hierarchy/topics/${topicId}/subtopics`,
+        data
+      );
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Alt konular oluşturulamadı');
+    }
+  },
+
+  async addManualSubtopic(
+    topicId: string,
+    data: {
+      title: string;
+      description?: string;
+    }
+  ): Promise<APIResponse<{ subtopic: Topic }>> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post<APIResponse<{ subtopic: Topic }>>(
+        `/api/topic-hierarchy/topics/${topicId}/subtopics/manual`,
+        data
+      );
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Alt konu eklenemedi');
+    }
+  },
+
+  async deleteTopicAndChildren(topicId: string): Promise<APIResponse> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.delete<APIResponse>(
+        `/api/topic-hierarchy/topics/${topicId}`
+      );
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Konu silinemedi');
+    }
+  },
+
+  async getTopicPath(topicId: string): Promise<APIResponse<{ path: Topic[] }>> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.get<APIResponse<{ path: Topic[] }>>(
+        `/api/topic-hierarchy/topics/${topicId}/path`
+      );
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Konu yolu alınamadı');
+    }
+  },
+
+  async createContentFromTopic(
+    topicId: string,
+    data?: {
+      voice?: string;
+      speaking_rate?: number;
+    }
+  ): Promise<APIResponse<{ topic: Topic; suggested_input: string }>> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post<APIResponse<{ topic: Topic; suggested_input: string }>>(
+        `/api/topic-hierarchy/topics/${topicId}/create-content`,
+        data || {}
+      );
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Konu içeriği alınamadı');
+    }
+  },
+
+  async markTopicAudioListened(mp3Url: string): Promise<APIResponse> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post<APIResponse>(
+        '/api/topic-hierarchy/topics/mark-listened',
+        { mp3_url: mp3Url }
+      );
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Ses kaydı dinlenmiş olarak işaretlenemedi');
     }
   },
 
@@ -784,6 +870,7 @@ export const apiService = {
       const params = new URLSearchParams();
       // "all" değerlerini göndermeyelim; backend'de bunlar filtre olarak algılanmamalı
       if (accent && accent !== 'all') params.append('accent', accent);
+      // ... (rest of the code remains the same)
       if (gender && gender !== 'all') params.append('gender', gender);
       if (emotion && emotion !== 'all') params.append('emotion', emotion);
       if (category && category !== 'all') params.append('category', category);
@@ -1154,6 +1241,7 @@ export interface PlanFeatures {
     file_upload?: boolean;
     podcast?: boolean;
     topic_suggestions?: boolean;
+    topic_tree?: boolean;
     book?: boolean;
     liro?: boolean;
     daily_usage_patterns?: boolean;
@@ -1203,6 +1291,7 @@ export const getDefaultPlanFeatures = (): UserPlanFeatures => {
         file_upload: false,
         podcast: false,
         topic_suggestions: true,
+        topic_tree: false,
         book: false,
         liro: false,
         daily_usage_patterns: false,

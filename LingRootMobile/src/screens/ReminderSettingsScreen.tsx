@@ -14,6 +14,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getReminderSettings, saveReminderSettings, ReminderSettings } from '../services/api';
 import NotificationService from '../services/notificationService';
+import { COLORS } from '../theme/colors';
 
 const ReminderSettingsScreen: React.FC = () => {
   const { language } = useLanguage();
@@ -114,7 +115,7 @@ const ReminderSettingsScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>
             {language === 'tr' ? 'Ayarlar yükleniyor...' : 'Loading settings...'}
           </Text>
@@ -128,7 +129,7 @@ const ReminderSettingsScreen: React.FC = () => {
       <ScrollView style={styles.content}>
         {/* Header Info */}
         <View style={styles.headerInfo}>
-          <Icon name="notifications-active" size={48} color="#007AFF" />
+          <Icon name="notifications-active" size={48} color={COLORS.primary} />
           <Text style={styles.headerTitle}>
             {language === 'tr' ? 'Kelime Hatırlatma Ayarları' : 'Word Reminder Settings'}
           </Text>
@@ -253,7 +254,7 @@ const ReminderSettingsScreen: React.FC = () => {
 
         {/* Info Box */}
         <View style={styles.infoBox}>
-          <Icon name="info" size={20} color="#007AFF" style={styles.infoIcon} />
+          <Icon name="info" size={20} color={COLORS.primary} style={styles.infoIcon} />
           <Text style={styles.infoText}>
             {language === 'tr'
               ? 'Seçilen saat aralığında eşit aralıklarla hatırlatmalar yapılacaktır. Hatırlatmalar, öğrenmediğiniz kelimelerden rastgele seçilir.'
@@ -316,7 +317,7 @@ const ReminderSettingsScreen: React.FC = () => {
                     {time}
                   </Text>
                   {settings.startTime === time && (
-                    <Icon name="check" size={20} color="#007AFF" />
+                    <Icon name="check" size={20} color={COLORS.primary} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -361,7 +362,7 @@ const ReminderSettingsScreen: React.FC = () => {
                     {time}
                   </Text>
                   {settings.endTime === time && (
-                    <Icon name="check" size={20} color="#007AFF" />
+                    <Icon name="check" size={20} color={COLORS.primary} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -453,7 +454,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   toggleSwitchActive: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
   },
   toggleThumb: {
     width: 28,
@@ -483,8 +484,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
   },
   optionButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   optionButtonDisabled: {
     opacity: 0.5,
@@ -545,7 +546,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   saveButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     marginHorizontal: 20,
     marginTop: 20,
     marginBottom: 40,
@@ -609,7 +610,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   timeOptionTextSelected: {
-    color: '#007AFF',
+    color: COLORS.primary,
     fontWeight: '600',
   },
 });

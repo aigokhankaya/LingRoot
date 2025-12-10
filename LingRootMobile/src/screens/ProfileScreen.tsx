@@ -20,6 +20,7 @@ import type { RootStackParamList } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import NotificationService from '../services/notificationService';
+import { COLORS } from '../theme/colors';
 
 const ProfileScreen: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -214,7 +215,7 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
                 {t('languages.turkish')}
               </Text>
               {language === 'tr' && (
-                <Icon name="check" size={20} color="#007AFF" />
+                <Icon name="check" size={20} color={COLORS.primary} />
               )}
             </TouchableOpacity>
 
@@ -232,7 +233,7 @@ ${!status.isInitialized ? `\n⚠️ ${language === 'tr' ? 'Servis başlatılmam�
                 {t('languages.english')}
               </Text>
               {language === 'en' && (
-                <Icon name="check" size={20} color="#007AFF" />
+                <Icon name="check" size={20} color={COLORS.primary} />
               )}
             </TouchableOpacity>
           </View>
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   selectedLanguageText: {
-    color: '#007AFF',
+    color: COLORS.primary,
     fontWeight: '500',
   },
 });

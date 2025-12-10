@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import { useLanguage } from '../contexts/LanguageContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { COLORS } from '../theme/colors';
 
 // Phone helpers: Turkish format +90 555 123 45 67
 const extractDigits = (value: string) => (value || '').replace(/\D+/g, '');
@@ -246,11 +247,11 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   inputDisabled: { backgroundColor: '#f6f6f6', color: '#999' },
-  button: { backgroundColor: '#007AFF', borderRadius: 8, padding: 16, alignItems: 'center', marginTop: 16 },
+  button: { backgroundColor: COLORS.primary, borderRadius: 8, padding: 16, alignItems: 'center', marginTop: 16 },
   buttonDisabled: { backgroundColor: '#ccc' },
   buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
-  buttonSecondary: { backgroundColor: '#fff', borderRadius: 8, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#007AFF' },
-  buttonSecondaryText: { color: '#007AFF', fontSize: 16, fontWeight: 'bold' },
+  buttonSecondary: { backgroundColor: '#fff', borderRadius: 8, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: COLORS.primary },
+  buttonSecondaryText: { color: COLORS.primary, fontSize: 16, fontWeight: 'bold' },
   dangerZone: {
     marginTop: 32,
     padding: 16,

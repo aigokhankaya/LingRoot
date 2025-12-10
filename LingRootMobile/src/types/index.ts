@@ -37,6 +37,7 @@ export interface TTSRequest {
   voiceName?: string;
   gender?: 'male' | 'female' | 'neutral';
   accent?: 'american' | 'british' | 'australian' | 'canadian' | 'indian' | 'international' | 'all';
+  topic_id?: string;
 }
 
 export interface TTSResponse {
@@ -146,12 +147,13 @@ export type RootStackParamList = {
   TermsOfService: undefined;
   ReminderSettings: undefined;
   TtsProviderSettings: undefined;
+  TopicTree: undefined;
 };
 
 export type MainTabParamList = {
   Home: undefined;
   Library: undefined;
-  Create: { mode?: string } | undefined;
+  Create: { mode?: string; initialText?: string; topicId?: string; topicLevel?: string } | undefined;
   Profile: undefined;
   Vocabulary: { wordId?: string } | undefined;
 };
@@ -194,4 +196,39 @@ export interface BookChapter {
   chapter_title: string;
   chapter_text?: string;
   created_at?: string;
+}
+
+export interface TopicContent {
+  id: string;
+  topic_id: string;
+  mp3_url: string | null;
+  vtt_url: string | null;
+  text_content: string | null;
+  translated_text: string | null;
+  adapted_text: string | null;
+  level: string | null;
+  voice_model: string | null;
+  speaking_rate: number | null;
+  duration_seconds: number | null;
+  words: string[];
+  timepoints: any;
+  created_at: string;
+  listened_at: string | null;
+}
+
+export interface Topic {
+  id: string;
+  user_id: string;
+  parent_id: string | null;
+  title: string;
+  description: string | null;
+  level: string;
+  depth: number;
+  order_index: number;
+  is_manual: boolean;
+  keywords: string[];
+  created_at: string;
+  updated_at: string;
+  children?: Topic[];
+  latest_content?: TopicContent | null;
 }

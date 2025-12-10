@@ -451,7 +451,7 @@ router.post("/create-podcast", authenticate, async (req, res) => {
     let wordsForTiming = null;
     let timepoints = null;
 
-    const useMFAAlignment = process.env.USE_MFA_ALIGNMENT;
+    const useMFAAlignment = process.env.USE_MFA_ALIGNMENT === 'true';
     if (useMFAAlignment && transcriptForMFA && audioUrl) {
       try {
         const tempFileName = `podcast_mfa_${Date.now()}.mp3`;

@@ -20,6 +20,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 // import DocumentPicker from 'react-native-document-picker';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useLanguage } from '../contexts/LanguageContext';
+import { COLORS } from '../theme/colors';
 
 interface Attachment {
   id: string;
@@ -480,7 +481,7 @@ const ChatScreen: React.FC = ({ navigation, route }: any) => {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4F46E5" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Yükleniyor...</Text>
       </SafeAreaView>
     );
@@ -495,7 +496,7 @@ const ChatScreen: React.FC = ({ navigation, route }: any) => {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{language === 'tr' ? 'Destek' : 'Support'}</Text>
           <TouchableOpacity onPress={() => setShowNewConversation(true)}>
-            <Ionicons name="add" size={24} color="#4F46E5" />
+            <Ionicons name="add" size={24} color={COLORS.primary} />
           </TouchableOpacity>
         </View>
 
@@ -857,7 +858,7 @@ const styles = StyleSheet.create({
   },
   modalSaveButton: {
     fontSize: 16,
-    color: '#4F46E5',
+    color: COLORS.primary,
     fontWeight: '600',
   },
   modalSaveButtonDisabled: {
@@ -937,7 +938,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   userBubble: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: COLORS.primary,
   },
   adminBubble: {
     backgroundColor: '#F3F4F6',
@@ -1004,7 +1005,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   sendButton: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: COLORS.primary,
     borderRadius: 20,
     width: 40,
     height: 40,
@@ -1033,7 +1034,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   reopenButton: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -1066,7 +1067,7 @@ const styles = StyleSheet.create({
   attachmentName: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#4F46E5',
+    color: COLORS.primary,
   },
   attachmentSize: {
     fontSize: 12,

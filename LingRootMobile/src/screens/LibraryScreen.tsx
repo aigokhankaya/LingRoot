@@ -19,6 +19,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useAudioContext } from '../contexts/AudioContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AudioPlayer from '../components/AudioPlayer';
+import { COLORS } from '../theme/colors';
 
 const LibraryScreen: React.FC = () => {
   const route = useRoute<any>();
@@ -577,9 +578,9 @@ const LibraryScreen: React.FC = () => {
           onPress={() => handlePlayTrack(item)}
         >
           {isCurrentlyPlaying ? (
-            <Icon name="pause" size={24} color={isCurrentlyPlaying ? "#FFFFFF" : "#007AFF"} />
+            <Icon name="pause" size={24} color="#FFFFFF" />
           ) : (
-            <Icon name="play-arrow" size={24} color="#007AFF" />
+            <Icon name="play-arrow" size={24} color={COLORS.primary} />
           )}
         </TouchableOpacity>
       </TouchableOpacity>
@@ -591,7 +592,7 @@ const LibraryScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>
             {language === 'tr' ? 'Ses kütüphanesi yükleniyor...' : 'Loading audio library...'}
           </Text>
@@ -629,14 +630,14 @@ const LibraryScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-          <Icon name="refresh" size={24} color="#007AFF" />
+          <Icon name="refresh" size={24} color={COLORS.primary} />
         </TouchableOpacity>
         <View style={styles.headerButtons}>
           <TouchableOpacity 
             style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]} 
             onPress={handleToggleFavorites}
           >
-            <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#E91E63' : '#007AFF'} />
+            <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#E91E63' : COLORS.primary} />
             <Text style={[styles.favoritesToggleText, showFavoritesOnly && styles.favoritesToggleTextActive]}>
               {language === 'tr' ? 'Favorilerim' : 'My Favorites'}
             </Text>
@@ -703,14 +704,14 @@ const LibraryScreen: React.FC = () => {
           ListFooterComponent={
             isLoadingMore ? (
               <View style={styles.footerLoadingContainer}>
-                <ActivityIndicator size="large" color="#007AFF" style={{ opacity: 0.3 }} />
+                <ActivityIndicator size="large" color={COLORS.primary} style={{ opacity: 0.3 }} />
               </View>
             ) : null
           }
         />
       ) : showFavoritesOnly && (isHydratingFavorites || favoriteIds.length > 0) ? (
         <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>{language === 'tr' ? 'Favoriler yükleniyor...' : 'Loading favorites...'}</Text>
         </View>
       ) : (
@@ -791,7 +792,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: 'white',
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: COLORS.primary,
     borderRadius: 20,
   },
   modeToggleActive: {
@@ -800,7 +801,7 @@ const styles = StyleSheet.create({
   },
   modeToggleText: {
     marginLeft: 6,
-    color: '#007AFF',
+    color: COLORS.primary,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -814,7 +815,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: 'white',
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: COLORS.primary,
     borderRadius: 20,
   },
   favoritesToggleActive: {
@@ -823,7 +824,7 @@ const styles = StyleSheet.create({
   },
   favoritesToggleText: {
     marginLeft: 6,
-    color: '#007AFF',
+    color: COLORS.primary,
     fontWeight: '600',
   },
   favoritesToggleTextActive: {
@@ -864,7 +865,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   levelChipActive: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
   },
   levelChipText: {
     fontSize: 14,
@@ -892,7 +893,7 @@ const styles = StyleSheet.create({
   },
   trackCardPlaying: {
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: COLORS.primary,
     backgroundColor: '#F0F8FF',
   },
   trackInfo: {
@@ -948,14 +949,14 @@ const styles = StyleSheet.create({
   },
   inputType: {
     fontSize: 12,
-    color: '#007AFF',
+    color: COLORS.primary,
     fontWeight: '500',
   },
   playButton: {
     padding: 8,
   },
   playButtonPlaying: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     borderRadius: 12,
   },
   emptyState: {
@@ -979,7 +980,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,

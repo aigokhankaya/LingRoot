@@ -19,6 +19,7 @@ import { apiService } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../contexts/LanguageContext';
 import { isAppleSignInAvailable } from '../services/socialAuth';
+import { COLORS } from '../theme/colors';
 
 const LoginScreen: React.FC = () => {
   const { language } = useLanguage();
@@ -373,7 +374,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: COLORS.primary,
     marginBottom: 8,
   },
   subtitle: {
@@ -411,7 +412,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     padding: 15,
     alignItems: 'center',
@@ -430,7 +431,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   linkText: {
-    color: '#007AFF',
+    color: COLORS.primary,
     fontSize: 14,
   },
   errorBox: {
@@ -464,7 +465,7 @@ const styles = StyleSheet.create({
   },
   smallButton: {
     marginLeft: 8,
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 8,

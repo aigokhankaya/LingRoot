@@ -13,6 +13,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
 import { apiService } from '../services/api';
+import { COLORS } from '../theme/colors';
 
 interface TtsProvider {
   id: string;
@@ -117,7 +118,7 @@ const TtsProviderSettingsScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       </SafeAreaView>
     );
@@ -127,7 +128,7 @@ const TtsProviderSettingsScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-back" size={24} color="#007AFF" />
+          <Icon name="arrow-back" size={24} color={COLORS.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {language === 'tr' ? 'Test Ayarları' : 'Test Settings'}
@@ -161,7 +162,7 @@ const TtsProviderSettingsScreen: React.FC = () => {
                   <Icon
                     name={provider.icon}
                     size={28}
-                    color={selectedProvider === provider.id ? '#007AFF' : '#666'}
+                    color={selectedProvider === provider.id ? COLORS.primary : '#666'}
                   />
                   <View style={styles.providerInfo}>
                     <Text style={[
@@ -176,7 +177,7 @@ const TtsProviderSettingsScreen: React.FC = () => {
                   </View>
                 </View>
                 {selectedProvider === provider.id && (
-                  <Icon name="check-circle" size={24} color="#007AFF" />
+                  <Icon name="check-circle" size={24} color={COLORS.primary} />
                 )}
               </View>
 
@@ -262,7 +263,7 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
   },
   selectedCard: {
-    borderColor: '#007AFF',
+    borderColor: COLORS.primary,
     backgroundColor: '#f0f8ff',
   },
   providerHeader: {
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   selectedText: {
-    color: '#007AFF',
+    color: COLORS.primary,
   },
   providerDescription: {
     fontSize: 13,
