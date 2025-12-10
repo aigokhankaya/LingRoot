@@ -971,22 +971,27 @@ const TopicTreeSection: React.FC<TopicTreeSectionProps> = ({
                       activeOpacity={0.85}
                       onPress={() => openComboPicker(root.id, level.depth, level.options)}
                     >
-                      <Text
-                        style={styles.comboOptionTitle}
-                        numberOfLines={2}
-                        ellipsizeMode="tail"
-                      >
-                        {selectedTopic?.title || placeholder}
-                      </Text>
-                      {selectedTopic?.description ? (
-                        <Text
-                          style={styles.comboOptionDescription}
-                          numberOfLines={3}
-                          ellipsizeMode="tail"
-                        >
-                          {selectedTopic.description}
-                        </Text>
-                      ) : null}
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={styles.comboOptionTitle}
+                            numberOfLines={2}
+                            ellipsizeMode="tail"
+                          >
+                            {selectedTopic?.title || placeholder}
+                          </Text>
+                          {selectedTopic?.description ? (
+                            <Text
+                              style={styles.comboOptionDescription}
+                              numberOfLines={3}
+                              ellipsizeMode="tail"
+                            >
+                              {selectedTopic.description}
+                            </Text>
+                          ) : null}
+                        </View>
+                        <Text style={styles.comboOptionArrow}>▾</Text>
+                      </View>
                     </TouchableOpacity>
                   </View>
                 );
@@ -1765,6 +1770,12 @@ const styles = StyleSheet.create({
   comboOptionDescription: {
     fontSize: 12,
     color: '#4B5563',
+  },
+  comboOptionArrow: {
+    marginLeft: 8,
+    fontSize: 30,
+    color: '#374151',
+    fontWeight: '600',
   },
   topicList: {
     gap: 8,
