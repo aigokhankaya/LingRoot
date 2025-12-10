@@ -16,6 +16,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { isAppleSignInAvailable } from '../services/socialAuth';
+import { COLORS } from '../theme/colors';
 
 // Phone helpers: Turkish format +90 555 123 45 67
 const extractDigits = (value: string) => (value || '').replace(/\D+/g, '');
@@ -371,7 +372,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: COLORS.primary,
     marginBottom: 8,
   },
   subtitle: {
@@ -426,8 +427,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   checkboxChecked: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   termsText: {
     flex: 1,
@@ -435,7 +436,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     padding: 15,
     alignItems: 'center',
@@ -454,7 +455,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   linkText: {
-    color: '#007AFF',
+    color: COLORS.primary,
     fontSize: 14,
   },
   divider: {

@@ -24,6 +24,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { apiService, saveDefaultVoiceSetting, getUserSettings, getMyPlanFeatures, PlanFeatures } from '../services/api';
 import AudioPlayer from '../components/AudioPlayer';
 import { getVoiceDisplayName } from '../utils/voiceDisplayNames';
+import { COLORS } from '../theme/colors';
 
 const CreateScreen: React.FC = () => {
   const route = useRoute<any>();
@@ -1248,7 +1249,7 @@ const CreateScreen: React.FC = () => {
       {isConvertingSuggestion && (
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color="#007AFF" />
+            <ActivityIndicator size="large" color={COLORS.primary} />
             <Text style={styles.loadingText}>{convertingText}</Text>
           </View>
         </View>
@@ -1257,7 +1258,7 @@ const CreateScreen: React.FC = () => {
       {isTtsJobLocked && (
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color="#007AFF" />
+            <ActivityIndicator size="large" color={COLORS.primary} />
             <Text style={styles.loadingText}>
               {ttsJobMessage ||
                 (language === 'tr'
@@ -1323,7 +1324,7 @@ const CreateScreen: React.FC = () => {
                       paddingVertical: 10,
                       borderRadius: 8,
                       borderWidth: 2,
-                      borderColor: podcastDuration === opt.value ? '#007AFF' : '#ddd',
+                      borderColor: podcastDuration === opt.value ? COLORS.primary : '#ddd',
                       backgroundColor: podcastDuration === opt.value ? '#E3F2FD' : '#fff',
                       alignItems: 'center',
                     }}
@@ -1333,7 +1334,7 @@ const CreateScreen: React.FC = () => {
                       style={{
                         fontSize: 13,
                         fontWeight: '600',
-                        color: podcastDuration === opt.value ? '#007AFF' : '#333',
+                        color: podcastDuration === opt.value ? COLORS.primary : '#333',
                       }}
                     >
                       {opt.label}
@@ -1341,7 +1342,7 @@ const CreateScreen: React.FC = () => {
                     <Text
                       style={{
                         fontSize: 10,
-                        color: podcastDuration === opt.value ? '#007AFF' : '#888',
+                        color: podcastDuration === opt.value ? COLORS.primary : '#888',
                         marginTop: 2,
                       }}
                     >
@@ -1499,7 +1500,7 @@ const CreateScreen: React.FC = () => {
                 <Icon
                   name={podcastIncludeHumor ? 'check-box' : 'check-box-outline-blank'}
                   size={20}
-                  color="#007AFF"
+                  color={COLORS.primary}
                 />
                 <Text style={{ marginLeft: 6, fontSize: 14, color: '#333' }}>
                   {language === 'tr' ? 'Mizah Ekle' : 'Include Humor'}
@@ -1513,7 +1514,7 @@ const CreateScreen: React.FC = () => {
                 <Icon
                   name={podcastIncludeFiller ? 'check-box' : 'check-box-outline-blank'}
                   size={20}
-                  color="#007AFF"
+                  color={COLORS.primary}
                 />
                 <Text style={{ marginLeft: 6, fontSize: 14, color: '#333' }}>
                   {language === 'tr' ? 'Dolgu Kelimeler Ekle' : 'Include Filler Words'}
@@ -1642,7 +1643,7 @@ const CreateScreen: React.FC = () => {
                   <Text style={styles.textExpanderLabel}>
                     {isTextExpanded ? (t('create.input.collapse') || 'Daralt') : (t('create.input.expand') || 'Genişlet')}
                   </Text>
-                  <Icon name={isTextExpanded ? 'expand-less' : 'expand-more'} size={18} color="#007AFF" />
+                  <Icon name={isTextExpanded ? 'expand-less' : 'expand-more'} size={18} color={COLORS.primary} />
                 </TouchableOpacity>
                 <Text style={styles.charCount}>{t('create.input.charCount', { count: inputText.length })}</Text>
               </>
@@ -1722,12 +1723,12 @@ const CreateScreen: React.FC = () => {
               <View style={{ marginTop: 12 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                   <TouchableOpacity onPress={() => { setSelectedBook(null); setBookChapters([]); setSelectedChapterId(null); setSelectedChapterText(''); }}>
-                    <Icon name="arrow-back" size={22} color="#007AFF" />
+                    <Icon name="arrow-back" size={22} color={COLORS.primary} />
                   </TouchableOpacity>
                   <Text style={[styles.bookTitle, { marginLeft: 8 }]} numberOfLines={1}>{selectedBook.title}</Text>
                 </View>
                 {isLoadingChapters ? (
-                  <ActivityIndicator color="#007AFF" />
+                  <ActivityIndicator color={COLORS.primary} />
                 ) : (
                   <View>
                     {bookChapters.map((c) => (
@@ -1738,7 +1739,7 @@ const CreateScreen: React.FC = () => {
                       >
                         <View style={styles.chapterIndex}><Text style={styles.chapterIndexText}>{c.chapter_index}</Text></View>
                         <Text style={styles.chapterTitle} numberOfLines={2}>{c.chapter_title}</Text>
-                        {selectedChapterId === c.id && <Icon name="check" size={18} color="#007AFF" />}
+                        {selectedChapterId === c.id && <Icon name="check" size={18} color={COLORS.primary} />}
                       </TouchableOpacity>
                     ))}
                     {bookChapters.length === 0 && (
@@ -1755,7 +1756,7 @@ const CreateScreen: React.FC = () => {
           selectedFile ? (
             <View style={styles.selectedFileContainer}>
               <View style={styles.selectedFileInfo}>
-                <Icon name="insert-drive-file" size={24} color="#007AFF" />
+                <Icon name="insert-drive-file" size={24} color={COLORS.primary} />
                 <View style={styles.fileDetails}>
                   <Text style={styles.fileName}>{selectedFile.name}</Text>
                   <Text style={styles.fileSize}>
@@ -1769,7 +1770,7 @@ const CreateScreen: React.FC = () => {
             </View>
           ) : (
             <TouchableOpacity style={styles.fileButton} onPress={handleFileUpload}>
-              <Icon name="upload-file" size={24} color="#007AFF" />
+              <Icon name="upload-file" size={24} color={COLORS.primary} />
               <Text style={styles.fileButtonText}>{t('create.file.uploadButton')}</Text>
             </TouchableOpacity>
           )
@@ -1814,14 +1815,14 @@ const CreateScreen: React.FC = () => {
                 style={styles.speedButton}
                 onPress={() => setSpeechRate(Math.max(0.5, speechRate - 0.1))}
               >
-                <Icon name="remove" size={24} color="#007AFF" />
+                <Icon name="remove" size={24} color={COLORS.primary} />
               </TouchableOpacity>
               <Text style={styles.speedText}>{speechRate.toFixed(1)}x</Text>
               <TouchableOpacity
                 style={styles.speedButton}
                 onPress={() => setSpeechRate(Math.min(2.0, speechRate + 0.1))}
               >
-                <Icon name="add" size={24} color="#007AFF" />
+                <Icon name="add" size={24} color={COLORS.primary} />
               </TouchableOpacity>
             </View>
             <View style={styles.speedLabels}>
@@ -1862,7 +1863,7 @@ const CreateScreen: React.FC = () => {
                     }
                   }}
                 >
-                  <Icon name={category.icon} size={16} color={selectedVoiceCategory === category.value ? '#FFF' : '#007AFF'} />
+                  <Icon name={category.icon} size={16} color={selectedVoiceCategory === category.value ? '#FFF' : COLORS.primary} />
                   <Text style={[
                     styles.voiceCategoryText,
                     selectedVoiceCategory === category.value && styles.voiceCategoryTextActive,
@@ -1945,7 +1946,7 @@ const CreateScreen: React.FC = () => {
               setShowVoiceSelection(true);
             }}
           >
-            <Icon name="record-voice-over" size={24} color="#007AFF" />
+            <Icon name="record-voice-over" size={24} color={COLORS.primary} />
             <View style={styles.voiceSelectionInfo}>
               <Text style={styles.voiceSelectionText}>
                 {selectedVoice
@@ -1956,7 +1957,7 @@ const CreateScreen: React.FC = () => {
                 {getFilteredVoicesByCategory().find(v => v.name === selectedVoice)?.description || t('create.voice.selectHint')}
               </Text>
             </View>
-            <Icon name="arrow-forward-ios" size={16} color="#007AFF" />
+            <Icon name="arrow-forward-ios" size={16} color={COLORS.primary} />
           </TouchableOpacity>
 
 
@@ -1983,7 +1984,7 @@ const CreateScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
               {loadingVoices ? (
-                <ActivityIndicator size="large" color="#007AFF" style={styles.voiceLoader} />
+                <ActivityIndicator size="large" color={COLORS.primary} style={styles.voiceLoader} />
               ) : (
                 <View>
                   <ScrollView style={styles.voiceList}>
@@ -2015,7 +2016,7 @@ const CreateScreen: React.FC = () => {
                           )}
                         </View>
                         {selectedVoice === item.name && (
-                          <Icon name="check" size={20} color="#007AFF" />
+                          <Icon name="check" size={20} color={COLORS.primary} />
                         )}
                       </TouchableOpacity>
                     ))}
@@ -2144,7 +2145,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     padding: 12,
     borderRadius: 8,
     gap: 8,
@@ -2278,7 +2279,7 @@ const styles = StyleSheet.create({
     borderColor: '#BFE5BF',
   },
   textExpanderLabel: {
-    color: '#007AFF',
+    color: COLORS.primary,
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
@@ -2309,13 +2310,13 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: COLORS.primary,
     borderStyle: 'dashed',
   },
   fileButtonText: {
     marginLeft: 8,
     fontSize: 16,
-    color: '#007AFF',
+    color: COLORS.primary,
     fontWeight: '500',
   },
   settingsSection: {
@@ -2335,7 +2336,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   levelButtonActive: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
   },
   levelButtonText: {
     fontSize: 14,
@@ -2384,7 +2385,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     marginHorizontal: 20,
     marginBottom: 20,
     padding: 16,
@@ -2425,7 +2426,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
+    borderLeftColor: COLORS.primary,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -2473,8 +2474,8 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
   },
   voiceCategoryButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   voiceCategoryText: {
     fontSize: 12,
@@ -2494,7 +2495,7 @@ const styles = StyleSheet.create({
   },
   voiceBadgeText: {
     fontSize: 10,
-    color: '#007AFF',
+    color: COLORS.primary,
     fontWeight: '600',
   },
   voiceFiltersContainer: {
@@ -2522,7 +2523,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   filterButtonActive: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
   },
   filterButtonText: {
     fontSize: 12,
@@ -2594,7 +2595,7 @@ const styles = StyleSheet.create({
   },
   providerBadge: {
     fontSize: 12,
-    color: '#007AFF',
+    color: COLORS.primary,
     marginTop: 4,
     fontWeight: '500',
   },

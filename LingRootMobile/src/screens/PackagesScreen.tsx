@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
 import { IAP_PRODUCTS, requestSubscription, restorePurchases } from '../services/iap';
 import { apiService } from '../services/api';
+import { COLORS } from '../theme/colors';
 
 interface SubscriptionPlan {
   id: number;
@@ -284,7 +285,7 @@ const PackagesScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Paketler yükleniyor...</Text>
         </View>
       </SafeAreaView>
@@ -445,10 +446,10 @@ const PackagesScreen: React.FC = () => {
             disabled={restoring}
           >
             {restoring ? (
-              <ActivityIndicator size="small" color="#007AFF" />
+              <ActivityIndicator size="small" color={COLORS.primary} />
             ) : (
               <>
-                <Icon name="restore" size={20} color="#007AFF" />
+                <Icon name="restore" size={20} color={COLORS.primary} />
                 <Text style={styles.restoreButtonText}>
                   {language === 'tr' ? 'Satın Alımları Geri Yükle' : 'Restore Purchases'}
                 </Text>
@@ -689,14 +690,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F9FF',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: COLORS.primary,
     minHeight: 48,
     gap: 8,
   },
   restoreButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#007AFF',
+    color: COLORS.primary,
     marginLeft: 8,
   },
   restoreHint: {
@@ -730,7 +731,7 @@ const styles = StyleSheet.create({
   },
   legalLink: {
     fontSize: 12,
-    color: '#007AFF',
+    color: COLORS.primary,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },

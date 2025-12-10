@@ -15,6 +15,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiService, getMyPlanFeatures, PlanFeatures } from '../services/api';
 import { AudioTrack } from '../types';
+import { COLORS } from '../theme/colors';
 
 const HomeScreen: React.FC = () => {
   const { user } = useAuth();
@@ -38,7 +39,7 @@ const HomeScreen: React.FC = () => {
       title: t('home.textToSpeech'),
       description: t('home.textToSpeechDesc'),
       icon: 'text-fields',
-      color: '#007AFF',
+      color: COLORS.primary,
       screenName: 'Create',
       params: { mode: 'text' as const },
       featureKey: 'text_input',
@@ -273,7 +274,7 @@ const HomeScreen: React.FC = () => {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             {stats.loading ? (
-              <ActivityIndicator size="small" color="#007AFF" />
+              <ActivityIndicator size="small" color={COLORS.primary} />
             ) : (
               <>
                 <Text style={styles.statNumber}>{stats.audioCount}</Text>
@@ -283,7 +284,7 @@ const HomeScreen: React.FC = () => {
           </View>
           <View style={styles.statCard}>
             {stats.loading ? (
-              <ActivityIndicator size="small" color="#007AFF" />
+              <ActivityIndicator size="small" color={COLORS.primary} />
             ) : (
               <>
                 <Text style={styles.statNumber}>{stats.totalDuration}</Text>
@@ -388,7 +389,7 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: COLORS.primary,
     marginBottom: 5,
   },
   statLabel: {

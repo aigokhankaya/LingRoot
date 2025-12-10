@@ -47,6 +47,7 @@ interface SkiaWordHighlightProps {
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const ACCENT_COLOR = 'rgba(248, 177, 59, 1)';
 
 export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   words,
@@ -537,8 +538,8 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
                   // Skip pattern words - they're already drawn above
                   if (!isHighlighted && !isSelected) return null;
                   
-                  // Priority: current word (blue) > selected word (gold)
-                  const color = isHighlighted ? '#007AFF' : '#FFD700';
+                  // Priority: current word (accent orange) > selected word (gold)
+                  const color = isHighlighted ? ACCENT_COLOR : '#FFD700';
                   const paddingX = 4;
                   const paddingY = 3;
                   const relativeY = boundary.y - chunk.startY;
@@ -689,8 +690,8 @@ const fallbackStyles = StyleSheet.create({
     color: '#374151',
   },
   highlightedWord: {
-    backgroundColor: '#007AFF',
-    shadowColor: '#007AFF',
+    backgroundColor: ACCENT_COLOR,
+    shadowColor: ACCENT_COLOR,
     shadowOpacity: 0.3,
     shadowRadius: 6,
   },

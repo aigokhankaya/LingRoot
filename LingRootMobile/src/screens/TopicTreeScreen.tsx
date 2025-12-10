@@ -5,6 +5,7 @@ import { apiService } from '../services/api';
 import { Topic, AudioTrack, Timepoint, CEFRLevel } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import AudioPlayer from '../components/AudioPlayer';
+import { COLORS } from '../theme/colors';
 
 interface TopicNodeMobileProps {
   topic: Topic;
@@ -126,7 +127,7 @@ const TopicNodeMobile: React.FC<TopicNodeMobileProps> = ({
               flex: 1,
               paddingVertical: 8,
               borderRadius: 10,
-              backgroundColor: '#2563EB',
+              backgroundColor: COLORS.primary,
               alignItems: 'center',
               marginRight: 6,
             }}
@@ -1423,7 +1424,7 @@ const TopicTreeSection: React.FC<TopicTreeSectionProps> = ({
 
       {showLoading && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       )}
 
@@ -1731,7 +1732,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   rootSelectCardSelected: {
-    borderColor: '#2563EB',
+    borderColor: COLORS.primary,
     backgroundColor: '#DBEAFE',
   },
   comboBox: {
@@ -1758,7 +1759,7 @@ const styles = StyleSheet.create({
     minHeight: 72,
   },
   comboOptionSelected: {
-    borderColor: '#2563EB',
+    borderColor: COLORS.primary,
     backgroundColor: '#DBEAFE',
   },
   comboOptionTitle: {
@@ -1833,7 +1834,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
-    backgroundColor: '#2563EB',
+    backgroundColor: COLORS.primary,
   },
   topicBadgeText: {
     fontSize: 11,
@@ -1871,8 +1872,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   levelPillActive: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   levelPillText: {
     fontSize: 12,
@@ -1930,7 +1931,7 @@ const styles = StyleSheet.create({
   },
   mainFormToggleDescText: {
     fontSize: 12,
-    color: '#2563EB',
+    color: COLORS.primary,
     marginTop: 4,
   },
   mainFormLevelRow: {
@@ -1954,7 +1955,7 @@ const styles = StyleSheet.create({
   },
   mainFormLevelValue: {
     fontWeight: '700',
-    color: '#2563EB',
+    color: COLORS.primary,
   },
   mainFormLevelInfo: {
     fontSize: 11,
@@ -1966,7 +1967,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#2563EB',
+    backgroundColor: COLORS.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2024,8 +2025,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   modalChipActive: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   modalChipText: {
     fontSize: 12,
@@ -2085,8 +2086,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   modalButtonPrimary: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   modalButtonText: {
     fontSize: 13,
@@ -2120,8 +2121,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   globalActionPrimary: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   globalActionButtonDisabled: {
     opacity: 0.6,

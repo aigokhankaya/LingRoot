@@ -27,6 +27,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { SkiaWordHighlight } from './SkiaWordHighlight';
 import { SkiaSentenceHighlight } from './SkiaSentenceHighlight';
 import { getEnvironmentConfig } from '../services/environmentConfig';
+import { COLORS } from '../theme/colors';
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -1485,7 +1486,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               <Text style={styles.originalTextButtonText}>
                 {t('audioPlayer.originalTextButton')}
               </Text>
-              <Icon name="chevron-right" size={20} color="#007AFF" />
+              <Icon name="chevron-right" size={20} color={COLORS.primary} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity 
@@ -1495,7 +1496,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               }}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
-              <Icon name="chevron-left" size={20} color="#007AFF" />
+              <Icon name="chevron-left" size={20} color={COLORS.primary} />
               <Text style={styles.originalTextButtonText}>
                 {t('audioPlayer.backToTranslationButton')}
               </Text>
@@ -1616,7 +1617,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                     }}
                     style={styles.copyButton}
                   >
-                    <Icon name="content-copy" size={20} color="#007AFF" />
+                    <Icon name="content-copy" size={20} color={COLORS.primary} />
                   </TouchableOpacity>
                 </View>
                 {originalLoading ? (
@@ -1635,7 +1636,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         {addingWord && (
           <View style={styles.loadingOverlay}>
             <View style={styles.loadingCard}>
-              <ActivityIndicator size="large" color="#007AFF" />
+              <ActivityIndicator size="large" color={COLORS.primary} />
               <Text style={styles.loadingText}>{addingWordText}</Text>
             </View>
           </View>
@@ -1724,12 +1725,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               disabled={isLoading}
             >
               {isLoading ? (
-                <Icon name="hourglass-empty" size={32} color="#007AFF" />
+                <Icon name="hourglass-empty" size={32} color={COLORS.primary} />
               ) : (
                 <Icon
                   name={isPlaying ? "pause" : "play-arrow"}
                   size={32}
-                  color="#007AFF"
+                  color={COLORS.primary}
                 />
               )}
             </TouchableOpacity>
@@ -1772,7 +1773,7 @@ const styles = StyleSheet.create({
     right: 0,
   },
   linkText: {
-    color: '#2563EB',
+    color: COLORS.primary,
     textDecorationLine: 'underline',
     fontSize: 13,
     marginLeft: 8,
@@ -1835,7 +1836,7 @@ const styles = StyleSheet.create({
   originalTextButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#007AFF',
+    color: COLORS.primary,
   },
   originalBox: {
     backgroundColor: '#fff',
@@ -1869,13 +1870,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   levelBadge: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   levelBadgeBottom: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -1920,7 +1921,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   highlightedWordTouchable: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.accent,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -1947,7 +1948,7 @@ const styles = StyleSheet.create({
     minWidth: 'auto',
   },
   highlightedWord: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.accent,
     borderRadius: 4,
   },
   word: {
@@ -1971,10 +1972,10 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
   highlightedSentence: {
-    backgroundColor: '#007AFF40',
-    borderColor: '#007AFF',
+    backgroundColor: 'rgba(76, 175, 80, 0.25)',
+    borderColor: COLORS.primary,
     borderWidth: 3,
-    shadowColor: '#007AFF',
+    shadowColor: COLORS.primary,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -1990,7 +1991,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   highlightedSentenceText: {
-    color: '#007AFF',
+    color: COLORS.primary,
     fontWeight: '600',
   },
   sentenceWordsContainer: {
@@ -2036,7 +2037,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 4,
   },
   podcastBubbleRight: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     borderTopRightRadius: 4,
   },
   podcastBubbleActive: {
@@ -2091,7 +2092,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   modeButtonActive: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
   },
   modeButtonText: {
     fontSize: 14,
@@ -2121,7 +2122,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     borderRadius: 4,
   },
   playbackControls: {
@@ -2233,7 +2234,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   seekButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,

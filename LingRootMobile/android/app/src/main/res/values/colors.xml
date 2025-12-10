@@ -1,5 +1,7 @@
 <resources>
   <color name="splashscreen_background">#FFFFFF</color>
-  <color name="colorPrimary">#023c69</color>
-  <color name="colorPrimaryDark">#ffffff</color>
+  <!-- Teal primary, aligned with new mobile/web brand -->
+  <color name="colorPrimary">#27BEAA</color>
+  <!-- Use the same teal for status bar so it visually merges with the header -->
+  <color name="colorPrimaryDark">#27BEAA</color>
 </resources>

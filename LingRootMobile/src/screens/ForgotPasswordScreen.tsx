@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { apiService } from '../services/api';
+import { COLORS } from '../theme/colors';
 
 const ForgotPasswordScreen: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -44,7 +45,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#f5f5f5' },
   title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 24, color: '#111' },
   input: { backgroundColor: '#fff', borderRadius: 8, padding: 15, borderWidth: 1, borderColor: '#ddd', marginBottom: 16, color: '#333' },
-  button: { backgroundColor: '#007AFF', borderRadius: 8, padding: 15, alignItems: 'center' },
+  button: { backgroundColor: COLORS.primary, borderRadius: 8, padding: 15, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: 'bold' },
 });
 

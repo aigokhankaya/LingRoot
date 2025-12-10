@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'reac
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiService } from '../services/api';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { COLORS } from '../theme/colors';
 
 const ResetPasswordScreen: React.FC = () => {
   const route = useRoute<any>();
@@ -92,7 +93,7 @@ const styles = StyleSheet.create({
   inputWrapper: { position: 'relative' },
   passwordInput: { paddingRight: 48 },
   eyeButton: { position: 'absolute', right: 12, top: 0, bottom: 16, width: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
-  button: { backgroundColor: '#007AFF', borderRadius: 8, padding: 15, alignItems: 'center' },
+  button: { backgroundColor: COLORS.primary, borderRadius: 8, padding: 15, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: 'bold' },
 });
 
