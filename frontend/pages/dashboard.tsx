@@ -429,13 +429,13 @@ const Dashboard = () => {
             {/* Left: Logo & Navigation */}
             <div className="flex items-center space-x-6">
               <Link href="/">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3 flex-shrink-0">
                   <img
                     src="/lingroot-icon.svg"
                     alt="LingRoot Logo"
                     className="w-10 h-10 md:w-12 md:h-12"
                   />
-                  <BrandWordmark className="text-xl md:text-2xl" />
+                  <BrandWordmark className="hidden sm:inline-block text-lg sm:text-xl md:text-2xl" />
                 </div>
               </Link>
               <Link href="/welcome">

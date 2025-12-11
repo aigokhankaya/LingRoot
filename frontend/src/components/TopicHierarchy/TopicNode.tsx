@@ -207,7 +207,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
     <div style={{ marginLeft: `${indent}px` }}>
       {/* Node Container */}
       <div className={`${colors.bg} ${colors.border} border-2 rounded-lg p-4 transition-all hover:shadow-md`}>
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
           {/* Sol Taraf - Başlık ve Bilgiler (tıklanabilir alan) */}
           <div
             className="flex-1 flex items-start space-x-3 cursor-pointer"
@@ -303,7 +303,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
           </div>
 
           {/* Sağ Taraf - Aksiyonlar */}
-          <div className="flex flex-col space-y-2">
+          <div className="flex flex-col space-y-2 md:items-end mt-3 md:mt-0">
             <Button
               onClick={() => {
                 if (isTopicAudioLoading) return;
@@ -337,7 +337,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
               )}
             </Button>
 
-            <div className="flex space-x-1">
+            <div className="flex flex-wrap gap-1 justify-start md:justify-end">
               <Button
                 onClick={() => setShowSubtopicModal(true)}
                 size="sm"

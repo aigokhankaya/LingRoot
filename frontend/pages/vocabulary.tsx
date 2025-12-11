@@ -42,6 +42,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
     isEnabled: true
   });
   const [isReminderSettingsOpen, setIsReminderSettingsOpen] = useState(false);
+  const [tempSettings, setTempSettings] = useState<ReminderSettings>(reminderSettings);
 
   // Word lists configuration
   const wordLists = {
@@ -108,6 +109,12 @@ export function VocabularyTabContent({ user }: { user: any }) {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (isReminderSettingsOpen) {
+      setTempSettings(reminderSettings);
+    }
+  }, [isReminderSettingsOpen, reminderSettings]);
+
   const loadVocabulary = async () => {
     try {
       setIsLoading(true);
@@ -134,7 +141,8 @@ export function VocabularyTabContent({ user }: { user: any }) {
   // Save reminder settings
   const handleSaveReminderSettings = async () => {
     try {
-      await saveReminderSettings(reminderSettings);
+      await saveReminderSettings(tempSettings);
+      setReminderSettings(tempSettings);
       setIsReminderSettingsOpen(false);
 
       // Show success message
@@ -642,8 +650,13 @@ export function VocabularyTabContent({ user }: { user: any }) {
                             type="number"
                             min="1"
                             max="20"
-                            value={tempSettings.words_per_day}
-                            onChange={(e) => setTempSettings({ ...tempSettings, words_per_day: parseInt(e.target.value) || 5 })}
+                            value={tempSettings.wordsPerDay}
+                            onChange={(e) =>
+                              setTempSettings({
+                                ...tempSettings,
+                                wordsPerDay: parseInt(e.target.value) || 5,
+                              })
+                            }
                             className="w-24"
                           />
                           <span className="text-sm text-gray-500">{t('vocab_words_count_suffix')}</span>
@@ -657,16 +670,26 @@ export function VocabularyTabContent({ user }: { user: any }) {
                             <Label className="text-xs text-gray-500 mb-1 block">{t('vocab_reminder_start_time')}</Label>
                             <Input
                               type="time"
-                              value={tempSettings.start_time}
-                              onChange={(e) => setTempSettings({ ...tempSettings, start_time: e.target.value })}
+                              value={tempSettings.startTime}
+                              onChange={(e) =>
+                                setTempSettings({
+                                  ...tempSettings,
+                                  startTime: e.target.value,
+                                })
+                              }
                             />
                           </div>
                           <div>
                             <Label className="text-xs text-gray-500 mb-1 block">{t('vocab_reminder_end_time')}</Label>
                             <Input
                               type="time"
-                              value={tempSettings.end_time}
-                              onChange={(e) => setTempSettings({ ...tempSettings, end_time: e.target.value })}
+                              value={tempSettings.endTime}
+                              onChange={(e) =>
+                                setTempSettings({
+                                  ...tempSettings,
+                                  endTime: e.target.value,
+                                })
+                              }
                             />
                           </div>
                         </div>

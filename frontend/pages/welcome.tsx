@@ -1976,14 +1976,14 @@ const Welcome: React.FC = () => {
             <div className="flex items-center space-x-6">
               {/* Logo + Brand (same as home page) */}
               <Link href="/">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3 flex-shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="/lingroot-icon.svg"
                     alt="LingRoot Logo"
                     className="w-10 h-10 md:w-12 md:h-12"
                   />
-                  <BrandWordmark className="text-xl md:text-2xl" />
+                  <BrandWordmark className="hidden sm:inline-block text-lg sm:text-xl md:text-2xl" />
                 </div>
               </Link>
 
