@@ -313,7 +313,10 @@ export default function CardTransactionsPage() {
             <div className="flex flex-wrap gap-4 items-end">
               <div className="space-y-2">
                 <Label>Durum</Label>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) => setStatusFilter(value)}
+                >
                   <SelectTrigger className="w-40">
                     <SelectValue />
                   </SelectTrigger>

@@ -458,8 +458,11 @@ export default function PaymentProvidersPage() {
                     <Label htmlFor="environment">Ortam</Label>
                     <Select
                       value={formData.environment}
-                      onValueChange={(value: 'sandbox' | 'production') => 
-                        setFormData({ ...formData, environment: value })
+                      onValueChange={(value) =>
+                        setFormData({
+                          ...formData,
+                          environment: value as 'sandbox' | 'production',
+                        })
                       }
                     >
                       <SelectTrigger>
