@@ -100,3 +100,5 @@ LingRootMobile/android/build/
 
 
 backend/service-accounts/*.json
+
+frontend/.env.local

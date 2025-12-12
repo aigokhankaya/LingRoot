@@ -29,6 +29,8 @@ interface CardTransaction {
   cardLastFourDigits?: string;
   cardType?: string;
   cardAssociation?: string;
+  cardFamily?: string;
+  binNumber?: string;
   installmentCount: number;
   installmentAmount?: number;
   iyzicoPaymentId?: string;

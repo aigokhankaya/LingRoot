@@ -483,7 +483,12 @@ export default function PaymentProvidersPage() {
                   </div>
                   <Switch
                     checked={formData.isActive}
-                    onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        isActive: (e.target as HTMLInputElement).checked,
+                      })
+                    }
                   />
                 </div>
 
@@ -494,7 +499,12 @@ export default function PaymentProvidersPage() {
                   </div>
                   <Switch
                     checked={formData.isDefault}
-                    onCheckedChange={(checked) => setFormData({ ...formData, isDefault: checked })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        isDefault: (e.target as HTMLInputElement).checked,
+                      })
+                    }
                   />
                 </div>
 
@@ -505,10 +515,15 @@ export default function PaymentProvidersPage() {
                       <div key={key} className="flex items-center gap-2">
                         <Switch
                           checked={value}
-                          onCheckedChange={(checked) => setFormData({
-                            ...formData,
-                            supportedFeatures: { ...formData.supportedFeatures, [key]: checked }
-                          })}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              supportedFeatures: {
+                                ...formData.supportedFeatures,
+                                [key]: (e.target as HTMLInputElement).checked,
+                              },
+                            })
+                          }
                         />
                         <Label className="text-sm">
                           {key === 'creditCard' && 'Kredi Kartı'}

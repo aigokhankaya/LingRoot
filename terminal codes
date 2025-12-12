@@ -178,3 +178,6 @@ docker stop n8n-local
 docker start n8n-local
 
 
+# vercel hataları için lokalde test:
+cd frontend
+npm run build
