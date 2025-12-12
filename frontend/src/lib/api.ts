@@ -744,6 +744,7 @@ export interface FavoriteBookItem {
   title: string;
   authors: string;
   cover_url?: string | null;
+  language?: string | null;
   subjects?: string | null;
   text_url?: string | null;
 }
@@ -762,6 +763,122 @@ export const getUserBookFavoritesDetails = async (): Promise<ApiResponse<Favorit
   const headers = createHeaders();
   const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
   return handleApiResponse<FavoriteBookItem[]>(response);
+};
+
+// Save book favorites (array of book IDs)
+export const saveBookFavorites = async (ids: number[]): Promise<ApiResponse<number[]>> => {
+  const url = getApiUrl('/user-book-favorites');
+  const headers = createHeaders('application/json');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({ ids })
+  });
+  return handleApiResponse<number[]>(response);
+};
+
+// Book search result interface
+export interface BookSearchResult {
+  id: number;
+  gutendex_id: number;
+  title: string;
+  authors: string;
+  cover_url?: string;
+  download_count: number;
+  language: string;
+  copyright: boolean;
+  subjects?: string;
+  text_url?: string;
+  created_at: string;
+}
+
+export interface BookSearchResponse {
+  books: BookSearchResult[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+// Search books
+export const searchBooks = async (
+  query: string,
+  page: number = 1,
+  perPage: number = 10
+): Promise<BookSearchResponse> => {
+  const params = new URLSearchParams({
+    q: query,
+    page: String(page),
+    per_page: String(perPage)
+  });
+  const url = getApiUrl(`/books/search?${params.toString()}`);
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  
+  if (!response.ok) {
+    throw new Error(`Book search failed: ${response.status}`);
+  }
+  return response.json();
+};
+
+// Book chapter interface
+export interface BookChapter {
+  id: number;
+  book_id: number;
+  chapter_index: number;
+  chapter_title: string;
+  chapter_text: string;
+  created_at: string;
+}
+
+// Get book chapters
+export const getBookChapters = async (bookId: number): Promise<BookChapter[]> => {
+  const url = getApiUrl(`/books/${bookId}/chapters`);
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to get chapters: ${response.status}`);
+  }
+  return response.json();
+};
+
+// Get cached chapter audio
+export interface ChapterAudio {
+  id: number;
+  chapter_id: number;
+  voice_model: string;
+  speaking_rate: number;
+  level: string;
+  mp3_url: string;
+  vtt_url?: string;
+  created_at: string;
+}
+
+export const getChapterAudio = async (
+  bookId: number,
+  chapterId: number,
+  voiceModel: string,
+  speakingRate: number,
+  level: string
+): Promise<ChapterAudio | null> => {
+  const params = new URLSearchParams({
+    voice_model: voiceModel,
+    speaking_rate: String(speakingRate),
+    level
+  });
+  const url = getApiUrl(`/books/${bookId}/chapters/${chapterId}/audio?${params.toString()}`);
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to get chapter audio: ${response.status}`);
+  }
+  return response.json();
 };
 
 // Hashtag / hobi haber maddesi tipi
@@ -907,45 +1024,90 @@ export const saveInterfaceLanguage = async (language: 'tr' | 'en' | 'de' | 'ar')
   }
 };
 
-// Detaylı konu önerileri için API isteği gönderen fonksiyon (yeni pipeline endpoint)
-export const getTopicDetailSuggestions = async (topic: string, level: string): Promise<any> => {
-  const apiUrl = `${getApiUrl("topic-pipeline/suggestions")}`;
-  
-  console.log("🔗 API URL:", apiUrl);
-  console.log("📝 Request data:", { topic, level });
-  
-  try {
-    const headers = createHeaders('application/json');
-    console.log("📋 Headers:", headers);
-    
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ topic, level }),
-      credentials: 'include'
-    });
-    
-    console.log("📊 Response status:", response.status, response.statusText);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ Error response:", errorText);
-      let error;
-      try {
-        error = JSON.parse(errorText);
-      } catch {
-        error = { message: errorText };
-      }
-      throw new Error(error.message || 'Detaylı konu önerileri alınamadı');
-    }
-    
-    const result = await response.json();
-    console.log("✅ Success response:", result);
-    return result;
-  } catch (error) {
-    console.error('🚨 Konu önerileri alınırken hata oluştu:', error);
-    throw error;
+// ==========================================
+// LIBRARY SYSTEM API
+// ==========================================
+
+export interface LibraryItem {
+  id: string; // 'book_123' or 'doc_456'
+  real_id: number;
+  type: 'book' | 'document';
+  title: string;
+  author: string;
+  cover_url?: string;
+  progress: number; // 0-100
+  current_chapter: number;
+  last_accessed: string;
+  is_finished: boolean;
+}
+
+// Fetch combined library (Books + Docs)
+export const getLibrary = async (): Promise<ApiResponse<LibraryItem[]>> => {
+  const url = getApiUrl('/library');
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  return handleApiResponse<LibraryItem[]>(response);
+};
+
+// Update reading progress
+export const updateProgress = async (
+  type: 'book' | 'document',
+  id: number,
+  progressData: {
+    chapterIndex?: number;
+    positionSeconds?: number;
+    progressPercentage?: number;
+    isFinished?: boolean;
   }
+): Promise<ApiResponse> => {
+  const url = getApiUrl('/library/progress');
+  const headers = createHeaders('application/json');
+  const body = JSON.stringify({ type, id, ...progressData });
+  
+  // Use sendBeacon for more reliable updates on page unload if supported
+  // But for now, stick to fetch for consistency
+  const response = await fetch(url, { 
+    method: 'POST', 
+    headers, 
+    body,
+    credentials: 'include' 
+  });
+  return handleApiResponse(response);
+};
+
+// Get library item details (chapters, progress)
+export interface ChapterInfo {
+  id: number;
+  index: number;
+  title: string;
+  content: string;
+}
+
+export interface LibraryItemDetails {
+  item: {
+    id: number;
+    title: string;
+    author: string;
+    cover_url?: string;
+    type: 'book' | 'document';
+  };
+  chapters: ChapterInfo[];
+  progress: {
+    current_chapter_index: number;
+    current_position_seconds: number;
+    progress_percentage: number;
+    is_finished: boolean;
+  };
+}
+
+export const getLibraryItemDetails = async (
+  id: number,
+  type: 'book' | 'document'
+): Promise<ApiResponse<LibraryItemDetails>> => {
+  const url = getApiUrl(`/library/${id}?type=${type}`);
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  return handleApiResponse<LibraryItemDetails>(response);
 };
 
 // Hobi için 200 öneri oluştur ve kaydet
@@ -1187,6 +1349,38 @@ export const rewriteToNarration = async (inputText: string, level: string): Prom
     return data;
   } catch (error) {
     console.error('[API] rewriteToNarration error:', error);
+    throw error;
+  }
+};
+
+// Konu detay önerileri al (topic-detail/suggestions endpoint)
+export const getTopicDetailSuggestions = async (topic: string, level: string): Promise<ApiResponse<{ topic: string; level: string; suggestions: string[] }>> => {
+  const apiUrl = getApiUrl("topic-detail/suggestions");
+  const headers = createHeaders('application/json');
+  
+  console.log("🎯 Topic detail suggestions API çağrısı:", apiUrl, { topic, level });
+  
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ topic, level }),
+      credentials: 'include'
+    });
+    
+    console.log("📊 Topic detail suggestions response status:", response.status, response.statusText);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ Topic detail suggestions error response:", errorText);
+      throw new Error(`Topic detail suggestions failed: ${response.status} ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    console.log("✅ Topic detail suggestions result:", result);
+    return result;
+  } catch (error) {
+    console.error('🚨 Topic detail suggestions alınırken hata oluştu:', error);
     throw error;
   }
 };

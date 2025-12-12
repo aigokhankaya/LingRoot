@@ -18,6 +18,7 @@ import InterestManager from '../src/components/InterestManager';
 import OutputSection from '../src/components/OutputSection';
 import { ProfileDropdownMenu } from '../src/components/shared/ProfileDropdownMenu';
 import { useTranslation } from '../src/lib/i18n';
+import BookTab from '../src/components/BookTab/BookTab';
 
 interface ContentHistoryItem {
   id: string;
@@ -332,6 +333,17 @@ const Dashboard = () => {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  // Her giriş tipine göre toplam ses sayısını hesapla (örn. topic, book, podcast)
+  const historyCountsByType = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const item of contentHistory) {
+      const typeKey = (item.input_type || '').toLowerCase();
+      if (!typeKey) continue;
+      counts[typeKey] = (counts[typeKey] || 0) + 1;
+    }
+    return counts;
+  }, [contentHistory]);
+
   if (isLoading) {
     return <div className="p-8 text-center text-lg">{t('loading')}</div>;
   }
@@ -370,17 +382,6 @@ const Dashboard = () => {
   const membershipStatus = user.membershipStatus || 'free';
   const profileImageUrl = avatar;
   const backgroundImageUrl = 'https://readdy.ai/api/search-image?query=Abstract%2520professional%2520background%2520with%2520soft%2520teal%2520and%2520slate%2520tones%252C%2520subtle%2520geometric%2520patterns%252C%2520clean%2520modern%2520design%252C%2520perfect%2520for%2520profile%2520page%2520header%252C%2520minimalist%2520aesthetic%252C%2520high%2520quality%2520digital%2520art&width=1440&height=300&seq=bg1&orientation=landscape';
-
-  // Her giriş tipine göre toplam ses sayısını hesapla (örn. topic, book, podcast)
-  const historyCountsByType = React.useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const item of contentHistory) {
-      const typeKey = (item.input_type || '').toLowerCase();
-      if (!typeKey) continue;
-      counts[typeKey] = (counts[typeKey] || 0) + 1;
-    }
-    return counts;
-  }, [contentHistory]);
 
   const filteredHistory = contentHistory.filter((item) => {
     const typeKey = (item.input_type || '').toLowerCase();
@@ -1093,204 +1094,9 @@ const Dashboard = () => {
             </Card>
           </TabsContent>
 
-          {/* Kitaplarım Tab - Favoriler + Kitap Dinleme Geçmişi */}
+          {/* Kitaplarım Tab - Kapsamlı Kitap Arama, Bölümler, Seslendirme */}
           <TabsContent value="book" className="mt-0">
-            {/* Favori Kitaplarım */}
-            {favoriteBooksLoading && (
-              <div className="text-center py-6 text-gray-500">
-                <i className="fas fa-spinner fa-spin text-xl mr-2"></i>
-                {t('favorite_books_loading')}
-              </div>
-            )}
-
-            {favoriteBooksError && !favoriteBooksLoading && (
-              <div className="p-3 mb-6 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                {favoriteBooksError}
-              </div>
-            )}
-
-            {!favoriteBooksLoading && !favoriteBooksError && favoriteBooks.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">{t('favorite_books_title')}</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {favoriteBooks.map((book) => (
-                    <div
-                      key={book.id}
-                      className="bg-white rounded-lg shadow-sm hover:shadow-md border border-gray-100 overflow-hidden flex flex-col"
-                    >
-                      <div className="relative w-full h-40 bg-gray-100">
-                        {book.cover_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={book.cover_url}
-                            alt={book.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-                            <i className="fas fa-book-open text-3xl text-primary/60"></i>
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-4 flex-1 flex flex-col">
-                        <h4 className="font-semibold text-gray-900 line-clamp-2 mb-1">{book.title}</h4>
-                        <p className="text-sm text-gray-600 mb-2 line-clamp-1">{book.authors}</p>
-                        {book.subjects && (
-                          <p className="text-xs text-gray-500 mb-2 line-clamp-1">{book.subjects}</p>
-                        )}
-                        <div className="mt-auto pt-2 flex items-center justify-between">
-                          <span className="text-xs text-gray-500">{t('favorite_book_chip_label')}</span>
-                          <Link
-                            href="/welcome?contentType=book"
-                            className="text-xs font-medium text-primary hover:underline flex items-center"
-                          >
-                            {t('book_work_with_book')}
-                            <i className="fas fa-arrow-right ml-1"></i>
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Kitaplarım: Kullanıcının dinlediği kitap geçmişi */}
-            {bookHistoryLoading && (
-              <div className="text-center py-6 text-gray-500">
-                <i className="fas fa-spinner fa-spin text-xl mr-2"></i>
-                {t('book_history_loading')}
-              </div>
-            )}
-
-            {bookHistoryError && !bookHistoryLoading && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                {bookHistoryError}
-              </div>
-            )}
-
-            {!bookHistoryLoading && !bookHistoryError && bookHistory.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <i className="fas fa-book-open text-4xl mb-3"></i>
-                <p>{t('book_history_empty_title')}</p>
-                <p className="text-sm text-gray-400 mt-1">
-                  {t('book_history_empty_desc_prefix')}{' '}
-                  <Link href="/welcome" className="text-primary underline">
-                    {t('book_history_empty_desc_link')}
-                  </Link>
-                  {' '}{t('book_history_empty_desc_suffix')}
-                </p>
-              </div>
-            )}
-
-            {!bookHistoryLoading && !bookHistoryError && bookHistory.length > 0 && (
-              <div className="space-y-8">
-                {/* Son dinlenen kitaplar - kart grid */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">{t('book_recent_books_title')}</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Object.values(
-                      bookHistory.reduce((acc: Record<string, any>, item) => {
-                        const key = String(item.book_id || item.book_title);
-                        if (!acc[key]) {
-                          acc[key] = {
-                            book_id: item.book_id,
-                            book_title: item.book_title,
-                            book_authors: item.book_authors,
-                            cover_url: item.cover_url,
-                            subjects: item.subjects,
-                            lastChapter: item,
-                            chapterCount: 1,
-                          };
-                        } else {
-                          acc[key].chapterCount += 1;
-                          if (new Date(item.created_at).getTime() > new Date(acc[key].lastChapter.created_at).getTime()) {
-                            acc[key].lastChapter = item;
-                          }
-                        }
-                        return acc;
-                      }, {})
-                    ).map((book: any, index: number) => (
-                      <div
-                        key={`${book.book_id || book.book_title}-${index}`}
-                        className="bg-white rounded-lg shadow-sm hover:shadow-md border border-gray-100 overflow-hidden flex flex-col"
-                      >
-                        <div className="relative w-full h-40 bg-gray-100">
-                          {book.cover_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={book.cover_url}
-                              alt={book.book_title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-                              <i className="fas fa-book-open text-3xl text-primary/60"></i>
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-4 flex-1 flex flex-col">
-                          <h4 className="font-semibold text-gray-900 line-clamp-2 mb-1">{book.book_title}</h4>
-                          <p className="text-sm text-gray-600 mb-2 line-clamp-1">{book.book_authors}</p>
-                          {book.subjects && (
-                            <p className="text-xs text-gray-500 mb-2 line-clamp-1">{book.subjects}</p>
-                          )}
-                          <div className="flex items-center justify-between mt-auto pt-2">
-                            <span className="text-xs text-gray-500">
-                              {book.chapterCount} {t('book_chapters_listened_suffix')}
-                            </span>
-                            <Link
-                              href="/welcome?contentType=book"
-                              className="text-xs font-medium text-primary hover:underline flex items-center"
-                            >
-                              {t('book_continue_button')}
-                              <i className="fas fa-arrow-right ml-1"></i>
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Son dinlenen bölümler listesi */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">{t('book_recent_chapters_title')}</h3>
-                  <div className="space-y-3">
-                    {bookHistory.slice(0, 15).map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-14 bg-white rounded-md border border-gray-200 flex items-center justify-center">
-                            <i className="fas fa-book text-primary"></i>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 line-clamp-1">
-                              {item.book_title}
-                            </p>
-                            <p className="text-xs text-gray-600 line-clamp-1">
-                              {t('book_chapter_label')} {item.chapter_index}: {item.chapter_title}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {t('book_level_label')}: {item.level.toUpperCase()} • {Math.round(item.duration)} {t('book_seconds_suffix')} • {new Date(item.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                        <Link
-                          href="/welcome?contentType=book"
-                          className="text-xs font-medium text-primary hover:underline flex items-center"
-                        >
-                          {t('book_listen_button')}
-                          <i className="fas fa-play ml-1"></i>
-                        </Link>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+            <BookTab />
           </TabsContent>
 
           <TabsContent value="podcasts" className="mt-0">

@@ -40,6 +40,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
   const [topicAudioLoadingId, setTopicAudioLoadingId] = useState<string | null>(null);
   const [topicAudioResults, setTopicAudioResults] = useState<Record<string, TtsResponseData>>({});
   const [modalTopicId, setModalTopicId] = useState<string | null>(null);
+  const [audioCompletedTopicId, setAudioCompletedTopicId] = useState<string | null>(null);
 
   // Konu ağacını yükle
   const loadTopicTree = async () => {
@@ -140,7 +141,12 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         // Konu ağacını yenile ki rozetler güncellensin
         await loadTopicTree();
 
-        // İsteğe bağlı olarak dışarıya haber verilebilir; şimdilik sadece lokal akış
+        // Show notification instead of auto-opening modal
+        setAudioCompletedTopicId(topicId);
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+          setAudioCompletedTopicId(null);
+        }, 5000);
       } else {
         setError((result as any)?.message || 'Ses oluşturma başarısız oldu');
       }
@@ -319,6 +325,36 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         <div className="flex items-center p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-800">
           <i className="fas fa-check-circle mr-2"></i>
           <span>{successMessage}</span>
+        </div>
+      )}
+
+      {/* Audio Generation Completed Notification */}
+      {audioCompletedTopicId && topicAudioResults[audioCompletedTopicId] && (
+        <div 
+          onClick={() => {
+            handleOpenAudioModal(audioCompletedTopicId);
+            setAudioCompletedTopicId(null);
+          }}
+          className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between cursor-pointer hover:bg-green-100 transition-colors animate-pulse"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center">
+              <i className="fas fa-check"></i>
+            </div>
+            <div>
+              <p className="font-medium text-green-800">Seslendirme tamamlandı</p>
+              <p className="text-sm text-green-600">Dinlemek için tıklayın</p>
+            </div>
+          </div>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setAudioCompletedTopicId(null);
+            }}
+            className="w-8 h-8 rounded-full hover:bg-green-200 flex items-center justify-center text-green-600"
+          >
+            <i className="fas fa-times"></i>
+          </button>
         </div>
       )}
 
