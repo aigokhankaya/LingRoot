@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Topic } from '../../lib/api';
+import { useTranslation } from '../../lib/i18n';
 import TopicNode from './TopicNode';
 
 interface TopicTreeProps {
@@ -21,6 +22,7 @@ const TopicTree: React.FC<TopicTreeProps> = ({
   audioStateByTopic,
   onOpenAudioModal,
 }) => {
+  const { t } = useTranslation();
   if (!topics || topics.length === 0) {
     return null;
   }
@@ -30,14 +32,14 @@ const TopicTree: React.FC<TopicTreeProps> = ({
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-800 flex items-center">
           <i className="fas fa-sitemap mr-2 text-primary"></i>
-          Konu Ağacınız
+          {t('topics_tree_title')}
         </h3>
         <button
           onClick={onRefresh}
           className="text-sm text-gray-600 hover:text-primary transition-colors flex items-center space-x-2"
         >
           <i className="fas fa-sync-alt"></i>
-          <span>Yenile</span>
+          <span>{t('topics_tree_refresh')}</span>
         </button>
       </div>
 

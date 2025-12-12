@@ -1,91 +1,81 @@
 // The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 
-import { useAuth } from '../src/lib/auth'; // Eski dosyadan auth context'ini import ediyoruz
+import { useAuth } from '../src/lib/auth';
 import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
+import { useTranslation, useLanguage, Locale } from '../src/lib/i18n';
 
 // shadcn/ui ve diğer kütüphane importları
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination, Autoplay } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
-// InputMask removed - using regular Input instead
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
-
-import { getApiUrl, resendVerificationEmail } from "../src/lib/api";
-import { initializeGoogleAuth, signInWithGoogle, decodeGoogleCredential } from "../src/lib/googleAuth";
-import dynamic from 'next/dynamic';
-// import Lottie from "lottie-react"; // Kaldırılacak
-import learnAnimation from "../public/animations/language-learn.json";
-// Lottie bileşenini sadece client tarafında yüklenecek şekilde dinamik olarak import et
-const Lottie = dynamic(() => import('lottie-react'), { 
-  ssr: false,
-  loading: () => <div className="w-full max-w-3xl mx-auto h-[300px] bg-gray-100 animate-pulse rounded-lg"></div>
-});
-
+import { resendVerificationEmail } from "../src/lib/api";
+import { initializeGoogleAuth, signInWithGoogle } from "../src/lib/googleAuth";
 
 const App: React.FC = () => {
+
+    const { t, currentLocale } = useTranslation();
+    const { changeLanguage, supportedLocales } = useLanguage();
+    const language = currentLocale;
+    
     // --- YENİ TASARIMDAN GELEN STATE'LER ---
     const [level, setLevel] = useState(1);
     const [isLoginOpen, setIsLoginOpen] = useState(false);
     const [isRegisterOpen, setIsRegisterOpen] = useState(false); // Kayıt modalı için yeni state
-    const [language, setLanguage] = useState<'tr' | 'en'>('tr');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Mobil menü state'i
 
     // --- ESKİ MANTIKTAN ENTEGRE EDİLEN HOOK'LAR VE STATE'LER ---
-  const router = useRouter();
-  const { login, loginWithGoogle, isAuthenticated, register } = useAuth();
+    const router = useRouter();
+    const { login, loginWithGoogle, isAuthenticated, register } = useAuth();
     const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [errorCode, setErrorCode] = useState<string | null>(null);
-  const [resendLoading, setResendLoading] = useState(false);
-  const [resendMessage, setResendMessage] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [errorCode, setErrorCode] = useState<string | null>(null);
+    const [resendLoading, setResendLoading] = useState(false);
+    const [resendMessage, setResendMessage] = useState<string | null>(null);
 
     // --- FORM STATE'LERİ (KONTROLLÜ BİLEŞENLER İÇİN) ---
     const [loginForm, setLoginForm] = useState({ email: '', password: '', rememberMe: false });
     const [registerForm, setRegisterForm] = useState({
         firstName: '',
         lastName: '',
-    email: '',
+        email: '',
         phoneNumber: '',
-    password: ''
-  });
+        password: ''
+    });
 
-  const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
+    const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
-
-  // Kullanıcı zaten giriş yapmışsa welcome sayfasına yönlendir.
-
-  React.useEffect(() => {
-    if (isAuthenticated) {
-      const search = typeof window !== 'undefined' ? window.location.search : '';
-      const params = new URLSearchParams(search);
-      const raw = params.get('next') || '';
-      const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
-      const target = next && next.trim() ? next : '/welcome';
-      
-      if (typeof window !== 'undefined' && target.includes('#')) {
-        window.location.assign(target);
-      } else {
-        router.replace(target);
-      }
-    }
-  }, [isAuthenticated, router]);
+    // Kullanıcı zaten giriş yapmışsa welcome sayfasına yönlendir.
+    useEffect(() => {
+        if (isAuthenticated) {
+            const search = typeof window !== 'undefined' ? window.location.search : '';
+            const params = new URLSearchParams(search);
+            const raw = params.get('next') || '';
+            const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
+            const target = next && next.trim() ? next : '/welcome';
+            
+            if (typeof window !== 'undefined' && target.includes('#')) {
+                window.location.assign(target);
+            } else {
+                router.replace(target);
+            }
+        }
+    }, [isAuthenticated, router]);
 
     // Form input değişikliklerini yöneten fonksiyonlar
     const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,76 +97,76 @@ const App: React.FC = () => {
     
     // --- GİRİŞ VE KAYIT FONKSİYONLARI (ESKİ MANTIK İLE YENİ STATE'LER BİRLEŞTİRİLDİ) ---
     const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setErrorCode(null); // stale state temizliği
-    setResendMessage(null);
-    try {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        setErrorCode(null); // stale state temizliği
+        setResendMessage(null);
+        try {
             const result = await login(loginForm.email, loginForm.password, loginForm.rememberMe);
-      if (result.success) {
+            if (result.success) {
                 setIsLoginOpen(false); // Başarılı olunca modalı kapat
-        const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-        const raw = params.get('next') || '';
-        const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
-        const target = next && next.trim() ? next : '/welcome';
-        if (typeof window !== 'undefined' && target.includes('#')) {
-          window.location.assign(target);
-        } else {
-          router.replace(target);
-        }
-      } else {
-                setError(result.message || 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
-        setErrorCode((result as any).code || null);
-      }
+                const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+                const raw = params.get('next') || '';
+                const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
+                const target = next && next.trim() ? next : '/welcome';
+                if (typeof window !== 'undefined' && target.includes('#')) {
+                    window.location.assign(target);
+                } else {
+                    router.replace(target);
+                }
+            } else {
+                setError(result.message || t('login_failed_generic'));
+                setErrorCode((result as any).code || null);
+            }
         } catch (err: any) {
-            setError(err.message || 'Giriş sırasında bir hata oluştu.');
-    } finally {
-      setLoading(false);
-    }
-  };
+            setError(err.message || t('login_failed_error'));
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Aktivasyon e-postasını yeniden gönderme
     const handleResendActivation = async () => {
-      if (!loginForm.email) {
-        setResendMessage('Lütfen e-posta adresinizi girin.');
-        return;
-      }
-      setResendLoading(true);
-      setResendMessage(null);
-      try {
-        const res = await resendVerificationEmail(loginForm.email);
-        if (res.success) {
-          setResendMessage('Aktivasyon e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.');
-        } else {
-          setResendMessage(res.message || 'E-posta gönderilemedi. Lütfen daha sonra tekrar deneyin.');
+        if (!loginForm.email) {
+            setResendMessage(t('login_email_not_verified_message'));
+            return;
         }
-      } catch (e: any) {
-        setResendMessage(e.message || 'E-posta gönderilirken bir hata oluştu.');
-      } finally {
-        setResendLoading(false);
-      }
+        setResendLoading(true);
+        setResendMessage(null);
+        try {
+            const res = await resendVerificationEmail(loginForm.email);
+            if (res.success) {
+                setResendMessage(t('login_resend_activation_success'));
+            } else {
+                setResendMessage(res.message || t('unknown_error'));
+            }
+        } catch (e: any) {
+            setResendMessage(e.message || t('unknown_error'));
+        } finally {
+            setResendLoading(false);
+        }
     };
 
     const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+        e.preventDefault();
         setLoading(true);
         setError(null);
         try {
             const { firstName, lastName, email, phoneNumber, password } = registerForm;
-      const result = await register(firstName, lastName, email, phoneNumber, password);
-      if (result.success) {
+            const result = await register(firstName, lastName, email, phoneNumber, password);
+            if (result.success) {
                 setIsRegisterOpen(false); // Başarılı olunca modalı kapat
-        const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-        const next = params.get('next');
-        const target = next && next.trim() ? next : '/welcome';
-        router.replace(target);
-      } else {
-                setError(result.message || 'Kayıt başarısız. Lütfen bilgilerinizi kontrol edin.');
-      }
+                const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+                const next = params.get('next');
+                const target = next && next.trim() ? next : '/welcome';
+                router.replace(target);
+            } else {
+                setError(result.message || t('register_failed_generic'));
+            }
         } catch (err: any) {
-            setError(err.message || 'Kayıt sırasında bir hata oluştu.');
-    } finally {
+            setError(err.message || t('register_failed_error'));
+        } finally {
             setLoading(false);
         }
     };
@@ -186,32 +176,18 @@ const App: React.FC = () => {
         setError(null);
         
         try {
-            console.log('🔄 Google giriş başlatılıyor...');
-            
             // Google Client ID kontrolü
             const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
             if (!clientId || clientId === 'your-google-client-id-here.apps.googleusercontent.com') {
-                throw new Error('Google Client ID yapılandırılmamış. Lütfen .env.local dosyasında NEXT_PUBLIC_GOOGLE_CLIENT_ID değerini ayarlayın.');
+                throw new Error('Google Client ID yapılandırılmamış.');
             }
             
-            // Google Auth'u başlat
-            console.log('🔄 Google Auth başlatılıyor...');
             await initializeGoogleAuth();
-            
-            // Google Sign-In'i tetikle
-            console.log('🔄 Google Sign-In tetikleniyor...');
             const { credential } = await signInWithGoogle();
-            console.log('✅ Google credential alındı');
-            
-            // Backend'e gönder
-            console.log('🔄 Backend\'e gönderiliyor...');
             const result = await loginWithGoogle(credential, loginForm.rememberMe);
             
             if (result.success) {
-                console.log('✅ Google giriş başarılı');
                 setIsLoginOpen(false);
-                
-                // Token'ın localStorage'a yazılması için kısa bir bekleme
                 await new Promise(resolve => setTimeout(resolve, 100));
                 
                 const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
@@ -219,224 +195,55 @@ const App: React.FC = () => {
                 const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
                 const target = next && next.trim() ? next : '/welcome';
                 if (typeof window !== 'undefined' && target.includes('#')) {
-                  window.location.assign(target);
+                    window.location.assign(target);
                 } else {
-                  router.replace(target);
+                    router.replace(target);
                 }
             } else {
-                console.error('❌ Backend giriş hatası:', result.message);
-                setError(result.message || 'Google ile giriş başarısız.');
+                setError(result.message || t('login_failed_generic'));
             }
         } catch (err: any) {
             console.error('❌ Google login error:', err);
-            setError(err.message || 'Google ile giriş sırasında bir hata oluştu.');
+            setError(err.message || t('login_failed_error'));
         } finally {
             setLoading(false);
         }
     };
 
-    // Yeni tasarımın çeviri objesi
-    const translations = {
-      tr: {
-        nav: {
-          howItWorks: "Nasıl Çalışır?",
-          features: "Özellikler",
-          testimonials: "Kullanıcı Yorumları",
-          blog: "Blog",
-          login: "Giriş Yap",
-          signup: "Ücretsiz Kaydol"
-        },
-        login: {
-          title: "Giriş Yap",
-          description: "LingRoot hesabınıza giriş yapın",
-          emailLabel: "E-posta veya Kullanıcı Adı",
-          emailPlaceholder: "ornek@email.com",
-          passwordLabel: "Şifre",
-          forgotPassword: "Şifremi Unuttum",
-          loginButton: "Giriş Yap",
-          loadingButton: "Giriş Yapılıyor...",
-          or: "veya",
-          googleLogin: "Google ile Giriş Yap",
-          facebookLogin: "Facebook ile Giriş Yap",
-          appleLogin: "Apple ile Giriş Yap",
-          noAccount: "Hesabınız yok mu?",
-          signupLink: "Ücretsiz Kaydol"
-        },
-        register: {
-          title: "Ücretsiz Hesap Oluştur",
-          description: "LingRoot dünyasına katılın ve hemen öğrenmeye başlayın.",
-          fullNameLabel: "Ad Soyad",
-          fullNamePlaceholder: "Adınız Soyadınız",
-          emailLabel: "E-posta",
-          emailPlaceholder: "ornek@email.com",
-          phoneLabel: "Telefon Numarası",
-          passwordLabel: "Şifre",
-          registerButton: "Hesap Oluştur",
-          loadingButton: "Hesap Oluşturuluyor...",
-          hasAccount: "Zaten bir hesabınız var mı?",
-          loginLink: "Giriş Yap"
-        },
-        hero: {
-          badge: "🎧 Hayatın Değişmesin, İngilizcen Gelişsin",
-          title: "Rutinlerin İngilizceye Dönsün. ",
-          titleHighlight: "Sevdiğin İçerikleri Kendi Seviyende Dinle.",
-          description: "YouTube videoları, kitaplar, podcast'ler ve güncel haberler… LingRoot, ilgilendiğin konulardaki içerikleri İngilizce seviyene göre sadeleştirir, seslendirir ve altyazı ekler. Ekstra zaman harcamadan, dinleyerek geliş.",
-          tryButton: "Ücretsiz Dene",
-          watchButton: "Nasıl Çalıştığını İzle"
-        },
-        howItWorks: {
-          title: "LingRoot Nasıl Çalışır?",
-          description: "Sevdiğin içerikleri kendi İngilizce seviyende dinlemek için sadece üç adım yeterli.",
-          steps: [
-            { icon: "fas fa-link", title: "İçeriğini Seç", description: "YouTube videosu, Spotify podcast'i, bir haber yazısı… Sadece linki yapıştır veya metni yükle." },
-            { icon: "fas fa-sliders-h", title: "Seviyeni Belirle", description: "A1'den C2'ye. İçerik, senin anlayabileceğin İngilizceye otomatik olarak çevrilir." },
-            { icon: "fas fa-headphones", title: "Dinle ve Öğren", description: "İçerik yapay zeka tarafından seslendirilir, altyazı eklenir ve seviyene özel hale gelir. Artık sevdiğin şeyleri dinleyerek İngilizce öğrenebilirsin." }
-          ]
-        },
-        demo: { title: "Aynı İçerik, Senin Seviyen", description: "Seviyeni seç ve içeriğin nasıl değiştiğini gör. Dilediğin seviyede dinleyerek İngilizceni geliştir.", selectLevel: "Seviyeni Seç ve Farkı Gör", originalContent: "Orijinal İçerik (C2)", yourLevel: "Senin Seviyen", tryYourContent: "Kendi İçeriğini Dene" },
-        routine: { title: "Günlük Rutinin = İngilizce Dersin", description: "Ekstra zaman ayırmana gerek yok. Zaten yaptığın aktiviteler sırasında İngilizce öğren.", activities: [{ icon: "fas fa-walking", title: "Yürüyüş Yaparken", description: "Favori podcast'lerini dinlerken İngilizce öğren" }, { icon: "fas fa-dumbbell", title: "Spor Yaparken", description: "Motivasyon videolarını seviyene uygun dinle" }, { icon: "fas fa-car", title: "Araç Kullanırken", description: "Trafikteyken sevdiğin içerikleri dinle" }, { icon: "fas fa-home", title: "Ev İşleri Yaparken", description: "Temizlik ve yemek yaparken öğrenmeye devam et" }], adaptButton: "Seviyene Uyarla" },
-        features: { title: "Neden LingRoot?", description: "LingRoot, İngilizce öğrenme deneyimini tamamen farklı bir seviyeye taşır.", featuresList: [{ icon: "fas fa-globe", title: "Gerçek İçerikler", description: "Ders kitapları değil, gerçek hayattan videolar ve yazılar ile öğren" }, { icon: "fas fa-user-cog", title: "Kişiselleştirilmiş Deneyim", description: "Seviyene ve ilgi alanına göre özel olarak hazırlanmış içerikler" }, { icon: "fas fa-headphones-alt", title: "Sadece Dinleyerek Öğren", description: "Kaliteli seslendirme, altyazı ve tekrar özellikleriyle pasif öğrenme" }, { icon: "fas fa-clock", title: "Ekstra Zaman Gerekmez", description: "Günlük rutinin içinde, ek bir çaba harcamadan İngilizce öğren" }] },
-        testimonials: { title: "Kullanıcılarımız Ne Diyor?", description: "LingRoot ile İngilizce öğrenme deneyimlerini paylaşan kullanıcılarımızın yorumları.", users: [{ name: "Mert Y.", level: "B1 seviyesinde kullanıcı", quote: "LingRoot sayesinde artık yabancı videolardan korkmuyorum. Aynı içeriği hem A2 hem B1 seviyede dinlemek inanılmaz motive edici." }, { name: "Zeynep K.", level: "A2 seviyesinde kullanıcı", quote: "Sadece dinleyerek öğrendiğimi fark ettim. Her gün izlediğim içerikler artık İngilizce gelişimime katkı sağlıyor." }, { name: "Ahmet S.", level: "B2 seviyesinde kullanıcı", quote: "Sabah koşumda dinlediğim podcast'ler artık İngilizce öğretmenim. Hiç ekstra zaman harcamadan her gün ilerliyorum." }, { name: "Ayşe D.", level: "A1 seviyesinde kullanıcı", quote: "İngilizce öğrenmek için daha önce birçok uygulama denedim ama hiçbiri LingRoot kadar etkili olmadı. Sevdiğim içeriklerle öğrenmek çok daha keyifli." }, { name: "Emre T.", level: "C1 seviyesinde kullanıcı", quote: "İleri seviyede olmama rağmen, LingRoot ile yeni kelimeler öğrenmeye devam ediyorum. Özellikle akademik içerikleri kendi seviyemde dinlemek çok faydalı." }] },
-        tryNow: { title: "Başlamak İçin Sadece Link Paylaş", placeholder: "YouTube, Spotify veya herhangi bir içerik linki yapıştır...", tryButton: "Hemen Dene", description: "Seviyeni seç ve içeriği hemen dinlemeye başla. Kayıt olmak için sadece 1 dakika!" },
-        cta: { title: "İngilizce Öğrenmek İçin Hayatını Değiştirme. Dinlemeye Devam Et.", description: "Günlük rutininde dinlediğin içerikler şimdi senin İngilizce öğretmenin. Ekstra zaman harcamadan, sevdiğin şeyleri dinleyerek öğren.", button: "Şimdi Başla — Ücretsiz ve Hemen", benefits: ["1 dakikada kaydol", "Kredi kartı gerekmez", "Hemen başla"] },
-        footer: { slogan: "\"Your routines turn into English.\"", quickLinks: { title: "Hızlı Bağlantılar", links: ["Hakkımızda", "Nasıl Çalışır?", "Fiyatlandırma", "Blog", "İletişim"] }, legal: { title: "Yasal", links: ["Gizlilik Politikası", "Kullanım Şartları", "Çerez Politikası", "KVKK"] }, contact: { title: "Bize Ulaşın", email: "info@lingroot.com", phone: "+90 212 123 45 67", address: "İstanbul, Türkiye" }, copyright: "Tüm hakları saklıdır." }
-      },
-      en: {
-        nav: {
-          howItWorks: "How It Works",
-          features: "Features",
-          testimonials: "Testimonials",
-          blog: "Blog",
-          login: "Login",
-          signup: "Sign Up Free"
-        },
-        login: {
-          title: "Login",
-          description: "Sign in to your LingRoot account",
-          emailLabel: "Email or Username",
-          emailPlaceholder: "example@email.com",
-          passwordLabel: "Password",
-          forgotPassword: "Forgot Password",
-          loginButton: "Login",
-          loadingButton: "Logging in...",
-          or: "or",
-          googleLogin: "Login with Google",
-          facebookLogin: "Login with Facebook",
-          appleLogin: "Login with Apple",
-          noAccount: "Don't have an account?",
-          signupLink: "Sign Up Free"
-        },
-        register: {
-          title: "Create a Free Account",
-          description: "Join the LingRoot world and start learning right away.",
-          fullNameLabel: "Full Name",
-          fullNamePlaceholder: "Your Full Name",
-          emailLabel: "Email",
-          emailPlaceholder: "example@email.com",
-          phoneLabel: "Phone Number",
-          passwordLabel: "Password",
-          registerButton: "Create Account",
-          loadingButton: "Creating Account...",
-          hasAccount: "Already have an account?",
-          loginLink: "Login"
-        },
-        hero: {
-          badge: "🎧 Don't Change Your Life, Improve Your English",
-          title: "Turn Your Routines Into English. ",
-          titleHighlight: "Listen to Content You Love at Your Level.",
-          description: "YouTube videos, books, podcasts, and current news… LingRoot simplifies, narrates, and adds subtitles to content on topics you're interested in, according to your English level. Improve by listening, without spending extra time.",
-          tryButton: "Try Free",
-          watchButton: "Watch How It Works"
-        },
-        howItWorks: {
-          title: "How LingRoot Works",
-          description: "Just three simple steps to listen to the content you love at your own English level.",
-          steps: [
-            { icon: "fas fa-link", title: "Choose Your Content", description: "A YouTube video, Spotify podcast, a news article... Just paste the link or upload the text." },
-            { icon: "fas fa-sliders-h", title: "Set Your Level", description: "From A1 to C2. The content is automatically converted to English you can understand." },
-            { icon: "fas fa-headphones", title: "Listen and Learn", description: "The content is narrated by AI, subtitled, and customized to your level. Now you can learn English by listening to things you love." }
-          ]
-        },
-        demo: {
-          title: "Same Content, Your Level",
-          description: "Choose your level and see how the content changes. Improve your English by listening at the level you prefer.",
-          selectLevel: "Select Your Level and See the Difference",
-          originalContent: "Original Content (C2)",
-          yourLevel: "Your Level",
-          tryYourContent: "Try Your Own Content"
-        },
-        routine: {
-          title: "Your Daily Routine = Your English Lesson",
-          description: "No extra time needed. Learn English during activities you already do.",
-          activities: [
-            { icon: "fas fa-walking", title: "While Walking", description: "Learn English while listening to your favorite podcasts" },
-            { icon: "fas fa-dumbbell", title: "While Exercising", description: "Listen to motivational videos at your level" },
-            { icon: "fas fa-car", title: "While Driving", description: "Listen to content you love in traffic" },
-            { icon: "fas fa-home", title: "During Housework", description: "Continue learning while cleaning and cooking" }
-          ],
-          adaptButton: "Adapt to Your Level"
-        },
-        features: {
-          title: "Why LingRoot?",
-          description: "LingRoot takes the English learning experience to a completely different level.",
-          featuresList: [
-            { icon: "fas fa-globe", title: "Real Content", description: "Learn with real-life videos and articles, not textbooks" },
-            { icon: "fas fa-user-cog", title: "Personalized Experience", description: "Content specially prepared according to your level and interests" },
-            { icon: "fas fa-headphones-alt", title: "Learn Just by Listening", description: "Passive learning with quality narration, subtitles, and repetition features" },
-            { icon: "fas fa-clock", title: "No Extra Time Required", description: "Learn English within your daily routine, without extra effort" }
-          ]
-        },
-        testimonials: {
-          title: "What Our Users Say",
-          description: "Reviews from our users sharing their English learning experiences with LingRoot.",
-          users: [
-            { name: "Mert Y.", level: "B1 level user", quote: "Thanks to LingRoot, I'm no longer afraid of foreign videos. Listening to the same content at both A2 and B1 levels is incredibly motivating." },
-            { name: "Zeynep K.", level: "A2 level user", quote: "I realized I'm learning just by listening. The content I watch every day now contributes to my English development." },
-            { name: "Ahmet S.", level: "B2 level user", quote: "The podcasts I listen to during my morning run are now my English teacher. I progress every day without spending any extra time." },
-            { name: "Ayşe D.", level: "A1 level user", quote: "I've tried many apps to learn English before, but none were as effective as LingRoot. Learning with content I love is much more enjoyable." },
-            { name: "Emre T.", level: "C1 level user", quote: "Despite being at an advanced level, I continue to learn new words with LingRoot. Listening to academic content at my own level is especially useful." }
-          ]
-        },
-        tryNow: {
-          title: "Just Share a Link to Get Started",
-          placeholder: "Paste a YouTube, Spotify, or any content link...",
-          tryButton: "Try It Now",
-          description: "Choose your level and start listening to content right away. Only 1 minute to sign up!"
-        },
-        cta: {
-          title: "Don't Change Your Life to Learn English. Keep Listening.",
-          description: "The content you listen to in your daily routine is now your English teacher. Learn by listening to things you love, without spending extra time.",
-          button: "Start Now — Free and Immediate",
-          benefits: [
-            "Sign up in 1 minute",
-            "No credit card required",
-            "Start immediately"
-          ]
-        },
-        footer: {
-          slogan: "\"Your routines turn into English.\"",
-          quickLinks: {
-            title: "Quick Links",
-            links: ["About Us", "How It Works", "Pricing", "Blog", "Contact"]
-          },
-          legal: {
-            title: "Legal",
-            links: ["Privacy Policy", "Terms of Use", "Cookie Policy", "GDPR"]
-          },
-          contact: {
-            title: "Contact Us",
-            email: "info@lingroot.com",
-            phone: "+90 212 123 45 67",
-            address: "Istanbul, Turkey"
-          },
-          copyright: "All rights reserved."
-        }
-      }
-    };
-    const t = translations[language];
+    // Data arrays reconstructed with translations
+    const howItWorksSteps = [
+        { icon: "fas fa-link", title: t('landing_how_step1_title'), description: t('landing_how_step1_desc') },
+        { icon: "fas fa-sliders-h", title: t('landing_how_step2_title'), description: t('landing_how_step2_desc') },
+        { icon: "fas fa-headphones", title: t('landing_how_step3_title'), description: t('landing_how_step3_desc') }
+    ];
 
+    const routineActivities = [
+        { icon: "fas fa-walking", title: t('landing_routine_act1_title'), description: t('landing_routine_act1_desc') },
+        { icon: "fas fa-dumbbell", title: t('landing_routine_act2_title'), description: t('landing_routine_act2_desc') },
+        { icon: "fas fa-car", title: t('landing_routine_act3_title'), description: t('landing_routine_act3_desc') },
+        { icon: "fas fa-home", title: t('landing_routine_act4_title'), description: t('landing_routine_act4_desc') }
+    ];
 
-  return (
+    const featuresList = [
+        { icon: "fas fa-globe", title: t('landing_features_item1_title'), description: t('landing_features_item1_desc') },
+        { icon: "fas fa-user-cog", title: t('landing_features_item2_title'), description: t('landing_features_item2_desc') },
+        { icon: "fas fa-headphones-alt", title: t('landing_features_item3_title'), description: t('landing_features_item3_desc') },
+        { icon: "fas fa-clock", title: t('landing_features_item4_title'), description: t('landing_features_item4_desc') }
+    ];
+
+    const testimonialsUsers = [
+        { name: "Emre T.", gender: "male", level: t('landing_testimonials_user1_level'), quote: t('landing_testimonials_user1_quote') },
+        { name: "Siti R.", gender: "female", level: t('landing_testimonials_user2_level'), quote: t('landing_testimonials_user2_quote') },
+        { name: "Omar H.", gender: "male", level: t('landing_testimonials_user3_level'), quote: t('landing_testimonials_user3_quote') }
+    ];
+
+    const ctaBenefits = [
+        t('landing_cta_benefit1'),
+        t('landing_cta_benefit2'),
+        t('landing_cta_benefit3')
+    ];
+
+    return (
         <div className="min-h-screen bg-background">
             {/* Navigation */}
             <nav className="bg-white/90 border-b border-border backdrop-blur-sm py-3 sticky top-0 z-50">
@@ -448,36 +255,45 @@ const App: React.FC = () => {
                     
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-6">
-                        <a href="/about" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">Hakkımızda</a>
-                        <a href="#nasil-calisir" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.howItWorks}</a>
-                        <a href="#ozellikler" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.features}</a>
-                        <a href="#yorumlar" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.testimonials}</a>
-                        <a href="#blog" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.blog}</a>
+                        <a href="/about" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('about')}</a>
+                        <a href="#nasil-calisir" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('landing_nav_howItWorks')}</a>
+                        <a href="#ozellikler" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('landing_nav_features')}</a>
+                        <a href="#yorumlar" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('landing_nav_testimonials')}</a>
+                        <a href="#blog" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('landing_nav_blog')}</a>
                     </div>
                     
                     {/* Desktop Buttons */}
                     <div className="hidden md:flex items-center space-x-4">
-                        <Button variant="ghost" className="!rounded-button whitespace-nowrap" onClick={() => setLanguage(language === 'tr' ? 'en' : 'tr')}>
-                            {language === 'tr' ? 'EN' : 'TR'}
-                        </Button>
+                        <select
+                            value={language}
+                            onChange={(e) => changeLanguage(e.target.value as Locale)}
+                            className="appearance-none bg-transparent px-3 py-2 text-gray-600 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                        >
+                            {supportedLocales.map((locale: Locale) => (
+                                <option key={locale} value={locale}>
+                                    {t(`language_${locale}`)}
+                                </option>
+                            ))}
+                        </select>
                         
                         {/* GİRİŞ YAP MODALI */}
                         <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
                             <DialogTrigger asChild>
-                                <Button variant="outline" className="!rounded-button whitespace-nowrap">{t.nav.login}</Button>
+                                <Button variant="outline" className="!rounded-button whitespace-nowrap">{t('landing_nav_login')}</Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-md">
                                 <DialogHeader>
-                                    <DialogTitle className="text-2xl font-bold text-center mb-2">{t.login.title}</DialogTitle>
-                                    <DialogDescription className="text-center">{t.login.description}</DialogDescription>
+                                    <DialogTitle className="text-2xl font-bold text-center mb-2">{t('login')}</DialogTitle>
+                                    <DialogDescription className="text-center">{t('login_description')}</DialogDescription>
                                 </DialogHeader>
                                 <form onSubmit={handleLoginSubmit} className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="email">{t.login.emailLabel}</Label>
-                                        <Input id="email" name="email" type="email" placeholder={t.login.emailPlaceholder} value={loginForm.email} onChange={handleLoginChange} required />
+                                        <Label htmlFor="email">{t('login_email_not_verified_message') === 'E-posta veya Kullanıcı Adı' ? t('email') : t('email')}</Label>
+                                        {/* Using generic keys or specific keys if available. 'login_email_label' wasn't in standard keys, checking i18n.ts content. 'email' is safer. */}
+                                        <Input id="email" name="email" type="email" placeholder={t('email')} value={loginForm.email} onChange={handleLoginChange} required />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="password">{t.login.passwordLabel}</Label>
+                                        <Label htmlFor="password">{t('password')}</Label>
                                         <Input id="password" name="password" type="password" value={loginForm.password} onChange={handleLoginChange} required />
                                     </div>
                                     
@@ -492,7 +308,7 @@ const App: React.FC = () => {
                                             className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                                         />
                                         <Label htmlFor="rememberMe" className="text-sm font-medium text-gray-700 cursor-pointer">
-                                            Beni hatırla (30 gün)
+                                            {t('login_remember_me')}
                                         </Label>
                                     </div>
                                     
@@ -500,7 +316,7 @@ const App: React.FC = () => {
                                     {errorCode === 'EMAIL_NOT_VERIFIED' && (
                                       <div className="text-center space-y-2">
                                         <p className="text-sm text-gray-700">
-                                          Hesabınız henüz doğrulanmadı. Aktivasyon e-postasını tekrar göndermek ister misiniz?
+                                          {t('login_email_not_verified_message')}
                                         </p>
                                         <div className="flex justify-center">
                                           <Button
@@ -511,7 +327,7 @@ const App: React.FC = () => {
                                             onClick={handleResendActivation}
                                             disabled={resendLoading}
                                           >
-                                            {resendLoading ? 'Gönderiliyor...' : 'Aktivasyon E-postasını Yeniden Gönder'}
+                                            {resendLoading ? t('login_resend_activation_loading') : t('login_resend_activation_button')}
                                           </Button>
                                         </div>
                                         {resendMessage && (
@@ -521,10 +337,10 @@ const App: React.FC = () => {
                                     )}
                                     {/* Şifremi unuttum */}
                                     <div className="flex justify-end">
-                                        <a href="/forgot-password" className="text-sm text-primary hover:underline">Şifremi unuttum?</a>
+                                        <a href="/forgot-password" className="text-sm text-primary hover:underline">{t('login_forgot_password')}</a>
                                     </div>
                                     <Button type="submit" className="w-full !rounded-button" disabled={loading}>
-                                        {loading ? t.login.loadingButton : t.login.loginButton}
+                                        {loading ? t('login_button_loading') : t('login_button')}
                                     </Button>
                                     
                                     {/* Ayırıcı */}
@@ -533,7 +349,7 @@ const App: React.FC = () => {
                                             <span className="w-full border-t border-gray-300" />
                                         </div>
                                         <div className="relative flex justify-center text-xs uppercase">
-                                            <span className="bg-white px-2 text-gray-500">veya</span>
+                                            <span className="bg-white px-2 text-gray-500">{t('login_or')}</span>
                                         </div>
                                     </div>
                                     
@@ -551,7 +367,7 @@ const App: React.FC = () => {
                                             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                                             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                                         </svg>
-                                        Google ile Giriş Yap
+                                        {t('login_google_button')}
                                     </Button>
                                 </form>
                             </DialogContent>
@@ -559,15 +375,23 @@ const App: React.FC = () => {
 
                         {/* KAYIT OL BUTONU */}
                         <a href="/register">
-                            <Button className="!rounded-button whitespace-nowrap">{t.nav.signup}</Button>
+                            <Button className="!rounded-button whitespace-nowrap">{t('landing_nav_signup')}</Button>
                         </a>
                     </div>
           
                     {/* Mobile Menu Button */}
                     <div className="md:hidden flex items-center space-x-2">
-                        <Button variant="ghost" className="p-2 text-xs" onClick={() => setLanguage(language === 'tr' ? 'en' : 'tr')}>
-                            {language === 'tr' ? 'EN' : 'TR'}
-                        </Button>
+                        <select
+                            value={language}
+                            onChange={(e) => changeLanguage(e.target.value as Locale)}
+                            className="appearance-none bg-transparent px-2 py-1 text-gray-600 border border-gray-200 rounded-lg cursor-pointer text-xs"
+                        >
+                            {supportedLocales.map((locale: Locale) => (
+                                <option key={locale} value={locale}>
+                                    {locale.toUpperCase()}
+                                </option>
+                            ))}
+                        </select>
                         <Button 
                             variant="ghost" 
                             className="p-2" 
@@ -582,29 +406,29 @@ const App: React.FC = () => {
                 {isMobileMenuOpen && (
                     <div className="md:hidden bg-white border-t border-gray-200 mobile-menu">
                         <div className="container mx-auto px-4 py-4 space-y-4">
-                            <a href="/about" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>Hakkımızda</a>
-                            <a href="#nasil-calisir" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.howItWorks}</a>
-                            <a href="#ozellikler" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.features}</a>
-                            <a href="#yorumlar" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.testimonials}</a>
-                            <a href="#blog" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.blog}</a>
+                            <a href="/about" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('about')}</a>
+                            <a href="#nasil-calisir" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_howItWorks')}</a>
+                            <a href="#ozellikler" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_features')}</a>
+                            <a href="#yorumlar" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_testimonials')}</a>
+                            <a href="#blog" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_blog')}</a>
                             
                             <div className="pt-4 border-t border-gray-200 space-y-3">
                                 <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
                                     <DialogTrigger asChild>
-                                        <Button variant="outline" className="w-full !rounded-button" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.login}</Button>
+                                        <Button variant="outline" className="w-full !rounded-button" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_login')}</Button>
                                     </DialogTrigger>
                                     <DialogContent className="sm:max-w-md">
                                         <DialogHeader>
-                                            <DialogTitle className="text-2xl font-bold text-center mb-2">{t.login.title}</DialogTitle>
-                                            <DialogDescription className="text-center">{t.login.description}</DialogDescription>
+                                            <DialogTitle className="text-2xl font-bold text-center mb-2">{t('login')}</DialogTitle>
+                                            <DialogDescription className="text-center">{t('login_description')}</DialogDescription>
                                         </DialogHeader>
                                         <form onSubmit={handleLoginSubmit} className="space-y-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="mobile-email">{t.login.emailLabel}</Label>
-                                                <Input id="mobile-email" name="email" type="email" placeholder={t.login.emailPlaceholder} value={loginForm.email} onChange={handleLoginChange} required />
+                                                <Label htmlFor="mobile-email">{t('email')}</Label>
+                                                <Input id="mobile-email" name="email" type="email" placeholder={t('email')} value={loginForm.email} onChange={handleLoginChange} required />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="mobile-password">{t.login.passwordLabel}</Label>
+                                                <Label htmlFor="mobile-password">{t('password')}</Label>
                                                 <Input id="mobile-password" name="password" type="password" value={loginForm.password} onChange={handleLoginChange} required />
                                             </div>
                                             
@@ -619,35 +443,13 @@ const App: React.FC = () => {
                                                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                                                 />
                                                 <Label htmlFor="mobile-rememberMe" className="text-sm font-medium text-gray-700 cursor-pointer">
-                                                    Beni hatırla (30 gün)
+                                                    {t('login_remember_me')}
                                                 </Label>
                                             </div>
                                             
                                             {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-                                            {errorCode === 'EMAIL_NOT_VERIFIED' && (
-                                              <div className="text-center space-y-2">
-                                                <p className="text-sm text-gray-700">
-                                                  Hesabınız henüz doğrulanmadı. Aktivasyon e-postasını tekrar göndermek ister misiniz?
-                                                </p>
-                                                <div className="flex justify-center">
-                                                  <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="!rounded-button"
-                                                    onClick={handleResendActivation}
-                                                    disabled={resendLoading}
-                                                  >
-                                                    {resendLoading ? 'Gönderiliyor...' : 'Aktivasyon E-postasını Yeniden Gönder'}
-                                                  </Button>
-                                                </div>
-                                                {resendMessage && (
-                                                  <p className="text-xs text-gray-600">{resendMessage}</p>
-                                                )}
-                                              </div>
-                                            )}
                                             <Button type="submit" className="w-full !rounded-button" disabled={loading}>
-                                                {loading ? t.login.loadingButton : t.login.loginButton}
+                                                {loading ? t('login_button_loading') : t('login_button')}
                                             </Button>
                                             
                                             {/* Ayırıcı - Mobile */}
@@ -656,7 +458,7 @@ const App: React.FC = () => {
                                                     <span className="w-full border-t border-gray-300" />
                                                 </div>
                                                 <div className="relative flex justify-center text-xs uppercase">
-                                                    <span className="bg-white px-2 text-gray-500">veya</span>
+                                                    <span className="bg-white px-2 text-gray-500">{t('login_or')}</span>
                                                 </div>
                                             </div>
                                             
@@ -674,14 +476,14 @@ const App: React.FC = () => {
                                                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                                                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                                                 </svg>
-                                                Google ile Giriş Yap
+                                                {t('login_google_button')}
                                             </Button>
                                         </form>
                                     </DialogContent>
                                 </Dialog>
                                 
                                 <a href="/register" onClick={() => setIsMobileMenuOpen(false)}>
-                                    <Button className="w-full !rounded-button">{t.nav.signup}</Button>
+                                    <Button className="w-full !rounded-button">{t('landing_nav_signup')}</Button>
                                 </a>
                             </div>
                         </div>
@@ -693,30 +495,30 @@ const App: React.FC = () => {
             <section className="pt-10 pb-12 min-h-0 h-auto bg-gradient-to-b from-background via-primary/5 to-background">
                 <div className="container mx-auto px-8">
                     <div className="text-center">
-                        <Badge className="mb-4 bg-primary/10 text-primary border-none text-sm hero-badge">{t.hero.badge}</Badge>
+                        <Badge className="mb-4 bg-primary/10 text-primary border-none text-sm hero-badge">{t('landing_hero_badge')}</Badge>
                         <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 leading-tight hero-title max-w-5xl mx-auto">
-                            {t.hero.title}<span className="text-primary">{t.hero.titleHighlight}</span>
+                            {t('landing_hero_title')}<span className="text-primary">{t('landing_hero_highlight')}</span>
                         </h1>
                         <p className="text-lg md:text-xl lg:text-2xl text-gray-600 mb-6 leading-relaxed hero-description max-w-4xl mx-auto">
-                            {t.hero.description}
+                            {t('landing_hero_desc')}
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 hero-buttons justify-center">
                             <a href="/register">
                                 <Button className="text-base py-4 px-6 !rounded-button whitespace-nowrap">
-                                    <i className="fas fa-rocket mr-2"></i> {t.hero.tryButton}
+                                    <i className="fas fa-rocket mr-2"></i> {t('landing_hero_button_try')}
                                 </Button>
                             </a>
                             <Dialog>
                                 <DialogTrigger asChild>
                                     <Button variant="outline" className="border-2 border-primary text-primary hover:bg-primary/10 text-base py-4 px-6 !rounded-button whitespace-nowrap">
-                                        <i className="fas fa-play-circle mr-2"></i> {t.hero.watchButton}
+                                        <i className="fas fa-play-circle mr-2"></i> {t('landing_hero_button_watch')}
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-4xl">
                                     <DialogHeader>
-                                        <DialogTitle className="text-2xl font-bold">{t.howItWorks.title}</DialogTitle>
+                                        <DialogTitle className="text-2xl font-bold">{t('landing_how_title')}</DialogTitle>
                                         <DialogDescription>
-                                            {t.howItWorks.description}
+                                            {t('landing_how_desc')}
                                         </DialogDescription>
                                     </DialogHeader>
                                     <div className="relative aspect-video w-full overflow-hidden rounded-lg">
@@ -737,15 +539,15 @@ const App: React.FC = () => {
             <section className="pt-10 pb-20 bg-white">
                 <div className="container mx-auto px-8">
                     <div className="text-center mb-16">
-                        <h2 className="text-4xl font-bold mb-4 text-gray-900 demo-title">{t.demo.title}</h2>
+                        <h2 className="text-4xl font-bold mb-4 text-gray-900 demo-title">{t('landing_demo_title')}</h2>
                         <p className="text-lg md:text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto demo-description" >
-                            Ekstra zaman ayırmana gerek yok. Zaten yaptığın aktiviteler sırasında İngilizce öğren.
+                            {t('landing_demo_desc')}
                         </p>
                     </div>
                     <div className="bg-muted rounded-xl shadow-xl overflow-hidden mb-2">
                         <div className="grid md:grid-cols-2 gap-0">
                             <div className="p-8 md:p-12 flex flex-col justify-center">
-                                <h3 className="text-2xl font-bold mb-6">{t.demo.selectLevel}</h3>
+                                <h3 className="text-2xl font-bold mb-6">{t('landing_demo_select')}</h3>
                                 <div className="mb-8">
                                     <div className="flex justify-between mb-4">
                                         {levels.map((lvl, index) => (
@@ -767,17 +569,17 @@ const App: React.FC = () => {
                                 </div>
                                 <div className="space-y-4">
                                     <div className="p-4 bg-muted rounded-lg">
-                                        <h4 className="font-bold mb-2">{t.demo.originalContent}</h4>
-                                        <p className="text-gray-700">Lingroot customizes and dubs your favorite content based on your English proficiency. This way, you can engage with interesting topics while improving your skills naturally.</p>
+                                        <h4 className="font-bold mb-2">{t('landing_demo_original')}</h4>
+                                        <p className="text-gray-700">{t('landing_demo_original_desc') || "Lingroot, favori içeriğinizi İngilizce yeterliliğinize göre özelleştirir ve seslendirir. Bu sayede, becerilerinizi doğal bir şekilde geliştirirken ilginç konularla etkileşime geçebilirsiniz."}</p>
                                     </div>
                                     <div className="p-4 bg-primary/10 rounded-lg border-2 border-primary">
-                                        <h4 className="font-bold mb-2">{t.demo.yourLevel} ({levels[level]})</h4>
-                                        {level === 0 && <p className="text-gray-700">Lingroot changes what you like into easy English. You can listen and understand at your level.</p>}
-                                        {level === 1 && <p className="text-gray-700">Lingroot changes and reads your favorite content in your English level. So you can listen and learn easier.</p>}
-                                        {level === 2 && <p className="text-gray-700">Lingroot turns the content you choose into your level of English and reads it for you. This helps you enjoy listening while learning.</p>}
-                                        {level === 3 && <p className="text-gray-700">Lingroot adapts and dubs the content you like according to your English level. This allows you to follow and understand what interests you more easily.</p>}
-                                        {level === 4 && <p className="text-gray-700">Lingroot customizes and dubs your favorite content based on your English proficiency. This way, you can engage with interesting topics while improving your skills naturally.</p>}
-                                        {level === 5 && <p className="text-gray-700">Lingroot transforms and professionally dubs any content of your choice to match your exact English proficiency. It enables you to consume complex information in an accessible way — tailored to your linguistic comfort zone.</p>}
+                                        <h4 className="font-bold mb-2">{t('landing_demo_your')} ({levels[level]})</h4>
+                                        {level === 0 && <p className="text-gray-700">{t('landing_demo_level0')}</p>}
+                                        {level === 1 && <p className="text-gray-700">{t('landing_demo_level1')}</p>}
+                                        {level === 2 && <p className="text-gray-700">{t('landing_demo_level2')}</p>}
+                                        {level === 3 && <p className="text-gray-700">{t('landing_demo_level3')}</p>}
+                                        {level === 4 && <p className="text-gray-700">{t('landing_demo_level4')}</p>}
+                                        {level === 5 && <p className="text-gray-700">{t('landing_demo_level5')}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -799,11 +601,11 @@ const App: React.FC = () => {
             <section id="nasil-calisir" className="py-20 bg-background">
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-16">
-                        <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.howItWorks.title}</h2>
-                        <p className="text-lg md:text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto">{t.howItWorks.description}</p>
+                        <h2 className="text-4xl font-bold mb-4 text-gray-900">{t('landing_how_title')}</h2>
+                        <p className="text-lg md:text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto">{t('landing_how_desc')}</p>
                     </div>
                     <div className="grid md:grid-cols-3 gap-8">
-                        {t.howItWorks.steps.map((step, index) => (
+                        {howItWorksSteps.map((step, index) => (
                             <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col how-it-works-card">
                                 <CardHeader className="pb-0 p-0">
                                     <div className="how-it-works-image">
@@ -830,13 +632,13 @@ const App: React.FC = () => {
             <section className="py-20 bg-white">
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-16">
-                        <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.routine.title}</h2>
+                        <h2 className="text-4xl font-bold mb-4 text-gray-900">{t('landing_routine_title')}</h2>
                         <p className="text-lg md:text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto mb-12 routine-description">
-                            {t.routine.description}
+                            {t('landing_routine_desc')}
                         </p>
                     </div>
                     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {t.routine.activities.map((activity, index) => (
+                        {routineActivities.map((activity, index) => (
                             <Card key={index} className="border-none shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col routine-card">
                                 <CardHeader className="pb-0 p-0">
                                     <div className="routine-image">
@@ -856,7 +658,7 @@ const App: React.FC = () => {
                                 </CardContent>
                                 <CardFooter>
                                     <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 !rounded-button whitespace-nowrap">
-                                        <i className="fas fa-level-up-alt mr-2"></i> {t.routine.adaptButton}
+                                        <i className="fas fa-level-up-alt mr-2"></i> {t('landing_routine_button')}
                                     </Button>
                                 </CardFooter>
                             </Card>
@@ -868,13 +670,13 @@ const App: React.FC = () => {
             <section id="ozellikler" className="py-20 bg-background">
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-16">
-                        <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.features.title}</h2>
+                        <h2 className="text-4xl font-bold mb-4 text-gray-900">{t('landing_features_title')}</h2>
                         <p className="text-lg md:text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto mb-4">
-                            {t.features.description}
+                            {t('landing_features_desc')}
                         </p>
                     </div>
                     <div className="grid md:grid-cols-2 gap-8">
-                        {t.features.featuresList.map((feature, index) => (
+                        {featuresList.map((feature, index) => (
                             <Card key={index} className="border-none shadow-lg overflow-hidden">
                                 <div className="grid md:grid-cols-2 gap-0 h-full">
                                     <div className="order-2 md:order-1 p-6 flex flex-col justify-center">
@@ -901,9 +703,9 @@ const App: React.FC = () => {
             <section id="yorumlar" className="py-20 bg-white">
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-16">
-                        <h2 className="text-4xl font-bold mb-4 text-gray-900">{t.testimonials.title}</h2>
+                        <h2 className="text-4xl font-bold mb-4 text-gray-900">{t('landing_testimonials_title')}</h2>
                         <p className="text-lg md:text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto mb-12">
-                            {t.testimonials.description}
+                            {t('landing_testimonials_desc')}
                         </p>
                     </div>
                     <Swiper
@@ -918,17 +720,15 @@ const App: React.FC = () => {
                         }}
                         className="pb-12"
                     >
-                        {t.testimonials.users.map((testimonial, index) => (
+                        {testimonialsUsers.map((testimonial, index) => (
                             <SwiperSlide key={index}>
                                 <Card className="h-full border-none shadow-lg">
                                     <CardContent className="p-8">
                                         <div className="flex items-center mb-6">
                                             <Avatar className="h-12 w-12 mr-4">
-                                                <AvatarImage
-                                                    src={`https://readdy.ai/api/search-image?query=Professional headshot of a ${index % 2 === 0 ? 'Turkish man' : 'Turkish woman'} ${index === 0 ? 'in his late 20s with short dark hair' : index === 1 ? 'in her mid 20s with long dark hair' : index === 2 ? 'middle-aged with glasses and a professional appearance' : index === 3 ? 'with a headscarf and a friendly smile' : 'in his 30s with a beard and professional appearance'} and a ${index === 3 ? 'warm' : 'friendly'} smile. The photo has a clean, neutral background and professional lighting, suitable for a testimonial or profile picture.&width=100&height=100&seq=user${index+1}&orientation=squarish`}
-                                                    alt={testimonial.name}
-                                                />
-                                                <AvatarFallback>{testimonial.name.charAt(0)}</AvatarFallback>
+                                                <AvatarFallback className={testimonial.gender === "female" ? "bg-pink-100 text-pink-700" : "bg-blue-100 text-blue-700"}>
+                                                    {testimonial.name.charAt(0)}
+                                                </AvatarFallback>
                                             </Avatar>
                                             <div>
                                                 <h4 className="font-bold">{testimonial.name}</h4>
@@ -955,12 +755,12 @@ const App: React.FC = () => {
                 <div className="container mx-auto px-4">
                     <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
                         <div className="p-8 md:p-12">
-                            <h2 className="text-3xl font-bold mb-6 text-center">{t.tryNow.title}</h2>
+                            <h2 className="text-3xl font-bold mb-6 text-center">{t('landing_trynow_title')}</h2>
                             <div className="mb-8">
                                 <div className="relative">
                                     <Input
                                         type="text"
-                                        placeholder={t.tryNow.placeholder}
+                                        placeholder={t('landing_trynow_placeholder')}
                                         className="w-full h-12 pl-12 pr-36 text-base border-2 border-gray-200 focus:border-primary rounded-lg"
                                     />
                                     <i className="fas fa-link absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
@@ -969,7 +769,7 @@ const App: React.FC = () => {
                                             <Button
                                                 className="h-10 px-5 !rounded-button whitespace-nowrap"
                                             >
-                                                {t.tryNow.tryButton}
+                                                {t('landing_trynow_button')}
                                             </Button>
                                         </a>
                                     </div>
@@ -988,7 +788,7 @@ const App: React.FC = () => {
                                 ))}
                             </div>
                             <p className="text-center text-gray-500">
-                                {t.tryNow.description}
+                                {t('landing_trynow_desc')}
                             </p>
                         </div>
                     </div>
@@ -999,18 +799,18 @@ const App: React.FC = () => {
                 <div className="container mx-auto px-4">
                     <div className="text-center max-w-3xl mx-auto">
                         <h2 className="text-4xl font-bold mb-6 text-gray-900">
-                            {t.cta.title}
+                            {t('landing_cta_title')}
                         </h2>
                         <p className="text-lg md:text-xl lg:text-2xl text-gray-600 mb-8">
-                            {t.cta.description}
+                            {t('landing_cta_desc')}
                         </p>
                         <a href="/register">
                             <Button className="text-lg py-6 px-8 !rounded-button whitespace-nowrap">
-                                <i className="fas fa-rocket mr-2"></i> {t.cta.button}
+                                <i className="fas fa-rocket mr-2"></i> {t('landing_cta_button')}
                             </Button>
                         </a>
                         <div className="mt-8 flex justify-center items-center space-x-6">
-                            {t.cta.benefits.map((benefit, index) => (
+                            {ctaBenefits.map((benefit, index) => (
                                 <div key={index} className="flex items-center">
                                     <i 
                                         className="fas fa-check-circle mr-2" 
@@ -1030,5 +830,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-

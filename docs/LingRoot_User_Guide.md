@@ -1,82 +1,135 @@
-# 📚 LingRoot Kullanıcı Dokümanı
+# 📚 LingRoot Kullanıcı Kılavuzu
+
+**Son Güncelleme:** Aralık 2025
 
 ## 📋 İçindekiler
 1. [Giriş](#giriş)
 2. [Hızlı Başlangıç](#hızlı-başlangıç)
-3. [Kullanıcı Paneli](#kullanıcı-paneli)
-4. [Admin Paneli](#admin-paneli)
-5. [Üyelik Seviyeleri](#üyelik-seviyeleri)
-6. [Sık Sorulan Sorular](#sık-sorulan-sorular)
-7. [Teknik Destek](#teknik-destek)
-
-## MCP (Main Codebase Pattern) Uyumlu Kullanım Standartları
-
-- Kullanıcı ve admin panelinde gösterilen tüm bilgiler merkezi tiplerden (`src/types/`) ve context'ten (`useAuth`, `useMembership`) alınır.
-- Üyelik seviyesi, kullanıcı bilgisi, içerik geçmişi gibi alanlar, merkezi tip ve context ile yönetilir.
-- API'den gelen veriler mapping fonksiyonları ile camelCase'e çevrilir.
-- Her yeni özellik veya alan önce tip dosyasında tanımlanır, sonra kullanılır.
-- Kodun her yerinde aynı isim, aynı yapı, aynı tip kullanılır.
+3. [Ana Özellikler](#ana-özellikler)
+4. [AI Chat Asistanı](#ai-chat-asistanı)
+5. [İçerik Oluşturma](#içerik-oluşturma)
+6. [Kitap Okuma](#kitap-okuma)
+7. [Konu Önerileri](#konu-önerileri)
+8. [Kullanıcı Paneli](#kullanıcı-paneli)
+9. [Admin Paneli](#admin-paneli)
+10. [Üyelik Seviyeleri](#üyelik-seviyeleri)
+11. [Sık Sorulan Sorular](#sık-sorulan-sorular)
+12. [Teknik Destek](#teknik-destek)
 
 ## 🚀 Giriş
 
-LingRoot, dil öğrenmeyi kolaylaştıran, yapay zeka destekli bir dil öğrenme platformudur. Platform, kullanıcıların seviyelerine uygun içerikler oluşturarak, dinleme ve konuşma becerilerini geliştirmelerine yardımcı olur.
+LingRoot, yapay zeka destekli kapsamlı bir dil öğrenme platformudur. Platform, kullanıcıların CEFR seviyelerine (A1-C2) uygun içerikler oluşturarak dinleme, okuma ve konuşma becerilerini geliştirmelerine yardımcı olur.
 
 ### 🌟 Temel Özellikler
-- Metin, YouTube, web sitesi, dosya ve Spotify içeriklerini işleme
-- Seviyeye uygun içerik üretimi (A1-C2)
-- Ses dosyası ve altyazı oluşturma
-- Üyelik bazlı özellik erişimi
-- Çoklu dil desteği
+- **AI Chat Asistanı:** Dil öğrenme odaklı ChatGPT benzeri sohbet
+- **Çoklu İçerik Kaynağı:** Metin, YouTube, web, kitap, dosya işleme
+- **CEFR Uyarlama:** A1'den C2'ye otomatik seviye uyarlama
+- **Sesli İçerik:** Yüksek kaliteli TTS ile dinleme pratiği
+- **Kişiselleştirilmiş Konular:** İlgi alanlarına göre konu önerileri
+- **Kitap Okuma:** Gutenberg kütüphanesinden sesli kitaplar
+- **Çoklu Platform:** Web, iOS ve Android desteği
+- **Çoklu Dil:** Türkçe, İngilizce, Almanca, Fransızca, İspanyolca
 
 ## 🎯 Hızlı Başlangıç
 
 ### 1. Hesap Oluşturma
-1. [LingRoot'a kaydolun](https://lingroot.com/register)
-2. E-posta adresinizi doğrulayın
-3. Profil bilgilerinizi tamamlayın
-4. Dil seviyenizi belirleyin
+1. [LingRoot'a kaydolun](https://lingroot.com/register) veya sosyal medya ile giriş yapın
+2. E-posta doğrulaması (opsiyonel MFA)
+3. CEFR seviyenizi belirleyin (A1-C2)
+4. Ana dilinizi ve hedef dilinizi seçin
+5. İlgi alanlarınızı belirtin
 
-### 2. İlk İçeriğinizi Oluşturun
-1. Dashboard'a giriş yapın
-2. "Yeni İçerik" butonuna tıklayın
-3. İçerik türünü seçin (metin, YouTube, web, dosya, Spotify)
-4. Hedef seviyeyi belirleyin
-5. İçeriği gönderin ve işlenmesini bekleyin
+### 2. İlk Adımlar
+1. **Dashboard'a** giriş yapın
+2. **AI Chat** ile sohbet başlatın veya
+3. **Konu Önerileri**'nden size uygun bir konu seçin
+4. **Kitaplar** bölümünden okumaya başlayın
+
+## 🤖 AI Chat Asistanı
+
+LingRoot'un en güçlü özelliklerinden biri, dil öğrenme odaklı AI sohbet asistanıdır.
+
+### Özellikler
+- **Konuşma Geçmişi:** Tüm sohbetleriniz kaydedilir
+- **CEFR Uyumlu Yanıtlar:** Seviyenize göre basitleştirilmiş cevaplar
+- **Çoklu Konuşma:** Farklı konularda ayrı sohbetler
+- **Sesli Okuma:** AI yanıtlarını dinleme
+- **Konu Önerisi:** Sohbetten otomatik konu çıkarma
+
+### Nasıl Kullanılır
+1. Sol menüden **"Yeni Sohbet"** butonuna tıklayın
+2. Metin kutusuna sorunuzu yazın
+3. AI yanıt verdikten sonra **🔊** simgesiyle dinleyin
+4. Beğendiğiniz konuları **📌** ile kaydedin
+
+## 📖 Kitap Okuma
+
+Gutenberg kütüphanesinden binlerce ücretsiz kitaba erişin.
+
+### Özellikler
+- **Bölüm Bölüm Okuma:** Kitaplar bölümlere ayrılmış
+- **Sesli Dinleme:** Her bölüm için TTS
+- **Seviye Uyarlama:** Metni CEFR seviyenize uyarlama
+- **İlerleme Takibi:** Kaldığınız yerden devam
+
+### Nasıl Kullanılır
+1. **Kitaplar** sayfasına gidin
+2. Arama veya kategorilerden kitap seçin
+3. Bölüm listesinden okumak istediğinizi seçin
+4. **Oku** veya **Dinle** seçeneklerini kullanın
+
+## 💡 Konu Önerileri
+
+İlgi alanlarınıza göre kişiselleştirilmiş içerik önerileri.
+
+### Konu Hiyerarşisi
+- **Ana Kategoriler:** Günlük Yaşam, İş, Seyahat, Teknoloji vb.
+- **Alt Konular:** Her kategoride detaylı konular
+- **Seviye Filtresi:** A1'den C2'ye filtreleme
+
+### Özellikler
+- **Hobi Bazlı Öneriler:** Profilinize göre
+- **Trend Konular:** Popüler içerikler
+- **Öğrenme Yolu:** Sıralı konu önerileri
 
 ## 🧑‍💻 Kullanıcı Paneli
 
 ### 1. Dashboard
 - Günlük kullanım istatistikleri
-- Üyelik seviyesi göstergesi
-- Kalan içerik hakkı
-- Son oluşturulan içerikler
+- AI Chat konuşma listesi
+- Üyelik seviyesi ve kalan hak
+- Son içerikler ve kitaplar
+- Önerilen konular
 
 ### 2. İçerik İşlemleri
 #### Yeni İçerik Ekleme
-- **Metin**: Doğrudan metin girişi
-- **YouTube**: Video URL'si
-- **Web**: Web sitesi URL'si
-- **Dosya**: PDF, DOC, TXT dosyaları
-- **Spotify**: Podcast veya müzik URL'si
+- **Metin:** Doğrudan metin girişi
+- **YouTube:** Video URL'si (altyazıdan çıkarma)
+- **Web:** Web sitesi URL'si
+- **Dosya:** PDF, DOCX, TXT, EPUB dosyaları
+- **Kitap:** Gutenberg kitapları
+- **Konu:** Otomatik içerik üretimi
 
 #### İçerik Geçmişi
-- Oluşturma tarihi
-- İçerik türü
-- Hedef seviye
-- İşlem durumu
-- İndirme linkleri
+- Oluşturma tarihi ve türü
+- CEFR seviyesi
+- MP3 ve VTT indirme
+- Favori işaretleme
 
 ### 3. Profil Yönetimi
-- Kişisel bilgileri güncelleme
-- Parola değiştirme
+- Kişisel bilgiler ve fotoğraf
+- CEFR seviyesi değişikliği
+- Dil tercihleri (Ana/Hedef)
+- Parola ve MFA ayarları
 - Bildirim tercihleri
 - Hesap silme
 
 ### 4. Üyelik Yönetimi
-- Mevcut üyelik seviyesi
-- Günlük limit bilgisi
-- Üyelik yükseltme
+- Mevcut plan ve özellikler
+- Günlük kullanım limiti
+- Plan yükseltme/düşürme
 - Ödeme geçmişi
+- Fatura bilgileri
 
 ## 👨‍💼 Admin Paneli
 

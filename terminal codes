@@ -31,6 +31,13 @@ git branch --show-current
 git checkout fixed-mfa
 
 
+-- Gökhan push yaptıktan sonra benim yapacaklarım
+git checkout [Benim branch adım]]
+git pull
+git fetch
+git merge main
+
+
 npx react-native start --reset-cache
 
 
@@ -39,12 +46,6 @@ npx react-native start --reset-cache
 .\gradlew.bat assembleRelease --no-daemon --console plain --stacktrace
 
 .\gradlew.bat :react-native-reanimated:configureCMakeRelWithDebInfo[arm64-v8a] --stacktrace --info --console plain
-
-
-logları açmak için. :
-USB hata ayıklama modunu aktif et
-Uygulamayı açmadan önce çalıştır:
-& "F:\Program Files\2022.3.46f1\Editor\Data\PlaybackEngines\AndroidPlayer\SDK\platform-tools\adb.exe" logcat *:S ReactNative:V ReactNativeJS:V RNPushNotification:V AndroidRuntime:E ReactNativeJNI:E NotificationManager:V
 
 
 -- hatayı log dosyasına yazar:
@@ -103,14 +104,13 @@ Debug Keystore (Geliştirme):
 Release Keystore (Google Play):
 8E:45:7E:79:E5:79:E9:22:99:59:27:A8:11:F0:16:73:8F:EF:57:7E
 
-
-
-
 Iphone Local Test:
 npx react-native start --reset-cache --host 0.0.0.0
-ip  bulma = ipconfig getifaddr en0
-EXPO_PUBLIC_API_URL=http://192.168.1.23:5001
 
+logları açmak için. :
+USB hata ayıklama modunu aktif et
+Uygulamayı açmadan önce çalıştır:
+& "F:\Program Files\2022.3.46f1\Editor\Data\PlaybackEngines\AndroidPlayer\SDK\platform-tools\adb.exe" logcat *:S ReactNative:V ReactNativeJS:V RNPushNotification:V AndroidRuntime:E ReactNativeJNI:E NotificationManager:V
 
 Android Lokal test:
     1) Önce Telefonu kablo ile bağla
@@ -154,4 +154,27 @@ curl http://localhost:5001/api/health
 netstat -ano | findstr ":5001"
     gelen çıktı:TCP    0.0.0.0:5001           0.0.0.0:0              LISTENING       34580
 Stop-Process -Id 33808
+
+
+
+
+
+### N8N
+#Docker ile başlatmak için:
+docker run -d `
+  --name n8n-local `
+  -p 5678:5678 `
+  -e N8N_HOST="n8n.booklevel.store" `
+  -e N8N_PORT=5678 `
+  -e N8N_PROTOCOL="https" `
+  -e WEBHOOK_URL="https://n8n.booklevel.store/" `
+  -v F:/LRCloudFlared/n8n-data/n8n-data:/home/node/.n8n `
+  n8nio/n8n
+
+#Durdurmak için:
+docker stop n8n-local
+
+#Tekrar başlatmak için
+docker start n8n-local
+
 

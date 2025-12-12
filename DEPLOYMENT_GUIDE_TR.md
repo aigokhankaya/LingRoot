@@ -1,14 +1,33 @@
-# LingRoot GitHub Dağıtım Kılavuzu (Vercel & Render)
+# LingRoot Deployment Kılavuzu
 
-## MCP (Main Codebase Pattern) Uyumlu Dağıtım Standartları
+**Son Güncelleme:** Aralık 2025
 
-- Tüm ana tipler ve contextler merkezi dosyalarda tutulur (`src/types/`, `src/lib/auth.tsx`).
-- API mapping fonksiyonları merkezi bir yerde (`src/lib/`) bulunur.
-- Ortam değişkenleri `.env.example` dosyasında eksiksiz ve güncel tutulur.
-- Sadece kökte `.gitignore` bulunur, tüm alt dizinler için geçerlidir.
-- Her yeni özellik veya alan önce tip dosyasında tanımlanır, sonra kullanılır.
+Bu kılavuz, LingRoot projesini farklı platformlara nasıl dağıtacağınızı açıklar.
 
-Bu kılavuz, LingRoot projesini GitHub üzerinden Vercel (frontend) ve Render (backend) platformlarına nasıl dağıtacağınızı açıklar.
+## Deployment Seçenekleri
+
+| Platform | Kullanım | Maliyet |
+|----------|----------|---------|
+| **Cloudflare Tunnel** | Lokal geliştirme, demo | Ücretsiz |
+| **Vercel + Render** | Production | Ücretsiz-Ücretli |
+| **Docker** | Self-hosted | Değişken |
+
+## Hızlı Başlangıç: Cloudflare Tunnel (Önerilen)
+
+Lokal backend'inizi internete açmanın en kolay yolu.
+
+```powershell
+# 1. Cloudflared kur
+choco install cloudflared
+
+# 2. Backend'i başlat
+cd backend && npm run dev
+
+# 3. Tunnel'ı başlat
+cloudflared tunnel run lingroot-mfa
+```
+
+Detaylı kurulum: `CLOUDFLARE_TUNNEL_SETUP.md`
 
 ## Proje Yapısı
 

@@ -17,6 +17,7 @@ import BrandWordmark from '../src/components/BrandWordmark';
 import InterestManager from '../src/components/InterestManager';
 import OutputSection from '../src/components/OutputSection';
 import { ProfileDropdownMenu } from '../src/components/shared/ProfileDropdownMenu';
+import { useTranslation } from '../src/lib/i18n';
 
 interface ContentHistoryItem {
   id: string;
@@ -35,37 +36,10 @@ interface ContentHistoryItem {
   }>;
 }
 
-const HISTORY_TYPE_LABELS: Record<string, string> = {
-  text: 'Metin',
-  subject: 'Konu',
-  topic: 'Konu Ağacı',
-  book: 'Kitap',
-  podcast: 'Podcast',
-  youtube: 'YouTube',
-  file: 'Dosya',
-  document: 'Doküman',
-  weblink: 'Web Bağlantısı',
-};
-
-const historyTypeOptions = [
-  { id: 'topic', label: 'Konu Ağacı' },
-  { id: 'book', label: 'Kitap' },
-  { id: 'document', label: 'Doküman' },
-  { id: 'podcast', label: 'Podcast' },
-  { id: 'youtube', label: 'YouTube' },
-  { id: 'weblink', label: 'Web Bağlantısı' },
-  { id: 'text', label: 'Metin' },
-  { id: 'subject', label: 'Konu' },
-];
-
-const getHistoryTypeLabel = (inputType: string): string => {
-  const key = (inputType || '').toLowerCase();
-  return HISTORY_TYPE_LABELS[key] || (inputType ? inputType.toUpperCase() : 'DİĞER');
-};
-
 const Dashboard = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const { t } = useTranslation();
   const [tab, setTab] = React.useState<string>('dashboard');
   const [stats, setStats] = useState<UserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -89,9 +63,46 @@ const Dashboard = () => {
   const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
   const [showAllHistory, setShowAllHistory] = useState<boolean>(false);
   const [expandedHistoryItem, setExpandedHistoryItem] = useState<string | null>(null);
-  const [activeHistoryTypes, setActiveHistoryTypes] = useState<string[]>(
-    historyTypeOptions.map((t) => t.id)
+  const [activeHistoryTypes, setActiveHistoryTypes] = useState<string[]>([
+    'topic',
+    'book',
+    'document',
+    'podcast',
+    'youtube',
+    'weblink',
+    'text',
+    'subject',
+  ]);
+
+  const historyTypeOptions = React.useMemo(
+    () => [
+      { id: 'topic', label: t('content_type_topic_tree') },
+      { id: 'book', label: t('book') },
+      { id: 'document', label: t('document') },
+      { id: 'podcast', label: t('podcast') },
+      { id: 'youtube', label: t('youtube') },
+      { id: 'weblink', label: t('web_link') },
+      { id: 'text', label: t('text') },
+      { id: 'subject', label: t('subject') },
+    ],
+    [t]
   );
+
+  const getHistoryTypeLabel = (inputType: string): string => {
+    const key = (inputType || '').toLowerCase();
+    const labels: Record<string, string> = {
+      text: t('text'),
+      subject: t('subject'),
+      topic: t('content_type_topic_tree'),
+      book: t('book'),
+      podcast: t('podcast'),
+      youtube: t('youtube'),
+      file: t('upload_file'),
+      document: t('document'),
+      weblink: t('web_link'),
+    };
+    return labels[key] || (inputType ? inputType.toUpperCase() : t('history_type_other'));
+  };
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -151,11 +162,11 @@ const Dashboard = () => {
           await loadDocumentSections(first.id);
         }
       } else if (!response.success) {
-        setDocumentsError(response.message || 'Dokümanlar yüklenirken hata oluştu');
+        setDocumentsError(response.message || t('dashboard_error_documents_load'));
       }
     } catch (error: any) {
       console.error('[DASHBOARD] Dokümanlar yüklenirken hata oluştu:', error);
-      setDocumentsError(error?.message || 'Dokümanlar yüklenirken hata oluştu');
+      setDocumentsError(error?.message || t('dashboard_error_documents_load'));
     } finally {
       setDocumentsLoading(false);
     }
@@ -169,11 +180,11 @@ const Dashboard = () => {
       if (response.success && response.data) {
         setDocumentSections(response.data);
       } else if (!response.success) {
-        setSectionsError(response.message || 'Doküman bölümleri yüklenirken hata oluştu');
+        setSectionsError(response.message || t('dashboard_error_document_sections_load'));
       }
     } catch (error: any) {
       console.error('[DASHBOARD] Doküman bölümleri yüklenirken hata oluştu:', error);
-      setSectionsError(error?.message || 'Doküman bölümleri yüklenirken hata oluştu');
+      setSectionsError(error?.message || t('dashboard_error_document_sections_load'));
     } finally {
       setSectionsLoading(false);
     }
@@ -187,11 +198,11 @@ const Dashboard = () => {
       if (response.success && response.data) {
         setTopics(response.data.topics);
       } else if (!response.success) {
-        setTopicsError(response.message || 'Konular yüklenirken hata oluştu');
+        setTopicsError(response.message || t('dashboard_error_topics_load'));
       }
     } catch (error: any) {
       console.error('[DASHBOARD] Konu ağacı yükleme hatası:', error);
-      setTopicsError(error?.message || 'Konular yüklenirken hata oluştu');
+      setTopicsError(error?.message || t('dashboard_error_topics_load'));
     } finally {
       setTopicsLoading(false);
     }
@@ -206,11 +217,11 @@ const Dashboard = () => {
       if (response.success && response.data) {
         setBookHistory(response.data);
       } else if (!response.success) {
-        setBookHistoryError(response.message || 'Kitap dinleme geçmişi yüklenirken hata oluştu');
+        setBookHistoryError(response.message || t('dashboard_error_book_history_load'));
       }
     } catch (error: any) {
       console.error('[DASHBOARD] Kitap geçmişi yükleme hatası:', error);
-      setBookHistoryError(error?.message || 'Kitap dinleme geçmişi yüklenirken hata oluştu');
+      setBookHistoryError(error?.message || t('dashboard_error_book_history_load'));
     } finally {
       setBookHistoryLoading(false);
     }
@@ -224,11 +235,11 @@ const Dashboard = () => {
       if (response.success && response.data) {
         setFavoriteBooks(response.data);
       } else if (!response.success) {
-        setFavoriteBooksError(response.message || 'Favori kitaplar yüklenirken hata oluştu');
+        setFavoriteBooksError(response.message || t('dashboard_error_favorite_books_load'));
       }
     } catch (error: any) {
       console.error('[DASHBOARD] Favori kitaplar yüklenirken hata oluştu:', error);
-      setFavoriteBooksError(error?.message || 'Favori kitaplar yüklenirken hata oluştu');
+      setFavoriteBooksError(error?.message || t('dashboard_error_favorite_books_load'));
     } finally {
       setFavoriteBooksLoading(false);
     }
@@ -322,13 +333,13 @@ const Dashboard = () => {
   }, []);
 
   if (isLoading) {
-    return <div className="p-8 text-center text-lg">Yükleniyor...</div>;
+    return <div className="p-8 text-center text-lg">{t('loading')}</div>;
   }
   if (!isAuthenticated) {
-    return <div className="p-8 text-center text-lg">Yönlendiriliyor...</div>;
+    return <div className="p-8 text-center text-lg">{t('dashboard_redirecting')}</div>;
   }
   if (!user) {
-    return <div className="p-8 text-center text-lg">Kullanıcı bilgileri yükleniyor...</div>;
+    return <div className="p-8 text-center text-lg">{t('dashboard_loading_user')}</div>;
   }
 
   const getDisplayName = () => {
@@ -345,11 +356,11 @@ const Dashboard = () => {
       if (fullName) return fullName;
       if ((user as any).name) return (user as any).name as string;
       if (user.email) return user.email.split('@')[0];
-      return 'Kullanıcı';
+      return t('user_default');
     } catch {
       return (
         ((user as any).name as string) ||
-        (user.email ? user.email.split('@')[0] : 'Kullanıcı')
+        (user.email ? user.email.split('@')[0] : t('user_default'))
       );
     }
   };
@@ -418,25 +429,25 @@ const Dashboard = () => {
             {/* Left: Logo & Navigation */}
             <div className="flex items-center space-x-6">
               <Link href="/">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3 flex-shrink-0">
                   <img
                     src="/lingroot-icon.svg"
                     alt="LingRoot Logo"
                     className="w-10 h-10 md:w-12 md:h-12"
                   />
-                  <BrandWordmark className="text-xl md:text-2xl" />
+                  <BrandWordmark className="hidden sm:inline-block text-lg sm:text-xl md:text-2xl" />
                 </div>
               </Link>
               <Link href="/welcome">
                 <button className="text-gray-700 hover:text-primary transition-colors text-sm font-medium">
                   <i className="fas fa-home mr-2"></i>
-                  Ana Sayfa
+                  {t('dashboard_nav_home')}
                 </button>
               </Link>
               <Link href="/welcome">
                 <button className="text-gray-700 hover:text-primary transition-colors text-sm font-medium">
                   <i className="fas fa-headphones mr-2"></i>
-                  Dinleme Sayfası
+                  {t('dashboard_nav_listen')}
                 </button>
               </Link>
             </div>
@@ -473,8 +484,8 @@ const Dashboard = () => {
               <h1 className="text-3xl font-bold">{displayName}</h1>
               <div className="flex mt-2 gap-2">
                 <MembershipBadge status={membershipStatus} />
-                <Badge className="bg-primary text-primary-foreground">B1 İngilizce</Badge>
-                <Badge className="bg-green-500">2 Dil</Badge>
+                <Badge className="bg-primary text-primary-foreground">{t('dashboard_badge_primary')}</Badge>
+                <Badge className="bg-green-500">{t('dashboard_badge_languages')}</Badge>
           </div>
         </div>
           </div>
@@ -499,44 +510,44 @@ const Dashboard = () => {
             {/* 1. Dashboard */}
             <TabsTrigger value="dashboard" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-chart-line mr-2"></i>
-              Dashboard
+              {t('dashboard')}
             </TabsTrigger>
             {/* 2. Okuma Geçmişim */}
             <TabsTrigger value="reading-history" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-history mr-2"></i>
-              Okuma Geçmişim
+              {t('tab_reading_history')}
             </TabsTrigger>
             {/* 3. Konularım */}
             <TabsTrigger value="achievements" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-sitemap mr-2"></i>
-              Konularım
+              {t('tab_my_topics')}
             </TabsTrigger>
             {/* 4. Kitaplarım */}
             <TabsTrigger value="book" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-book mr-2"></i>
-              Kitaplarım
+              {t('tab_my_books')}
             </TabsTrigger>
             <TabsTrigger value="hobbies" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-heart mr-2"></i>
-              Hobilerim
+              {t('tab_my_hobbies')}
             </TabsTrigger>
             {/* 5. Podcastlerim (şimdilik placeholder) */}
             <TabsTrigger value="podcasts" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-podcast mr-2"></i>
-              Podcastlerim
+              {t('tab_my_podcasts')}
             </TabsTrigger>
             {/* 6. Dokümanlar */}
             <TabsTrigger value="pdf" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-file-alt mr-2"></i>
-              Dokümanlarım
+              {t('tab_my_documents')}
             </TabsTrigger>
             <TabsTrigger value="vocabulary" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-language mr-2"></i>
-              Kelimelerim
+              {t('tab_my_vocabulary')}
             </TabsTrigger>
             <TabsTrigger value="paket-bilgilerim" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
               <i className="fas fa-box mr-2"></i>
-              Paket Bilgilerim
+              {t('tab_my_plan_info')}
             </TabsTrigger>
           </TabsList>
 
@@ -549,9 +560,9 @@ const Dashboard = () => {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-500">Günlük Hedef</p>
+                        <p className="text-sm text-gray-500">{t('dashboard_daily_goal_title')}</p>
                         <h3 className="text-2xl font-bold text-primary">{statsLoading ? '...' : `${stats?.activity.dailyGoalProgress || 0}%`}</h3>
-                        <p className="text-xs text-gray-500 mt-1">Hedef: 30 dakika</p>
+                        <p className="text-xs text-gray-500 mt-1">{t('dashboard_daily_goal_subtitle')}</p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                         <i className="fas fa-bullseye text-xl"></i>
@@ -565,9 +576,9 @@ const Dashboard = () => {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-500">Mevcut Seri</p>
-                        <h3 className="text-2xl font-bold text-green-600">{statsLoading ? '...' : `${stats?.activity.currentStreak || 0} gün`}</h3>
-                        <p className="text-xs text-gray-500 mt-1">En uzun: {stats?.activity.longestStreak || 0} gün</p>
+                        <p className="text-sm text-gray-500">{t('dashboard_current_streak_title')}</p>
+                        <h3 className="text-2xl font-bold text-green-600">{statsLoading ? '...' : `${stats?.activity.currentStreak || 0} ${t('dashboard_current_streak_days_suffix')}`}</h3>
+                        <p className="text-xs text-gray-500 mt-1">{t('dashboard_longest_streak_prefix')} {stats?.activity.longestStreak || 0} {t('dashboard_current_streak_days_suffix')}</p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
                         <i className="fas fa-fire text-xl"></i>
@@ -588,9 +599,9 @@ const Dashboard = () => {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-500">Toplam Öğrenme</p>
-                        <h3 className="text-2xl font-bold text-purple-600">{statsLoading ? '...' : `${stats?.vocabulary.total || 0} kelime`}</h3>
-                        <p className="text-xs text-gray-500 mt-1">Öğrenildi: {stats?.vocabulary.learned || 0}</p>
+                        <p className="text-sm text-gray-500">{t('dashboard_total_learning_title')}</p>
+                        <h3 className="text-2xl font-bold text-purple-600">{statsLoading ? '...' : `${stats?.vocabulary.total || 0} ${t('dashboard_total_learning_words_suffix')}`}</h3>
+                        <p className="text-xs text-gray-500 mt-1">{t('dashboard_learned_words_prefix')} {stats?.vocabulary.learned || 0}</p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
                         <i className="fas fa-book text-xl"></i>
@@ -616,9 +627,9 @@ const Dashboard = () => {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-500">Ses Oluşturma</p>
+                        <p className="text-sm text-gray-500">{t('dashboard_audio_creation_title')}</p>
                         <h3 className="text-2xl font-bold text-amber-600">{statsLoading ? '...' : `${stats?.subscription.audioCreationCount || 0}`}</h3>
-                        <p className="text-xs text-gray-500 mt-1">Plan: {stats?.subscription.plan || 'Free Trial'}</p>
+                        <p className="text-xs text-gray-500 mt-1">{t('dashboard_plan_prefix')} {stats?.subscription.plan || 'Free Trial'}</p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
                         <i className="fas fa-graduation-cap text-xl"></i>
@@ -632,14 +643,14 @@ const Dashboard = () => {
               {/* Weekly Activity Chart */}
               <Card className="border-none shadow-md col-span-3 md:col-span-2 hover-lift slideUp">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xl font-bold text-gray-800">Haftalık Aktivite</CardTitle>
-                  <CardDescription>Son 7 günde öğrenme süreniz</CardDescription>
+                  <CardTitle className="text-xl font-bold text-gray-800">{t('dashboard_weekly_activity_title')}</CardTitle>
+                  <CardDescription>{t('dashboard_weekly_activity_subtitle')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="h-[300px] flex items-center justify-center bg-gray-50 rounded-lg">
                     <div className="text-center">
                       <i className="fas fa-chart-bar text-4xl text-gray-300 mb-2"></i>
-                      <p className="text-gray-500">Haftalık aktivite grafiği burada görünecek</p>
+                      <p className="text-gray-500">{t('dashboard_weekly_activity_placeholder')}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -648,8 +659,8 @@ const Dashboard = () => {
               {/* Today's Tasks */}
               <Card className="border-none shadow-md hover-lift slideUp">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xl font-bold text-gray-800">Bugünkü Görevler</CardTitle>
-                  <CardDescription>6 Haziran 2025, Cuma</CardDescription>
+                  <CardTitle className="text-xl font-bold text-gray-800">{t('dashboard_today_tasks_title')}</CardTitle>
+                  <CardDescription>{t('dashboard_today_tasks_date_example')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[300px] pr-4">
@@ -659,10 +670,10 @@ const Dashboard = () => {
                           <i className="fas fa-headphones"></i>
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-medium text-gray-800">Günlük Dinleme Pratiği</h4>
-                          <p className="text-sm text-gray-600">10 dakika podcast dinle</p>
+                          <h4 className="font-medium text-gray-800">{t('dashboard_task_listen_title')}</h4>
+                          <p className="text-sm text-gray-600">{t('dashboard_task_listen_desc')}</p>
                         </div>
-                        <Badge className="bg-green-500 ml-2">Tamamlandı</Badge>
+                        <Badge className="bg-green-500 ml-2">{t('dashboard_task_listen_done_badge')}</Badge>
                       </div>
 
                       <div className="flex items-center p-3 bg-primary/5 rounded-lg border border-primary/10">
@@ -670,11 +681,11 @@ const Dashboard = () => {
                           <i className="fas fa-book-open"></i>
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-medium text-gray-800">Okuma Alıştırması</h4>
-                          <p className="text-sm text-gray-600">B1 seviyesinde bir makale oku</p>
+                          <h4 className="font-medium text-gray-800">{t('dashboard_task_read_title')}</h4>
+                          <p className="text-sm text-gray-600">{t('dashboard_task_read_desc')}</p>
                         </div>
                         <Button size="sm" variant="outline" className="ml-2">
-                          Başla
+                          {t('dashboard_task_start_button')}
                         </Button>
                       </div>
 
@@ -683,11 +694,11 @@ const Dashboard = () => {
                           <i className="fas fa-comment"></i>
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-medium text-gray-800">Konuşma Pratiği</h4>
-                          <p className="text-sm text-gray-600">AI asistan ile 5 dakika konuş</p>
+                          <h4 className="font-medium text-gray-800">{t('dashboard_task_speak_title')}</h4>
+                          <p className="text-sm text-gray-600">{t('dashboard_task_speak_desc')}</p>
                         </div>
                         <Button size="sm" variant="outline" className="ml-2">
-                          Başla
+                          {t('dashboard_task_start_button')}
                         </Button>
                       </div>
 
@@ -696,11 +707,11 @@ const Dashboard = () => {
                           <i className="fas fa-pen"></i>
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-medium text-gray-800">Yazma Alıştırması</h4>
-                          <p className="text-sm text-gray-600">Günlük rutininiz hakkında kısa bir paragraf yazın</p>
+                          <h4 className="font-medium text-gray-800">{t('dashboard_task_write_title')}</h4>
+                          <p className="text-sm text-gray-600">{t('dashboard_task_write_desc')}</p>
                         </div>
                         <Button size="sm" variant="outline" className="ml-2">
-                          Başla
+                          {t('dashboard_task_start_button')}
                         </Button>
                       </div>
 
@@ -709,11 +720,11 @@ const Dashboard = () => {
                           <i className="fas fa-brain"></i>
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-medium text-gray-800">Kelime Tekrarı</h4>
-                          <p className="text-sm text-gray-600">Bugün için 15 kelime tekrarı yapın</p>
+                          <h4 className="font-medium text-gray-800">{t('dashboard_task_vocab_title')}</h4>
+                          <p className="text-sm text-gray-600">{t('dashboard_task_vocab_desc')}</p>
                         </div>
                         <Button size="sm" variant="outline" className="ml-2">
-                          Başla
+                          {t('dashboard_task_start_button')}
                         </Button>
                       </div>
                     </div>
@@ -740,14 +751,14 @@ const Dashboard = () => {
               {/* Vocabulary Growth */}
               <Card className="border-none shadow-md hover-lift slideUp">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xl font-bold text-gray-800">Kelime Gelişimi</CardTitle>
-                  <CardDescription>Öğrenilen kelime sayısı</CardDescription>
+                  <CardTitle className="text-xl font-bold text-gray-800">{t('dashboard_vocab_growth_title')}</CardTitle>
+                  <CardDescription>{t('dashboard_vocab_growth_subtitle')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="h-[300px] flex items-center justify-center bg-gray-50 rounded-lg">
                     <div className="text-center">
                       <i className="fas fa-chart-line text-4xl text-gray-300 mb-2"></i>
-                      <p className="text-gray-500">Kelime gelişimi grafiği burada görünecek</p>
+                      <p className="text-gray-500">{t('dashboard_vocab_growth_placeholder')}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -835,7 +846,7 @@ const Dashboard = () => {
                       <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold mr-4 shadow-sm">
                         <i className="fas fa-history"></i>
                       </div>
-                      <h2 className="text-2xl font-bold text-primary tracking-tight">Ses Geçmişim</h2>
+                      <h2 className="text-2xl font-bold text-primary tracking-tight">{t('reading_history_title')}</h2>
                     </div>
                     <Button 
                       onClick={fetchContentHistory}
@@ -846,12 +857,12 @@ const Dashboard = () => {
                       {loadingHistory ? (
                         <>
                           <i className="fas fa-circle-notch fa-spin mr-2"></i>
-                          Yükleniyor
+                          {t('reading_history_refresh_loading')}
                         </>
                       ) : (
                         <>
                           <i className="fas fa-refresh mr-2"></i>
-                          Yenile
+                          {t('reading_history_refresh_button')}
                         </>
                       )}
                     </Button>
@@ -888,7 +899,7 @@ const Dashboard = () => {
                       })}
                     </div>
                     <div className="text-xs text-gray-500 whitespace-nowrap">
-                      {filteredHistory.length} kayıt görüntüleniyor
+                      {filteredHistory.length} {t('reading_history_count_suffix')}
                     </div>
                   </div>
                 </div>
@@ -930,14 +941,14 @@ const Dashboard = () => {
                                 </span>
                               </div>
                               <div className="mb-2">
-                                <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">İngilizce Metin (Seviyenize Uyarlanmış):</h4>
+                                <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">{t('reading_history_adapted_title')}</h4>
                                 <p className="text-sm text-gray-700 line-clamp-2">
                                   {item.adapted_text || item.input}
                                 </p>
                                 {item.adapted_text && (
                                   <details className="mt-2">
                                     <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
-                                      Orijinal Türkçe metni göster
+                                      {t('reading_history_show_original')}
                                     </summary>
                                     <p className="text-xs text-gray-500 mt-1 p-2 bg-gray-100 rounded">
                                       {item.input}
@@ -948,7 +959,7 @@ const Dashboard = () => {
                             </div>
                             <div className="flex items-center gap-2">
                               <div className="text-xs text-gray-500">
-                                {expandedHistoryItem === item.id ? 'Daralt' : 'Oynatıcıyı Aç'}
+                                {expandedHistoryItem === item.id ? t('reading_history_collapse') : t('reading_history_open_player')}
                               </div>
                               <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
                             </div>
@@ -963,6 +974,9 @@ const Dashboard = () => {
                                 mp3_url: item.mp3_url,
                                 vtt_url: item.mp3_url.replace('.mp3', '.vtt'),
                                 level: item.level,
+                                adapted_text: item.adapted_text || item.input,
+                                translated_text: item.input, // Original Turkish text
+                                topic: getHistoryTypeLabel(item.input_type),
                                 timepoints: Array.isArray(item.timepoints)
                                   ? item.timepoints
                                   : item.timepoints
@@ -996,7 +1010,7 @@ const Dashboard = () => {
                                 }}
                               >
                                 <i className="fas fa-external-link-alt mr-2"></i>
-                                Yeni Sekmede Aç
+                                {t('reading_history_open_new_tab')}
                               </Button>
 
                               <Button
@@ -1009,7 +1023,7 @@ const Dashboard = () => {
                                 }}
                               >
                                 <i className="fas fa-times mr-2"></i>
-                                Kapat
+                                {t('reading_history_close')}
                               </Button>
                             </div>
                           </div>
@@ -1025,7 +1039,7 @@ const Dashboard = () => {
                           onClick={() => setShowAllHistory(!showAllHistory)}
                         >
                           <i className={`fas ${showAllHistory ? 'fa-chevron-up' : 'fa-chevron-down'} mr-2`}></i>
-                          {showAllHistory ? 'Daha Az Göster' : 'Daha Fazla Göster'}
+                          {showAllHistory ? t('reading_history_show_less') : t('reading_history_show_more')}
                         </Button>
                       </div>
                     )}
@@ -1035,8 +1049,8 @@ const Dashboard = () => {
                     <div className="text-gray-400 mb-4">
                       <i className="fas fa-microphone-slash text-4xl"></i>
                     </div>
-                    <h3 className="text-lg font-medium text-gray-500 mb-2">Henüz ses kaydınız yok</h3>
-                    <p className="text-gray-400">İlk ses kaydınızı oluşturmak için dinleme sayfasını kullanabilirsiniz.</p>
+                    <h3 className="text-lg font-medium text-gray-500 mb-2">{t('reading_history_empty_title')}</h3>
+                    <p className="text-gray-400">{t('reading_history_empty_desc')}</p>
                   </div>
                 )}
               </CardContent>
@@ -1049,10 +1063,10 @@ const Dashboard = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
                   <i className="fas fa-sitemap mr-2 text-primary"></i>
-                  Konu Ağacım
+                  {t('topics_tree_title')}
                 </CardTitle>
                 <CardDescription>
-                  Ana konularını oluştur, AI ile alt konu önerileri al ve her seviyeden sesli içerik üret.
+                  {t('topics_tree_description')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1068,8 +1082,8 @@ const Dashboard = () => {
           <TabsContent value="hobbies" className="mt-0">
             <Card className="border-none shadow-md">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-bold text-gray-800">Hobilerim</CardTitle>
-                <CardDescription>Profilinizde kayıtlı ilgi alanlarınızı burada görüntüleyip güncelleyebilirsiniz.</CardDescription>
+                <CardTitle className="text-xl font-bold text-gray-800">{t('hobbies_title')}</CardTitle>
+                <CardDescription>{t('hobbies_description')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="max-w-xl">
@@ -1085,7 +1099,7 @@ const Dashboard = () => {
             {favoriteBooksLoading && (
               <div className="text-center py-6 text-gray-500">
                 <i className="fas fa-spinner fa-spin text-xl mr-2"></i>
-                Favori kitaplar yükleniyor...
+                {t('favorite_books_loading')}
               </div>
             )}
 
@@ -1097,7 +1111,7 @@ const Dashboard = () => {
 
             {!favoriteBooksLoading && !favoriteBooksError && favoriteBooks.length > 0 && (
               <div className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">Favori Kitaplarım</h3>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">{t('favorite_books_title')}</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {favoriteBooks.map((book) => (
                     <div
@@ -1125,12 +1139,12 @@ const Dashboard = () => {
                           <p className="text-xs text-gray-500 mb-2 line-clamp-1">{book.subjects}</p>
                         )}
                         <div className="mt-auto pt-2 flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Favori kitap</span>
+                          <span className="text-xs text-gray-500">{t('favorite_book_chip_label')}</span>
                           <Link
                             href="/welcome?contentType=book"
                             className="text-xs font-medium text-primary hover:underline flex items-center"
                           >
-                            Kitapla Çalış
+                            {t('book_work_with_book')}
                             <i className="fas fa-arrow-right ml-1"></i>
                           </Link>
                         </div>
@@ -1145,7 +1159,7 @@ const Dashboard = () => {
             {bookHistoryLoading && (
               <div className="text-center py-6 text-gray-500">
                 <i className="fas fa-spinner fa-spin text-xl mr-2"></i>
-                Kitap dinleme geçmişi yükleniyor...
+                {t('book_history_loading')}
               </div>
             )}
 
@@ -1158,13 +1172,13 @@ const Dashboard = () => {
             {!bookHistoryLoading && !bookHistoryError && bookHistory.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 <i className="fas fa-book-open text-4xl mb-3"></i>
-                <p>Henüz kitap bölümü dinlemediniz.</p>
+                <p>{t('book_history_empty_title')}</p>
                 <p className="text-sm text-gray-400 mt-1">
-                  İlk kitabınızı{' '}
+                  {t('book_history_empty_desc_prefix')}{' '}
                   <Link href="/welcome" className="text-primary underline">
-                    Ana Sayfa
+                    {t('book_history_empty_desc_link')}
                   </Link>
-                  {' '}üzerindeki Kitap sekmesinden seçebilirsiniz.
+                  {' '}{t('book_history_empty_desc_suffix')}
                 </p>
               </div>
             )}
@@ -1173,7 +1187,7 @@ const Dashboard = () => {
               <div className="space-y-8">
                 {/* Son dinlenen kitaplar - kart grid */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Son Dinlenen Kitaplar</h3>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">{t('book_recent_books_title')}</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {Object.values(
                       bookHistory.reduce((acc: Record<string, any>, item) => {
@@ -1223,13 +1237,13 @@ const Dashboard = () => {
                           )}
                           <div className="flex items-center justify-between mt-auto pt-2">
                             <span className="text-xs text-gray-500">
-                              {book.chapterCount} bölüm dinlendi
+                              {book.chapterCount} {t('book_chapters_listened_suffix')}
                             </span>
                             <Link
                               href="/welcome?contentType=book"
                               className="text-xs font-medium text-primary hover:underline flex items-center"
                             >
-                              Devam Et
+                              {t('book_continue_button')}
                               <i className="fas fa-arrow-right ml-1"></i>
                             </Link>
                           </div>
@@ -1241,7 +1255,7 @@ const Dashboard = () => {
 
                 {/* Son dinlenen bölümler listesi */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Son Dinlediğiniz Bölümler</h3>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">{t('book_recent_chapters_title')}</h3>
                   <div className="space-y-3">
                     {bookHistory.slice(0, 15).map((item) => (
                       <div
@@ -1257,10 +1271,10 @@ const Dashboard = () => {
                               {item.book_title}
                             </p>
                             <p className="text-xs text-gray-600 line-clamp-1">
-                              Bölüm {item.chapter_index}: {item.chapter_title}
+                              {t('book_chapter_label')} {item.chapter_index}: {item.chapter_title}
                             </p>
                             <p className="text-xs text-gray-400">
-                              Seviye: {item.level.toUpperCase()} • {Math.round(item.duration)} sn • {new Date(item.created_at).toLocaleDateString()}
+                              {t('book_level_label')}: {item.level.toUpperCase()} • {Math.round(item.duration)} {t('book_seconds_suffix')} • {new Date(item.created_at).toLocaleDateString()}
                             </p>
                           </div>
                         </div>
@@ -1268,7 +1282,7 @@ const Dashboard = () => {
                           href="/welcome?contentType=book"
                           className="text-xs font-medium text-primary hover:underline flex items-center"
                         >
-                          Dinle
+                          {t('book_listen_button')}
                           <i className="fas fa-play ml-1"></i>
                         </Link>
                       </div>
@@ -1282,8 +1296,8 @@ const Dashboard = () => {
           <TabsContent value="podcasts" className="mt-0">
             <div className="text-center py-8">
               <i className="fas fa-podcast text-4xl text-gray-300 mb-2"></i>
-              <h3 className="text-lg font-medium text-gray-700">Podcastlerim</h3>
-              <p className="text-sm text-gray-500">Podcast dinleme geçmişiniz burada görünecek.</p>
+              <h3 className="text-lg font-medium text-gray-700">{t('podcasts_title')}</h3>
+              <p className="text-sm text-gray-500">{t('podcasts_description')}</p>
             </div>
           </TabsContent>
 
@@ -1292,11 +1306,11 @@ const Dashboard = () => {
               <Card className="border-none shadow-md lg:col-span-1">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg font-bold text-gray-800 flex items-center justify-between">
-                    <span>Dokümanlarım</span>
+                    <span>{t('docs_title')}</span>
                     <i className="fas fa-file-alt text-primary"></i>
                   </CardTitle>
                   <CardDescription>
-                    PDF veya metin olarak içeri aldığınız dokümanlar.
+                    {t('docs_description')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1310,7 +1324,7 @@ const Dashboard = () => {
                     </div>
                   ) : documents.length === 0 ? (
                     <div className="text-center py-6 text-sm text-gray-500">
-                      Henüz hiç doküman eklemediniz. Dinleme sayfasından bir doküman yükleyebilirsiniz.
+                      {t('docs_empty_left')}
                     </div>
                   ) : (
                     <ScrollArea className="h-[320px] pr-3">
@@ -1333,7 +1347,7 @@ const Dashboard = () => {
                               <div className="text-xs text-gray-500 mt-1 flex items-center justify-between">
                                 <span>{new Date(doc.created_at).toLocaleDateString()}</span>
                                 {doc.page_count != null && (
-                                  <span className="ml-2">{doc.page_count} sayfa</span>
+                                  <span className="ml-2">{doc.page_count} {t('docs_page_suffix')}</span>
                                 )}
                               </div>
                             </button>
@@ -1349,23 +1363,23 @@ const Dashboard = () => {
                 <CardHeader className="pb-2 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                   <div>
                     <CardTitle className="text-lg font-bold text-gray-800">
-                      {selectedDocument ? selectedDocument.title : 'Bir doküman seçin'}
+                      {selectedDocument ? selectedDocument.title : t('docs_select_prompt')}
                     </CardTitle>
                     <CardDescription>
-                      Doküman bölümlerini burada görebilirsiniz.
+                      {t('docs_sections_description')}
                     </CardDescription>
                   </div>
                   {selectedDocument && (
                     <Badge className="bg-primary/10 text-primary border border-primary/30">
                       <i className="fas fa-layer-group mr-1"></i>
-                      {documentSections.length} bölüm
+                      {documentSections.length} {t('docs_section_count_suffix')}
                     </Badge>
                   )}
                 </CardHeader>
                 <CardContent>
                   {!selectedDocument ? (
                     <div className="h-[320px] flex items-center justify-center text-sm text-gray-500">
-                      Soldan bir doküman seçerek bölümlerini görebilirsiniz.
+                      {t('docs_select_prompt')}
                     </div>
                   ) : sectionsLoading ? (
                     <div className="h-[320px] flex items-center justify-center">
@@ -1377,7 +1391,7 @@ const Dashboard = () => {
                     </div>
                   ) : documentSections.length === 0 ? (
                     <div className="h-[320px] flex items-center justify-center text-sm text-gray-500">
-                      Bu doküman için bölüm bulunamadı.
+                      {t('docs_no_sections')}
                     </div>
                   ) : (
                     <ScrollArea className="h-[320px] pr-3">
@@ -1389,10 +1403,10 @@ const Dashboard = () => {
                           >
                             <div className="flex items-center justify-between mb-1">
                               <div className="text-sm font-semibold text-gray-800 truncate mr-2">
-                                {section.section_index}. {section.section_title || 'Bölüm'}
+                                {section.section_index}. {section.section_title || t('docs_section_fallback_title')}
                               </div>
                               <span className="text-xs text-gray-500 whitespace-nowrap">
-                                {section.word_count || 0} kelime
+                                {section.word_count || 0} {t('docs_words_suffix')}
                               </span>
                             </div>
                             <p className="text-xs text-gray-600 line-clamp-2 whitespace-pre-line">

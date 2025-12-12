@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '../src/lib/auth';
 import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
+import { useTranslation } from '../src/lib/i18n';
 
 export default function Fiyatlandirma() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+  const { t } = useTranslation();
 
   const [plans, setPlans] = useState<any[]>([]);
   const [loadingPlans, setLoadingPlans] = useState<boolean>(true);
@@ -32,7 +34,7 @@ export default function Fiyatlandirma() {
         }
 
         if (!token) {
-          throw new Error('Planlar getirilemedi');
+          throw new Error(t('pricing_error'));
         }
 
         const res2 = await fetch('/api/admin/plans', {
@@ -40,18 +42,18 @@ export default function Fiyatlandirma() {
         });
         const json2 = await res2.json();
         if (!res2.ok || !json2?.success) {
-          throw new Error(json2?.message || 'Planlar getirilemedi');
+          throw new Error(json2?.message || t('pricing_error'));
         }
         setPlans((json2.data || []).filter((p: any) => p.is_active));
       } catch (e: any) {
-        setPlansError(e?.message || 'Planlar getirilemedi');
+        setPlansError(e?.message || t('pricing_error'));
       } finally {
         setLoadingPlans(false);
       }
     };
 
     fetchPlans();
-  }, []);
+  }, [t]);
 
   const handlePlanSelect = (planId: string) => {
     if (!isAuthenticated) {
@@ -66,8 +68,8 @@ export default function Fiyatlandirma() {
   return (
     <div className="min-h-screen flex flex-col bg-background font-['Roboto',sans-serif]">
       <Head>
-        <title>Fiyatlandırma | LingRoot</title>
-        <meta name="description" content="LingRoot fiyatlandırma seçenekleri. Bütçenize ve ihtiyaçlarınıza uygun planı seçin." />
+        <title>{t('pricing')} | LingRoot</title>
+        <meta name="description" content={t('pricing_hero_desc')} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/lingroot-icon.svg" />
         <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&family=Lato:wght@400;700&display=swap" rel="stylesheet" />
@@ -91,56 +93,56 @@ export default function Fiyatlandirma() {
               href="/about"
               className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base"
             >
-              Hakkımızda
+              {t('about')}
             </Link>
-            <a
-              href="#nasil-calisir"
+            <Link
+              href="/nasil-calisir"
               className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base"
             >
-              Nasıl Çalışır?
-            </a>
-            <a
-              href="#ozellikler"
+              {t('how_it_works')}
+            </Link>
+            <Link
+              href="/ozellikler"
               className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base"
             >
-              Özellikler
-            </a>
-            <a
-              href="#yorumlar"
+              {t('features')}
+            </Link>
+            <Link
+              href="/fiyatlandirma"
+              className="text-primary hover:text-primary/80 transition-colors duration-200 cursor-pointer text-sm lg:text-base font-semibold"
+            >
+              {t('pricing')}
+            </Link>
+            <Link
+              href="/blog"
               className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base"
             >
-              Kullanıcı Yorumları
-            </a>
-            <a
-              href="#blog"
-              className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base"
-            >
-              Blog
-            </a>
+              {t('blog')}
+            </Link>
           </div>
 
           {/* Desktop Buttons */}
           <div className="hidden md:flex items-center space-x-4">
             <Link href="/login">
               <Button variant="outline" className="!rounded-button whitespace-nowrap">
-                Giriş Yap
+                {t('login')}
               </Button>
             </Link>
             <Link href="/register">
-              <Button className="!rounded-button whitespace-nowrap">Ücretsiz Kaydol</Button>
+              <Button className="!rounded-button whitespace-nowrap">{t('register_now')}</Button>
             </Link>
           </div>
 
           {/* Simple mobile actions */}
           <div className="md:hidden flex items-center space-x-3">
             <Link href="/login" className="text-sm text-gray-600 hover:text-primary">
-              Giriş Yap
+              {t('login')}
             </Link>
             <Link
               href="/register"
               className="px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-md hover:bg-primary/90"
             >
-              Ücretsiz Kaydol
+              {t('register_now')}
             </Link>
           </div>
         </div>
@@ -152,13 +154,13 @@ export default function Fiyatlandirma() {
           <div className="max-w-6xl mx-auto text-center">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
               <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
-              Planlar ve Fiyatlar
+              {t('pricing_hero_badge')}
             </div>
             <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
-              LingRoot <span className="text-primary">Fiyatlandırma</span>
+              {t('pricing_hero_title')} <span className="text-primary">{t('pricing_hero_highlight')}</span>
             </h1>
             <p className="text-xl md:text-2xl text-white/80 max-w-4xl mx-auto leading-relaxed">
-              İhtiyaçlarınıza en uygun planı seçin ve İngilizce öğrenme serüvenize hemen başlayın.
+              {t('pricing_hero_desc')}
             </p>
           </div>
         </section>
@@ -167,11 +169,11 @@ export default function Fiyatlandirma() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                Size Uygun <span className="text-primary">Planı Seçin</span>
+                {t('pricing_main_title')} <span className="text-primary">{t('pricing_main_highlight')}</span>
               </h2>
             </div>
             {loadingPlans && (
-              <div className="text-center text-gray-600">Paketler yükleniyor...</div>
+              <div className="text-center text-gray-600">{t('pricing_loading')}</div>
             )}
             {plansError && !loadingPlans && (
               <div className="text-center text-red-600">{plansError}</div>
@@ -183,6 +185,7 @@ export default function Fiyatlandirma() {
                   const isYearly = plan.interval === 'yearly';
                   const isPopular = !isFree && !isYearly;
                   const rawFeatures = Array.isArray(plan.features) ? plan.features : [];
+                  // Feature localization logic maintained as requested
                   const localizedFeatures = rawFeatures
                     .map((f: any) => {
                       if (typeof f !== 'string') return null;
@@ -196,9 +199,10 @@ export default function Fiyatlandirma() {
                       return trimmed;
                     })
                     .filter((f: any) => f);
+                    
                   const intervalLabel =
-                    plan.interval === 'yearly' ? 'yıl' : plan.interval === 'monthly' ? 'ay' : '';
-                  const buttonLabel = isFree ? 'Ücretsiz Başla' : isYearly ? 'Yıllık Abone Ol' : 'Hemen Başla';
+                    plan.interval === 'yearly' ? t('pricing_interval_year') : plan.interval === 'monthly' ? t('pricing_interval_month') : '';
+                  const buttonLabel = isFree ? t('pricing_button_free') : isYearly ? t('pricing_button_yearly') : t('pricing_button_start');
                   const cardClasses = isPopular
                     ? 'bg-muted rounded-2xl border-2 border-primary shadow-2xl hover:shadow-3xl transition-all duration-300 transform md:hover:scale-105 z-10 overflow-hidden hover:-translate-y-2'
                     : isFree
@@ -219,37 +223,38 @@ export default function Fiyatlandirma() {
                   let marketingBullets: string[] = [];
 
                   if (isFree && (planName.includes('free') || planName.includes('trial') || planName.includes('ücretsiz'))) {
-                    marketingDescription = 'Platformu risksiz denemek için tasarlanmış ücretsiz başlangıç paketi.';
+                    marketingDescription = t('pricing_free_desc');
                     marketingBullets = [
-                      'Sınırlı sayıda kısa ses üretimi ile LingRoot deneyimini risksiz keşfedin',
-                      'Tüm CEFR seviyeleri (A1–C1) için örnek içeriklere erişim',
-                      'Standart ses kalitesi (Standard kategori)',
-                      'Metinden hızlı ses oluşturma deneyimi',
+                      t('pricing_free_feature1'),
+                      t('pricing_free_feature2'),
+                      t('pricing_free_feature3'),
+                      t('pricing_free_feature4'),
                     ];
                   } else if (planName.includes('gold')) {
-                    marketingDescription =
-                      'Her gün düzenli İngilizce dinleme ve tekrar yapmak isteyenler için ideal günlük pratik paketi.';
+                    marketingDescription = t('pricing_gold_desc');
                     marketingBullets = [
-                      'Hedef kullanım: günde ortalama ~1 saat İngilizce dinleme ve pratik senaryoları',
-                      'Gerçek dakikalar; seçilen ses kalitesi ve adil kullanım limitlerine göre sistem tarafından otomatik yönetilir',
-                      'Standart + Premium (Wavenet / Neural2) ses kalitesi – daha doğal ve akıcı sesler',
-                      'Metin, konu, kitap ve dokümanlardan ses oluşturma',
+                      t('pricing_gold_feature1'),
+                      t('pricing_gold_feature2'),
+                      t('pricing_gold_feature3'),
+                      t('pricing_gold_feature4'),
                     ];
                   } else if (planName.includes('platin') || planName.includes('platinum')) {
-                    marketingDescription =
-                      'Yoğun içerik üretenler, öğretmenler ve ileri seviye kullanıcılar için tasarlanmış profesyonel paket.';
+                    marketingDescription = t('pricing_platinum_desc');
                     marketingBullets = [
-                      'Hedef kullanım: günde ~3 saate kadar yoğun pratik ve içerik üretimi',
-                      'Gerçek sınırlar; API maliyetine göre adil kullanım politikasıyla sistem tarafından takip edilir',
-                      'Tüm ses kategorileri: Standard, Premium (Wavenet / Neural2), Studio ve 3D (Chirp3D)',
-                      'Uzun metinler ve çok bölümlü içerikler için yüksek toplam dakika potansiyeli',
+                      t('pricing_platinum_feature1'),
+                      t('pricing_platinum_feature2'),
+                      t('pricing_platinum_feature3'),
+                      t('pricing_platinum_feature4'),
                     ];
                   }
 
                   const combinedFeatures: string[] =
                     marketingBullets.length > 0 || marketingDescription
-                      ? [...marketingBullets, ...sanitizedFeatures]
+                      ? [...marketingBullets]
                       : sanitizedFeatures;
+                  
+                  const finalFeatures = combinedFeatures;
+
 
                   return (
                     <div key={plan.id} className={cardClasses}>
@@ -257,7 +262,7 @@ export default function Fiyatlandirma() {
                         {isPopular && (
                           <div className="absolute top-0 right-0 mt-3 mr-4">
                             <div className="bg-orange-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-lg">
-                              EN POPÜLER
+                              {t('pricing_popular_badge')}
                             </div>
                           </div>
                         )}
@@ -287,9 +292,9 @@ export default function Fiyatlandirma() {
                             {marketingDescription || plan.description}
                           </p>
                         )}
-                        {combinedFeatures.length > 0 && (
+                        {finalFeatures.length > 0 && (
                           <ul className="space-y-3 mb-6">
-                            {combinedFeatures.map((feature: any, index: number) => (
+                            {finalFeatures.map((feature: any, index: number) => (
                               <li key={index} className="flex items-start">
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"
@@ -341,48 +346,41 @@ export default function Fiyatlandirma() {
 
         <section className="py-12 bg-gray-50">
           <div className="max-w-6xl mx-auto px-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-8 text-center">Sık Sorulan Sorular</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-8 text-center">{t('pricing_faq_title')}</h2>
 
             <div className="space-y-6 max-w-4xl mx-auto">
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-[#28a745] mb-2">Üyelik planları arasında nasıl geçiş yapabilirim?</h3>
+                <h3 className="text-lg font-bold text-[#28a745] mb-2">{t('pricing_faq_q1')}</h3>
                 <p className="text-gray-600">
-                  Hesap ayarlarınızdan dilediğiniz zaman planınızı yükseltebilir veya değiştirebilirsiniz. Yıllık plandan aylık
-                  plana geçiş yapmak isterseniz, mevcut abonelik sürenizin sonunda değişiklik gerçekleşir.
+                  {t('pricing_faq_a1')}
                 </p>
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-[#28a745] mb-2">Ödememi nasıl yapabilirim?</h3>
+                <h3 className="text-lg font-bold text-[#28a745] mb-2">{t('pricing_faq_q2')}</h3>
                 <p className="text-gray-600">
-                  Kredi kartı, banka kartı veya PayPal ile güvenli ödeme yapabilirsiniz. Tüm ödemeler SSL ile şifrelenir ve
-                  bilgileriniz güvende tutulur.
+                  {t('pricing_faq_a2')}
                 </p>
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-[#28a745] mb-2">İade politikanız nedir?</h3>
+                <h3 className="text-lg font-bold text-[#28a745] mb-2">{t('pricing_faq_q3')}</h3>
                 <p className="text-gray-600">
-                  Satın alma işleminizden itibaren 14 gün içerisinde, herhangi bir sebep belirtmeden iade talep edebilirsiniz.
-                  İade talepleri için destek ekibimizle iletişime geçmeniz yeterlidir.
+                  {t('pricing_faq_a3')}
                 </p>
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-[#28a745] mb-2">Ücretsiz plan ile ne kadar ileri gidebilirim?</h3>
+                <h3 className="text-lg font-bold text-[#28a745] mb-2">{t('pricing_faq_q4')}</h3>
                 <p className="text-gray-600">
-                  Ücretsiz planımız, platformumuzun temel özelliklerini denemeniz için tasarlanmıştır. Sınırlı sayıda ve
-                  sürede kısa sesler üreterek LingRoot deneyimini risksiz keşfedebilirsiniz. Daha uzun ve düzenli günlük
-                  kullanım için Gold ve Platin planlarımızı öneririz.
+                  {t('pricing_faq_a4')}
                 </p>
               </div>
 
               <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-[#28a745] mb-2">Planlarınız sınırsız mı?</h3>
+                <h3 className="text-lg font-bold text-[#28a745] mb-2">{t('pricing_faq_q5')}</h3>
                 <p className="text-gray-600">
-                  Hayır. Tüm planlarımızda kullanım, altyapı sağlayıcılarının maliyetlerine göre belirlenen adil kullanım
-                  limitleri ile otomatik olarak takip edilir. Hedef profil olarak Gold plan günlük yaklaşık ~1 saat, Platin
-                  plan ise günde ~3 saate kadar yoğun kullanım senaryolarına göre tasarlanmıştır.
+                  {t('pricing_faq_a5')}
                 </p>
               </div>
             </div>
@@ -391,16 +389,15 @@ export default function Fiyatlandirma() {
 
         <section className="py-16 bg-[#f1f9ee]">
           <div className="max-w-4xl mx-auto px-6 text-center">
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">Hala kararsız mısınız?</h2>
+            <h2 className="text-3xl font-bold text-gray-800 mb-4">{t('pricing_cta_title')}</h2>
             <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-              Risk almadan ücretsiz planımızla başlayın ve LingRoot'un İngilizce öğrenme deneyiminizi nasıl tamamen
-              değiştireceğini keşfedin.
+              {t('pricing_cta_desc')}
             </p>
             <Link
               href="/register"
               className="inline-block px-8 py-4 bg-[#fd7e14] text-white rounded shadow-md font-medium hover:bg-[#e76b02] transition-colors text-lg"
             >
-              Ücretsiz Hesap Oluştur
+              {t('pricing_cta_button')}
             </Link>
           </div>
         </section>

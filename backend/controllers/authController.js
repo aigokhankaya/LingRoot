@@ -82,19 +82,19 @@ exports.refreshToken = async (req, res) => {
     }
 
     if (!refreshToken) {
-      return res.status(400).json({ success: false, message: 'Refresh token gerekli' });
+      return res.status(400).json({ success: false, code: 'TOKEN_REQUIRED', message: 'Refresh token gerekli' });
     }
 
     let payload;
     try {
       payload = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
     } catch (e) {
-      return res.status(401).json({ success: false, message: 'Invalid token' });
+      return res.status(401).json({ success: false, code: 'INVALID_TOKEN', message: 'Invalid token' });
     }
 
     const userId = payload && payload.id;
     if (!userId) {
-      return res.status(401).json({ success: false, message: 'Invalid token' });
+      return res.status(401).json({ success: false, code: 'INVALID_TOKEN', message: 'Invalid token' });
     }
 
     // Ensure user still exists and is active
@@ -104,10 +104,10 @@ exports.refreshToken = async (req, res) => {
       .eq('id', userId)
       .maybeSingle();
     if (error || !user) {
-      return res.status(401).json({ success: false, message: 'Invalid token' });
+      return res.status(401).json({ success: false, code: 'INVALID_TOKEN', message: 'Invalid token' });
     }
     if (!user.isverified) {
-      return res.status(403).json({ success: false, message: 'Hesap doğrulanmamış' });
+      return res.status(403).json({ success: false, code: 'EMAIL_NOT_VERIFIED', message: 'Hesap doğrulanmamış' });
     }
 
     const accessToken = generateToken(user.id, user.email, user.role, true);
@@ -181,12 +181,13 @@ exports.register = async (req, res) => {
       inputData: req.body
     });
     logger.info("Register request received", { body: req.body });
-    const { firstName, lastName, email, phoneNumber, password } = req.body;
+    const { firstName, lastName, email, phoneNumber, password, locale } = req.body;
 
     // Validate required fields
     if (!firstName || !lastName || !email || !phoneNumber || !password) {
       return res.status(400).json({
         success: false,
+        code: 'INVALID_INPUT',
         message: "Lütfen tüm zorunlu alanları doldurun (isim, soyisim, e-posta, telefon ve şifre)"
       });
     }
@@ -194,18 +195,18 @@ exports.register = async (req, res) => {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({ success: false, message: "Geçersiz e-posta formatı" });
+      return res.status(400).json({ success: false, code: 'INVALID_EMAIL', message: "Geçersiz e-posta formatı" });
     }
 
     // Validate phone number format (simple validation, can be enhanced)
     const phoneRegex = /^\+?[1-9]\d{1,14}$/;
     if (!phoneRegex.test(phoneNumber)) {
-      return res.status(400).json({ success: false, message: "Geçersiz telefon numarası formatı" });
+      return res.status(400).json({ success: false, code: 'INVALID_PHONE', message: "Geçersiz telefon numarası formatı" });
     }
 
     // Validate password length
     if (password.length < 6) {
-      return res.status(400).json({ success: false, message: "Şifre en az 6 karakter olmalıdır" });
+      return res.status(400).json({ success: false, code: 'PASSWORD_TOO_SHORT', message: "Şifre en az 6 karakter olmalıdır" });
     }
 
     // Check if email already exists
@@ -217,7 +218,7 @@ exports.register = async (req, res) => {
     if (fetchError) logger.error('[REGISTER] Error fetching user for register:', fetchError);
 
     if (existingUser) {
-      return res.status(400).json({ success: false, message: "Bu e-posta adresi zaten kullanılıyor" });
+      return res.status(400).json({ success: false, code: 'EMAIL_IN_USE', message: "Bu e-posta adresi zaten kullanılıyor" });
     }
 
     // Check if phone number already exists
@@ -229,7 +230,7 @@ exports.register = async (req, res) => {
     if (phoneFetchError) logger.error('[REGISTER] Error fetching phone for register:', phoneFetchError);
 
     if (existingPhone) {
-      return res.status(400).json({ success: false, message: "Bu telefon numarası zaten kullanılıyor" });
+      return res.status(400).json({ success: false, code: 'PHONE_IN_USE', message: "Bu telefon numarası zaten kullanılıyor" });
     }
 
     const hashedPassword = await bcrypt.hash(password, await bcrypt.genSalt(10));
@@ -245,9 +246,11 @@ exports.register = async (req, res) => {
           password: hashedPassword,
           role: "user",
           isverified: false,
+          verificationtoken: null, // Use explicit null instead of relying on default
           dailycontentused: 0,
           lastcontentdate: null,
           stripecustomerid: null,
+          locale: locale || 'tr', // Default to 'tr' if not provided
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }
@@ -257,7 +260,7 @@ exports.register = async (req, res) => {
 
     if (insertError || !newUser?.length) {
       logger.error("User registration error:", insertError);
-      return res.status(500).json({ success: false, message: "Kullanıcı kaydı sırasında bir hata oluştu" });
+      return res.status(500).json({ success: false, code: 'REGISTRATION_FAILED', message: "Kullanıcı kaydı sırasında bir hata oluştu" });
     }
 
     const token = generateToken(newUser[0].id, newUser[0].email, newUser[0].role, false);
@@ -388,7 +391,7 @@ exports.register = async (req, res) => {
       error
     });
     logger.error("Registration error", error);
-    return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
+    return res.status(500).json({ success: false, code: 'SERVER_ERROR', message: error.message || "Sunucu hatası" });
   }
 };
 
@@ -398,7 +401,7 @@ exports.login = async (req, res) => {
     console.log("[LOGIN] Gelen istek verisi:", req.body); // Bunu ekle
     const { email, password, rememberMe } = req.body;
     if (!email || !password) {
-      return res.status(400).json({ success: false, message: "Lütfen e-posta ve şifre girin" });
+      return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: "Lütfen e-posta ve şifre girin" });
     }
 
     // Mock auth disabled in production
@@ -416,7 +419,7 @@ exports.login = async (req, res) => {
       if (user?.id) {
         await recordLoginAttempt(user.id, req, { success: false, message: 'invalid_credentials' });
       }
-      return res.status(401).json({ success: false, message: "Geçersiz e-posta veya şifre" });
+      return res.status(401).json({ success: false, code: 'INVALID_CREDENTIALS', message: "Geçersiz e-posta veya şifre" });
     }
 
     // Require verified email before allowing login
@@ -463,7 +466,7 @@ exports.login = async (req, res) => {
 
   } catch (error) {
     logger.error("Login error", error);
-    return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
+    return res.status(500).json({ success: false, code: 'SERVER_ERROR', message: error.message || "Sunucu hatası" });
   }
 };
 
@@ -477,7 +480,7 @@ exports.getCurrentUser = async (req, res) => {
       .single();
 
     if (error || !user) {
-      return res.status(404).json({ success: false, message: "Kullanıcı bulunamadı" });
+      return res.status(404).json({ success: false, code: 'USER_NOT_FOUND', message: "Kullanıcı bulunamadı" });
     }
 
     // Remove sensitive data
@@ -492,7 +495,7 @@ exports.getCurrentUser = async (req, res) => {
     return res.status(200).json({ success: true, user });
   } catch (error) {
     logger.error("Get current user error", error);
-    return res.status(500).json({ success: false, message: "Sunucu hatası" });
+    return res.status(500).json({ success: false, code: 'SERVER_ERROR', message: "Sunucu hatası" });
   }
 };
 
@@ -502,7 +505,7 @@ exports.facebookLogin = async (req, res) => {
     const { credential, rememberMe } = req.body;
     
     if (!credential) {
-      return res.status(400).json({ success: false, message: "Facebook access token gerekli" });
+      return res.status(400).json({ success: false, code: 'MISSING_TOKEN', message: "Facebook access token gerekli" });
     }
 
     // Facebook Graph API'den kullanıcı bilgilerini al
@@ -518,13 +521,13 @@ exports.facebookLogin = async (req, res) => {
       console.log('[FACEBOOK_LOGIN] Kullanıcı bilgileri alındı:', { email: facebookUser.email, name: facebookUser.name });
     } catch (fbError) {
       logger.error('[FACEBOOK_LOGIN] Facebook API hatası:', fbError);
-      return res.status(400).json({ success: false, message: "Geçersiz Facebook access token" });
+      return res.status(400).json({ success: false, code: 'INVALID_TOKEN', message: "Geçersiz Facebook access token" });
     }
 
     const { email, name, first_name, last_name } = facebookUser;
     
     if (!email) {
-      return res.status(400).json({ success: false, message: "Facebook hesabından email alınamadı" });
+      return res.status(400).json({ success: false, code: 'EMAIL_REQUIRED', message: "Facebook hesabından email alınamadı" });
     }
 
     // Kullanıcının zaten var olup olmadığını kontrol et
@@ -536,7 +539,7 @@ exports.facebookLogin = async (req, res) => {
 
     if (fetchError) {
       logger.error('[FACEBOOK_LOGIN] Kullanıcı sorgulama hatası:', fetchError);
-      return res.status(500).json({ success: false, message: "Veritabanı hatası" });
+      return res.status(500).json({ success: false, code: 'DB_ERROR', message: "Veritabanı hatası" });
     }
 
     let user;
@@ -561,7 +564,7 @@ exports.facebookLogin = async (req, res) => {
 
       if (updateError) {
         logger.error('[FACEBOOK_LOGIN] Kullanıcı güncelleme hatası:', updateError);
-        return res.status(500).json({ success: false, message: "Kullanıcı güncellenemedi" });
+        return res.status(500).json({ success: false, code: 'UPDATE_FAILED', message: "Kullanıcı güncellenemedi" });
       }
 
       user = updatedUser;
@@ -593,7 +596,7 @@ exports.facebookLogin = async (req, res) => {
 
       if (createError) {
         logger.error('[FACEBOOK_LOGIN] Kullanıcı oluşturma hatası:', createError);
-        return res.status(500).json({ success: false, message: "Kullanıcı oluşturulamadı" });
+        return res.status(500).json({ success: false, code: 'CREATE_FAILED', message: "Kullanıcı oluşturulamadı" });
       }
 
       user = createdUser;
@@ -641,7 +644,7 @@ exports.facebookLogin = async (req, res) => {
 
   } catch (error) {
     logger.error("Facebook login error", error);
-    return res.status(500).json({ success: false, message: error.message || "Sunucu hatası" });
+    return res.status(500).json({ success: false, code: 'SERVER_ERROR', message: error.message || "Sunucu hatası" });
   }
 };
 
@@ -743,7 +746,7 @@ exports.googleLogin = async (req, res) => {
 
       if (updateError) {
         logger.error('[GOOGLE_LOGIN] Kullanıcı güncelleme hatası:', updateError);
-        return res.status(500).json({ success: false, message: "Kullanıcı güncellenemedi" });
+        return res.status(500).json({ success: false, code: 'UPDATE_FAILED', message: "Kullanıcı güncellenemedi" });
       }
 
       user = updatedUser;
@@ -773,7 +776,7 @@ exports.googleLogin = async (req, res) => {
 
       if (createError) {
         logger.error('[GOOGLE_LOGIN] Kullanıcı oluşturma hatası:', createError);
-        return res.status(500).json({ success: false, message: "Kullanıcı oluşturulamadı" });
+        return res.status(500).json({ success: false, code: 'CREATE_FAILED', message: "Kullanıcı oluşturulamadı" });
       }
 
       user = createdUser;
@@ -861,7 +864,7 @@ exports.appleLogin = async (req, res) => {
     const { credential, rememberMe, email: providedEmail, name: providedName } = req.body;
     
     if (!credential) {
-      return res.status(400).json({ success: false, message: "Apple identity token gerekli" });
+      return res.status(400).json({ success: false, code: 'MISSING_TOKEN', message: "Apple identity token gerekli" });
     }
 
     // Apple identity token'ı decode et (JWT)
@@ -878,7 +881,7 @@ exports.appleLogin = async (req, res) => {
       console.log('[APPLE_LOGIN] Token decode başarılı:', { sub: appleUser.sub, email: appleUser.email });
     } catch (decodeError) {
       logger.error('[APPLE_LOGIN] Token decode hatası:', decodeError);
-      return res.status(400).json({ success: false, message: "Geçersiz Apple identity token" });
+      return res.status(400).json({ success: false, code: 'INVALID_TOKEN', message: "Geçersiz Apple identity token" });
     }
 
     // Apple ilk girişte email veriyor, sonraki girişlerde vermiyor
@@ -887,7 +890,7 @@ exports.appleLogin = async (req, res) => {
     const appleSub = appleUser.sub; // Apple'ın unique user ID'si
     
     if (!email && !appleSub) {
-      return res.status(400).json({ success: false, message: "Apple hesabından email veya kullanıcı ID alınamadı" });
+      return res.status(400).json({ success: false, code: 'EMAIL_OR_SUB_REQUIRED', message: "Apple hesabından email veya kullanıcı ID alınamadı" });
     }
 
     // Kullanıcıyı email ile bul
@@ -951,7 +954,7 @@ exports.appleLogin = async (req, res) => {
 
       if (insertError) {
         logger.error('[APPLE_LOGIN] Kullanıcı oluşturma hatası:', insertError);
-        return res.status(500).json({ success: false, message: "Kullanıcı kaydı oluşturulamadı" });
+        return res.status(500).json({ success: false, code: 'CREATE_FAILED', message: "Kullanıcı kaydı oluşturulamadı" });
       }
 
       user = newUser;
@@ -1120,13 +1123,13 @@ exports.changePassword = async (req, res) => {
       .eq("id", userId);
 
     if (error) {
-      return res.status(500).json({ success: false, message: "Şifre güncellenemedi" });
+      return res.status(500).json({ success: false, code: 'UPDATE_FAILED', message: "Şifre güncellenemedi" });
     }
 
     return res.status(200).json({ success: true, message: "Şifre başarıyla değiştirildi" });
   } catch (error) {
     logger.error("Change password error", error);
-    return res.status(500).json({ success: false, message: "Sunucu hatası" });
+    return res.status(500).json({ success: false, code: 'SERVER_ERROR', message: "Sunucu hatası" });
   }
 };
 
@@ -1135,7 +1138,7 @@ exports.logout = async (req, res) => {
     return res.status(200).json({ success: true, message: "Çıkış yapıldı" });
   } catch (error) {
     logger.error("Logout error", error);
-    return res.status(500).json({ success: false, message: "Sunucu hatası" });
+    return res.status(500).json({ success: false, code: 'SERVER_ERROR', message: "Sunucu hatası" });
   }
 };
 
@@ -1434,4 +1437,24 @@ exports.resendVerificationEmail = async (req, res) => {
   }
 };
 
-// Duplicate function removed - using the main googleLogin function above
+function parseExpiryMs(expires) {
+  try {
+    if (typeof expires === 'number') return expires;
+    if (!expires) return 3650 * 24 * 60 * 60 * 1000; // default ~10 years
+    
+    const match = String(expires).match(/^(\d+)([dhms])$/);
+    if (!match) return 3650 * 24 * 60 * 60 * 1000;
+    
+    const val = parseInt(match[1], 10);
+    const unit = match[2];
+    
+    if (unit === 'd') return val * 24 * 60 * 60 * 1000;
+    if (unit === 'h') return val * 60 * 60 * 1000;
+    if (unit === 'm') return val * 60 * 1000;
+    if (unit === 's') return val * 1000;
+    
+    return val;
+  } catch (e) {
+    return 3650 * 24 * 60 * 60 * 1000;
+  }
+}

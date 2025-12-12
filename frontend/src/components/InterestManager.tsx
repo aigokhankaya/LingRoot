@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUserInterests, updateUserInterests } from '../lib/api';
 import { FaPlus, FaTrash, FaPen, FaSave, FaTimes } from 'react-icons/fa';
+import { useTranslation } from '../lib/i18n';
 
 interface InterestManagerProps {
   onUpdate?: () => void;
@@ -9,12 +10,13 @@ interface InterestManagerProps {
   isEditing?: boolean;
 }
 
-const InterestManager: React.FC<InterestManagerProps> = ({ 
-  onUpdate, 
+const InterestManager: React.FC<InterestManagerProps> = ({
+  onUpdate,
   showTitle = true,
   className = '',
   isEditing: initialIsEditing = false
 }) => {
+  const { t } = useTranslation();
   const [interests, setInterests] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(initialIsEditing);
@@ -28,10 +30,10 @@ const InterestManager: React.FC<InterestManagerProps> = ({
     setError(null);
     try {
       const response = await getUserInterests();
-      
+
       // API yanıtını güvenli bir şekilde işle
       let interestsList: string[] = [];
-      
+
       try {
         if (Array.isArray(response)) {
           // API doğrudan array olarak dönüyorsa
@@ -43,7 +45,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
           // API farklı bir formatta dönüyorsa, ilgili alanları bulmaya çalış
           console.log("API yanıtı farklı formatta:", response);
           const possibleDataFields = ['data', 'interests', 'items', 'results'];
-          
+
           for (const field of possibleDataFields) {
             if (response[field] && Array.isArray(response[field])) {
               if (response[field].length > 0 && response[field][0].interest_keyword) {
@@ -55,18 +57,18 @@ const InterestManager: React.FC<InterestManagerProps> = ({
         }
       } catch (jsonError) {
         console.error("API yanıtı işlenirken hata:", jsonError);
-        throw new Error("İlgi alanları verisi işlenirken bir sorun oluştu.");
+        throw new Error(t('interest_manager_error_data_processing'));
       }
-      
+
       setInterests(interestsList);
     } catch (err: any) {
       console.error('İlgi alanlarını yükleme hatası:', err);
-      
+
       // Kullanıcı dostu hata mesajı
       if (err.message && err.message.includes("Unexpected token")) {
-        setError("Sunucudan beklenmeyen bir yanıt alındı. Lütfen daha sonra tekrar deneyin.");
+        setError(t('interest_manager_error_unexpected_response'));
       } else {
-        setError(err.message || 'İlgi alanları yüklenirken bir hata oluştu');
+        setError(err.message || t('interest_manager_error_load'));
       }
     } finally {
       setIsLoading(false);
@@ -80,13 +82,13 @@ const InterestManager: React.FC<InterestManagerProps> = ({
   // İlgi alanı ekle
   const addInterest = () => {
     if (!newInterest.trim()) return;
-    
+
     // Zaten var mı kontrol et
     if (interests.includes(newInterest.trim())) {
-      setError('Bu ilgi alanı zaten eklenmiş!');
+      setError(t('interest_manager_error_already_exists'));
       return;
     }
-    
+
     setInterests([...interests, newInterest.trim()]);
     setNewInterest('');
     setError(null);
@@ -104,33 +106,33 @@ const InterestManager: React.FC<InterestManagerProps> = ({
     setIsLoading(true);
     setError(null);
     setSuccess(null);
-    
+
     try {
       console.log("Kaydedilecek ilgi alanları:", interests);
-      
+
       // Doğrudan boş dizileri engelle
       if (!interests || interests.length === 0) {
-        setError("En az bir ilgi alanı eklemelisiniz");
+        setError(t('interest_manager_error_min_one'));
         setIsLoading(false);
         return;
       }
-      
+
       const result = await updateUserInterests(interests);
       console.log("Kayıt yanıtı:", result);
-      
-      setSuccess('İlgi alanlarınız başarıyla güncellendi');
+
+      setSuccess(t('interest_manager_success_updated'));
       setIsEditing(false);
       if (onUpdate) onUpdate();
     } catch (err: any) {
       console.error('İlgi alanları güncelleme hatası:', err);
-      
+
       // Yetkilendirme hatası kontrolü
       if (err.message && err.message.includes("Unauthorized")) {
-        setError("Yetkilendirme hatası. Lütfen tekrar giriş yapın.");
+        setError(t('interest_manager_error_unauthorized'));
       } else if (err.message && err.message.includes("NetworkError")) {
-        setError("Ağ hatası. İnternet bağlantınızı kontrol edin.");
+        setError(t('interest_manager_error_network'));
       } else {
-        setError(err.message || 'Değişiklikler kaydedilirken bir hata oluştu');
+        setError(err.message || t('interest_manager_error_save'));
       }
     } finally {
       setIsLoading(false);
@@ -149,8 +151,8 @@ const InterestManager: React.FC<InterestManagerProps> = ({
     <div className={`bg-white rounded-lg shadow p-4 ${className}`}>
       {showTitle && (
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-800">İlgi Alanlarım</h3>
-          
+          <h3 className="text-lg font-semibold text-gray-800">{t('interest_manager_title')}</h3>
+
           {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
@@ -158,7 +160,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
               disabled={isLoading}
             >
               <FaPen className="mr-1" size={14} />
-              <span>Düzenle</span>
+              <span>{t('common_button_edit')}</span>
             </button>
           ) : (
             <div className="flex space-x-2">
@@ -168,7 +170,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
                 disabled={isLoading}
               >
                 <FaSave className="mr-1" size={14} />
-                <span>Kaydet</span>
+                <span>{t('common_button_save')}</span>
               </button>
               <button
                 onClick={cancelEditing}
@@ -176,7 +178,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
                 disabled={isLoading}
               >
                 <FaTimes className="mr-1" size={14} />
-                <span>İptal</span>
+                <span>{t('common_button_cancel')}</span>
               </button>
             </div>
           )}
@@ -198,7 +200,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
       {isLoading ? (
         <div className="py-4 text-center text-gray-500">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-          <p>İlgi alanları yükleniyor...</p>
+          <p>{t('interest_manager_loading')}</p>
         </div>
       ) : (
         <>
@@ -206,7 +208,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
           <div className="mb-4">
             <div className="flex flex-wrap gap-2">
               {interests.length === 0 ? (
-                <p className="text-gray-500 text-sm py-2">Henüz ilgi alanı eklenmemiş.</p>
+                <p className="text-gray-500 text-sm py-2">{t('interest_manager_no_interests')}</p>
               ) : (
                 interests.map((interest, index) => (
                   <div
@@ -218,7 +220,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
                       <button
                         onClick={() => removeInterest(index)}
                         className="ml-2 text-red-500 hover:text-red-700"
-                        aria-label="Kaldır"
+                        aria-label={t('interest_manager_button_remove')}
                       >
                         <FaTrash size={12} />
                       </button>
@@ -237,7 +239,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
                   type="text"
                   value={newInterest}
                   onChange={(e) => setNewInterest(e.target.value)}
-                  placeholder="Yeni ilgi alanı ekleyin..."
+                  placeholder={t('interest_manager_placeholder')}
                   className="flex-1 border border-gray-300 rounded-l p-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 />
                 <button
@@ -245,7 +247,7 @@ const InterestManager: React.FC<InterestManagerProps> = ({
                   className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 rounded-r flex items-center"
                 >
                   <FaPlus className="mr-1" size={14} />
-                  <span>Ekle</span>
+                  <span>{t('interest_manager_button_add')}</span>
                 </button>
               </div>
             </div>

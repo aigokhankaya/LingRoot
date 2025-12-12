@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { getApiUrl } from '../src/lib/api';
+import { useTranslation } from '../src/lib/i18n';
 
 interface Pattern {
   pattern: string;
@@ -14,6 +15,7 @@ interface Pattern {
 }
 
 export default function PatternsPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +31,7 @@ export default function PatternsPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem('lingroot_token') || localStorage.getItem('auth_token');
-      
+
       if (!token) {
         router.push('/login');
         return;
@@ -44,15 +46,15 @@ export default function PatternsPage() {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setPatterns(data.patterns || []);
       } else {
-        setError(data.message || 'Failed to load patterns');
+        setError(data.message || t('patterns_error_load'));
       }
     } catch (err) {
       console.error('Error fetching patterns:', err);
-      setError('Failed to load patterns');
+      setError(t('patterns_error_load'));
     } finally {
       setLoading(false);
     }
@@ -64,7 +66,7 @@ export default function PatternsPage() {
   );
 
   const groupedByLevel = filteredPatterns.reduce((acc, pattern) => {
-    const level = pattern.level || 'Unknown';
+    const level = pattern.level || t('patterns_level_unknown');
     if (!acc[level]) acc[level] = [];
     acc[level].push(pattern);
     return acc;
@@ -75,7 +77,7 @@ export default function PatternsPage() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Kalıplar yükleniyor...</p>
+          <p className="text-gray-600">{t('patterns_loading')}</p>
         </div>
       </div>
     );
@@ -84,7 +86,7 @@ export default function PatternsPage() {
   return (
     <>
       <Head>
-        <title>Günlük Kullanım Kalıpları - LingRoot</title>
+        <title>{t('patterns_page_title')}</title>
       </Head>
 
       <div className="min-h-screen bg-muted py-8 px-4">
@@ -94,17 +96,17 @@ export default function PatternsPage() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h1 className="text-4xl font-bold text-gray-800 mb-2">
-                  ✨ Günlük Kullanım Kalıpları
+                  {t('patterns_header_title')}
                 </h1>
                 <p className="text-gray-600">
-                  İçeriklerinizde geçen {patterns.length} kalıp
+                  {t('patterns_header_desc').replace('{count}', patterns.length.toString())}
                 </p>
               </div>
               <button
                 onClick={() => router.push('/welcome')}
                 className="px-6 py-3 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium transition-colors"
               >
-                ← Geri Dön
+                {t('patterns_back_button')}
               </button>
             </div>
 
@@ -112,7 +114,7 @@ export default function PatternsPage() {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Kalıp ara..."
+                placeholder={t('patterns_search_placeholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full px-4 py-3 pl-12 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
@@ -133,16 +135,16 @@ export default function PatternsPage() {
             <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
               <div className="text-6xl mb-4">📚</div>
               <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                Henüz kalıp bulunamadı
+                {t('patterns_no_results_title')}
               </h3>
               <p className="text-gray-600 mb-6">
-                İçerik oluşturmaya başladığınızda kalıplar burada görünecek
+                {t('patterns_no_results_desc')}
               </p>
               <button
                 onClick={() => router.push('/welcome')}
                 className="px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg font-medium transition-colors"
               >
-                İçerik Oluştur
+                {t('patterns_create_content_button')}
               </button>
             </div>
           ) : (
@@ -154,7 +156,7 @@ export default function PatternsPage() {
                       {level}
                     </span>
                     <span className="text-gray-500 text-lg">
-                      {levelPatterns.length} kalıp
+                      {levelPatterns.length} {t('patterns_count_suffix')}
                     </span>
                   </h2>
 
@@ -215,7 +217,7 @@ export default function PatternsPage() {
               <div className="p-4 bg-yellow-50 border-2 border-yellow-400 rounded-xl">
                 <div className="flex items-center mb-2">
                   <span className="text-base mr-2">🇹🇷</span>
-                  <span className="text-xs font-bold text-gray-700">Anlamı</span>
+                  <span className="text-xs font-bold text-gray-700">{t('patterns_modal_meaning_label')}</span>
                 </div>
                 <p className="text-sm text-gray-800 leading-5">
                   {selectedPattern.pattern_tr || '-'}
@@ -226,7 +228,7 @@ export default function PatternsPage() {
               <div className="p-4 bg-primary/5 border-2 border-primary/30 rounded-xl">
                 <div className="flex items-center mb-2">
                   <span className="text-base mr-2">🇬🇧</span>
-                  <span className="text-xs font-bold text-gray-700">Örnek Cümle</span>
+                  <span className="text-xs font-bold text-gray-700">{t('patterns_modal_example_label')}</span>
                 </div>
                 <p className="text-sm text-gray-800 leading-5">
                   {selectedPattern.example_sentence || '-'}
@@ -237,7 +239,7 @@ export default function PatternsPage() {
               <div className="p-4 bg-green-50 border-2 border-green-400 rounded-xl">
                 <div className="flex items-center mb-2">
                   <span className="text-base mr-2">💬</span>
-                  <span className="text-xs font-bold text-gray-700">Çeviri</span>
+                  <span className="text-xs font-bold text-gray-700">{t('patterns_modal_translation_label')}</span>
                 </div>
                 <p className="text-sm text-gray-800 leading-5">
                   {selectedPattern.example_sentence_tr || '-'}
@@ -248,7 +250,7 @@ export default function PatternsPage() {
               {selectedPattern.found_in_topic && (
                 <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
                   <div className="text-xs text-purple-600 font-semibold mb-1">
-                    Bulunduğu Konu
+                    {t('patterns_modal_topic_label')}
                   </div>
                   <div className="text-sm text-gray-700">
                     {selectedPattern.found_in_topic}

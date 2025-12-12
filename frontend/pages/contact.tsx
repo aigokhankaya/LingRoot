@@ -3,8 +3,10 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
+import { useTranslation } from '../src/lib/i18n';
 
 export default function Contact() {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -28,8 +30,8 @@ export default function Contact() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Head>
-        <title>İletişim | LingRoot</title>
-        <meta name="description" content="LingRoot ile iletişime geçin. Sorularınız, önerileriniz ve geri bildirimleriniz için bize ulaşın." />
+        <title>{t('contact')} | LingRoot</title>
+        <meta name="description" content={t('contact_hero_desc')} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/lingroot-icon.svg" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -44,32 +46,32 @@ export default function Contact() {
         
         <nav className="hidden md:flex items-center space-x-8">
           <Link href="/about" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Hakkımızda
+            {t('about')}
           </Link>
           <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Nasıl Çalışır?
+            {t('how_it_works')}
           </Link>
           <Link href="/ozellikler" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Özellikler
+            {t('features')}
           </Link>
           <Link href="/fiyatlandirma" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Fiyatlandırma
+            {t('pricing')}
           </Link>
           <Link href="/blog" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Blog
+            {t('blog')}
           </Link>
           <Link href="/contact" className="text-primary hover:text-primary/80 font-semibold transition-colors duration-200">
-            İletişim
+            {t('contact')}
           </Link>
         </nav>
 
         <div className="flex items-center space-x-4">
           <Link href="/login" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Giriş Yap
+            {t('login')}
           </Link>
           <Link href="/register" 
             className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-            Ücretsiz Başla
+            {t('register_now')}
           </Link>
         </div>
       </header>
@@ -80,14 +82,13 @@ export default function Contact() {
           <div className="max-w-4xl mx-auto text-center">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
               <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
-              Bizimle İletişime Geçin
+              {t('contact_hero_badge')}
             </div>
             <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
-              İletişim
+              {t('contact_hero_title')}
             </h1>
             <p className="text-xl md:text-2xl text-white/80 max-w-3xl mx-auto leading-relaxed">
-              Sorularınız, önerileriniz ve geri bildirimleriniz bizim için çok değerli. 
-              Size nasıl yardımcı olabileceğimizi öğrenmek istiyoruz.
+              {t('contact_hero_desc')}
             </p>
           </div>
         </section>
@@ -99,7 +100,7 @@ export default function Contact() {
               {/* İletişim Bilgileri */}
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-8">
-                  İletişim <span className="text-primary">Bilgileri</span>
+                  {t('contact_info_title')} <span className="text-primary">{t('contact_info_highlight')}</span>
                 </h2>
                 
                 <div className="space-y-6">
@@ -110,9 +111,9 @@ export default function Contact() {
                       </svg>
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">E-posta</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">{t('contact_email_label')}</h3>
                       <p className="text-gray-600">info@lingroot.com</p>
-                      <p className="text-sm text-gray-500 mt-1">Ortalama yanıt süremiz: 1 iş günü</p>
+                      <p className="text-sm text-gray-500 mt-1">{t('contact_email_desc')}</p>
                     </div>
                   </div>
 
@@ -123,9 +124,9 @@ export default function Contact() {
                       </svg>
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">Telefon</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">{t('contact_phone_label')}</h3>
                       <p className="text-gray-600">+90 212 123 45 67</p>
-                      <p className="text-sm text-gray-500 mt-1">Hafta içi 09:00 - 18:00</p>
+                      <p className="text-sm text-gray-500 mt-1">{t('contact_phone_desc')}</p>
                     </div>
                   </div>
 
@@ -137,18 +138,17 @@ export default function Contact() {
                       </svg>
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">Adres</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">{t('contact_address_label')}</h3>
                       <p className="text-gray-600">İstanbul, Türkiye</p>
-                      <p className="text-sm text-gray-500 mt-1">Teknoloji geliştirme merkezi</p>
+                      <p className="text-sm text-gray-500 mt-1">{t('contact_address_desc')}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-8 p-6 bg-muted rounded-xl border border-border">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Destek Ekibimiz</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('contact_support_title')}</h3>
                   <p className="text-gray-600 text-sm">
-                    Deneyimli destek ekibimiz size en hızlı şekilde yardımcı olmak için hazır. 
-                    Teknik sorulardan kullanım kılavuzuna kadar her konuda yanınızdayız.
+                    {t('contact_support_desc')}
                   </p>
                 </div>
               </div>
@@ -156,13 +156,13 @@ export default function Contact() {
               {/* İletişim Formu */}
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-8">
-                  Bize <span className="text-primary">Yazın</span>
+                  {t('contact_form_title')} <span className="text-primary">{t('contact_form_highlight')}</span>
                 </h2>
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                      Ad Soyad
+                      {t('contact_form_name')}
                     </label>
                     <input
                       type="text"
@@ -172,13 +172,13 @@ export default function Contact() {
                       onChange={handleChange}
                       required
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Adınız ve soyadınız"
+                      placeholder={t('contact_form_name_placeholder')}
                     />
                   </div>
 
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                      E-posta
+                      {t('contact_form_email')}
                     </label>
                     <input
                       type="email"
@@ -188,13 +188,13 @@ export default function Contact() {
                       onChange={handleChange}
                       required
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="ornek@email.com"
+                      placeholder={t('contact_form_email_placeholder')}
                     />
                   </div>
 
                   <div>
                     <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
-                      Konu
+                      {t('contact_form_subject')}
                     </label>
                     <input
                       type="text"
@@ -204,13 +204,13 @@ export default function Contact() {
                       onChange={handleChange}
                       required
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Mesajınızın konusu"
+                      placeholder={t('contact_form_subject_placeholder')}
                     />
                   </div>
 
                   <div>
                     <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                      Mesaj
+                      {t('contact_form_message')}
                     </label>
                     <textarea
                       id="message"
@@ -220,7 +220,7 @@ export default function Contact() {
                       required
                       rows={6}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
-                      placeholder="Mesajınızı buraya yazın..."
+                      placeholder={t('contact_form_message_placeholder')}
                     />
                   </div>
 
@@ -228,7 +228,7 @@ export default function Contact() {
                     type="submit"
                     className="w-full px-6 py-4 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl"
                   >
-                    Mesaj Gönder
+                    {t('contact_form_button')}
                   </button>
                 </form>
               </div>
@@ -241,38 +241,38 @@ export default function Contact() {
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                Sık Sorulan <span className="text-primary">Sorular</span>
+                {t('contact_faq_title')} <span className="text-primary">{t('contact_faq_highlight')}</span>
               </h2>
               <p className="text-gray-600">
-                Merak ettiğiniz konularda hızlı cevaplar
+                {t('contact_faq_desc')}
               </p>
             </div>
 
             <div className="space-y-6">
               <div className="bg-white rounded-xl p-6 shadow-lg">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  LingRoot nasıl çalışır?
+                  {t('contact_faq_q1')}
                 </h3>
                 <p className="text-gray-600">
-                  LingRoot, YouTube videoları, podcast'ler ve blog yazıları gibi içerikleri alarak bunları seçtiğiniz İngilizce seviyesine uygun hale getirir. AI teknolojisi ile metinleri sadeleştirir ve ses dosyalarına dönüştürür.
+                  {t('contact_faq_a1')}
                 </p>
               </div>
 
               <div className="bg-white rounded-xl p-6 shadow-lg">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Ücretsiz plan ile neler yapabilirim?
+                  {t('contact_faq_q2')}
                 </h3>
                 <p className="text-gray-600">
-                  Ücretsiz planımızla günde 3 içerik işleyebilir, A1-B1 seviyelerinde öğrenme materyalleri oluşturabilirsiniz. Premium özellikler için uygun fiyatlı abonelik planlarımızı inceleyebilirsiniz.
+                  {t('contact_faq_a2')}
                 </p>
               </div>
 
               <div className="bg-white rounded-xl p-6 shadow-lg">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Verilerimin güvenliği nasıl sağlanıyor?
+                  {t('contact_faq_q3')}
                 </h3>
                 <p className="text-gray-600">
-                  Tüm verileriniz SSL ile şifrelenir ve GDPR standartlarına uygun şekilde işlenir. Kişisel bilgileriniz hiçbir şekilde üçüncü taraflarla paylaşılmaz.
+                  {t('contact_faq_a3')}
                 </p>
               </div>
             </div>

@@ -54,6 +54,7 @@ interface NewSyncedTextPlayerProps {
   };
   onPlay?: () => void;
   onActiveSegmentChange?: (segmentIndex: number) => void;
+  onWordChange?: (wordIndex: number, isPlaying: boolean) => void;
   hideText?: boolean;
 }
 
@@ -79,6 +80,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   stats,
   onPlay,
   onActiveSegmentChange,
+  onWordChange,
   hideText = false
 }: NewSyncedTextPlayerProps) {
   
@@ -118,6 +120,13 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [hasReportedPlay, setHasReportedPlay] = useState(false);
   const [wordPopup, setWordPopup] = useState<any | null>(null);
+
+  // Call onWordChange callback when activeWordIndex or isPlaying changes
+  useEffect(() => {
+    if (onWordChange) {
+      onWordChange(activeWordIndex, isPlaying);
+    }
+  }, [activeWordIndex, isPlaying, onWordChange]);
 
   const dialogueLines = useMemo(
     () =>
@@ -687,20 +696,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
         aria-label="Currently playing word"
       />
 
-      {/* Stats - Topic, Hız ve Seviye bilgisi */}
-      {(topic || level || stats) && (
-        <div className="mb-4 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-          {topic && (
-            <div className="mb-2 text-base font-semibold text-gray-800">
-              🎙️ {topic}
-            </div>
-          )}
-          <div className="flex justify-between">
-            {level && <span>📈 Seviye: {level}</span>}
-            {stats && stats.timepointsCount && <span>⏱️ Süre: {formatTime(duration)}</span>}
-          </div>
-        </div>
-      )}
+      {/* Stats - Topic, Hız ve Seviye bilgisi - GİZLENDİ */}
+      {/* GIZLENDI - Seviye ve Süre bilgisi üst alanda zaten gösteriliyor */}
 
       {/* Vurgulama Türü Kontrolü - GİZLENDİ */}
       {/* GIZLENDI - Vurgulama türü default cümle olacak bu yüzden ekrandaki "Vurgulama türü" alanını frontend de gizle */}
@@ -828,8 +825,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
       {/* Context Menu */}
       {contextMenu.show && (
         <>
-          <div 
-            className="fixed inset-0 z-40" 
+          <div
+            className="fixed inset-0 z-40"
             onClick={hideContextMenu}
           />
           <div
@@ -880,7 +877,9 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
       {wordPopup && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
-          onClick={() => setWordPopup(null)}
+          onClick={() => {
+            setWordPopup(null);
+          }}
         >
           <div
             className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-5"
@@ -892,7 +891,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
             </div>
 
             {wordPopup.mode === 'info' ? (
-              <div className="space-y-2 text-sm text-gray-800">
+              <div className="space-y-3 text-sm text-gray-800">
                 <div>
                   <span className="font-semibold">Anlam: </span>
                   <span>{wordPopup.data?.definition || '-'}</span>
@@ -909,9 +908,12 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
                   <span className="font-semibold">Türkçe Örnek: </span>
                   <span>{wordPopup.data?.example_sentence_turkish || '-'}</span>
                 </div>
+
                 <div className="mt-4 flex justify-end">
                   <button
-                    onClick={() => setWordPopup(null)}
+                    onClick={() => {
+                      setWordPopup(null);
+                    }}
                     className="px-4 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
                   >
                     Kapat
@@ -925,7 +927,9 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
                 </p>
                 <div className="flex justify-end space-x-2">
                   <button
-                    onClick={() => setWordPopup(null)}
+                    onClick={() => {
+                      setWordPopup(null);
+                    }}
                     className="px-4 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
                   >
                     İptal

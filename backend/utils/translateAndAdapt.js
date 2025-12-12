@@ -34,9 +34,10 @@ try {
  * @param {string} sourceLanguage - Source language (e.g., "Turkish", "Spanish")
  * @param {string} level - Target CEFR level (A1, A2, B1, B2, C1, C2)
  * @param {object} requestLogger - Optional request logger
+ * @param {string} promptVariant - Optional prompt variant: 'standard' (default) or 'narrator' (for audiobook/book content)
  * @returns {Promise<{text: string, usage: object, model: string}>}
  */
-async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogger) {
+async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogger, promptVariant = 'standard') {
     if (!openai) {
         logger.error("[TranslateAndAdapt] OpenAI client not initialized.");
         throw new Error("OpenAI client not initialized");
@@ -47,17 +48,21 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
         return { text: "", usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }, model: "" };
     }
 
-    // Select unified prompt file based on level
-    const promptFile = `translate_and_adapt_${level.toUpperCase()}.txt`;
+    // Select unified prompt file based on level and variant
+    // Narrator variant uses storyteller-style prompts for audiobook/book content
+    const isNarrator = promptVariant === 'narrator';
+    const promptFile = isNarrator 
+        ? `translate_and_adapt_narrator_${level.toUpperCase()}.txt`
+        : `translate_and_adapt_${level.toUpperCase()}.txt`;
     const promptPath = path.join(__dirname, `../prompts/content/${promptFile}`);
     
     // HYBRID MODEL STRATEGY: Use mini for simple levels, 4o for complex levels
     const isSimpleLevel = ['A1', 'A2', 'B1'].includes(level.toUpperCase());
     const model = process.env.OPENAI_TRANSLATE_ADAPT_MODEL || (isSimpleLevel ? "gpt-4o-mini" : "gpt-4o");
 
-    console.log(`🎯 [TRANSLATE+ADAPT OPTIMIZED] Using unified prompt: ${promptFile} (Level: ${level})`);
-    logger.info(`🎯 TranslateAndAdapt - Unified prompt: ${promptFile} for ${sourceLanguage} → EN at ${level}`);
-    console.log(`🧠 [MODEL SELECTION] Level: ${level} -> Selected Model: ${model} (${isSimpleLevel ? 'Cost Optimized' : 'Quality Optimized'})`);
+    console.log(`🎯 [TRANSLATE+ADAPT OPTIMIZED] Using ${isNarrator ? 'NARRATOR' : 'standard'} prompt: ${promptFile} (Level: ${level})`);
+    logger.info(`🎯 TranslateAndAdapt - ${isNarrator ? 'Narrator' : 'Standard'} prompt: ${promptFile} for ${sourceLanguage} → EN at ${level}`);
+    console.log(`🧠 [MODEL SELECTION] Level: ${level}, Variant: ${promptVariant} -> Selected Model: ${model} (${isSimpleLevel ? 'Cost Optimized' : 'Quality Optimized'})`);
     
     let promptTemplate;
     try {
@@ -101,16 +106,21 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
                     note: 'translate+adapt chunk',
                 });
             }
+            // System message varies based on variant
+            const systemContent = isNarrator
+                ? `You are a professional audiobook narrator and CEFR language specialist. You translate text AND adapt it to CEFR ${level} level while maintaining an engaging, storyteller-style delivery suitable for audiobook listening. Create natural rhythm, use dramatic pauses, and make the content captivating for listeners.`
+                : `You are an expert translator and CEFR language specialist. You translate text AND adapt it to CEFR ${level} level in a single pass, ensuring vocabulary and grammar strictly match the target level.`;
+            
             const completion = await openai.chat.completions.create({
                 model,
                 messages: [
                     { 
                         role: "system", 
-                        content: `You are an expert translator and CEFR language specialist. You translate text AND adapt it to CEFR ${level} level in a single pass, ensuring vocabulary and grammar strictly match the target level.`
+                        content: systemContent
                     },
                     { role: "user", content: prompt }
                 ],
-                temperature: 0.4, // Slightly lower for consistency
+                temperature: isNarrator ? 0.5 : 0.4, // Slightly higher for narrator to allow creative flow
             });
             
             let resultText = completion.choices[0]?.message?.content?.trim() || "";

@@ -12,6 +12,7 @@ import {
   TtsResponseData,
   submitContent,
 } from '../../lib/api';
+import { useTranslation } from '../../lib/i18n';
 import OutputSection from '../OutputSection';
 import TopicInput from './TopicInput';
 import TopicTree from './TopicTree';
@@ -31,6 +32,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
   topicsFirst = false,
   targetDurationMinutes = 5,
 }) => {
+  const { t } = useTranslation();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -213,11 +215,11 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
   const renderEmptyState = (formPosition: 'above' | 'below') => (
     <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
       <i className="fas fa-folder-open text-4xl text-gray-400 mb-4"></i>
-      <p className="text-gray-600 mb-2">Henüz konu oluşturmadınız</p>
+      <p className="text-gray-600 mb-2">{t('topics_empty_title')}</p>
       <p className="text-sm text-gray-500">
         {formPosition === 'above'
-          ? 'Yukarıdaki formdan bir ana konu oluşturarak başlayın'
-          : 'Aşağıdaki formdan bir ana konu oluşturarak başlayın'}
+          ? t('topics_empty_desc_above')
+          : t('topics_empty_desc_below')}
       </p>
     </div>
   );
@@ -225,7 +227,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
   const renderLoadingState = () => (
     <div className="text-center py-12">
       <i className="fas fa-spinner fa-spin text-3xl text-primary mb-3"></i>
-      <p className="text-gray-600">Konular yükleniyor...</p>
+      <p className="text-gray-600">{t('topics_loading')}</p>
     </div>
   );
 
@@ -272,24 +274,23 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
           </div>
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              📚 Konu Hiyerarşisi Nedir?
+              📚 {t('topics_hierarchy_title')}
             </h3>
             <p className="text-sm text-gray-700 mb-3">
-              Bir ana konu seçin ve otomatik olarak alt konular oluşturun. Her alt konudan daha detaylı konular 
-              üretebilir veya dilediğiniz konuyu manuel ekleyebilirsiniz. Her seviyeden sesli içerik oluşturabilirsiniz.
+              {t('topics_hierarchy_desc')}
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
               <div className="flex items-center space-x-2 text-primary">
                 <i className="fas fa-check-circle"></i>
-                <span>Sonsuz derinlikte konu ağacı</span>
+                <span>{t('topics_hierarchy_bullet_infinite_tree')}</span>
               </div>
               <div className="flex items-center space-x-2 text-primary">
                 <i className="fas fa-check-circle"></i>
-                <span>AI destekli alt konu önerileri</span>
+                <span>{t('topics_hierarchy_bullet_ai')}</span>
               </div>
               <div className="flex items-center space-x-2 text-primary">
                 <i className="fas fa-check-circle"></i>
-                <span>Her seviyeden ses oluşturma</span>
+                <span>{t('topics_hierarchy_bullet_audio')}</span>
               </div>
             </div>
           </div>
@@ -302,7 +303,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
           className="text-xs text-primary hover:text-primary/80 flex items-center space-x-1"
         >
           <i className="fas fa-history"></i>
-          <span>Konularımı / Okuma Geçmişimi Gör</span>
+          <span>{t('topics_hierarchy_link_history')}</span>
         </Link>
       </div>
 

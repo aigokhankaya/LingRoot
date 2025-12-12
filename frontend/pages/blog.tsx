@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Footer from '../src/components/Footer';
+import { useTranslation } from '../src/lib/i18n';
 
 export default function Blog() {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Head>
-        <title>Blog | LingRoot</title>
-        <meta name="description" content="LingRoot Blog'da İngilizce öğrenme ipuçları bulabilirsiniz." />
+        <title>{t('blog')} | LingRoot</title>
+        <meta name="description" content={t('blog_hero_desc')} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/lingroot-icon.svg" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -61,29 +64,29 @@ export default function Blog() {
         
         <nav className="hidden lg:flex items-center space-x-6 xl:space-x-8">
           <Link href="/about" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200 whitespace-nowrap">
-            Hakkımızda
+            {t('about')}
           </Link>
           <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200 whitespace-nowrap">
-            Nasıl Çalışır?
+            {t('how_it_works')}
           </Link>
           <Link href="/ozellikler" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200 whitespace-nowrap">
-            Özellikler
+            {t('features')}
           </Link>
           <Link href="/fiyatlandirma" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200 whitespace-nowrap">
-            Fiyatlandırma
+            {t('pricing')}
           </Link>
           <Link href="/blog" className="text-primary hover:text-primary/80 font-semibold transition-colors duration-200 whitespace-nowrap">
-            Blog
+            {t('blog')}
           </Link>
         </nav>
 
         <div className="flex items-center space-x-3 lg:space-x-4">
           <Link href="/login" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200 whitespace-nowrap">
-            Giriş Yap
+            {t('login')}
           </Link>
           <Link href="/register" 
             className="px-4 lg:px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 whitespace-nowrap text-sm lg:text-base">
-            Ücretsiz Başla
+            {t('register_now')}
           </Link>
         </div>
       </header>
@@ -94,13 +97,13 @@ export default function Blog() {
           <div className="max-w-6xl mx-auto text-center">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
               <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
-              İngilizce Öğrenme Rehberi
+              {t('blog_hero_badge')}
             </div>
             <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
-              LingRoot <span className="text-primary">Blog</span>
+              {t('blog_hero_title')} <span className="text-primary">{t('blog_hero_highlight')}</span>
             </h1>
             <p className="text-xl md:text-2xl text-white/80 max-w-4xl mx-auto leading-relaxed">
-              Dil öğrenme serüveninize ışık tutacak ipuçları, bilimsel bulgular ve motivasyon verici yaklaşımlar.
+              {t('blog_hero_desc')}
             </p>
           </div>
         </section>
@@ -110,10 +113,10 @@ export default function Blog() {
           <div className="max-w-4xl mx-auto">
             <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 border border-gray-100">
               <p className="text-lg md:text-xl text-gray-700 leading-relaxed">
-                LingRoot Blog'a hoş geldiniz! Burada, dil öğrenme serüveninize ışık tutacak ipuçları, bilimsel bulgular ve motivasyon verici hikâyeler paylaşacağız. Özellikle İngilizce dinleme becerisi ve bunu günlük hayatınıza entegre etmenin yolları üzerine odaklanan içeriklerimizle, teknoloji destekli dil öğrenimi konusunda ufkunuzu genişletebilirsiniz.
+                {t('blog_intro_p1')}
               </p>
               <p className="text-lg md:text-xl text-gray-700 leading-relaxed mt-6">
-                Amacımız, bir yandan LingRoot'un benimsediği yaklaşımları anlatmak, diğer yandan da genel olarak dil eğitimine dair faydalı bilgiler sunmaktır. Aşağıda, İngilizce öğrenirken işinize yarayacak üç ayrı blog yazımızı bulabilirsiniz. Keyifli okumalar!
+                {t('blog_intro_p2')}
               </p>
             </div>
           </div>
@@ -129,37 +132,37 @@ export default function Blog() {
                 <div className="p-8 md:p-12">
                   <div className="flex items-center mb-6">
                     <div className="w-3 h-3 bg-primary rounded-full mr-3"></div>
-                    <span className="text-primary font-semibold text-sm uppercase tracking-wider">Dil Öğrenme</span>
+                    <span className="text-primary font-semibold text-sm uppercase tracking-wider">{t('blog_article1_tag')}</span>
                   </div>
                   <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                    İngilizce Dinleme Becerisinin Önemi
+                    {t('blog_article1_title')}
                   </h2>
                   <div className="prose prose-lg max-w-none text-gray-700">
                     <p className="mb-6">
-                      İngilizce öğrenirken dört temel beceri (okuma, yazma, konuşma, dinleme) arasında çoğu zaman arka planda kaldığı düşünülen dinleme becerisi aslında bir dilin olmazsa olmaz yapı taşlarından biridir. Dil öğrenme sürecinin başlangıcından itibaren, tıpkı bir bebeğin anadilini çevresini dinleyerek öğrenmesi gibi, ikinci dil ediniminde de dinleme yoluyla anlamlı girdiye maruz kalmak kritik rol oynar.
+                      {t('blog_article1_p1')}
                     </p>
                     <p className="mb-6">
-                      Uzmanlar, dinleme becerisinin dil öğrenmede son derece önemli olduğunu vurguluyor. Hatta dil edinimi teorisyeni Stephen Krashen, tüm koşullar mükemmel bile olsa yeterli dinleme yoluyla girdi almayan birinin dili gerçek anlamda edinip konuşamayacağını ifade etmiştir. Yani, ne kadar çok dinler ve anlarsanız, o kadar iyi konuşursunuz.
+                      {t('blog_article1_p2')}
                     </p>
                     
-                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Dinleme Neden Bu Kadar Kritik?</h3>
+                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">{t('blog_article1_h1')}</h3>
                     <p className="mb-6">
-                      Öncelikle, dinleme dili kullanmanın temelidir. Konuşma becerisi, büyük ölçüde iyi bir dinleyici olmanın üzerine inşa edilir. Kendi anadilimizde bile önce etrafımızdaki insanları dinleyerek kelimeleri, telaffuzları ve cümle yapılarını öğreniriz. İkinci dilde de durum farklı değil: Dinleme, telaffuzunuzu geliştirmede, kelime dağarcığınızı genişletmede ve hatta doğru gramer kullanımını içselleştirmede doğrudan etkili olur.
+                      {t('blog_article1_p3')}
                     </p>
                     
                     <div className="bg-primary/5 border-l-4 border-primary p-6 my-8">
                       <p className="text-primary font-medium">
-                        "Konuşma ediniminde ve gelişiminde dinlemenin rolü çok büyüktür… her yaşta dinleme becerisinin etkin kullanımı önemlidir."
+                        {t('blog_article1_quote')}
                       </p>
                     </div>
                     
                     <p className="mb-6">
-                      İngilizce dinleme becerisini geliştirmek, aynı zamanda anlamaya dayalı öğrenme yaklaşımının da temelini oluşturur. Birçok dilbilimciye göre (Krashen'in "anlaşılabilir girdi" kuramı buna örnek gösterilebilir), insanlar dili en iyi, içeriği genel hatlarıyla anladıkları koşullarda, duydukları ve okudukları mesajlar sayesinde öğrenirler.
+                      {t('blog_article1_p4')}
                     </p>
                     
-                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Pratik Faydalar</h3>
+                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">{t('blog_article1_h2')}</h3>
                     <p className="mb-6">
-                      Ayrıca, dinleme becerisinin gelişmiş olması, iletişim kazalarını da önler. Karşınızdaki kişiyi doğru anlamak, doğru yanıt vermenin ilk adımıdır. İngilizce gibi telaffuzun yazılıştan farklı olabildiği bir dilde, kulağınızı eğitmek yanlış anlamaları en aza indirir. Örneğin, "thought" ve "taught" gibi benzer duyulan kelimelerin ayrımını, ancak kulak aşinalığınız varsa hızlıca yapabilirsiniz.
+                      {t('blog_article1_p5')}
                     </p>
                     
                     <p className="mb-6">
@@ -180,57 +183,57 @@ export default function Blog() {
                 <div className="p-8 md:p-12">
                   <div className="flex items-center mb-6">
                     <div className="w-3 h-3 bg-purple-500 rounded-full mr-3"></div>
-                    <span className="text-purple-600 font-semibold text-sm uppercase tracking-wider">Öğrenme Teknikleri</span>
+                    <span className="text-purple-600 font-semibold text-sm uppercase tracking-wider">{t('blog_article2_tag')}</span>
                   </div>
                   <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                    Odaklanarak Dinlemenin Dili Öğrenmeye Katkısı
+                    {t('blog_article2_title')}
                   </h2>
                   <div className="prose prose-lg max-w-none text-gray-700">
                     <p className="mb-6">
-                      Günümüzde birçok kişi İngilizce podcast'leri arka planda dinleyerek veya İngilizce müzikleri "kulak dolgunluğu olsun" diye sürekli açık tutarak dil pratiği yapmaya çalışıyor. Peki, bu pasif dinleme ne kadar etkili? Pasif dinleme elbette faydalıdır; yabancı dile maruziyeti artırır. Ancak, amaç dil becerilerimizi geliştirmekse odaklanarak dinleme çok daha büyük bir fark yaratır.
+                      {t('blog_article2_p1')}
                     </p>
                     
-                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Aktif vs Pasif Dinleme</h3>
+                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">{t('blog_article2_h1')}</h3>
                     <p className="mb-6">
-                      Odaklanarak (ya da "aktif") dinleme, duyduğunuz içeriğe tüm dikkatinizi vermek, gerektiğinde not almak, bilinçli bir şekilde anlamaya çalışmak demektir. Bu yaklaşım, dili öğrenme sürecinde pasif dinlemeye kıyasla daha kısa sürede daha kalıcı ilerleme sağlar.
+                      {t('blog_article2_p2')}
                     </p>
                     
                     <div className="bg-secondary/10 rounded-lg p-6 my-8">
-                      <h4 className="text-lg font-bold text-purple-900 mb-3">Odaklı Dinlemenin Faydaları:</h4>
+                      <h4 className="text-lg font-bold text-purple-900 mb-3">{t('blog_article2_box_title')}</h4>
                       <ul className="space-y-2 text-purple-800">
-                        <li>• İşitsel algıyı geliştirir</li>
-                        <li>• Telaffuz farklarını yakalama yeteneği kazandırır</li>
-                        <li>• Tonlama ve vurgu noktalarını anlama becerisini artırır</li>
-                        <li>• Karmaşık konuşmaları çözümleme kapasitesini güçlendirir</li>
+                        <li>{t('blog_article2_box_list1')}</li>
+                        <li>{t('blog_article2_box_list2')}</li>
+                        <li>{t('blog_article2_box_list3')}</li>
+                        <li>{t('blog_article2_box_list4')}</li>
                       </ul>
                     </div>
                     
                     <p className="mb-6">
-                      Düzenli ve planlı şekilde odaklanarak dinleme egzersizleri yapmak, kulak alışkanlığı kazanmanın en etkili yollarından biridir. Uzmanların önerisi, her gün belirli bir süreyi (örneğin 20-30 dakikayı) sadece dinlemeye ayırmaktır. Bu süre zarfında dış dikkat dağıtıcıları bir kenara bırakıp tüm konsantrasyonla İngilizce bir içeriğe yoğunlaşmak, kısa zamanda önemli gelişmeler sağlar.
+                      {t('blog_article2_p3')}
                     </p>
                     
-                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Pratik Uygulama Önerileri</h3>
+                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">{t('blog_article2_h2')}</h3>
                     <p className="mb-6">
-                      Odaklanarak dinlemenin bir diğer faydası da aktif öğrenmeyi tetiklemesidir. Pasif dinlemede arka planda çalan bir İngilizce konuşma size dilsel bir ortam sağlar ancak çoğu zaman beyninizin yalnızca bir kısmı bu sürece katılır. Aktif dinlemede ise beyin dilsel uyarana tam kapasiteyle odaklanır.
+                      {t('blog_article2_p4')}
                     </p>
                     
                     <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 my-8">
-                      <h4 className="text-lg font-bold text-gray-900 mb-3">Aktif Dinleme Teknikleri:</h4>
+                      <h4 className="text-lg font-bold text-gray-900 mb-3">{t('blog_article2_box2_title')}</h4>
                       <ul className="space-y-3 text-gray-700">
-                        <li>🎯 Not alma ve anahtar kelimeleri yakalama</li>
-                        <li>🎯 Konuşmacının vurguladığı noktaları belirleme</li>
-                        <li>🎯 Her fikirden sonra "Ben bunu anladım mı?" diye sorgulama</li>
-                        <li>🎯 Ana fikri özetleme pratiği yapma</li>
+                        <li>{t('blog_article2_box2_list1')}</li>
+                        <li>{t('blog_article2_box2_list2')}</li>
+                        <li>{t('blog_article2_box2_list3')}</li>
+                        <li>{t('blog_article2_box2_list4')}</li>
                       </ul>
                     </div>
                     
                     <p className="mb-6">
-                      Odak ve tekrar ikilisi, dil öğreniminde mucizeler yaratabilir. Odaklanarak dinlediğiniz bir parçayı birkaç gün arayla tekrar dinlemek, ilk sefer kaçırdığınız incelikleri yakalamanızı sağlar. İlk dinleyişte anlamlandıramadığınız bir ifadeyi, ikinci dinleyişte "aha!" diyerek çözebilirsiniz.
+                      {t('blog_article2_p5')}
                     </p>
                     
                     <div className="bg-slate-900 text-white p-6 rounded-lg mt-8">
                       <p className="text-lg font-semibold">
-                        LingRoot platformu, odaklanarak dinleme pratiğinizi desteklemek için size altyazı, yavaşlatma, tekrar oynatma gibi araçlar sunuyor. Bu araçlar, dikkatinizi toplamanız ve içeriği tamamen kavramanız için tasarlandı.
+                        {t('blog_article2_final')}
                       </p>
                     </div>
                   </div>
@@ -242,83 +245,83 @@ export default function Blog() {
                 <div className="p-8 md:p-12">
                   <div className="flex items-center mb-6">
                     <div className="w-3 h-3 bg-teal-500 rounded-full mr-3"></div>
-                    <span className="text-teal-600 font-semibold text-sm uppercase tracking-wider">Yaşam Tarzı</span>
+                    <span className="text-teal-600 font-semibold text-sm uppercase tracking-wider">{t('blog_article3_tag')}</span>
                   </div>
                   <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                    Günlük Yaşantıya Entegre Edilmiş Dil Öğreniminin Faydaları
+                    {t('blog_article3_title')}
                   </h2>
                   <div className="prose prose-lg max-w-none text-gray-700">
                     <p className="mb-6">
-                      Bir yabancı dili öğrenmenin en etkili yollarından biri, o dili hayatımızın bir parçası haline getirmektir. Yani dili, sınıfın veya ders kitabının sınırlarından çıkarıp günlük rutinimize dahil etmek... Günlük yaşantıya entegre edilmiş dil öğrenimi, geleneksel yöntemlere göre çok daha sürdürülebilir ve doğal bir ilerleme sağlar.
+                      {t('blog_article3_p1')}
                     </p>
                     
-                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Artan Maruz Kalma</h3>
+                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">{t('blog_article3_h1')}</h3>
                     <p className="mb-6">
-                      İlk olarak, yabancı dile maruziyetiniz çarpıcı biçimde artar. Her gün yaptığınız aktiviteleri hedef dilde yapmak, farkında olmadan dil becerilerinizi geliştirmenize yol açar. Örneğin, sabah haberlerinizi İngilizce bir siteden okumak, işe giderken podcast'leri İngilizce dinlemek, boş vakitlerinizde sevdiğiniz diziyi İngilizce altyazıyla izlemek gibi alışkanlıklar sayesinde dil pratiğiniz kesintisiz hale gelir.
+                      {t('blog_article3_p2')}
                     </p>
                     
                     <div className="bg-teal-50 rounded-lg p-6 my-8">
-                      <h4 className="text-lg font-bold text-teal-900 mb-3">Günlük Entegrasyon Örnekleri:</h4>
+                      <h4 className="text-lg font-bold text-teal-900 mb-3">{t('blog_article3_box_title')}</h4>
                       <div className="grid md:grid-cols-2 gap-4 text-teal-800">
                         <div>
-                          <p className="font-semibold">Sabah Rutini:</p>
-                          <p>• İngilizce haber siteleri</p>
-                          <p>• İngilizce podcast'ler</p>
-                          <p>• İngilizce müzik</p>
+                          <p className="font-semibold">{t('blog_article3_morning')}</p>
+                          <p>{t('blog_article3_morning_list1')}</p>
+                          <p>{t('blog_article3_morning_list2')}</p>
+                          <p>{t('blog_article3_morning_list3')}</p>
                         </div>
                         <div>
-                          <p className="font-semibold">Eğlence Zamanı:</p>
-                          <p>• İngilizce altyazılı diziler</p>
-                          <p>• İngilizce YouTube kanalları</p>
-                          <p>• İngilizce oyunlar</p>
+                          <p className="font-semibold">{t('blog_article3_fun')}</p>
+                          <p>{t('blog_article3_fun_list1')}</p>
+                          <p>{t('blog_article3_fun_list2')}</p>
+                          <p>{t('blog_article3_fun_list3')}</p>
                         </div>
                       </div>
                     </div>
                     
-                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Kalıcılık ve Pekişme</h3>
+                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">{t('blog_article3_h2')}</h3>
                     <p className="mb-6">
-                      Bu entegrasyonun bir diğer faydası, öğrenmenin kalıcılığını artırmasıdır. Yeni öğrendiğiniz kelimeleri veya dilbilgisi yapılarını günlük hayatınızda gerçek bağlamlar içinde kullanmaya başladığınızda, bunlar kısa süreli hafızadan uzun süreli hafızaya geçmeye başlar.
+                      {t('blog_article3_p3')}
                     </p>
                     
                     <div className="bg-primary/5 border-l-4 border-primary p-6 my-8">
                       <p className="text-primary font-medium">
-                        "Use it or lose it" (kullan ya da kaybet) prensibi: Günlük kullanım, öğrendiklerinizi taze tutar ve unutulma ihtimalini azaltır.
+                        {t('blog_article3_quote')}
                       </p>
                     </div>
                     
-                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Zaman Verimliliği</h3>
+                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">{t('blog_article3_h3')}</h3>
                     <p className="mb-6">
-                      Dil öğrenimini günlük yaşama yaymanın belki de en güzel tarafı, fazladan zaman ayırma zorunluluğunu ortadan kaldırmasıdır. Yoğun bir programınız olsa bile, zaten yaptığınız işlerle dil pratiğini birleştirebilirsiniz.
+                      {t('blog_article3_p4')}
                     </p>
                     
                     <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 my-8">
-                      <h4 className="text-lg font-bold text-gray-900 mb-3">Multitasking Örnekleri:</h4>
+                      <h4 className="text-lg font-bold text-gray-900 mb-3">{t('blog_article3_multi_title')}</h4>
                       <ul className="space-y-2 text-gray-700">
-                        <li>🏠 Ev işi yaparken İngilizce radyo dinleme</li>
-                        <li>🏃‍♂️ Spor yaparken İngilizce podcast'ler</li>
-                        <li>🚗 Yolculuk esnasında İngilizce müzik</li>
-                        <li>🍳 Yemek yaparken İngilizce YouTube kanalları</li>
+                        <li>{t('blog_article3_multi_list1')}</li>
+                        <li>{t('blog_article3_multi_list2')}</li>
+                        <li>{t('blog_article3_multi_list3')}</li>
+                        <li>{t('blog_article3_multi_list4')}</li>
                       </ul>
                     </div>
                     
-                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Motivasyon ve Sürdürülebilirlik</h3>
+                    <h3 className="text-2xl font-bold text-gray-900 mt-8 mb-4">{t('blog_article3_h4')}</h3>
                     <p className="mb-6">
-                      Günlük entegrasyon aynı zamanda motivasyonu yüksek tutar. Haftada bir yapılan uzun dil çalışma seanslarındansa, her gün biraz biraz yapılan pratikler çok daha motive edicidir. Her gün küçük bir başarı hissi yaşarsınız: Bugün de bir şeyler öğrendim, bugün de İngilizceye dokundum dersiniz.
+                      {t('blog_article3_p5')}
                     </p>
                     
                     <p className="mb-6">
-                      Bu sürekli temas, dil öğrenme sürecini bir görev olmaktan çıkarır, yaşam tarzınızın bir parçası yapar. Örneğin, sabah işe giderken 15 dakika İngilizce dinleme yapmak bir süre sonra alışkanlık olacak ve aksattığınız gün kendinizi eksik hissedeceksiniz.
+                      {t('blog_article3_p6')}
                     </p>
                     
                     <div className="bg-primary text-primary-foreground p-6 rounded-lg mt-8">
                       <p className="text-lg font-semibold mb-2">
-                        LingRoot'un Felsefesi:
+                        {t('blog_article3_phil_title')}
                       </p>
                       <p>
-                        "İngilizce öğrenmek için hayatınızı değiştirmeyin, hayatınıza İngilizceyi dahil edin."
+                        {t('blog_article3_phil_quote')}
                       </p>
                       <p className="mt-4 text-sm opacity-90">
-                        Küçük günlük adımlar, uzun vadede büyük dilsel sıçramalara dönüşebilir!
+                        {t('blog_article3_phil_sub')}
                       </p>
                     </div>
                   </div>
@@ -333,17 +336,17 @@ export default function Blog() {
         <section className="py-20 px-6 bg-slate-900 text-white">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-4xl md:text-5xl font-bold mb-8">
-              Hemen Başlayın!
+              {t('blog_cta_title')}
             </h2>
             <p className="text-xl md:text-2xl mb-12 text-white/80">
-              Bu yazılarda bahsettiğimiz teknikleri LingRoot ile pratiğe dökün. İngilizce öğrenmek için hayatınızı değiştirmenize gerek yok!
+              {t('blog_cta_desc')}
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
               <Link href="/register" className="inline-flex items-center px-8 py-4 bg-white text-primary rounded-xl font-bold hover:bg-gray-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
-                Ücretsiz Denemeye Başla
+                {t('blog_cta_button_free')}
               </Link>
               <Link href="/nasil-calisir" className="inline-flex items-center px-8 py-4 border-2 border-white text-white rounded-xl font-bold hover:bg-white hover:text-primary transition-all duration-200">
-                Nasıl Çalışır?
+                {t('blog_cta_button_how')}
               </Link>
             </div>
           </div>

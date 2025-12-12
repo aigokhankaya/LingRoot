@@ -1085,6 +1085,12 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
                     )}
                   </div>
                 </div>
+                <p className="text-xs text-amber-700 mt-2 text-left">
+                  Bu alana yüklediğiniz PDF ve diğer dokümanların içeriğinin hukuka uygunluğundan,
+                  üçüncü kişilere ait telif hakları ve kişisel veriler de dahil olmak üzere, tamamen siz sorumlusunuz.
+                  LingRoot, kullanıcılar tarafından yüklenen dokümanların içeriğini ön incelemeye tabi tutmaz ve bu içeriklerden
+                  doğabilecek hiçbir hukuki, idari veya cezai sorumluluğu üstlenmez.
+                </p>
                 {file && !uploadingFile && (
                   <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-sm text-green-700 font-medium">
