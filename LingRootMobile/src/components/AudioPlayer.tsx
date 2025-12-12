@@ -57,6 +57,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(-1);
   const [currentDialogueIndex, setCurrentDialogueIndex] = useState(-1);
+  const [wordPopup, setWordPopup] = useState<{ mode: 'info' | 'confirm'; word: string; data?: any } | null>(null);
   
   // Removed complex drift correction - using simple web-like approach
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set()); // Seçilen kelimeler
@@ -120,6 +121,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     console.log(`📄 [AudioPlayer] pageIndex changed to: ${pageIndex}`);
   }, [pageIndex]);
 
+  const loadPronunciation = useCallback(async (_word: string) => {
+    // Pronunciation feature removed on mobile
+    return;
+  }, []);
+
   const handleShowWordInfo = useCallback(async (word: string) => {
     const cleanWord = word.replace(/[.,!?;:]/g, '');
 
@@ -138,23 +144,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
       const w = result.data;
 
-      if (language === 'tr') {
-        const message = `"${w.original_word || w.word}"\n\n` +
-          `Anlam: ${w.definition || '-'}\n` +
-          `Seviye: ${(w.level || '').toUpperCase() || '-'}\n` +
-          `Örnek Cümle: ${w.example_sentence || '-'}\n` +
-          `Türkçe Örnek: ${w.example_sentence_turkish || '-'}`;
-
-        Alert.alert('Kelime Bilgisi', message);
-      } else {
-        const message = `"${w.original_word || w.word}"\n\n` +
-          `Meaning: ${w.definition || '-'}\n` +
-          `Level: ${(w.level || '').toUpperCase() || '-'}\n` +
-          `Example: ${w.example_sentence || '-'}\n` +
-          `Turkish Example: ${w.example_sentence_turkish || '-'}`;
-
-        Alert.alert('Word Info', message);
-      }
+      setWordPopup({
+        mode: 'info',
+        word: cleanWord,
+        data: w,
+      });
+      await loadPronunciation(cleanWord);
     } catch (error: any) {
       Alert.alert(
         language === 'tr' ? 'Hata' : 'Error',
@@ -163,7 +158,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           : `An error occurred while loading word info: ${error?.message || 'Unknown error'}`,
       );
     }
-  }, [language]);
+  }, [language, loadPronunciation]);
   const [addingWord, setAddingWord] = useState(false); // Loading state for adding word
   const [addingWordText, setAddingWordText] = useState(''); // Text to show while adding
   const [elapsedTime, setElapsedTime] = useState(0); // Elapsed time since play started
@@ -1140,24 +1135,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       if (result.found && result.data && result.hasUserWord) {
         const w = result.data;
 
-        if (language === 'tr') {
-          const message = `"${w.original_word || w.word}"\n\n` +
-            `Anlam: ${w.definition || '-'}\n` +
-            `Seviye: ${(w.level || '').toUpperCase() || '-'}\n` +
-            `Örnek Cümle: ${w.example_sentence || '-'}\n` +
-            `Türkçe Örnek: ${w.example_sentence_turkish || '-'}`;
-
-          Alert.alert('Kelime Bilgisi', message);
-        } else {
-          const message = `"${w.original_word || w.word}"\n\n` +
-            `Meaning: ${w.definition || '-'}\n` +
-            `Level: ${(w.level || '').toUpperCase() || '-'}\n` +
-            `Example: ${w.example_sentence || '-'}\n` +
-            `Turkish Example: ${w.example_sentence_turkish || '-'}`;
-
-          Alert.alert('Word Info', message);
-        }
-
+        setWordPopup({
+          mode: 'info',
+          word: cleanWord,
+          data: w,
+        });
+        await loadPronunciation(cleanWord);
         return;
       }
     } catch (err) {
@@ -1183,7 +1166,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         },
       ],
     );
-  }, [language, handleAddWordToVocabulary]);
+  }, [language, handleAddWordToVocabulary, loadPronunciation]);
 
   const formatTime = (milliseconds: number) => {
     const totalSeconds = Math.floor(milliseconds / 1000);
@@ -1748,6 +1731,98 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             </View>
           </View>
         </View>
+
+        {/* Word info popup */}
+        {wordPopup && (
+          <Modal
+            transparent
+            visible
+            animationType="fade"
+            onRequestClose={() => {
+              setWordPopup(null);
+            }}
+          >
+            <TouchableOpacity
+              style={styles.wordPopupOverlay}
+              activeOpacity={1}
+              onPress={() => {
+                setWordPopup(null);
+              }}
+            >
+              <View style={styles.wordPopupCard}>
+                <Text style={styles.wordPopupLabel}>
+                  {language === 'tr' ? 'Seçilen kelime' : 'Selected word'}
+                </Text>
+                <Text style={styles.wordPopupWord}>
+                  {wordPopup.data?.original_word || wordPopup.data?.word || wordPopup.word}
+                </Text>
+
+                {wordPopup.mode === 'info' ? (
+                  <>
+                    <Text style={styles.wordPopupLine}>
+                      <Text style={styles.wordPopupLineLabel}>
+                        {language === 'tr' ? 'Anlam: ' : 'Meaning: '}
+                      </Text>
+                      <Text>{wordPopup.data?.definition || '-'}</Text>
+                    </Text>
+                    <Text style={styles.wordPopupLine}>
+                      <Text style={styles.wordPopupLineLabel}>
+                        {language === 'tr' ? 'Seviye: ' : 'Level: '}
+                      </Text>
+                      <Text>{(wordPopup.data?.level || '').toUpperCase() || '-'}</Text>
+                    </Text>
+                    <Text style={styles.wordPopupLine}>
+                      <Text style={styles.wordPopupLineLabel}>
+                        {language === 'tr' ? 'Örnek: ' : 'Example: '}
+                      </Text>
+                      <Text>{wordPopup.data?.example_sentence || '-'}</Text>
+                    </Text>
+                    <Text style={styles.wordPopupLine}>
+                      <Text style={styles.wordPopupLineLabel}>
+                        {language === 'tr' ? 'Türkçe Örnek: ' : 'Turkish Example: '}
+                      </Text>
+                      <Text>{wordPopup.data?.example_sentence_turkish || '-'}</Text>
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={[styles.wordPopupLine, { marginBottom: 8 }]}>
+                      {language === 'tr'
+                        ? `"${wordPopup.word}" kelimesini kelime listenize eklemek istiyor musunuz?`
+                        : `Do you want to add "${wordPopup.word}" to your vocabulary list?`}
+                    </Text>
+                  </>
+                )}
+
+                {wordPopup.mode === 'confirm' && (
+                  <View style={styles.wordPopupActionsRow}>
+                    <TouchableOpacity
+                      style={[styles.wordPopupActionButton, styles.wordPopupCancelButton]}
+                      onPress={() => {
+                        setWordPopup(null);
+                      }}
+                    >
+                      <Text style={styles.wordPopupCancelText}>
+                        {language === 'tr' ? 'İptal' : 'Cancel'}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.wordPopupActionButton, styles.wordPopupConfirmButton]}
+                      onPress={() => {
+                        handleAddWordToVocabulary(wordPopup.word, 0);
+                        setWordPopup(null);
+                      }}
+                    >
+                      <Text style={styles.wordPopupConfirmText}>
+                        {language === 'tr' ? 'Kelimeyi Ekle' : 'Add Word'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
       </View>
     </Modal>
   );
@@ -1757,6 +1832,70 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  wordPopupOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  wordPopupCard: {
+    width: '85%',
+    maxWidth: 380,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  wordPopupLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  wordPopupWord: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  wordPopupLine: {
+    fontSize: 14,
+    color: '#111827',
+    marginBottom: 4,
+  },
+  wordPopupLineLabel: {
+    fontWeight: '600',
+  },
+  wordPopupActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 16,
+  },
+  wordPopupActionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginLeft: 8,
+  },
+  wordPopupCancelButton: {
+    backgroundColor: '#E5E7EB',
+  },
+  wordPopupConfirmButton: {
+    backgroundColor: COLORS.primary,
+  },
+  wordPopupCancelText: {
+    fontSize: 13,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  wordPopupConfirmText: {
+    fontSize: 13,
+    color: '#ffffff',
+    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',

@@ -1257,8 +1257,7 @@ const processTtsRequest = async (req, res) => {
         // --- Step 11: Return Success Response ---
         logger.info(`[${requestId}] Processing complete with ${mfaWordTimings ? 'MFA' : 'optimized'} timings.`);
 
-        // Use Supabase URL if available, otherwise use API endpoint URL
-        const finalMp3Url = mp3Url || `/api/tts/audio/${uniqueId}`;
+        const finalMp3Url = mp3Url;
         
         // Use MFA timings if available, otherwise fall back to TTS timepoints
         // Ensure words is always an array
