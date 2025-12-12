@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '../lib/i18n';
 
 interface PlanRequiredProps {
   message?: string;
@@ -7,10 +8,11 @@ interface PlanRequiredProps {
 }
 
 const PlanRequired: React.FC<PlanRequiredProps> = ({ message, onClose, isOpen = true }) => {
+  const { t } = useTranslation();
   const [showModal, setShowModal] = useState(isOpen);
   const handleOk = (e?: React.MouseEvent<HTMLButtonElement>) => {
     // Prevent form submission if button is inside a form
-    try { e?.preventDefault(); e?.stopPropagation(); } catch {}
+    try { e?.preventDefault(); e?.stopPropagation(); } catch { }
     // Open in the SAME TAB to avoid popup blockers in mobile/webviews
     try {
       window.location.assign('/dashboard?tab=paket-bilgilerim');
@@ -31,7 +33,7 @@ const PlanRequired: React.FC<PlanRequiredProps> = ({ message, onClose, isOpen = 
           });
           const data = await response.json();
           console.log(' [PlanRequired] Usage summary response:', data);
-          
+
           if (data?.data?.hasPlan === false) {
             console.log(' [PlanRequired] No active plan found, showing modal');
             setShowModal(true);
@@ -46,7 +48,7 @@ const PlanRequired: React.FC<PlanRequiredProps> = ({ message, onClose, isOpen = 
           setShowModal(true);
         }
       };
-      
+
       checkSubscription();
     }
   }, [isOpen, onClose]);
@@ -54,9 +56,9 @@ const PlanRequired: React.FC<PlanRequiredProps> = ({ message, onClose, isOpen = 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6 ${showModal ? 'block' : 'hidden'}`}>
       <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-6 text-center">
-        <div className="text-2xl font-bold mb-2">Abonelik Gerekli</div>
+        <div className="text-2xl font-bold mb-2">{t('plan_required_title')}</div>
         <p className="text-gray-700 mb-6">
-          {message || 'Bu işlemi yapmak için aktif bir paket gerekir.'}
+          {message || t('plan_required_message_default')}
         </p>
         <div className="flex gap-3 justify-center">
           {/* Pure anchor to avoid popup blockers and JS interception */}
@@ -66,7 +68,7 @@ const PlanRequired: React.FC<PlanRequiredProps> = ({ message, onClose, isOpen = 
             rel="noopener noreferrer"
             className="px-6 py-2 rounded bg-indigo-600 text-white font-medium hover:bg-indigo-700 inline-block text-center"
           >
-            Tamam
+            {t('plan_required_button_ok')}
           </a>
         </div>
       </div>

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { useTranslation } from '../../lib/i18n';
 
 interface ManualSubtopicModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
   onAdd,
   parentTitle
 }) => {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,7 +53,7 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
             <i className="fas fa-plus-circle mr-2 text-green-600"></i>
-            Manuel Alt Konu Ekle
+            {t('topics_manual_modal_title')}
           </h3>
           <button
             onClick={onClose}
@@ -64,7 +66,8 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
 
         <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
           <p className="text-sm text-gray-700">
-            <span className="font-semibold">Ana Konu:</span> {parentTitle}
+            <span className="font-semibold">{t('topics_manual_modal_main_topic_label')}:</span>{' '}
+            {parentTitle}
           </p>
         </div>
 
@@ -72,13 +75,13 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
           {/* Başlık */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Alt Konu Başlığı *
+              {t('topics_manual_modal_title_label')} *
             </label>
             <Input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Örn: Kuruluş Dönemi, Tarih Öncesi, vb."
+              placeholder={t('topics_manual_modal_title_placeholder')}
               disabled={isSubmitting}
               maxLength={200}
               required
@@ -88,12 +91,12 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
           {/* Açıklama */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Açıklama (İsteğe Bağlı)
+              {t('topics_manual_modal_desc_label')}
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Bu alt konu hakkında kısa bir açıklama..."
+              placeholder={t('topics_manual_modal_desc_placeholder')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
               rows={3}
               disabled={isSubmitting}
@@ -110,7 +113,7 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
             <p className="text-xs text-gray-700">
               <i className="fas fa-lightbulb mr-1 text-primary"></i>
-              Manuel olarak eklediğiniz alt konudan da daha detaylı konular oluşturabilirsiniz.
+              {t('topics_manual_modal_info')}
             </p>
           </div>
 
@@ -123,7 +126,7 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
               className="flex-1"
               disabled={isSubmitting}
             >
-              İptal
+              {t('common_button_cancel')}
             </Button>
             <Button
               type="submit"
@@ -133,12 +136,12 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
               {isSubmitting ? (
                 <>
                   <i className="fas fa-spinner fa-spin mr-2"></i>
-                  Ekleniyor...
+                  {t('topics_manual_modal_submit_loading')}
                 </>
               ) : (
                 <>
                   <i className="fas fa-check mr-2"></i>
-                  Ekle
+                  {t('topics_manual_modal_submit_button')}
                 </>
               )}
             </Button>

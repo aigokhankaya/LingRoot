@@ -5,6 +5,7 @@ import { Topic, generateSubtopics, addManualSubtopic, deleteTopicAndChildren } f
 import { Button } from '../ui/button';
 import SubtopicModal from './SubtopicModal';
 import ManualSubtopicModal from './ManualSubtopicModal';
+import { useTranslation } from '../../lib/i18n';
 
 interface TopicNodeProps {
   topic: Topic;
@@ -25,6 +26,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
   audioStateByTopic,
   onOpenAudioModal,
 }) => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false); // Ana konular açık başlar
   const [isGenerating, setIsGenerating] = useState(false);
   const [showSubtopicModal, setShowSubtopicModal] = useState(false);
@@ -205,7 +207,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
     <div style={{ marginLeft: `${indent}px` }}>
       {/* Node Container */}
       <div className={`${colors.bg} ${colors.border} border-2 rounded-lg p-4 transition-all hover:shadow-md`}>
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
           {/* Sol Taraf - Başlık ve Bilgiler (tıklanabilir alan) */}
           <div
             className="flex-1 flex items-start space-x-3 cursor-pointer"
@@ -235,7 +237,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 {topic.title}
                 {hasSubtopics && (
                   <span className="ml-2 text-xs font-normal text-gray-500">
-                    ({totalSubtopics} alt konu)
+                    ({totalSubtopics} {t('topics_node_subtopic_suffix')})
                   </span>
                 )}
               </h4>
@@ -250,10 +252,12 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 <span className={`${colors.badge} text-white px-2 py-0.5 rounded-full`}>
                   {topic.level}
                 </span>
-                <span>Derinlik: {topic.depth}</span>
+                <span>
+                  {t('topics_node_depth_label')}: {topic.depth}
+                </span>
                 {topic.is_manual && (
                   <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
-                    Manuel
+                    {t('topics_node_manual_badge')}
                   </span>
                 )}
                 {topic.keywords && topic.keywords.length > 0 && (
@@ -264,10 +268,10 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 {hasSubtopics ? (
                   <>
                     <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                      {audioCount}/{totalSubtopics} Ses Oluşturuldu
+                      {audioCount}/{totalSubtopics} {t('topics_node_audio_created_badge_suffix')}
                     </span>
                     <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                      {listenedCount}/{totalSubtopics} Dinlendi
+                      {listenedCount}/{totalSubtopics} {t('topics_node_listened_badge_suffix')}
                     </span>
                   </>
                 ) : hasAudio ? (
@@ -278,11 +282,13 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                         : 'bg-blue-100 text-blue-700'
                     }`}
                   >
-                    {isListened ? 'Dinlendi' : 'Ses hazır'}
+                    {isListened
+                      ? t('topics_node_status_listened')
+                      : t('topics_node_status_audio_ready')}
                   </span>
                 ) : (
                   <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                    Ses yok
+                    {t('topics_node_status_no_audio')}
                   </span>
                 )}
 
@@ -297,7 +303,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
           </div>
 
           {/* Sağ Taraf - Aksiyonlar */}
-          <div className="flex flex-col space-y-2">
+          <div className="flex flex-col space-y-2 md:items-end mt-3 md:mt-0">
             <Button
               onClick={() => {
                 if (isTopicAudioLoading) return;
@@ -316,22 +322,22 @@ const TopicNode: React.FC<TopicNodeProps> = ({
               {isTopicAudioLoading ? (
                 <>
                   <i className="fas fa-circle-notch fa-spin mr-1"></i>
-                  Ses Oluşturuluyor...
+                  {t('topics_node_button_audio_creating')}
                 </>
               ) : canPlayFromTree ? (
                 <>
                   <i className="fas fa-play mr-1"></i>
-                  Dinle
+                  {t('topics_node_button_listen')}
                 </>
               ) : (
                 <>
                   <i className="fas fa-volume-up mr-1"></i>
-                  Ses Oluştur
+                  {t('topics_node_button_create_audio')}
                 </>
               )}
             </Button>
 
-            <div className="flex space-x-1">
+            <div className="flex flex-wrap gap-1 justify-start md:justify-end">
               <Button
                 onClick={() => setShowSubtopicModal(true)}
                 size="sm"
@@ -340,7 +346,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 disabled={isGenerating}
               >
                 <i className="fas fa-robot mr-1"></i>
-                Alt Konu Öner
+                {t('topics_node_button_suggest_subtopic')}
               </Button>
 
               <Button
@@ -350,7 +356,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 className="text-xs"
               >
                 <i className="fas fa-plus mr-1"></i>
-                Manuel Ekle
+                {t('topics_node_button_add_manual')}
               </Button>
 
               <Button
@@ -361,7 +367,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 disabled={isDeleting}
               >
                 <i className="fas fa-trash mr-1"></i>
-                Sil
+                {t('topics_node_button_delete')}
               </Button>
             </div>
           </div>
@@ -408,7 +414,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                 <i className="fas fa-exclamation-triangle mr-2 text-red-600"></i>
-                Konuyu silmek istiyor musun?
+                {t('topics_node_delete_title')}
               </h3>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
@@ -419,8 +425,11 @@ const TopicNode: React.FC<TopicNodeProps> = ({
               </button>
             </div>
 
+            <p className="text-sm text-gray-700 mb-1">
+              "{topic.title}" {t('topics_node_delete_description_main')}
+            </p>
             <p className="text-sm text-gray-700 mb-4">
-              "{topic.title}" konusunu ve tüm alt konularını kalıcı olarak sileceksin. Bu işlem geri alınamaz.
+              {t('topics_node_delete_description_warning')}
             </p>
 
             <div className="flex space-x-3 mt-4">
@@ -430,7 +439,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={isDeleting}
               >
-                Vazgeç
+                {t('topics_node_delete_cancel')}
               </Button>
               <Button
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
@@ -440,12 +449,12 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 {isDeleting ? (
                   <>
                     <i className="fas fa-spinner fa-spin mr-2"></i>
-                    Siliniyor...
+                    {t('topics_node_delete_confirm_loading')}
                   </>
                 ) : (
                   <>
                     <i className="fas fa-trash mr-2"></i>
-                    Evet, Sil
+                    {t('topics_node_delete_confirm')}
                   </>
                 )}
               </Button>

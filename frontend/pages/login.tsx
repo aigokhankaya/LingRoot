@@ -9,10 +9,12 @@ import { resendVerificationEmail } from '../src/lib/api';
 import { initializeGoogleAuth, signInWithGoogle } from '../src/lib/googleAuth';
 import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
+import { useTranslation } from '../src/lib/i18n';
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
   const { login, loginWithGoogle } = useAuth();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -49,11 +51,11 @@ const LoginPage: React.FC = () => {
           router.replace(target);
         }
       } else {
-        setError(result.message || 'Giriş başarısız');
+        setError(result.message || t('login_failed_generic'));
         setErrorCode(result.code || null);
       }
     } catch (err: any) {
-      setError(err.message || 'Bir hata oluştu');
+      setError(err.message || t('login_failed_error'));
       setErrorCode((err && err.code) || null);
     } finally {
       setLoading(false);
@@ -65,9 +67,9 @@ const LoginPage: React.FC = () => {
     setResendLoading(true);
     try {
       await resendVerificationEmail(email);
-      setResendMessage('Aktivasyon e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.');
+      setResendMessage(t('login_resend_activation_success'));
     } catch (e: any) {
-      setResendMessage(e?.message || 'İşlem sırasında bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
+      setResendMessage(e?.message || t('server_error'));
     } finally {
       setResendLoading(false);
     }
@@ -80,7 +82,7 @@ const LoginPage: React.FC = () => {
     try {
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
       if (!clientId || clientId === 'your-google-client-id-here.apps.googleusercontent.com') {
-        throw new Error('Google Client ID yapılandırılmamış. Lütfen NEXT_PUBLIC_GOOGLE_CLIENT_ID değerini kontrol edin.');
+        throw new Error(t('login_google_client_id_error'));
       }
 
       await initializeGoogleAuth();
@@ -96,10 +98,10 @@ const LoginPage: React.FC = () => {
           router.replace(target);
         }
       } else {
-        setError(result.message || 'Google ile giriş başarısız.');
+        setError(result.message || t('login_failed_generic'));
       }
     } catch (err: any) {
-      setError(err.message || 'Google ile giriş sırasında bir hata oluştu.');
+      setError(err.message || t('login_failed_error'));
     } finally {
       setGoogleLoading(false);
     }
@@ -124,8 +126,8 @@ const LoginPage: React.FC = () => {
       <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8 bg-white p-8 shadow-md rounded-lg">
           <div>
-            <h2 className="mt-2 text-center text-3xl font-extrabold text-gray-900">Giriş Yap</h2>
-            <p className="mt-2 text-center text-sm text-gray-600">AI-powered English learning platform</p>
+            <h2 className="mt-2 text-center text-3xl font-extrabold text-gray-900">{t('login')}</h2>
+            <p className="mt-2 text-center text-sm text-gray-600">{t('footer_tagline')}</p>
           </div>
 
           {error && (
@@ -135,14 +137,14 @@ const LoginPage: React.FC = () => {
           )}
           {errorCode === 'EMAIL_NOT_VERIFIED' && (
             <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-sm text-yellow-800 mb-2">E-postanız doğrulanmamış görünüyor. Hesabınızı aktifleştirmek için e-postanızı kontrol edin.</p>
+              <p className="text-sm text-yellow-800 mb-2">{t('login_email_not_verified_message')}</p>
               <div className="flex items-center space-x-2 mb-2">
                 <input
                   type="email"
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="E-posta adresi"
+                  placeholder={t('login_resend_email_placeholder')}
                 />
                 <button
                   type="button"
@@ -150,7 +152,7 @@ const LoginPage: React.FC = () => {
                   disabled={resendLoading || !email}
                   className="px-3 py-2 text-sm rounded-md text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50"
                 >
-                  {resendLoading ? 'Gönderiliyor...' : 'Aktivasyon maili gönder'}
+                  {resendLoading ? t('login_resend_activation_loading') : t('login_resend_activation_button')}
                 </button>
               </div>
               {resendMessage && (
@@ -162,12 +164,12 @@ const LoginPage: React.FC = () => {
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
-                <label htmlFor="email-address" className="block text-sm font-medium text-gray-700 mb-1">E-posta</label>
-                <input id="email-address" name="email" type="email" autoComplete="email" required className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" placeholder="E-posta adresinizi girin" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <label htmlFor="email-address" className="block text-sm font-medium text-gray-700 mb-1">{t('email')}</label>
+                <input id="email-address" name="email" type="email" autoComplete="email" required className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" placeholder={t('login_resend_email_placeholder')} value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
-                <input id="password" name="password" type="password" autoComplete="current-password" required className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" placeholder="Şifrenizi girin" value={password} onChange={(e) => setPassword(e.target.value)} />
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">{t('password')}</label>
+                <input id="password" name="password" type="password" autoComplete="current-password" required className="w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" placeholder={t('login_password_placeholder')} value={password} onChange={(e) => setPassword(e.target.value)} />
               </div>
 
               <label
@@ -182,24 +184,24 @@ const LoginPage: React.FC = () => {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
                 />
-                <span>Beni hatırla (30 gün boyunca oturum açık kalsın)</span>
+                <span>{t('login_remember_me')}</span>
               </label>
             </div>
 
             <div className="flex justify-end">
               <div className="text-sm">
-                <Link href="/forgot-password" className="font-medium text-primary hover:text-primary/80">Şifremi unuttum?</Link>
+                <Link href="/forgot-password" className="font-medium text-primary hover:text-primary/80">{t('login_forgot_password')}</Link>
               </div>
             </div>
 
             <div className="space-y-3">
               <button type="submit" disabled={loading} className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50">
-                {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
+                {loading ? t('login_button_loading') : t('login_button')}
               </button>
 
               <div className="flex items-center gap-3">
                 <span className="flex-1 h-px bg-gray-200" />
-                <span className="text-xs uppercase text-gray-400">veya</span>
+                <span className="text-xs uppercase text-gray-400">{t('login_or')}</span>
                 <span className="flex-1 h-px bg-gray-200" />
               </div>
 
@@ -215,13 +217,13 @@ const LoginPage: React.FC = () => {
                   <path fill="#4A90E2" d="M2.07 7.71A9.98 9.98 0 0 0 2 12c0 1.61.38 3.13 1.05 4.47l3.22-2.49A5.94 5.94 0 0 1 6 12c0-.94.22-1.82.62-2.6l-3.55-2.69z" />
                   <path fill="#FBBC05" d="M12 5.2c1.47 0 2.79.51 3.83 1.52l2.86-2.86C16.96 1.83 14.7 1 12 1 7.45 1 3.5 3.28 2.07 7.71l3.55 2.69C6.43 7.54 8.98 5.51 12 5.2z" />
                 </svg>
-                {googleLoading ? 'Google ile bağlanılıyor...' : 'Google ile Giriş Yap'}
+                {googleLoading ? t('login_google_loading') : t('login_google_button')}
               </button>
             </div>
           </form>
 
           <div className="text-sm text-center mt-4">
-            <button onClick={() => router.push('/register')} className="font-medium text-primary hover:text-primary/80">Hesabınız yok mu? Kayıt olun</button>
+            <button onClick={() => router.push('/register')} className="font-medium text-primary hover:text-primary/80">{t('no_account_register')}</button>
           </div>
         </div>
       </main>

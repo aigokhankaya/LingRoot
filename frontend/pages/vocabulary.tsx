@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getVocabulary, deleteWordFromVocabulary, updateWordInVocabulary, addWordToVocabulary, addWordWithTranslation, VocabularyWord, getReminderSettings, saveReminderSettings, ReminderSettings } from '../src/lib/api';
+import { useTranslation } from '../src/lib/i18n';
 import { Button } from "../src/components/ui/button";
 import { Input } from "../src/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "../src/components/ui/card";
@@ -9,6 +10,7 @@ import { Progress } from "../src/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../src/components/ui/dialog";
 
 export function VocabularyTabContent({ user }: { user: any }) {
+  const { t } = useTranslation();
   // State variables
   const [vocabulary, setVocabulary] = useState<VocabularyWord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,54 +42,55 @@ export function VocabularyTabContent({ user }: { user: any }) {
     isEnabled: true
   });
   const [isReminderSettingsOpen, setIsReminderSettingsOpen] = useState(false);
+  const [tempSettings, setTempSettings] = useState<ReminderSettings>(reminderSettings);
 
   // Word lists configuration
   const wordLists = {
     a1: {
-      title: "A1 - Başlangıç Seviyesi",
-      description: "Günlük hayatta en sık kullanılan temel kelimeler",
+      title: t('vocab_level_a1_title'),
+      description: t('vocab_level_a1_desc'),
       color: "bg-green-100",
       textColor: "text-green-800",
       borderColor: "border-green-200",
       badgeColor: "bg-green-500",
     },
     a2: {
-      title: "A2 - Temel Seviye", 
-      description: "Basit günlük konuşmalar için gerekli kelimeler",
+      title: t('vocab_level_a2_title'),
+      description: t('vocab_level_a2_desc'),
       color: "bg-primary/10",
       textColor: "text-primary",
-      borderColor: "border-primary/20", 
+      borderColor: "border-primary/20",
       badgeColor: "bg-primary text-primary-foreground",
     },
     b1: {
-      title: "B1 - Orta Seviye",
-      description: "Günlük ve iş hayatında kullanılan kelimeler",
+      title: t('vocab_level_b1_title'),
+      description: t('vocab_level_b1_desc'),
       color: "bg-purple-100",
       textColor: "text-purple-800",
       borderColor: "border-purple-200",
       badgeColor: "bg-purple-500",
     },
     b2: {
-      title: "B2 - Orta-Üstü Seviye",
-      description: "Daha karmaşık konular için gerekli kelimeler", 
+      title: t('vocab_level_b2_title'),
+      description: t('vocab_level_b2_desc'),
       color: "bg-amber-100",
       textColor: "text-amber-800",
       borderColor: "border-amber-200",
       badgeColor: "bg-amber-500",
     },
     c1: {
-      title: "C1 - İleri Seviye",
-      description: "Akademik ve profesyonel kelime dağarcığı",
-      color: "bg-indigo-100", 
+      title: t('vocab_level_c1_title'),
+      description: t('vocab_level_c1_desc'),
+      color: "bg-indigo-100",
       textColor: "text-indigo-800",
       borderColor: "border-indigo-200",
       badgeColor: "bg-indigo-500",
     },
     c2: {
-      title: "C2 - Ustalık Seviyesi",
-      description: "Anadil seviyesine yakın kelime dağarcığı",
+      title: t('vocab_level_c2_title'),
+      description: t('vocab_level_c2_desc'),
       color: "bg-rose-100",
-      textColor: "text-rose-800", 
+      textColor: "text-rose-800",
       borderColor: "border-rose-200",
       badgeColor: "bg-rose-500",
     }
@@ -106,6 +109,12 @@ export function VocabularyTabContent({ user }: { user: any }) {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (isReminderSettingsOpen) {
+      setTempSettings(reminderSettings);
+    }
+  }, [isReminderSettingsOpen, reminderSettings]);
+
   const loadVocabulary = async () => {
     try {
       setIsLoading(true);
@@ -113,7 +122,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
       const words = await getVocabulary();
       setVocabulary(words);
     } catch (error: any) {
-      setError('Kelimeler yüklenirken hata oluştu: ' + error.message);
+      setError(t('vocab_error_loading') + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -132,14 +141,15 @@ export function VocabularyTabContent({ user }: { user: any }) {
   // Save reminder settings
   const handleSaveReminderSettings = async () => {
     try {
-      await saveReminderSettings(reminderSettings);
+      await saveReminderSettings(tempSettings);
+      setReminderSettings(tempSettings);
       setIsReminderSettingsOpen(false);
-      
+
       // Show success message
-      alert('✅ Hatırlatma ayarları başarıyla kaydedildi!\n\nMobil uygulamada yeni ayarlar aktif olacak.');
+      alert(t('vocab_reminder_success'));
     } catch (error) {
       console.error('❌ [WEB] Error saving reminder settings:', error);
-      alert('❌ Ayarlar kaydedilirken hata oluştu: ' + (error instanceof Error ? error.message : 'Bilinmeyen hata'));
+      alert(t('vocab_reminder_error') + (error instanceof Error ? error.message : t('unknown_error')));
     }
   };
 
@@ -147,7 +157,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
     e.preventDefault();
     try {
       const cleanWord = newWord.word.trim();
-      
+
       // Otomatik olarak kelime detaylarını çek (AudioPlayer ve mobil uygulama gibi)
       const result = await addWordWithTranslation(
         cleanWord,
@@ -155,31 +165,38 @@ export function VocabularyTabContent({ user }: { user: any }) {
         '', // Level boş - OpenAI otomatik belirleyecek
         '' // Original sentence boş olabilir
       );
-      
+
       setNewWord({ word: "", level: "", meaning: "", example: "" });
       setIsAddWordModalOpen(false);
       loadVocabulary();
-      
+
       // Detaylı başarı mesajı göster
       if (result.isExisting) {
-        alert(`Bilgi!\n\n"${cleanWord}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${result.data.definition || 'Belirtilmemiş'}\nÖrnek: ${result.data.example_sentence || 'Belirtilmemiş'}`);
+        alert(t('vocab_existing_word')
+          .replace('{word}', cleanWord)
+          .replace('{definition}', result.data.definition || 'Belirtilmemiş')
+          .replace('{example}', result.data.example_sentence || 'Belirtilmemiş'));
       } else if (result.translationError) {
-        alert(`Uyarı!\n\n"${cleanWord}" kelimesi eklendi ancak çeviri yapılamadı. Anlamı manuel olarak ekleyebilirsiniz.`);
+        alert(t('vocab_success_added_no_trans').replace('{word}', cleanWord));
       } else {
-        alert(`Başarılı!\n\n"${cleanWord}" kelimesi başarıyla eklendi!\n\nAnlam: ${result.data.definition}\nÖrnek Cümle: ${result.data.example_sentence}\nSeviye: ${result.data.level}`);
+        alert(t('vocab_success_added')
+          .replace('{word}', cleanWord)
+          .replace('{definition}', result.data.definition || '')
+          .replace('{example}', result.data.example_sentence || '')
+          .replace('{level}', result.data.level || ''));
       }
     } catch (error: any) {
-      alert('Kelime eklenirken hata oluştu: ' + error.message);
+      alert(t('vocab_error_adding') + error.message);
     }
   };
 
   const handleDeleteWord = async (wordId: number) => {
-    if (!confirm('Bu kelimeyi silmek istediğinizden emin misiniz?')) return;
+    if (!confirm(t('vocab_delete_confirm'))) return;
     try {
       await deleteWordFromVocabulary(wordId);
       setVocabulary(vocabulary.filter(word => word.id !== wordId));
     } catch (error: any) {
-      alert('Kelime silinirken hata oluştu: ' + error.message);
+      alert(t('vocab_error_deleting') + error.message);
     }
   };
 
@@ -188,7 +205,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
       const updatedWord = await updateWordInVocabulary(wordId, { is_learned: !currentStatus });
       setVocabulary(vocabulary.map(word => word.id === wordId ? updatedWord : word));
     } catch (error: any) {
-      alert('Kelime durumu güncellenirken hata oluştu: ' + error.message);
+      alert(t('vocab_error_updating') + error.message);
     }
   };
 
@@ -251,18 +268,18 @@ export function VocabularyTabContent({ user }: { user: any }) {
       <div className="mb-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">CEFR Seviyelerine Göre Kelime Listeleri</h2>
+            <h2 className="text-2xl font-bold text-gray-800">{t('vocab_title_cefr')}</h2>
             <p className="text-gray-600 mt-1">
-              Seviyenize uygun kelime listelerini keşfedin ve öğrenme durumunuzu takip edin
+              {t('vocab_subtitle_cefr')}
             </p>
           </div>
           <div className="flex gap-2">
-            <Button 
+            <Button
               className="bg-primary hover:bg-primary/90 text-primary-foreground !rounded-button whitespace-nowrap cursor-pointer"
               onClick={() => setIsAddWordModalOpen(true)}
             >
               <i className="fas fa-plus mr-2"></i>
-              Yeni Kelime Ekle
+              {t('vocab_add_new_word')}
             </Button>
           </div>
         </div>
@@ -272,9 +289,9 @@ export function VocabularyTabContent({ user }: { user: any }) {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-gray-800">Yeni Kelime Ekle</h3>
-                <Button 
-                  variant="ghost" 
+                <h3 className="text-xl font-bold text-gray-800">{t('vocab_modal_title')}</h3>
+                <Button
+                  variant="ghost"
                   className="!rounded-button"
                   onClick={() => setIsAddWordModalOpen(false)}
                 >
@@ -284,17 +301,17 @@ export function VocabularyTabContent({ user }: { user: any }) {
               <form onSubmit={handleAddWord} className="space-y-4">
                 <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <Label htmlFor="word">Kelime *</Label>
+                    <Label htmlFor="word">{t('vocab_word_label')}</Label>
                     <Input
                       id="word"
                       value={newWord.word}
-                      onChange={(e) => setNewWord({...newWord, word: e.target.value})}
+                      onChange={(e) => setNewWord({ ...newWord, word: e.target.value })}
                       className="mt-1"
-                      placeholder="Örn: beautiful"
+                      placeholder={t('vocab_word_placeholder')}
                       required
                     />
                     <p className="text-sm text-gray-500 mt-2 italic">
-                      💡 Anlam, örnek cümle ve seviye otomatik olarak AI tarafından belirlenecektir
+                      {t('vocab_word_hint')}
                     </p>
                   </div>
                 </div>
@@ -305,10 +322,10 @@ export function VocabularyTabContent({ user }: { user: any }) {
                     className="!rounded-button"
                     onClick={() => setIsAddWordModalOpen(false)}
                   >
-                    İptal
+                    {t('vocab_cancel')}
                   </Button>
                   <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground !rounded-button">
-                    Kaydet
+                    {t('vocab_save')}
                   </Button>
                 </div>
               </form>
@@ -321,13 +338,13 @@ export function VocabularyTabContent({ user }: { user: any }) {
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-3">
             <i className="fas fa-exclamation-triangle text-red-500"></i>
             <p className="text-red-700">{error}</p>
-            <Button 
-              onClick={loadVocabulary} 
-              variant="outline" 
+            <Button
+              onClick={loadVocabulary}
+              variant="outline"
               size="sm"
               className="ml-auto"
             >
-              Tekrar Dene
+              {t('vocab_retry_button')}
             </Button>
           </div>
         )}
@@ -337,7 +354,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <Input
-                placeholder="Kelime veya anlam ara..."
+                placeholder={t('vocab_search_placeholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 border-gray-300 text-sm"
@@ -345,12 +362,12 @@ export function VocabularyTabContent({ user }: { user: any }) {
               <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
             </div>
             <div className="flex flex-wrap gap-2">
-              <select 
-                value={activeLevel} 
+              <select
+                value={activeLevel}
                 onChange={(e) => setActiveLevel(e.target.value)}
                 className="w-[120px] rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
               >
-                <option value="all">Tüm Seviyeler</option>
+                <option value="all">{t('vocab_filter_all_levels')}</option>
                 <option value="a1">A1</option>
                 <option value="a2">A2</option>
                 <option value="b1">B1</option>
@@ -358,14 +375,14 @@ export function VocabularyTabContent({ user }: { user: any }) {
                 <option value="c1">C1</option>
                 <option value="c2">C2</option>
               </select>
-              <select 
-                value={learnedFilter} 
+              <select
+                value={learnedFilter}
                 onChange={(e) => setLearnedFilter(e.target.value)}
                 className="w-[150px] rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
               >
-                <option value="all">Tümü</option>
-                <option value="learned">Öğrenildi</option>
-                <option value="not-learned">Öğrenilmedi</option>
+                <option value="all">{t('vocab_filter_all_status')}</option>
+                <option value="learned">{t('vocab_filter_learned')}</option>
+                <option value="not-learned">{t('vocab_filter_not_learned')}</option>
               </select>
             </div>
           </div>
@@ -388,21 +405,21 @@ export function VocabularyTabContent({ user }: { user: any }) {
                   </div>
                   <div className="mt-3">
                     <div className="flex justify-between text-xs text-gray-600 mb-1">
-                      <span>İlerleme</span>
+                      <span>{t('vocab_progress_label')}</span>
                       <span>{progress}%</span>
                     </div>
                     <Progress value={progress} className="h-2" />
                   </div>
                   <div className="flex justify-between items-center mt-4">
                     <div className="text-sm text-gray-600">
-                      {levelWords.length} kelime
+                      {levelWords.length} {t('vocab_words_count_suffix')}
                     </div>
                     <Button
                       variant="outline"
                       className={`border-none bg-white ${data.textColor}`}
                       onClick={() => setActiveLevel(level)}
                     >
-                      Görüntüle
+                      {t('vocab_view_button')}
                     </Button>
                   </div>
                 </CardContent>
@@ -436,14 +453,12 @@ export function VocabularyTabContent({ user }: { user: any }) {
                 return (
                   <div
                     key={word.id}
-                    className={`border rounded-lg overflow-hidden transition-all duration-200 ${
-                      expandedWordId === word.id ? "shadow-md" : "shadow-sm"
-                    } ${levelData?.borderColor || "border-gray-200"}`}
+                    className={`border rounded-lg overflow-hidden transition-all duration-200 ${expandedWordId === word.id ? "shadow-md" : "shadow-sm"
+                      } ${levelData?.borderColor || "border-gray-200"}`}
                   >
                     <div
-                      className={`p-4 cursor-pointer ${
-                        expandedWordId === word.id ? levelData?.color : "bg-white"
-                      }`}
+                      className={`p-4 cursor-pointer ${expandedWordId === word.id ? levelData?.color : "bg-white"
+                        }`}
                       onClick={() => toggleWordExpanded(word.id!)}
                     >
                       <div className="flex justify-between items-start">
@@ -491,67 +506,49 @@ export function VocabularyTabContent({ user }: { user: any }) {
                       <div className="p-4 border-t border-gray-200 bg-white">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <h5 className="font-medium text-gray-700 mb-2">Detaylar</h5>
+                            <h5 className="font-medium text-gray-700 mb-2">{t('vocab_details_title')}</h5>
                             <div className="space-y-2">
-                              {word.definition && (
-                                <div>
-                                  <span className="text-sm text-gray-500">Anlamı: </span>
-                                  <span className="text-gray-800">{word.definition}</span>
-                                </div>
-                              )}
-                              {word.level && (
-                                <div>
-                                  <span className="text-sm text-gray-500">Seviye: </span>
-                                  <Badge variant="outline">
-                                    {word.level.toUpperCase()}
-                                  </Badge>
-                                </div>
-                              )}
-                              <div>
-                                <span className="text-sm text-gray-500">Durum: </span>
-                                <Badge className={`${word.is_learned ? "bg-green-500" : "bg-amber-500"}`}>
-                                  {word.is_learned ? "Öğrenildi" : "Öğrenilmedi"}
-                                </Badge>
+                              <p className="text-gray-600">
+                                <span className="font-medium text-gray-700">{t('vocab_meaning_label')}</span>
+                                {word.definition}
+                              </p>
+                              <div className="flex gap-4 text-sm text-gray-500">
+                                <span><span className="font-medium">{t('vocab_level_label')}</span> {word.level}</span>
+                                <span><span className="font-medium">{t('vocab_status_label')}</span> {word.is_learned ? t('vocab_status_learned_label') : t('vocab_status_not_learned_label')}</span>
                               </div>
+                              {word.example_sentence && (
+                                <div className="bg-gray-50 p-3 rounded-md text-sm mt-2">
+                                  <p className="font-medium text-gray-700 mb-1">{t('vocab_example_sentence_label')}:</p>
+                                  <p className="italic text-gray-600">"{word.example_sentence}"</p>
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <div>
-                            <h5 className="font-medium text-gray-700 mb-2">Örnek Cümle</h5>
-                            {word.example_sentence ? (
-                              <div className="bg-gray-50 p-3 rounded-lg space-y-2">
-                                <p className="text-gray-700 italic">"{word.example_sentence}"</p>
-                                {word.example_sentence_turkish && (
-                                  <p className="text-gray-600 text-sm font-medium border-t border-gray-200 pt-2">
-                                    🇹🇷 "{word.example_sentence_turkish}"
-                                  </p>
-                                )}
-                              </div>
-                            ) : (
-                              <p className="text-gray-500 italic">Örnek cümle eklenmemiş</p>
-                            )}
+                          <div className="flex flex-col justify-between">
+                            <div>
+                              {word.original_sentence && (
+                                <div className="bg-blue-50 p-3 rounded-md text-sm border border-blue-100">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <i className="fas fa-quote-left text-blue-400 text-xs"></i>
+                                    <p className="font-medium text-blue-800">{t('vocab_original_sentence_label')}</p>
+                                  </div>
+                                  <p className="text-blue-900 mb-1">"{word.original_sentence}"</p>
+                                  <p className="text-xs text-blue-600/80">{t('vocab_original_sentence_desc')}</p>
+                                </div>
+                              )}
+                            </div>
+                            <div className="mt-4 flex justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteWord(word.id!)}
+                              >
+                                <i className="fas fa-trash-alt mr-1"></i>
+                                {t('vocab_delete_button')}
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                        {/* Orijinal Cümle */}
-                        {word.original_sentence && (
-                          <div className="col-span-2 mt-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
-                            <h5 className="font-medium text-primary mb-2 flex items-center">
-                              <i className="fas fa-quote-left mr-2"></i>
-                              Orijinal Cümle
-                            </h5>
-                            <p className="text-gray-800 italic">"{word.original_sentence}"</p>
-                            <p className="text-xs text-gray-600 mt-1">Bu cümle kelimenin orijinal metindeki kullanımını gösterir</p>
-                          </div>
-                        )}
-                        <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="text-red-600 hover:text-red-700 hover:border-red-300"
-                            onClick={() => handleDeleteWord(word.id!)}
-                          >
-                            <i className="fas fa-trash mr-2"></i>
-                            Sil
-                          </Button>
                         </div>
                       </div>
                     )}
@@ -560,40 +557,14 @@ export function VocabularyTabContent({ user }: { user: any }) {
               })}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                <i className="fas fa-search text-gray-400 text-xl"></i>
+            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="fas fa-book-open text-2xl text-gray-400"></i>
               </div>
-              <h4 className="text-lg font-medium text-gray-700">
-                {vocabulary.length === 0 ? 'Henüz kelime eklenmemiş' : 'Sonuç Bulunamadı'}
-              </h4>
-              <p className="text-gray-500 mt-1">
-                {vocabulary.length === 0 
-                  ? 'Senkronize metin oynatıcısında kelimelere sağ tıklayarak kelime listenize ekleyebilirsiniz.'
-                  : 'Arama kriterlerinize uygun kelime bulunamadı.'
-                }
+              <h3 className="text-lg font-medium text-gray-900">{t('vocab_no_words_title')}</h3>
+              <p className="text-gray-500 mt-2 max-w-md mx-auto">
+                {t('vocab_no_words_desc')}
               </p>
-              <div className="flex justify-center gap-2 mt-4">
-                <Button
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                  onClick={() => setIsAddWordModalOpen(true)}
-                >
-                  <i className="fas fa-plus mr-2"></i>
-                  Kelime Ekle
-                </Button>
-                {vocabulary.length !== 0 && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSearchTerm("");
-                      setActiveLevel("all");
-                      setLearnedFilter("all");
-                    }}
-                  >
-                    Filtreleri Temizle
-                  </Button>
-                )}
-              </div>
             </div>
           )}
         </div>
@@ -602,30 +573,52 @@ export function VocabularyTabContent({ user }: { user: any }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 mt-8">
           <Card className="border-none shadow-md">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xl font-bold text-gray-800">Kelime İstatistikleri</CardTitle>
+              <CardTitle className="text-xl font-bold text-gray-800">{t('vocab_stats_title')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-700">Toplam Kelime</span>
-                    <span className="text-sm font-medium text-primary">{stats.total}</span>
-                  </div>
-                  <Progress value={100} className="h-2" />
+                  <p className="text-sm font-medium text-gray-500">{t('vocab_stats_total')}</p>
+                  <p className="text-2xl font-bold text-gray-800">{vocabulary.length}</p>
                 </div>
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-700">Öğrenilen</span>
-                    <span className="text-sm font-medium text-green-600">{stats.learned}</span>
-                  </div>
-                  <Progress value={stats.learnedPercentage} className="h-2" />
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <i className="fas fa-layer-group text-blue-600"></i>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-md">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xl font-bold text-gray-800">{t('vocab_stats_learned')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-700">Öğrenilmemiş</span>
-                    <span className="text-sm font-medium text-amber-600">{stats.notLearned}</span>
-                  </div>
-                  <Progress value={100 - stats.learnedPercentage} className="h-2" />
+                  <p className="text-sm font-medium text-gray-500">{t('vocab_stats_learned')}</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {vocabulary.filter(w => w.is_learned).length}
+                  </p>
+                </div>
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                  <i className="fas fa-check-circle text-green-600"></i>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-md">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xl font-bold text-gray-800">{t('vocab_stats_not_learned')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">{t('vocab_stats_not_learned')}</p>
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {vocabulary.filter(w => !w.is_learned).length}
+                  </p>
+                </div>
+                <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <i className="fas fa-clock text-yellow-600"></i>
                 </div>
               </div>
             </CardContent>
@@ -633,7 +626,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
 
           <Card className="border-none shadow-md">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xl font-bold text-gray-800">Pratik Araçları</CardTitle>
+              <CardTitle className="text-xl font-bold text-gray-800">{t('vocab_practice_tools_title')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -641,122 +634,98 @@ export function VocabularyTabContent({ user }: { user: any }) {
                   <DialogTrigger asChild>
                     <Button variant="outline" className="w-full justify-start">
                       <i className="fas fa-sync-alt mr-2 text-purple-600"></i>
-                      Kelime Tekrarı
+                      {t('vocab_practice_reminder_button')}
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
+                  <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
-                      <DialogTitle className="text-xl font-semibold text-gray-800">
-                        <i className="fas fa-sync-alt mr-2 text-purple-600"></i>
-                        Kelime Hatırlatma Ayarları
-                      </DialogTitle>
+                      <DialogTitle>{t('vocab_reminder_modal_title')}</DialogTitle>
                     </DialogHeader>
+
                     <div className="space-y-6 py-4">
-                      {/* Words per day setting */}
                       <div className="space-y-2">
-                        <Label htmlFor="wordsPerDay" className="text-sm font-medium text-gray-700">
-                          Günde kaç kelime hatırlatılsın?
-                        </Label>
-                        <select
-                          value={reminderSettings.wordsPerDay.toString()}
-                          onChange={(e) => setReminderSettings(prev => ({
-                            ...prev,
-                            wordsPerDay: parseInt(e.target.value)
-                          }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        >
-                          <option value="1">1 kelime</option>
-                          <option value="3">3 kelime</option>
-                          <option value="5">5 kelime</option>
-                          <option value="7">7 kelime</option>
-                          <option value="10">10 kelime</option>
-                          <option value="15">15 kelime</option>
-                          <option value="20">20 kelime</option>
-                        </select>
+                        <Label>{t('vocab_reminder_words_per_day')}</Label>
+                        <div className="flex items-center gap-4">
+                          <Input
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={tempSettings.wordsPerDay}
+                            onChange={(e) =>
+                              setTempSettings({
+                                ...tempSettings,
+                                wordsPerDay: parseInt(e.target.value) || 5,
+                              })
+                            }
+                            className="w-24"
+                          />
+                          <span className="text-sm text-gray-500">{t('vocab_words_count_suffix')}</span>
+                        </div>
                       </div>
 
-                      {/* Time range setting */}
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium text-gray-700">
-                          Bildirim yapılacak saat aralığı
-                        </Label>
+                      <div className="space-y-2">
+                        <Label>{t('vocab_reminder_time_range')}</Label>
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="startTime" className="text-xs text-gray-600">
-                              Başlangıç Saati
-                            </Label>
+                          <div>
+                            <Label className="text-xs text-gray-500 mb-1 block">{t('vocab_reminder_start_time')}</Label>
                             <Input
-                              id="startTime"
                               type="time"
-                              value={reminderSettings.startTime}
-                              onChange={(e) => setReminderSettings(prev => ({
-                                ...prev,
-                                startTime: e.target.value
-                              }))}
-                              className="w-full"
+                              value={tempSettings.startTime}
+                              onChange={(e) =>
+                                setTempSettings({
+                                  ...tempSettings,
+                                  startTime: e.target.value,
+                                })
+                              }
                             />
                           </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="endTime" className="text-xs text-gray-600">
-                              Bitiş Saati
-                            </Label>
+                          <div>
+                            <Label className="text-xs text-gray-500 mb-1 block">{t('vocab_reminder_end_time')}</Label>
                             <Input
-                              id="endTime"
                               type="time"
-                              value={reminderSettings.endTime}
-                              onChange={(e) => setReminderSettings(prev => ({
-                                ...prev,
-                                endTime: e.target.value
-                              }))}
-                              className="w-full"
+                              value={tempSettings.endTime}
+                              onChange={(e) =>
+                                setTempSettings({
+                                  ...tempSettings,
+                                  endTime: e.target.value,
+                                })
+                              }
                             />
                           </div>
                         </div>
-                        <p className="text-xs text-gray-500 mt-2">
-                          <i className="fas fa-info-circle mr-1"></i>
-                          Seçilen saat aralığında eşit aralıklarla hatırlatmalar yapılacaktır.
+                        <p className="text-xs text-gray-500 mt-1">
+                          {t('vocab_reminder_info')}
                         </p>
                       </div>
 
-                      {/* Info box */}
-                      <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
-                        <div className="flex">
-                          <i className="fas fa-mobile-alt text-primary mr-2 mt-0.5"></i>
-                          <div>
-                            <h4 className="text-sm font-medium text-primary">Mobil Bildirimler</h4>
-                            <p className="text-xs text-gray-700 mt-1">
-                              Bu ayarlar mobil uygulamada bildirim zamanlarını belirler. Web versiyonunda bildirim bulunmaz.
-                            </p>
-                          </div>
+                      <div className="bg-blue-50 p-4 rounded-md flex gap-3">
+                        <i className="fas fa-mobile-alt text-blue-500 mt-1"></i>
+                        <div>
+                          <h4 className="text-sm font-semibold text-blue-800">{t('vocab_reminder_mobile_info_title')}</h4>
+                          <p className="text-xs text-blue-600 mt-1">
+                            {t('vocab_reminder_mobile_info_desc')}
+                          </p>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Action buttons */}
-                      <div className="flex justify-end space-x-3 pt-4">
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsReminderSettingsOpen(false)}
-                        >
-                          İptal
-                        </Button>
-                        <Button
-                          onClick={handleSaveReminderSettings}
-                          className="bg-purple-600 hover:bg-purple-700"
-                        >
-                          <i className="fas fa-save mr-2"></i>
-                          Ayarları Kaydet
-                        </Button>
-                      </div>
+                    <div className="flex justify-end gap-3">
+                      <Button variant="outline" onClick={() => setIsReminderSettingsOpen(false)}>
+                        {t('vocab_cancel')}
+                      </Button>
+                      <Button onClick={handleSaveReminderSettings}>
+                        {t('vocab_reminder_save_button')}
+                      </Button>
                     </div>
                   </DialogContent>
                 </Dialog>
                 <Button variant="outline" className="w-full justify-start">
                   <i className="fas fa-microphone mr-2 text-primary"></i>
-                  Telaffuz Pratiği
+                  {t('vocab_practice_pronunciation_button')}
                 </Button>
                 <Button variant="outline" className="w-full justify-start">
                   <i className="fas fa-puzzle-piece mr-2 text-green-600"></i>
-                  Kelime Oyunları
+                  {t('vocab_practice_games_button')}
                 </Button>
               </div>
             </CardContent>
@@ -764,17 +733,17 @@ export function VocabularyTabContent({ user }: { user: any }) {
 
           <Card className="border-none shadow-md">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xl font-bold text-gray-800">Öğrenme İpuçları</CardTitle>
+              <CardTitle className="text-xl font-bold text-gray-800">{t('vocab_tips_title')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="p-3 bg-primary/5 rounded-lg">
-                  <h4 className="font-medium text-primary mb-1">Düzenli Tekrar</h4>
-                  <p className="text-sm text-gray-600">Öğrendiğiniz kelimeleri düzenli aralıklarla tekrar edin.</p>
+                  <h4 className="font-medium text-primary mb-1">{t('vocab_tips_regular_title')}</h4>
+                  <p className="text-sm text-gray-600">{t('vocab_tips_regular_desc')}</p>
                 </div>
                 <div className="p-3 bg-green-50 rounded-lg">
-                  <h4 className="font-medium text-green-800 mb-1">Bağlam İçinde Öğrenme</h4>
-                  <p className="text-sm text-gray-600">Kelimeleri cümle içinde kullanarak daha kalıcı öğrenin.</p>
+                  <h4 className="font-medium text-green-800 mb-1">{t('vocab_tips_context_title')}</h4>
+                  <p className="text-sm text-gray-600">{t('vocab_tips_context_desc')}</p>
                 </div>
               </div>
             </CardContent>

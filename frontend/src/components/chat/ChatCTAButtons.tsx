@@ -1,5 +1,6 @@
 import React from 'react';
 import { FileText, Podcast, Volume2 } from 'lucide-react';
+import { useTranslation } from '../../lib/i18n';
 
 interface ChatCTAButtonsProps {
   disabled: boolean;
@@ -14,6 +15,8 @@ export const ChatCTAButtons: React.FC<ChatCTAButtonsProps> = ({
   onPodcast,
   onSeslendir,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
       <div className="max-w-4xl mx-auto">
@@ -22,33 +25,33 @@ export const ChatCTAButtons: React.FC<ChatCTAButtonsProps> = ({
           <button
             disabled={disabled}
             onClick={onAnlatim}
-            title={disabled ? "Konu/İçerik netleşince aktif olacaktır." : "Anlatım Oluştur"}
+            title={disabled ? t('chat_action_disabled_tooltip') : t('chat_create_narration')}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium text-sm transition-all hover:bg-gray-50 dark:hover:bg-gray-750 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
           >
             <FileText className="w-4 h-4" />
-            <span className="whitespace-nowrap">Anlatım Oluştur</span>
+            <span className="whitespace-nowrap">{t('chat_create_narration')}</span>
           </button>
 
           {/* Podcast Oluştur */}
           <button
             disabled={disabled}
             onClick={onPodcast}
-            title={disabled ? "Konu/İçerik netleşince aktif olacaktır." : "Podcast Oluştur"}
+            title={disabled ? t('chat_action_disabled_tooltip') : t('chat_create_podcast')}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium text-sm transition-all hover:bg-gray-50 dark:hover:bg-gray-750 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
           >
             <Podcast className="w-4 h-4" />
-            <span className="whitespace-nowrap">Podcast Oluştur</span>
+            <span className="whitespace-nowrap">{t('chat_create_podcast')}</span>
           </button>
 
           {/* Metni Seslendir */}
           <button
             disabled={disabled}
             onClick={onSeslendir}
-            title={disabled ? "Konu/İçerik netleşince aktif olacaktır." : "Metni Seslendir"}
+            title={disabled ? t('chat_action_disabled_tooltip') : t('chat_voice_text')}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium text-sm transition-all hover:bg-gray-50 dark:hover:bg-gray-750 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
           >
             <Volume2 className="w-4 h-4" />
-            <span className="whitespace-nowrap">Metni Seslendir</span>
+            <span className="whitespace-nowrap">{t('chat_voice_text')}</span>
           </button>
         </div>
       </div>

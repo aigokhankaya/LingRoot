@@ -209,6 +209,56 @@ router.post('/user-settings/default-voice', authenticate, async (req, res) => {
   }
 });
 
+router.post('/user-settings/interface-language', authenticate, async (req, res) => {
+  try {
+    const { language } = req.body || {};
+    const allowed = ['tr', 'en'];
+    const lang = typeof language === 'string' && allowed.includes(language) ? language : 'tr';
+
+    const { data: existing, error: readError } = await supabase
+      .from('user_settings')
+      .select('settings')
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (readError && readError.details !== 'The result contains 0 rows') {
+      logger.error('Error reading settings for interface language:', readError);
+      return res.status(500).json({ success: false, message: 'Arayüz dili kaydedilemedi' });
+    }
+
+    let settingsObj = {};
+    try {
+      settingsObj = existing?.settings && typeof existing.settings === 'string'
+        ? JSON.parse(existing.settings)
+        : (existing?.settings || {});
+    } catch {
+      settingsObj = {};
+    }
+
+    const newSettings = {
+      ...(settingsObj || {}),
+      interface_language: lang,
+      interfaceLanguage: lang,
+    };
+
+    const { data, error: upsertError } = await supabase
+      .from('user_settings')
+      .upsert({ user_id: req.user.id, settings: newSettings }, { onConflict: 'user_id' })
+      .select('settings')
+      .single();
+
+    if (upsertError) {
+      logger.error('Error saving interface language:', upsertError);
+      return res.status(500).json({ success: false, message: 'Arayüz dili kaydedilemedi' });
+    }
+
+    return res.json({ success: true, data });
+  } catch (e) {
+    logger.error('Unexpected error saving interface language:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // User favorites stored inside user_settings.settings JSON as settings.favorites: string[]
 router.get('/user-favorites', authenticate, async (req, res) => {
   try {

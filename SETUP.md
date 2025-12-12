@@ -1,91 +1,263 @@
 # LingRoot Setup Guide
 
+**Son Güncelleme:** Aralık 2025
+
+## Gereksinimler
+
+- **Node.js:** v20.x (backend), v18+ (frontend)
+- **PostgreSQL:** Supabase üzerinden
+- **FFmpeg:** Audio işleme için gerekli
+- **Google Cloud Account:** TTS için
+- **OpenAI API Key:** AI özellikleri için
+
 ## Environment Variables
 
-Create a `.env.local` file in the root directory with the following variables:
+### Backend (.env)
+
+`backend/` dizininde `.env` dosyası oluşturun:
 
 ```bash
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://your-supabase-project.supabase.co
-SUPABASE_SERVICE_KEY=your-service-key-goes-here
+# Server Configuration
+NODE_ENV=development
+PORT=5001
+LOG_LEVEL=debug
 
-# JWT Configuration
-JWT_SECRET=lingroot-secure-jwt-secret-change-in-production
+# Database (Supabase PostgreSQL)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key
+SUPABASE_BUCKET_NAME=audio-outputs
 
+# Authentication
+JWT_SECRET=your-secure-jwt-secret
+JWT_EXPIRES_IN=7d
+
+# AI Services
+OPENAI_API_KEY=sk-your-openai-key
+
+# TTS Services (en az biri gerekli)
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/google-credentials.json
+AZURE_SPEECH_KEY=your-azure-key
+AZURE_SPEECH_REGION=westeurope
+
+# Frontend URL (CORS için)
+FRONTEND_URL=http://localhost:3000
+
+# Optional - IAP
+GOOGLE_PLAY_PACKAGE_NAME=com.lingroot.app
+APPLE_SHARED_SECRET=your-apple-secret
+```
+
+### Frontend (.env.local)
+
+`frontend/` dizininde `.env.local` dosyası oluşturun:
+
+```bash
 # API Configuration
 NEXT_PUBLIC_API_URL=http://localhost:5001
 
-# Development Settings
-# USE_MOCK_DB=true # Uncomment to use mock database in development
+# Supabase Client
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 ## Supabase Database Setup
 
-1. Create a Supabase project at [https://supabase.com](https://supabase.com)
+1. [Supabase](https://supabase.com) üzerinden proje oluşturun
 
-2. Create a `users` table with the following schema:
-   
-   ```sql
-   CREATE TABLE users (
-     id SERIAL PRIMARY KEY,
-     name VARCHAR(255) NOT NULL,
-     first_name VARCHAR(100),
-     last_name VARCHAR(100),
-     email VARCHAR(255) UNIQUE NOT NULL,
-     password_hash VARCHAR(255) NOT NULL,
-     phone_number VARCHAR(20),
-     role VARCHAR(20) NOT NULL DEFAULT 'user',
-     membership_status VARCHAR(20) NOT NULL DEFAULT 'free',
-     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-     last_login TIMESTAMP WITH TIME ZONE
-   );
-   ```
+2. **Temel Tablolar** - Aşağıdaki migration'ları sırayla çalıştırın:
 
-3. Update your `.env.local` file with the Supabase URL and service key from your project settings.
+### Users Tablosu
+```sql
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255),
+    name VARCHAR(255),
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    phone_number VARCHAR(20),
+    role VARCHAR(20) DEFAULT 'user',
+    membership_status VARCHAR(20) DEFAULT 'free',
+    plan_id INTEGER REFERENCES plans(id),
+    cefr_level VARCHAR(10) DEFAULT 'A2',
+    native_language VARCHAR(10) DEFAULT 'tr',
+    target_language VARCHAR(10) DEFAULT 'en',
+    profile_image_url TEXT,
+    email_verified BOOLEAN DEFAULT FALSE,
+    mfa_enabled BOOLEAN DEFAULT FALSE,
+    mfa_secret TEXT,
+    provider VARCHAR(50) DEFAULT 'email',
+    provider_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_login TIMESTAMP WITH TIME ZONE
+);
+```
+
+### Conversations & Messages (AI Chat)
+```sql
+CREATE TABLE IF NOT EXISTS conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    suggested_topic TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+    content TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+### Topics (Konu Önerileri)
+```sql
+CREATE TABLE IF NOT EXISTS topics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    embedding TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+### Books & Chapters
+```sql
+CREATE TABLE IF NOT EXISTS books (
+    id SERIAL PRIMARY KEY,
+    gutendex_id INTEGER,
+    title TEXT NOT NULL,
+    authors TEXT,
+    cover_url TEXT,
+    download_count INTEGER DEFAULT 0,
+    language VARCHAR(10),
+    copyright BOOLEAN,
+    subjects TEXT,
+    text_url TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS book_chapters (
+    id SERIAL PRIMARY KEY,
+    book_id INTEGER REFERENCES books(id) ON DELETE CASCADE,
+    chapter_index INTEGER NOT NULL,
+    chapter_title TEXT,
+    chapter_text TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS chapter_audio (
+    id SERIAL PRIMARY KEY,
+    chapter_id INTEGER REFERENCES book_chapters(id) ON DELETE CASCADE,
+    voice_model VARCHAR(100) NOT NULL,
+    speaking_rate DECIMAL(3,2) NOT NULL,
+    level VARCHAR(10) NOT NULL,
+    mp3_url VARCHAR(1000) NOT NULL,
+    vtt_url VARCHAR(1000),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(chapter_id, voice_model, speaking_rate, level)
+);
+```
+
+### Plans & Subscriptions
+```sql
+CREATE TABLE IF NOT EXISTS plans (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    currency VARCHAR(3) DEFAULT 'TRY',
+    daily_limit INTEGER DEFAULT 1,
+    features JSONB,
+    google_product_id VARCHAR(100),
+    apple_product_id VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    plan_id INTEGER REFERENCES plans(id),
+    status VARCHAR(20) DEFAULT 'active',
+    start_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    end_date TIMESTAMP WITH TIME ZONE,
+    provider VARCHAR(50),
+    provider_subscription_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+3. Tüm migration'lar için `backend/migrations/` klasörüne bakın.
 
 ## Running the Application
 
-1. Install dependencies:
-   
-   ```bash
-   npm install
-   ```
+### Backend
+```bash
+cd backend
+npm install
+npm run dev
+```
+Backend `http://localhost:5001` adresinde başlar.
 
-2. Start the development server:
-   
-   ```bash
-   npm run dev
-   ```
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Frontend `http://localhost:3000` adresinde başlar.
 
-3. Open [http://localhost:3000](http://localhost:3000) in your browser.
+## FFmpeg Kurulumu
 
-## Testing the Registration System
+### Windows
+```powershell
+winget install ffmpeg
+# veya
+choco install ffmpeg
+```
 
-1. Install node-fetch if you haven't already:
-   
-   ```bash
-   npm install node-fetch
-   ```
+### macOS
+```bash
+brew install ffmpeg
+```
 
-2. Start the development server:
-   
-   ```bash
-   npm run dev
-   ```
-
-3. In a separate terminal, run the test script:
-   
-   ```bash
-   node test-register.js
-   ```
-
-This script will test:
-- Valid registration with a unique email
-- Duplicate email registration (should fail)
-- Invalid data registration (should fail)
+### Linux
+```bash
+sudo apt install ffmpeg
+```
 
 ## Authentication Flow
 
-The authentication system uses JWT tokens stored in localStorage for persistent sessions. The registration system is now connected to your Supabase database and will create real user accounts.
+Sistem çoklu auth yöntemlerini destekler:
+- **Email/Password:** JWT tabanlı, opsiyonel MFA (TOTP)
+- **Google Sign-In:** OAuth 2.0
+- **Apple Sign-In:** Apple ID ile giriş
+- **Facebook Sign-In:** Facebook OAuth
 
-In development mode, you can enable the mock database by setting `USE_MOCK_DB=true` in your `.env.local` file. This will bypass the Supabase connection and create mock users for testing. 
+## API Endpoints
+
+### Auth
+- `POST /api/auth/register` - Kayıt
+- `POST /api/auth/login` - Giriş
+- `POST /api/auth/verify-mfa` - MFA doğrulama
+
+### AI Chat
+- `GET /api/chat/conversations` - Konuşma listesi
+- `POST /api/chat/conversations` - Yeni konuşma
+- `POST /api/ai-chat/send` - Mesaj gönder
+
+### Content
+- `POST /api/tts/process-text` - Metin işle
+- `POST /api/tts/process-youtube` - YouTube işle
+- `GET /api/books` - Kitap listesi
+
+### Topics
+- `GET /api/topic-hierarchy` - Konu hiyerarşisi
+- `POST /api/topic-pipeline/generate` - İçerik üret
+
+Tüm endpoint'ler için `backend/routes/` klasörüne bakın. 

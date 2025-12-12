@@ -32,18 +32,17 @@ export default function Header() {
         </Link>
         {/* Menü */}
         <nav className="flex items-center gap-8 text-sm md:text-base font-medium text-foreground/80">
-          <Link href="#neden" className="hover:text-primary transition-colors">Neden LingRoot?</Link>
-          <Link href="#nasil" className="hover:text-primary transition-colors">Nasıl Çalışır?</Link>
-          <Link href="#yorumlar" className="hover:text-primary transition-colors">Yorumlar</Link>
+          <Link href="#neden" className="hover:text-primary transition-colors">{t('header_why_lingroot')}</Link>
+          <Link href="#nasil" className="hover:text-primary transition-colors">{t('header_how_it_works')}</Link>
+          <Link href="#yorumlar" className="hover:text-primary transition-colors">{t('header_testimonials')}</Link>
         </nav>
         {/* Hemen Başla Butonu */}
         <Link href="/login" className="ml-4">
           <Button className="px-6 py-2 text-base font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-md">
-            Hemen Başla
+            {t('header_start_now')}
           </Button>
         </Link>
       </div>
     </header>
   );
 }
- 

@@ -3,13 +3,16 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
+import { useTranslation } from '../src/lib/i18n';
 
 export default function CookiePolicy() {
+  const { t } = useTranslation();
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Head>
-        <title>Çerez Politikası | LingRoot</title>
-        <meta name="description" content="LingRoot Çerez Politikası. Web sitemizde kullandığımız çerezler ve amaçları hakkında detaylı bilgiler." />
+        <title>{t('cookie_title')} | LingRoot</title>
+        <meta name="description" content={t('cookie_hero_subtitle')} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/lingroot-icon.svg" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -24,23 +27,23 @@ export default function CookiePolicy() {
         
         <nav className="hidden md:flex items-center space-x-8">
           <Link href="/about" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Hakkımızda
+            {t('about')}
           </Link>
           <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Nasıl Çalışır?
+            {t('how_it_works')}
           </Link>
           <Link href="/contact" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            İletişim
+            {t('contact')}
           </Link>
         </nav>
 
         <div className="flex items-center space-x-4">
           <Link href="/login" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
-            Giriş Yap
+            {t('login')}
           </Link>
           <Link href="/register" 
             className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-            Ücretsiz Başla
+            {t('register_now')}
           </Link>
         </div>
       </header>
@@ -51,13 +54,13 @@ export default function CookiePolicy() {
           <div className="max-w-4xl mx-auto text-center">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-medium mb-8">
               <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
-              Yasal Belgeler
+              {t('legal_documents')}
             </div>
             <h1 className="text-4xl md:text-7xl font-extrabold text-white mb-8 tracking-tight">
-              Çerez Politikası
+              {t('cookie_hero_title')}
             </h1>
             <p className="text-xl md:text-2xl text-slate-200 max-w-3xl mx-auto leading-relaxed">
-              Web sitemizde kullandığımız çerezler ve bu çerezlerin amaçları hakkında şeffaf bilgiler.
+              {t('cookie_hero_subtitle')}
             </p>
           </div>
         </section>
@@ -70,29 +73,27 @@ export default function CookiePolicy() {
               {/* Son Güncellenme */}
               <div className="mb-12 p-6 bg-primary/5 rounded-2xl border border-primary/20 shadow-lg">
                 <p className="text-primary mb-0 font-medium">
-                  <strong>Son Güncellenme:</strong> 1 Ocak 2025
+                  <strong>{t('cookie_last_updated')}:</strong> 1 Ocak 2025
                 </p>
               </div>
 
               {/* Giriş */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                  Çerezler ve <span className="text-primary">Kullanım Amaçları</span>
+                  {t('cookie_intro_title')}
                 </h2>
                 <p className="text-gray-600 leading-relaxed mb-4">
-                  LingRoot olarak, web sitemizi daha işlevsel ve kullanıcı dostu hale getirmek için çerezler kullanıyoruz. 
-                  Bu sayfa, hangi çerezleri kullandığımızı ve bunların amaçlarını açıklar.
+                  {t('cookie_intro_text1')}
                 </p>
                 <p className="text-gray-600 leading-relaxed">
-                  Sitemizi kullanmaya devam ederek çerez kullanımını kabul etmiş sayılırsınız. 
-                  Çerez tercihlerinizi tarayıcı ayarlarınızdan dilediğiniz zaman değiştirebilirsiniz.
+                  {t('cookie_intro_text2')}
                 </p>
               </div>
 
               {/* Çerez Nedir */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  1. Çerez <span className="text-primary">Nedir?</span>
+                  1. {t('cookie_section1_title')}
                 </h2>
                 
                 <div className="bg-muted rounded-xl p-8 border border-border">
@@ -103,16 +104,15 @@ export default function CookiePolicy() {
                       </svg>
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-primary mb-3">Çerez Tanımı</h3>
+                      <h3 className="text-lg font-semibold text-primary mb-3">{t('cookie_section1_subtitle')}</h3>
                       <p className="text-gray-700 mb-4">
-                        Çerezler, web sitelerinin bilgisayarınızda veya mobil cihazınızda sakladığı küçük metin dosyalarıdır. 
-                        Bu dosyalar, web sitesinin işlevselliğini artırmak ve size daha iyi bir deneyim sunmak için kullanılır.
+                        {t('cookie_section1_text')}
                       </p>
                       <ul className="text-gray-700 space-y-2 text-sm">
-                        <li>• Oturum yönetimi ve güvenlik sağlama</li>
-                        <li>• Kullanıcı tercihlerini hatırlama</li>
-                        <li>• Site performansını analiz etme</li>
-                        <li>• Kişiselleştirilmiş içerik sunma</li>
+                        <li>• {t('cookie_section1_list1')}</li>
+                        <li>• {t('cookie_section1_list2')}</li>
+                        <li>• {t('cookie_section1_list3')}</li>
+                        <li>• {t('cookie_section1_list4')}</li>
                       </ul>
                     </div>
                   </div>
@@ -122,7 +122,7 @@ export default function CookiePolicy() {
               {/* Çerez Kategorileri */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  2. Kullandığımız <span className="text-primary">Çerez Türleri</span>
+                  2. {t('cookie_section2_title')}
                 </h2>
                 
                 <div className="space-y-6">
@@ -134,14 +134,14 @@ export default function CookiePolicy() {
                         </svg>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-red-900">🔒 Zorunlu Çerezler</h3>
-                        <p className="text-red-700 text-sm">Bu çerezler sitenin çalışması için gereklidir</p>
+                        <h3 className="text-lg font-semibold text-red-900">🔒 {t('cookie_section2_mandatory_title')}</h3>
+                        <p className="text-red-700 text-sm">{t('cookie_section2_mandatory_desc')}</p>
                       </div>
                     </div>
                     <ul className="text-red-800 space-y-2 text-sm">
-                      <li>• <strong>Oturum Çerezleri:</strong> Giriş durumunuzu ve güvenlik tokenlarını saklар</li>
-                      <li>• <strong>Güvenlik Çerezleri:</strong> CSRF koruması ve güvenlik kontrolleri</li>
-                      <li>• <strong>Load Balancer:</strong> Sunucu yük dengelemesi için teknik çerezler</li>
+                      <li>• {t('cookie_section2_mandatory_list1')}</li>
+                      <li>• {t('cookie_section2_mandatory_list2')}</li>
+                      <li>• {t('cookie_section2_mandatory_list3')}</li>
                     </ul>
                   </div>
 
@@ -153,14 +153,14 @@ export default function CookiePolicy() {
                         </svg>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-green-900">⚙️ Fonksiyonel Çerezler</h3>
-                        <p className="text-green-700 text-sm">Tercihlerinizi hatırlar ve deneyimi kişiselleştirir</p>
+                        <h3 className="text-lg font-semibold text-green-900">⚙️ {t('cookie_section2_functional_title')}</h3>
+                        <p className="text-green-700 text-sm">{t('cookie_section2_functional_desc')}</p>
                       </div>
                     </div>
                     <ul className="text-green-800 space-y-2 text-sm">
-                      <li>• <strong>Dil Tercihi:</strong> Seçtiğiniz dil ayarını hatırlar</li>
-                      <li>• <strong>Tema Seçimi:</strong> Açık/koyu tema tercihlerinizi saklar</li>
-                      <li>• <strong>Öğrenme Ayarları:</strong> CEFR seviyesi ve öğrenme tercihleri</li>
+                      <li>• {t('cookie_section2_functional_list1')}</li>
+                      <li>• {t('cookie_section2_functional_list2')}</li>
+                      <li>• {t('cookie_section2_functional_list3')}</li>
                     </ul>
                   </div>
 
@@ -168,18 +168,18 @@ export default function CookiePolicy() {
                     <div className="flex items-center mb-4">
                       <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center mr-4">
                         <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-primary">📊 Analitik Çerezler</h3>
-                        <p className="text-gray-600 text-sm">Site kullanımını analiz eder ve performansı ölçer</p>
+                        <h3 className="text-lg font-semibold text-primary">📊 {t('cookie_section2_analytics_title')}</h3>
+                        <p className="text-gray-600 text-sm">{t('cookie_section2_analytics_desc')}</p>
                       </div>
                     </div>
                     <ul className="text-gray-700 space-y-2 text-sm">
-                      <li>• <strong>Google Analytics:</strong> Ziyaretçi istatistikleri ve sayfa görüntülemeleri</li>
-                      <li>• <strong>Performans Metrikleri:</strong> Sayfa yüklenme süreleri ve hata izleme</li>
-                      <li>• <strong>Kullanım Analitiği:</strong> En çok kullanılan özellikler ve sayfa akışı</li>
+                      <li>• {t('cookie_section2_analytics_list1')}</li>
+                      <li>• {t('cookie_section2_analytics_list2')}</li>
+                      <li>• {t('cookie_section2_analytics_list3')}</li>
                     </ul>
                   </div>
 
@@ -191,14 +191,14 @@ export default function CookiePolicy() {
                         </svg>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-purple-900">🎯 Pazarlama Çerezleri</h3>
-                        <p className="text-purple-700 text-sm">Kişiselleştirilmiş reklamlar ve kampanyalar için</p>
+                        <h3 className="text-lg font-semibold text-purple-900">🎯 {t('cookie_section2_marketing_title')}</h3>
+                        <p className="text-purple-700 text-sm">{t('cookie_section2_marketing_desc')}</p>
                       </div>
                     </div>
                     <ul className="text-purple-800 space-y-2 text-sm">
-                      <li>• <strong>Facebook Pixel:</strong> Sosyal medya reklamları için retargeting</li>
-                      <li>• <strong>Google Ads:</strong> Arama reklamları ve görüntülü reklamlar</li>
-                      <li>• <strong>Email Marketing:</strong> Abonelik kampanyaları ve kişiselleştirme</li>
+                      <li>• {t('cookie_section2_marketing_list1')}</li>
+                      <li>• {t('cookie_section2_marketing_list2')}</li>
+                      <li>• {t('cookie_section2_marketing_list3')}</li>
                     </ul>
                   </div>
                 </div>
@@ -207,33 +207,33 @@ export default function CookiePolicy() {
               {/* Çerez Yönetimi */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  3. Çerez <span className="text-primary">Yönetimi</span>
+                  3. {t('cookie_section3_title')}
                 </h2>
                 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">🌐 Tarayıcı Ayarları</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">🌐 {t('cookie_section3_browser_title')}</h3>
                     <p className="text-gray-600 mb-4 text-sm">
-                      Çoğu tarayıcı çerezleri varsayılan olarak kabul eder, ancak bu ayarları değiştirebilirsiniz:
+                      {t('cookie_section3_browser_text')}
                     </p>
                     <ul className="text-gray-600 space-y-2 text-sm">
-                      <li>• Chrome: Ayarlar → Gizlilik ve güvenlik → Çerezler</li>
-                      <li>• Firefox: Tercihler → Gizlilik ve güvenlik → Çerezler</li>
-                      <li>• Safari: Tercihler → Gizlilik → Çerezleri engelle</li>
-                      <li>• Edge: Ayarlar → Site izinleri → Çerezler</li>
+                      <li>• {t('cookie_section3_browser_list1')}</li>
+                      <li>• {t('cookie_section3_browser_list2')}</li>
+                      <li>• {t('cookie_section3_browser_list3')}</li>
+                      <li>• {t('cookie_section3_browser_list4')}</li>
                     </ul>
                   </div>
 
                   <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">⚠️ Çerez Devre Dışı Bırakma</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">⚠️ {t('cookie_section3_disable_title')}</h3>
                     <p className="text-gray-600 mb-4 text-sm">
-                      Çerezleri devre dışı bırakırsanız bazı özellikler çalışmayabilir:
+                      {t('cookie_section3_disable_text')}
                     </p>
                     <ul className="text-gray-600 space-y-2 text-sm">
-                      <li>• Otomatik giriş yapamama</li>
-                      <li>• Tercihlerinizin kaydedilememesi</li>
-                      <li>• Kişiselleştirilmiş deneyim kaybı</li>
-                      <li>• Bazı sayfaların düzgün çalışmaması</li>
+                      <li>• {t('cookie_section3_disable_list1')}</li>
+                      <li>• {t('cookie_section3_disable_list2')}</li>
+                      <li>• {t('cookie_section3_disable_list3')}</li>
+                      <li>• {t('cookie_section3_disable_list4')}</li>
                     </ul>
                   </div>
                 </div>
@@ -242,46 +242,46 @@ export default function CookiePolicy() {
               {/* Üçüncü Taraf Çerezler */}
               <div className="mb-12">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  4. Üçüncü Taraf <span className="text-primary">Çerezler</span>
+                  4. {t('cookie_section4_title')}
                 </h2>
                 
                 <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-8 border border-amber-200">
-                  <h3 className="text-lg font-semibold text-amber-900 mb-4">🔗 Entegre Hizmetler</h3>
+                  <h3 className="text-lg font-semibold text-amber-900 mb-4">🔗 {t('cookie_section4_subtitle')}</h3>
                   <p className="text-amber-800 mb-6">
-                    LingRoot, bazı üçüncü taraf hizmetleri entegre eder ve bu hizmetler kendi çerezlerini kullanabilir:
+                    {t('cookie_section4_text')}
                   </p>
                   
                   <div className="grid md:grid-cols-3 gap-4">
                     <div className="bg-white rounded-lg p-4 border border-amber-200">
-                      <h4 className="font-semibold text-amber-900 mb-2">Google Services</h4>
+                      <h4 className="font-semibold text-amber-900 mb-2">{t('cookie_section4_google_title')}</h4>
                       <ul className="text-amber-800 text-sm space-y-1">
-                        <li>• Analytics</li>
-                        <li>• Google Fonts</li>
-                        <li>• reCAPTCHA</li>
+                        <li>• {t('cookie_section4_google_list1')}</li>
+                        <li>• {t('cookie_section4_google_list2')}</li>
+                        <li>• {t('cookie_section4_google_list3')}</li>
                       </ul>
                     </div>
                     
                     <div className="bg-white rounded-lg p-4 border border-amber-200">
-                      <h4 className="font-semibold text-amber-900 mb-2">Sosyal Medya</h4>
+                      <h4 className="font-semibold text-amber-900 mb-2">{t('cookie_section4_social_title')}</h4>
                       <ul className="text-amber-800 text-sm space-y-1">
-                        <li>• Facebook</li>
-                        <li>• Twitter</li>
-                        <li>• LinkedIn</li>
+                        <li>• {t('cookie_section4_social_list1')}</li>
+                        <li>• {t('cookie_section4_social_list2')}</li>
+                        <li>• {t('cookie_section4_social_list3')}</li>
                       </ul>
                     </div>
                     
                     <div className="bg-white rounded-lg p-4 border border-amber-200">
-                      <h4 className="font-semibold text-amber-900 mb-2">Ödeme Sistemi</h4>
+                      <h4 className="font-semibold text-amber-900 mb-2">{t('cookie_section4_payment_title')}</h4>
                       <ul className="text-amber-800 text-sm space-y-1">
-                        <li>• Stripe</li>
-                        <li>• PayPal</li>
-                        <li>• İyzico</li>
+                        <li>• {t('cookie_section4_payment_list1')}</li>
+                        <li>• {t('cookie_section4_payment_list2')}</li>
+                        <li>• {t('cookie_section4_payment_list3')}</li>
                       </ul>
                     </div>
                   </div>
                   
                   <p className="text-amber-800 mt-4 text-sm">
-                    Bu hizmetlerin çerez politikaları için ilgili şirketlerin web sitelerini ziyaret edebilirsiniz.
+                    {t('cookie_section4_note')}
                   </p>
                 </div>
               </div>
@@ -289,19 +289,18 @@ export default function CookiePolicy() {
               {/* İletişim */}
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  5. <span className="text-primary">İletişim</span>
+                  5. <span className="text-primary">{t('cookie_section5_title')}</span>
                 </h2>
                 
                 <div className="bg-slate-900 rounded-xl p-8 text-white">
-                  <h3 className="text-xl font-semibold mb-4">Çerezler hakkında sorularınız mı var?</h3>
+                  <h3 className="text-xl font-semibold mb-4">{t('cookie_section5_subtitle')}</h3>
                   <p className="mb-6 opacity-90">
-                    Çerez kullanımımız veya gizliliğiniz hakkında herhangi bir sorunuz varsa, 
-                    bizimle iletişime geçmekten çekinmeyin.
+                    {t('cookie_section5_text')}
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4">
                     <Link href="/contact" 
                       className="px-6 py-3 bg-white text-primary rounded-lg font-semibold hover:bg-gray-100 transition-colors text-center">
-                      İletişime Geç
+                      {t('cookie_contact_button')}
                     </Link>
                     <a href="mailto:privacy@lingroot.com" 
                       className="px-6 py-3 border border-white text-white rounded-lg font-semibold hover:bg-white hover:text-primary transition-colors text-center">
@@ -318,4 +317,4 @@ export default function CookiePolicy() {
       <Footer />
     </div>
   );
-} 
+}

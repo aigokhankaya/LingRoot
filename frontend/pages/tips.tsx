@@ -3,83 +3,86 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Footer from '../src/components/Footer';
 
+import { useTranslation } from '../src/lib/i18n';
+
 export default function Tips() {
+  const { t } = useTranslation();
   const tips = [
     {
       id: 1,
-      category: "Günlük Pratik",
-      title: "Her Gün 15 Dakika İngilizce Dinleme",
-      description: "Günde 15 dakika odaklanarak İngilizce dinlemek, ayda 7.5 saat pratiğe denk gelir. Bu sürekli maruziyetin etkisi çarpıcıdır.",
+      category: t('tips_category_daily'),
+      title: t('tips_title_daily'),
+      description: t('tips_desc_daily'),
       tips: [
-        "Sabah kahvenizi içerken kısa bir podcast dinleyin",
-        "Öğle molasında İngilizce haberler takip edin", 
-        "Akşam yürüyüşü yaparken audio kitap dinleyin",
-        "Temizlik yaparken arka planda İngilizce radyo açın"
+        t('tips_list_daily_1'),
+        t('tips_list_daily_2'),
+        t('tips_list_daily_3'),
+        t('tips_list_daily_4')
       ],
       icon: "🎧"
     },
     {
       id: 2,
-      category: "Aktif Dinleme",
-      title: "Altyazı Tekniğini Doğru Kullanın",
-      description: "Altyazıları stratejik olarak kullanarak hem dinleme hem okuma becerinizi geliştirin.",
+      category: t('tips_category_active'),
+      title: t('tips_title_active'),
+      description: t('tips_desc_active'),
       tips: [
-        "İlk seferinde altyazısız izlemeye çalışın",
-        "Anlamadığınız kısımlarda altyazıyı açıp tekrar izleyin",
-        "Türkçe altyazı yerine İngilizce altyazı kullanın",
-        "Aynı sahneyi farklı altyazı seçenekleriyle karşılaştırın"
+        t('tips_list_active_1'),
+        t('tips_list_active_2'),
+        t('tips_list_active_3'),
+        t('tips_list_active_4')
       ],
       icon: "📺"
     },
     {
       id: 3,
-      category: "Kelime Öğrenme",
-      title: "Bağlamsal Kelime Öğrenme",
-      description: "Kelimeleri tek tek ezberlemek yerine cümle içinde öğrenmek daha kalıcı hafıza oluşturur.",
+      category: t('tips_category_vocab'),
+      title: t('tips_title_vocab'),
+      description: t('tips_desc_vocab'),
       tips: [
-        "Yeni kelimeyi içeren cümleyi not alın",
-        "O kelimeyi kendi cümlenizde kullanmaya çalışın",
-        "Kelimenin farklı anlamlarını aynı videoda arayın",
-        "Benzer anlamlı kelimeleri bir arada öğrenin"
+        t('tips_list_vocab_1'),
+        t('tips_list_vocab_2'),
+        t('tips_list_vocab_3'),
+        t('tips_list_vocab_4')
       ],
       icon: "📚"
     },
     {
       id: 4,
-      category: "Motivasyon",
-      title: "İlerlemenizi Görselleştirin",
-      description: "Gelişiminizi somut şekilde takip etmek motivasyonunuzu yüksek tutar ve hedefe odaklı kalmanızı sağlar.",
+      category: t('tips_category_motivation'),
+      title: t('tips_title_motivation'),
+      description: t('tips_desc_motivation'),
       tips: [
-        "Dinlediğiniz içeriklerin süresini kaydedin",
-        "Yeni öğrendiğiniz kelimeleri listeye ekleyin",
-        "Haftalık olarak aynı içeriği tekrar dinleyip gelişimi fark edin",
-        "Aylık olarak daha zor içeriklere geçiş yapmaya çalışın"
+        t('tips_list_motivation_1'),
+        t('tips_list_motivation_2'),
+        t('tips_list_motivation_3'),
+        t('tips_list_motivation_4')
       ],
       icon: "📈"
     },
     {
       id: 5,
-      category: "Teknoloji",
-      title: "Cihazlarınızı İngilizce Yapın",
-      description: "Günlük kullandığınız teknolojik cihazları İngilizce dil ayarına alarak pasif öğrenmeyi artırın.",
+      category: t('tips_category_tech'),
+      title: t('tips_title_tech'),
+      description: t('tips_desc_tech'),
       tips: [
-        "Telefon dilini İngilizceye çevirin",
-        "Sosyal medya hesaplarınızı İngilizce takip edin",
-        "Google aramaları İngilizce yapın",
-        "Harita uygulamasını İngilizce kullanın"
+        t('tips_list_tech_1'),
+        t('tips_list_tech_2'),
+        t('tips_list_tech_3'),
+        t('tips_list_tech_4')
       ],
       icon: "📱"
     },
     {
       id: 6,
-      category: "Sosyal Öğrenme",
-      title: "İngilizce İçerik Toplulukları",
-      description: "Başkalarıyla birlikte öğrenmek hem motivasyonu artırır hem de farklı perspektifler kazandırır.",
+      category: t('tips_category_social'),
+      title: t('tips_title_social'),
+      description: t('tips_desc_social'),
       tips: [
-        "Discord İngilizce öğrenme sunucularına katılın",
-        "Reddit'te İngilizce içerik paylaşan toplulukları takip edin",
-        "YouTube yorumlarını İngilizce yazın",
-        "İngilizce blog yazılarına yorum yapın"
+        t('tips_list_social_1'),
+        t('tips_list_social_2'),
+        t('tips_list_social_3'),
+        t('tips_list_social_4')
       ],
       icon: "👥"
     }
@@ -88,13 +91,13 @@ export default function Tips() {
   return (
     <div className="min-h-screen flex flex-col bg-white font-['Roboto',sans-serif]">
       <Head>
-        <title>İngilizce Öğrenme İpuçları | LingRoot</title>
-        <meta name="description" content="Günlük hayatınızda uygulayabileceğiniz pratik İngilizce öğrenme ipuçları ve teknikleri ile dil öğrenme sürecinizi hızlandırın." />
+        <title>{t('tips_page_title')}</title>
+        <meta name="description" content={t('tips_meta_desc')} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" href="/lingroot-icon.svg" />
         <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&family=Lato:wght@400;700&display=swap" rel="stylesheet" />
       </Head>
-      
+
       {/* Header */}
       <header className="fixed w-full py-4 px-6 flex justify-between items-center z-50 bg-white border-b border-gray-100 shadow-sm">
         <Link href="/" className="flex items-center">
@@ -103,28 +106,28 @@ export default function Tips() {
             <span className="text-[#333333]">Root</span>
           </h1>
         </Link>
-        
+
         <div className="flex items-center space-x-5">
           <Link href="/about" className="text-gray-700 hover:text-gray-900 font-medium">
-            Hakkımızda
+            {t('about_title')}
           </Link>
           <Link href="/nasil-calisir" className="text-gray-700 hover:text-gray-900 font-medium">
-            Nasıl Çalışır?
+            {t('header_how_it_works')}
           </Link>
           <Link href="/ozellikler" className="text-gray-700 hover:text-gray-900 font-medium">
-            Özellikler
+            {t('features_title')}
           </Link>
           <Link href="/blog" className="text-gray-700 hover:text-gray-900 font-medium">
-            Blog
+            {t('blog_title')}
           </Link>
           <Link href="/tips" className="text-[#28a745] hover:text-[#218838] font-medium">
-            İpuçları
+            {t('tips_hero_title_suffix')}
           </Link>
           <Link href="/login" className="text-gray-700 hover:text-gray-900 font-medium">
-            Giriş Yap
+            {t('login')}
           </Link>
           <Link href="/register" className="ml-2 px-4 py-2 bg-[#28a745] text-white rounded font-medium hover:bg-[#218838] transition-colors">
-            Kayıt Ol
+            {t('register_title')}
           </Link>
         </div>
       </header>
@@ -134,12 +137,10 @@ export default function Tips() {
         <section className="py-16 bg-gradient-to-b from-[#f1f9ee] to-white">
           <div className="max-w-6xl mx-auto px-6 text-center">
             <h1 className="text-5xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-6">
-              İngilizce Öğrenme <span className="text-[#28a745]">İpuçları</span>
+              {t('tips_hero_title_prefix')} <span className="text-[#28a745]">{t('tips_hero_title_suffix')}</span>
             </h1>
             <p className="text-xl text-gray-700 max-w-4xl mx-auto leading-relaxed">
-              Günlük hayatınızda kolayca uygulayabileceğiniz pratik teknikler ve stratejiler ile 
-              İngilizce öğrenme sürecinizi hızlandırın. LingRoot kullanıcılarının deneyimlerinden 
-              derlenen en etkili yöntemler burada!
+              {t('tips_hero_desc')}
             </p>
           </div>
         </section>
@@ -157,15 +158,15 @@ export default function Tips() {
                         {tip.category}
                       </span>
                     </div>
-                    
+
                     <h3 className="text-xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-3">
                       {tip.title}
                     </h3>
-                    
+
                     <p className="text-gray-600 mb-4 leading-relaxed">
                       {tip.description}
                     </p>
-                    
+
                     <ul className="space-y-2">
                       {tip.tips.map((item, index) => (
                         <li key={index} className="flex items-start">
@@ -188,10 +189,10 @@ export default function Tips() {
           <div className="max-w-6xl mx-auto px-6">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-6">
-                Başarı <span className="text-[#28a745]">Hikayeleri</span>
+                {t('tips_success_stories_title')} <span className="text-[#28a745]">{t('tips_success_stories_title_suffix')}</span>
               </h2>
               <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                LingRoot kullanıcılarının gerçek deneyimleri ve kazandıkları başarılar
+                {t('tips_success_stories_desc')}
               </p>
             </div>
 
@@ -203,11 +204,11 @@ export default function Tips() {
                   </div>
                   <div className="ml-3">
                     <h4 className="font-bold text-gray-800">Ahmet K.</h4>
-                    <p className="text-sm text-gray-600">Yazılım Geliştirici</p>
+                    <p className="text-sm text-gray-600">{t('tips_story_1_role')}</p>
                   </div>
                 </div>
                 <p className="text-gray-700 italic">
-                  "3 ayda A2'den B1'e geçtim. Sevdiğim teknoloji podcastlerini dinleyerek hem sektördeki gelişmeleri takip ediyorum hem İngilizce öğreniyorum."
+                  {t('tips_story_1_quote')}
                 </p>
               </div>
 
@@ -218,11 +219,11 @@ export default function Tips() {
                   </div>
                   <div className="ml-3">
                     <h4 className="font-bold text-gray-800">Zeynep M.</h4>
-                    <p className="text-sm text-gray-600">Üniversite Öğrencisi</p>
+                    <p className="text-sm text-gray-600">{t('tips_story_2_role')}</p>
                   </div>
                 </div>
                 <p className="text-gray-700 italic">
-                  "Sınavlara hazırlanırken LingRoot ile Netflix dizilerimi eğitime dönüştürdüm. Hem eğlendim hem öğrendim!"
+                  {t('tips_story_2_quote')}
                 </p>
               </div>
 
@@ -233,11 +234,11 @@ export default function Tips() {
                   </div>
                   <div className="ml-3">
                     <h4 className="font-bold text-gray-800">Mehmet S.</h4>
-                    <p className="text-sm text-gray-600">İş İnsanı</p>
+                    <p className="text-sm text-gray-600">{t('tips_story_3_role')}</p>
                   </div>
                 </div>
                 <p className="text-gray-700 italic">
-                  "Yoğun iş temposu arasında günde 20 dakika ayırarak 6 ayda Business English seviyeme ulaştım."
+                  {t('tips_story_3_quote')}
                 </p>
               </div>
             </div>
@@ -249,55 +250,55 @@ export default function Tips() {
           <div className="max-w-4xl mx-auto px-6">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-6">
-                Hemen <span className="text-[#28a745]">Başlayın</span>
+                {t('tips_quick_start_title')} <span className="text-[#28a745]">{t('tips_quick_start_title_suffix')}</span>
               </h2>
               <p className="text-lg text-gray-600">
-                İlk hafta için önerimiz: Bu adımları takip ederek dil öğrenme alışkanlığınızı oluşturun
+                {t('tips_quick_start_desc')}
               </p>
             </div>
 
             <div className="bg-gradient-to-r from-[#28a745]/5 to-[#20c997]/5 rounded-2xl p-8 border border-[#28a745]/20">
               <div className="grid md:grid-cols-2 gap-8">
                 <div>
-                  <h3 className="text-xl font-bold text-[#333333] mb-4">1. Hafta: Alışkanlık Oluşturma</h3>
+                  <h3 className="text-xl font-bold text-[#333333] mb-4">{t('tips_week_1_title')}</h3>
                   <ul className="space-y-3">
                     <li className="flex items-start">
                       <span className="w-6 h-6 bg-[#28a745] text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">1</span>
-                      <span className="text-gray-700">Günde 15 dakikalık dinleme hedefi belirleyin</span>
+                      <span className="text-gray-700">{t('tips_week_1_list_1')}</span>
                     </li>
                     <li className="flex items-start">
                       <span className="w-6 h-6 bg-[#28a745] text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">2</span>
-                      <span className="text-gray-700">İlgi alanınıza uygun 3-5 İngilizce kanal bulun</span>
+                      <span className="text-gray-700">{t('tips_week_1_list_2')}</span>
                     </li>
                     <li className="flex items-start">
                       <span className="w-6 h-6 bg-[#28a745] text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">3</span>
-                      <span className="text-gray-700">LingRoot'a kaydolun ve seviyenizi belirleyin</span>
+                      <span className="text-gray-700">{t('tips_week_1_list_3')}</span>
                     </li>
                     <li className="flex items-start">
                       <span className="w-6 h-6 bg-[#28a745] text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">4</span>
-                      <span className="text-gray-700">İlk içeriğinizi yükleyin ve dinlemeye başlayın</span>
+                      <span className="text-gray-700">{t('tips_week_1_list_4')}</span>
                     </li>
                   </ul>
                 </div>
-                
+
                 <div>
-                  <h3 className="text-xl font-bold text-[#333333] mb-4">2. Hafta: Derinleştirme</h3>
+                  <h3 className="text-xl font-bold text-[#333333] mb-4">{t('tips_week_2_title')}</h3>
                   <ul className="space-y-3">
                     <li className="flex items-start">
                       <span className="w-6 h-6 bg-[#fd7e14] text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">5</span>
-                      <span className="text-gray-700">Dinleme sürenizi 25 dakikaya çıkarın</span>
+                      <span className="text-gray-700">{t('tips_week_2_list_1')}</span>
                     </li>
                     <li className="flex items-start">
                       <span className="w-6 h-6 bg-[#fd7e14] text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">6</span>
-                      <span className="text-gray-700">Aynı içeriği farklı hızlarda dinleyin</span>
+                      <span className="text-gray-700">{t('tips_week_2_list_2')}</span>
                     </li>
                     <li className="flex items-start">
                       <span className="w-6 h-6 bg-[#fd7e14] text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">7</span>
-                      <span className="text-gray-700">Yeni öğrendiğiniz 10 kelimeyi not alın</span>
+                      <span className="text-gray-700">{t('tips_week_2_list_3')}</span>
                     </li>
                     <li className="flex items-start">
                       <span className="w-6 h-6 bg-[#fd7e14] text-white rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5">8</span>
-                      <span className="text-gray-700">Telefon dilini İngilizceye çevirin</span>
+                      <span className="text-gray-700">{t('tips_week_2_list_4')}</span>
                     </li>
                   </ul>
                 </div>
@@ -310,18 +311,17 @@ export default function Tips() {
         <section className="py-16 bg-gradient-to-r from-[#28a745] to-[#20c997] text-white">
           <div className="max-w-4xl mx-auto px-6 text-center">
             <h2 className="text-4xl font-['Nunito',sans-serif] font-bold mb-6">
-              İpuçlarını Pratiğe Dökün!
+              {t('tips_cta_title')}
             </h2>
             <p className="text-xl mb-8 opacity-90">
-              Bu ipuçlarını uygulamak için LingRoot'u kullanın ve 
-              sevdiğiniz içeriklerle İngilizce öğrenme yolculuğunuza başlayın.
+              {t('tips_cta_desc')}
             </p>
             <div className="space-x-4">
               <Link href="/register" className="inline-block px-8 py-4 bg-white text-[#28a745] rounded-lg font-bold hover:bg-gray-100 transition-colors">
-                Ücretsiz Deneyin
+                {t('tips_cta_button_primary')}
               </Link>
               <Link href="/nasil-calisir" className="inline-block px-8 py-4 border border-white text-white rounded-lg font-bold hover:bg-white hover:text-[#28a745] transition-colors">
-                Nasıl Çalıştığını Görün
+                {t('tips_cta_button_secondary')}
               </Link>
             </div>
           </div>

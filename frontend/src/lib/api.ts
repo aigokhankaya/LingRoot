@@ -892,6 +892,21 @@ export const saveDefaultVoice = async (voice: string): Promise<void> => {
   }
 };
 
+export const saveInterfaceLanguage = async (language: 'tr' | 'en' | 'de' | 'ar'): Promise<void> => {
+  const url = getApiUrl('/user-settings/interface-language');
+  const headers = createHeaders('application/json');
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ language }),
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`Arayüz dili kaydedilemedi: ${txt || res.statusText}`);
+  }
+};
+
 // Detaylı konu önerileri için API isteği gönderen fonksiyon (yeni pipeline endpoint)
 export const getTopicDetailSuggestions = async (topic: string, level: string): Promise<any> => {
   const apiUrl = `${getApiUrl("topic-pipeline/suggestions")}`;

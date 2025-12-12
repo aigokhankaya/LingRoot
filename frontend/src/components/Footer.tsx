@@ -1,8 +1,11 @@
-'use client';
+"use client";
 
 import Link from 'next/link';
+import { useTranslation } from '@/lib/i18n';
 
 export default function Footer() {
+  const { t } = useTranslation();
+
   return (
     <footer className="bg-gray-900 text-white py-12">
       <div className="container mx-auto px-4">
@@ -13,7 +16,7 @@ export default function Footer() {
               <img src="/lingroot-icon16.svg" alt="LingRoot" className="w-10 h-10" />
               <span className="text-2xl font-extrabold tracking-tight">LingRoot</span>
             </div>
-            <p className="text-gray-400 mb-4">"Your routines turn into English."</p>
+            <p className="text-gray-400 mb-4">{t('footer_tagline')}</p>
             <div className="flex space-x-4">
               <a
                 href="https://instagram.com/lingtoroot"
@@ -36,14 +39,14 @@ export default function Footer() {
 
           {/* Hızlı Bağlantılar */}
           <div>
-            <h3 className="text-lg font-bold mb-4">Hızlı Bağlantılar</h3>
+            <h3 className="text-lg font-bold mb-4">{t('quick_links')}</h3>
             <ul className="space-y-2">
               <li>
                 <Link
                   href="/about"
                   className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer"
                 >
-                  Hakkımızda
+                  {t('about')}
                 </Link>
               </li>
               <li>
@@ -51,7 +54,7 @@ export default function Footer() {
                   href="/nasil-calisir"
                   className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer"
                 >
-                  Nasıl Çalışır?
+                  {t('how_it_works')}
                 </Link>
               </li>
               <li>
@@ -59,7 +62,7 @@ export default function Footer() {
                   href="/fiyatlandirma"
                   className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer"
                 >
-                  Fiyatlandırma
+                  {t('pricing')}
                 </Link>
               </li>
               <li>
@@ -67,7 +70,7 @@ export default function Footer() {
                   href="/blog"
                   className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer"
                 >
-                  Blog
+                  {t('blog')}
                 </Link>
               </li>
               <li>
@@ -75,7 +78,7 @@ export default function Footer() {
                   href="/contact"
                   className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer"
                 >
-                  İletişim
+                  {t('contact')}
                 </Link>
               </li>
             </ul>
@@ -83,14 +86,14 @@ export default function Footer() {
 
           {/* Yasal */}
           <div>
-            <h3 className="text-lg font-bold mb-4">Yasal</h3>
+            <h3 className="text-lg font-bold mb-4">{t('legal_documents')}</h3>
             <ul className="space-y-2">
               <li>
                 <Link
                   href="/privacy-policy"
                   className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer"
                 >
-                  Gizlilik Politikası
+                  {t('privacy_policy')}
                 </Link>
               </li>
               <li>
@@ -98,7 +101,7 @@ export default function Footer() {
                   href="/terms"
                   className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer"
                 >
-                  Kullanım Şartları
+                  {t('terms_of_service')}
                 </Link>
               </li>
               <li>
@@ -106,7 +109,7 @@ export default function Footer() {
                   href="/cookie-policy"
                   className="text-gray-400 hover:text-white transition-colors duration-200 cursor-pointer"
                 >
-                  Çerez Politikası
+                  {t('cookie_policy')}
                 </Link>
               </li>
               <li>
@@ -122,7 +125,7 @@ export default function Footer() {
 
           {/* Bize Ulaşın */}
           <div>
-            <h3 className="text-lg font-bold mb-4">Bize Ulaşın</h3>
+            <h3 className="text-lg font-bold mb-4">{t('contact_us')}</h3>
             <ul className="space-y-2">
               <li className="flex items-center">
                 <i className="fas fa-envelope mr-2 text-gray-400"></i>
@@ -135,7 +138,7 @@ export default function Footer() {
               </li>
               <li className="flex items-start mt-4">
                 <i className="fas fa-map-marker-alt mr-2 mt-1 text-gray-400"></i>
-                <span className="text-gray-400">İstanbul, Türkiye</span>
+                <span className="text-gray-400">{t('footer_address_city')}</span>
               </li>
             </ul>
           </div>
@@ -144,7 +147,7 @@ export default function Footer() {
         {/* Alt kısım - Copyright ve Ödeme Yöntemleri */}
         <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-400 text-sm mb-4 md:mb-0">
-            &copy; {new Date().getFullYear()} LingRoot. Tüm hakları saklıdır.
+            &copy; {new Date().getFullYear()} LingRoot. {t('all_rights_reserved')}
           </p>
           <div className="flex space-x-4">
             <i className="fab fa-cc-visa text-2xl text-gray-400"></i>
@@ -158,4 +161,3 @@ export default function Footer() {
   );
 }
 
- 

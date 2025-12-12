@@ -9,6 +9,7 @@ import { SmartPromptSuggester } from '../../src/components/chat/SmartPromptSugge
 import { ChatCTAButtons } from '../../src/components/chat/ChatCTAButtons';
 import { ActionConfirmModal } from '../../src/components/chat/ActionConfirmModal';
 import { getApiUrl } from '../../src/lib/api';
+import OutputSection from '../../src/components/OutputSection';
 
 interface Message {
   id: string;
@@ -467,63 +468,29 @@ export default function ChatPage() {
                     />
                   ))}
                   
-                  {/* Audio/Podcast Result */}
-                  {audioResult && (
-                    <div className="mt-6 p-6 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-900/30 rounded-2xl border border-green-200 dark:border-green-800 shadow-lg">
-                      <div className="flex items-start gap-4">
-                        <div className="flex-shrink-0 w-12 h-12 rounded-full bg-green-600 flex items-center justify-center">
-                          <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                            ✅ İçeriğiniz Hazır!
-                          </h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                            {audioResult.message || audioResult.topic || 'Ses dosyanız başarıyla oluşturuldu.'}
-                          </p>
-                          {audioResult.mp3_url && (
-                            <div className="space-y-3">
-                              <audio controls className="w-full" src={audioResult.mp3_url}>
-                                Tarayıcınız ses çalmayı desteklemiyor.
-                              </audio>
-                              <div className="flex gap-2">
-                                <a
-                                  href={audioResult.mp3_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors"
-                                >
-                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                                  </svg>
-                                  İndir
-                                </a>
-                                {audioResult.vtt_url && (
-                                  <a
-                                    href={audioResult.vtt_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
-                                  >
-                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-                                    </svg>
-                                    Altyazı
-                                  </a>
-                                )}
-                                <button
-                                  onClick={() => setAudioResult(null)}
-                                  className="ml-auto inline-flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
-                                >
-                                  Kapat
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                  {/* Audio/Podcast Result - Using OutputSection for consistent UI */}
+                  {audioResult && audioResult.mp3_url && (
+                    <div className="mt-6 relative">
+                      <button
+                        onClick={() => setAudioResult(null)}
+                        className="absolute top-2 right-2 z-10 w-8 h-8 flex items-center justify-center bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-full text-gray-700 dark:text-gray-300 transition-colors"
+                      >
+                        ✕
+                      </button>
+                      <OutputSection
+                        audioResult={{
+                          message: audioResult.adapted_text || audioResult.message || '',
+                          mp3_url: audioResult.mp3_url,
+                          vtt_url: audioResult.vtt_url,
+                          adapted_text: audioResult.adapted_text,
+                          translated_text: audioResult.translated_text,
+                          timepoints: audioResult.timepoints || [],
+                          words: audioResult.words || [],
+                          level: audioResult.level || 'A1',
+                          topic: audioResult.topic || 'Chat İçeriği'
+                        }}
+                        isLoggedIn={isAuthenticated}
+                      />
                     </div>
                   )}
                   

@@ -1,49 +1,80 @@
-# LingRoot - AI-Powered English Learning Platform
+# LingRoot - AI-Powered Language Learning Platform
 
-This repository contains the code for LingRoot, an application designed to help users improve their English by converting various inputs (text, files, YouTube links - future) into CEFR-aligned audio content.
+**Son Güncelleme:** Aralık 2025
+
+LingRoot, kullanıcıların dil becerilerini geliştirmelerine yardımcı olan, yapay zeka destekli bir dil öğrenme platformudur. Metin, YouTube, web, kitap ve çeşitli kaynaklardan CEFR seviyesine uyarlanmış sesli içerikler üretir.
 
 ## Project Structure
 
 ```
-LingRoot-main/
-├── backend/         # Node.js (Express) backend application
-│   ├── config/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── routes/
-│   ├── utils/       # Logging, helpers, API clients
-│   ├── logs/        # Log files (created automatically)
-│   ├── uploads/     # Temporary file uploads (created automatically)
-│   ├── .env         # Local environment variables (ignored by git)
-│   ├── .env.example # Example environment variables
-│   ├── package.json
-│   └── server.js    # Main application entry point
-├── frontend/        # Next.js frontend application
-│   ├── public/
+LingRoot/
+├── backend/              # Node.js (Express) backend API
+│   ├── config/           # Veritabanı ve uygulama konfigürasyonu
+│   ├── controllers/      # 29 controller (AI Chat, TTS, Books, Topics, IAP vb.)
+│   ├── middleware/       # Auth, rate limiting, validation
+│   ├── routes/           # 31 route modülü
+│   ├── utils/            # TTS, CEFR adapter, text processor vb.
+│   ├── prompts/          # 49 AI prompt dosyası (CEFR seviyelerine göre)
+│   ├── migrations/       # 54 SQL migration dosyası
+│   ├── docs/             # Backend dokümantasyonu
+│   ├── scripts/          # Utility scriptleri
+│   └── server.js         # Ana giriş noktası
+├── frontend/             # Next.js 14 web uygulaması
 │   ├── src/
-│   │   ├── app/
-│   │   ├── components/
-│   │   ├── lib/       # API calls, utilities
-│   │   └── styles/
-│   ├── .env.local   # Frontend environment variables
-│   ├── package.json
-│   └── next.config.js
-└── .gitignore
+│   │   ├── app/          # 30 sayfa/layout (App Router)
+│   │   ├── components/   # 82 React bileşeni
+│   │   ├── lib/          # API, i18n, utilities
+│   │   ├── services/     # API servis katmanı
+│   │   ├── types/        # TypeScript tipleri
+│   │   └── context/      # React Context providers
+│   └── package.json
+├── LingRootMobile/       # React Native (Expo) mobil uygulama
+│   ├── src/              # Mobil uygulama kaynak kodu
+│   ├── ios/              # iOS native konfigürasyonu
+│   ├── android/          # Android native konfigürasyonu
+│   └── Docs/             # Mobil dokümantasyon
+├── docs/                 # Proje geneli dokümantasyon
+│   ├── ONBOARDING.md     # 🆕 Yeni geliştiriciler için 5 günlük rehber
+│   ├── templates/        # 🆕 Doküman şablonları
+│   ├── architecture/     # Mimari dokümanlar
+│   ├── api/              # API referansı
+│   ├── testing/          # Test planları
+│   └── database/         # Veritabanı şeması
+├── analiz/               # Analiz ve raporlar
+└── scripts/              # Global utility scriptleri
 ```
+
+**🚀 Yeni Başlıyorsanız:** [`docs/ONBOARDING.md`](docs/ONBOARDING.md) dosyasını okuyun!
 
 ## Features
 
-*   **Text-to-Speech (TTS):** Converts input text into spoken audio.
-*   **CEFR Level Adaptation:** Uses OpenAI (GPT-4o-mini) to adapt the input text to a specific CEFR level (A1-C2) while preserving content and structure.
-*   **Google Cloud TTS:** Synthesizes high-quality audio using Google Cloud Text-to-Speech (Wavenet voices).
-*   **Audio Processing:** Chunks long texts for TTS and merges the resulting audio segments using `fluent-ffmpeg`.
-*   **File Storage:** Uploads the final MP3 audio file to Supabase Storage.
-*   **Input Types:**
-    *   `text`: Direct text input (Implemented)
-    *   `file`: Upload text files (`.txt`, `.pdf`, `.docx`) (Partially implemented - MIME type check, extraction logic pending)
-    *   `youtube`: YouTube video URL (Planned - Not Implemented)
-    *   `spotify`: Spotify link (Planned - Not Implemented)
-*   **Structured Logging:** Uses Winston for configurable logging to console and files (`logs/error.log`, `logs/combined.log`).
+### İçerik İşleme
+- **Text-to-Speech (TTS):** Google Cloud TTS, Azure TTS, AWS Polly desteği
+- **CEFR Adaptation:** OpenAI GPT-4o ile A1-C2 seviye uyarlama
+- **Multi-Input Support:**
+  - ✅ **Text:** Doğrudan metin girişi
+  - ✅ **File:** PDF, DOCX, TXT, EPUB dosya yükleme
+  - ✅ **YouTube:** Video altyazısından içerik çıkarma
+  - ✅ **Web:** Web sayfası içerik çıkarma
+  - ✅ **Books:** Gutenberg kütüphanesinden kitap okuma
+  - ✅ **Topic Pipeline:** Konu bazlı otomatik içerik üretme
+
+### AI Özellikleri
+- **AI Chat:** ChatGPT benzeri dil asistanı
+- **Topic Suggestions:** Kullanıcı ilgilerine göre konu önerileri (RAG)
+- **CEFR Prompts:** Her seviye için özelleştirilmiş 49 prompt
+- **Bilingual Content:** İki dilli içerik üretimi
+
+### Kullanıcı Yönetimi
+- **Multi-Auth:** Email/Password, Google, Apple, Facebook
+- **MFA:** TOTP tabanlı iki faktörlü doğrulama
+- **Subscriptions:** Plan tabanlı üyelik sistemi
+- **IAP:** Google Play ve Apple App Store entegrasyonu
+
+### Platform Desteği
+- **Web:** Next.js 14 (App Router)
+- **Mobile:** React Native (Expo) - iOS & Android
+- **API:** RESTful + WebSocket (Socket.io)
 
 ## Environment Variables
 
