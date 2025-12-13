@@ -179,15 +179,76 @@ router.get('/admin/list', async (req, res) => {
       });
     }
 
+    // Fetch aggregated audio statistics
+    // We want to know how many chapters have audio for each level per book.
+    // Querying all rows might be heavy, but let's try a distinct approach.
+    const { data: audioStats, error: audioError } = await supabase
+      .from('chapter_audio')
+      .select(`
+          level,
+          book_chapters!inner (
+             book_id
+          )
+       `);
+
+    // Process audio stats: Map<bookId, Set<Level>> or Map<bookId, Counts>
+    // actually user wants to know if "6 levels are created".
+    // We can count how many chapters exist vs how many have audio for that level.
+
+    const bookAudioCoverage = {}; // { bookId: { A1: 5, A2: 5 ... } }
+
+    if (audioStats) {
+      audioStats.forEach(stat => {
+        const bId = stat.book_chapters.book_id;
+        const lvl = stat.level;
+        if (!bookAudioCoverage[bId]) bookAudioCoverage[bId] = {};
+        bookAudioCoverage[bId][lvl] = (bookAudioCoverage[bId][lvl] || 0) + 1;
+      });
+    }
+
     const transformed = books.map(book => ({
       ...book,
-      chapter_count: counts[book.id] || 0
+      chapter_count: counts[book.id] || 0,
+      audio_stats: bookAudioCoverage[book.id] || {}
     }));
 
     res.json({ success: true, data: transformed });
   } catch (error) {
     console.error('Admin kitap listesi hatası:', error);
     res.status(500).json({ error: 'Kitap listesi alınırken hata oluştu' });
+  }
+});
+
+// Admin: Delete Book
+router.delete('/admin/:bookId', async (req, res) => {
+  try {
+    const { bookId } = req.params;
+
+    if (!supabase) {
+      return res.status(500).json({ error: 'Veritabanı yapılandırması gerekli' });
+    }
+
+    // Supabase with Cascade delete should handle chapters and audio if foreign keys are set correctly.
+    // But to be safe and explicit:
+    // 1. Delete audio (if not cascaded) - relying on Cascade for now based on schema
+    // 2. Delete chapters
+    // 3. Delete book
+
+    const { error } = await supabase
+      .from('books')
+      .delete()
+      .eq('id', bookId);
+
+    if (error) {
+      throw error;
+    }
+
+    logger.info(`Admin deleted book ${bookId}`);
+    res.json({ success: true, message: 'Kitap başarıyla silindi' });
+
+  } catch (error) {
+    logger.error('Book delete error:', error);
+    res.status(500).json({ error: 'Kitap silinirken hata oluştu', details: error.message });
   }
 });
 
@@ -424,6 +485,80 @@ router.post('/:bookId/chapters/:chapterId/audio', async (req, res) => {
   } catch (error) {
     console.error('Ses dosyası kaydetme hatası:', error);
     res.status(500).json({ error: 'Ses dosyası kaydedilirken hata oluştu' });
+  }
+});
+
+// Admin: Get Book Details with Chapters and Audio Stats
+router.get('/admin/:bookId/details', async (req, res) => {
+  try {
+    const { bookId } = req.params;
+
+    if (!supabase) {
+      return res.status(500).json({ error: 'Veritabanı yapılandırması gerekli' });
+    }
+
+    // 1. Get Book Info
+    const { data: book, error: bookError } = await supabase
+      .from('books')
+      .select('*')
+      .eq('id', bookId)
+      .single();
+
+    if (bookError || !book) {
+      throw new Error('Kitap bulunamadı');
+    }
+
+    // 2. Get Chapters
+    const { data: chapters, error: chapterError } = await supabase
+      .from('book_chapters')
+      .select('id, chapter_index, chapter_title, director_analysis, created_at, chapter_text')
+      .eq('book_id', bookId)
+      .order('chapter_index', { ascending: true });
+
+    if (chapterError) {
+      throw new Error('Bölümler alınamadı: ' + chapterError.message);
+    }
+
+    // 3. Get Audio Stats for these chapters
+    // We need to know which levels exist for each chapter
+    const chapterIds = chapters.map(c => c.id);
+
+    let audioMap = {}; // { chapterId: { A1: true, B1: true... } }
+
+    if (chapterIds.length > 0) {
+      const { data: audios, error: audioError } = await supabase
+        .from('chapter_audio')
+        .select('chapter_id, level')
+        .in('chapter_id', chapterIds);
+
+      if (audios) {
+        audios.forEach(a => {
+          if (!audioMap[a.chapter_id]) audioMap[a.chapter_id] = {};
+          audioMap[a.chapter_id][a.level] = true;
+        });
+      }
+    }
+
+    // Merge Audio Stats into Chapters
+    const chaptersWithStats = chapters.map(c => ({
+      ...c,
+      text_length: c.chapter_text ? c.chapter_text.length : 0,
+      preview: c.chapter_text ? c.chapter_text.substring(0, 100) + '...' : '',
+      audio_levels: audioMap[c.id] || {},
+      chapter_text: undefined // Remove full text for list view performance
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        ...book,
+        chapters: chaptersWithStats
+      }
+    });
+
+  } catch (error) {
+    logger.error('Book details error:', error);
+    res.status(500).json({ error: 'Kitap detayları alınırken hata oluştu', details: error.message });
   }
 });
 

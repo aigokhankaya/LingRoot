@@ -468,20 +468,45 @@ export default function BookTab() {
           </div>
 
           {/* Level selector */}
-          <div className="flex items-center gap-2 mt-3">
-            <span className="text-sm text-gray-600">Seviye:</span>
-            {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(l => (
-              <button
-                key={l}
-                onClick={() => setLevel(l)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${level === l
-                    ? 'bg-primary text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-              >
-                {l}
-              </button>
-            ))}
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <i className="fas fa-layer-group text-gray-400"></i>
+                Seviye Seçimi:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'A1', label: 'Başlangıç', color: 'from-green-500 to-emerald-500' },
+                  { id: 'A2', label: 'Temel', color: 'from-emerald-500 to-teal-500' },
+                  { id: 'B1', label: 'Orta', color: 'from-teal-500 to-blue-500' },
+                  { id: 'B2', label: 'İyi', color: 'from-blue-500 to-indigo-500' },
+                  { id: 'C1', label: 'İleri', color: 'from-indigo-500 to-purple-500' },
+                  { id: 'C2', label: 'Uzman', color: 'from-purple-500 to-pink-500' },
+                ].map((l) => {
+                  const isSelected = level === l.id;
+                  return (
+                    <button
+                      key={l.id}
+                      onClick={() => setLevel(l.id)}
+                      className={`relative px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 border overflow-hidden group ${isSelected
+                          ? 'text-white border-transparent shadow-md transform scale-105'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                    >
+                      {isSelected && (
+                        <div className={`absolute inset-0 bg-gradient-to-r ${l.color}`}></div>
+                      )}
+                      <div className="relative flex flex-col items-center z-10">
+                        <span className="text-lg leading-none mb-1">{l.id}</span>
+                        <span className={`text-[9px] uppercase tracking-wider ${isSelected ? 'text-white/90' : 'text-gray-400 group-hover:text-gray-500'}`}>
+                          {l.label}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -531,8 +556,8 @@ export default function BookTab() {
                             toggleFavorite(book.id, book);
                           }}
                           className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${favoriteIds.includes(book.id)
-                              ? 'bg-red-500 text-white'
-                              : 'bg-white/80 text-gray-500 hover:bg-red-100 hover:text-red-500'
+                            ? 'bg-red-500 text-white'
+                            : 'bg-white/80 text-gray-500 hover:bg-red-100 hover:text-red-500'
                             }`}
                         >
                           <i className={`fas fa-heart ${favoriteIds.includes(book.id) ? '' : 'far'}`}></i>
@@ -710,8 +735,8 @@ export default function BookTab() {
                   <button
                     onClick={() => toggleFavorite(selectedBook.id)}
                     className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${favoriteIds.includes(selectedBook.id)
-                        ? 'bg-red-500 text-white'
-                        : 'bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-500'
+                      ? 'bg-red-500 text-white'
+                      : 'bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-500'
                       }`}
                   >
                     <i className={`fas fa-heart text-lg`}></i>
@@ -773,8 +798,8 @@ export default function BookTab() {
                     <div
                       key={chapter.id}
                       className={`rounded-lg border transition-all ${isExpanded
-                          ? 'bg-primary/5 border-primary/30'
-                          : 'bg-gray-50 border-gray-100 hover:bg-gray-100'
+                        ? 'bg-primary/5 border-primary/30'
+                        : 'bg-gray-50 border-gray-100 hover:bg-gray-100'
                         }`}
                     >
                       {/* Chapter Header - Clickable */}
@@ -784,10 +809,10 @@ export default function BookTab() {
                       >
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isReady
-                              ? 'bg-green-100 text-green-600'
-                              : isGenerating
-                                ? 'bg-blue-100 text-blue-600'
-                                : 'bg-gray-100 text-gray-500'
+                            ? 'bg-green-100 text-green-600'
+                            : isGenerating
+                              ? 'bg-blue-100 text-blue-600'
+                              : 'bg-gray-100 text-gray-500'
                             }`}>
                             {isGenerating ? (
                               <i className="fas fa-spinner fa-spin"></i>
