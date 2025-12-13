@@ -9,7 +9,7 @@ function mapUserFromApi(apiUser: any): User {
   
   // Backend'den gelen 'package' alanını membershipStatus'a çevir
   let membershipStatus = apiUser.membership_status || apiUser.membershipStatus;
-  let planName = apiUser.package || apiUser.planName || null;
+  const planName = apiUser.package || apiUser.planName || null;
   if (apiUser.package) {
     // Plan adına göre membership status belirle
     const packageLower = apiUser.package.toLowerCase();
