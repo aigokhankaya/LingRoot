@@ -270,6 +270,11 @@ const processTtsRequest = async (req, res) => {
             return res.status(415).json({ success: false, message: `Unsupported Content-Type: ${contentType}` });
         }
 
+        const cefrLevel = (level || '').toString().trim().toUpperCase();
+        level = cefrLevel || level;
+        logger.info(`CEFR Level: ${level}`);
+        console.log(`CEFR Level: ${level}`);
+
         // Normalize input type: 'subject' -> 'topic'
         logger.info(`[${requestId}] 🔍 RAW INPUT TYPE BEFORE NORMALIZATION: "${inputType}"`);
         if (inputType === 'subject') {
@@ -1451,7 +1456,7 @@ const processTtsRequest = async (req, res) => {
                     user_id: userId,
                     level: level || 'B1',
                     mp3_url: finalMp3Url,
-                    input: req.body.input || '',
+                    input: (inputType === 'topic' && translatedText) ? translatedText : (req.body.input || ''),
                     translated_text: translatedText || translationResult || '',
                     adapted_text: textToAdapt || '',
                     input_type: req.body.type || 'text',
