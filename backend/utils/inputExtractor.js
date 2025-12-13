@@ -240,11 +240,12 @@ async function extractTextFromInput(inputData, inputType, file, chapter, level =
     logger.info(`Extracting text for input type: ${inputType}`);
     switch (inputType) {
         case "text":
+        case "chapter": // Treat chapter like text, just pass through
             if (typeof inputData === "string") {
-                logger.info("Received plain text input. Passing directly to cleaning step.");
+                logger.info(`Received ${inputType} input. Passing directly to cleaning step.`);
                 return inputData;
             } else {
-                logger.error("Input data is not a string for type 'text'.");
+                logger.error(`Input data is not a string for type '${inputType}'.`);
                 return null;
             }
         case "topic":

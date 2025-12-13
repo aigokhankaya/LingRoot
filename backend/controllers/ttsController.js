@@ -22,6 +22,7 @@ const { logRequestStep } = require("../utils/requestLogger");
 const { supabase } = require("../utils/supabaseClient");
 const { checkLimits } = require("../utils/usageLimiter");
 const { getLingrootVoices, getLingrootVoiceById, mapLingrootToProviderVoice, getDefaultLingrootVoiceId } = require("../utils/lingrootVoices");
+const directorAgentService = require('../services/directorAgentService');
 
 // Store references to temp files so they can be accessed via API
 const tempAudioFiles = new Map();
@@ -279,6 +280,81 @@ const processTtsRequest = async (req, res) => {
     }
     logger.info(`[${requestId}] 🔍 FINAL INPUT TYPE AFTER NORMALIZATION: "${inputType}"`);
 
+    // --- DIRECTOR MODE: CHAPTER FLOW ---
+    if (inputType === 'chapter') {
+      const chapterId = req.body.chapter_id || req.body.chapterId;
+      logger.info(`[${requestId}] 🎬 DIRECTOR MODE: Processing book chapter ${chapterId}`);
+
+      if (!chapterId) {
+        logger.error(`[${requestId}] Missing chapter_id for chapter input type`);
+        return res.status(400).json({ success: false, message: "Missing chapter_id for chapter input type" });
+      }
+
+      // 1. Intelligent Caching: Check if audio exists for this level
+      // We accept ANY voice model for cache hits to save costs, assuming previous generation was good.
+      const { data: cachedAudio } = await supabase
+        .from('chapter_audio')
+        .select('mp3_url, vtt_url, level')
+        .eq('chapter_id', chapterId)
+        .eq('level', level)
+        .limit(1)
+        .maybeSingle();
+
+      if (cachedAudio) {
+        logger.info(`[${requestId}] 🎯 CACHE HIT: Found existing audio for chapter ${chapterId} level ${level}`);
+        return res.json({
+          success: true,
+          mp3_url: cachedAudio.mp3_url,
+          vtt_url: cachedAudio.vtt_url,
+          level: cachedAudio.level,
+          drift_corrected: false,
+          timing_source: 'cache',
+          message: 'Audio retrieved from cache'
+        });
+      }
+      logger.info(`[${requestId}] 💨 CACHE MISS: Proceeding to generation`);
+
+      // 2. Director Analysis: Check or Perform
+      const { data: chapterData } = await supabase
+        .from('book_chapters')
+        .select('chapter_text, director_analysis')
+        .eq('id', chapterId)
+        .single();
+
+      if (!chapterData) {
+        return res.status(404).json({ success: false, message: "Chapter not found in database" });
+      }
+
+      inputData = chapterData.chapter_text; // Ensure inputData is the full text
+      let analysis = chapterData.director_analysis;
+
+      if (!analysis) {
+        logger.info(`[${requestId}] 🕵️ DIRECTOR AGENT: Analyzing chapter content...`);
+        try {
+          analysis = await directorAgentService.analyzeChapter(inputData);
+
+          // Persist analysis
+          await supabase
+            .from('book_chapters')
+            .update({ director_analysis: analysis })
+            .eq('id', chapterId);
+
+          logger.info(`[${requestId}] 💾 Analysis saved to database.`);
+        } catch (err) {
+          logger.warn(`[${requestId}] Director analysis failed, using defaults: ${err.message}`);
+          analysis = { mood: 'Neutral', narrator_tone: 'Clear' };
+        }
+      } else {
+        logger.info(`[${requestId}] 🧠 Using existing Director Analysis from DB`);
+      }
+
+      // Set context for later steps
+      detectedMood = analysis.mood || 'Neutral';
+      // We can also attach narrator instructions to req for later use if we want
+      req.directorAnalysis = analysis;
+    }
+    // -----------------------------------
+
     // Validate essential parameters
     if (!inputType || (inputType !== "file" && !inputData) || (inputType === "file" && !file)) {
       logger.error(`[${requestId}] Missing required input parameters. inputType=${inputType}, inputData=${inputData}, file=${file?.originalname}`);
@@ -327,22 +403,19 @@ const processTtsRequest = async (req, res) => {
     if (inputType === "topic") {
       logger.info(`[${requestId}] ✅ TOPIC FLOW ACTIVATED!`);
 
-      // MOOD ANALYSIS (DIRECTOR AGENT)
-      // detectedMood variable is declared at the top of processTtsRequest
-      try {
-        const moodAnalysis = await require('../utils/openaiClient').chatCompletion({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: "You are a Director Agent. Analyze the requested topic and determine the best 'Emotional Tone' for a narrator. Options: [Melancholic, Cheerful, Suspenseful, Educational, Neutral]. Return ONLY the word." },
-            { role: "user", content: `Topic: ${inputData}\nLevel: ${level}` }
-          ],
-          temperature: 0.3,
-          max_tokens: 10
-        });
-        detectedMood = moodAnalysis.choices[0].message.content.trim();
-        logger.info(`[${requestId}] 🎭 Director Agent Detected Mood (Topic): ${detectedMood}`);
-      } catch (err) {
-        logger.warn(`[${requestId}] Mood analysis failed, defaulting to Neutral. Error: ${err.message}`);
+      // Pre-check for explicitly requested mood (e.g. from Topic Hierarchy)
+      if (req.body.mood) {
+        detectedMood = req.body.mood;
+        logger.info(`[${requestId}] 🎭 Using requested mood from input: ${detectedMood}`);
+      } else {
+        // MOOD ANALYSIS (DIRECTOR AGENT)
+        // detectedMood variable is declared at the top of processTtsRequest
+        try {
+          detectedMood = await directorAgentService.analyzeMood(`Topic: ${inputData}\nLevel: ${level}`);
+          logger.info(`[${requestId}] 🎭 Director Agent Detected Mood (Topic): ${detectedMood}`);
+        } catch (err) {
+          logger.warn(`[${requestId}] Mood analysis failed, defaulting to Neutral. Error: ${err.message}`);
+        }
       }
 
       // Topic input returns {englishText, translatedText, usage, model}
@@ -544,16 +617,7 @@ const processTtsRequest = async (req, res) => {
       // MOOD ANALYSIS FOR NON-TOPIC INPUTS (Director Agent)
       if (!skipTranslateAndAdapt && isBookOrDocument) {
         try {
-          const moodAnalysis = await require('../utils/openaiClient').chatCompletion({
-            model: "gpt-4o-mini", // Use mini for speed on regular text
-            messages: [
-              { role: "system", content: "You are a Director Agent. Analyze the text segment and determine the best 'Emotional Tone' for a narrator. Options: [Melancholic, Cheerful, Suspenseful, Educational, Neutral]. Return ONLY the word." },
-              { role: "user", content: `Text: ${cleanedText.substring(0, 500)}...` }
-            ],
-            temperature: 0.3,
-            max_tokens: 10
-          });
-          detectedMood = moodAnalysis.choices[0].message.content.trim();
+          detectedMood = await directorAgentService.analyzeMood(`Text: ${cleanedText.substring(0, 500)}...`);
           logger.info(`[${requestId}] 🎭 Director Agent Detected Mood (Text): ${detectedMood}`);
         } catch (err) {
           logger.warn(`[${requestId}] Mood analysis failed, defaulting to Neutral. Error: ${err.message}`);
@@ -773,19 +837,40 @@ const processTtsRequest = async (req, res) => {
     const ttsProvider = await getTtsProvider();
 
     if (!requestedVoice) {
-      // No voice requested: pick default Lingroot voice, then map to provider
-      lingrootVoiceId = getDefaultLingrootVoiceId(languageCode);
-      const mapped = mapLingrootToProviderVoice(lingrootVoiceId, ttsProvider);
-      if (mapped && mapped.name) {
-        selectedVoice = mapped.name;
-        languageCode = mapped.languageCode || languageCode;
-        if (mapped.engine) {
-          pollyEngine = mapped.engine;
+      // DIRECTOR MODE VOICE SELECTION
+      if (req.directorAnalysis) {
+        if (ttsProvider === 'azure') {
+          // Azure offers specific styles. Guy is good for general storytelling.
+          // Davis is also good. 
+          selectedVoice = 'en-US-GuyNeural';
+          logger.info(`[${requestId}] 🎬 Director Mode: Selected Azure Storytelling Voice (${selectedVoice})`);
+        } else if (ttsProvider === 'google') {
+          // Google Studio voices are better for long form
+          selectedVoice = 'en-US-Studio-M';
+          logger.info(`[${requestId}] 🎬 Director Mode: Selected Google Studio Voice (${selectedVoice})`);
+        } else if (ttsProvider === 'openai') {
+          selectedVoice = 'onyx';
+          logger.info(`[${requestId}] 🎬 Director Mode: Selected OpenAI Voice (${selectedVoice})`);
+        } else {
+          // Fallback or Polly
+          selectedVoice = 'Joanna'; // Polly standard
+          logger.info(`[${requestId}] 🎬 Director Mode: Selected Fallback Voice (${selectedVoice})`);
         }
-        logger.info(`[${requestId}] 🎯 No voice requested, using default Lingroot voice ${lingrootVoiceId} -> ${ttsProvider}:${selectedVoice}`);
       } else {
-        selectedVoice = await getDefaultVoiceForProvider(ttsProvider, languageCode);
-        logger.info(`[${requestId}] 🎯 No voice requested, Lingroot mapping missing, using provider default for ${ttsProvider}: ${selectedVoice}`);
+        // No voice requested: pick default Lingroot voice, then map to provider
+        lingrootVoiceId = getDefaultLingrootVoiceId(languageCode);
+        const mapped = mapLingrootToProviderVoice(lingrootVoiceId, ttsProvider);
+        if (mapped && mapped.name) {
+          selectedVoice = mapped.name;
+          languageCode = mapped.languageCode || languageCode;
+          if (mapped.engine) {
+            pollyEngine = mapped.engine;
+          }
+          logger.info(`[${requestId}] 🎯 No voice requested, using default Lingroot voice ${lingrootVoiceId} -> ${ttsProvider}:${selectedVoice}`);
+        } else {
+          selectedVoice = await getDefaultVoiceForProvider(ttsProvider, languageCode);
+          logger.info(`[${requestId}] 🎯 No voice requested, Lingroot mapping missing, using provider default for ${ttsProvider}: ${selectedVoice}`);
+        }
       }
     } else {
       const maybeLingroot = getLingrootVoiceById(requestedVoice);
@@ -1517,6 +1602,7 @@ const processTtsRequest = async (req, res) => {
           entry_source: normalizedEntrySource,
           // LLM usage breakdown for detailed cost analytics (prompt-level detail)
           llm_usage_details: usageBreakdown.length > 0 ? JSON.stringify(usageBreakdown) : null,
+          detected_mood: detectedMood || null,
         };
 
         logger.info(`[${requestId}] 📋 Insert data:`, JSON.stringify(insertData, null, 2));
@@ -1652,7 +1738,8 @@ const processTtsRequest = async (req, res) => {
       translatedText: translatedText || translationResult || '',
       adaptedText: adaptedText || '',
       cleanText: cleanTextForDisplay, // Temiz text ayrı field olarak da gönder
-      daily_usage_patterns: dailyUsagePatterns // Günlük kullanım kalıpları
+      daily_usage_patterns: dailyUsagePatterns, // Günlük kullanım kalıpları
+      detected_mood: detectedMood
     };
 
     // DEBUG: Final response'u kontrol et

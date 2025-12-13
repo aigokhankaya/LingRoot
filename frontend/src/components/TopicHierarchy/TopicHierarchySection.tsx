@@ -48,7 +48,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
       setIsLoading(true);
       setError(null);
       const response = await getTopicTree();
-      
+
       if (response.success && response.data) {
         setTopics(response.data.topics);
         console.log('✅ Konu ağacı yüklendi:', response.data.total, 'konu');
@@ -93,6 +93,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         input: suggestedInput,
         level: level.toUpperCase(),
         targetDurationMinutes: targetDurationMinutes,
+        mood: data.topic.mood_tag || undefined,
       };
 
       const result = await processTts({
@@ -131,7 +132,11 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
             audioResult.level || level.toUpperCase(),
             result.mp3_url,
             audioResult.translated_text || '',
-            audioResult.adapted_text || ''
+            audioResult.adapted_text || '',
+            undefined, // chapterId
+            undefined, // timepoints
+            undefined, // words
+            result.detected_mood
           );
           console.log('Topic audio saved to content history.');
         } catch (logErr) {
@@ -243,7 +248,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
   }, [userId]);
 
   // Ana konu oluştur
-  const handleCreateMainTopic = async (title: string, description?: string) => {
+  const handleCreateMainTopic = async (title: string, description?: string, mood?: string) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -252,13 +257,14 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
       const response = await createMainTopic({
         title,
         description,
-        level
+        level,
+        mood
       });
 
       if (response.success) {
         setSuccessMessage('Ana konu başarıyla oluşturuldu!');
         await loadTopicTree(); // Listeyi yenile
-        
+
         // 3 saniye sonra mesajı temizle
         setTimeout(() => setSuccessMessage(null), 3000);
       }
@@ -330,7 +336,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
 
       {/* Audio Generation Completed Notification */}
       {audioCompletedTopicId && topicAudioResults[audioCompletedTopicId] && (
-        <div 
+        <div
           onClick={() => {
             handleOpenAudioModal(audioCompletedTopicId);
             setAudioCompletedTopicId(null);
@@ -346,7 +352,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
               <p className="text-sm text-green-600">Dinlemek için tıklayın</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={(e) => {
               e.stopPropagation();
               setAudioCompletedTopicId(null);

@@ -37,19 +37,19 @@ interface ChapterAudioState {
 
 export default function BookTab() {
   const { user } = useAuth();
-  
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<BookSearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  
+
   // Selected book & chapters
   const [selectedBook, setSelectedBook] = useState<BookSearchResult | null>(null);
   const [chapters, setChapters] = useState<BookChapter[]>([]);
   const [chaptersLoading, setChaptersLoading] = useState(false);
   const [selectedChapter, setSelectedChapter] = useState<BookChapter | null>(null);
-  
+
   // Audio player state
   const [chapterAudioStates, setChapterAudioStates] = useState<Record<number, ChapterAudioState>>({});
   const [currentAudioUrl, setCurrentAudioUrl] = useState<string | null>(null);
@@ -57,23 +57,23 @@ export default function BookTab() {
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
-  
+
   // Favorites
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
   const [favoriteBooks, setFavoriteBooks] = useState<FavoriteBookItem[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
-  
+
   // History
   const [bookHistory, setBookHistory] = useState<BookHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  
+
   // Settings
   const [level, setLevel] = useState('A2');
   const [viewMode, setViewMode] = useState<ViewMode>('search');
-  
+
   // Expanded chapters (accordion)
   const [expandedChapterId, setExpandedChapterId] = useState<number | null>(null);
-  
+
   // Notification for completed audio generation
   const [audioNotification, setAudioNotification] = useState<{
     chapterId: number;
@@ -155,7 +155,7 @@ export default function BookTab() {
   // Search books
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
-    
+
     try {
       setSearchLoading(true);
       setSearchError(null);
@@ -176,7 +176,7 @@ export default function BookTab() {
     setSelectedChapter(null);
     setCurrentAudioUrl(null);
     setViewMode('chapters');
-    
+
     try {
       setChaptersLoading(true);
       const bookChapters = await getBookChapters(book.id);
@@ -195,10 +195,10 @@ export default function BookTab() {
     const newFavorites = isFavorite
       ? favoriteIds.filter(id => id !== bookId)
       : [...favoriteIds, bookId];
-    
+
     // Update IDs
     setFavoriteIds(newFavorites);
-    
+
     // Update favoriteBooks list
     if (isFavorite) {
       setFavoriteBooks(prev => prev.filter(b => b.id !== bookId));
@@ -213,7 +213,7 @@ export default function BookTab() {
       };
       setFavoriteBooks(prev => [...prev, newFavoriteBook]);
     }
-    
+
     try {
       await saveBookFavorites(newFavorites);
     } catch (error) {
@@ -226,9 +226,9 @@ export default function BookTab() {
   // Generate chapter audio
   const generateChapterAudio = async (chapter: BookChapter) => {
     if (!selectedBook) return;
-    
+
     console.log('[BookTab] Starting TTS for chapter:', chapter.id, chapter.chapter_title);
-    
+
     setChapterAudioStates(prev => ({
       ...prev,
       [chapter.id]: { status: 'generating' }
@@ -236,8 +236,8 @@ export default function BookTab() {
 
     try {
       const response = await processTts({
-        type: 'text',  // Use 'text' type for proper JSON payload
-        input: chapter.chapter_text,
+        type: 'chapter',  // Use 'chapter' type for Director Mode analysis & caching
+        input: chapter.chapter_text, // Full text for analysis if needed (though backend can pull from DB)
         level,
         chapter_id: String(chapter.id)
       });
@@ -277,9 +277,9 @@ export default function BookTab() {
   // Play chapter
   const handlePlayChapter = async (chapter: BookChapter) => {
     setSelectedChapter(chapter);
-    
+
     const state = chapterAudioStates[chapter.id];
-    
+
     if (state?.status === 'ready' && state.mp3_url) {
       // Audio already exists - expand and allow playing
       setExpandedChapterId(chapter.id);
@@ -301,7 +301,7 @@ export default function BookTab() {
       }
     }
   };
-  
+
   // Handle notification click - open the chapter
   const handleNotificationClick = (chapterId: number) => {
     setExpandedChapterId(chapterId);
@@ -340,7 +340,7 @@ export default function BookTab() {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !currentAudioUrl) return;
-    
+
     audio.src = currentAudioUrl;
     if (isPlaying) {
       audio.play().catch(console.error);
@@ -350,7 +350,7 @@ export default function BookTab() {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    
+
     if (isPlaying) {
       audio.play().catch(console.error);
     } else {
@@ -466,7 +466,7 @@ export default function BookTab() {
               )}
             </Button>
           </div>
-          
+
           {/* Level selector */}
           <div className="flex items-center gap-2 mt-3">
             <span className="text-sm text-gray-600">Seviye:</span>
@@ -474,11 +474,10 @@ export default function BookTab() {
               <button
                 key={l}
                 onClick={() => setLevel(l)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
-                  level === l
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${level === l
                     ? 'bg-primary text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 {l}
               </button>
@@ -531,11 +530,10 @@ export default function BookTab() {
                             e.stopPropagation();
                             toggleFavorite(book.id, book);
                           }}
-                          className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                            favoriteIds.includes(book.id)
+                          className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${favoriteIds.includes(book.id)
                               ? 'bg-red-500 text-white'
                               : 'bg-white/80 text-gray-500 hover:bg-red-100 hover:text-red-500'
-                          }`}
+                            }`}
                         >
                           <i className={`fas fa-heart ${favoriteIds.includes(book.id) ? '' : 'far'}`}></i>
                         </button>
@@ -711,11 +709,10 @@ export default function BookTab() {
                   </div>
                   <button
                     onClick={() => toggleFavorite(selectedBook.id)}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                      favoriteIds.includes(selectedBook.id)
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${favoriteIds.includes(selectedBook.id)
                         ? 'bg-red-500 text-white'
                         : 'bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-500'
-                    }`}
+                      }`}
                   >
                     <i className={`fas fa-heart text-lg`}></i>
                   </button>
@@ -733,7 +730,7 @@ export default function BookTab() {
           <CardContent className="pt-4">
             {/* Audio Generation Notification */}
             {audioNotification && (
-              <div 
+              <div
                 onClick={() => handleNotificationClick(audioNotification.chapterId)}
                 className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between cursor-pointer hover:bg-green-100 transition-colors animate-pulse"
               >
@@ -746,7 +743,7 @@ export default function BookTab() {
                     <p className="text-sm text-green-600">Dinlemek için tıklayın</p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setAudioNotification(null);
@@ -757,7 +754,7 @@ export default function BookTab() {
                 </button>
               </div>
             )}
-            
+
             {chaptersLoading ? (
               <div className="text-center py-8">
                 <i className="fas fa-spinner fa-spin text-2xl text-primary mb-2"></i>
@@ -771,15 +768,14 @@ export default function BookTab() {
                   const isReady = state?.status === 'ready';
                   const isCurrentlyPlaying = selectedChapter?.id === chapter.id && !!currentAudioUrl;
                   const isExpanded = expandedChapterId === chapter.id;
-                  
+
                   return (
                     <div
                       key={chapter.id}
-                      className={`rounded-lg border transition-all ${
-                        isExpanded
+                      className={`rounded-lg border transition-all ${isExpanded
                           ? 'bg-primary/5 border-primary/30'
                           : 'bg-gray-50 border-gray-100 hover:bg-gray-100'
-                      }`}
+                        }`}
                     >
                       {/* Chapter Header - Clickable */}
                       <div
@@ -787,13 +783,12 @@ export default function BookTab() {
                         onClick={() => setExpandedChapterId(isExpanded ? null : chapter.id)}
                       >
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                            isReady
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isReady
                               ? 'bg-green-100 text-green-600'
                               : isGenerating
-                              ? 'bg-blue-100 text-blue-600'
-                              : 'bg-gray-100 text-gray-500'
-                          }`}>
+                                ? 'bg-blue-100 text-blue-600'
+                                : 'bg-gray-100 text-gray-500'
+                            }`}>
                             {isGenerating ? (
                               <i className="fas fa-spinner fa-spin"></i>
                             ) : isReady ? (
@@ -847,7 +842,7 @@ export default function BookTab() {
                           <i className={`fas fa-chevron-down text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}></i>
                         </div>
                       </div>
-                      
+
                       {/* Chapter Content - Expandable */}
                       {isExpanded && (
                         <div className="px-4 pb-4 border-t border-gray-200">
@@ -867,7 +862,7 @@ export default function BookTab() {
                               />
                             </div>
                           )}
-                          
+
                           {/* Show original text only if no audio yet */}
                           {!isReady && (
                             <div className="mt-4">
@@ -938,7 +933,7 @@ export default function BookTab() {
                     <i className="fas fa-redo"></i>
                   </button>
                 </div>
-                
+
                 {/* Progress bar */}
                 <div className="space-y-2">
                   <input
