@@ -95,6 +95,14 @@ export const translations: Translations = {
     dashboard_nav_listen: 'Dinleme Sayfası',
     dashboard_redirecting: 'Yönlendiriliyor...',
     dashboard_loading_user: 'Kullanıcı bilgileri yükleniyor...',
+    tab_reading_history: 'Ses Geçmişim',
+    tab_my_topics: 'Konularım',
+    tab_my_books: 'Kitaplarım',
+    tab_my_hobbies: 'İlgi Alanlarım',
+    tab_my_podcasts: 'Podcastlerim',
+    tab_my_documents: 'Dokümanlarım',
+    tab_my_vocabulary: 'Kelimelerim',
+    tab_my_plan_info: 'Paket Bilgilerim',
     dashboard_daily_goal_title: 'Günlük Hedef',
     dashboard_daily_goal_subtitle: 'Hedef: 30 dakika',
     dashboard_current_streak_title: 'Mevcut Seri',
@@ -4264,7 +4272,8 @@ export const getTranslation = (localeOverride?: Locale) => {
   const currentLocale = localeOverride || getCurrentLanguage();
 
   const t = (key: string): string => {
-    const value = translations[currentLocale]?.[key] || key;
+    const normalizedKey = key.replace(/__+/g, '_');
+    const value = translations[currentLocale]?.[key] || translations[currentLocale]?.[normalizedKey] || key;
     // Ensure we always return a string, not an array or object
     return typeof value === 'string' ? value : String(value);
   };
