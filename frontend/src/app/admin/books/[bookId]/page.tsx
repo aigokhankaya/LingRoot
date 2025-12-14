@@ -51,7 +51,7 @@ const ALL_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 export default function BookDetailsPage() {
     const router = useRouter();
     const params = useParams();
-    const bookId = params.bookId;
+    const bookId = typeof params?.bookId === 'string' ? params.bookId : null;
 
     const [book, setBook] = useState<BookDetails | null>(null);
     const [loading, setLoading] = useState(true);
@@ -68,9 +68,13 @@ export default function BookDetailsPage() {
     const [isPlaying, setIsPlaying] = useState(false);
 
     useEffect(() => {
-        if (bookId) {
-            fetchBookDetails();
+        if (!bookId) {
+            setError('Book ID not found');
+            setLoading(false);
+            return;
         }
+
+        fetchBookDetails();
     }, [bookId]);
 
     // Audio Event Listeners
@@ -97,6 +101,7 @@ export default function BookDetailsPage() {
     }, []);
 
     const fetchBookDetails = async () => {
+        if (!bookId) return;
         try {
             setLoading(true);
             const token = localStorage.getItem('lingroot_token');
