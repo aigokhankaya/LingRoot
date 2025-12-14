@@ -7,7 +7,8 @@ const { execSync } = require("child_process");
 
 // Try to find FFmpeg path dynamically
 try {
-    const ffmpegPath = execSync('where ffmpeg', { encoding: 'utf8' }).trim().split('\n')[0];
+    const findCmd = process.platform === 'win32' ? 'where ffmpeg' : 'which ffmpeg';
+    const ffmpegPath = execSync(findCmd, { encoding: 'utf8' }).trim().split('\n')[0];
     if (ffmpegPath) {
         ffmpeg.setFfmpegPath(ffmpegPath);
         logger.info(`✅ FFmpeg path set: ${ffmpegPath}`);

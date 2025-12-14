@@ -51,6 +51,10 @@ exports.rewriteToNarration = async (req, res) => {
     logRequestStep(requestId, 'narration-rewrite:error', { error: 'No CEFR level provided.' });
     return res.status(400).json({ success: false, message: "Lütfen bir CEFR seviyesi seçin (A1-C2)." });
   }
+
+  const cefrLevel = (level || '').toString().trim().toUpperCase();
+  logger.info(`CEFR Level: ${cefrLevel}`);
+  console.log(`CEFR Level: ${cefrLevel}`);
   
   try {
     // Seviyeye göre doğru prompt dosyasını seç

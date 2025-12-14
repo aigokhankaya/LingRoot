@@ -169,14 +169,30 @@ const CreateScreen: React.FC = () => {
   // --- Podcast Mode State ---
   const [podcastTopic, setPodcastTopic] = useState<string>('');
   const [podcastDuration, setPodcastDuration] = useState<number>(5); // Varsayılan 5 dk
+  const [podcastTtsProvider, setPodcastTtsProvider] = useState<string>('n8n'); // TTS Provider: 'n8n' or 'google'
   const [isCreatingPodcast, setIsCreatingPodcast] = useState<boolean>(false);
   const [podcastError, setPodcastError] = useState<string | null>(null);
   const [podcastStyleType, setPodcastStyleType] = useState<string>('friendly_chat');
   const [podcastVoiceChoice, setPodcastVoiceChoice] = useState<string>('english_female');
+  const [podcastHostSpeakerId, setPodcastHostSpeakerId] = useState<string>('Kore');
+  const [podcastGuestSpeakerId, setPodcastGuestSpeakerId] = useState<string>('Puck');
   const [podcastPersonalityA, setPodcastPersonalityA] = useState<string>('curious_enthusiast');
   const [podcastPersonalityB, setPodcastPersonalityB] = useState<string>('knowledgeable_friend');
   const [podcastIncludeHumor, setPodcastIncludeHumor] = useState<boolean>(true);
   const [podcastIncludeFiller, setPodcastIncludeFiller] = useState<boolean>(true);
+
+  const GEMINI_PODCAST_SPEAKERS = [
+    { value: 'Aoede', label: 'Aoede (F)' },
+    { value: 'Kore', label: 'Kore (F)' },
+    { value: 'Leda', label: 'Leda (F)' },
+    { value: 'Callirrhoe', label: 'Callirrhoe (F)' },
+    { value: 'Zephyr', label: 'Zephyr (F)' },
+    { value: 'Charon', label: 'Charon (M)' },
+    { value: 'Fenrir', label: 'Fenrir (M)' },
+    { value: 'Orus', label: 'Orus (M)' },
+    { value: 'Puck', label: 'Puck (M)' },
+    { value: 'Achilles', label: 'Achilles (M)' },
+  ];
 
   useFocusEffect(
     React.useCallback(() => {
@@ -1036,6 +1052,9 @@ const CreateScreen: React.FC = () => {
         topic: podcastTopic.trim(),
         level: selectedLevel,
         duration: podcastDuration,
+        ttsProvider: podcastTtsProvider,
+        hostSpeakerId: podcastTtsProvider === 'google' ? podcastHostSpeakerId : undefined,
+        guestSpeakerId: podcastTtsProvider === 'google' ? podcastGuestSpeakerId : undefined,
         styleType: podcastStyleType,
         voiceChoice: podcastVoiceChoice,
         personalityA: podcastPersonalityA,
@@ -1291,6 +1310,122 @@ const CreateScreen: React.FC = () => {
                 ? 'Podcast için bir konu girin ve seviye ile süreyi seçin.'
                 : 'Enter a topic for the podcast and choose the level and duration.'}
             </Text>
+
+            {/* TTS Provider Selection */}
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
+                {language === 'tr' ? 'Ses Motoru' : 'Audio Engine'}
+              </Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    marginRight: 6,
+                    paddingVertical: 12,
+                    paddingHorizontal: 8,
+                    borderRadius: 8,
+                    borderWidth: 2,
+                    borderColor: podcastTtsProvider === 'n8n' ? COLORS.primary : '#ddd',
+                    backgroundColor: podcastTtsProvider === 'n8n' ? '#E3F2FD' : '#fff',
+                    alignItems: 'center',
+                  }}
+                  onPress={() => setPodcastTtsProvider('n8n')}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: podcastTtsProvider === 'n8n' ? COLORS.primary : '#333' }}>
+                    n8n Workflow
+                  </Text>
+                  <Text style={{ fontSize: 11, color: podcastTtsProvider === 'n8n' ? COLORS.primary : '#888', marginTop: 2 }}>
+                    {language === 'tr' ? 'Mevcut yapı' : 'Current system'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    marginLeft: 6,
+                    paddingVertical: 12,
+                    paddingHorizontal: 8,
+                    borderRadius: 8,
+                    borderWidth: 2,
+                    borderColor: podcastTtsProvider === 'google' ? COLORS.primary : '#ddd',
+                    backgroundColor: podcastTtsProvider === 'google' ? '#E3F2FD' : '#fff',
+                    alignItems: 'center',
+                  }}
+                  onPress={() => setPodcastTtsProvider('google')}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: podcastTtsProvider === 'google' ? COLORS.primary : '#333' }}>
+                    Google TTS
+                  </Text>
+                  <Text style={{ fontSize: 11, color: podcastTtsProvider === 'google' ? COLORS.primary : '#888', marginTop: 2 }}>
+                    Gemini Multi-Voice
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {podcastTtsProvider === 'google' && (
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
+                  {language === 'tr' ? 'Host Sesi' : 'Host Voice'}
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                  {GEMINI_PODCAST_SPEAKERS.map((opt) => (
+                    <TouchableOpacity
+                      key={`host_${opt.value}`}
+                      style={{
+                        paddingVertical: 10,
+                        paddingHorizontal: 12,
+                        borderRadius: 8,
+                        borderWidth: 2,
+                        borderColor: podcastHostSpeakerId === opt.value ? COLORS.primary : '#ddd',
+                        backgroundColor: podcastHostSpeakerId === opt.value ? '#E3F2FD' : '#fff',
+                        marginRight: 8,
+                        marginBottom: 8,
+                      }}
+                      onPress={() => setPodcastHostSpeakerId(opt.value)}
+                    >
+                      <Text style={{
+                        fontSize: 12,
+                        fontWeight: '600',
+                        color: podcastHostSpeakerId === opt.value ? COLORS.primary : '#333'
+                      }}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8, marginTop: 8 }}>
+                  {language === 'tr' ? 'Konuk Sesi' : 'Guest Voice'}
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                  {GEMINI_PODCAST_SPEAKERS.map((opt) => (
+                    <TouchableOpacity
+                      key={`guest_${opt.value}`}
+                      style={{
+                        paddingVertical: 10,
+                        paddingHorizontal: 12,
+                        borderRadius: 8,
+                        borderWidth: 2,
+                        borderColor: podcastGuestSpeakerId === opt.value ? COLORS.primary : '#ddd',
+                        backgroundColor: podcastGuestSpeakerId === opt.value ? '#E3F2FD' : '#fff',
+                        marginRight: 8,
+                        marginBottom: 8,
+                      }}
+                      onPress={() => setPodcastGuestSpeakerId(opt.value)}
+                    >
+                      <Text style={{
+                        fontSize: 12,
+                        fontWeight: '600',
+                        color: podcastGuestSpeakerId === opt.value ? COLORS.primary : '#333'
+                      }}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
             <TextInput
               style={[styles.textInput, { minHeight: 100 }]}
               placeholder={

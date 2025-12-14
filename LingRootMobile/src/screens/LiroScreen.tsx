@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -17,6 +18,8 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getApiBaseUrl } from '../services/environmentConfig';
+import AudioPlayer from '../components/AudioPlayer';
+import { AudioTrack, Timepoint } from '../types';
 
 interface AnimatedFeatureButtonProps {
   titleTr: string;
@@ -96,6 +99,8 @@ const LiroScreen: React.FC = () => {
   const [audioResult, setAudioResult] = useState<any | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeCta, setActiveCta] = useState<CtaType | null>(null);
+  const [liroPlayerVisible, setLiroPlayerVisible] = useState(false);
+  const [liroTrack, setLiroTrack] = useState<AudioTrack | null>(null);
   const scrollViewRef = useRef<ScrollView | null>(null);
 
   const ctaDisabled = !(ctaTopicReady || ctaContentReady);
@@ -328,10 +333,66 @@ const LiroScreen: React.FC = () => {
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
-    if (!apiUrl) return url;
-    const cleanBase = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
-    const cleanPath = url.startsWith('/') ? url : `/${url}`;
-    return `${cleanBase}${cleanPath}`;
+    return `${apiUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
+  const normalizeWords = (raw: any): string[] => {
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((item: any) => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object') {
+          return (
+            item.word ||
+            item.text ||
+            item.token ||
+            item.value ||
+            ''
+          );
+        }
+        return '';
+      })
+      .map((w: string) => String(w).trim())
+      .filter((w: string) => w.length > 0);
+  };
+
+  const normalizeTimepoints = (raw: any): Timepoint[] => {
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(Boolean) as Timepoint[];
+  };
+
+  const openLiroAudioPlayer = () => {
+    const mp3 = audioResult?.mp3_url;
+    if (!mp3) return;
+
+    const createdAt = new Date().toISOString();
+    const track: AudioTrack = {
+      id: `liro_${Date.now()}`,
+      title: language === 'tr' ? 'LIRO Ses' : 'LIRO Audio',
+      url: buildPlayableUrl(mp3),
+      mp3_url: mp3,
+      level: (audioResult?.level || 'B1') as any,
+      duration:
+        typeof audioResult?.real_duration === 'number'
+          ? audioResult.real_duration
+          : typeof audioResult?.estimated_duration === 'number'
+            ? audioResult.estimated_duration
+            : 180,
+      created_at: createdAt,
+      translated_text: audioResult?.translated_text || audioResult?.translatedText,
+      adapted_text: audioResult?.adapted_text || audioResult?.adaptedText,
+      original_turkish: audioResult?.original_turkish,
+      timepoints: normalizeTimepoints(audioResult?.timepoints),
+      words: normalizeWords(audioResult?.words),
+      real_duration: audioResult?.real_duration,
+      estimated_duration: audioResult?.estimated_duration,
+      drift_corrected: audioResult?.drift_corrected,
+      drift_amount: audioResult?.drift_amount,
+      drift_percentage: audioResult?.drift_percentage,
+    };
+
+    setLiroTrack(track);
+    setLiroPlayerVisible(true);
   };
 
   const getLastAssistantMessage = (): string => {
@@ -340,6 +401,21 @@ const LiroScreen: React.FC = () => {
     );
     if (assistantMessages.length === 0) return '';
     return assistantMessages[assistantMessages.length - 1].content;
+  };
+
+  const extractCefrLevelFromText = (text: string): string | null => {
+    if (!text) return null;
+    const match = text.match(/\b(A1|A2|B1|B2|C1|C2)\b/i);
+    return match ? match[1].toUpperCase() : null;
+  };
+
+  const getDesiredCefrLevel = (): string => {
+    const recent = messages.slice(-10).reverse();
+    for (const msg of recent) {
+      const lvl = extractCefrLevelFromText(msg.content);
+      if (lvl) return lvl;
+    }
+    return 'B1';
   };
 
   const handleConfirmCta = async (type: CtaType) => {
@@ -361,6 +437,7 @@ const LiroScreen: React.FC = () => {
 
       if (type === 'narration') {
         const topic = extractTopicFromMessages();
+        const desiredLevel = getDesiredCefrLevel();
         const response = await fetch(`${apiUrl}/api/tts/process`, {
           method: 'POST',
           headers: {
@@ -370,7 +447,7 @@ const LiroScreen: React.FC = () => {
           body: JSON.stringify({
             type: 'topic',
             input: topic,
-            level: 'B1',
+            level: desiredLevel,
             speakingRate: 0.8,
           }),
         });
@@ -380,6 +457,7 @@ const LiroScreen: React.FC = () => {
         result = await response.json();
       } else if (type === 'podcast') {
         const topic = extractTopicFromMessages();
+        const desiredLevel = getDesiredCefrLevel();
         const response = await fetch(`${apiUrl}/api/tts/create-podcast`, {
           method: 'POST',
           headers: {
@@ -388,7 +466,7 @@ const LiroScreen: React.FC = () => {
           },
           body: JSON.stringify({
             topic,
-            level: 'B1',
+            level: desiredLevel,
             duration: '10',
           }),
         });
@@ -401,6 +479,7 @@ const LiroScreen: React.FC = () => {
         if (!lastMessage) {
           throw new Error('No assistant message');
         }
+        const desiredLevel = getDesiredCefrLevel();
         const response = await fetch(`${apiUrl}/api/tts/process`, {
           method: 'POST',
           headers: {
@@ -410,7 +489,7 @@ const LiroScreen: React.FC = () => {
           body: JSON.stringify({
             type: 'text',
             input: lastMessage,
-            level: 'B1',
+            level: desiredLevel,
             speakingRate: 0.8,
           }),
         });
@@ -493,6 +572,8 @@ const LiroScreen: React.FC = () => {
     const content = rawContent.trim();
     if (!content || !apiUrl || isSending) return;
     setError(null);
+
+    Keyboard.dismiss();
 
     let convId = conversationId;
     if (!convId) {
@@ -685,8 +766,8 @@ const LiroScreen: React.FC = () => {
               </Text>
               <Text style={styles.audioCardSubtitle}>
                 {language === 'tr'
-                  ? 'Aşağıdan ses dosyasını veya altyazıyı açabilirsin.'
-                  : 'You can open the audio or subtitles below.'}
+                  ? 'Aşağıdan sesi dinleyebilirsin.'
+                  : 'You can listen to the audio below.'}
               </Text>
 
               {/* Podcast transcript as dialogue bubbles (if transcript is dialogue-style) */}
@@ -694,9 +775,9 @@ const LiroScreen: React.FC = () => {
                 <View style={styles.podcastDialogContainer}>
                   {audioResult.transcript
                     .split(/\r?\n/)
-                    .map(line => line.trim())
-                    .filter(line => line.length > 0)
-                    .map((line, index) => {
+                    .map((line: string) => line.trim())
+                    .filter((line: string) => line.length > 0)
+                    .map((line: string, index: number) => {
                       const match = line.match(/^(Speaker\s+[AB]):\s*(.*)$/i);
                       const speakerLabel = match ? match[1] : '';
                       const text = match ? match[2] : line;
@@ -737,29 +818,13 @@ const LiroScreen: React.FC = () => {
                 {audioResult.mp3_url ? (
                   <TouchableOpacity
                     style={styles.audioLinkButton}
-                    onPress={() => Linking.openURL(buildPlayableUrl(audioResult.mp3_url))}
+                    onPress={openLiroAudioPlayer}
                   >
                     <Icon name="play-arrow" size={18} color="#FFFFFF" />
                     <Text style={styles.audioLinkText}>
                       {language === 'tr'
-                        ? 'Ses dosyasını aç'
-                        : 'Open audio'}
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
-                {audioResult.vtt_url ? (
-                  <TouchableOpacity
-                    style={[
-                      styles.audioLinkButton,
-                      styles.audioLinkSecondary,
-                    ]}
-                    onPress={() => Linking.openURL(buildPlayableUrl(audioResult.vtt_url))}
-                  >
-                    <Icon name="subtitles" size={18} color="#111827" />
-                    <Text style={styles.audioLinkSecondaryText}>
-                      {language === 'tr'
-                        ? 'Altyazıyı aç'
-                        : 'Open subtitles'}
+                        ? 'Sesi Dinle'
+                        : 'Listen Audio'}
                     </Text>
                   </TouchableOpacity>
                 ) : null}
@@ -934,6 +999,16 @@ const LiroScreen: React.FC = () => {
               </ScrollView>
             </View>
           </View>
+        )}
+
+        {liroTrack && (
+          <AudioPlayer
+            track={liroTrack}
+            visible={liroPlayerVisible}
+            onClose={() => setLiroPlayerVisible(false)}
+            timepoints={liroTrack.timepoints || []}
+            words={liroTrack.words || []}
+          />
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -137,7 +137,7 @@ npm install
 cd ios
 rm -rf Pods Podfile.lock
 pod install --repo-update
-
+ipconfig getifaddr en0
 
 ### Tünnel ve backend başladı kontrolleri
 

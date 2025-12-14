@@ -11,7 +11,8 @@ const execPromise = promisify(exec);
 // Try to find ffprobe path dynamically
 let ffprobePath = 'ffprobe'; // default
 try {
-    const foundPath = execSync('where ffprobe', { encoding: 'utf8' }).trim().split('\n')[0];
+    const findCmd = process.platform === 'win32' ? 'where ffprobe' : 'which ffprobe';
+    const foundPath = execSync(findCmd, { encoding: 'utf8' }).trim().split('\n')[0];
     if (foundPath) {
         ffprobePath = foundPath;
         logger.info(`✅ ffprobe path set: ${ffprobePath}`);

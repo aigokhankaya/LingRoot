@@ -145,8 +145,7 @@ function generateSSMLWithOptimizedMarks(text) {
   
   ssml += '</speak>';
   
-  console.log(`🎯 SSML Generated: ${cleanWords.length} clean words, ${originalWords.length} original words`);
-  console.log(`📝 Clean words: ${cleanWords.slice(0, 10).join(', ')}${cleanWords.length > 10 ? '...' : ''}`);
+  // Debug only - removed verbose logging
   
   return {
     ssml,
@@ -336,13 +335,12 @@ async function synthesizeWithGoogle(options) {
     
     // Optimized SSML ile timing marks ekle
     const ssmlData = generateSSMLWithOptimizedMarks(safePlainText);
-    logger.debug('🎯 Generated optimized SSML:', ssmlData.ssml.substring(0, 200) + '...');
     
     // 🔥 ÖNEMLİ: Google TTS API'den gerçek voice gender'ını al
     let correctGender = ssmlGender;
     if (!correctGender || correctGender === 'NEUTRAL') {
       correctGender = await getVoiceGender(voiceName);
-      logger.info(`🎯 Using real gender from Google API: ${correctGender} for voice: ${voiceName}`);
+      logger.debug(`🎯 Using gender: ${correctGender} for voice: ${voiceName}`);
     }
     
     // TTS request configuration - kesin senkronizasyon için optimize edildi
@@ -360,7 +358,8 @@ async function synthesizeWithGoogle(options) {
         volumeGainDb: 0.0,
         sampleRateHertz: 24000, // Yeterli kalite için 24kHz
         effectsProfileId: ['telephony-class-application']
-      }
+      },
+      enableTimePointing: ['SSML_MARK']
     };
 
 
@@ -370,7 +369,7 @@ async function synthesizeWithGoogle(options) {
     // SSML mark'lardan timing bilgilerini parse et
     const timingMarks = response.timepoints || [];
     
-    logger.info(`🎯 Received ${timingMarks.length} timing marks from Google TTS`);
+    logger.debug(`🎯 Received ${timingMarks.length} timing marks from Google TTS`);
     
     // Kelime timing'lerini hesapla - temiz kelimelerle
     const wordTimings = [];
@@ -408,10 +407,6 @@ async function synthesizeWithGoogle(options) {
           hasDirectTiming: true
         });
         
-        // İlk 5 kelime için detaylı log
-        if (i < 5) {
-          logger.info(`🎯 Word ${i}: "${ssmlData.cleanWords[i]}" | ${startMark.timeSeconds.toFixed(3)}s - ${endTime.toFixed(3)}s`);
-        }
       } else {
         // Fallback timing hesaplama
         const totalEstimatedDuration = ssmlData.cleanWords.length * (0.5 / speakingRate);
@@ -426,9 +421,6 @@ async function synthesizeWithGoogle(options) {
           hasDirectTiming: false
         });
         
-        if (i < 5) {
-          logger.warn(`🎯 FALLBACK Word ${i}: "${ssmlData.cleanWords[i]}" | ${startTime.toFixed(3)}s - ${endTime.toFixed(3)}s`);
-        }
       }
     }
     
@@ -448,12 +440,7 @@ async function synthesizeWithGoogle(options) {
       avgWordDuration: wordTimings.reduce((sum, w) => sum + (w.endTimeSeconds - w.timeSeconds), 0) / wordTimings.length
     };
     
-    logger.info(`🎯 Google TTS synthesis completed:
-      - Duration: ${totalDuration.toFixed(3)}s
-      - Clean words: ${ssmlData.cleanWords.length}
-      - Marked words: ${timingQuality.markedWords}/${timingQuality.totalWords} (${timingQuality.markAccuracy.toFixed(1)}%)
-      - Audio size: ${response.audioContent.length} bytes
-      - Average word duration: ${(timingQuality.avgWordDuration * 1000).toFixed(0)}ms`);
+    logger.debug(`🎯 Google TTS completed: ${totalDuration.toFixed(1)}s, ${ssmlData.cleanWords.length} words, ${timingQuality.markedWords} marks`);
     
     return {
       audioContent: response.audioContent,

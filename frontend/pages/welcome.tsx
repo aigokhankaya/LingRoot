@@ -330,14 +330,30 @@ const Welcome: React.FC = () => {
   // Podcast state'leri
   const [podcastTopic, setPodcastTopic] = useState<string>('');
   const [podcastDuration, setPodcastDuration] = useState<number>(5); // Podcast için varsayılan 5 dk
+  const [podcastTtsProvider, setPodcastTtsProvider] = useState<string>('n8n'); // TTS Provider: 'n8n' or 'google'
   const [podcastStyleType, setPodcastStyleType] = useState<string>('friendly_chat');
   const [podcastVoiceChoice, setPodcastVoiceChoice] = useState<string>('english_female');
+  const [podcastHostSpeakerId, setPodcastHostSpeakerId] = useState<string>('Kore');
+  const [podcastGuestSpeakerId, setPodcastGuestSpeakerId] = useState<string>('Puck');
   const [podcastPersonalityA, setPodcastPersonalityA] = useState<string>('curious_enthusiast');
   const [podcastPersonalityB, setPodcastPersonalityB] = useState<string>('knowledgeable_friend');
   const [podcastIncludeHumor, setPodcastIncludeHumor] = useState<boolean>(true);
   const [podcastIncludeFiller, setPodcastIncludeFiller] = useState<boolean>(true);
   const [isCreatingPodcast, setIsCreatingPodcast] = useState<boolean>(false);
   const [podcastError, setPodcastError] = useState<string | null>(null);
+
+  const GEMINI_PODCAST_SPEAKERS = [
+    { value: 'Aoede', label: 'Aoede (F)' },
+    { value: 'Kore', label: 'Kore (F)' },
+    { value: 'Leda', label: 'Leda (F)' },
+    { value: 'Callirrhoe', label: 'Callirrhoe (F)' },
+    { value: 'Zephyr', label: 'Zephyr (F)' },
+    { value: 'Charon', label: 'Charon (M)' },
+    { value: 'Fenrir', label: 'Fenrir (M)' },
+    { value: 'Orus', label: 'Orus (M)' },
+    { value: 'Puck', label: 'Puck (M)' },
+    { value: 'Achilles', label: 'Achilles (M)' },
+  ];
 
   // Kitap arama ve seçim state'leri
   const [bookSearchQuery, setBookSearchQuery] = useState<string>('');
@@ -527,11 +543,14 @@ const Welcome: React.FC = () => {
     setPodcastError(null);
 
     try {
-      // n8n webhook formatı: { topic, level, duration }
+      // Podcast creation params - supports both n8n and Google TTS providers
       const params: PodcastCreationParams = {
         topic: podcastTopic,
         level: englishLevel.toUpperCase(),
         duration: podcastDuration,
+        ttsProvider: podcastTtsProvider,
+        hostSpeakerId: podcastTtsProvider === 'google' ? podcastHostSpeakerId : undefined,
+        guestSpeakerId: podcastTtsProvider === 'google' ? podcastGuestSpeakerId : undefined,
         styleType: podcastStyleType,
         voiceChoice: podcastVoiceChoice,
         personalityA: podcastPersonalityA,
@@ -2596,6 +2615,76 @@ const Welcome: React.FC = () => {
                     {/* Podcast sekmesi */}
                     {contentType === 'podcast' && (
                       <div className="space-y-4">
+                        {/* TTS Provider Seçici - En Üstte */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <i className="fas fa-microphone-alt mr-2"></i>
+                            {t('welcome_podcast_tts_provider_label') || 'Ses Motoru'}
+                          </label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setPodcastTtsProvider('n8n')}
+                              className={`p-4 rounded-lg border-2 transition-all text-center ${podcastTtsProvider === 'n8n'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
+                                }`}
+                            >
+                              <div className="font-semibold">n8n Workflow</div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {t('welcome_podcast_n8n_description') || 'Mevcut podcast yapısı'}
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPodcastTtsProvider('google')}
+                              className={`p-4 rounded-lg border-2 transition-all text-center ${podcastTtsProvider === 'google'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
+                                }`}
+                            >
+                              <div className="font-semibold">Google TTS</div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {t('welcome_podcast_google_description') || 'Gemini Multi-Voice'}
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+
+                        {podcastTtsProvider === 'google' && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                {t('welcome_podcast_host_voice_label') || 'Host Voice'}
+                              </label>
+                              <select
+                                value={podcastHostSpeakerId}
+                                onChange={(e) => setPodcastHostSpeakerId(e.target.value)}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
+                              >
+                                {GEMINI_PODCAST_SPEAKERS.map((v) => (
+                                  <option key={v.value} value={v.value}>{v.label}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                {t('welcome_podcast_guest_voice_label') || 'Guest Voice'}
+                              </label>
+                              <select
+                                value={podcastGuestSpeakerId}
+                                onChange={(e) => setPodcastGuestSpeakerId(e.target.value)}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
+                              >
+                                {GEMINI_PODCAST_SPEAKERS.map((v) => (
+                                  <option key={v.value} value={v.value}>{v.label}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        )}
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             {t('welcome_podcast_topic_label')}

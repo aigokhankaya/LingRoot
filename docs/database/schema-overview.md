@@ -286,18 +286,36 @@ CREATE TABLE subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     plan_id INTEGER REFERENCES plans(id),
+    plantype VARCHAR(50),                      -- Plan name (Free Trial, Pro Monthly, etc.)
     status VARCHAR(20) DEFAULT 'active',       -- active, cancelled, expired
-    start_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    end_date TIMESTAMP WITH TIME ZONE,
+    startdate TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    enddate TIMESTAMP WITH TIME ZONE,
     provider VARCHAR(50),                      -- stripe, apple, google
     provider_subscription_id TEXT,
     receipt_data TEXT,
+    audio_creation_count INTEGER DEFAULT 0,
+    
+    -- Apple IAP fields
+    apple_transaction_id TEXT,
+    apple_original_transaction_id TEXT,
+    apple_receipt_data TEXT,
+    apple_subscription_status VARCHAR(50),
+    apple_auto_renew_status BOOLEAN DEFAULT TRUE,
+    
+    -- Google Play fields
+    google_purchase_token TEXT,
+    google_subscription_status VARCHAR(50),    -- active, canceled, on_hold, grace_period, expired, revoked
+    google_auto_renew_status BOOLEAN DEFAULT TRUE,
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE INDEX idx_subscriptions_user_id ON subscriptions(user_id);
 CREATE INDEX idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX idx_subscriptions_provider ON subscriptions(provider);
+CREATE INDEX idx_subscriptions_google_purchase_token ON subscriptions(google_purchase_token);
+CREATE INDEX idx_subscriptions_apple_transaction_id ON subscriptions(apple_transaction_id);
 ```
 
 ### payment_providers

@@ -153,7 +153,7 @@ class LiroPromptGenerator {
       const recent = conversationHistory.recentTopics
         .slice(0, 3)
         .join('", "');
-      prefs.push(`🕒 Son konuşulan: "${recent}"`);
+      prefs.push(`🕒 Önceki sohbetlerde konuşulan (şu anki sohbet DEĞİL): "${recent}"`);
     }
 
     // Audio kullanımı
@@ -174,18 +174,23 @@ class LiroPromptGenerator {
     ];
 
     if (recentTopics.length === 0) {
-      return '';
+      return `
+⚠️ GEÇMİŞ BİLGİSİ:
+Kullanıcının kayıtlı geçmişi BULUNMUYOR. Bu yeni bir kullanıcı veya ilk sohbet.
+→ "Daha önce çalışmıştık" veya "Geçen sefer konuşmuştuk" gibi ifadeler KULLANMA!
+→ İlk defa tanışıyormuş gibi samimi ve açık bir şekilde konuş.`;
     }
 
     return `
-🚫 TEKRAR ÖNLEME:
-Kullanıcı son zamanlarda bu konular üzerinde çalıştı:
+📝 ÖNCEKİ SOHBETLERDEN GEÇMİŞ BİLGİSİ (Şu anki sohbet DEĞİL!):
+Kullanıcı ÖNCEKİ sohbetlerde bu konularda içerik oluşturmuş veya sohbet etmiş:
 ${recentTopics.slice(0, 10).map((t, i) => `${i + 1}. "${t}"`).join('\n')}
 
-Bu konuları AYNEN tekrar önerme! Ancak:
-- Devam niteliğinde seri içerik sunabilirsin ("X'in 2. bölümü")
-- Farklı açıdan yaklaşabilirsin ("X konusunda yeni bir bakış açısı")
-- Daha derin/farklı seviyede işleyebilirsin`;
+❗ ÖNEMLİ KURALLAR:
+- Bu konuları AYNEN tekrar önerme, farklı açılardan yaklaş.
+- Eğer kullanıcı ŞU ANKİ sohbette bu konulardan birinden bahsettiyse "daha önce de çalışmıştık" diyebilirsin.
+- AMA kullanıcı şu anki sohbette FARKLI bir konu söylediyse (yukarıdaki listede OLMAYAN), o konuyu İLK DEFA konuşuluyor gibi ele al!
+- ASLA "bunu daha önce görmüştük" diye varsayım yapma.`;
   }
 
   /**
@@ -366,16 +371,16 @@ Bu konuları AYNEN tekrar önerme! Ancak:
       return `Son oluşturduğun içeriklerden biri "${lastContentTopic}" üzerindeydi. ${formatHint} 💡`;
     }
 
-    // 2. Son konuşmanın devamı
+    // 2. Son konuşmanın devamı (önceki sohbetlerden)
     if (conversationHistory.recentTopics.length > 0) {
       const lastTopic = conversationHistory.recentTopics[0];
-      return `Geçen sefer "${lastTopic}" hakkında konuşmuştuk. Bunun devamı için harika fikirlerim var! 💡`;
+      return `Önceki sohbetlerde "${lastTopic}" konusu geçmiş. Bu konunun devamını veya farklı bir açısını çalışabiliriz. 💡`;
     }
 
     // 3. Popüler sohbet konusu
     if (conversationHistory.popularTopics.length > 0) {
       const popularTopic = conversationHistory.popularTopics[0].topic;
-      return `"${popularTopic}" konusunda seri içerik yapabiliriz! İlk bölümü çok beğenmiştin. 📚`;
+      return `"${popularTopic}" konusu ilgini çekebilir - bu alanda içerik üretebiliriz! 📚`;
     }
 
     // 4. Kullanılmamış ilgi alanı varsa (hobiler)

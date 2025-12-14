@@ -325,11 +325,7 @@ router.get("/vtt/:vttId", (req, res, next) => {
 // Other TTS Utility Endpoints
 router.post("/translateToEnglish", translateToEnglish);
 router.post("/adaptToCEFR", adaptToCEFR);
-router.post("/chunkText", chunkTextAPI);
-router.post("/synthesizeChunk", synthesizeChunkAPI);
-router.post("/mergeAudio", mergeAudioAPI);
-
-// Create podcast from topic (proxy to n8n webhook)
+// Create podcast from topic (supports n8n webhook or Google TTS multi-speaker)
 router.post("/create-podcast", authenticate, async (req, res) => {
   try {
     const body = req.body || {};
@@ -343,7 +339,40 @@ router.post("/create-podcast", authenticate, async (req, res) => {
     }
     const level = (body.level || 'B1').toString().toUpperCase();
     const duration = body.duration != null ? body.duration : 10;
-    logger.info(`📻 [PODCAST] Proxy create-podcast for topic: "${topic}", level: ${level}, duration: ${duration}`);
+    const ttsProvider = (body.ttsProvider || 'n8n').toLowerCase();
+    
+    logger.info(`📻 [PODCAST] Create podcast - Topic: "${topic}", Level: ${level}, Duration: ${duration}, Provider: ${ttsProvider}`);
+
+    // Route to Google TTS multi-speaker if selected
+    if (ttsProvider === 'google' || ttsProvider === 'google-tts') {
+      try {
+        const { createGoogleTTSPodcast } = require('../utils/googleTTSMultiSpeaker');
+        
+        const result = await createGoogleTTSPodcast({
+          topic,
+          level,
+          duration,
+          styleType: body.styleType,
+          personalityA: body.personalityA,
+          personalityB: body.personalityB,
+          hostSpeakerId: body.hostSpeakerId,
+          guestSpeakerId: body.guestSpeakerId,
+          includeHumor: body.includeHumor !== false,
+          includeFiller: body.includeFiller !== false,
+          userId: req.user?.id,
+        });
+
+        return res.json(result);
+      } catch (googleErr) {
+        logger.error('[PODCAST] Google TTS podcast creation failed:', googleErr.message);
+        return res.status(500).json({
+          success: false,
+          message: `Google TTS podcast creation failed: ${googleErr.message}`,
+        });
+      }
+    }
+
+    // Default: n8n webhook flow
     let serviceConfig = null;
     try {
       const { data, error } = await supabase

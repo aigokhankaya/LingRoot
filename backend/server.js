@@ -34,6 +34,7 @@ const supportChatRoutes = require("./routes/supportChat"); // New Support Chat r
 const aiChatRoutes = require("./routes/aiChat"); // AI Chat routes (Liro assistant)
 const iapRoutes = require("./routes/iapRoutes"); // Apple IAP routes
 const appleNotificationsRoutes = require("./routes/appleNotificationsRoutes"); // Apple Server Notifications
+const googlePlayNotificationsRoutes = require("./routes/googlePlayNotificationsRoutes"); // Google Play RTDN
 const accountRoutes = require("./routes/accountRoutes"); // Account management
 const statsRoutes = require("./routes/statsRoutes"); // User statistics
 const externalServicesRoutes = require("./routes/externalServicesRoutes"); // External services management
@@ -154,6 +155,7 @@ app.use("/api/ai-chat", aiChatRoutes); // AI Chat routes (Liro assistant)
 app.use('/auth', authRoutes);
 app.use("/api/iap", iapRoutes); // Apple IAP verification
 app.use("/api/iap/apple", appleNotificationsRoutes); // Apple Server Notifications
+app.use("/api/iap/google", googlePlayNotificationsRoutes); // Google Play RTDN
 app.use("/api/account", accountRoutes); // Account management
 app.use("/api/stats", statsRoutes); // User statistics
 app.use("/api/external-services", externalServicesRoutes); // External services management
