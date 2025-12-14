@@ -1570,11 +1570,12 @@ export const getUserStats = async (): Promise<UserStats | null> => {
 };
 
 // Podcast API Types
-// n8n webhook expects: { topic, level, duration }
+// Supports both n8n webhook and Google TTS multi-speaker
 export interface PodcastCreationParams {
   topic: string;
   level: string;
   duration: number;
+  ttsProvider?: string; // 'n8n' (default) or 'google'
   styleType?: string;
   voiceChoice?: string;
   personalityA?: string;

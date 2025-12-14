@@ -329,6 +329,7 @@ const Welcome: React.FC = () => {
   // Podcast state'leri
   const [podcastTopic, setPodcastTopic] = useState<string>('');
   const [podcastDuration, setPodcastDuration] = useState<number>(5); // Podcast için varsayılan 5 dk
+  const [podcastTtsProvider, setPodcastTtsProvider] = useState<string>('n8n'); // TTS Provider: 'n8n' or 'google'
   const [podcastStyleType, setPodcastStyleType] = useState<string>('friendly_chat');
   const [podcastVoiceChoice, setPodcastVoiceChoice] = useState<string>('english_female');
   const [podcastPersonalityA, setPodcastPersonalityA] = useState<string>('curious_enthusiast');
@@ -526,11 +527,12 @@ const Welcome: React.FC = () => {
     setPodcastError(null);
 
     try {
-      // n8n webhook formatı: { topic, level, duration }
+      // Podcast creation params - supports both n8n and Google TTS providers
       const params: PodcastCreationParams = {
         topic: podcastTopic,
         level: englishLevel.toUpperCase(),
         duration: podcastDuration,
+        ttsProvider: podcastTtsProvider,
         styleType: podcastStyleType,
         voiceChoice: podcastVoiceChoice,
         personalityA: podcastPersonalityA,
@@ -2595,6 +2597,42 @@ const Welcome: React.FC = () => {
                     {/* Podcast sekmesi */}
                     {contentType === 'podcast' && (
                       <div className="space-y-4">
+                        {/* TTS Provider Seçici - En Üstte */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <i className="fas fa-microphone-alt mr-2"></i>
+                            {t('welcome_podcast_tts_provider_label') || 'Ses Motoru'}
+                          </label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setPodcastTtsProvider('n8n')}
+                              className={`p-4 rounded-lg border-2 transition-all text-center ${podcastTtsProvider === 'n8n'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
+                                }`}
+                            >
+                              <div className="font-semibold">n8n Workflow</div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {t('welcome_podcast_n8n_description') || 'Mevcut podcast yapısı'}
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPodcastTtsProvider('google')}
+                              className={`p-4 rounded-lg border-2 transition-all text-center ${podcastTtsProvider === 'google'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
+                                }`}
+                            >
+                              <div className="font-semibold">Google TTS</div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {t('welcome_podcast_google_description') || 'Gemini Multi-Voice'}
+                              </div>
+                            </button>
+                          </div>
+                        </div>
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             {t('welcome_podcast_topic_label')}

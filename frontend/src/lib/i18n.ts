@@ -1024,6 +1024,9 @@ export const translations: Translations = {
     // Filler words and podcast
     welcome_filler_words_label: 'Dolgu Kelimeler Ekle',
     // Podcast labels
+    welcome_podcast_tts_provider_label: 'Ses Motoru:',
+    welcome_podcast_n8n_description: 'Mevcut podcast yapısı',
+    welcome_podcast_google_description: 'Gemini Multi-Voice',
     welcome_podcast_topic_label: 'Podcast Konusu:',
     welcome_podcast_topic_placeholder: 'Podcast için bir konu girin (Örn: The history of the Internet)...',
     welcome_podcast_duration_label: 'Podcast Süresi:',
@@ -2676,6 +2679,9 @@ export const translations: Translations = {
     welcome_chapter_no_text: 'No text found for this chapter.',
     // Filler words and podcast
     welcome_filler_words_label: 'Add Filler Words',
+    welcome_podcast_tts_provider_label: 'Audio Engine:',
+    welcome_podcast_n8n_description: 'Current podcast system',
+    welcome_podcast_google_description: 'Gemini Multi-Voice',
     welcome_podcast_topic_label: 'Podcast Topic:',
     welcome_podcast_topic_placeholder: 'Enter a topic for your podcast (e.g., The history of the Internet)...',
     welcome_podcast_duration_label: 'Podcast Duration:',

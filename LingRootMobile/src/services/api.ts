@@ -423,10 +423,12 @@ export const apiService = {
   },
 
   // Podcast creation API (Sync) - mirrors web podcast flow
+  // Supports both n8n webhook and Google TTS multi-speaker
   async createPodcast(params: {
     topic: string;
     level: string;
     duration: number | string;
+    ttsProvider?: string; // 'n8n' (default) or 'google'
     styleType?: string;
     voiceChoice?: string;
     personalityA?: string;
@@ -440,6 +442,7 @@ export const apiService = {
         topic: params.topic,
         level: params.level,
         duration: params.duration,
+        ttsProvider: params.ttsProvider || 'n8n',
         styleType: params.styleType,
         voiceChoice: params.voiceChoice,
         personalityA: params.personalityA,

@@ -169,6 +169,7 @@ const CreateScreen: React.FC = () => {
   // --- Podcast Mode State ---
   const [podcastTopic, setPodcastTopic] = useState<string>('');
   const [podcastDuration, setPodcastDuration] = useState<number>(5); // Varsayılan 5 dk
+  const [podcastTtsProvider, setPodcastTtsProvider] = useState<string>('n8n'); // TTS Provider: 'n8n' or 'google'
   const [isCreatingPodcast, setIsCreatingPodcast] = useState<boolean>(false);
   const [podcastError, setPodcastError] = useState<string | null>(null);
   const [podcastStyleType, setPodcastStyleType] = useState<string>('friendly_chat');
@@ -1036,6 +1037,7 @@ const CreateScreen: React.FC = () => {
         topic: podcastTopic.trim(),
         level: selectedLevel,
         duration: podcastDuration,
+        ttsProvider: podcastTtsProvider,
         styleType: podcastStyleType,
         voiceChoice: podcastVoiceChoice,
         personalityA: podcastPersonalityA,
@@ -1291,6 +1293,58 @@ const CreateScreen: React.FC = () => {
                 ? 'Podcast için bir konu girin ve seviye ile süreyi seçin.'
                 : 'Enter a topic for the podcast and choose the level and duration.'}
             </Text>
+
+            {/* TTS Provider Selection */}
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
+                {language === 'tr' ? 'Ses Motoru' : 'Audio Engine'}
+              </Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    marginRight: 6,
+                    paddingVertical: 12,
+                    paddingHorizontal: 8,
+                    borderRadius: 8,
+                    borderWidth: 2,
+                    borderColor: podcastTtsProvider === 'n8n' ? COLORS.primary : '#ddd',
+                    backgroundColor: podcastTtsProvider === 'n8n' ? '#E3F2FD' : '#fff',
+                    alignItems: 'center',
+                  }}
+                  onPress={() => setPodcastTtsProvider('n8n')}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: podcastTtsProvider === 'n8n' ? COLORS.primary : '#333' }}>
+                    n8n Workflow
+                  </Text>
+                  <Text style={{ fontSize: 11, color: podcastTtsProvider === 'n8n' ? COLORS.primary : '#888', marginTop: 2 }}>
+                    {language === 'tr' ? 'Mevcut yapı' : 'Current system'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    marginLeft: 6,
+                    paddingVertical: 12,
+                    paddingHorizontal: 8,
+                    borderRadius: 8,
+                    borderWidth: 2,
+                    borderColor: podcastTtsProvider === 'google' ? COLORS.primary : '#ddd',
+                    backgroundColor: podcastTtsProvider === 'google' ? '#E3F2FD' : '#fff',
+                    alignItems: 'center',
+                  }}
+                  onPress={() => setPodcastTtsProvider('google')}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: podcastTtsProvider === 'google' ? COLORS.primary : '#333' }}>
+                    Google TTS
+                  </Text>
+                  <Text style={{ fontSize: 11, color: podcastTtsProvider === 'google' ? COLORS.primary : '#888', marginTop: 2 }}>
+                    Gemini Multi-Voice
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             <TextInput
               style={[styles.textInput, { minHeight: 100 }]}
               placeholder={
