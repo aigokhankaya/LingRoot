@@ -4,6 +4,8 @@ import Head from 'next/head';
 import { getApiUrl } from '../src/lib/api';
 import { useTranslation } from '../src/lib/i18n';
 
+import Link from 'next/link';
+
 export default function VerifyPage() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -54,7 +56,7 @@ export default function VerifyPage() {
           {status === 'success' && (
             <>
               <p style={{ color: 'green' }}>{message}</p>
-              <p><a href="/login">{t('verify_success_link')}</a></p>
+              <p><Link href="/login">{t('verify_success_link')}</Link></p>
             </>
           )}
           {status === 'error' && (

@@ -6,7 +6,7 @@ export default function Pronunciation() {
       <div className="max-w-2xl bg-white rounded-xl shadow-md p-8 text-left">
         <h1 className="text-2xl font-bold text-primary mb-4">Telaffuzunu Geliştir</h1>
         <p className="text-gray-700 mb-4">
-          LingRoot'un telaffuz egzersizleriyle konuşma becerilerinizi geliştirin. Sistem, seçtiğiniz kelimeleri veya cümleleri sizin seviyenize uygun şekilde seslendirir. Siz de sesli tekrar ederek uygulamalı öğrenme sürecine katılırsınız.
+          LingRoot&apos;un telaffuz egzersizleriyle konuşma becerilerinizi geliştirin. Sistem, seçtiğiniz kelimeleri veya cümleleri sizin seviyenize uygun şekilde seslendirir. Siz de sesli tekrar ederek uygulamalı öğrenme sürecine katılırsınız.
         </p>
         <div className="mb-4">
           <span className="font-semibold text-gray-800">Özellikler:</span>

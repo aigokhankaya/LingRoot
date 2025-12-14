@@ -3867,7 +3867,7 @@ export const translations: Translations = {
 
     // Footer / Navigation
     contact_us: 'Kontakt aufnehmen',
-    privacy_contact_us: 'Kontakt aufnehmen',
+
     legal_documents: 'Rechtliche Dokumente',
 
     // Welcome – üst bölüm
@@ -4562,8 +4562,8 @@ export const useTranslation = (localeOverride?: Locale) => {
 
   const { t, currentLocale } = getTranslation(effectiveLocale);
 
-  // Use useCallback for performance optimization within the hook context
-  const memoizedT = useCallback(t, [currentLocale]);
+  // No need for useCallback here as t is recreated on every render via getTranslation
+  const memoizedT = t;
 
   return { t: memoizedT, currentLocale };
 };

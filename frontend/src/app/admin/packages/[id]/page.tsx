@@ -133,7 +133,7 @@ export default function PackageDetailPage() {
       if (response.ok && data.success) {
         const planData = data.data;
         setPlan(planData);
-        
+
         // Populate form
         setFormData({
           name: planData.name || '',
@@ -248,8 +248,8 @@ export default function PackageDetailPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               onClick={() => router.push('/admin/packages')}
               className="mb-2"
             >
@@ -266,13 +266,13 @@ export default function PackageDetailPage() {
             )}
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => router.push('/admin/packages')}
             >
               İptal
             </Button>
-            <Button 
+            <Button
               onClick={handleSave}
               disabled={saving}
               className="bg-indigo-600 hover:bg-indigo-700"
@@ -318,7 +318,7 @@ export default function PackageDetailPage() {
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Örn: Gold, Platinum"
                   />
                 </div>
@@ -328,7 +328,7 @@ export default function PackageDetailPage() {
                     id="price"
                     type="number"
                     value={formData.price}
-                    onChange={(e) => setFormData({...formData, price: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     placeholder="0"
                   />
                 </div>
@@ -339,7 +339,7 @@ export default function PackageDetailPage() {
                 <Textarea
                   id="description"
                   value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Paket açıklaması..."
                   rows={3}
                 />
@@ -351,7 +351,7 @@ export default function PackageDetailPage() {
                   <select
                     id="interval"
                     value={formData.interval}
-                    onChange={(e) => setFormData({...formData, interval: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, interval: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
                     <option value="monthly">Aylık</option>
@@ -363,7 +363,7 @@ export default function PackageDetailPage() {
                     <Switch
                       id="is_active"
                       checked={formData.is_active}
-                      onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
+                      onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                     />
                     <Label htmlFor="is_active">Aktif</Label>
                   </div>
@@ -371,7 +371,7 @@ export default function PackageDetailPage() {
                     <Switch
                       id="is_trial"
                       checked={formData.is_trial}
-                      onChange={(e) => setFormData({...formData, is_trial: e.target.checked})}
+                      onChange={(e) => setFormData({ ...formData, is_trial: e.target.checked })}
                     />
                     <Label htmlFor="is_trial">Deneme Paketi</Label>
                   </div>
@@ -385,7 +385,7 @@ export default function PackageDetailPage() {
                     id="trial_days"
                     type="number"
                     value={formData.trial_days}
-                    onChange={(e) => setFormData({...formData, trial_days: Number(e.target.value)})}
+                    onChange={(e) => setFormData({ ...formData, trial_days: Number(e.target.value) })}
                   />
                 </div>
               )}
@@ -628,7 +628,7 @@ export default function PackageDetailPage() {
                     type="number"
                     step="0.01"
                     value={formData.monthly_cost_limit_usd}
-                    onChange={(e) => setFormData({...formData, monthly_cost_limit_usd: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, monthly_cost_limit_usd: e.target.value })}
                     placeholder="Örn: 10.00"
                   />
                 </div>
@@ -638,7 +638,7 @@ export default function PackageDetailPage() {
                     id="openai_token_limit"
                     type="number"
                     value={formData.openai_token_limit}
-                    onChange={(e) => setFormData({...formData, openai_token_limit: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, openai_token_limit: e.target.value })}
                     placeholder="Örn: 100000"
                   />
                 </div>
@@ -648,7 +648,7 @@ export default function PackageDetailPage() {
                     id="tts_char_limit"
                     type="number"
                     value={formData.tts_char_limit}
-                    onChange={(e) => setFormData({...formData, tts_char_limit: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, tts_char_limit: e.target.value })}
                     placeholder="Örn: 50000"
                   />
                 </div>
@@ -661,7 +661,7 @@ export default function PackageDetailPage() {
             <CardHeader>
               <CardTitle>Uygulama Mağazası Entegrasyonları</CardTitle>
               <CardDescription>
-                Apple App Store ve Google Play Store product ID'leri
+                Apple App Store ve Google Play Store product ID&apos;leri
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -671,7 +671,7 @@ export default function PackageDetailPage() {
                   <Input
                     id="apple_product_id"
                     value={formData.apple_product_id}
-                    onChange={(e) => setFormData({...formData, apple_product_id: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, apple_product_id: e.target.value })}
                     placeholder="com.lingroot.premium.monthly"
                   />
                 </div>
@@ -680,7 +680,7 @@ export default function PackageDetailPage() {
                   <Input
                     id="google_product_id"
                     value={formData.google_product_id}
-                    onChange={(e) => setFormData({...formData, google_product_id: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, google_product_id: e.target.value })}
                     placeholder="com.nsyzk.lingrootmobile.gold.monthly"
                   />
                 </div>
@@ -691,13 +691,13 @@ export default function PackageDetailPage() {
 
         {/* Bottom Actions */}
         <div className="flex justify-end gap-2 mt-6 pb-8">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => router.push('/admin/packages')}
           >
             İptal
           </Button>
-          <Button 
+          <Button
             onClick={handleSave}
             disabled={saving}
             className="bg-indigo-600 hover:bg-indigo-700"

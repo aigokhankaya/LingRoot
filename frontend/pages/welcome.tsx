@@ -239,6 +239,14 @@ const Welcome: React.FC = () => {
     } catch { }
   }, []);
 
+  // Auth guard: Giriş yapılmadıysa login sayfasına yönlendir
+  useEffect(() => {
+    if (!authLoading && (!isAuthenticated || !user)) {
+      const target = typeof window !== 'undefined' ? window.location.pathname + window.location.search + window.location.hash : '/welcome';
+      router.push(`/login?next=${encodeURIComponent(target)}`);
+    }
+  }, [authLoading, isAuthenticated, user, router]);
+
   // 🎯 Chat'ten ve URL'den gelen parametreleri işle
   useEffect(() => {
     if (!router.isReady) return;
@@ -1284,7 +1292,7 @@ const Welcome: React.FC = () => {
 
     try {
       const response = await getTopicDetailSuggestions(selectedInterest, englishLevel);
-      if (response.success && response.data.suggestions) {
+      if (response.success && response.data?.suggestions) {
         setTopicDetailSuggestions(response.data.suggestions);
         console.log(`${selectedInterest} konusu için ${response.data.suggestions.length} öneri alındı`);
       } else {
@@ -1919,20 +1927,13 @@ const Welcome: React.FC = () => {
   }
 
   // Auth tamamlandıktan sonra user kontrolü
+  // Auth tamamlandıktan sonra user kontrolü
   if (!isAuthenticated || !user) {
     return (
-      <main className="min-h-screen flex items-center justify-center text-xl text-gray-500">
+      <main className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="mb-4">{t('welcome_login_required')}</p>
-          <button
-            onClick={() => {
-              const target = typeof window !== 'undefined' ? window.location.pathname + window.location.search + window.location.hash : '/welcome';
-              router.push(`/login?next=${encodeURIComponent(target)}`);
-            }}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-md"
-          >
-            {t('welcome_login_button')}
-          </button>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">{t('dashboard_redirecting')}</p>
         </div>
       </main>
     );
@@ -3437,16 +3438,12 @@ const Welcome: React.FC = () => {
                               {t('welcome_plan_info_message')}
                             </p>
                             <div className="flex items-center mt-3">
-                              <a
+                              <Link
                                 href="/fiyatlandirma"
                                 className="text-primary hover:text-primary/80 text-sm"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  router.push('/fiyatlandirma');
-                                }}
                               >
                                 {t('welcome_compare_all_plans')}
-                              </a>
+                              </Link>
                             </div>
                           </>
                         ) : (
@@ -3476,16 +3473,12 @@ const Welcome: React.FC = () => {
                                 <i className="fas fa-crown text-yellow-500 mr-2"></i>
                                 {t('welcome_upgrade_to_premium')}
                               </Button>
-                              <a
+                              <Link
                                 href="/fiyatlandirma"
                                 className="text-primary hover:text-primary/80 text-sm"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  router.push('/fiyatlandirma');
-                                }}
                               >
                                 {t('welcome_compare_all_plans')}
-                              </a>
+                              </Link>
                             </div>
                           </div>
                         )}

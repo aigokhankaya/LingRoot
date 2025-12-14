@@ -22,7 +22,7 @@ export default function EnvironmentSelector() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await fetch('/api/config/environment');
       const data = await response.json();
 
@@ -46,7 +46,7 @@ export default function EnvironmentSelector() {
       setSuccess(null);
 
       const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-      
+
       const response = await fetch('/api/admin/environment', {
         method: 'PUT',
         headers: {
@@ -61,7 +61,7 @@ export default function EnvironmentSelector() {
       if (response.ok && data.success) {
         setCurrentEnvironment(newEnvironment);
         setSuccess(`Ortam başarıyla ${newEnvironment === 'production' ? 'Production' : 'Test'} moduna geçirildi`);
-        
+
         // Clear success message after 5 seconds
         setTimeout(() => setSuccess(null), 5000);
       } else {
@@ -115,17 +115,17 @@ export default function EnvironmentSelector() {
           <div>
             <p className="text-sm font-medium text-gray-700">Mevcut Ortam</p>
             <div className="flex items-center mt-1 space-x-2">
-              <Badge 
-                className={currentEnvironment === 'production' 
-                  ? 'bg-green-100 text-green-800 hover:bg-green-100' 
+              <Badge
+                className={currentEnvironment === 'production'
+                  ? 'bg-green-100 text-green-800 hover:bg-green-100'
                   : 'bg-red-100 text-red-800 hover:bg-red-100'
                 }
               >
                 {currentEnvironment === 'production' ? '🟢 PRODUCTION' : '🔴 TEST'}
               </Badge>
               <span className="text-sm text-gray-600">
-                {currentEnvironment === 'production' 
-                  ? '(Render Backend - https://lingloops-backend.onrender.com)' 
+                {currentEnvironment === 'production'
+                  ? '(Render Backend - https://lingloops-backend.onrender.com)'
                   : '(Local Backend - http://localhost:5001 veya local IP)'}
               </span>
             </div>
@@ -141,11 +141,11 @@ export default function EnvironmentSelector() {
               )}
             </div>
             <p className="text-sm text-gray-600 mb-3">
-              Mobil uygulama Render.com üzerindeki production backend'e bağlanır.
+              Mobil uygulama Render.com üzerindeki production backend&apos;e bağlanır.
             </p>
             <ul className="text-xs text-gray-500 space-y-1 mb-4">
               <li>✓ Production veritabanı</li>
-              <li>✓ Render backend URL'leri</li>
+              <li>✓ Render backend URL&apos;leri</li>
               <li>✓ Gerçek kullanıcı verileri</li>
             </ul>
             <Button
@@ -153,7 +153,7 @@ export default function EnvironmentSelector() {
               disabled={currentEnvironment === 'production' || updating}
               className="w-full bg-green-600 hover:bg-green-700"
             >
-              {updating ? 'Güncelleniyor...' : 'Production\'a Geç'}
+              {updating ? 'Güncelleniyor...' : 'Production&apos;a Geç'}
             </Button>
           </div>
 
@@ -165,7 +165,7 @@ export default function EnvironmentSelector() {
               )}
             </div>
             <p className="text-sm text-gray-600 mb-3">
-              Mobil uygulama local backend'e bağlanır (localhost veya local IP).
+              Mobil uygulama local backend&apos;e bağlanır (localhost veya local IP).
             </p>
             <ul className="text-xs text-gray-500 space-y-1 mb-4">
               <li>✓ Local backend (port 5001)</li>
@@ -178,14 +178,14 @@ export default function EnvironmentSelector() {
               variant="destructive"
               className="w-full"
             >
-              {updating ? 'Güncelleniyor...' : 'Test\'e Geç'}
+              {updating ? 'Güncelleniyor...' : 'Test&apos;e Geç'}
             </Button>
           </div>
         </div>
 
         <div className="bg-primary/5 border border-primary/20 rounded-md p-3">
           <p className="text-sm text-primary">
-            <strong>Not:</strong> Ortam değişikliği yaptıktan sonra mobil uygulamayı yeniden başlatmanız gerekir. 
+            <strong>Not:</strong> Ortam değişikliği yaptıktan sonra mobil uygulamayı yeniden başlatmanız gerekir.
             Uygulama başlangıcında yeni ortam ayarını otomatik olarak alacaktır.
           </p>
         </div>

@@ -1,3 +1,4 @@
+/* eslint-disable */
 // The exported code uses Tailwind CSS. Install Tailwind CSS in your dev environment to ensure all styles work.
 'use client';
 
@@ -31,9 +32,9 @@ import dynamic from 'next/dynamic';
 // import Lottie from "lottie-react"; // Kaldırılacak
 import learnAnimation from "../public/animations/language-learn.json";
 // Lottie bileşenini sadece client tarafında yüklenecek şekilde dinamik olarak import et
-const Lottie = dynamic(() => import('lottie-react'), { 
-  ssr: false,
-  loading: () => <div className="w-full max-w-3xl mx-auto h-[300px] bg-gray-100 animate-pulse rounded-lg"></div>
+const Lottie = dynamic(() => import('lottie-react'), {
+    ssr: false,
+    loading: () => <div className="w-full max-w-3xl mx-auto h-[300px] bg-gray-100 animate-pulse rounded-lg"></div>
 });
 
 
@@ -46,44 +47,44 @@ const App: React.FC = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Mobil menü state'i
 
     // --- ESKİ MANTIKTAN ENTEGRE EDİLEN HOOK'LAR VE STATE'LER ---
-  const router = useRouter();
-  const { login, loginWithGoogle, isAuthenticated, register } = useAuth();
+    const router = useRouter();
+    const { login, loginWithGoogle, isAuthenticated, register } = useAuth();
     const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [errorCode, setErrorCode] = useState<string | null>(null);
-  const [resendLoading, setResendLoading] = useState(false);
-  const [resendMessage, setResendMessage] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [errorCode, setErrorCode] = useState<string | null>(null);
+    const [resendLoading, setResendLoading] = useState(false);
+    const [resendMessage, setResendMessage] = useState<string | null>(null);
 
     // --- FORM STATE'LERİ (KONTROLLÜ BİLEŞENLER İÇİN) ---
     const [loginForm, setLoginForm] = useState({ email: '', password: '', rememberMe: false });
     const [registerForm, setRegisterForm] = useState({
         firstName: '',
         lastName: '',
-    email: '',
+        email: '',
         phoneNumber: '',
-    password: ''
-  });
+        password: ''
+    });
 
-  const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
+    const levels = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
 
-  // Kullanıcı zaten giriş yapmışsa welcome sayfasına yönlendir.
+    // Kullanıcı zaten giriş yapmışsa welcome sayfasına yönlendir.
 
-  React.useEffect(() => {
-    if (isAuthenticated) {
-      const search = typeof window !== 'undefined' ? window.location.search : '';
-      const params = new URLSearchParams(search);
-      const raw = params.get('next') || '';
-      const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
-      const target = next && next.trim() ? next : '/welcome';
-      
-      if (typeof window !== 'undefined' && target.includes('#')) {
-        window.location.assign(target);
-      } else {
-        router.replace(target);
-      }
-    }
-  }, [isAuthenticated, router]);
+    React.useEffect(() => {
+        if (isAuthenticated) {
+            const search = typeof window !== 'undefined' ? window.location.search : '';
+            const params = new URLSearchParams(search);
+            const raw = params.get('next') || '';
+            const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
+            const target = next && next.trim() ? next : '/welcome';
+
+            if (typeof window !== 'undefined' && target.includes('#')) {
+                window.location.assign(target);
+            } else {
+                router.replace(target);
+            }
+        }
+    }, [isAuthenticated, router]);
 
     // Form input değişikliklerini yöneten fonksiyonlar
     const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -102,79 +103,79 @@ const App: React.FC = () => {
             setRegisterForm({ ...registerForm, [e.target.name]: e.target.value });
         }
     };
-    
+
     // --- GİRİŞ VE KAYIT FONKSİYONLARI (ESKİ MANTIK İLE YENİ STATE'LER BİRLEŞTİRİLDİ) ---
     const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setErrorCode(null); // stale state temizliği
-    setResendMessage(null);
-    try {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        setErrorCode(null); // stale state temizliği
+        setResendMessage(null);
+        try {
             const result = await login(loginForm.email, loginForm.password, loginForm.rememberMe);
-      if (result.success) {
+            if (result.success) {
                 setIsLoginOpen(false); // Başarılı olunca modalı kapat
-        const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-        const raw = params.get('next') || '';
-        const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
-        const target = next && next.trim() ? next : '/welcome';
-        if (typeof window !== 'undefined' && target.includes('#')) {
-          window.location.assign(target);
-        } else {
-          router.replace(target);
-        }
-      } else {
+                const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+                const raw = params.get('next') || '';
+                const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
+                const target = next && next.trim() ? next : '/welcome';
+                if (typeof window !== 'undefined' && target.includes('#')) {
+                    window.location.assign(target);
+                } else {
+                    router.replace(target);
+                }
+            } else {
                 setError(result.message || 'Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
-        setErrorCode((result as any).code || null);
-      }
+                setErrorCode((result as any).code || null);
+            }
         } catch (err: any) {
             setError(err.message || 'Giriş sırasında bir hata oluştu.');
-    } finally {
-      setLoading(false);
-    }
-  };
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Aktivasyon e-postasını yeniden gönderme
     const handleResendActivation = async () => {
-      if (!loginForm.email) {
-        setResendMessage('Lütfen e-posta adresinizi girin.');
-        return;
-      }
-      setResendLoading(true);
-      setResendMessage(null);
-      try {
-        const res = await resendVerificationEmail(loginForm.email);
-        if (res.success) {
-          setResendMessage('Aktivasyon e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.');
-        } else {
-          setResendMessage(res.message || 'E-posta gönderilemedi. Lütfen daha sonra tekrar deneyin.');
+        if (!loginForm.email) {
+            setResendMessage('Lütfen e-posta adresinizi girin.');
+            return;
         }
-      } catch (e: any) {
-        setResendMessage(e.message || 'E-posta gönderilirken bir hata oluştu.');
-      } finally {
-        setResendLoading(false);
-      }
+        setResendLoading(true);
+        setResendMessage(null);
+        try {
+            const res = await resendVerificationEmail(loginForm.email);
+            if (res.success) {
+                setResendMessage('Aktivasyon e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.');
+            } else {
+                setResendMessage(res.message || 'E-posta gönderilemedi. Lütfen daha sonra tekrar deneyin.');
+            }
+        } catch (e: any) {
+            setResendMessage(e.message || 'E-posta gönderilirken bir hata oluştu.');
+        } finally {
+            setResendLoading(false);
+        }
     };
 
     const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+        e.preventDefault();
         setLoading(true);
         setError(null);
         try {
             const { firstName, lastName, email, phoneNumber, password } = registerForm;
-      const result = await register(firstName, lastName, email, phoneNumber, password);
-      if (result.success) {
+            const result = await register(firstName, lastName, email, phoneNumber, password);
+            if (result.success) {
                 setIsRegisterOpen(false); // Başarılı olunca modalı kapat
-        const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-        const next = params.get('next');
-        const target = next && next.trim() ? next : '/welcome';
-        router.replace(target);
-      } else {
+                const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+                const next = params.get('next');
+                const target = next && next.trim() ? next : '/welcome';
+                router.replace(target);
+            } else {
                 setError(result.message || 'Kayıt başarısız. Lütfen bilgilerinizi kontrol edin.');
-      }
+            }
         } catch (err: any) {
             setError(err.message || 'Kayıt sırasında bir hata oluştu.');
-    } finally {
+        } finally {
             setLoading(false);
         }
     };
@@ -182,29 +183,29 @@ const App: React.FC = () => {
     const handleGoogleLogin = async () => {
         setLoading(true);
         setError(null);
-        
+
         try {
             console.log('🔄 Google giriş başlatılıyor...');
-            
+
             // Google Client ID kontrolü
             const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
             if (!clientId || clientId === 'your-google-client-id-here.apps.googleusercontent.com') {
                 throw new Error('Google Client ID yapılandırılmamış. Lütfen .env.local dosyasında NEXT_PUBLIC_GOOGLE_CLIENT_ID değerini ayarlayın.');
             }
-            
+
             // Google Auth'u başlat
             console.log('🔄 Google Auth başlatılıyor...');
             await initializeGoogleAuth();
-            
+
             // Google Sign-In'i tetikle
             console.log('🔄 Google Sign-In tetikleniyor...');
             const { credential } = await signInWithGoogle();
             console.log('✅ Google credential alındı');
-            
+
             // Backend'e gönder
             console.log('🔄 Backend\'e gönderiliyor...');
             const result = await loginWithGoogle(credential, loginForm.rememberMe);
-            
+
             if (result.success) {
                 console.log('✅ Google giriş başarılı');
                 setIsLoginOpen(false);
@@ -213,9 +214,9 @@ const App: React.FC = () => {
                 const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
                 const target = next && next.trim() ? next : '/welcome';
                 if (typeof window !== 'undefined' && target.includes('#')) {
-                  window.location.assign(target);
+                    window.location.assign(target);
                 } else {
-                  router.replace(target);
+                    router.replace(target);
                 }
             } else {
                 console.error('❌ Backend giriş hatası:', result.message);
@@ -231,205 +232,205 @@ const App: React.FC = () => {
 
     // Yeni tasarımın çeviri objesi
     const translations = {
-      tr: {
-        nav: {
-          howItWorks: "Nasıl Çalışır?",
-          features: "Özellikler",
-          testimonials: "Kullanıcı Yorumları",
-          blog: "Blog",
-          login: "Giriş Yap",
-          signup: "Ücretsiz Kaydol"
+        tr: {
+            nav: {
+                howItWorks: "Nasıl Çalışır?",
+                features: "Özellikler",
+                testimonials: "Kullanıcı Yorumları",
+                blog: "Blog",
+                login: "Giriş Yap",
+                signup: "Ücretsiz Kaydol"
+            },
+            login: {
+                title: "Giriş Yap",
+                description: "LingRoot hesabınıza giriş yapın",
+                emailLabel: "E-posta veya Kullanıcı Adı",
+                emailPlaceholder: "ornek@email.com",
+                passwordLabel: "Şifre",
+                forgotPassword: "Şifremi Unuttum",
+                loginButton: "Giriş Yap",
+                loadingButton: "Giriş Yapılıyor...",
+                or: "veya",
+                googleLogin: "Google ile Giriş Yap",
+                facebookLogin: "Facebook ile Giriş Yap",
+                appleLogin: "Apple ile Giriş Yap",
+                noAccount: "Hesabınız yok mu?",
+                signupLink: "Ücretsiz Kaydol"
+            },
+            register: {
+                title: "Ücretsiz Hesap Oluştur",
+                description: "LingRoot dünyasına katılın ve hemen öğrenmeye başlayın.",
+                fullNameLabel: "Ad Soyad",
+                fullNamePlaceholder: "Adınız Soyadınız",
+                emailLabel: "E-posta",
+                emailPlaceholder: "ornek@email.com",
+                phoneLabel: "Telefon Numarası",
+                passwordLabel: "Şifre",
+                registerButton: "Hesap Oluştur",
+                loadingButton: "Hesap Oluşturuluyor...",
+                hasAccount: "Zaten bir hesabınız var mı?",
+                loginLink: "Giriş Yap"
+            },
+            hero: {
+                badge: "Hayatın Değişmesin, İngilizcen Gelişsin",
+                title: "Sevdiğin İçerikler, ",
+                titleHighlight: "Anlayacağın İngilizceyle",
+                description: "LingRoot, YouTube videoları, podcast'ler, blog yazıları gibi zaten takip ettiğin içerikleri seçtiğin İngilizce seviyesine (A1–C2) göre otomatik olarak sadeleştirir, seslendirir ve altyazı ekler. İngilizce öğrenmek için hayatını değiştirmene gerek yok — sadece dinlemeye devam et.",
+                tryButton: "Hemen Ücretsiz Dene",
+                watchButton: "Nasıl Çalıştığını İzle"
+            },
+            howItWorks: {
+                title: "LingRoot Nasıl Çalışır?",
+                description: "Sevdiğin içerikleri kendi İngilizce seviyende dinlemek için sadece üç adım yeterli.",
+                steps: [
+                    { icon: "fas fa-link", title: "İçeriğini Seç", description: "YouTube videosu, Spotify podcast'i, bir haber yazısı… Sadece linki yapıştır veya metni yükle." },
+                    { icon: "fas fa-sliders-h", title: "Seviyeni Belirle", description: "A1'den C2'ye. İçerik, senin anlayabileceğin İngilizceye otomatik olarak çevrilir." },
+                    { icon: "fas fa-headphones", title: "Dinle ve Öğren", description: "İçerik yapay zeka tarafından seslendirilir, altyazı eklenir ve seviyene özel hale gelir. Artık sevdiğin şeyleri dinleyerek İngilizce öğrenebilirsin." }
+                ]
+            },
+            demo: { title: "Aynı İçerik, Senin Seviyen", description: "Seviyeni seç ve içeriğin nasıl değiştiğini gör. Dilediğin seviyede dinleyerek İngilizceni geliştir.", selectLevel: "Seviyeni Seç", originalContent: "Orijinal İçerik (C2)", yourLevel: "Senin Seviyen", tryYourContent: "Kendi İçeriğini Dene" },
+            routine: { title: "Günlük Rutinin = İngilizce Dersin", description: "Ekstra zaman ayırmana gerek yok. Zaten yaptığın aktiviteler sırasında İngilizce öğren.", activities: [{ icon: "fas fa-walking", title: "Yürüyüş Yaparken", description: "Favori podcast'lerini dinlerken İngilizce öğren" }, { icon: "fas fa-dumbbell", title: "Spor Yaparken", description: "Motivasyon videolarını seviyene uygun dinle" }, { icon: "fas fa-car", title: "Araç Kullanırken", description: "Trafikteyken sevdiğin içerikleri dinle" }, { icon: "fas fa-home", title: "Ev İşleri Yaparken", description: "Temizlik ve yemek yaparken öğrenmeye devam et" }], adaptButton: "Seviyene Uyarla" },
+            features: { title: "Neden LingRoot?", description: "LingRoot, İngilizce öğrenme deneyimini tamamen farklı bir seviyeye taşır.", featuresList: [{ icon: "fas fa-globe", title: "Gerçek İçerikler", description: "Ders kitapları değil, gerçek hayattan videolar ve yazılar ile öğren" }, { icon: "fas fa-user-cog", title: "Kişiselleştirilmiş Deneyim", description: "Seviyene ve ilgi alanına göre özel olarak hazırlanmış içerikler" }, { icon: "fas fa-headphones-alt", title: "Sadece Dinleyerek Öğren", description: "Kaliteli seslendirme, altyazı ve tekrar özellikleriyle pasif öğrenme" }, { icon: "fas fa-clock", title: "Ekstra Zaman Gerekmez", description: "Günlük rutinin içinde, ek bir çaba harcamadan İngilizce öğren" }] },
+            testimonials: { title: "Kullanıcılarımız Ne Diyor?", description: "LingRoot ile İngilizce öğrenme deneyimlerini paylaşan kullanıcılarımızın yorumları.", users: [{ name: "Mert Y.", level: "B1 seviyesinde kullanıcı", quote: "LingRoot sayesinde artık yabancı videolardan korkmuyorum. Aynı içeriği hem A2 hem B1 seviyede dinlemek inanılmaz motive edici." }, { name: "Zeynep K.", level: "A2 seviyesinde kullanıcı", quote: "Sadece dinleyerek öğrendiğimi fark ettim. Her gün izlediğim içerikler artık İngilizce gelişimime katkı sağlıyor." }, { name: "Ahmet S.", level: "B2 seviyesinde kullanıcı", quote: "Sabah koşumda dinlediğim podcast'ler artık İngilizce öğretmenim. Hiç ekstra zaman harcamadan her gün ilerliyorum." }, { name: "Ayşe D.", level: "A1 seviyesinde kullanıcı", quote: "İngilizce öğrenmek için daha önce birçok uygulama denedim ama hiçbiri LingRoot kadar etkili olmadı. Sevdiğim içeriklerle öğrenmek çok daha keyifli." }, { name: "Emre T.", level: "C1 seviyesinde kullanıcı", quote: "İleri seviyede olmama rağmen, LingRoot ile yeni kelimeler öğrenmeye devam ediyorum. Özellikle akademik içerikleri kendi seviyemde dinlemek çok faydalı." }] },
+            tryNow: { title: "Başlamak İçin Sadece Link Paylaş", placeholder: "YouTube, Spotify veya herhangi bir içerik linki yapıştır...", tryButton: "Hemen Dene", description: "Seviyeni seç ve içeriği hemen dinlemeye başla. Kayıt olmak için sadece 1 dakika!" },
+            cta: { title: "İngilizce Öğrenmek İçin Hayatını Değiştirme. Dinlemeye Devam Et.", description: "Günlük rutininde dinlediğin içerikler şimdi senin İngilizce öğretmenin. Ekstra zaman harcamadan, sevdiğin şeyleri dinleyerek öğren.", button: "Şimdi Başla — Ücretsiz ve Hemen", benefits: ["1 dakikada kaydol", "Kredi kartı gerekmez", "Hemen başla"] },
+            footer: { slogan: "\"Your routines turn into English.\"", quickLinks: { title: "Hızlı Bağlantılar", links: ["Hakkımızda", "Nasıl Çalışır?", "Fiyatlandırma", "Blog", "İletişim"] }, legal: { title: "Yasal", links: ["Gizlilik Politikası", "Kullanım Şartları", "Çerez Politikası", "KVKK"] }, contact: { title: "Bize Ulaşın", email: "info@lingroot.com", phone: "+90 212 123 45 67", address: "İstanbul, Türkiye" }, copyright: "Tüm hakları saklıdır." }
         },
-        login: {
-          title: "Giriş Yap",
-          description: "LingRoot hesabınıza giriş yapın",
-          emailLabel: "E-posta veya Kullanıcı Adı",
-          emailPlaceholder: "ornek@email.com",
-          passwordLabel: "Şifre",
-          forgotPassword: "Şifremi Unuttum",
-          loginButton: "Giriş Yap",
-          loadingButton: "Giriş Yapılıyor...",
-          or: "veya",
-          googleLogin: "Google ile Giriş Yap",
-          facebookLogin: "Facebook ile Giriş Yap",
-          appleLogin: "Apple ile Giriş Yap",
-          noAccount: "Hesabınız yok mu?",
-          signupLink: "Ücretsiz Kaydol"
-        },
-        register: {
-          title: "Ücretsiz Hesap Oluştur",
-          description: "LingRoot dünyasına katılın ve hemen öğrenmeye başlayın.",
-          fullNameLabel: "Ad Soyad",
-          fullNamePlaceholder: "Adınız Soyadınız",
-          emailLabel: "E-posta",
-          emailPlaceholder: "ornek@email.com",
-          phoneLabel: "Telefon Numarası",
-          passwordLabel: "Şifre",
-          registerButton: "Hesap Oluştur",
-          loadingButton: "Hesap Oluşturuluyor...",
-          hasAccount: "Zaten bir hesabınız var mı?",
-          loginLink: "Giriş Yap"
-        },
-        hero: {
-          badge: "Hayatın Değişmesin, İngilizcen Gelişsin",
-          title: "Sevdiğin İçerikler, ",
-          titleHighlight: "Anlayacağın İngilizceyle",
-          description: "LingRoot, YouTube videoları, podcast'ler, blog yazıları gibi zaten takip ettiğin içerikleri seçtiğin İngilizce seviyesine (A1–C2) göre otomatik olarak sadeleştirir, seslendirir ve altyazı ekler. İngilizce öğrenmek için hayatını değiştirmene gerek yok — sadece dinlemeye devam et.",
-          tryButton: "Hemen Ücretsiz Dene",
-          watchButton: "Nasıl Çalıştığını İzle"
-        },
-        howItWorks: {
-          title: "LingRoot Nasıl Çalışır?",
-          description: "Sevdiğin içerikleri kendi İngilizce seviyende dinlemek için sadece üç adım yeterli.",
-          steps: [
-            { icon: "fas fa-link", title: "İçeriğini Seç", description: "YouTube videosu, Spotify podcast'i, bir haber yazısı… Sadece linki yapıştır veya metni yükle." },
-            { icon: "fas fa-sliders-h", title: "Seviyeni Belirle", description: "A1'den C2'ye. İçerik, senin anlayabileceğin İngilizceye otomatik olarak çevrilir." },
-            { icon: "fas fa-headphones", title: "Dinle ve Öğren", description: "İçerik yapay zeka tarafından seslendirilir, altyazı eklenir ve seviyene özel hale gelir. Artık sevdiğin şeyleri dinleyerek İngilizce öğrenebilirsin." }
-          ]
-        },
-        demo: { title: "Aynı İçerik, Senin Seviyen", description: "Seviyeni seç ve içeriğin nasıl değiştiğini gör. Dilediğin seviyede dinleyerek İngilizceni geliştir.", selectLevel: "Seviyeni Seç", originalContent: "Orijinal İçerik (C2)", yourLevel: "Senin Seviyen", tryYourContent: "Kendi İçeriğini Dene" },
-        routine: { title: "Günlük Rutinin = İngilizce Dersin", description: "Ekstra zaman ayırmana gerek yok. Zaten yaptığın aktiviteler sırasında İngilizce öğren.", activities: [{ icon: "fas fa-walking", title: "Yürüyüş Yaparken", description: "Favori podcast'lerini dinlerken İngilizce öğren" }, { icon: "fas fa-dumbbell", title: "Spor Yaparken", description: "Motivasyon videolarını seviyene uygun dinle" }, { icon: "fas fa-car", title: "Araç Kullanırken", description: "Trafikteyken sevdiğin içerikleri dinle" }, { icon: "fas fa-home", title: "Ev İşleri Yaparken", description: "Temizlik ve yemek yaparken öğrenmeye devam et" }], adaptButton: "Seviyene Uyarla" },
-        features: { title: "Neden LingRoot?", description: "LingRoot, İngilizce öğrenme deneyimini tamamen farklı bir seviyeye taşır.", featuresList: [{ icon: "fas fa-globe", title: "Gerçek İçerikler", description: "Ders kitapları değil, gerçek hayattan videolar ve yazılar ile öğren" }, { icon: "fas fa-user-cog", title: "Kişiselleştirilmiş Deneyim", description: "Seviyene ve ilgi alanına göre özel olarak hazırlanmış içerikler" }, { icon: "fas fa-headphones-alt", title: "Sadece Dinleyerek Öğren", description: "Kaliteli seslendirme, altyazı ve tekrar özellikleriyle pasif öğrenme" }, { icon: "fas fa-clock", title: "Ekstra Zaman Gerekmez", description: "Günlük rutinin içinde, ek bir çaba harcamadan İngilizce öğren" }] },
-        testimonials: { title: "Kullanıcılarımız Ne Diyor?", description: "LingRoot ile İngilizce öğrenme deneyimlerini paylaşan kullanıcılarımızın yorumları.", users: [{ name: "Mert Y.", level: "B1 seviyesinde kullanıcı", quote: "LingRoot sayesinde artık yabancı videolardan korkmuyorum. Aynı içeriği hem A2 hem B1 seviyede dinlemek inanılmaz motive edici." }, { name: "Zeynep K.", level: "A2 seviyesinde kullanıcı", quote: "Sadece dinleyerek öğrendiğimi fark ettim. Her gün izlediğim içerikler artık İngilizce gelişimime katkı sağlıyor." }, { name: "Ahmet S.", level: "B2 seviyesinde kullanıcı", quote: "Sabah koşumda dinlediğim podcast'ler artık İngilizce öğretmenim. Hiç ekstra zaman harcamadan her gün ilerliyorum." }, { name: "Ayşe D.", level: "A1 seviyesinde kullanıcı", quote: "İngilizce öğrenmek için daha önce birçok uygulama denedim ama hiçbiri LingRoot kadar etkili olmadı. Sevdiğim içeriklerle öğrenmek çok daha keyifli." }, { name: "Emre T.", level: "C1 seviyesinde kullanıcı", quote: "İleri seviyede olmama rağmen, LingRoot ile yeni kelimeler öğrenmeye devam ediyorum. Özellikle akademik içerikleri kendi seviyemde dinlemek çok faydalı." }] },
-        tryNow: { title: "Başlamak İçin Sadece Link Paylaş", placeholder: "YouTube, Spotify veya herhangi bir içerik linki yapıştır...", tryButton: "Hemen Dene", description: "Seviyeni seç ve içeriği hemen dinlemeye başla. Kayıt olmak için sadece 1 dakika!" },
-        cta: { title: "İngilizce Öğrenmek İçin Hayatını Değiştirme. Dinlemeye Devam Et.", description: "Günlük rutininde dinlediğin içerikler şimdi senin İngilizce öğretmenin. Ekstra zaman harcamadan, sevdiğin şeyleri dinleyerek öğren.", button: "Şimdi Başla — Ücretsiz ve Hemen", benefits: ["1 dakikada kaydol", "Kredi kartı gerekmez", "Hemen başla"] },
-        footer: { slogan: "\"Your routines turn into English.\"", quickLinks: { title: "Hızlı Bağlantılar", links: ["Hakkımızda", "Nasıl Çalışır?", "Fiyatlandırma", "Blog", "İletişim"] }, legal: { title: "Yasal", links: ["Gizlilik Politikası", "Kullanım Şartları", "Çerez Politikası", "KVKK"] }, contact: { title: "Bize Ulaşın", email: "info@lingroot.com", phone: "+90 212 123 45 67", address: "İstanbul, Türkiye" }, copyright: "Tüm hakları saklıdır." }
-      },
-      en: {
-        nav: {
-          howItWorks: "How It Works",
-          features: "Features",
-          testimonials: "Testimonials",
-          blog: "Blog",
-          login: "Login",
-          signup: "Sign Up Free"
-        },
-        login: {
-          title: "Login",
-          description: "Sign in to your LingRoot account",
-          emailLabel: "Email or Username",
-          emailPlaceholder: "example@email.com",
-          passwordLabel: "Password",
-          forgotPassword: "Forgot Password",
-          loginButton: "Login",
-          loadingButton: "Logging in...",
-          or: "or",
-          googleLogin: "Login with Google",
-          facebookLogin: "Login with Facebook",
-          appleLogin: "Login with Apple",
-          noAccount: "Don't have an account?",
-          signupLink: "Sign Up Free"
-        },
-        register: {
-          title: "Create a Free Account",
-          description: "Join the LingRoot world and start learning right away.",
-          fullNameLabel: "Full Name",
-          fullNamePlaceholder: "Your Full Name",
-          emailLabel: "Email",
-          emailPlaceholder: "example@email.com",
-          phoneLabel: "Phone Number",
-          passwordLabel: "Password",
-          registerButton: "Create Account",
-          loadingButton: "Creating Account...",
-          hasAccount: "Already have an account?",
-          loginLink: "Login"
-        },
-        hero: {
-          badge: "Don't Change Your Life, Improve Your English",
-          title: "Content You Love, ",
-          titleHighlight: "In English You Understand",
-          description: "LingRoot automatically simplifies, narrates, and adds subtitles to the content you already follow—YouTube videos, podcasts, blog posts—according to your chosen English level (A1–C2). You don't need to change your life to learn English—just keep listening.",
-          tryButton: "Try It Free Now",
-          watchButton: "Watch How It Works"
-        },
-        howItWorks: {
-          title: "How LingRoot Works",
-          description: "Just three simple steps to listen to the content you love at your own English level.",
-          steps: [
-            { icon: "fas fa-link", title: "Choose Your Content", description: "A YouTube video, Spotify podcast, a news article... Just paste the link or upload the text." },
-            { icon: "fas fa-sliders-h", title: "Set Your Level", description: "From A1 to C2. The content is automatically converted to English you can understand." },
-            { icon: "fas fa-headphones", title: "Listen and Learn", description: "The content is narrated by AI, subtitled, and customized to your level. Now you can learn English by listening to things you love." }
-          ]
-        },
-        demo: {
-          title: "Same Content, Your Level",
-          description: "Choose your level and see how the content changes. Improve your English by listening at the level you prefer.",
-          selectLevel: "Select Your Level",
-          originalContent: "Original Content (C2)",
-          yourLevel: "Your Level",
-          tryYourContent: "Try Your Own Content"
-        },
-        routine: {
-          title: "Your Daily Routine = Your English Lesson",
-          description: "No extra time needed. Learn English during activities you already do.",
-          activities: [
-            { icon: "fas fa-walking", title: "While Walking", description: "Learn English while listening to your favorite podcasts" },
-            { icon: "fas fa-dumbbell", title: "While Exercising", description: "Listen to motivational videos at your level" },
-            { icon: "fas fa-car", title: "While Driving", description: "Listen to content you love in traffic" },
-            { icon: "fas fa-home", title: "During Housework", description: "Continue learning while cleaning and cooking" }
-          ],
-          adaptButton: "Adapt to Your Level"
-        },
-        features: {
-          title: "Why LingRoot?",
-          description: "LingRoot takes the English learning experience to a completely different level.",
-          featuresList: [
-            { icon: "fas fa-globe", title: "Real Content", description: "Learn with real-life videos and articles, not textbooks" },
-            { icon: "fas fa-user-cog", title: "Personalized Experience", description: "Content specially prepared according to your level and interests" },
-            { icon: "fas fa-headphones-alt", title: "Learn Just by Listening", description: "Passive learning with quality narration, subtitles, and repetition features" },
-            { icon: "fas fa-clock", title: "No Extra Time Required", description: "Learn English within your daily routine, without extra effort" }
-          ]
-        },
-        testimonials: {
-          title: "What Our Users Say",
-          description: "Reviews from our users sharing their English learning experiences with LingRoot.",
-          users: [
-            { name: "Mert Y.", level: "B1 level user", quote: "Thanks to LingRoot, I'm no longer afraid of foreign videos. Listening to the same content at both A2 and B1 levels is incredibly motivating." },
-            { name: "Zeynep K.", level: "A2 level user", quote: "I realized I'm learning just by listening. The content I watch every day now contributes to my English development." },
-            { name: "Ahmet S.", level: "B2 level user", quote: "The podcasts I listen to during my morning run are now my English teacher. I progress every day without spending any extra time." },
-            { name: "Ayşe D.", level: "A1 level user", quote: "I've tried many apps to learn English before, but none were as effective as LingRoot. Learning with content I love is much more enjoyable." },
-            { name: "Emre T.", level: "C1 level user", quote: "Despite being at an advanced level, I continue to learn new words with LingRoot. Listening to academic content at my own level is especially useful." }
-          ]
-        },
-        tryNow: {
-          title: "Just Share a Link to Get Started",
-          placeholder: "Paste a YouTube, Spotify, or any content link...",
-          tryButton: "Try It Now",
-          description: "Choose your level and start listening to content right away. Only 1 minute to sign up!"
-        },
-        cta: {
-          title: "Don't Change Your Life to Learn English. Keep Listening.",
-          description: "The content you listen to in your daily routine is now your English teacher. Learn by listening to things you love, without spending extra time.",
-          button: "Start Now — Free and Immediate",
-          benefits: [
-            "Sign up in 1 minute",
-            "No credit card required",
-            "Start immediately"
-          ]
-        },
-        footer: {
-          slogan: "\"Your routines turn into English.\"",
-          quickLinks: {
-            title: "Quick Links",
-            links: ["About Us", "How It Works", "Pricing", "Blog", "Contact"]
-          },
-          legal: {
-            title: "Legal",
-            links: ["Privacy Policy", "Terms of Use", "Cookie Policy", "GDPR"]
-          },
-          contact: {
-            title: "Contact Us",
-            email: "info@lingroot.com",
-            phone: "+90 212 123 45 67",
-            address: "Istanbul, Turkey"
-          },
-          copyright: "All rights reserved."
+        en: {
+            nav: {
+                howItWorks: "How It Works",
+                features: "Features",
+                testimonials: "Testimonials",
+                blog: "Blog",
+                login: "Login",
+                signup: "Sign Up Free"
+            },
+            login: {
+                title: "Login",
+                description: "Sign in to your LingRoot account",
+                emailLabel: "Email or Username",
+                emailPlaceholder: "example@email.com",
+                passwordLabel: "Password",
+                forgotPassword: "Forgot Password",
+                loginButton: "Login",
+                loadingButton: "Logging in...",
+                or: "or",
+                googleLogin: "Login with Google",
+                facebookLogin: "Login with Facebook",
+                appleLogin: "Login with Apple",
+                noAccount: "Don't have an account?",
+                signupLink: "Sign Up Free"
+            },
+            register: {
+                title: "Create a Free Account",
+                description: "Join the LingRoot world and start learning right away.",
+                fullNameLabel: "Full Name",
+                fullNamePlaceholder: "Your Full Name",
+                emailLabel: "Email",
+                emailPlaceholder: "example@email.com",
+                phoneLabel: "Phone Number",
+                passwordLabel: "Password",
+                registerButton: "Create Account",
+                loadingButton: "Creating Account...",
+                hasAccount: "Already have an account?",
+                loginLink: "Login"
+            },
+            hero: {
+                badge: "Don't Change Your Life, Improve Your English",
+                title: "Content You Love, ",
+                titleHighlight: "In English You Understand",
+                description: "LingRoot automatically simplifies, narrates, and adds subtitles to the content you already follow—YouTube videos, podcasts, blog posts—according to your chosen English level (A1–C2). You don't need to change your life to learn English—just keep listening.",
+                tryButton: "Try It Free Now",
+                watchButton: "Watch How It Works"
+            },
+            howItWorks: {
+                title: "How LingRoot Works",
+                description: "Just three simple steps to listen to the content you love at your own English level.",
+                steps: [
+                    { icon: "fas fa-link", title: "Choose Your Content", description: "A YouTube video, Spotify podcast, a news article... Just paste the link or upload the text." },
+                    { icon: "fas fa-sliders-h", title: "Set Your Level", description: "From A1 to C2. The content is automatically converted to English you can understand." },
+                    { icon: "fas fa-headphones", title: "Listen and Learn", description: "The content is narrated by AI, subtitled, and customized to your level. Now you can learn English by listening to things you love." }
+                ]
+            },
+            demo: {
+                title: "Same Content, Your Level",
+                description: "Choose your level and see how the content changes. Improve your English by listening at the level you prefer.",
+                selectLevel: "Select Your Level",
+                originalContent: "Original Content (C2)",
+                yourLevel: "Your Level",
+                tryYourContent: "Try Your Own Content"
+            },
+            routine: {
+                title: "Your Daily Routine = Your English Lesson",
+                description: "No extra time needed. Learn English during activities you already do.",
+                activities: [
+                    { icon: "fas fa-walking", title: "While Walking", description: "Learn English while listening to your favorite podcasts" },
+                    { icon: "fas fa-dumbbell", title: "While Exercising", description: "Listen to motivational videos at your level" },
+                    { icon: "fas fa-car", title: "While Driving", description: "Listen to content you love in traffic" },
+                    { icon: "fas fa-home", title: "During Housework", description: "Continue learning while cleaning and cooking" }
+                ],
+                adaptButton: "Adapt to Your Level"
+            },
+            features: {
+                title: "Why LingRoot?",
+                description: "LingRoot takes the English learning experience to a completely different level.",
+                featuresList: [
+                    { icon: "fas fa-globe", title: "Real Content", description: "Learn with real-life videos and articles, not textbooks" },
+                    { icon: "fas fa-user-cog", title: "Personalized Experience", description: "Content specially prepared according to your level and interests" },
+                    { icon: "fas fa-headphones-alt", title: "Learn Just by Listening", description: "Passive learning with quality narration, subtitles, and repetition features" },
+                    { icon: "fas fa-clock", title: "No Extra Time Required", description: "Learn English within your daily routine, without extra effort" }
+                ]
+            },
+            testimonials: {
+                title: "What Our Users Say",
+                description: "Reviews from our users sharing their English learning experiences with LingRoot.",
+                users: [
+                    { name: "Mert Y.", level: "B1 level user", quote: "Thanks to LingRoot, I'm no longer afraid of foreign videos. Listening to the same content at both A2 and B1 levels is incredibly motivating." },
+                    { name: "Zeynep K.", level: "A2 level user", quote: "I realized I'm learning just by listening. The content I watch every day now contributes to my English development." },
+                    { name: "Ahmet S.", level: "B2 level user", quote: "The podcasts I listen to during my morning run are now my English teacher. I progress every day without spending any extra time." },
+                    { name: "Ayşe D.", level: "A1 level user", quote: "I've tried many apps to learn English before, but none were as effective as LingRoot. Learning with content I love is much more enjoyable." },
+                    { name: "Emre T.", level: "C1 level user", quote: "Despite being at an advanced level, I continue to learn new words with LingRoot. Listening to academic content at my own level is especially useful." }
+                ]
+            },
+            tryNow: {
+                title: "Just Share a Link to Get Started",
+                placeholder: "Paste a YouTube, Spotify, or any content link...",
+                tryButton: "Try It Now",
+                description: "Choose your level and start listening to content right away. Only 1 minute to sign up!"
+            },
+            cta: {
+                title: "Don't Change Your Life to Learn English. Keep Listening.",
+                description: "The content you listen to in your daily routine is now your English teacher. Learn by listening to things you love, without spending extra time.",
+                button: "Start Now — Free and Immediate",
+                benefits: [
+                    "Sign up in 1 minute",
+                    "No credit card required",
+                    "Start immediately"
+                ]
+            },
+            footer: {
+                slogan: "\"Your routines turn into English.\"",
+                quickLinks: {
+                    title: "Quick Links",
+                    links: ["About Us", "How It Works", "Pricing", "Blog", "Contact"]
+                },
+                legal: {
+                    title: "Legal",
+                    links: ["Privacy Policy", "Terms of Use", "Cookie Policy", "GDPR"]
+                },
+                contact: {
+                    title: "Contact Us",
+                    email: "info@lingroot.com",
+                    phone: "+90 212 123 45 67",
+                    address: "Istanbul, Turkey"
+                },
+                copyright: "All rights reserved."
+            }
         }
-      }
     };
     const t = translations[language];
 
-  return (
+    return (
         <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
             {/* Navigation */}
             <nav className="bg-white shadow-sm py-3 sticky top-0 z-50">
@@ -438,7 +439,7 @@ const App: React.FC = () => {
                         <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-10 h-10 md:w-12 md:h-12" />
                         <span className="text-xl md:text-2xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 bg-clip-text text-transparent tracking-tight">LingRoot</span>
                     </div>
-                    
+
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-6">
                         <a href="/about" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">Hakkımızda</a>
@@ -447,13 +448,13 @@ const App: React.FC = () => {
                         <a href="#yorumlar" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.testimonials}</a>
                         <a href="#blog" className="text-gray-600 hover:text-blue-600 transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t.nav.blog}</a>
                     </div>
-                    
+
                     {/* Desktop Buttons */}
                     <div className="hidden md:flex items-center space-x-4">
                         <Button variant="ghost" className="!rounded-button whitespace-nowrap" onClick={() => setLanguage(language === 'tr' ? 'en' : 'tr')}>
                             {language === 'tr' ? 'EN' : 'TR'}
                         </Button>
-                        
+
                         {/* GİRİŞ YAP MODALI */}
                         <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
                             <DialogTrigger asChild>
@@ -473,7 +474,7 @@ const App: React.FC = () => {
                                         <Label htmlFor="password">{t.login.passwordLabel}</Label>
                                         <Input id="password" name="password" type="password" value={loginForm.password} onChange={handleLoginChange} required />
                                     </div>
-                                    
+
                                     {/* Beni Hatırla Checkbox */}
                                     <div className="flex items-center space-x-2">
                                         <input
@@ -488,29 +489,29 @@ const App: React.FC = () => {
                                             Beni hatırla (30 gün)
                                         </Label>
                                     </div>
-                                    
+
                                     {error && <p className="text-sm text-red-500 text-center">{error}</p>}
                                     {errorCode === 'EMAIL_NOT_VERIFIED' && (
-                                      <div className="text-center space-y-2">
-                                        <p className="text-sm text-gray-700">
-                                          Hesabınız henüz doğrulanmadı. Aktivasyon e-postasını tekrar göndermek ister misiniz?
-                                        </p>
-                                        <div className="flex justify-center">
-                                          <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            className="!rounded-button"
-                                            onClick={handleResendActivation}
-                                            disabled={resendLoading}
-                                          >
-                                            {resendLoading ? 'Gönderiliyor...' : 'Aktivasyon E-postasını Yeniden Gönder'}
-                                          </Button>
+                                        <div className="text-center space-y-2">
+                                            <p className="text-sm text-gray-700">
+                                                Hesabınız henüz doğrulanmadı. Aktivasyon e-postasını tekrar göndermek ister misiniz?
+                                            </p>
+                                            <div className="flex justify-center">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="!rounded-button"
+                                                    onClick={handleResendActivation}
+                                                    disabled={resendLoading}
+                                                >
+                                                    {resendLoading ? 'Gönderiliyor...' : 'Aktivasyon E-postasını Yeniden Gönder'}
+                                                </Button>
+                                            </div>
+                                            {resendMessage && (
+                                                <p className="text-xs text-gray-600">{resendMessage}</p>
+                                            )}
                                         </div>
-                                        {resendMessage && (
-                                          <p className="text-xs text-gray-600">{resendMessage}</p>
-                                        )}
-                                      </div>
                                     )}
                                     {/* Şifremi unuttum */}
                                     <div className="flex justify-end">
@@ -519,7 +520,7 @@ const App: React.FC = () => {
                                     <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white !rounded-button" disabled={loading}>
                                         {loading ? t.login.loadingButton : t.login.loginButton}
                                     </Button>
-                                    
+
                                     {/* Ayırıcı */}
                                     <div className="relative">
                                         <div className="absolute inset-0 flex items-center">
@@ -529,20 +530,20 @@ const App: React.FC = () => {
                                             <span className="bg-white px-2 text-gray-500">veya</span>
                                         </div>
                                     </div>
-                                    
+
                                     {/* Google Login Butonu */}
-                                    <Button 
-                                        type="button" 
-                                        variant="outline" 
-                                        className="w-full !rounded-button border-gray-300 hover:bg-gray-50" 
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="w-full !rounded-button border-gray-300 hover:bg-gray-50"
                                         onClick={handleGoogleLogin}
                                         disabled={loading}
                                     >
                                         <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                                         </svg>
                                         Google ile Giriş Yap
                                     </Button>
@@ -555,22 +556,22 @@ const App: React.FC = () => {
                             <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button whitespace-nowrap">{t.nav.signup}</Button>
                         </a>
                     </div>
-          
+
                     {/* Mobile Menu Button */}
                     <div className="md:hidden flex items-center space-x-2">
                         <Button variant="ghost" className="p-2 text-xs" onClick={() => setLanguage(language === 'tr' ? 'en' : 'tr')}>
                             {language === 'tr' ? 'EN' : 'TR'}
                         </Button>
-                        <Button 
-                            variant="ghost" 
-                            className="p-2" 
+                        <Button
+                            variant="ghost"
+                            className="p-2"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         >
                             <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'} text-xl`}></i>
                         </Button>
                     </div>
                 </div>
-                
+
                 {/* Mobile Menu */}
                 {isMobileMenuOpen && (
                     <div className="md:hidden bg-white border-t border-gray-200 mobile-menu">
@@ -580,7 +581,7 @@ const App: React.FC = () => {
                             <a href="#ozellikler" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.features}</a>
                             <a href="#yorumlar" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.testimonials}</a>
                             <a href="#blog" className="block text-gray-600 hover:text-blue-600 transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t.nav.blog}</a>
-                            
+
                             <div className="pt-4 border-t border-gray-200 space-y-3">
                                 <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
                                     <DialogTrigger asChild>
@@ -600,7 +601,7 @@ const App: React.FC = () => {
                                                 <Label htmlFor="mobile-password">{t.login.passwordLabel}</Label>
                                                 <Input id="mobile-password" name="password" type="password" value={loginForm.password} onChange={handleLoginChange} required />
                                             </div>
-                                            
+
                                             {/* Beni Hatırla Checkbox - Mobile */}
                                             <div className="flex items-center space-x-2">
                                                 <input
@@ -615,34 +616,34 @@ const App: React.FC = () => {
                                                     Beni hatırla (30 gün)
                                                 </Label>
                                             </div>
-                                            
+
                                             {error && <p className="text-sm text-red-500 text-center">{error}</p>}
                                             {errorCode === 'EMAIL_NOT_VERIFIED' && (
-                                              <div className="text-center space-y-2">
-                                                <p className="text-sm text-gray-700">
-                                                  Hesabınız henüz doğrulanmadı. Aktivasyon e-postasını tekrar göndermek ister misiniz?
-                                                </p>
-                                                <div className="flex justify-center">
-                                                  <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="!rounded-button"
-                                                    onClick={handleResendActivation}
-                                                    disabled={resendLoading}
-                                                  >
-                                                    {resendLoading ? 'Gönderiliyor...' : 'Aktivasyon E-postasını Yeniden Gönder'}
-                                                  </Button>
+                                                <div className="text-center space-y-2">
+                                                    <p className="text-sm text-gray-700">
+                                                        Hesabınız henüz doğrulanmadı. Aktivasyon e-postasını tekrar göndermek ister misiniz?
+                                                    </p>
+                                                    <div className="flex justify-center">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="!rounded-button"
+                                                            onClick={handleResendActivation}
+                                                            disabled={resendLoading}
+                                                        >
+                                                            {resendLoading ? 'Gönderiliyor...' : 'Aktivasyon E-postasını Yeniden Gönder'}
+                                                        </Button>
+                                                    </div>
+                                                    {resendMessage && (
+                                                        <p className="text-xs text-gray-600">{resendMessage}</p>
+                                                    )}
                                                 </div>
-                                                {resendMessage && (
-                                                  <p className="text-xs text-gray-600">{resendMessage}</p>
-                                                )}
-                                              </div>
                                             )}
                                             <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white !rounded-button" disabled={loading}>
                                                 {loading ? t.login.loadingButton : t.login.loginButton}
                                             </Button>
-                                            
+
                                             {/* Ayırıcı - Mobile */}
                                             <div className="relative">
                                                 <div className="absolute inset-0 flex items-center">
@@ -652,27 +653,27 @@ const App: React.FC = () => {
                                                     <span className="bg-white px-2 text-gray-500">veya</span>
                                                 </div>
                                             </div>
-                                            
+
                                             {/* Google Login Butonu - Mobile */}
-                                            <Button 
-                                                type="button" 
-                                                variant="outline" 
-                                                className="w-full !rounded-button border-gray-300 hover:bg-gray-50" 
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="w-full !rounded-button border-gray-300 hover:bg-gray-50"
                                                 onClick={handleGoogleLogin}
                                                 disabled={loading}
                                             >
                                                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                                                 </svg>
                                                 Google ile Giriş Yap
                                             </Button>
                                         </form>
                                     </DialogContent>
                                 </Dialog>
-                                
+
                                 <a href="/register" onClick={() => setIsMobileMenuOpen(false)}>
                                     <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white !rounded-button">{t.nav.signup}</Button>
                                 </a>
@@ -681,15 +682,15 @@ const App: React.FC = () => {
                     </div>
                 )}
             </nav>
-            
+
             {/* Hero Section */}
             <section className="relative overflow-hidden min-h-[700px] hero-section">
-                <div className="absolute inset-0 z-0"> 
-                    <img 
-                        src="https://readdy.ai/api/search-image?query=A%20modern%2C%20clean%2C%20minimalist%20scene%20showing%20a%20person%20relaxing%20with%20headphones%2C%20listening%20to%20content%20on%20their%20device.%20The%20background%20is%20a%20soft%20gradient%20from%20light%20blue%20to%20white%2C%20creating%20a%20calm%20and%20peaceful%20atmosphere.%20The%20scene%20suggests%20learning%20without%20effort%2C%20with%20subtle%20educational%20elements%20in%20the%20background.&width=1440&height=700&seq=hero1&orientation=landscape" 
-                        alt="Hero Background" 
+                <div className="absolute inset-0 z-0">
+                    <img
+                        src="https://readdy.ai/api/search-image?query=A%20modern%2C%20clean%2C%20minimalist%20scene%20showing%20a%20person%20relaxing%20with%20headphones%2C%20listening%20to%20content%20on%20their%20device.%20The%20background%20is%20a%20soft%20gradient%20from%20light%20blue%20to%20white%2C%20creating%20a%20calm%20and%20peaceful%20atmosphere.%20The%20scene%20suggests%20learning%20without%20effort%2C%20with%20subtle%20educational%20elements%20in%20the%20background.&width=1440&height=700&seq=hero1&orientation=landscape"
+                        alt="Hero Background"
                         className="w-full h-full object-cover"
-                    /> 
+                    />
                 </div>
                 <div className="container mx-auto px-8 py-20 relative z-10">
                     <div className="max-w-4xl">
@@ -813,7 +814,7 @@ const App: React.FC = () => {
                                 <CardHeader className="pb-0 p-0">
                                     <div className="how-it-works-image">
                                         <img
-                                            src={`https://readdy.ai/api/search-image?query=A person ${index === 0 ? 'selecting content on their device, with multiple media platforms visible on screen. The scene shows YouTube videos, Spotify podcasts, and news articles. Clean, modern interface with a soft blue background and minimalist design.' : index === 1 ? 'close-up of a language level selector interface showing levels from A1 to C2. The design is clean and modern with a soft blue background. The interface shows a slider or dropdown menu being adjusted by a finger, representing language level selection.' : 'relaxing with headphones, enjoying content on their device. The screen shows subtitles in English with a clean interface. The background is a soft blue gradient, and the scene conveys effortless learning through listening.'}&width=400&height=300&seq=step${index+1}&orientation=landscape`}
+                                            src={`https://readdy.ai/api/search-image?query=A person ${index === 0 ? 'selecting content on their device, with multiple media platforms visible on screen. The scene shows YouTube videos, Spotify podcasts, and news articles. Clean, modern interface with a soft blue background and minimalist design.' : index === 1 ? 'close-up of a language level selector interface showing levels from A1 to C2. The design is clean and modern with a soft blue background. The interface shows a slider or dropdown menu being adjusted by a finger, representing language level selection.' : 'relaxing with headphones, enjoying content on their device. The screen shows subtitles in English with a clean interface. The background is a soft blue gradient, and the scene conveys effortless learning through listening.'}&width=400&height=300&seq=step${index + 1}&orientation=landscape`}
                                             alt={step.title}
                                             className=""
                                         />
@@ -846,7 +847,7 @@ const App: React.FC = () => {
                                 <CardHeader className="pb-0 p-0">
                                     <div className="routine-image">
                                         <img
-                                            src={`https://readdy.ai/api/search-image?query=A person ${index === 0 ? 'walking in a park with headphones, listening to content on their smartphone. The scene has a bright, airy feel with trees and a path. The person looks relaxed and engaged with what they are listening to, suggesting learning while exercising.' : index === 1 ? 'exercising at home or gym with headphones, watching content on a tablet device nearby. The scene shows someone doing light workout while engaging with content. The environment is bright and motivational with a clean, modern aesthetic.' : index === 2 ? 'driving a car while listening to audio content. The dashboard shows a connected smartphone playing content. The scene is from inside the vehicle with a clean, modern interior and a bright day visible through windows.' : 'doing household chores like cleaning or cooking while listening to content on wireless headphones. The home environment is bright, modern and clean. The person looks engaged with what they are listening to while completing their tasks.'}&width=300&height=200&seq=routine${index+1}&orientation=landscape`}
+                                            src={`https://readdy.ai/api/search-image?query=A person ${index === 0 ? 'walking in a park with headphones, listening to content on their smartphone. The scene has a bright, airy feel with trees and a path. The person looks relaxed and engaged with what they are listening to, suggesting learning while exercising.' : index === 1 ? 'exercising at home or gym with headphones, watching content on a tablet device nearby. The scene shows someone doing light workout while engaging with content. The environment is bright and motivational with a clean, modern aesthetic.' : index === 2 ? 'driving a car while listening to audio content. The dashboard shows a connected smartphone playing content. The scene is from inside the vehicle with a clean, modern interior and a bright day visible through windows.' : 'doing household chores like cleaning or cooking while listening to content on wireless headphones. The home environment is bright, modern and clean. The person looks engaged with what they are listening to while completing their tasks.'}&width=300&height=200&seq=routine${index + 1}&orientation=landscape`}
                                             alt={activity.title}
                                             className=""
                                         />
@@ -891,7 +892,7 @@ const App: React.FC = () => {
                                     </div>
                                     <div className="order-1 md:order-2 h-48 md:h-full overflow-hidden feature-image">
                                         <img
-                                            src={`https://readdy.ai/api/search-image?query=${index === 0 ? 'A collection of real-world media content displayed on various devices. The scene shows YouTube videos, podcasts, news articles, and social media content. The display is modern and clean with a soft blue background, emphasizing authentic learning materials.' : index === 1 ? 'A personalized user interface showing content recommendations based on interests and language level. The screen displays customization options and preference settings. The design is clean and modern with a soft blue background, conveying personalization.' : index === 2 ? 'A person relaxing with high-quality headphones, listening to content with visible subtitles on their device. The scene shows someone comfortably learning through listening. The environment is peaceful with a soft blue background.' : 'A split-screen showing a person engaged in daily activities while learning. The scene depicts someone multitasking - perhaps commuting, exercising, or doing chores while listening to content. The design is clean with a soft blue background.'}&width=500&height=300&seq=feature${index+1}&orientation=landscape`}
+                                            src={`https://readdy.ai/api/search-image?query=${index === 0 ? 'A collection of real-world media content displayed on various devices. The scene shows YouTube videos, podcasts, news articles, and social media content. The display is modern and clean with a soft blue background, emphasizing authentic learning materials.' : index === 1 ? 'A personalized user interface showing content recommendations based on interests and language level. The screen displays customization options and preference settings. The design is clean and modern with a soft blue background, conveying personalization.' : index === 2 ? 'A person relaxing with high-quality headphones, listening to content with visible subtitles on their device. The scene shows someone comfortably learning through listening. The environment is peaceful with a soft blue background.' : 'A split-screen showing a person engaged in daily activities while learning. The scene depicts someone multitasking - perhaps commuting, exercising, or doing chores while listening to content. The design is clean with a soft blue background.'}&width=500&height=300&seq=feature${index + 1}&orientation=landscape`}
                                             alt={feature.title}
                                             className="w-full h-full object-cover object-center"
                                         />
@@ -930,7 +931,7 @@ const App: React.FC = () => {
                                         <div className="flex items-center mb-6">
                                             <Avatar className="h-12 w-12 mr-4">
                                                 <AvatarImage
-                                                    src={`https://readdy.ai/api/search-image?query=Professional headshot of a ${index % 2 === 0 ? 'Turkish man' : 'Turkish woman'} ${index === 0 ? 'in his late 20s with short dark hair' : index === 1 ? 'in her mid 20s with long dark hair' : index === 2 ? 'middle-aged with glasses and a professional appearance' : index === 3 ? 'with a headscarf and a friendly smile' : 'in his 30s with a beard and professional appearance'} and a ${index === 3 ? 'warm' : 'friendly'} smile. The photo has a clean, neutral background and professional lighting, suitable for a testimonial or profile picture.&width=100&height=100&seq=user${index+1}&orientation=squarish`}
+                                                    src={`https://readdy.ai/api/search-image?query=Professional headshot of a ${index % 2 === 0 ? 'Turkish man' : 'Turkish woman'} ${index === 0 ? 'in his late 20s with short dark hair' : index === 1 ? 'in her mid 20s with long dark hair' : index === 2 ? 'middle-aged with glasses and a professional appearance' : index === 3 ? 'with a headscarf and a friendly smile' : 'in his 30s with a beard and professional appearance'} and a ${index === 3 ? 'warm' : 'friendly'} smile. The photo has a clean, neutral background and professional lighting, suitable for a testimonial or profile picture.&width=100&height=100&seq=user${index + 1}&orientation=squarish`}
                                                     alt={testimonial.name}
                                                 />
                                                 <AvatarFallback>{testimonial.name.charAt(0)}</AvatarFallback>
@@ -1017,8 +1018,8 @@ const App: React.FC = () => {
                         <div className="mt-8 flex justify-center items-center space-x-6">
                             {t.cta.benefits.map((benefit, index) => (
                                 <div key={index} className="flex items-center">
-                                    <i 
-                                        className="fas fa-check-circle mr-2" 
+                                    <i
+                                        className="fas fa-check-circle mr-2"
                                         style={{ color: '#22c55e' }}
                                     ></i>
                                     <span className="text-gray-600">{benefit}</span>

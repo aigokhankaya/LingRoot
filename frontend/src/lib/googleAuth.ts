@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Google OAuth utility functions
 declare global {
   interface Window {
@@ -10,14 +11,14 @@ export const initializeGoogleAuth = (): Promise<boolean> => {
   return new Promise((resolve, reject) => {
     // Google Identity Services script'ini yükle
     const existingScript = document.getElementById('google-identity-script');
-    
+
     // Script zaten yüklüyse ve window.google mevcutsa
     if (existingScript && window.google) {
       console.log('✅ Google Identity Services zaten yüklü');
       resolve(true);
       return;
     }
-    
+
     // Script elementi var ama window.google yok - script yeniden yüklenecek
     if (existingScript) {
       console.log('⚠️ Script elementi var ama window.google yok, yeniden yükleniyor...');
@@ -30,12 +31,12 @@ export const initializeGoogleAuth = (): Promise<boolean> => {
     script.src = 'https://accounts.google.com/gsi/client';
     script.async = true;
     script.defer = true;
-    
+
     // Timeout ekle (10 saniye)
     const timeoutId = setTimeout(() => {
       reject(new Error('Google Identity Services yükleme zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edin.'));
     }, 10000);
-    
+
     script.onload = () => {
       clearTimeout(timeoutId);
       // Script yüklendi, window.google'ın hazır olmasını bekle
@@ -46,7 +47,7 @@ export const initializeGoogleAuth = (): Promise<boolean> => {
           resolve(true);
         }
       }, 100);
-      
+
       // Maksimum 3 saniye bekle
       setTimeout(() => {
         clearInterval(checkGoogle);
@@ -55,12 +56,12 @@ export const initializeGoogleAuth = (): Promise<boolean> => {
         }
       }, 3000);
     };
-    
+
     script.onerror = () => {
       clearTimeout(timeoutId);
       reject(new Error('Google Identity Services yüklenemedi. Lütfen internet bağlantınızı kontrol edin veya VPN kullanıyorsanız kapatın.'));
     };
-    
+
     document.head.appendChild(script);
   });
 };
@@ -97,7 +98,7 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
 
     // Google Sign-In butonunu programatik olarak tetikle
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    
+
     if (!clientId || clientId === '1234567890-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com') {
       clearTimeout(timeoutId);
       reject(new Error('Google Client ID yapılandırılmamış. Lütfen .env dosyasında NEXT_PUBLIC_GOOGLE_CLIENT_ID değerini ayarlayın.'));
@@ -115,10 +116,10 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
     // One Tap prompt'ını göster
     window.google.accounts.id.prompt((notification: any) => {
       console.log('Google prompt notification:', notification);
-      
+
       if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
         console.log('One Tap gösterilemedi, OAuth popup açılıyor...');
-        
+
         // One Tap gösterilemezse normal popup'ı aç
         try {
           const tokenClient = window.google.accounts.oauth2.initTokenClient({
@@ -127,24 +128,24 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
             callback: (response: any) => {
               clearTimeout(timeoutId);
               console.log('OAuth response:', response);
-              
+
               if (response.access_token) {
                 // Access token ile kullanıcı bilgilerini al
-                                  fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${response.access_token}`)
-                    .then(res => {
-                      if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                      }
-                      return res.json();
-                    })
-                    .then(userInfo => {
-                      console.log('✅ Google User info:', userInfo);
-                      console.log('🔑 Sending access token to backend:', response.access_token.substring(0, 20) + '...');
-                      resolve({
-                        credential: response.access_token,
-                        clientId: clientId
-                      });
-                    })
+                fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${response.access_token}`)
+                  .then(res => {
+                    if (!res.ok) {
+                      throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.json();
+                  })
+                  .then(userInfo => {
+                    console.log('✅ Google User info:', userInfo);
+                    console.log('🔑 Sending access token to backend:', response.access_token.substring(0, 20) + '...');
+                    resolve({
+                      credential: response.access_token,
+                      clientId: clientId
+                    });
+                  })
                   .catch(err => {
                     console.error('Kullanıcı bilgileri alınamadı:', err);
                     reject(new Error('Kullanıcı bilgileri alınamadı: ' + err.message));
@@ -156,7 +157,7 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
               }
             }
           });
-          
+
           tokenClient.requestAccessToken();
         } catch (error: any) {
           clearTimeout(timeoutId);
@@ -167,7 +168,7 @@ export const signInWithGoogle = (): Promise<{ credential: string; clientId: stri
         // Kullanıcı One Tap'i iptal etti
         const reason = notification.getDismissedReason();
         console.log('One Tap iptal edildi:', reason);
-        
+
         if (reason === 'credential_returned') {
           // Credential döndürüldü, callback'te handle edilecek
           return;
@@ -185,7 +186,7 @@ export const decodeGoogleCredential = (credential: string) => {
     // JWT token'ı decode et
     const base64Url = credential.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
       return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
 

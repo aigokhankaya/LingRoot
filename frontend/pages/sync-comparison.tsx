@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GetStaticProps } from 'next';
+import Link from 'next/link';
 import SyncedTextPlayer from '../src/components/SyncedTextPlayer';
 import NewSyncedTextPlayer from '../src/components/NewSyncedTextPlayer';
 
@@ -9,9 +10,9 @@ const MOCK_AUDIO_RESULT = {
   message: "Hello everyone. Welcome to our English learning platform. Today we are going to practice pronunciation and vocabulary. Please listen carefully and repeat after me. This is a wonderful opportunity to improve your English skills.",
   audio_url: "https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Sevish_-__nbsp_.mp3", // Public test audio
   words: [
-    "Hello", "everyone.", "Welcome", "to", "our", "English", "learning", "platform.", 
-    "Today", "we", "are", "going", "to", "practice", "pronunciation", "and", "vocabulary.", 
-    "Please", "listen", "carefully", "and", "repeat", "after", "me.", 
+    "Hello", "everyone.", "Welcome", "to", "our", "English", "learning", "platform.",
+    "Today", "we", "are", "going", "to", "practice", "pronunciation", "and", "vocabulary.",
+    "Please", "listen", "carefully", "and", "repeat", "after", "me.",
     "This", "is", "a", "wonderful", "opportunity", "to", "improve", "your", "English", "skills."
   ],
   timepoints: [
@@ -74,7 +75,7 @@ export default function SyncComparisonPage() {
                 Eski timeupdate tabanlı sistem vs. Yeni Web Audio API mimarisi
               </p>
             </div>
-            
+
             {/* System Selector */}
             <div className="flex items-center space-x-4">
               <label className="text-sm font-medium text-gray-700">Gösterim:</label>
@@ -248,13 +249,13 @@ export default function SyncComparisonPage() {
 
         {/* Footer */}
         <div className="mt-8 text-center">
-          <a
+          <Link
             href="/welcome"
             className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <i className="fas fa-arrow-left mr-2"></i>
             Ana Sayfaya Dön
-          </a>
+          </Link>
         </div>
       </div>
     </div>

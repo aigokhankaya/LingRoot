@@ -1,6 +1,7 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getApiUrl } from './api';
 
 // Types
@@ -34,7 +35,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       setIsLoading(true);
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-        
+
         // Token yoksa /auth/me isteği yapma
         if (!token) {
           console.log('[AUTH] Token bulunamadı, oturum kontrolü atlanıyor');
@@ -43,9 +44,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           setIsLoading(false);
           return;
         }
-        
+
         // Token varsa /auth/me isteğini yap
-        const headers: Record<string, string> = { 
+        const headers: Record<string, string> = {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         };
@@ -54,11 +55,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           headers,
           credentials: 'include'
         });
-        
+
         console.log('[AUTH] /auth/me response status:', response.status);
         const data = await response.json();
         console.log('[AUTH] /auth/me response data:', data);
-        
+
         if (response.ok && data.success && (data.user || data.data?.user)) {
           const userData = data.user || data.data.user;
           const loadedUser: User = {
@@ -67,11 +68,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
             role: userData.role || 'user',
             membershipStatus: userData.membershipStatus || 'free',
           };
-          
+
           console.log('[AUTH] Oturum doğrulandı:', loadedUser);
           setUser(loadedUser);
           setIsAuthenticated(true);
-          
+
           // Token yenileme
           if (data.data?.token) {
             localStorage.setItem('lingroot_token', data.data.token);
@@ -98,7 +99,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         }
       } catch (error) {
         console.error('[AUTH] Oturum kontrolü hatası:', error);
-        
+
         // Development ortamında mock kullanıcı oluştur
         if (process.env.NODE_ENV === 'development' && process.env.USE_MOCK_USER === 'true') {
           console.log('[AUTH] Development ortamında mock kullanıcı oluşturuluyor (hata sonrası)');
@@ -119,9 +120,51 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         setIsLoading(false);
       }
     };
-    
+
     checkToken();
   }, []);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('lingroot_token');
+    localStorage.removeItem('lingroot_remember_me');
+    setUser(null);
+    setIsAuthenticated(false);
+  }, []);
+
+  // Token süresini kontrol et ve gerekirse logout yap
+  const checkTokenExpiry = useCallback(() => {
+    const token = localStorage.getItem('lingroot_token');
+    const rememberMe = localStorage.getItem('lingroot_remember_me') === 'true';
+
+    if (!token) return;
+
+    try {
+      // JWT token'ı decode et (basit bir şekilde)
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Date.now() / 1000;
+
+      // Token süresi dolmuşsa logout yap
+      if (payload.exp < currentTime) {
+        console.log('[AUTH] Token süresi doldu, logout yapılıyor');
+        logout();
+        return;
+      }
+
+      // Beni hatırla seçili değilse ve 1 saatten fazla geçmişse logout yap
+      if (!rememberMe) {
+        const tokenAge = currentTime - payload.iat;
+        const oneHour = 60 * 60; // 1 saat saniye cinsinden
+
+        if (tokenAge > oneHour) {
+          console.log('[AUTH] Idle timeout, logout yapılıyor');
+          logout();
+        }
+      }
+    } catch (error) {
+      console.error('[AUTH] Token decode hatası:', error);
+      logout();
+    }
+  }, [logout]);
 
   // Token süresini düzenli olarak kontrol et
   useEffect(() => {
@@ -130,32 +173,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     }, 60000); // Her dakika kontrol et
 
     return () => clearInterval(interval);
-  }, []);
-
+  }, [checkTokenExpiry]);
   const login = async (email: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string; code?: string }> => {
     try {
       console.log('[AUTH] login() called', { email });
       console.log("[API URL]", getApiUrl('/auth/login'));
-      
+
       // API isteği yap
       // NOT: Development modunda bile gerçek API çağrısı yapacağız
       // ancak API çağrısı başarısız olursa mock login yapacağız
-      
+
       const response = await fetch(getApiUrl('auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
         credentials: 'include'
       });
-      
+
       console.log('[AUTH] login API response status:', response.status);
-      
+
       let data;
       try {
         data = await response.json();
       } catch (jsonErr) {
         console.log('[AUTH] login() JSON parse error', jsonErr);
-        
+
         // Development modunda ve JSON parse hatası varsa mock login yap
         if (process.env.NODE_ENV === 'development' && process.env.USE_MOCK_USER === 'true') {
           console.log('[AUTH] Development ortamında mock login yapılıyor (JSON parse hatası sonrası)');
@@ -170,12 +212,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           localStorage.setItem('lingroot_token', 'mock-token-for-development');
           return { success: true };
         }
-        
+
         return { success: false, message: 'Sunucudan geçersiz yanıt alındı.' };
       }
-      
+
       console.log('[AUTH] login() response data:', data);
-      
+
       if (response.ok && data.success) {
         // User nesnesini normalize et
         const rawUser = data.data.user;
@@ -203,7 +245,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           const next = Number.isFinite(prev) ? prev + 1 : 1;
           localStorage.setItem('lingroot_loginCount', String(next));
           localStorage.setItem('lingroot_lastLogin', String(now));
-        } catch {}
+        } catch { }
         // Kullanıcının arayüz dilini backend'den oku ve i18n ile senkronize et
         try {
           const { getUserSettings } = await import('./api');
@@ -215,7 +257,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
             setStoredLanguage(lang as any);
             try {
               localStorage.setItem('lingroot_interfaceLanguage', lang);
-            } catch {}
+            } catch { }
           }
         } catch (e) {
           console.log('[AUTH] Failed to sync interface language from backend', e);
@@ -237,7 +279,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           localStorage.setItem('lingroot_token', 'mock-token-for-development');
           return { success: true };
         }
-        
+
         setUser(null);
         setIsAuthenticated(false);
         console.log('[AUTH] login() failed', data.message, data.code);
@@ -245,7 +287,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       }
     } catch (error: any) {
       console.log('[AUTH] login() error', error);
-      
+
       // Fetch hatası durumunda development modunda mock login yap
       if (process.env.NODE_ENV === 'development' && process.env.USE_MOCK_USER === 'true') {
         console.log('[AUTH] Development ortamında mock login yapılıyor (fetch hatası sonrası)');
@@ -260,7 +302,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         localStorage.setItem('lingroot_token', 'mock-token-for-development');
         return { success: true };
       }
-      
+
       setUser(null);
       setIsAuthenticated(false);
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
@@ -271,59 +313,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('lingroot_token');
-    localStorage.removeItem('lingroot_remember_me');
-    setUser(null);
-    setIsAuthenticated(false);
-  };
+  /* checkTokenExpiry moved up */
 
-  // Token süresini kontrol et ve gerekirse logout yap
-  const checkTokenExpiry = () => {
-    const token = localStorage.getItem('lingroot_token');
-    const rememberMe = localStorage.getItem('lingroot_remember_me') === 'true';
-    
-    if (!token) return;
-    
-    try {
-      // JWT token'ı decode et (basit bir şekilde)
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const currentTime = Date.now() / 1000;
-      
-      // Token süresi dolmuşsa logout yap
-      if (payload.exp < currentTime) {
-        console.log('[AUTH] Token süresi doldu, logout yapılıyor');
-        logout();
-        return;
-      }
-      
-      // Beni hatırla seçili değilse ve 1 saatten fazla geçmişse logout yap
-      if (!rememberMe) {
-        const tokenAge = currentTime - payload.iat;
-        const oneHour = 60 * 60; // 1 saat saniye cinsinden
-        
-        if (tokenAge > oneHour) {
-          console.log('[AUTH] Idle timeout, logout yapılıyor');
-          logout();
-        }
-      }
-    } catch (error) {
-      console.error('[AUTH] Token decode hatası:', error);
-      logout();
-    }
-  };
 
   const loginWithGoogle = async (credential: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
     try {
       console.log('[AUTH] loginWithGoogle() called');
-      
+
       const response = await fetch(getApiUrl('auth/google'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credential, rememberMe }),
         credentials: 'include'
       });
-      
+
       let data;
       try {
         data = await response.json();
@@ -331,9 +334,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         console.log('[AUTH] loginWithGoogle() JSON parse error', jsonErr);
         return { success: false, message: 'Sunucudan geçersiz yanıt alındı.' };
       }
-      
+
       console.log('[AUTH] loginWithGoogle() response data:', data);
-      
+
       if (response.ok && data.success) {
         const rawUser = data.data.user;
         const user: User = {
@@ -344,7 +347,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         };
         setUser(user);
         setIsAuthenticated(true);
-        
+
         if (data.data.token) {
           localStorage.setItem('lingroot_token', data.data.token);
           localStorage.setItem('lingroot_remember_me', rememberMe.toString());
@@ -361,7 +364,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
             setStoredLanguage(lang as any);
             try {
               localStorage.setItem('lingroot_interfaceLanguage', lang);
-            } catch {}
+            } catch { }
           }
         } catch (e) {
           console.log('[AUTH] Failed to sync interface language from backend (Google)', e);
@@ -375,7 +378,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           const next = Number.isFinite(prev) ? prev + 1 : 1;
           localStorage.setItem('lingroot_loginCount', String(next));
           localStorage.setItem('lingroot_lastLogin', String(now));
-        } catch {}
+        } catch { }
 
         return { success: true };
       } else {
