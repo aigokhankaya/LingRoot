@@ -10,7 +10,7 @@ const liroContentGraph = require('../utils/liroContentGraph');
 const { supabase } = require('../utils/supabaseClient');
 const { calculateOpenAiCost } = require('../utils/costTracker');
 const { suggestTopicsForUser, extractAndStoreTopic } = require('../lib/rag');
-const { computeTopicMemoryVerdict, formatVerdictForPrompt } = require('../utils/topicMemoryVerdict');
+const directorAgentService = require('../services/directorAgentService');
 
 /**
  * Get all AI conversations for a user
@@ -212,28 +212,19 @@ const sendMessage = async (req, res) => {
       liroSystemPrompt = `${liroSystemPrompt}\n\n${overviewPrompt}`;
     }
 
-    // Topic Memory Verdict: Kullanıcının konu geçmişini semantik olarak kontrol et
-    let topicVerdictSection = '';
+    // DIRECTOR AGENT: Analyze User Mood and Inject Instruction
+    let userMood = 'Neutral';
     try {
-      const verdictResult = await computeTopicMemoryVerdict({
-        userId,
-        conversationId,
-        userMessage: content.trim()
-      });
-      topicVerdictSection = formatVerdictForPrompt(verdictResult);
-      logger.info('🧠 Topic Memory Verdict computed:', {
-        verdict: verdictResult.verdict,
-        matchedTopic: verdictResult.matchedTopic,
-        similarity: verdictResult.similarity?.toFixed(3)
-      });
-    } catch (verdictError) {
-      logger.warn('Topic memory verdict failed, defaulting to NEW:', verdictError);
-      topicVerdictSection = formatVerdictForPrompt(null);
+      userMood = await directorAgentService.analyzeMood(content.trim());
+      const moodInstruction = directorAgentService.generatePersonaInstruction(userMood, 'chat_assistant');
+      liroSystemPrompt += `\n\n${moodInstruction}`;
+
+      // Update conversation mood asynchronously
+      db.query(`UPDATE conversations SET current_mood = $1 WHERE id = $2`, [userMood, conversationId]).catch(err => logger.warn('Failed to update conversation mood', err));
+
+    } catch (moodErr) {
+      logger.warn('Director Agent mood analysis failed in chat:', moodErr);
     }
-
-    // Verdict'i prompt'un en üstüne ekle (en önemli kural olarak)
-    liroSystemPrompt = `${topicVerdictSection}\n\n${liroSystemPrompt}`;
-
     logger.debug('📝 Liro prompt generated:', {
       username: userProfile.basicInfo?.username,
       interests: userProfile.interests?.count,

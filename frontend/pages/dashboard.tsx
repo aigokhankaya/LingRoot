@@ -18,6 +18,7 @@ import InterestManager from '../src/components/InterestManager';
 import OutputSection from '../src/components/OutputSection';
 import { ProfileDropdownMenu } from '../src/components/shared/ProfileDropdownMenu';
 import { useTranslation } from '../src/lib/i18n';
+import BookTab from '../src/components/BookTab/BookTab';
 
 interface ContentHistoryItem {
   id: string;
@@ -34,6 +35,7 @@ interface ContentHistoryItem {
     endTimeSeconds?: number;
     word?: string;
   }>;
+  detected_mood?: string;
 }
 
 const Dashboard = () => {
@@ -73,6 +75,7 @@ const Dashboard = () => {
     'text',
     'subject',
   ]);
+  const [activeMoodFilter, setActiveMoodFilter] = useState<string>('All');
 
   const historyTypeOptions = React.useMemo(
     () => [
@@ -111,22 +114,22 @@ const Dashboard = () => {
       try {
         const ts = typeof window !== 'undefined' ? Number(localStorage.getItem('justLoggedIn') || '0') : 0;
         withinGrace = ts > 0 && Date.now() - ts < 8000; // 8s
-      } catch {}
+      } catch { }
       if (withinGrace) {
-        try { console.log('[DASHBOARD] within grace period after login, skip redirect'); } catch {}
+        try { console.log('[DASHBOARD] within grace period after login, skip redirect'); } catch { }
         return;
       }
       const path = typeof window !== 'undefined' ? window.location.pathname : '/dashboard';
       const search = typeof window !== 'undefined' ? window.location.search : '';
       const hash = typeof window !== 'undefined' ? window.location.hash : '';
       const next = `${path}${search}${hash}`;
-      try { console.log('[DASHBOARD] redirecting unauthenticated to /login with next=', next, { isLoading, isAuthenticated }); } catch {}
+      try { console.log('[DASHBOARD] redirecting unauthenticated to /login with next=', next, { isLoading, isAuthenticated }); } catch { }
       if (typeof window !== 'undefined') {
-        try { sessionStorage.setItem('postLoginNext', next); } catch {}
+        try { sessionStorage.setItem('postLoginNext', next); } catch { }
       }
       router.push(`/login?next=${encodeURIComponent(next)}`);
     } else {
-      try { console.log('[DASHBOARD] auth state', { isLoading, isAuthenticated }); } catch {}
+      try { console.log('[DASHBOARD] auth state', { isLoading, isAuthenticated }); } catch { }
     }
   }, [isAuthenticated, isLoading, router]);
 
@@ -332,6 +335,17 @@ const Dashboard = () => {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  // Her giriş tipine göre toplam ses sayısını hesapla (örn. topic, book, podcast)
+  const historyCountsByType = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const item of contentHistory) {
+      const typeKey = (item.input_type || '').toLowerCase();
+      if (!typeKey) continue;
+      counts[typeKey] = (counts[typeKey] || 0) + 1;
+    }
+    return counts;
+  }, [contentHistory]);
+
   if (isLoading) {
     return <div className="p-8 text-center text-lg">{t('loading')}</div>;
   }
@@ -371,22 +385,16 @@ const Dashboard = () => {
   const profileImageUrl = avatar;
   const backgroundImageUrl = 'https://readdy.ai/api/search-image?query=Abstract%2520professional%2520background%2520with%2520soft%2520teal%2520and%2520slate%2520tones%252C%2520subtle%2520geometric%2520patterns%252C%2520clean%2520modern%2520design%252C%2520perfect%2520for%2520profile%2520page%2520header%252C%2520minimalist%2520aesthetic%252C%2520high%2520quality%2520digital%2520art&width=1440&height=300&seq=bg1&orientation=landscape';
 
-  // Her giriş tipine göre toplam ses sayısını hesapla (örn. topic, book, podcast)
-  const historyCountsByType = React.useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const item of contentHistory) {
-      const typeKey = (item.input_type || '').toLowerCase();
-      if (!typeKey) continue;
-      counts[typeKey] = (counts[typeKey] || 0) + 1;
-    }
-    return counts;
-  }, [contentHistory]);
-
   const filteredHistory = contentHistory.filter((item) => {
     const typeKey = (item.input_type || '').toLowerCase();
-    if (!activeHistoryTypes || activeHistoryTypes.length === 0) return true;
-    if (!typeKey) return true;
-    return activeHistoryTypes.includes(typeKey);
+
+    // Type Filter
+    const typeMatch = (!activeHistoryTypes || activeHistoryTypes.length === 0) || (!typeKey) || activeHistoryTypes.includes(typeKey);
+
+    // Mood Filter
+    const moodMatch = activeMoodFilter === 'All' || item.detected_mood === activeMoodFilter;
+
+    return typeMatch && moodMatch;
   });
   const historyToRender = showAllHistory ? filteredHistory : filteredHistory.slice(0, 5);
 
@@ -486,8 +494,8 @@ const Dashboard = () => {
                 <MembershipBadge status={membershipStatus} />
                 <Badge className="bg-primary text-primary-foreground">{t('dashboard_badge_primary')}</Badge>
                 <Badge className="bg-green-500">{t('dashboard_badge_languages')}</Badge>
-          </div>
-        </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -495,245 +503,245 @@ const Dashboard = () => {
       {/* Main Content */}
       <div className="w-full px-4 py-8 flex justify-center">
         <div className="w-[90%]">
-        <Tabs value={tab} onValueChange={(v) => {
-          setTab(v);
-          if (typeof window !== 'undefined') {
-            const url = new URL(window.location.href);
-            url.searchParams.set('tab', v);
-            // keep hash too for backward-compat
-            url.hash = v;
-            window.history.replaceState({}, '', url.toString());
-          }
-        }} className="w-full">
-          {/* Sekmeler: tek satır, eşit genişlik */}
-          <TabsList className="flex flex-nowrap justify-between gap-2 mb-6 bg-white px-4 py-3 rounded-xl shadow-sm border w-full">
-            {/* 1. Dashboard */}
-            <TabsTrigger value="dashboard" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
-              <i className="fas fa-chart-line mr-2"></i>
-              {t('dashboard')}
-            </TabsTrigger>
-            {/* 2. Okuma Geçmişim */}
-            <TabsTrigger value="reading-history" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
-              <i className="fas fa-history mr-2"></i>
-              {t('tab_reading_history')}
-            </TabsTrigger>
-            {/* 3. Konularım */}
-            <TabsTrigger value="achievements" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
-              <i className="fas fa-sitemap mr-2"></i>
-              {t('tab_my_topics')}
-            </TabsTrigger>
-            {/* 4. Kitaplarım */}
-            <TabsTrigger value="book" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
-              <i className="fas fa-book mr-2"></i>
-              {t('tab_my_books')}
-            </TabsTrigger>
-            <TabsTrigger value="hobbies" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
-              <i className="fas fa-heart mr-2"></i>
-              {t('tab_my_hobbies')}
-            </TabsTrigger>
-            {/* 5. Podcastlerim (şimdilik placeholder) */}
-            <TabsTrigger value="podcasts" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
-              <i className="fas fa-podcast mr-2"></i>
-              {t('tab_my_podcasts')}
-            </TabsTrigger>
-            {/* 6. Dokümanlar */}
-            <TabsTrigger value="pdf" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
-              <i className="fas fa-file-alt mr-2"></i>
-              {t('tab_my_documents')}
-            </TabsTrigger>
-            <TabsTrigger value="vocabulary" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
-              <i className="fas fa-language mr-2"></i>
-              {t('tab_my_vocabulary')}
-            </TabsTrigger>
-            <TabsTrigger value="paket-bilgilerim" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
-              <i className="fas fa-box mr-2"></i>
-              {t('tab_my_plan_info')}
-            </TabsTrigger>
-          </TabsList>
+          <Tabs value={tab} onValueChange={(v) => {
+            setTab(v);
+            if (typeof window !== 'undefined') {
+              const url = new URL(window.location.href);
+              url.searchParams.set('tab', v);
+              // keep hash too for backward-compat
+              url.hash = v;
+              window.history.replaceState({}, '', url.toString());
+            }
+          }} className="w-full">
+            {/* Sekmeler: tek satır, eşit genişlik */}
+            <TabsList className="flex flex-nowrap justify-between gap-2 mb-6 bg-white px-4 py-3 rounded-xl shadow-sm border w-full">
+              {/* 1. Dashboard */}
+              <TabsTrigger value="dashboard" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
+                <i className="fas fa-chart-line mr-2"></i>
+                {t('dashboard')}
+              </TabsTrigger>
+              {/* 2. Okuma Geçmişim */}
+              <TabsTrigger value="reading-history" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
+                <i className="fas fa-history mr-2"></i>
+                {t('tab_reading_history')}
+              </TabsTrigger>
+              {/* 3. Konularım */}
+              <TabsTrigger value="achievements" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
+                <i className="fas fa-sitemap mr-2"></i>
+                {t('tab_my_topics')}
+              </TabsTrigger>
+              {/* 4. Kitaplarım */}
+              <TabsTrigger value="book" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
+                <i className="fas fa-book mr-2"></i>
+                {t('tab_my_books')}
+              </TabsTrigger>
+              <TabsTrigger value="hobbies" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
+                <i className="fas fa-heart mr-2"></i>
+                {t('tab_my_hobbies')}
+              </TabsTrigger>
+              {/* 5. Podcastlerim (şimdilik placeholder) */}
+              <TabsTrigger value="podcasts" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
+                <i className="fas fa-podcast mr-2"></i>
+                {t('tab_my_podcasts')}
+              </TabsTrigger>
+              {/* 6. Dokümanlar */}
+              <TabsTrigger value="pdf" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
+                <i className="fas fa-file-alt mr-2"></i>
+                {t('tab_my_documents')}
+              </TabsTrigger>
+              <TabsTrigger value="vocabulary" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
+                <i className="fas fa-language mr-2"></i>
+                {t('tab_my_vocabulary')}
+              </TabsTrigger>
+              <TabsTrigger value="paket-bilgilerim" className="flex-1 !rounded-button whitespace-nowrap cursor-pointer text-center">
+                <i className="fas fa-box mr-2"></i>
+                {t('tab_my_plan_info')}
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Dashboard Tab */}
-          <TabsContent value="dashboard" className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Quick Stats */}
-              <div className="col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Dashboard Tab */}
+            <TabsContent value="dashboard" className="mt-0">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Quick Stats */}
+                <div className="col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card className="border-none shadow-md hover-lift slideUp">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-500">{t('dashboard_daily_goal_title')}</p>
+                          <h3 className="text-2xl font-bold text-primary">{statsLoading ? '...' : `${stats?.activity.dailyGoalProgress || 0}%`}</h3>
+                          <p className="text-xs text-gray-500 mt-1">{t('dashboard_daily_goal_subtitle')}</p>
+                        </div>
+                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                          <i className="fas fa-bullseye text-xl"></i>
+                        </div>
+                      </div>
+                      <Progress value={stats?.activity.dailyGoalProgress || 0} className="h-2 mt-4" />
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-none shadow-md">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-500">{t('dashboard_current_streak_title')}</p>
+                          <h3 className="text-2xl font-bold text-green-600">{statsLoading ? '...' : `${stats?.activity.currentStreak || 0} ${t('dashboard_current_streak_days_suffix')}`}</h3>
+                          <p className="text-xs text-gray-500 mt-1">{t('dashboard_longest_streak_prefix')} {stats?.activity.longestStreak || 0} {t('dashboard_current_streak_days_suffix')}</p>
+                        </div>
+                        <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                          <i className="fas fa-fire text-xl"></i>
+                        </div>
+                      </div>
+                      <div className="flex space-x-1 mt-4">
+                        {(stats?.activity.weeklyActivity || Array(7).fill({ active: false })).map((day, index) => (
+                          <div
+                            key={index}
+                            className={`h-2 flex-1 rounded-full ${day.active ? 'bg-green-500' : 'bg-gray-200'}`}
+                          ></div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-none shadow-md">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-500">{t('dashboard_total_learning_title')}</p>
+                          <h3 className="text-2xl font-bold text-purple-600">{statsLoading ? '...' : `${stats?.vocabulary.total || 0} ${t('dashboard_total_learning_words_suffix')}`}</h3>
+                          <p className="text-xs text-gray-500 mt-1">{t('dashboard_learned_words_prefix')} {stats?.vocabulary.learned || 0}</p>
+                        </div>
+                        <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                          <i className="fas fa-book text-xl"></i>
+                        </div>
+                      </div>
+                      <div className="mt-4 grid grid-cols-7 gap-1">
+                        {Array.from({ length: 7 }).map((_, index) => {
+                          const height = [3, 5, 2, 6, 4, 7, 5][index];
+                          return (
+                            <div key={index} className="flex flex-col items-center">
+                              <div
+                                className={`w-full bg-purple-500 rounded-t-sm`}
+                                style={{ height: `${height * 4}px` }}
+                              ></div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-none shadow-md">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-500">{t('dashboard_audio_creation_title')}</p>
+                          <h3 className="text-2xl font-bold text-amber-600">{statsLoading ? '...' : `${stats?.subscription.audioCreationCount || 0}`}</h3>
+                          <p className="text-xs text-gray-500 mt-1">{t('dashboard_plan_prefix')} {stats?.subscription.plan || 'Free Trial'}</p>
+                        </div>
+                        <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                          <i className="fas fa-graduation-cap text-xl"></i>
+                        </div>
+                      </div>
+                      <Progress value={40} className="h-2 mt-4" />
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Weekly Activity Chart */}
+                <Card className="border-none shadow-md col-span-3 md:col-span-2 hover-lift slideUp">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xl font-bold text-gray-800">{t('dashboard_weekly_activity_title')}</CardTitle>
+                    <CardDescription>{t('dashboard_weekly_activity_subtitle')}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[300px] flex items-center justify-center bg-gray-50 rounded-lg">
+                      <div className="text-center">
+                        <i className="fas fa-chart-bar text-4xl text-gray-300 mb-2"></i>
+                        <p className="text-gray-500">{t('dashboard_weekly_activity_placeholder')}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Today's Tasks */}
                 <Card className="border-none shadow-md hover-lift slideUp">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">{t('dashboard_daily_goal_title')}</p>
-                        <h3 className="text-2xl font-bold text-primary">{statsLoading ? '...' : `${stats?.activity.dailyGoalProgress || 0}%`}</h3>
-                        <p className="text-xs text-gray-500 mt-1">{t('dashboard_daily_goal_subtitle')}</p>
-                      </div>
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                        <i className="fas fa-bullseye text-xl"></i>
-                      </div>
-                    </div>
-                    <Progress value={stats?.activity.dailyGoalProgress || 0} className="h-2 mt-4" />
-                  </CardContent>
-                </Card>
-
-                <Card className="border-none shadow-md">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">{t('dashboard_current_streak_title')}</p>
-                        <h3 className="text-2xl font-bold text-green-600">{statsLoading ? '...' : `${stats?.activity.currentStreak || 0} ${t('dashboard_current_streak_days_suffix')}`}</h3>
-                        <p className="text-xs text-gray-500 mt-1">{t('dashboard_longest_streak_prefix')} {stats?.activity.longestStreak || 0} {t('dashboard_current_streak_days_suffix')}</p>
-                      </div>
-                      <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                        <i className="fas fa-fire text-xl"></i>
-                      </div>
-                    </div>
-                    <div className="flex space-x-1 mt-4">
-                      {(stats?.activity.weeklyActivity || Array(7).fill({ active: false })).map((day, index) => (
-                        <div
-                          key={index}
-                          className={`h-2 flex-1 rounded-full ${day.active ? 'bg-green-500' : 'bg-gray-200'}`}
-                        ></div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-none shadow-md">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">{t('dashboard_total_learning_title')}</p>
-                        <h3 className="text-2xl font-bold text-purple-600">{statsLoading ? '...' : `${stats?.vocabulary.total || 0} ${t('dashboard_total_learning_words_suffix')}`}</h3>
-                        <p className="text-xs text-gray-500 mt-1">{t('dashboard_learned_words_prefix')} {stats?.vocabulary.learned || 0}</p>
-                      </div>
-                      <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
-                        <i className="fas fa-book text-xl"></i>
-                      </div>
-                    </div>
-                    <div className="mt-4 grid grid-cols-7 gap-1">
-                      {Array.from({ length: 7 }).map((_, index) => {
-                        const height = [3, 5, 2, 6, 4, 7, 5][index];
-                        return (
-                          <div key={index} className="flex flex-col items-center">
-                            <div
-                              className={`w-full bg-purple-500 rounded-t-sm`}
-                              style={{ height: `${height * 4}px` }}
-                            ></div>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xl font-bold text-gray-800">{t('dashboard_today_tasks_title')}</CardTitle>
+                    <CardDescription>{t('dashboard_today_tasks_date_example')}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ScrollArea className="h-[300px] pr-4">
+                      <div className="space-y-4">
+                        <div className="flex items-center p-3 bg-green-50 rounded-lg border border-green-100">
+                          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 mr-3 flex-shrink-0">
+                            <i className="fas fa-headphones"></i>
                           </div>
-                        );
-                      })}
-                    </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-800">{t('dashboard_task_listen_title')}</h4>
+                            <p className="text-sm text-gray-600">{t('dashboard_task_listen_desc')}</p>
+                          </div>
+                          <Badge className="bg-green-500 ml-2">{t('dashboard_task_listen_done_badge')}</Badge>
+                        </div>
+
+                        <div className="flex items-center p-3 bg-primary/5 rounded-lg border border-primary/10">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3 flex-shrink-0">
+                            <i className="fas fa-book-open"></i>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-800">{t('dashboard_task_read_title')}</h4>
+                            <p className="text-sm text-gray-600">{t('dashboard_task_read_desc')}</p>
+                          </div>
+                          <Button size="sm" variant="outline" className="ml-2">
+                            {t('dashboard_task_start_button')}
+                          </Button>
+                        </div>
+
+                        <div className="flex items-center p-3 bg-purple-50 rounded-lg border border-purple-100">
+                          <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 mr-3 flex-shrink-0">
+                            <i className="fas fa-comment"></i>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-800">{t('dashboard_task_speak_title')}</h4>
+                            <p className="text-sm text-gray-600">{t('dashboard_task_speak_desc')}</p>
+                          </div>
+                          <Button size="sm" variant="outline" className="ml-2">
+                            {t('dashboard_task_start_button')}
+                          </Button>
+                        </div>
+
+                        <div className="flex items-center p-3 bg-amber-50 rounded-lg border border-amber-100">
+                          <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mr-3 flex-shrink-0">
+                            <i className="fas fa-pen"></i>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-800">{t('dashboard_task_write_title')}</h4>
+                            <p className="text-sm text-gray-600">{t('dashboard_task_write_desc')}</p>
+                          </div>
+                          <Button size="sm" variant="outline" className="ml-2">
+                            {t('dashboard_task_start_button')}
+                          </Button>
+                        </div>
+
+                        <div className="flex items-center p-3 bg-red-50 rounded-lg border border-red-100">
+                          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 mr-3 flex-shrink-0">
+                            <i className="fas fa-brain"></i>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-800">{t('dashboard_task_vocab_title')}</h4>
+                            <p className="text-sm text-gray-600">{t('dashboard_task_vocab_desc')}</p>
+                          </div>
+                          <Button size="sm" variant="outline" className="ml-2">
+                            {t('dashboard_task_start_button')}
+                          </Button>
+                        </div>
+                      </div>
+                    </ScrollArea>
                   </CardContent>
                 </Card>
 
-                <Card className="border-none shadow-md">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-500">{t('dashboard_audio_creation_title')}</p>
-                        <h3 className="text-2xl font-bold text-amber-600">{statsLoading ? '...' : `${stats?.subscription.audioCreationCount || 0}`}</h3>
-                        <p className="text-xs text-gray-500 mt-1">{t('dashboard_plan_prefix')} {stats?.subscription.plan || 'Free Trial'}</p>
-                      </div>
-                      <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
-                        <i className="fas fa-graduation-cap text-xl"></i>
-                      </div>
-                    </div>
-                    <Progress value={40} className="h-2 mt-4" />
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Weekly Activity Chart */}
-              <Card className="border-none shadow-md col-span-3 md:col-span-2 hover-lift slideUp">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xl font-bold text-gray-800">{t('dashboard_weekly_activity_title')}</CardTitle>
-                  <CardDescription>{t('dashboard_weekly_activity_subtitle')}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px] flex items-center justify-center bg-gray-50 rounded-lg">
-                    <div className="text-center">
-                      <i className="fas fa-chart-bar text-4xl text-gray-300 mb-2"></i>
-                      <p className="text-gray-500">{t('dashboard_weekly_activity_placeholder')}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Today's Tasks */}
-              <Card className="border-none shadow-md hover-lift slideUp">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xl font-bold text-gray-800">{t('dashboard_today_tasks_title')}</CardTitle>
-                  <CardDescription>{t('dashboard_today_tasks_date_example')}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[300px] pr-4">
-                    <div className="space-y-4">
-                      <div className="flex items-center p-3 bg-green-50 rounded-lg border border-green-100">
-                        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 mr-3 flex-shrink-0">
-                          <i className="fas fa-headphones"></i>
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-800">{t('dashboard_task_listen_title')}</h4>
-                          <p className="text-sm text-gray-600">{t('dashboard_task_listen_desc')}</p>
-                        </div>
-                        <Badge className="bg-green-500 ml-2">{t('dashboard_task_listen_done_badge')}</Badge>
-                      </div>
-
-                      <div className="flex items-center p-3 bg-primary/5 rounded-lg border border-primary/10">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3 flex-shrink-0">
-                          <i className="fas fa-book-open"></i>
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-800">{t('dashboard_task_read_title')}</h4>
-                          <p className="text-sm text-gray-600">{t('dashboard_task_read_desc')}</p>
-                        </div>
-                        <Button size="sm" variant="outline" className="ml-2">
-                          {t('dashboard_task_start_button')}
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center p-3 bg-purple-50 rounded-lg border border-purple-100">
-                        <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 mr-3 flex-shrink-0">
-                          <i className="fas fa-comment"></i>
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-800">{t('dashboard_task_speak_title')}</h4>
-                          <p className="text-sm text-gray-600">{t('dashboard_task_speak_desc')}</p>
-                        </div>
-                        <Button size="sm" variant="outline" className="ml-2">
-                          {t('dashboard_task_start_button')}
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center p-3 bg-amber-50 rounded-lg border border-amber-100">
-                        <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mr-3 flex-shrink-0">
-                          <i className="fas fa-pen"></i>
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-800">{t('dashboard_task_write_title')}</h4>
-                          <p className="text-sm text-gray-600">{t('dashboard_task_write_desc')}</p>
-                        </div>
-                        <Button size="sm" variant="outline" className="ml-2">
-                          {t('dashboard_task_start_button')}
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center p-3 bg-red-50 rounded-lg border border-red-100">
-                        <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 mr-3 flex-shrink-0">
-                          <i className="fas fa-brain"></i>
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-800">{t('dashboard_task_vocab_title')}</h4>
-                          <p className="text-sm text-gray-600">{t('dashboard_task_vocab_desc')}</p>
-                        </div>
-                        <Button size="sm" variant="outline" className="ml-2">
-                          {t('dashboard_task_start_button')}
-                        </Button>
-                      </div>
-                    </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-
-              {/* Skills Progress */}
-              {/* <Card className="border-none shadow-md">
+                {/* Skills Progress */}
+                {/* <Card className="border-none shadow-md">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl font-bold text-gray-800">Beceri İlerlemesi</CardTitle>
                   <CardDescription>Dil becerilerinizin gelişimi</CardDescription>
@@ -748,24 +756,24 @@ const Dashboard = () => {
                 </CardContent>
               </Card> */}
 
-              {/* Vocabulary Growth */}
-              <Card className="border-none shadow-md hover-lift slideUp">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xl font-bold text-gray-800">{t('dashboard_vocab_growth_title')}</CardTitle>
-                  <CardDescription>{t('dashboard_vocab_growth_subtitle')}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px] flex items-center justify-center bg-gray-50 rounded-lg">
-                    <div className="text-center">
-                      <i className="fas fa-chart-line text-4xl text-gray-300 mb-2"></i>
-                      <p className="text-gray-500">{t('dashboard_vocab_growth_placeholder')}</p>
+                {/* Vocabulary Growth */}
+                <Card className="border-none shadow-md hover-lift slideUp">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xl font-bold text-gray-800">{t('dashboard_vocab_growth_title')}</CardTitle>
+                    <CardDescription>{t('dashboard_vocab_growth_subtitle')}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[300px] flex items-center justify-center bg-gray-50 rounded-lg">
+                      <div className="text-center">
+                        <i className="fas fa-chart-line text-4xl text-gray-300 mb-2"></i>
+                        <p className="text-gray-500">{t('dashboard_vocab_growth_placeholder')}</p>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              {/* Upcoming Events */}
-              {/* <Card className="border-none shadow-md">
+                {/* Upcoming Events */}
+                {/* <Card className="border-none shadow-md">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl font-bold text-gray-800">Yaklaşan Etkinlikler</CardTitle>
                   <CardDescription>Katılabileceğiniz öğrenme etkinlikleri</CardDescription>
@@ -833,610 +841,431 @@ const Dashboard = () => {
                   </ScrollArea>
                 </CardContent>
               </Card> */}
-            </div>
-          </TabsContent>
+              </div>
+            </TabsContent>
 
-          {/* Reading History Tab - Ses geçmişi listesi */}
-          <TabsContent value="reading-history" className="mt-0">
-            <Card className="border border-border shadow-lg rounded-2xl bg-white">
-              <CardContent className="p-6">
-                <div className="flex flex-col gap-4 mb-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold mr-4 shadow-sm">
-                        <i className="fas fa-history"></i>
-                      </div>
-                      <h2 className="text-2xl font-bold text-primary tracking-tight">{t('reading_history_title')}</h2>
-                    </div>
-                    <Button 
-                      onClick={fetchContentHistory}
-                      variant="outline" 
-                      className="!rounded-button whitespace-nowrap cursor-pointer"
-                      disabled={loadingHistory}
-                    >
-                      {loadingHistory ? (
-                        <>
-                          <i className="fas fa-circle-notch fa-spin mr-2"></i>
-                          {t('reading_history_refresh_loading')}
-                        </>
-                      ) : (
-                        <>
-                          <i className="fas fa-refresh mr-2"></i>
-                          {t('reading_history_refresh_button')}
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 justify-between">
-                    <div className="flex flex-wrap gap-2">
-                      {historyTypeOptions.map((option) => {
-                        const isActive = activeHistoryTypes.includes(option.id);
-                        const count = historyCountsByType[option.id] || 0;
-                        const labelWithCount = count > 0 ? `${option.label} (${count})` : option.label;
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => {
-                              setActiveHistoryTypes((prev) => {
-                                const exists = prev.includes(option.id);
-                                if (exists) {
-                                  const next = prev.filter((t) => t !== option.id);
-                                  return next.length === 0 ? prev : next;
-                                }
-                                return [...prev, option.id];
-                              });
-                            }}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
-                              isActive
-                                ? 'bg-primary text-primary-foreground border-primary'
-                                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            {labelWithCount}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="text-xs text-gray-500 whitespace-nowrap">
-                      {filteredHistory.length} {t('reading_history_count_suffix')}
-                    </div>
-                  </div>
-                </div>
-
-                {loadingHistory ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-                  </div>
-                ) : filteredHistory.length > 0 ? (
-                  <div className="space-y-4">
-                    {historyToRender.map((item) => (
-                      <div
-                        key={item.id}
-                        className="bg-white rounded-xl border border-gray-200 hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden"
-                      >
-                        <div
-                          className="p-3 md:p-3 cursor-pointer hover:bg-primary/5 transition-colors"
-                          onClick={() => {
-                            setExpandedHistoryItem(expandedHistoryItem === item.id ? null : item.id);
-                          }}
-                        >
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1 text-xs">
-                                <Badge variant="outline" className="text-xs">
-                                  {getHistoryTypeLabel(item.input_type)}
-                                </Badge>
-                                <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
-                                  {item.level || 'N/A'}
-                                </Badge>
-                                <span className="text-xs text-gray-500">
-                                  {new Date(item.created_at).toLocaleDateString('tr-TR', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })}
-                                </span>
-                              </div>
-                              <div className="mb-2">
-                                <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">{t('reading_history_adapted_title')}</h4>
-                                <p className="text-sm text-gray-700 line-clamp-2">
-                                  {item.adapted_text || item.input}
-                                </p>
-                                {item.adapted_text && (
-                                  <details className="mt-2">
-                                    <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
-                                      {t('reading_history_show_original')}
-                                    </summary>
-                                    <p className="text-xs text-gray-500 mt-1 p-2 bg-gray-100 rounded">
-                                      {item.input}
-                                    </p>
-                                  </details>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="text-xs text-gray-500">
-                                {expandedHistoryItem === item.id ? t('reading_history_collapse') : t('reading_history_open_player')}
-                              </div>
-                              <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
-                            </div>
-                          </div>
+            {/* Reading History Tab - Ses geçmişi listesi */}
+            <TabsContent value="reading-history" className="mt-0">
+              <Card className="border border-border shadow-lg rounded-2xl bg-white">
+                <CardContent className="p-6">
+                  <div className="flex flex-col gap-4 mb-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold mr-4 shadow-sm">
+                          <i className="fas fa-history"></i>
                         </div>
-
-                        {expandedHistoryItem === item.id && (
-                          <div className="border-t border-gray-200 bg-white p-4 md:p-5">
-                            {(() => {
-                              const audioResult = {
-                                message: item.adapted_text || item.input,
-                                mp3_url: item.mp3_url,
-                                vtt_url: item.mp3_url.replace('.mp3', '.vtt'),
-                                level: item.level,
-                                adapted_text: item.adapted_text || item.input,
-                                translated_text: item.input, // Original Turkish text
-                                topic: getHistoryTypeLabel(item.input_type),
-                                timepoints: Array.isArray(item.timepoints)
-                                  ? item.timepoints
-                                  : item.timepoints
-                                  ? JSON.parse(item.timepoints as any)
-                                  : [],
-                                words: Array.isArray(item.words)
-                                  ? item.words
-                                  : item.words
-                                  ? JSON.parse(item.words as any)
-                                  : (item.adapted_text || item.input).split(/\s+/).filter((word) => word.length > 0),
-                                original_turkish: item.input,
-                                speaking_rate: 1.0,
-                              } as any;
-
-                              return (
-                                <OutputSection
-                                  audioResult={audioResult}
-                                  isLoggedIn={isAuthenticated}
-                                />
-                              );
-                            })()}
-
-                            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="!rounded-button whitespace-nowrap cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  window.open(convertToPlayableUrl(item.mp3_url), '_blank');
-                                }}
-                              >
-                                <i className="fas fa-external-link-alt mr-2"></i>
-                                {t('reading_history_open_new_tab')}
-                              </Button>
-
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="!rounded-button whitespace-nowrap cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedHistoryItem(null);
-                                }}
-                              >
-                                <i className="fas fa-times mr-2"></i>
-                                {t('reading_history_close')}
-                              </Button>
-                            </div>
-                          </div>
-                        )}
+                        <h2 className="text-2xl font-bold text-primary tracking-tight">{t('reading_history_title')}</h2>
                       </div>
-                    ))}
-
-                    {contentHistory.length > 5 && (
-                      <div className="text-center pt-4">
-                        <Button
-                          variant="outline"
-                          className="!rounded-button whitespace-nowrap cursor-pointer"
-                          onClick={() => setShowAllHistory(!showAllHistory)}
-                        >
-                          <i className={`fas ${showAllHistory ? 'fa-chevron-up' : 'fa-chevron-down'} mr-2`}></i>
-                          {showAllHistory ? t('reading_history_show_less') : t('reading_history_show_more')}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="text-gray-400 mb-4">
-                      <i className="fas fa-microphone-slash text-4xl"></i>
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-500 mb-2">{t('reading_history_empty_title')}</h3>
-                    <p className="text-gray-400">{t('reading_history_empty_desc')}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="achievements" className="mt-0">
-            {/* Konularım: Welcome sayfasındaki ile aynı konu ağacı deneyimi */}
-            <Card className="border-none shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
-                  <i className="fas fa-sitemap mr-2 text-primary"></i>
-                  {t('topics_tree_title')}
-                </CardTitle>
-                <CardDescription>
-                  {t('topics_tree_description')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <TopicHierarchySection
-                  userId={user.id}
-                  level={"A1"}
-                  topicsFirst
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="hobbies" className="mt-0">
-            <Card className="border-none shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-bold text-gray-800">{t('hobbies_title')}</CardTitle>
-                <CardDescription>{t('hobbies_description')}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="max-w-xl">
-                  <InterestManager showTitle={false} isEditing />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Kitaplarım Tab - Favoriler + Kitap Dinleme Geçmişi */}
-          <TabsContent value="book" className="mt-0">
-            {/* Favori Kitaplarım */}
-            {favoriteBooksLoading && (
-              <div className="text-center py-6 text-gray-500">
-                <i className="fas fa-spinner fa-spin text-xl mr-2"></i>
-                {t('favorite_books_loading')}
-              </div>
-            )}
-
-            {favoriteBooksError && !favoriteBooksLoading && (
-              <div className="p-3 mb-6 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                {favoriteBooksError}
-              </div>
-            )}
-
-            {!favoriteBooksLoading && !favoriteBooksError && favoriteBooks.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">{t('favorite_books_title')}</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {favoriteBooks.map((book) => (
-                    <div
-                      key={book.id}
-                      className="bg-white rounded-lg shadow-sm hover:shadow-md border border-gray-100 overflow-hidden flex flex-col"
-                    >
-                      <div className="relative w-full h-40 bg-gray-100">
-                        {book.cover_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={book.cover_url}
-                            alt={book.title}
-                            className="w-full h-full object-cover"
-                          />
+                      <Button
+                        onClick={fetchContentHistory}
+                        variant="outline"
+                        className="!rounded-button whitespace-nowrap cursor-pointer"
+                        disabled={loadingHistory}
+                      >
+                        {loadingHistory ? (
+                          <>
+                            <i className="fas fa-circle-notch fa-spin mr-2"></i>
+                            {t('reading_history_refresh_loading')}
+                          </>
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-                            <i className="fas fa-book-open text-3xl text-primary/60"></i>
-                          </div>
+                          <>
+                            <i className="fas fa-refresh mr-2"></i>
+                            {t('reading_history_refresh_button')}
+                          </>
                         )}
-                      </div>
-                      <div className="p-4 flex-1 flex flex-col">
-                        <h4 className="font-semibold text-gray-900 line-clamp-2 mb-1">{book.title}</h4>
-                        <p className="text-sm text-gray-600 mb-2 line-clamp-1">{book.authors}</p>
-                        {book.subjects && (
-                          <p className="text-xs text-gray-500 mb-2 line-clamp-1">{book.subjects}</p>
-                        )}
-                        <div className="mt-auto pt-2 flex items-center justify-between">
-                          <span className="text-xs text-gray-500">{t('favorite_book_chip_label')}</span>
-                          <Link
-                            href="/welcome?contentType=book"
-                            className="text-xs font-medium text-primary hover:underline flex items-center"
-                          >
-                            {t('book_work_with_book')}
-                            <i className="fas fa-arrow-right ml-1"></i>
-                          </Link>
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 justify-between">
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <select
+                          value={activeMoodFilter}
+                          onChange={(e) => setActiveMoodFilter(e.target.value)}
+                          className="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white focus:ring-primary focus:border-primary cursor-pointer"
+                        >
+                          <option value="All">{t('filter_mood_all') || 'All Moods'}</option>
+                          <option value="Neutral">Neutral</option>
+                          <option value="Educational">Educational</option>
+                          <option value="Cheerful">Cheerful</option>
+                          <option value="Melancholic">Melancholic</option>
+                          <option value="Suspenseful">Suspenseful</option>
+                          <option value="Inspiring">Inspiring</option>
+                          <option value="Calm">Calm</option>
+                          <option value="Urgent">Urgent</option>
+                        </select>
+                        <div className="h-6 w-px bg-gray-300 mx-1 hidden sm:block"></div>
+                        <div className="flex flex-wrap gap-2">
+                          {historyTypeOptions.map((option) => {
+                            const isActive = activeHistoryTypes.includes(option.id);
+                            const count = historyCountsByType[option.id] || 0;
+                            const labelWithCount = count > 0 ? `${option.label} (${count})` : option.label;
+                            return (
+                              <button
+                                key={option.id}
+                                type="button"
+                                onClick={() => {
+                                  setActiveHistoryTypes((prev) => {
+                                    const exists = prev.includes(option.id);
+                                    if (exists) {
+                                      const next = prev.filter((t) => t !== option.id);
+                                      return next.length === 0 ? prev : next;
+                                    }
+                                    return [...prev, option.id];
+                                  });
+                                }}
+                                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${isActive
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                                  }`}
+                              >
+                                {labelWithCount}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
+                      <div className="text-xs text-gray-500 whitespace-nowrap">
+                        {filteredHistory.length} {t('reading_history_count_suffix')}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
 
-            {/* Kitaplarım: Kullanıcının dinlediği kitap geçmişi */}
-            {bookHistoryLoading && (
-              <div className="text-center py-6 text-gray-500">
-                <i className="fas fa-spinner fa-spin text-xl mr-2"></i>
-                {t('book_history_loading')}
-              </div>
-            )}
+                  {loadingHistory ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                    </div>
+                  ) : filteredHistory.length > 0 ? (
+                    <div className="space-y-4">
+                      {historyToRender.map((item) => (
+                        <div
+                          key={item.id}
+                          className="bg-white rounded-xl border border-gray-200 hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden"
+                        >
+                          <div
+                            className="p-3 md:p-3 cursor-pointer hover:bg-primary/5 transition-colors"
+                            onClick={() => {
+                              setExpandedHistoryItem(expandedHistoryItem === item.id ? null : item.id);
+                            }}
+                          >
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1 text-xs">
+                                  <Badge variant="outline" className="text-xs">
+                                    {getHistoryTypeLabel(item.input_type)}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
+                                    {item.level || 'N/A'}
+                                  </Badge>
+                                  <span className="text-xs text-gray-500">
+                                    {new Date(item.created_at).toLocaleDateString()}
+                                  </span>
+                                  {item.detected_mood && item.detected_mood !== 'Neutral' && (
+                                    <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                                      <i className="fas fa-theater-masks mr-1"></i>
+                                      {item.detected_mood}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="mb-2">
+                                  <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">{t('reading_history_adapted_title')}</h4>
+                                  <p className="text-sm text-gray-700 line-clamp-2">
+                                    {item.adapted_text || item.input}
+                                  </p>
+                                  {item.adapted_text && (
+                                    <details className="mt-2">
+                                      <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+                                        {t('reading_history_show_original')}
+                                      </summary>
+                                      <p className="text-xs text-gray-500 mt-1 p-2 bg-gray-100 rounded">
+                                        {item.input}
+                                      </p>
+                                    </details>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="text-xs text-gray-500">
+                                  {expandedHistoryItem === item.id ? t('reading_history_collapse') : t('reading_history_open_player')}
+                                </div>
+                                <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
+                              </div>
+                            </div>
+                          </div>
 
-            {bookHistoryError && !bookHistoryLoading && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                {bookHistoryError}
-              </div>
-            )}
+                          {expandedHistoryItem === item.id && (
+                            <div className="border-t border-gray-200 bg-white p-4 md:p-5">
+                              {(() => {
+                                const audioResult = {
+                                  message: item.adapted_text || item.input,
+                                  mp3_url: item.mp3_url,
+                                  vtt_url: item.mp3_url.replace('.mp3', '.vtt'),
+                                  level: item.level,
+                                  adapted_text: item.adapted_text || item.input,
+                                  translated_text: item.input, // Original Turkish text
+                                  topic: getHistoryTypeLabel(item.input_type),
+                                  timepoints: Array.isArray(item.timepoints)
+                                    ? item.timepoints
+                                    : item.timepoints
+                                      ? JSON.parse(item.timepoints as any)
+                                      : [],
+                                  words: Array.isArray(item.words)
+                                    ? item.words
+                                    : item.words
+                                      ? JSON.parse(item.words as any)
+                                      : (item.adapted_text || item.input).split(/\s+/).filter((word) => word.length > 0),
+                                  original_turkish: item.input,
+                                  speaking_rate: 1.0,
+                                } as any;
 
-            {!bookHistoryLoading && !bookHistoryError && bookHistory.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <i className="fas fa-book-open text-4xl mb-3"></i>
-                <p>{t('book_history_empty_title')}</p>
-                <p className="text-sm text-gray-400 mt-1">
-                  {t('book_history_empty_desc_prefix')}{' '}
-                  <Link href="/welcome" className="text-primary underline">
-                    {t('book_history_empty_desc_link')}
-                  </Link>
-                  {' '}{t('book_history_empty_desc_suffix')}
-                </p>
-              </div>
-            )}
+                                return (
+                                  <OutputSection
+                                    audioResult={audioResult}
+                                    isLoggedIn={isAuthenticated}
+                                  />
+                                );
+                              })()}
 
-            {!bookHistoryLoading && !bookHistoryError && bookHistory.length > 0 && (
-              <div className="space-y-8">
-                {/* Son dinlenen kitaplar - kart grid */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">{t('book_recent_books_title')}</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Object.values(
-                      bookHistory.reduce((acc: Record<string, any>, item) => {
-                        const key = String(item.book_id || item.book_title);
-                        if (!acc[key]) {
-                          acc[key] = {
-                            book_id: item.book_id,
-                            book_title: item.book_title,
-                            book_authors: item.book_authors,
-                            cover_url: item.cover_url,
-                            subjects: item.subjects,
-                            lastChapter: item,
-                            chapterCount: 1,
-                          };
-                        } else {
-                          acc[key].chapterCount += 1;
-                          if (new Date(item.created_at).getTime() > new Date(acc[key].lastChapter.created_at).getTime()) {
-                            acc[key].lastChapter = item;
-                          }
-                        }
-                        return acc;
-                      }, {})
-                    ).map((book: any, index: number) => (
-                      <div
-                        key={`${book.book_id || book.book_title}-${index}`}
-                        className="bg-white rounded-lg shadow-sm hover:shadow-md border border-gray-100 overflow-hidden flex flex-col"
-                      >
-                        <div className="relative w-full h-40 bg-gray-100">
-                          {book.cover_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={book.cover_url}
-                              alt={book.book_title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-                              <i className="fas fa-book-open text-3xl text-primary/60"></i>
+                              <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="!rounded-button whitespace-nowrap cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(convertToPlayableUrl(item.mp3_url), '_blank');
+                                  }}
+                                >
+                                  <i className="fas fa-external-link-alt mr-2"></i>
+                                  {t('reading_history_open_new_tab')}
+                                </Button>
+
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="!rounded-button whitespace-nowrap cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedHistoryItem(null);
+                                  }}
+                                >
+                                  <i className="fas fa-times mr-2"></i>
+                                  {t('reading_history_close')}
+                                </Button>
+                              </div>
                             </div>
                           )}
                         </div>
-                        <div className="p-4 flex-1 flex flex-col">
-                          <h4 className="font-semibold text-gray-900 line-clamp-2 mb-1">{book.book_title}</h4>
-                          <p className="text-sm text-gray-600 mb-2 line-clamp-1">{book.book_authors}</p>
-                          {book.subjects && (
-                            <p className="text-xs text-gray-500 mb-2 line-clamp-1">{book.subjects}</p>
-                          )}
-                          <div className="flex items-center justify-between mt-auto pt-2">
-                            <span className="text-xs text-gray-500">
-                              {book.chapterCount} {t('book_chapters_listened_suffix')}
-                            </span>
-                            <Link
-                              href="/welcome?contentType=book"
-                              className="text-xs font-medium text-primary hover:underline flex items-center"
-                            >
-                              {t('book_continue_button')}
-                              <i className="fas fa-arrow-right ml-1"></i>
-                            </Link>
-                          </div>
+                      ))}
+
+                      {contentHistory.length > 5 && (
+                        <div className="text-center pt-4">
+                          <Button
+                            variant="outline"
+                            className="!rounded-button whitespace-nowrap cursor-pointer"
+                            onClick={() => setShowAllHistory(!showAllHistory)}
+                          >
+                            <i className={`fas ${showAllHistory ? 'fa-chevron-up' : 'fa-chevron-down'} mr-2`}></i>
+                            {showAllHistory ? t('reading_history_show_less') : t('reading_history_show_more')}
+                          </Button>
                         </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-gray-400 mb-4">
+                        <i className="fas fa-microphone-slash text-4xl"></i>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <h3 className="text-lg font-medium text-gray-500 mb-2">{t('reading_history_empty_title')}</h3>
+                      <p className="text-gray-400">{t('reading_history_empty_desc')}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                {/* Son dinlenen bölümler listesi */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">{t('book_recent_chapters_title')}</h3>
-                  <div className="space-y-3">
-                    {bookHistory.slice(0, 15).map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-14 bg-white rounded-md border border-gray-200 flex items-center justify-center">
-                            <i className="fas fa-book text-primary"></i>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 line-clamp-1">
-                              {item.book_title}
-                            </p>
-                            <p className="text-xs text-gray-600 line-clamp-1">
-                              {t('book_chapter_label')} {item.chapter_index}: {item.chapter_title}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {t('book_level_label')}: {item.level.toUpperCase()} • {Math.round(item.duration)} {t('book_seconds_suffix')} • {new Date(item.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                        <Link
-                          href="/welcome?contentType=book"
-                          className="text-xs font-medium text-primary hover:underline flex items-center"
-                        >
-                          {t('book_listen_button')}
-                          <i className="fas fa-play ml-1"></i>
-                        </Link>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="podcasts" className="mt-0">
-            <div className="text-center py-8">
-              <i className="fas fa-podcast text-4xl text-gray-300 mb-2"></i>
-              <h3 className="text-lg font-medium text-gray-700">{t('podcasts_title')}</h3>
-              <p className="text-sm text-gray-500">{t('podcasts_description')}</p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="pdf" className="mt-0">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Card className="border-none shadow-md lg:col-span-1">
+            <TabsContent value="achievements" className="mt-0">
+              {/* Konularım: Welcome sayfasındaki ile aynı konu ağacı deneyimi */}
+              <Card className="border-none shadow-md">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg font-bold text-gray-800 flex items-center justify-between">
-                    <span>{t('docs_title')}</span>
-                    <i className="fas fa-file-alt text-primary"></i>
+                  <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
+                    <i className="fas fa-sitemap mr-2 text-primary"></i>
+                    {t('topics_tree_title')}
                   </CardTitle>
                   <CardDescription>
-                    {t('docs_description')}
+                    {t('topics_tree_description')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {documentsLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    </div>
-                  ) : documentsError ? (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                      {documentsError}
-                    </div>
-                  ) : documents.length === 0 ? (
-                    <div className="text-center py-6 text-sm text-gray-500">
-                      {t('docs_empty_left')}
-                    </div>
-                  ) : (
-                    <ScrollArea className="h-[320px] pr-3">
-                      <div className="space-y-2">
-                        {documents.map((doc) => {
-                          const isActive = selectedDocument && selectedDocument.id === doc.id;
-                          return (
-                            <button
-                              key={doc.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedDocument(doc);
-                                loadDocumentSections(doc.id);
-                              }}
-                              className={`w-full text-left p-3 rounded-lg border text-sm transition-colors cursor-pointer ${
-                                isActive ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 hover:bg-gray-50'
-                              }`}
-                            >
-                              <div className="font-medium truncate">{doc.title}</div>
-                              <div className="text-xs text-gray-500 mt-1 flex items-center justify-between">
-                                <span>{new Date(doc.created_at).toLocaleDateString()}</span>
-                                {doc.page_count != null && (
-                                  <span className="ml-2">{doc.page_count} {t('docs_page_suffix')}</span>
-                                )}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </ScrollArea>
-                  )}
+                  <TopicHierarchySection
+                    userId={user.id}
+                    level={"A1"}
+                    topicsFirst
+                  />
                 </CardContent>
               </Card>
+            </TabsContent>
 
-              <Card className="border-none shadow-md lg:col-span-2">
-                <CardHeader className="pb-2 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-lg font-bold text-gray-800">
-                      {selectedDocument ? selectedDocument.title : t('docs_select_prompt')}
-                    </CardTitle>
-                    <CardDescription>
-                      {t('docs_sections_description')}
-                    </CardDescription>
-                  </div>
-                  {selectedDocument && (
-                    <Badge className="bg-primary/10 text-primary border border-primary/30">
-                      <i className="fas fa-layer-group mr-1"></i>
-                      {documentSections.length} {t('docs_section_count_suffix')}
-                    </Badge>
-                  )}
+            <TabsContent value="hobbies" className="mt-0">
+              <Card className="border-none shadow-md">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xl font-bold text-gray-800">{t('hobbies_title')}</CardTitle>
+                  <CardDescription>{t('hobbies_description')}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {!selectedDocument ? (
-                    <div className="h-[320px] flex items-center justify-center text-sm text-gray-500">
-                      {t('docs_select_prompt')}
-                    </div>
-                  ) : sectionsLoading ? (
-                    <div className="h-[320px] flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    </div>
-                  ) : sectionsError ? (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                      {sectionsError}
-                    </div>
-                  ) : documentSections.length === 0 ? (
-                    <div className="h-[320px] flex items-center justify-center text-sm text-gray-500">
-                      {t('docs_no_sections')}
-                    </div>
-                  ) : (
-                    <ScrollArea className="h-[320px] pr-3">
-                      <div className="space-y-2">
-                        {documentSections.map((section) => (
-                          <div
-                            key={section.id}
-                            className="p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="text-sm font-semibold text-gray-800 truncate mr-2">
-                                {section.section_index}. {section.section_title || t('docs_section_fallback_title')}
-                              </div>
-                              <span className="text-xs text-gray-500 whitespace-nowrap">
-                                {section.word_count || 0} {t('docs_words_suffix')}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-600 line-clamp-2 whitespace-pre-line">
-                              {section.section_text}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  )}
+                  <div className="max-w-xl">
+                    <InterestManager showTitle={false} isEditing />
+                  </div>
                 </CardContent>
               </Card>
-            </div>
-          </TabsContent>
+            </TabsContent>
 
-          <TabsContent value="vocabulary" className="mt-0">
-            <div className="mt-4">
-              <VocabularyTabContent user={user} />
-            </div>
-          </TabsContent>
+            {/* Kitaplarım Tab - Kapsamlı Kitap Arama, Bölümler, Seslendirme */}
+            <TabsContent value="book" className="mt-0">
+              <BookTab />
+            </TabsContent>
 
-          <TabsContent value="paket-bilgilerim" className="mt-0">
-            <section className="mt-4">
-              <PackageInfo />
-            </section>
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="podcasts" className="mt-0">
+              <div className="text-center py-8">
+                <i className="fas fa-podcast text-4xl text-gray-300 mb-2"></i>
+                <h3 className="text-lg font-medium text-gray-700">{t('podcasts_title')}</h3>
+                <p className="text-sm text-gray-500">{t('podcasts_description')}</p>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="pdf" className="mt-0">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="border-none shadow-md lg:col-span-1">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-bold text-gray-800 flex items-center justify-between">
+                      <span>{t('docs_title')}</span>
+                      <i className="fas fa-file-alt text-primary"></i>
+                    </CardTitle>
+                    <CardDescription>
+                      {t('docs_description')}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {documentsLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      </div>
+                    ) : documentsError ? (
+                      <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                        {documentsError}
+                      </div>
+                    ) : documents.length === 0 ? (
+                      <div className="text-center py-6 text-sm text-gray-500">
+                        {t('docs_empty_left')}
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[320px] pr-3">
+                        <div className="space-y-2">
+                          {documents.map((doc) => {
+                            const isActive = selectedDocument && selectedDocument.id === doc.id;
+                            return (
+                              <button
+                                key={doc.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDocument(doc);
+                                  loadDocumentSections(doc.id);
+                                }}
+                                className={`w-full text-left p-3 rounded-lg border text-sm transition-colors cursor-pointer ${isActive ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 hover:bg-gray-50'
+                                  }`}
+                              >
+                                <div className="font-medium truncate">{doc.title}</div>
+                                <div className="text-xs text-gray-500 mt-1 flex items-center justify-between">
+                                  <span>{new Date(doc.created_at).toLocaleDateString()}</span>
+                                  {doc.page_count != null && (
+                                    <span className="ml-2">{doc.page_count} {t('docs_page_suffix')}</span>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-md lg:col-span-2">
+                  <CardHeader className="pb-2 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                    <div>
+                      <CardTitle className="text-lg font-bold text-gray-800">
+                        {selectedDocument ? selectedDocument.title : t('docs_select_prompt')}
+                      </CardTitle>
+                      <CardDescription>
+                        {t('docs_sections_description')}
+                      </CardDescription>
+                    </div>
+                    {selectedDocument && (
+                      <Badge className="bg-primary/10 text-primary border border-primary/30">
+                        <i className="fas fa-layer-group mr-1"></i>
+                        {documentSections.length} {t('docs_section_count_suffix')}
+                      </Badge>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    {!selectedDocument ? (
+                      <div className="h-[320px] flex items-center justify-center text-sm text-gray-500">
+                        {t('docs_select_prompt')}
+                      </div>
+                    ) : sectionsLoading ? (
+                      <div className="h-[320px] flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      </div>
+                    ) : sectionsError ? (
+                      <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                        {sectionsError}
+                      </div>
+                    ) : documentSections.length === 0 ? (
+                      <div className="h-[320px] flex items-center justify-center text-sm text-gray-500">
+                        {t('docs_no_sections')}
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[320px] pr-3">
+                        <div className="space-y-2">
+                          {documentSections.map((section) => (
+                            <div
+                              key={section.id}
+                              className="p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="text-sm font-semibold text-gray-800 truncate mr-2">
+                                  {section.section_index}. {section.section_title || t('docs_section_fallback_title')}
+                                </div>
+                                <span className="text-xs text-gray-500 whitespace-nowrap">
+                                  {section.word_count || 0} {t('docs_words_suffix')}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-600 line-clamp-2 whitespace-pre-line">
+                                {section.section_text}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="vocabulary" className="mt-0">
+              <div className="mt-4">
+                <VocabularyTabContent user={user} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="paket-bilgilerim" className="mt-0">
+              <section className="mt-4">
+                <PackageInfo />
+              </section>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

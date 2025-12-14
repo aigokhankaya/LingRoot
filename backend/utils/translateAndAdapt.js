@@ -35,14 +35,15 @@ try {
  * @param {string} level - Target CEFR level (A1, A2, B1, B2, C1, C2)
  * @param {object} requestLogger - Optional request logger
  * @param {string} promptVariant - Optional prompt variant: 'standard' (default) or 'narrator' (for audiobook/book content)
+ * @param {string} mood - Optional mood for narrator adaptation (e.g. "Melancholic", "Cheerful")
  * @returns {Promise<{text: string, usage: object, model: string}>}
  */
-async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogger, promptVariant = 'standard') {
+async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogger, promptVariant = 'standard', mood = null) {
     if (!openai) {
         logger.error("[TranslateAndAdapt] OpenAI client not initialized.");
         throw new Error("OpenAI client not initialized");
     }
-    
+
     if (!text || !text.trim()) {
         logger.warn("[TranslateAndAdapt] Empty text received.");
         return { text: "", usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }, model: "" };
@@ -51,19 +52,21 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
     // Select unified prompt file based on level and variant
     // Narrator variant uses storyteller-style prompts for audiobook/book content
     const isNarrator = promptVariant === 'narrator';
-    const promptFile = isNarrator 
+    const promptFile = isNarrator
         ? `translate_and_adapt_narrator_${level.toUpperCase()}.txt`
         : `translate_and_adapt_${level.toUpperCase()}.txt`;
     const promptPath = path.join(__dirname, `../prompts/content/${promptFile}`);
-    
+
     // HYBRID MODEL STRATEGY: Use mini for simple levels, 4o for complex levels
     const isSimpleLevel = ['A1', 'A2', 'B1'].includes(level.toUpperCase());
     const model = process.env.OPENAI_TRANSLATE_ADAPT_MODEL || (isSimpleLevel ? "gpt-4o-mini" : "gpt-4o");
 
     console.log(`🎯 [TRANSLATE+ADAPT OPTIMIZED] Using ${isNarrator ? 'NARRATOR' : 'standard'} prompt: ${promptFile} (Level: ${level})`);
-    logger.info(`🎯 TranslateAndAdapt - ${isNarrator ? 'Narrator' : 'Standard'} prompt: ${promptFile} for ${sourceLanguage} → EN at ${level}`);
+    if (mood) console.log(`🎭 [MOOD ADAPTATION] Applying emotional tone: ${mood}`);
+
+    logger.info(`🎯 TranslateAndAdapt - ${isNarrator ? 'Narrator' : 'Standard'} prompt: ${promptFile} for ${sourceLanguage} → EN at ${level}${mood ? ` [Mood: ${mood}]` : ''}`);
     console.log(`🧠 [MODEL SELECTION] Level: ${level}, Variant: ${promptVariant} -> Selected Model: ${model} (${isSimpleLevel ? 'Cost Optimized' : 'Quality Optimized'})`);
-    
+
     let promptTemplate;
     try {
         promptTemplate = fs.readFileSync(promptPath, "utf-8");
@@ -75,24 +78,24 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
     // Chunk text if needed
     const chunks = chunkText(text);
     let resultChunks = [];
-    
+
     // Track usage
     let promptTokensTotal = 0;
     let completionTokensTotal = 0;
     let totalTokensTotal = 0;
-    
+
     for (let i = 0; i < chunks.length; i++) {
         const prompt = promptTemplate
             .replace(/\{\{input_text\}\}/g, chunks[i])
             .replace(/\{\{source_language\}\}/g, sourceLanguage);
-        
+
         if (requestLogger) {
-            requestLogger.log(`[translateAndAdapt:prompt:chunk:${i}][input]` + JSON.stringify({ 
-                promptName: promptFile, 
+            requestLogger.log(`[translateAndAdapt:prompt:chunk:${i}][input]` + JSON.stringify({
+                promptName: promptFile,
                 promptText: prompt.substring(0, 500) + '...'
             }, null, 2));
         }
-        
+
         try {
             logger.info(`[TranslateAndAdapt] Processing chunk ${i + 1}/${chunks.length} with ${model}`);
             if (logger.llmCall) {
@@ -107,57 +110,62 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
                 });
             }
             // System message varies based on variant
-            const systemContent = isNarrator
+            let systemContent = isNarrator
                 ? `You are a professional audiobook narrator and CEFR language specialist. You translate text AND adapt it to CEFR ${level} level while maintaining an engaging, storyteller-style delivery suitable for audiobook listening. Create natural rhythm, use dramatic pauses, and make the content captivating for listeners.`
                 : `You are an expert translator and CEFR language specialist. You translate text AND adapt it to CEFR ${level} level in a single pass, ensuring vocabulary and grammar strictly match the target level.`;
-            
+
+            // Inject Mood Instruction if available
+            if (isNarrator && mood && mood !== 'Neutral') {
+                systemContent += `\n\nEMOTIONAL TONE INSTRUCTION: The desired tone for this section is "${mood}". Adjust your word choice, sentence structure, and punctuation to reflect this emotion (e.g., if "Melancholic", use slower pacing and softer words; if "Suspenseful", use short sentences and eliipsis).`;
+            }
+
             const completion = await openai.chat.completions.create({
                 model,
                 messages: [
-                    { 
-                        role: "system", 
+                    {
+                        role: "system",
                         content: systemContent
                     },
                     { role: "user", content: prompt }
                 ],
                 temperature: isNarrator ? 0.5 : 0.4, // Slightly higher for narrator to allow creative flow
             });
-            
+
             let resultText = completion.choices[0]?.message?.content?.trim() || "";
             // Clean markers
             resultText = resultText.replace(/^-+\s*/g, '').replace(/\s*-+$/g, '');
-            
+
             // Accumulate usage
             if (completion.usage) {
                 promptTokensTotal += completion.usage.prompt_tokens || 0;
                 completionTokensTotal += completion.usage.completion_tokens || 0;
                 totalTokensTotal += completion.usage.total_tokens || 0;
             }
-            
+
             if (!resultText || resultText.length < 10) {
                 logger.warn(`[TranslateAndAdapt] Chunk ${i + 1} result too short, using original.`);
                 resultChunks.push(chunks[i]);
             } else {
                 resultChunks.push(resultText);
             }
-            
+
         } catch (error) {
             logger.error(`[TranslateAndAdapt] Error on chunk ${i + 1}: ${error.message}`);
             resultChunks.push(chunks[i]); // Fallback to original
         }
     }
-    
+
     const merged = resultChunks.join('\n\n');
     const usage = {
         prompt_tokens: promptTokensTotal,
         completion_tokens: completionTokensTotal,
         total_tokens: totalTokensTotal,
     };
-    
+
     // Log savings estimate
     const estimatedOldTokens = totalTokensTotal * 1.75; // Old method used ~75% more tokens
     const savedTokens = Math.round(estimatedOldTokens - totalTokensTotal);
-    console.log(`💰 [TOKEN SAVINGS] Estimated savings: ~${savedTokens} tokens (${Math.round(savedTokens/estimatedOldTokens*100)}%)`);
+    console.log(`💰 [TOKEN SAVINGS] Estimated savings: ~${savedTokens} tokens (${Math.round(savedTokens / estimatedOldTokens * 100)}%)`);
 
     if (logger.llmCall) {
         logger.llmCall({
@@ -171,11 +179,11 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
             note: 'translate+adapt summary',
         });
     }
-    
+
     if (requestLogger) {
         requestLogger.log(`[openai:usage:translateAndAdapt]` + JSON.stringify({ usage, model, savedTokens }));
     }
-    
+
     return {
         text: merged,
         usage,
@@ -211,31 +219,34 @@ function calculateWordCountFromDuration(durationMinutes) {
  * @param {string} level - CEFR level (A1, A2, B1, B2, C1, C2)
  * @param {object} requestLogger - Optional request logger
  * @param {number} targetDurationMinutes - Optional target duration in minutes (1.5, 5, 10, 15)
+ * @param {string} mood - Optional mood for content generation (e.g. "Melancholic", "Cheerful")
  * @returns {Promise<{englishText: string, translatedText: string, usage: object, model: string}>}
  */
-async function generateBilingualContent(topic, targetLanguage, level, requestLogger, targetDurationMinutes = null) {
+async function generateBilingualContent(topic, targetLanguage, level, requestLogger, targetDurationMinutes = null, mood = null) {
     if (!openai) {
         logger.error("[GenerateBilingual] OpenAI client not initialized.");
         throw new Error("OpenAI client not initialized");
     }
-    
+
     if (!topic || !topic.trim()) {
         logger.warn("[GenerateBilingual] Empty topic received.");
-        return { 
-            englishText: "", 
-            translatedText: "", 
-            usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }, 
-            model: "" 
+        return {
+            englishText: "",
+            translatedText: "",
+            usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+            model: ""
         };
     }
 
     // Select bilingual prompt file based on level
     const promptFile = `generate_bilingual_${level.toUpperCase()}.txt`;
     const promptPath = path.join(__dirname, `../prompts/content/${promptFile}`);
-    
+
     console.log(`🎯 [BILINGUAL GENERATION OPTIMIZED] Using unified prompt: ${promptFile} (Level: ${level})`);
-    logger.info(`🎯 GenerateBilingual - Unified prompt: ${promptFile} for topic: "${topic}" → EN + ${targetLanguage}`);
-    
+    if (mood) console.log(`🎭 [MOOD INJECTION] Generating content with tone: ${mood}`);
+
+    logger.info(`🎯 GenerateBilingual - Unified prompt: ${promptFile} for topic: "${topic}" → EN + ${targetLanguage}${mood ? ` [Mood: ${mood}]` : ''}`);
+
     let promptTemplate;
     try {
         promptTemplate = fs.readFileSync(promptPath, "utf-8");
@@ -256,23 +267,23 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
     let prompt = promptTemplate
         .replace(/\{\{topic\}\}/g, topic)
         .replace(/\{\{target_language\}\}/g, targetLanguage);
-    
+
     // If duration specified, append it right before the OUTPUT FORMAT section
     if (wordCountInstruction) {
         // Insert duration instruction before 📤 OUTPUT FORMAT
         prompt = prompt.replace(/📤 OUTPUT FORMAT/i, wordCountInstruction + '\n\n📤 OUTPUT FORMAT');
         console.log(`📝 [PROMPT] Duration instruction added before OUTPUT FORMAT section`);
     }
-    
+
     if (requestLogger) {
-        requestLogger.log(`[generateBilingual:prompt][input]` + JSON.stringify({ 
-            promptName: promptFile, 
+        requestLogger.log(`[generateBilingual:prompt][input]` + JSON.stringify({
+            promptName: promptFile,
             topic,
             targetLanguage,
             level
         }, null, 2));
     }
-    
+
     // HYBRID MODEL STRATEGY: Use mini for simple levels, 4o for complex levels.
     // For long-duration content (>= 10 minutes), prefer full gpt-4o for better instruction-following.
     const isSimpleLevel = ['A1', 'A2', 'B1'].includes(level.toUpperCase());
@@ -308,6 +319,12 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
 
         // Build a strong system message. If duration/word-count override is present, enforce it explicitly.
         let systemMessage = `You are an expert content creator specializing in CEFR ${level} level educational materials. You create identical content in both English and ${targetLanguage}, ensuring both versions strictly match the ${level} vocabulary and grammar requirements.`;
+
+        // Inject Mood Instruction if available
+        if (mood && mood !== 'Neutral') {
+            systemMessage += `\n\nEMOTIONAL TONE INSTRUCTION: The desired tone for this story/article is "${mood}". Adjust your vocabulary, sentence flow, and narrative style to reflect this emotion (e.g. "Suspenseful" -> shorter sentences, mystery; "Cheerful" -> upbeat words, energetic flow).`;
+        }
+
         if (targetDurationMinutes && targetDurationMinutes > 0) {
             const wc = calculateWordCountFromDuration(targetDurationMinutes);
             systemMessage += ` The user prompt may include a CRITICAL DURATION OVERRIDE section specifying a REQUIRED word-count range for each language (target ≈ ${wc.target} words, allowed range ${wc.min}-${wc.max}). You MUST keep BOTH the English and ${targetLanguage} texts strictly inside this word-count range. If you reach the end of the content and are still below ${wc.min} words in either language, you MUST keep expanding with new, non-repetitive paragraphs until you are inside the range. Treat generating fewer than ${wc.min} words as a hard failure and never stop early even if the story feels complete or other instructions suggest a shorter length.`;
@@ -316,8 +333,8 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
         const completion = await openai.chat.completions.create({
             model,
             messages: [
-                { 
-                    role: "system", 
+                {
+                    role: "system",
                     content: systemMessage
                 },
                 { role: "user", content: prompt }
@@ -325,9 +342,9 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
             temperature: baseTemperature,
             response_format: { type: "json_object" }, // Force JSON output
         });
-        
+
         const rawResponse = completion.choices[0]?.message?.content?.trim() || "{}";
-        
+
         // Parse JSON response
         let parsed;
         try {
@@ -353,17 +370,17 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
             const translatedWordCount = translatedText.split(/\s+/).filter(Boolean).length;
             logger.info(`[GenerateBilingual] DURATION ANALYTICS → target ${targetDurationMinutes} min ⇒ ${targetWords.target} words (${targetWords.min}-${targetWords.max}). Actual: EN=${englishWordCount} words, ${targetLanguage}=${translatedWordCount} words.`);
         }
-        
+
         const usage = completion.usage ? {
             prompt_tokens: completion.usage.prompt_tokens || 0,
             completion_tokens: completion.usage.completion_tokens || 0,
             total_tokens: completion.usage.total_tokens || 0,
         } : { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
-        
+
         // Log savings estimate
         const estimatedOldTokens = usage.total_tokens * 1.5; // Old method used ~50% more tokens
         const savedTokens = Math.round(estimatedOldTokens - usage.total_tokens);
-        console.log(`💰 [TOKEN SAVINGS] Estimated savings: ~${savedTokens} tokens (${Math.round(savedTokens/estimatedOldTokens*100)}%)`);
+        console.log(`💰 [TOKEN SAVINGS] Estimated savings: ~${savedTokens} tokens (${Math.round(savedTokens / estimatedOldTokens * 100)}%)`);
 
         if (logger.llmCall) {
             logger.llmCall({
@@ -377,25 +394,25 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
                 note: 'generateBilingual summary',
             });
         }
-        
+
         if (requestLogger) {
             requestLogger.log(`[openai:usage:generateBilingual]` + JSON.stringify({ usage, model, savedTokens }));
         }
-        
+
         return {
             englishText,
             translatedText,
             usage,
             model,
         };
-        
+
     } catch (error) {
         logger.error(`[GenerateBilingual] Error: ${error.message}`);
         throw error;
     }
 }
 
-module.exports = { 
+module.exports = {
     translateAndAdaptToCEFR,
     generateBilingualContent,
     calculateWordCountFromDuration

@@ -32,6 +32,15 @@ export default function Terms() {
           <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             {t('how_it_works')}
           </Link>
+          <Link href="/ozellikler" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
+            {t('features')}
+          </Link>
+          <Link href="/fiyatlandirma" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
+            {t('pricing')}
+          </Link>
+          <Link href="/blog" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
+            {t('blog')}
+          </Link>
           <Link href="/contact" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             {t('contact')}
           </Link>
@@ -73,7 +82,7 @@ export default function Terms() {
               {/* Son Güncellenme */}
               <div className="mb-12 p-6 bg-muted rounded-2xl border border-border shadow-lg">
                 <p className="text-primary mb-0 font-medium">
-                  <strong>{t('terms_last_updated')}:</strong> 1 Ocak 2025
+                  <strong>{t('terms_last_updated')}:</strong> 2025-01-01
                 </p>
               </div>
 
@@ -271,10 +280,54 @@ export default function Terms() {
                 </div>
               </div>
 
+              <div className="mb-12">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                  7. {t('terms_privacy_title')}
+                </h2>
+
+                <div className="bg-muted rounded-xl p-8 border border-border">
+                  <p className="text-gray-700 leading-relaxed mb-4">
+                    {t('terms_privacy_text')}
+                  </p>
+                  <Link href="/privacy-policy" className="text-primary font-semibold hover:underline">
+                    {t('privacy_policy')}
+                  </Link>
+                </div>
+              </div>
+
+              <div className="mb-12">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                  8. {t('terms_termination_title')}
+                </h2>
+
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-8 border border-amber-200">
+                  <p className="text-amber-900 leading-relaxed mb-6">
+                    {t('terms_termination_text')}
+                  </p>
+                  <ul className="text-amber-900 space-y-2">
+                    <li>• {t('terms_termination_list1')}</li>
+                    <li>• {t('terms_termination_list2')}</li>
+                    <li>• {t('terms_termination_list3')}</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mb-12">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                  9. {t('terms_governing_law_title')}
+                </h2>
+
+                <div className="bg-white border border-gray-200 rounded-xl p-8">
+                  <p className="text-gray-700 leading-relaxed mb-0">
+                    {t('terms_governing_law_text')}
+                  </p>
+                </div>
+              </div>
+
               {/* İletişim */}
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  7. {t('terms_section7_title')}
+                  10. {t('terms_section7_title')}
                 </h2>
                 
                 <div className="bg-slate-900 rounded-xl p-8 text-white">

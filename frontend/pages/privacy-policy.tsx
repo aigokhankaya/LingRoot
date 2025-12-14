@@ -32,6 +32,15 @@ export default function PrivacyPolicy() {
           <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             {t('how_it_works')}
           </Link>
+          <Link href="/ozellikler" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
+            {t('features')}
+          </Link>
+          <Link href="/fiyatlandirma" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
+            {t('pricing')}
+          </Link>
+          <Link href="/blog" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
+            {t('blog')}
+          </Link>
           <Link href="/contact" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             {t('contact')}
           </Link>
@@ -73,7 +82,7 @@ export default function PrivacyPolicy() {
               {/* Son Güncellenme */}
               <div className="mb-12 p-6 bg-muted rounded-2xl border border-border shadow-lg">
                 <p className="text-primary mb-0 font-medium">
-                  <strong>{t('privacy_last_updated')}:</strong> 1 Ocak 2025
+                  <strong>{t('privacy_last_updated')}:</strong> 2025-01-01
                 </p>
               </div>
 
@@ -232,6 +241,140 @@ export default function PrivacyPolicy() {
                       <p className="text-gray-600">{t('privacy_access_control_desc')}</p>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <div className="mb-12">
+                <h2 className="text-3xl font-bold text-gray-900 mb-8">
+                  4. {t('privacy_controller_title')}
+                </h2>
+
+                <div className="bg-muted rounded-2xl p-8 border border-border shadow-lg">
+                  <p className="text-gray-700 leading-relaxed mb-6">
+                    {t('privacy_controller_text')}
+                  </p>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-xl p-6 border border-gray-200">
+                      <p className="text-sm text-gray-500 mb-2">{t('privacy_controller_company_label')}</p>
+                      <p className="font-semibold text-gray-900 mb-0">{t('privacy_controller_company_value')}</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-6 border border-gray-200">
+                      <p className="text-sm text-gray-500 mb-2">{t('privacy_controller_address_label')}</p>
+                      <p className="font-semibold text-gray-900 mb-0">{t('privacy_controller_address_value')}</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-6 border border-gray-200">
+                      <p className="text-sm text-gray-500 mb-2">{t('privacy_controller_email_label')}</p>
+                      <p className="font-semibold text-gray-900 mb-0">{t('privacy_controller_email_value')}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-12">
+                <h2 className="text-3xl font-bold text-gray-900 mb-8">
+                  5. {t('privacy_legal_bases_title')}
+                </h2>
+
+                <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-lg">
+                  <p className="text-gray-700 leading-relaxed mb-6">
+                    {t('privacy_legal_bases_text')}
+                  </p>
+                  <ul className="text-gray-700 space-y-2">
+                    <li>• {t('privacy_legal_bases_item1')}</li>
+                    <li>• {t('privacy_legal_bases_item2')}</li>
+                    <li>• {t('privacy_legal_bases_item3')}</li>
+                    <li>• {t('privacy_legal_bases_item4')}</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mb-12">
+                <h2 className="text-3xl font-bold text-gray-900 mb-8">
+                  6. {t('privacy_sharing_title')}
+                </h2>
+
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-8 border border-amber-200 shadow-lg">
+                  <p className="text-amber-900 leading-relaxed mb-6">
+                    {t('privacy_sharing_text')}
+                  </p>
+                  <ul className="text-amber-900 space-y-2">
+                    <li>• {t('privacy_sharing_item1')}</li>
+                    <li>• {t('privacy_sharing_item2')}</li>
+                    <li>• {t('privacy_sharing_item3')}</li>
+                    <li>• {t('privacy_sharing_item4')}</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mb-12">
+                <h2 className="text-3xl font-bold text-gray-900 mb-8">
+                  7. {t('privacy_international_transfers_title')}
+                </h2>
+
+                <div className="bg-muted rounded-2xl p-8 border border-border shadow-lg">
+                  <p className="text-gray-700 leading-relaxed mb-0">
+                    {t('privacy_international_transfers_text')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-12">
+                <h2 className="text-3xl font-bold text-gray-900 mb-8">
+                  8. {t('privacy_retention_title')}
+                </h2>
+
+                <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-lg">
+                  <p className="text-gray-700 leading-relaxed mb-6">
+                    {t('privacy_retention_text')}
+                  </p>
+                  <ul className="text-gray-700 space-y-2">
+                    <li>• {t('privacy_retention_item1')}</li>
+                    <li>• {t('privacy_retention_item2')}</li>
+                    <li>• {t('privacy_retention_item3')}</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mb-12">
+                <h2 className="text-3xl font-bold text-gray-900 mb-8">
+                  9. {t('privacy_rights_title')}
+                </h2>
+
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-8 border border-green-200 shadow-lg">
+                  <p className="text-green-900 leading-relaxed mb-6">
+                    {t('privacy_rights_text')}
+                  </p>
+                  <ul className="text-green-900 space-y-2">
+                    <li>• {t('privacy_rights_item1')}</li>
+                    <li>• {t('privacy_rights_item2')}</li>
+                    <li>• {t('privacy_rights_item3')}</li>
+                    <li>• {t('privacy_rights_item4')}</li>
+                    <li>• {t('privacy_rights_item5')}</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mb-12">
+                <h2 className="text-3xl font-bold text-gray-900 mb-8">
+                  10. {t('privacy_children_title')}
+                </h2>
+
+                <div className="bg-muted rounded-2xl p-8 border border-border shadow-lg">
+                  <p className="text-gray-700 leading-relaxed mb-0">
+                    {t('privacy_children_text')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-12">
+                <h2 className="text-3xl font-bold text-gray-900 mb-8">
+                  11. {t('privacy_ccpa_title')}
+                </h2>
+
+                <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-lg">
+                  <p className="text-gray-700 leading-relaxed mb-0">
+                    {t('privacy_ccpa_text')}
+                  </p>
                 </div>
               </div>
 

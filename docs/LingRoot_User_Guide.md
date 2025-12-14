@@ -22,7 +22,7 @@ LingRoot, yapay zeka destekli kapsamlı bir dil öğrenme platformudur. Platform
 
 ### 🌟 Temel Özellikler
 - **AI Chat Asistanı:** Dil öğrenme odaklı ChatGPT benzeri sohbet
-- **Çoklu İçerik Kaynağı:** Metin, YouTube, web, kitap, dosya işleme
+- **Çoklu İçerik Kaynağı:** Konu (Topic), Metin, web, kitap, dosya işleme
 - **CEFR Uyarlama:** A1'den C2'ye otomatik seviye uyarlama
 - **Sesli İçerik:** Yüksek kaliteli TTS ile dinleme pratiği
 - **Kişiselleştirilmiş Konular:** İlgi alanlarına göre konu önerileri
@@ -54,7 +54,7 @@ LingRoot'un en güçlü özelliklerinden biri, dil öğrenme odaklı AI sohbet a
 - **CEFR Uyumlu Yanıtlar:** Seviyenize göre basitleştirilmiş cevaplar
 - **Çoklu Konuşma:** Farklı konularda ayrı sohbetler
 - **Sesli Okuma:** AI yanıtlarını dinleme
-- **Konu Önerisi:** Sohbetten otomatik konu çıkarma
+- **Podcast Oluşturma:** Kişisel podcast serileri
 
 ### Nasıl Kullanılır
 1. Sol menüden **"Yeni Sohbet"** butonuna tıklayın
@@ -104,7 +104,7 @@ Gutenberg kütüphanesinden binlerce ücretsiz kitaba erişin.
 ### 2. İçerik İşlemleri
 #### Yeni İçerik Ekleme
 - **Metin:** Doğrudan metin girişi
-- **YouTube:** Video URL'si (altyazıdan çıkarma)
+- **Konu (Topic):** İstediğiniz konuda podcast/içerik üretimi
 - **Web:** Web sitesi URL'si
 - **Dosya:** PDF, DOCX, TXT, EPUB dosyaları
 - **Kitap:** Gutenberg kitapları
@@ -166,7 +166,7 @@ Gutenberg kütüphanesinden binlerce ücretsiz kitaba erişin.
 
 ### Basic
 - Günlük 3 içerik
-- YouTube desteği
+- Podcast Oluşturma: Kişisel podcast serileri
 - Gelişmiş özellikler
 
 ### Pro

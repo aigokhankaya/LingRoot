@@ -112,6 +112,23 @@ const LINGROOT_VOICES = [
     quality: 'premium',
     google: { name: 'en-IN-Wavenet-A', languageCode: 'en-IN' },
     polly: { name: 'Kajal', languageCode: 'en-IN', engine: 'neural' }
+  },
+  // Ultra Premium / Journey (Audiobook Optimized)
+  {
+    id: 'lr_us_journey_male_1',
+    label: 'Narrator – Amerikan Erkek (Journey/Studio)',
+    gender: 'male',
+    accent: 'american',
+    quality: 'ultra',
+    google: { name: 'en-US-Journey-D', languageCode: 'en-US' }
+  },
+  {
+    id: 'lr_us_journey_female_1',
+    label: 'Narrator – Amerikan Kadın (Journey/Studio)',
+    gender: 'female',
+    accent: 'american',
+    quality: 'ultra',
+    google: { name: 'en-US-Journey-F', languageCode: 'en-US' }
   }
 ];
 

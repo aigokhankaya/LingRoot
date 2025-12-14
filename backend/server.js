@@ -47,6 +47,7 @@ const documentRoutes = require("./routes/documentRoutes"); // Document/PDF workf
 const favoritesRoutes = require("./routes/favoritesRoutes"); // Favorites management
 const iyzicoRoutes = require("./routes/iyzicoRoutes"); // iyzico credit card payments
 const stripeRoutes = require("./routes/stripeRoutes"); // Stripe credit card payments
+const libraryRoutes = require("./routes/libraryRoutes"); // Unified Library (Book/PDF/Progress)
 
 // Initialize Express app
 const app = express();
@@ -165,6 +166,7 @@ app.use("/api/mfa", mfaRoutes); // MFA alignment routes
 app.use("/api/topic-hierarchy", topicHierarchyRoutes); // Topic Hierarchy (multi-level content tree)
 app.use("/api/documents", documentRoutes); // Document/PDF workflow
 app.use("/api/favorites", favoritesRoutes); // Favorites management
+app.use("/api/library", libraryRoutes); // Unified Library System
 app.use("/api/iyzico", iyzicoRoutes); // iyzico credit card payments
 app.use("/api/stripe", stripeRoutes); // Stripe credit card payments
 

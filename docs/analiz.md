@@ -22,7 +22,8 @@ Kullanıcının anasayfasında hangi butonların/özelliklerin görüneceğini b
 
 **Checkbox Listesi:**
 - [ ] Metin Girişi (Text Input)
-- [ ] YouTube URL
+- [ ] Konu Ağacı (Topic Tree)
+- [ ] LiRo Asistan
 - [ ] Dosya Yükleme (File Upload)
 - [ ] Podcast
 - [ ] Konu Önerileri (Topic Suggestions)
@@ -33,7 +34,9 @@ Kullanıcının anasayfasında hangi butonların/özelliklerin görüneceğini b
 {
   "homepage_features": {
     "text_input": true,
-    "youtube": true,
+    "topic_tree": true,
+    "liro_assistant": true,
+    "youtube": false,
     "file_upload": false,
     "podcast": true,
     "topic_suggestions": true,
@@ -137,7 +140,8 @@ Parametrik özelliklerin yanında mevcut limitler de gösterilecek:
 1. Admin, paket listesinden "Temel Paket"e tıklar
 2. Detay sayfasında şu özellikleri seçer:
    - ✅ Metin Girişi
-   - ✅ YouTube URL
+   - ✅ Konu Ağacı (Topic Tree)
+   - ❌ YouTube URL
    - ❌ Dosya Yükleme (Premium özellik)
    - ❌ Podcast (Premium özellik)
    - ✅ Konu Önerileri

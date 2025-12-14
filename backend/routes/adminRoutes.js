@@ -4,6 +4,21 @@ const { authenticate, authorizeAdmin } = require('../middleware/auth');
 const adminController = require('../controllers/adminController');
 const planController = require('../controllers/planController');
 const { getTtsProviderSetting, setTtsProviderSetting } = require('../controllers/adminController');
+const adminBookController = require('../controllers/adminBookController');
+const multer = require('multer');
+
+// Configure multer for PDF uploads (in-memory)
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+            cb(null, true);
+        } else {
+            cb(new Error('Only PDF files are allowed'), false);
+        }
+    }
+});
 
 // TTS provider ayarını getir (both dash and underscore for compatibility)
 // These routes are defined BEFORE middleware to ensure they work
@@ -47,6 +62,9 @@ router.put('/users/:id/test-status', adminController.updateUserTestStatus);
 router.delete('/users/:id', adminController.deleteUser);
 router.post('/users/bulk-delete', adminController.deleteUsersBulk);
 router.post('/users/:id/assign-plan', adminController.assignPlanToUser);
+
+// Book Management (Admin)
+router.post('/books/upload', upload.single('file'), adminBookController.uploadBook);
 
 // User audio history (admin)
 router.get('/users/:id/audio-history', adminController.getUserAudioHistoryAdmin);

@@ -145,7 +145,7 @@ const App: React.FC = () => {
   const [costLoading, setCostLoading] = useState(false);
   const [costError, setCostError] = useState<string | null>(null);
   const [expandedCostRows, setExpandedCostRows] = useState<Set<string>>(new Set());
-  
+
   const toggleCostRowExpansion = (itemId: string) => {
     setExpandedCostRows(prev => {
       const next = new Set(prev);
@@ -797,6 +797,10 @@ const App: React.FC = () => {
                 <i className="fas fa-credit-card mr-3 text-lg"></i>
                 <span>Ödeme Sağlayıcıları</span>
               </Button>
+              <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => router.push('/admin/books')}>
+                <i className="fas fa-book mr-3 text-lg"></i>
+                <span>Kitap Yönetimi</span>
+              </Button>
               <Button variant="ghost" className="w-full justify-start text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 !rounded-button whitespace-nowrap h-12 text-base" onClick={() => router.push('/admin/card-transactions')}>
                 <i className="fas fa-receipt mr-3 text-lg"></i>
                 <span>Kredi Kartı İşlemleri</span>
@@ -1228,10 +1232,10 @@ const App: React.FC = () => {
                               const itemId = item.id || `item-${idx}`;
                               const isExpanded = expandedCostRows.has(itemId);
                               const hasDetails = item.llm_usage_details && Array.isArray(item.llm_usage_details) && item.llm_usage_details.length > 0;
-                              
+
                               return (
                                 <React.Fragment key={itemId}>
-                                  <TableRow 
+                                  <TableRow
                                     className={`${hasDetails ? 'cursor-pointer hover:bg-gray-50' : ''} ${isExpanded ? 'bg-blue-50' : ''}`}
                                     onClick={() => hasDetails && toggleCostRowExpansion(itemId)}
                                   >
@@ -1287,7 +1291,7 @@ const App: React.FC = () => {
                                                   const inputCost = ((detail.prompt_tokens || 0) / 1000) * modelPricing.input;
                                                   const outputCost = ((detail.completion_tokens || 0) / 1000) * modelPricing.output;
                                                   const totalDetailCost = inputCost + outputCost;
-                                                  
+
                                                   return (
                                                     <tr key={detailIdx} className="hover:bg-gray-50">
                                                       <td className="p-2 border font-medium text-blue-600">

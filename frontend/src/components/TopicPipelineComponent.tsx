@@ -39,12 +39,24 @@ interface PipelineResult {
 export default function TopicPipelineComponent() {
   const [topicInput, setTopicInput] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'>('B1');
+  const [selectedMood, setSelectedMood] = useState<string>('Neutral');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedSubtopic, setSelectedSubtopic] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState('');
   const [result, setResult] = useState<PipelineResult | null>(null);
   const [error, setError] = useState('');
+
+  const moods = [
+    { value: 'Neutral', label: 'Nötr / Dengeli' },
+    { value: 'Educational', label: 'Eğitici' },
+    { value: 'Cheerful', label: 'Neşeli / Canlı' },
+    { value: 'Melancholic', label: 'Melankolik / Duygusal' },
+    { value: 'Suspenseful', label: 'Gizemli / Merak Uyandırıcı' },
+    { value: 'Inspiring', label: 'İlham Verici' },
+    { value: 'Calm', label: 'Sakin / Huzurlu' },
+    { value: 'Urgent', label: 'Acil / Tempolu' }
+  ];
 
   // Get user token from your auth system
   const getUserToken = () => {
@@ -121,6 +133,7 @@ export default function TopicPipelineComponent() {
           topic: topicInput,
           level: selectedLevel,
           selected_subtopic: selectedSubtopic || suggestions[0],
+          mood: selectedMood,
         }),
       });
 
@@ -172,29 +185,49 @@ export default function TopicPipelineComponent() {
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            CEFR Seviyesi
-          </label>
-          <select
-            value={selectedLevel}
-            onChange={(e) => setSelectedLevel(e.target.value as any)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            disabled={loading}
-          >
-            <option value="A1">A1 (Beginner)</option>
-            <option value="A2">A2 (Elementary)</option>
-            <option value="B1">B1 (Intermediate)</option>
-            <option value="B2">B2 (Upper Intermediate)</option>
-            <option value="C1">C1 (Advanced)</option>
-            <option value="C2">C2 (Proficient)</option>
-          </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              CEFR Seviyesi
+            </label>
+            <select
+              value={selectedLevel}
+              onChange={(e) => setSelectedLevel(e.target.value as any)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              disabled={loading}
+            >
+              <option value="A1">A1 (Beginner)</option>
+              <option value="A2">A2 (Elementary)</option>
+              <option value="B1">B1 (Intermediate)</option>
+              <option value="B2">B2 (Upper Intermediate)</option>
+              <option value="C1">C1 (Advanced)</option>
+              <option value="C2">C2 (Proficient)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              🎭 Anlatım Tonu (Mood)
+            </label>
+            <select
+              value={selectedMood}
+              onChange={(e) => setSelectedMood(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              disabled={loading}
+            >
+              {moods.map((mood) => (
+                <option key={mood.value} value={mood.value}>
+                  {mood.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <button
           onClick={handleTopicSuggestions}
           disabled={loading || !topicInput.trim()}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 px-6 rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 px-6 rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors mt-2"
         >
           {loading && loadingStage.includes('öneri') ? '⏳ Yükleniyor...' : '📝 Konu\'yu Detaylandır'}
         </button>
@@ -205,17 +238,16 @@ export default function TopicPipelineComponent() {
         <div className="bg-white shadow rounded-lg p-6 space-y-4">
           <h2 className="text-xl font-bold">Alt Konu Önerileri</h2>
           <p className="text-sm text-gray-600">Bir alt konu seçin ve metin üretimine başlayın:</p>
-          
+
           <div className="grid grid-cols-1 gap-2">
             {suggestions.map((suggestion, index) => (
               <button
                 key={index}
                 onClick={() => setSelectedSubtopic(suggestion)}
-                className={`text-left p-4 rounded-lg border-2 transition-all ${
-                  selectedSubtopic === suggestion
+                className={`text-left p-4 rounded-lg border-2 transition-all ${selectedSubtopic === suggestion
                     ? 'border-primary bg-primary/5'
                     : 'border-gray-200 hover:border-gray-300 bg-white'
-                }`}
+                  }`}
               >
                 <div className="font-medium">{index + 1}. {suggestion}</div>
               </button>
@@ -316,8 +348,8 @@ export default function TopicPipelineComponent() {
                 <div className="font-semibold text-gray-600">Toplam</div>
                 <div className="text-2xl font-bold text-primary">
                   {(result.usage.narration?.total_tokens || 0) +
-                   (result.usage.translation?.total_tokens || 0) +
-                   (result.usage.adaptation?.total_tokens || 0)}
+                    (result.usage.translation?.total_tokens || 0) +
+                    (result.usage.adaptation?.total_tokens || 0)}
                 </div>
               </div>
             </div>

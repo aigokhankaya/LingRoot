@@ -15,7 +15,7 @@ const openai = new OpenAI({
  */
 exports.createMainTopic = async (req, res) => {
   try {
-    const { title, description, level } = req.body;
+    const { title, description, level, mood } = req.body;
     const userId = req.user.id;
 
     if (!title || !title.trim()) {
@@ -31,7 +31,7 @@ exports.createMainTopic = async (req, res) => {
       ? normalizedLevelRaw
       : 'A1';
 
-    logger.info(`[TOPIC HIERARCHY] Creating main topic: "${title}" for user ${userId} at level ${normalizedLevel}`);
+    logger.info(`[TOPIC HIERARCHY] Creating main topic: "${title}" for user ${userId} at level ${normalizedLevel} (mood: ${mood || 'Default'})`);
 
     const { data, error } = await supabase
       .from('topics')
@@ -40,6 +40,7 @@ exports.createMainTopic = async (req, res) => {
         title: title.trim(),
         description: description?.trim() || null,
         level: normalizedLevel,
+        mood_tag: mood || null,
         depth: 0,
         parent_id: null,
         is_manual: true
@@ -184,7 +185,7 @@ exports.generateSubtopics = async (req, res) => {
     // Prompt template'i yükle
     const promptPath = path.join(__dirname, '../prompts/topic_hierarchy/generate_subtopics.txt');
     let promptTemplate = '';
-    
+
     try {
       promptTemplate = fs.readFileSync(promptPath, 'utf-8');
     } catch (err) {
@@ -556,10 +557,10 @@ exports.getTopicPath = async (req, res) => {
     if (error) {
       // Function yoksa fallback
       logger.warn('[TOPIC HIERARCHY] RPC function not found, using fallback');
-      
+
       const path = [];
       let currentId = id;
-      
+
       while (currentId) {
         const { data: topic } = await supabase
           .from('topics')
@@ -567,12 +568,12 @@ exports.getTopicPath = async (req, res) => {
           .eq('id', currentId)
           .eq('user_id', userId)
           .single();
-        
+
         if (!topic) break;
         path.unshift(topic);
         currentId = topic.parent_id;
       }
-      
+
       return res.json({
         success: true,
         data: { path }
@@ -674,7 +675,7 @@ exports.createContentFromTopic = async (req, res) => {
     // Bu endpoint mevcut TTS controller'ına yönlendirecek
     // Burada sadece topic bilgisini döndürüyoruz
     // Frontend kendi TTS workflow'unu tetikleyecek
-    
+
     res.json({
       success: true,
       message: 'Konu bilgisi alındı, TTS işlemi başlatılabilir',

@@ -40,6 +40,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
   const [topicAudioLoadingId, setTopicAudioLoadingId] = useState<string | null>(null);
   const [topicAudioResults, setTopicAudioResults] = useState<Record<string, TtsResponseData>>({});
   const [modalTopicId, setModalTopicId] = useState<string | null>(null);
+  const [audioCompletedTopicId, setAudioCompletedTopicId] = useState<string | null>(null);
 
   // Konu ağacını yükle
   const loadTopicTree = async () => {
@@ -47,7 +48,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
       setIsLoading(true);
       setError(null);
       const response = await getTopicTree();
-      
+
       if (response.success && response.data) {
         setTopics(response.data.topics);
         console.log('✅ Konu ağacı yüklendi:', response.data.total, 'konu');
@@ -92,6 +93,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         input: suggestedInput,
         level: level.toUpperCase(),
         targetDurationMinutes: targetDurationMinutes,
+        mood: data.topic.mood_tag || undefined,
       };
 
       const result = await processTts({
@@ -130,7 +132,11 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
             audioResult.level || level.toUpperCase(),
             result.mp3_url,
             audioResult.translated_text || '',
-            audioResult.adapted_text || ''
+            audioResult.adapted_text || '',
+            undefined, // chapterId
+            undefined, // timepoints
+            undefined, // words
+            result.detected_mood
           );
           console.log('Topic audio saved to content history.');
         } catch (logErr) {
@@ -140,7 +146,12 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         // Konu ağacını yenile ki rozetler güncellensin
         await loadTopicTree();
 
-        // İsteğe bağlı olarak dışarıya haber verilebilir; şimdilik sadece lokal akış
+        // Show notification instead of auto-opening modal
+        setAudioCompletedTopicId(topicId);
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+          setAudioCompletedTopicId(null);
+        }, 5000);
       } else {
         setError((result as any)?.message || 'Ses oluşturma başarısız oldu');
       }
@@ -237,7 +248,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
   }, [userId]);
 
   // Ana konu oluştur
-  const handleCreateMainTopic = async (title: string, description?: string) => {
+  const handleCreateMainTopic = async (title: string, description?: string, mood?: string) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -246,13 +257,14 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
       const response = await createMainTopic({
         title,
         description,
-        level
+        level,
+        mood
       });
 
       if (response.success) {
         setSuccessMessage('Ana konu başarıyla oluşturuldu!');
         await loadTopicTree(); // Listeyi yenile
-        
+
         // 3 saniye sonra mesajı temizle
         setTimeout(() => setSuccessMessage(null), 3000);
       }
@@ -273,9 +285,18 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
             <i className="fas fa-sitemap text-3xl text-primary"></i>
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              📚 {t('topics_hierarchy_title')}
-            </h3>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-semibold text-gray-900">
+                📚 {t('topics_hierarchy_title')}
+              </h3>
+              <Link
+                href="/dashboard?tab=reading-history"
+                className="text-xs text-primary hover:text-primary/80 flex items-center space-x-1"
+              >
+                <i className="fas fa-history"></i>
+                <span>{t('topics_hierarchy_link_history')}</span>
+              </Link>
+            </div>
             <p className="text-sm text-gray-700 mb-3">
               {t('topics_hierarchy_desc')}
             </p>
@@ -297,15 +318,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <Link
-          href="/dashboard?tab=reading-history"
-          className="text-xs text-primary hover:text-primary/80 flex items-center space-x-1"
-        >
-          <i className="fas fa-history"></i>
-          <span>{t('topics_hierarchy_link_history')}</span>
-        </Link>
-      </div>
+
 
       {/* Error/Success Messages */}
       {error && (
@@ -319,6 +332,36 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         <div className="flex items-center p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-800">
           <i className="fas fa-check-circle mr-2"></i>
           <span>{successMessage}</span>
+        </div>
+      )}
+
+      {/* Audio Generation Completed Notification */}
+      {audioCompletedTopicId && topicAudioResults[audioCompletedTopicId] && (
+        <div
+          onClick={() => {
+            handleOpenAudioModal(audioCompletedTopicId);
+            setAudioCompletedTopicId(null);
+          }}
+          className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between cursor-pointer hover:bg-green-100 transition-colors animate-pulse"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center">
+              <i className="fas fa-check"></i>
+            </div>
+            <div>
+              <p className="font-medium text-green-800">Seslendirme tamamlandı</p>
+              <p className="text-sm text-green-600">Dinlemek için tıklayın</p>
+            </div>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setAudioCompletedTopicId(null);
+            }}
+            className="w-8 h-8 rounded-full hover:bg-green-200 flex items-center justify-center text-green-600"
+          >
+            <i className="fas fa-times"></i>
+          </button>
         </div>
       )}
 
