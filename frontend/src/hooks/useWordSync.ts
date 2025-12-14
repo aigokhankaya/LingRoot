@@ -403,7 +403,20 @@ export const useWordSync = ({
 
     audioContextRef.current = new AudioContext();
     audioRef.current = new Audio(audioUrl);
-    audioRef.current.crossOrigin = "anonymous";
+
+    // IMPORTANT:
+    // Setting crossOrigin="anonymous" requires the remote host to send proper CORS headers.
+    // Our production audio URLs can be served from a CDN domain (cross-origin), and if CORS
+    // is not configured there, the browser will fail to load/play the media.
+    // Only set crossOrigin when the audio is same-origin.
+    try {
+      const urlOrigin = new URL(audioUrl, window.location.href).origin;
+      if (urlOrigin === window.location.origin) {
+        audioRef.current.crossOrigin = 'anonymous';
+      }
+    } catch {
+      // If URL parsing fails, do not set crossOrigin to avoid breaking playback.
+    }
 
     // Audio elementini AudioContext'e bağla
     try {
