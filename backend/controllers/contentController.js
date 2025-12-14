@@ -56,42 +56,42 @@ exports.processLink = async (req, res) => {
  * Haber URL'sinden tam metni çıkarıp döndüren yardımcı endpoint.
  */
 exports.fetchArticleDetails = async (req, res) => {
-	const requestId = uuidv4();
-	try {
-		const { url } = req.body || {};
-		if (!url || typeof url !== 'string' || !url.trim()) {
-			return res.status(400).json({
-				success: false,
-				message: 'Lütfen geçerli bir haber bağlantısı (url) gönderin.',
-			});
-		}
+  const requestId = uuidv4();
+  try {
+    const { url } = req.body || {};
+    if (!url || typeof url !== 'string' || !url.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lütfen geçerli bir haber bağlantısı (url) gönderin.',
+      });
+    }
 
-		logger.info(`[${requestId}] fetchArticleDetails called`, { url });
-		const text = await extractFromWebLink(url);
-		if (!text || !text.trim()) {
-			return res.status(502).json({
-				success: false,
-				message: 'Haber metni kaynaktan çıkarılamadı.',
-			});
-		}
+    logger.info(`[${requestId}] fetchArticleDetails called`, { url });
+    const text = await extractFromWebLink(url);
+    if (!text || !text.trim()) {
+      return res.status(502).json({
+        success: false,
+        message: 'Haber metni kaynaktan çıkarılamadı.',
+      });
+    }
 
-		const trimmed = text.length > 20000 ? text.slice(0, 20000) : text;
-		return res.status(200).json({
-			success: true,
-			data: {
-				url,
-				text: trimmed,
-				length: trimmed.length,
-			},
-		});
-	} catch (error) {
-		logger.error(`[${requestId}] Error in fetchArticleDetails`, { error: error.message });
-		return res.status(500).json({
-			success: false,
-			message: 'Haber detayı alınırken bir hata oluştu.',
-			error: error.message,
-		});
-	}
+    const trimmed = text.length > 20000 ? text.slice(0, 20000) : text;
+    return res.status(200).json({
+      success: true,
+      data: {
+        url,
+        text: trimmed,
+        length: trimmed.length,
+      },
+    });
+  } catch (error) {
+    logger.error(`[${requestId}] Error in fetchArticleDetails`, { error: error.message });
+    return res.status(500).json({
+      success: false,
+      message: 'Haber detayı alınırken bir hata oluştu.',
+      error: error.message,
+    });
+  }
 };
 
 /**
@@ -213,15 +213,15 @@ exports.processHashtag = async (req, res) => {
  */
 exports.getContentHistory = async (req, res) => {
   const userId = req.user.id;
-  
+
   // User ID'yi validate et
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  
+
   if (!uuidRegex.test(userId)) {
     logger.warn(`Invalid user ID in getContentHistory: ${userId}.`);
     return res.status(400).json({ success: false, error: 'Invalid user id' });
   }
-  
+
   // Mock content history removed
 
   const { data, error } = await supabase
@@ -370,8 +370,8 @@ async function uploadAudioToSupabase(audioBuffer, fileName) {
       .getPublicUrl(filePath);
 
     if (!publicUrlData || !publicUrlData.publicUrl) {
-        logger.error(`Failed to get public URL for ${filePath} after upload.`);
-        throw new Error("Dosya yüklendi ancak public URL alınamadı.");
+      logger.error(`Failed to get public URL for ${filePath} after upload.`);
+      throw new Error("Dosya yüklendi ancak public URL alınamadı.");
     }
 
     logger.info(`Audio file uploaded successfully to Supabase: ${publicUrlData.publicUrl}`);
@@ -380,7 +380,7 @@ async function uploadAudioToSupabase(audioBuffer, fileName) {
     // Error is already logged inside the try block if it originated there
     // Log if it's an unexpected error during the process
     if (!error.message.startsWith("Ses dosyası yüklenemedi") && !error.message.startsWith("Dosya yüklendi ancak")) {
-        logger.error("Unexpected error during audio upload to Supabase:", error);
+      logger.error("Unexpected error during audio upload to Supabase:", error);
     }
     throw error; // Re-throw the error to be handled by the caller
   }
@@ -394,11 +394,11 @@ exports.submitContent = async (req, res) => {
   let stepSequence = 1;
 
   try {
-    const { input, input_type, level, mp3_url, translated_text, adapted_text, chapter_id, timepoints, words } = req.body;
+    const { input, input_type, level, mp3_url, translated_text, adapted_text, chapter_id, timepoints, words, detected_mood } = req.body;
     const user_id = req.user?.id;
-    logger.info(`submitContent request received for user ID: ${user_id || 'anon'}`, { 
-      input_type, 
-      level, 
+    logger.info(`submitContent request received for user ID: ${user_id || 'anon'}`, {
+      input_type,
+      level,
       input: input ? `${input.substring(0, 50)}...` : 'undefined',
       mp3_url: mp3_url ? `${mp3_url.substring(0, 50)}...` : 'undefined',
       hasInput: !!input,
@@ -412,7 +412,7 @@ exports.submitContent = async (req, res) => {
     if (!input || !input_type || !level || !mp3_url) {
       logger.warn(`submitContent failed: Missing required fields for user ID ${user_id || 'anon'}`, {
         input: !!input,
-        input_type: !!input_type, 
+        input_type: !!input_type,
         level: !!level,
         mp3_url: !!mp3_url,
         // Değerleri de logla
@@ -431,7 +431,7 @@ exports.submitContent = async (req, res) => {
     // Google Drive URL'sini doğrudan indirme formatına dönüştür
     const convertedMp3Url = convertGoogleDriveUrl(mp3_url);
     if (convertedMp3Url !== mp3_url) {
-        logger.info(`Converted Google Drive URL to direct download link: ${convertedMp3Url}`);
+      logger.info(`Converted Google Drive URL to direct download link: ${convertedMp3Url}`);
     }
 
     // Check if mock content save mode is enabled from parameters table
@@ -439,10 +439,10 @@ exports.submitContent = async (req, res) => {
 
     // User ID'yi UUID formatına çevir ve validate et
     let validUserId = user_id;
-    
+
     // UUID format kontrolü (36 karakter, 8-4-4-4-12 format)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    
+
     if (!user_id || user_id === 'anon') {
       // Anonymous user için null kullan
       validUserId = null;
@@ -455,7 +455,7 @@ exports.submitContent = async (req, res) => {
       logger.warn(`Invalid UUID format for user_id: ${user_id}. Using null instead.`);
       validUserId = null;
     }
-    
+
     // chapter_id değerini güvenli şekilde parse et
     let chapterIdValue = null;
     if (chapter_id !== undefined && chapter_id !== null && String(chapter_id).trim() !== '') {
@@ -511,6 +511,7 @@ exports.submitContent = async (req, res) => {
         adapted_text: adapted_text || '',
         chapter_id: chapterIdValue,
         updated_at: now,
+        detected_mood: detected_mood || null,
       };
 
       // Podcast zamanlamas3i i e7in g f6nderilen timepoints/words varsa g fcncelle
@@ -537,9 +538,9 @@ exports.submitContent = async (req, res) => {
         translated_text: translated_text || '',
         adapted_text: adapted_text || '',
         user_id: validUserId,
-        chapter_id: chapterIdValue,
         created_at: now,
         updated_at: now,
+        detected_mood: detected_mood || null,
       };
 
       // Podcast zamanlamas3i i e7in g f6nderilen timepoints/words varsa JSON string olarak sakla
@@ -564,7 +565,7 @@ exports.submitContent = async (req, res) => {
         details: error.details,
         hint: error.hint
       });
-      
+
       // Supabase connection hatası için özel handling
       if (error.message?.includes('500') || error.message?.includes('Internal server error')) {
         return res.status(503).json({
@@ -573,7 +574,7 @@ exports.submitContent = async (req, res) => {
           error: "Database temporarily unavailable"
         });
       }
-      
+
       return res.status(500).json({
         success: false,
         message: "Kayıt sırasında hata oluştu.",
@@ -631,13 +632,13 @@ exports.submitContent = async (req, res) => {
 exports.testSupabaseConnection = async (req, res) => {
   try {
     logger.info('Testing Supabase connection...');
-    
+
     // Basit bir query ile bağlantıyı test et
     const { data, error } = await supabase
       .from('contenthistory')
       .select('id')
       .limit(1);
-    
+
     if (error) {
       logger.error('Supabase connection test failed:', error);
       return res.status(500).json({
@@ -651,7 +652,7 @@ exports.testSupabaseConnection = async (req, res) => {
         }
       });
     }
-    
+
     logger.info('Supabase connection test successful');
     return res.status(200).json({
       success: true,
@@ -689,10 +690,10 @@ exports.createContent = async (req, res) => {
 
     // User ID'yi UUID formatına çevir ve validate et
     let validUserId = userId;
-    
+
     // UUID format kontrolü (36 karakter, 8-4-4-4-12 format)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    
+
     if (!userId || userId === 'anon') {
       validUserId = null;
     } else if (userId === 'dev-user-123') {

@@ -5,7 +5,7 @@ let openai = null;
 if (process.env.OPENAI_API_KEY) {
   try {
     openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  } catch {}
+  } catch { }
 }
 const { logRequestStep } = require('../utils/requestLogger');
 const { v4: uuidv4 } = require('uuid');
@@ -22,7 +22,7 @@ const { generateBilingualContent } = require('../utils/translateAndAdapt');
  * @deprecated Use generateBilingualContent for optimized single-call generation
  */
 function getPromptFileByLevel(level) {
-  switch(level) {
+  switch (level) {
     case 'A1': return 'content_generation_A1.txt';
     case 'A2': return 'content_generation_A2.txt';
     case 'B1': return 'content_generation_B1.txt';
@@ -48,23 +48,23 @@ function getBilingualPromptFileByLevel(level) {
  * Returns final leveled English text + translated text without triggering TTS
  */
 exports.processTopicToEnglishText = async (req, res) => {
-  const { topic, level, selected_subtopic, input_language } = req.body;
+  const { topic, level, selected_subtopic, input_language, mood } = req.body;
   const requestId = req.headers['x-request-id'] || uuidv4();
   let stepSequence = 1;
-  
+
   if (!topic) {
     logRequestStep(requestId, 'topic-pipeline:error', { error: 'No topic provided.' });
     return res.status(400).json({ success: false, message: "Lütfen bir konu belirtin." });
   }
-  
+
   if (!level || !['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(level)) {
     return res.status(400).json({ success: false, message: "Geçerli bir CEFR seviyesi belirtin (A1-C2)." });
   }
-  
+
   try {
-    logger.info(`[${requestId}] Starting topic pipeline: "${topic}" at level ${level}`);
-    logRequestStep(requestId, 'topic-pipeline:start', { topic, level, selected_subtopic });
-    
+    logger.info(`[${requestId}] Starting topic pipeline: "${topic}" at level ${level} (Mood: ${mood || 'Auto'})`);
+    logRequestStep(requestId, 'topic-pipeline:start', { topic, level, selected_subtopic, mood });
+
     const result = {
       topic,
       level,
@@ -73,6 +73,7 @@ exports.processTopicToEnglishText = async (req, res) => {
       narration_tr: '',
       translation_en: '',
       adapted_text: '',
+      mood: mood || null,
       usage: {
         suggestions: null,
         narration: null,
@@ -82,7 +83,7 @@ exports.processTopicToEnglishText = async (req, res) => {
       },
       daily_usage_patterns: []
     };
-    
+
     // ==========================================
     // STEP 1: Generate Topic Suggestions
     // ==========================================
@@ -90,16 +91,16 @@ exports.processTopicToEnglishText = async (req, res) => {
       logger.info(`[${requestId}] Step 1: Generating topic suggestions`);
       const suggestionsPromptPath = path.join(__dirname, '../prompts/topic_detail_suggestions.txt');
       logger.info(`[${requestId}] 📄 Using prompt file: topic_detail_suggestions.txt`);
-      
+
       const suggestionsTemplate = fs.readFileSync(suggestionsPromptPath, 'utf8');
-      
+
       const suggestionsPrompt = suggestionsTemplate
         .split('{{topic}}').join(topic)
         .split('{{level}}').join(level)
         .split('{{input_language}}').join('Türkçe');
-      
+
       logger.info(`[${requestId}] 📋 Prompt: ${suggestionsPrompt.substring(0, 500)}${suggestionsPrompt.length > 500 ? '...' : ''}`);
-      
+
       const suggestionsCompletion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
@@ -108,16 +109,16 @@ exports.processTopicToEnglishText = async (req, res) => {
         ],
         temperature: 0.6,
       });
-      
+
       const suggestionsText = suggestionsCompletion.choices[0]?.message?.content?.trim() || "";
       result.usage.suggestions = suggestionsCompletion.usage;
-      
+
       // DEBUG: GPT yanıtını logla
       logger.info(`[${requestId}] GPT-4o raw response:\n${suggestionsText}`);
-      
+
       // Parse suggestions - Format: "1. **Başlık**: Açıklama"
       const lines = suggestionsText.split('\n').filter(line => line.trim());
-      
+
       for (const line of lines) {
         const trimmed = line.trim();
         const match = trimmed.match(/^(\d+)\.\s+(.+)$/);
@@ -125,14 +126,14 @@ exports.processTopicToEnglishText = async (req, res) => {
           result.suggestions.push(match[2].trim());
         }
       }
-      
+
       logger.info(`[${requestId}] Step 1 complete: ${result.suggestions.length} suggestions generated`);
       logRequestStep(requestId, 'topic-pipeline:suggestions:end', { count: result.suggestions.length });
-      
+
       // Use first suggestion as selected_subtopic if not provided
       result.selected_subtopic = result.suggestions[0] || topic;
     }
-    
+
     // ==========================================
     // OPTIMIZED STEP 2: Bilingual Content Generation (Single LLM Call)
     // OLD: 3 separate calls (narration + translation + adaptation)
@@ -142,32 +143,35 @@ exports.processTopicToEnglishText = async (req, res) => {
     const targetLanguage = input_language || 'Turkish';
     logger.info(`[${requestId}] [OPTIMIZED] Step 2: Generating bilingual content (EN + ${targetLanguage}) at ${level} level`);
     console.log(`🎯 [OPTIMIZED PIPELINE] Single LLM call for bilingual content: "${result.selected_subtopic}" (Level: ${level})`);
-    
+
     try {
       // OPTIMIZED: Single call generates both English and translated content
       const bilingualResult = await generateBilingualContent(
         result.selected_subtopic,
         targetLanguage,
-        level
+        level,
+        null, // requestLogger
+        null, // targetDurationMinutes
+        mood  // user selected mood
       );
-      
+
       if (bilingualResult && bilingualResult.englishText && bilingualResult.translatedText) {
         // Map to result structure
         result.adapted_text = bilingualResult.englishText;  // English for TTS (already at CEFR level)
         result.narration_tr = bilingualResult.translatedText;  // Translated for display
         result.translation_en = bilingualResult.englishText;  // Same as adapted (no separate step needed)
-        
+
         // Single usage object for the optimized call
         result.usage.bilingual = bilingualResult.usage;
         result.usage.narration = null;  // Not used in optimized flow
         result.usage.translation = null;  // Not used in optimized flow
         result.usage.adaptation = null;  // Not used in optimized flow
-        
+
         logger.info(`[${requestId}] [OPTIMIZED] Bilingual generation complete in SINGLE call`);
         console.log(`✅ [OPTIMIZED] EN: ${result.adapted_text.length} chars, ${targetLanguage}: ${result.narration_tr.length} chars`);
         console.log(`💰 [TOKEN SAVINGS] Used ${bilingualResult.usage?.total_tokens || 'unknown'} tokens (estimated ~47% savings)`);
-        
-        logRequestStep(requestId, 'topic-pipeline:bilingual:end', { 
+
+        logRequestStep(requestId, 'topic-pipeline:bilingual:end', {
           englishLength: result.adapted_text.length,
           translatedLength: result.narration_tr.length,
           tokens: bilingualResult.usage?.total_tokens
@@ -175,34 +179,34 @@ exports.processTopicToEnglishText = async (req, res) => {
       } else {
         throw new Error('Bilingual generation returned incomplete result');
       }
-      
+
     } catch (optimizedError) {
       logger.error(`[${requestId}] Bilingual generation failed: ${optimizedError.message}`);
       throw optimizedError;
     }
-    
+
     // ==========================================
     // STEP 5: Post-Processing (Lexical Simplification + Semantic Audit)
     // ==========================================
     logger.info(`[${requestId}] Step 5: Applying post-processors`);
-    
+
     // Store pre-processed text for audit
     const preProcessedText = result.adapted_text;
-    
+
     // Apply lexical simplification for A1-A2 levels
     if (['A1', 'A2'].includes(level)) {
       const complexWordStats = getComplexWordStats(result.adapted_text);
       logger.info(`[${requestId}] Found ${complexWordStats.count} complex words before simplification`);
-      
+
       result.adapted_text = simplifyLexically(result.adapted_text, level);
-      
+
       logger.info(`[${requestId}] Lexical simplification applied`);
-      logRequestStep(requestId, 'topic-pipeline:lexical-simplification:end', { 
+      logRequestStep(requestId, 'topic-pipeline:lexical-simplification:end', {
         complexWordsFound: complexWordStats.count,
-        level 
+        level
       });
     }
-    
+
     // Semantic audit for A1-A2 levels
     if (['A1', 'A2'].includes(level)) {
       const semanticAudit = auditSemanticPreservation(
@@ -210,21 +214,21 @@ exports.processTopicToEnglishText = async (req, res) => {
         result.adapted_text,
         level
       );
-      
+
       result.semanticAudit = semanticAudit;
-      
+
       logger.info(`[${requestId}] Semantic audit: Score ${semanticAudit.semanticScore}%, Regeneration needed: ${semanticAudit.needsRegeneration}`);
-      logRequestStep(requestId, 'topic-pipeline:semantic-audit:end', { 
+      logRequestStep(requestId, 'topic-pipeline:semantic-audit:end', {
         score: semanticAudit.semanticScore,
         needsRegeneration: semanticAudit.needsRegeneration
       });
-      
+
       // Warn if information loss is too high
       if (semanticAudit.needsRegeneration) {
         logger.warn(`[${requestId}] ⚠️ Semantic preservation below threshold. Consider regeneration.`);
       }
     }
-    
+
     logger.info(`[${requestId}] Step 5 complete: Post-processing finished`);
 
     // ==========================================
@@ -275,34 +279,34 @@ exports.processTopicToEnglishText = async (req, res) => {
     // ==========================================
     // Final Response
     // ==========================================
-    logRequestStep(requestId, 'topic-pipeline:complete', { 
+    logRequestStep(requestId, 'topic-pipeline:complete', {
       topic,
       level,
       narrationLength: result.narration_tr.length,
       translationLength: result.translation_en.length,
       adaptedLength: result.adapted_text.length,
-      totalTokens: (result.usage.narration?.total_tokens || 0) + 
-                   (result.usage.translation?.total_tokens || 0) + 
-                   (result.usage.adaptation?.total_tokens || 0)
+      totalTokens: (result.usage.narration?.total_tokens || 0) +
+        (result.usage.translation?.total_tokens || 0) +
+        (result.usage.adaptation?.total_tokens || 0)
     });
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       data: result
     });
-    
+
   } catch (err) {
-    logger.error(`[${requestId}] Topic pipeline error: ${err.message}`, { 
-      topic, 
+    logger.error(`[${requestId}] Topic pipeline error: ${err.message}`, {
+      topic,
       level,
       stack: err.stack
     });
-    
+
     logRequestStep(requestId, 'topic-pipeline:error', { error: err.message });
-    res.status(500).json({ 
-      success: false, 
-      message: "Metin oluşturma işlemi sırasında bir hata oluştu.", 
-      error: err.message 
+    res.status(500).json({
+      success: false,
+      message: "Metin oluşturma işlemi sırasında bir hata oluştu.",
+      error: err.message
     });
   }
 };
@@ -313,30 +317,30 @@ exports.processTopicToEnglishText = async (req, res) => {
 exports.getTopicSuggestions = async (req, res) => {
   const { topic, level } = req.body;
   const requestId = req.headers['x-request-id'] || uuidv4();
-  
+
   if (!topic) {
     return res.status(400).json({ success: false, message: "Lütfen bir konu belirtin." });
   }
-  
+
   try {
     logger.info(`[${requestId}] Generating topic suggestions for: "${topic}"`);
-    
+
     const promptPath = path.join(__dirname, '../prompts/topic_detail_suggestions.txt');
     logger.info(`[${requestId}] 📄 Using prompt file: topic_detail_suggestions.txt`);
-    
+
     const promptTemplate = fs.readFileSync(promptPath, 'utf8');
-    
+
     const prompt = promptTemplate
       .split('{{topic}}').join(topic)
       .split('{{level}}').join(level || 'A1')
       .split('{{input_language}}').join('Türkçe');
-    
+
     logger.info(`[${requestId}] 📋 Prompt: ${prompt}`);
-    
+
     if (!openai) {
       return res.status(503).json({ success: false, message: "Service unavailable (missing OPENAI_API_KEY)." });
     }
-    
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -345,18 +349,18 @@ exports.getTopicSuggestions = async (req, res) => {
       ],
       temperature: 0.6,
     });
-    
+
     const text = completion.choices[0]?.message?.content?.trim() || "";
-    
+
     // DEBUG: GPT yanıtını logla
     logger.info(`[${requestId}] GPT-4o raw response:\n${text}`);
-    
+
     // Parse suggestions - Format: "1. **Başlık**: Açıklama"
     let suggestions = [];
-    
+
     // Önce numaralı satırları bul
     const lines = text.split('\n').filter(line => line.trim());
-    
+
     for (const line of lines) {
       const trimmed = line.trim();
       // "1. " ile başlayan satırları al
@@ -365,24 +369,24 @@ exports.getTopicSuggestions = async (req, res) => {
         suggestions.push(match[2].trim());
       }
     }
-    
+
     logger.info(`[${requestId}] Generated ${suggestions.length} suggestions`);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       data: {
         topic,
         level: level || 'A1',
         suggestions
       }
     });
-    
+
   } catch (err) {
     logger.error(`[${requestId}] Topic suggestions error: ${err.message}`, { topic, level, stack: err.stack });
-    res.status(500).json({ 
-      success: false, 
-      message: "Konu önerileri oluşturulurken bir hata oluştu.", 
-      error: err.message 
+    res.status(500).json({
+      success: false,
+      message: "Konu önerileri oluşturulurken bir hata oluştu.",
+      error: err.message
     });
   }
 };

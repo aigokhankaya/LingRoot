@@ -32,6 +32,15 @@ export default function CookiePolicy() {
           <Link href="/nasil-calisir" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             {t('how_it_works')}
           </Link>
+          <Link href="/ozellikler" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
+            {t('features')}
+          </Link>
+          <Link href="/fiyatlandirma" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
+            {t('pricing')}
+          </Link>
+          <Link href="/blog" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
+            {t('blog')}
+          </Link>
           <Link href="/contact" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             {t('contact')}
           </Link>
@@ -73,7 +82,7 @@ export default function CookiePolicy() {
               {/* Son Güncellenme */}
               <div className="mb-12 p-6 bg-primary/5 rounded-2xl border border-primary/20 shadow-lg">
                 <p className="text-primary mb-0 font-medium">
-                  <strong>{t('cookie_last_updated')}:</strong> 1 Ocak 2025
+                  <strong>{t('cookie_last_updated')}:</strong> 2025-01-01
                 </p>
               </div>
 

@@ -190,33 +190,34 @@ async function extractFromWebLink(url) {
  * 
  * @returns {{englishText: string, translatedText: string}} - İngilizce içerik (TTS için) ve çevrilmiş içerik (kayıt için)
  */
-async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'Turkish', requestLogger, targetDurationMinutes = null) {
+async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'Turkish', requestLogger, targetDurationMinutes = null, mood = null) {
     if (!openai) {
         logger.error("OpenAI API key not found. Cannot generate narration for topic.");
         return null;
     }
-    
+
     logger.info(`[OPTIMIZED] Generating bilingual narration for topic: ${topic} at level ${level}`);
     console.log(`🎯 [OPTIMIZED TOPIC GENERATION] Single LLM call for: "${topic}" (Level: ${level}, Lang: ${inputLanguage})`);
-    
+    if (mood) console.log(`🎭 [MOOD] ${mood}`);
+
     try {
         // OPTIMIZED: Single LLM call for both English and translated content
         // Pass targetDurationMinutes to control content length based on desired audio duration
-        const result = await generateBilingualContent(topic, inputLanguage, level, requestLogger, targetDurationMinutes);
-        
+        const result = await generateBilingualContent(topic, inputLanguage, level, requestLogger, targetDurationMinutes, mood);
+
         if (targetDurationMinutes) {
             logger.info(`[OPTIMIZED] Duration target: ${targetDurationMinutes} minutes`);
         }
-        
+
         if (!result || !result.englishText) {
             logger.error("[OPTIMIZED] Bilingual generation failed.");
             return null;
         }
-        
+
         logger.info(`[OPTIMIZED] Generated ${result.englishText.length} chars EN + ${result.translatedText.length} chars ${inputLanguage}`);
         console.log(`✅ [OPTIMIZED COMPLETE] EN: ${result.englishText.length} chars, ${inputLanguage}: ${result.translatedText.length} chars`);
         console.log(`💰 [TOKEN SAVINGS] Used ${result.usage?.total_tokens || 'unknown'} tokens in single call`);
-        
+
         return {
             englishText: result.englishText,
             translatedText: result.translatedText,
@@ -235,22 +236,24 @@ async function generateNarrationForTopic(topic, level = 'A1', inputLanguage = 'T
  * Text tipi için: Doğrudan metni döndürür.
  * File, weblink ve chapter tipleri için ilgili extraction fonksiyonlarını çağırır.
  */
-async function extractTextFromInput(inputData, inputType, file, chapter, level = "A1", detectedLanguage = "en", requestLogger, targetDurationMinutes = null) {
+async function extractTextFromInput(inputData, inputType, file, chapter, level = "A1", detectedLanguage = "en", requestLogger, targetDurationMinutes = null, options = {}) {
     logger.info(`Extracting text for input type: ${inputType}`);
     switch (inputType) {
         case "text":
+        case "chapter": // Treat chapter like text, just pass through
             if (typeof inputData === "string") {
-                logger.info("Received plain text input. Passing directly to cleaning step.");
+                logger.info(`Received ${inputType} input. Passing directly to cleaning step.`);
                 return inputData;
             } else {
-                logger.error("Input data is not a string for type 'text'.");
+                logger.error(`Input data is not a string for type '${inputType}'.`);
                 return null;
             }
         case "topic":
             if (typeof inputData === "string") {
                 // content_generation prompt'u ile seviyeye uygun detaylı anlatım üret
                 const inputLanguage = detectedLanguage === 'tr' || detectedLanguage === 'tr-TR' ? 'Turkish' : 'English';
-                const narration = await generateNarrationForTopic(inputData, level, inputLanguage, requestLogger, targetDurationMinutes);
+                const mood = options.mood || null;
+                const narration = await generateNarrationForTopic(inputData, level, inputLanguage, requestLogger, targetDurationMinutes, mood);
                 if (!narration || !narration.englishText) {
                     logger.error("OpenAI could not generate narration from topic. User should provide a more descriptive topic.");
                     return null;

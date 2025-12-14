@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const logger = require('../utils/logger');
 const { embedText, findSimilar } = require('./embedding');
+const directorAgentService = require('../services/directorAgentService');
 
 /**
  * RAG (Retrieval-Augmented Generation) Module
@@ -13,17 +14,17 @@ const { embedText, findSimilar } = require('./embedding');
  * @returns {Promise<Object>} - Created topic
  */
 async function storeTopic(topicData) {
-  const { title, description, userId, sourceType = 'chat', sourceId = null } = topicData;
+  const { title, description, userId, sourceType = 'chat', sourceId = null, mood = null } = topicData;
 
   try {
     // Generate embedding
     const combinedText = `${title}\n\n${description}`;
     const embedding = await embedText(combinedText);
 
-    // Store in database
+    // Store in database with mood_tag
     const query = `
-      INSERT INTO topics (title, description, user_id, embedding, source_type, source_id, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      INSERT INTO topics (title, description, user_id, embedding, source_type, source_id, mood_tag, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
       RETURNING *
     `;
 
@@ -33,7 +34,8 @@ async function storeTopic(topicData) {
       userId,
       JSON.stringify(embedding),
       sourceType,
-      sourceId
+      sourceId,
+      mood
     ]);
 
     logger.info('✅ Topic stored with embedding', {
@@ -201,11 +203,15 @@ async function extractAndStoreTopic(conversationId, userId) {
     const openaiClient = require('../utils/openaiClient');
     const extracted = await openaiClient.extractSuggestedTopic(messages);
 
+    // Analyze mood of the topic
+    const detectedMood = await directorAgentService.analyzeMood(`${extracted.topic}: ${extracted.description}`);
+
     // Store the topic
     const topic = await storeTopic({
       title: extracted.topic,
       description: extracted.description,
       userId,
+      mood: detectedMood
     });
 
     // Update conversation with suggested topic

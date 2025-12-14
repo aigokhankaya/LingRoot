@@ -32,7 +32,7 @@ const App: React.FC = () => {
     const { t, currentLocale } = useTranslation();
     const { changeLanguage, supportedLocales } = useLanguage();
     const language = currentLocale;
-    
+
     // --- YENİ TASARIMDAN GELEN STATE'LER ---
     const [level, setLevel] = useState(1);
     const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -68,7 +68,7 @@ const App: React.FC = () => {
             const raw = params.get('next') || '';
             const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
             const target = next && next.trim() ? next : '/welcome';
-            
+
             if (typeof window !== 'undefined' && target.includes('#')) {
                 window.location.assign(target);
             } else {
@@ -94,7 +94,7 @@ const App: React.FC = () => {
             setRegisterForm({ ...registerForm, [e.target.name]: e.target.value });
         }
     };
-    
+
     // --- GİRİŞ VE KAYIT FONKSİYONLARI (ESKİ MANTIK İLE YENİ STATE'LER BİRLEŞTİRİLDİ) ---
     const handleLoginSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -174,22 +174,22 @@ const App: React.FC = () => {
     const handleGoogleLogin = async () => {
         setLoading(true);
         setError(null);
-        
+
         try {
             // Google Client ID kontrolü
             const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
             if (!clientId || clientId === 'your-google-client-id-here.apps.googleusercontent.com') {
                 throw new Error('Google Client ID yapılandırılmamış.');
             }
-            
+
             await initializeGoogleAuth();
             const { credential } = await signInWithGoogle();
             const result = await loginWithGoogle(credential, loginForm.rememberMe);
-            
+
             if (result.success) {
                 setIsLoginOpen(false);
                 await new Promise(resolve => setTimeout(resolve, 100));
-                
+
                 const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
                 const raw = params.get('next') || '';
                 const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
@@ -252,7 +252,7 @@ const App: React.FC = () => {
                         <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-10 h-10 md:w-12 md:h-12" />
                         <BrandWordmark className="text-xl md:text-2xl" />
                     </div>
-                    
+
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-6">
                         <a href="/about" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('about')}</a>
@@ -261,7 +261,7 @@ const App: React.FC = () => {
                         <a href="#yorumlar" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('landing_nav_testimonials')}</a>
                         <a href="#blog" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('landing_nav_blog')}</a>
                     </div>
-                    
+
                     {/* Desktop Buttons */}
                     <div className="hidden md:flex items-center space-x-4">
                         <select
@@ -275,7 +275,7 @@ const App: React.FC = () => {
                                 </option>
                             ))}
                         </select>
-                        
+
                         {/* GİRİŞ YAP MODALI */}
                         <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
                             <DialogTrigger asChild>
@@ -296,7 +296,7 @@ const App: React.FC = () => {
                                         <Label htmlFor="password">{t('password')}</Label>
                                         <Input id="password" name="password" type="password" value={loginForm.password} onChange={handleLoginChange} required />
                                     </div>
-                                    
+
                                     {/* Beni Hatırla Checkbox */}
                                     <div className="flex items-center space-x-2">
                                         <input
@@ -311,29 +311,29 @@ const App: React.FC = () => {
                                             {t('login_remember_me')}
                                         </Label>
                                     </div>
-                                    
+
                                     {error && <p className="text-sm text-red-500 text-center">{error}</p>}
                                     {errorCode === 'EMAIL_NOT_VERIFIED' && (
-                                      <div className="text-center space-y-2">
-                                        <p className="text-sm text-gray-700">
-                                          {t('login_email_not_verified_message')}
-                                        </p>
-                                        <div className="flex justify-center">
-                                          <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            className="!rounded-button"
-                                            onClick={handleResendActivation}
-                                            disabled={resendLoading}
-                                          >
-                                            {resendLoading ? t('login_resend_activation_loading') : t('login_resend_activation_button')}
-                                          </Button>
+                                        <div className="text-center space-y-2">
+                                            <p className="text-sm text-gray-700">
+                                                {t('login_email_not_verified_message')}
+                                            </p>
+                                            <div className="flex justify-center">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="!rounded-button"
+                                                    onClick={handleResendActivation}
+                                                    disabled={resendLoading}
+                                                >
+                                                    {resendLoading ? t('login_resend_activation_loading') : t('login_resend_activation_button')}
+                                                </Button>
+                                            </div>
+                                            {resendMessage && (
+                                                <p className="text-xs text-gray-600">{resendMessage}</p>
+                                            )}
                                         </div>
-                                        {resendMessage && (
-                                          <p className="text-xs text-gray-600">{resendMessage}</p>
-                                        )}
-                                      </div>
                                     )}
                                     {/* Şifremi unuttum */}
                                     <div className="flex justify-end">
@@ -342,7 +342,7 @@ const App: React.FC = () => {
                                     <Button type="submit" className="w-full !rounded-button" disabled={loading}>
                                         {loading ? t('login_button_loading') : t('login_button')}
                                     </Button>
-                                    
+
                                     {/* Ayırıcı */}
                                     <div className="relative">
                                         <div className="absolute inset-0 flex items-center">
@@ -352,20 +352,20 @@ const App: React.FC = () => {
                                             <span className="bg-white px-2 text-gray-500">{t('login_or')}</span>
                                         </div>
                                     </div>
-                                    
+
                                     {/* Google Login Butonu */}
-                                    <Button 
-                                        type="button" 
-                                        variant="outline" 
-                                        className="w-full !rounded-button border-gray-300 hover:bg-gray-50" 
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="w-full !rounded-button border-gray-300 hover:bg-gray-50"
                                         onClick={handleGoogleLogin}
                                         disabled={loading}
                                     >
                                         <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                                         </svg>
                                         {t('login_google_button')}
                                     </Button>
@@ -378,7 +378,7 @@ const App: React.FC = () => {
                             <Button className="!rounded-button whitespace-nowrap">{t('landing_nav_signup')}</Button>
                         </a>
                     </div>
-          
+
                     {/* Mobile Menu Button */}
                     <div className="md:hidden flex items-center space-x-2">
                         <select
@@ -392,16 +392,16 @@ const App: React.FC = () => {
                                 </option>
                             ))}
                         </select>
-                        <Button 
-                            variant="ghost" 
-                            className="p-2" 
+                        <Button
+                            variant="ghost"
+                            className="p-2"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         >
                             <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'} text-xl`}></i>
                         </Button>
                     </div>
                 </div>
-                
+
                 {/* Mobile Menu */}
                 {isMobileMenuOpen && (
                     <div className="md:hidden bg-white border-t border-gray-200 mobile-menu">
@@ -411,7 +411,7 @@ const App: React.FC = () => {
                             <a href="#ozellikler" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_features')}</a>
                             <a href="#yorumlar" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_testimonials')}</a>
                             <a href="#blog" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_blog')}</a>
-                            
+
                             <div className="pt-4 border-t border-gray-200 space-y-3">
                                 <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
                                     <DialogTrigger asChild>
@@ -431,7 +431,7 @@ const App: React.FC = () => {
                                                 <Label htmlFor="mobile-password">{t('password')}</Label>
                                                 <Input id="mobile-password" name="password" type="password" value={loginForm.password} onChange={handleLoginChange} required />
                                             </div>
-                                            
+
                                             {/* Beni Hatırla Checkbox - Mobile */}
                                             <div className="flex items-center space-x-2">
                                                 <input
@@ -446,12 +446,12 @@ const App: React.FC = () => {
                                                     {t('login_remember_me')}
                                                 </Label>
                                             </div>
-                                            
+
                                             {error && <p className="text-sm text-red-500 text-center">{error}</p>}
                                             <Button type="submit" className="w-full !rounded-button" disabled={loading}>
                                                 {loading ? t('login_button_loading') : t('login_button')}
                                             </Button>
-                                            
+
                                             {/* Ayırıcı - Mobile */}
                                             <div className="relative">
                                                 <div className="absolute inset-0 flex items-center">
@@ -461,27 +461,27 @@ const App: React.FC = () => {
                                                     <span className="bg-white px-2 text-gray-500">{t('login_or')}</span>
                                                 </div>
                                             </div>
-                                            
+
                                             {/* Google Login Butonu - Mobile */}
-                                            <Button 
-                                                type="button" 
-                                                variant="outline" 
-                                                className="w-full !rounded-button border-gray-300 hover:bg-gray-50" 
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="w-full !rounded-button border-gray-300 hover:bg-gray-50"
                                                 onClick={handleGoogleLogin}
                                                 disabled={loading}
                                             >
                                                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                                                 </svg>
                                                 {t('login_google_button')}
                                             </Button>
                                         </form>
                                     </DialogContent>
                                 </Dialog>
-                                
+
                                 <a href="/register" onClick={() => setIsMobileMenuOpen(false)}>
                                     <Button className="w-full !rounded-button">{t('landing_nav_signup')}</Button>
                                 </a>
@@ -490,7 +490,7 @@ const App: React.FC = () => {
                     </div>
                 )}
             </nav>
-            
+
             {/* Hero Section */}
             <section className="pt-10 pb-12 min-h-0 h-auto bg-gradient-to-b from-background via-primary/5 to-background">
                 <div className="container mx-auto px-8">
@@ -610,7 +610,7 @@ const App: React.FC = () => {
                                 <CardHeader className="pb-0 p-0">
                                     <div className="how-it-works-image">
                                         <img
-                                            src={`https://readdy.ai/api/search-image?query=A person ${index === 0 ? 'selecting content on their device, with multiple media platforms visible on screen. The scene shows YouTube videos, Spotify podcasts, and news articles. Clean, modern interface with a soft blue background and minimalist design.' : index === 1 ? 'close-up of a language level selector interface showing levels from A1 to C2. The design is clean and modern with a soft blue background. The interface shows a slider or dropdown menu being adjusted by a finger, representing language level selection.' : 'relaxing with headphones, enjoying content on their device. The screen shows subtitles in English with a clean interface. The background is a soft blue gradient, and the scene conveys effortless learning through listening.'}&width=400&height=300&seq=step${index+1}&orientation=landscape`}
+                                            src={`https://readdy.ai/api/search-image?query=A person ${index === 0 ? 'selecting content on their device, with multiple media platforms visible on screen. The scene shows YouTube videos, Spotify podcasts, and news articles. Clean, modern interface with a soft blue background and minimalist design.' : index === 1 ? 'close-up of a language level selector interface showing levels from A1 to C2. The design is clean and modern with a soft blue background. The interface shows a slider or dropdown menu being adjusted by a finger, representing language level selection.' : 'relaxing with headphones, enjoying content on their device. The screen shows subtitles in English with a clean interface. The background is a soft blue gradient, and the scene conveys effortless learning through listening.'}&width=400&height=300&seq=step${index + 1}&orientation=landscape`}
                                             alt={step.title}
                                             className=""
                                         />
@@ -643,7 +643,7 @@ const App: React.FC = () => {
                                 <CardHeader className="pb-0 p-0">
                                     <div className="routine-image">
                                         <img
-                                            src={`https://readdy.ai/api/search-image?query=A person ${index === 0 ? 'walking in a park with headphones, listening to content on their smartphone. The scene has a bright, airy feel with trees and a path. The person looks relaxed and engaged with what they are listening to, suggesting learning while exercising.' : index === 1 ? 'exercising at home or gym with headphones, watching content on a tablet device nearby. The scene shows someone doing light workout while engaging with content. The environment is bright and motivational with a clean, modern aesthetic.' : index === 2 ? 'driving a car while listening to audio content. The dashboard shows a connected smartphone playing content. The scene is from inside the vehicle with a clean, modern interior and a bright day visible through windows.' : 'doing household chores like cleaning or cooking while listening to content on wireless headphones. The home environment is bright, modern and clean. The person looks engaged with what they are listening to while completing their tasks.'}&width=300&height=200&seq=routine${index+1}&orientation=landscape`}
+                                            src={`https://readdy.ai/api/search-image?query=A person ${index === 0 ? 'walking in a park with headphones, listening to content on their smartphone. The scene has a bright, airy feel with trees and a path. The person looks relaxed and engaged with what they are listening to, suggesting learning while exercising.' : index === 1 ? 'exercising at home or gym with headphones, watching content on a tablet device nearby. The scene shows someone doing light workout while engaging with content. The environment is bright and motivational with a clean, modern aesthetic.' : index === 2 ? 'driving a car while listening to audio content. The dashboard shows a connected smartphone playing content. The scene is from inside the vehicle with a clean, modern interior and a bright day visible through windows.' : 'doing household chores like cleaning or cooking while listening to content on wireless headphones. The home environment is bright, modern and clean. The person looks engaged with what they are listening to while completing their tasks.'}&width=300&height=200&seq=routine${index + 1}&orientation=landscape`}
                                             alt={activity.title}
                                             className=""
                                         />
@@ -688,7 +688,7 @@ const App: React.FC = () => {
                                     </div>
                                     <div className="order-1 md:order-2 h-48 md:h-full overflow-hidden feature-image">
                                         <img
-                                            src={`https://readdy.ai/api/search-image?query=${index === 0 ? 'A collection of real-world media content displayed on various devices. The scene shows YouTube videos, podcasts, news articles, and social media content. The display is modern and clean with a soft blue background, emphasizing authentic learning materials.' : index === 1 ? 'A personalized user interface showing content recommendations based on interests and language level. The screen displays customization options and preference settings. The design is clean and modern with a soft blue background, conveying personalization.' : index === 2 ? 'A person relaxing with high-quality headphones, listening to content with visible subtitles on their device. The scene shows someone comfortably learning through listening. The environment is peaceful with a soft blue background.' : 'A split-screen showing a person engaged in daily activities while learning. The scene depicts someone multitasking - perhaps commuting, exercising, or doing chores while listening to content. The design is clean with a soft blue background.'}&width=500&height=300&seq=feature${index+1}&orientation=landscape`}
+                                            src={`https://readdy.ai/api/search-image?query=${index === 0 ? 'A collection of real-world media content displayed on various devices. The scene shows YouTube videos, podcasts, news articles, and social media content. The display is modern and clean with a soft blue background, emphasizing authentic learning materials.' : index === 1 ? 'A personalized user interface showing content recommendations based on interests and language level. The screen displays customization options and preference settings. The design is clean and modern with a soft blue background, conveying personalization.' : index === 2 ? 'A person relaxing with high-quality headphones, listening to content with visible subtitles on their device. The scene shows someone comfortably learning through listening. The environment is peaceful with a soft blue background.' : 'A split-screen showing a person engaged in daily activities while learning. The scene depicts someone multitasking - perhaps commuting, exercising, or doing chores while listening to content. The design is clean with a soft blue background.'}&width=500&height=300&seq=feature${index + 1}&orientation=landscape`}
                                             alt={feature.title}
                                             className="w-full h-full object-cover object-center"
                                         />
@@ -812,8 +812,8 @@ const App: React.FC = () => {
                         <div className="mt-8 flex justify-center items-center space-x-6">
                             {ctaBenefits.map((benefit, index) => (
                                 <div key={index} className="flex items-center">
-                                    <i 
-                                        className="fas fa-check-circle mr-2" 
+                                    <i
+                                        className="fas fa-check-circle mr-2"
                                         style={{ color: '#22c55e' }}
                                     ></i>
                                     <span className="text-gray-600">{benefit}</span>
