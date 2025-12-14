@@ -194,7 +194,7 @@ export const translations: Translations = {
     topics_node_status_listened: 'Dinlendi',
     topics_node_status_audio_ready: 'Ses hazır',
     topics_node_status_no_audio: 'Ses yok',
-    topics_node_button_audio_creating: 'Ses Oluşturuluyor...',
+    topics_node_button_audio_creating: 'İçeriğiniz Hazırlanıyor...',
     topics_node_button_listen: 'Dinle',
     topics_node_button_create_audio: 'Ses Oluştur',
     topics_node_button_suggest_subtopic: 'Alt Konu Öner',
