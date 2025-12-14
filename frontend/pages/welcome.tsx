@@ -1303,9 +1303,10 @@ const Welcome: React.FC = () => {
 
     try {
       const response = await getTopicDetailSuggestions(selectedInterest, englishLevel);
-      if (response.success && response.data.suggestions) {
-        setTopicDetailSuggestions(response.data.suggestions);
-        console.log(`${selectedInterest} konusu için ${response.data.suggestions.length} öneri alındı`);
+      const suggestions = response.data?.suggestions;
+      if (response.success && Array.isArray(suggestions) && suggestions.length > 0) {
+        setTopicDetailSuggestions(suggestions);
+        console.log(`${selectedInterest} konusu için ${suggestions.length} öneri alındı`);
       } else {
         console.error("Konu önerileri alınamadı:", response);
         setError(t('welcome_error_topic_suggestions').replace('{error}', response.message || t('welcome_error_unknown')));

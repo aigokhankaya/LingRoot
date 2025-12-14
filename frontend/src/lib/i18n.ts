@@ -3877,7 +3877,6 @@ export const translations: Translations = {
 
     // Footer / Navigation
     contact_us: 'Kontakt aufnehmen',
-    privacy_contact_us: 'Kontakt aufnehmen',
     legal_documents: 'Rechtliche Dokumente',
 
     // Welcome – üst bölüm
