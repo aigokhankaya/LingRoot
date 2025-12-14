@@ -325,10 +325,6 @@ router.get("/vtt/:vttId", (req, res, next) => {
 // Other TTS Utility Endpoints
 router.post("/translateToEnglish", translateToEnglish);
 router.post("/adaptToCEFR", adaptToCEFR);
-router.post("/chunkText", chunkTextAPI);
-router.post("/synthesizeChunk", synthesizeChunkAPI);
-router.post("/mergeAudio", mergeAudioAPI);
-
 // Create podcast from topic (supports n8n webhook or Google TTS multi-speaker)
 router.post("/create-podcast", authenticate, async (req, res) => {
   try {
@@ -359,6 +355,8 @@ router.post("/create-podcast", authenticate, async (req, res) => {
           styleType: body.styleType,
           personalityA: body.personalityA,
           personalityB: body.personalityB,
+          hostSpeakerId: body.hostSpeakerId,
+          guestSpeakerId: body.guestSpeakerId,
           includeHumor: body.includeHumor !== false,
           includeFiller: body.includeFiller !== false,
           userId: req.user?.id,

@@ -429,6 +429,8 @@ export const apiService = {
     level: string;
     duration: number | string;
     ttsProvider?: string; // 'n8n' (default) or 'google'
+    hostSpeakerId?: string;
+    guestSpeakerId?: string;
     styleType?: string;
     voiceChoice?: string;
     personalityA?: string;
@@ -443,6 +445,8 @@ export const apiService = {
         level: params.level,
         duration: params.duration,
         ttsProvider: params.ttsProvider || 'n8n',
+        hostSpeakerId: params.ttsProvider === 'google' ? params.hostSpeakerId : undefined,
+        guestSpeakerId: params.ttsProvider === 'google' ? params.guestSpeakerId : undefined,
         styleType: params.styleType,
         voiceChoice: params.voiceChoice,
         personalityA: params.personalityA,

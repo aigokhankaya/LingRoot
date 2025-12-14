@@ -1098,6 +1098,8 @@ export const translations: Translations = {
     welcome_podcast_duration_tolerance: 'Oluşturulacak podcast\'in yaklaşık süresi (±%15 tolerans)',
     welcome_podcast_style_label: 'Konuşma Stili:',
     welcome_podcast_voice_label: 'Ses Seçimi:',
+    welcome_podcast_host_voice_label: 'Host Sesi:',
+    welcome_podcast_guest_voice_label: 'Konuk Sesi:',
     welcome_podcast_personality_a_label: 'Kişilik A:',
     welcome_podcast_personality_b_label: 'Kişilik B:',
     // Podcast style options
@@ -2811,6 +2813,8 @@ export const translations: Translations = {
     welcome_podcast_duration_tolerance: 'Approximate duration of the podcast to be created (±15% tolerance)',
     welcome_podcast_style_label: 'Speaking Style:',
     welcome_podcast_voice_label: 'Voice Selection:',
+    welcome_podcast_host_voice_label: 'Host Voice:',
+    welcome_podcast_guest_voice_label: 'Guest Voice:',
     welcome_podcast_personality_a_label: 'Personality A:',
     welcome_podcast_personality_b_label: 'Personality B:',
     podcast_style_friendly_chat: 'Friendly Chat',

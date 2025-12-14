@@ -1779,6 +1779,8 @@ export interface PodcastCreationParams {
   level: string;
   duration: number;
   ttsProvider?: string; // 'n8n' (default) or 'google'
+  hostSpeakerId?: string;
+  guestSpeakerId?: string;
   styleType?: string;
   voiceChoice?: string;
   personalityA?: string;
