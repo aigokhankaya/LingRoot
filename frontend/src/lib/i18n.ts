@@ -174,7 +174,7 @@ export const translations: Translations = {
     topics_hierarchy_bullet_infinite_tree: 'Sonsuz derinlikte konu ağacı',
     topics_hierarchy_bullet_ai: 'AI destekli alt konu önerileri',
     topics_hierarchy_bullet_audio: 'Her seviyeden ses oluşturma',
-    topics_hierarchy_link_history: 'Konularımı / Okuma Geçmişimi Gör',
+    topics_hierarchy_link_history: 'Konularım / Dinleme Geçmişim',
     topics_input_title_label: 'Ana Konu Başlığı',
     topics_input_title_placeholder: 'Örn: Osmanlı Devleti, Bilim Tarihi, Sanat Akımları...',
     topics_input_title_helper: 'Bir ana konu girin ve sistem size alt konular önerecek',

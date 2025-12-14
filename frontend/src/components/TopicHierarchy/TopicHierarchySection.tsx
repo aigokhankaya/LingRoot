@@ -285,9 +285,18 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
             <i className="fas fa-sitemap text-3xl text-primary"></i>
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              📚 {t('topics_hierarchy_title')}
-            </h3>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-semibold text-gray-900">
+                📚 {t('topics_hierarchy_title')}
+              </h3>
+              <Link
+                href="/dashboard?tab=reading-history"
+                className="text-xs text-primary hover:text-primary/80 flex items-center space-x-1"
+              >
+                <i className="fas fa-history"></i>
+                <span>{t('topics_hierarchy_link_history')}</span>
+              </Link>
+            </div>
             <p className="text-sm text-gray-700 mb-3">
               {t('topics_hierarchy_desc')}
             </p>
@@ -309,15 +318,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <Link
-          href="/dashboard?tab=reading-history"
-          className="text-xs text-primary hover:text-primary/80 flex items-center space-x-1"
-        >
-          <i className="fas fa-history"></i>
-          <span>{t('topics_hierarchy_link_history')}</span>
-        </Link>
-      </div>
+
 
       {/* Error/Success Messages */}
       {error && (

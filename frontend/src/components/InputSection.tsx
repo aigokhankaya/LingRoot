@@ -53,7 +53,7 @@ function splitBookIntoChapters(bookText: string) {
 
 export default function InputSection({ onSubmit, isLoading }: InputSectionProps): React.ReactElement {
   const { t } = useTranslation();
-  
+
   // Debug mesajı
   console.log("🔍 InputSection render - şu anki inputType:", useState<InputType>('suggestion')[0]);
   const [inputType, setInputType] = useState<InputType>('topic'); // Test için konu sekmesini başlangıç yap
@@ -78,7 +78,8 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [bookLoading, setBookLoading] = useState<boolean>(false);
   const [ttsProvider, setTtsProvider] = useState<'amazon' | 'google'>('google');
   const [interests, setInterests] = useState<string[]>([]);
-  
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+
   // Debug: interests state'ini izle
   console.log("🔍 Interests state şu anda:", interests);
   const [generatedSuggestions, setGeneratedSuggestions] = useState<string[]>([]);
@@ -93,7 +94,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [hashtagResults, setHashtagResults] = useState<HashtagNewsItem[]>([]);
   const [isLoadingHashtag, setIsLoadingHashtag] = useState<boolean>(false);
   const [hashtagError, setHashtagError] = useState<string | null>(null);
-  
+
   // Plan features state
   const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
   const [featuresLoading, setFeaturesLoading] = useState<boolean>(true);
@@ -122,7 +123,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       .then(res => res.json())
       .then(data => setGoogleVoices(data.voices || []))
       .catch(() => setGoogleVoices([]));
-    
+
     // Fetch plan features
     const fetchPlanFeatures = async () => {
       try {
@@ -217,7 +218,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         // Token alma stratejisi geliştir
         const token = getToken();
         console.log("Token kontrolü - İlk 10 karakter:", token ? `${token.substring(0, 10)}...` : "Token yok");
-        
+
         if (!token) {
           console.error("Token bulunamadı. Kullanıcı giriş yapmamış olabilir.");
           // Geliştirme aşamasında varsayılan değerlerle devam et
@@ -229,13 +230,13 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         // next.config.js'de "/api/:path*" -> "http://localhost:5001/api/:path*" yapılandırması var
         // Bu şekilde aynı origin'den istek yapılmış gibi görünür ve CORS sorunu çözülür
         const apiUrl = `${getApiUrl('/user-interests')}`;
-        
+
         console.log("İlgi alanları çekiliyor:", apiUrl);
-        
+
         // Token'ı doğru formatta gönder
         const authHeaderValue = `Bearer ${token}`;
         console.log("Authorization header hazırlandı");
-        
+
         // API çağrısını yap - ayrıntılı hata yakalama ile
         const response = await fetch(apiUrl, {
           method: 'GET',
@@ -247,7 +248,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         });
 
         console.log("API yanıt durumu:", response.status, response.statusText);
-        
+
         // API yanıtını kontrol et
         if (response.ok) {
           // Başarılı yanıt
@@ -255,20 +256,20 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
             // Önce yanıtı text olarak al
             const responseText = await response.text();
             console.log("API yanıt (ham):", responseText);
-            
+
             // Boş yanıt kontrolü
             if (!responseText || responseText.trim() === '') {
               console.error("API boş yanıt döndü");
               setInterests(['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi']);
               return;
             }
-            
+
             // Yanıtı JSON olarak ayrıştır
             const data = JSON.parse(responseText);
             console.log("API yanıt (JSON):", data);
-            
+
             let keywords: string[] = [];
-            
+
             if (Array.isArray(data)) {
               // Direk array formatı: [{"interest_keyword":"Teknoloji"}, ...]
               keywords = data.map((item: { interest_keyword: string }) => item.interest_keyword);
@@ -288,7 +289,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
               console.error("❌ API yanıt formatı beklendiği gibi değil:", data);
               keywords = ['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi'];
             }
-            
+
             console.log("🎯 Ayrıştırılan ilgi alanları:", keywords);
             setInterests(keywords);
             console.log("✅ İlgi alanları başarıyla yüklendi:", keywords);
@@ -302,14 +303,14 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
           try {
             const errorText = await response.text();
             console.error(`API hata detayı: ${errorText}`);
-            
+
             try {
               const errorData = JSON.parse(errorText);
               console.error(`API hata mesajı: ${errorData.error || errorData.message || 'Bilinmeyen hata'}`);
             } catch (jsonError) {
               console.error("API hata yanıtı JSON formatında değil:", errorText);
             }
-            
+
             // Token geçersiz ise kullanıcıyı logout yap veya tokeni yenile
             if (response.status === 401) {
               console.error("Yetkilendirme hatası: Token geçersiz veya süresi dolmuş");
@@ -318,7 +319,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
           } catch (e) {
             console.error(`API hata yanıtı alınamadı: ${e}`);
           }
-          
+
           // Geliştirme aşamasında varsayılan değerlerle devam et
           setInterests(['İngilizce', 'Yapay Zeka', 'Seyahat', 'Teknoloji', 'İş İngilizcesi']);
         }
@@ -337,12 +338,12 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       // API'den ilgi alanlarını al
       const apiUrl = `${getApiUrl('/user-interests')}`;
       const token = getToken();
-      
+
       if (!token) {
         console.error("Token bulunamadı. Kullanıcı giriş yapmamış olabilir.");
         return;
       }
-      
+
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
@@ -350,13 +351,13 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         throw new Error(`İlgi alanları alınamadı: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (Array.isArray(data)) {
         const keywords = data.map((item: { interest_keyword: string }) => item.interest_keyword);
         setInterests(keywords);
@@ -369,63 +370,14 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     }
   };
 
-  // Konu önerisi butonu için click handler ekleyelim
-  const handleGetTopicSuggestions = async () => {
-    console.log("🎯 Öneriler butonu tıklandı!");
-    console.log("🔑 Token kontrol:", localStorage.getItem("lingroot_token") ? "✅ Mevcut" : "❌ Yok");
-    console.log("📍 Seçili konu:", topic);
-    console.log("📚 Seçili seviye:", level);
-    
-    if (!topic) {
-      alert("Lütfen önce bir konu seçin");
-      return;
-    }
-    
-    setIsLoadingTopicSuggestions(true);
-    try {
-      console.log("🚀 API çağrısı başlatılıyor...");
-      const response = await getTopicDetailSuggestions(topic, level);
-      console.log("✅ API yanıtı:", response);
-      
-      if (response.success && response.data.suggestions) {
-        setTopicDetailSuggestions(response.data.suggestions);
-        console.log(`${topic} konusu için ${response.data.suggestions.length} öneri alındı`);
-      } else {
-        console.error("Konu önerileri alınamadı:", response);
-        alert("Konu önerileri alınamadı: " + (response.message || "Bilinmeyen hata"));
-      }
-    } catch (error: any) {
-      console.error("🚨 Konu önerileri alınırken hata oluştu:", error);
-      const errorMessage = error.message || "Bilinmeyen bir hata oluştu";
-      alert(`Konu önerileri alınamadı: ${errorMessage}`);
-    } finally {
-      setIsLoadingTopicSuggestions(false);
-    }
-  };
 
-  // Detaylı konu seçildiğinde çalışacak handler
-  const handleDetailTopicSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedValue = e.target.value;
-    setSelectedDetailTopic(selectedValue);
-    setText(selectedValue); // Seçilen detaylı konuyu topic_instructions alanına yaz
-    
-    // Konu sekmesine geçiş yap ve seçili konuyu topic alanına yaz
-    setInputType('topic');
-    setTopic(selectedValue); // Tüm metni konu alanına yaz
-    
-    // 50ms gecikmeyle formu otomatik olarak submit et
-    setTimeout(() => {
-      const formElement = document.querySelector('form') as HTMLFormElement;
-      if (formElement) {
-        formElement.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-      }
-    }, 50);
-  };
+
+
 
   // Form submit fonksiyonu
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
-    
+
     console.log("🚀 Form submit başladı!");
     console.log("📝 inputType:", inputType);
     console.log("📍 topic:", topic);
@@ -433,38 +385,38 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
     console.log("🎵 voice:", voice);
     console.log("📊 level:", level);
     console.log("⚡ speakingRate:", speakingRate);
-    
+
     if (!voice) {
       alert("Lütfen bir ses seçin!");
       return;
     }
-    
+
     // YouTube linki varsa önce transcript çek
     if (inputType === 'youtube' && youtubeLink) {
       try {
         // Loading state'i güncelle
         if (isLoading) return;
-        
+
         setLoadingTranscript(true);
         console.log("YouTube transkript çekiliyor...");
-        
+
         // Kullanıcıya bilgi ver
         alert("YouTube videosunun transkripti alınıyor. Bu işlem videoya göre biraz zaman alabilir ve farklı dillerde deneme yapacaktır.");
-        
+
         const transcript = await fetchYoutubeTranscript(youtubeLink);
-        
+
         if (!transcript) {
           alert("YouTube video transkripti alınamadı. Lütfen başka bir video deneyin veya başka bir içerik türü seçin.");
           setLoadingTranscript(false);
           return;
         }
-        
+
         console.log("YouTube transkript başarıyla alındı.");
-        
+
         // Transkripti topic_instructions alanına yerleştir
         setText(transcript);
         setLoadingTranscript(false);
-        
+
         // Input değeri olarak YouTube linkini kullan
         const inputData: ProcessInputData = {
           type: 'youtube',
@@ -476,7 +428,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         };
         console.log("📦 InputData oluşturuldu:", inputData);
         console.log("🎯 onSubmit çağrılıyor...");
-        
+
         onSubmit(inputData);
         return;
       } catch (error) {
@@ -486,95 +438,46 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         return;
       }
     }
-    
+
     // Diğer içerik türleri için normal davranış
     const inputData: ProcessInputData = {
       type: inputType as ProcessInputData['type'],
       text: inputType === 'text' ? text : inputType === 'topic' ? topic : undefined,
       input:
         inputType === 'text' ? text :
-        inputType === 'topic' ? topic :
-        inputType === 'youtube' ? youtubeLink :
-        inputType === 'weblink' ? webLink :
-        inputType === 'podcast' ? podcastLink :
-        inputType === 'book' ? bookName :
-        undefined,
+          inputType === 'topic' ? topic :
+            inputType === 'youtube' ? youtubeLink :
+              inputType === 'weblink' ? webLink :
+                inputType === 'podcast' ? podcastLink :
+                  inputType === 'book' ? bookName :
+                    undefined,
       file: inputType === 'file' ? file || undefined : undefined,
       level,
       SesHızı: speakingRate,
       voice, // Seçili ses burada gönderiliyor
       chapter: inputType === 'book' ? bookChapter : undefined,
     };
-    
+
     console.log("📦 InputData oluşturuldu:", inputData);
     console.log("🎯 onSubmit çağrılıyor...");
-    
+
     onSubmit(inputData);
   };
 
-  // Hashtag için en güncel haberleri getir
-  const handleFetchHashtagNews = async () => {
-    const query = hashtagQuery.trim();
-    if (!query) {
-      alert('Lütfen bir hashtag veya konu girin. Örn: #AI, yapay zeka');
-      return;
-    }
 
-    const safeLimit = Math.min(Math.max(Number(hashtagLimit) || 5, 1), 50);
 
-    setIsLoadingHashtag(true);
-    setHashtagError(null);
-    setHashtagResults([]);
 
-    try {
-      const response = await getHashtagNews(query, safeLimit);
-
-      if (!response.success) {
-        throw new Error(response.message || 'Haberler alınamadı');
-      }
-
-      const items = (response.data as unknown as any)?.results || response.data || [];
-      setHashtagResults(items as HashtagNewsItem[]);
-    } catch (error: any) {
-      console.error('Hashtag haberleri alınırken hata:', error);
-      setHashtagError(error.message || 'Haberler alınamadı');
-    } finally {
-      setIsLoadingHashtag(false);
-    }
-  };
-
-  // Seçilen haber maddesini doğrudan TTS pipeline'ına gönder
-  const handlePlayFromHashtag = (item: HashtagNewsItem) => {
-    const baseText = `${item.title || ''}\n\n${item.summary || ''}\n\nKaynak: ${item.sourceName || item.source || ''}\n${item.url || ''}`.trim();
-
-    if (!baseText) {
-      alert('Bu haber için metin bulunamadı.');
-      return;
-    }
-
-    const inputData: ProcessInputData = {
-      type: 'text',
-      input: baseText,
-      text: baseText,
-      level,
-      SesHızı: speakingRate,
-      voice,
-    };
-
-    console.log('📦 Hashtag haberinden oluşturulan InputData:', inputData);
-    onSubmit(inputData);
-  };
 
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     // Dosya boyutu kontrolü (10MB limit)
     if (file.size > 10 * 1024 * 1024) {
       alert('Dosya boyutu 10MB\'dan büyük olamaz.');
       return;
     }
-    
+
     // Dosya türü kontrolü
     const allowedTypes = [
       'application/pdf',
@@ -587,38 +490,38 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       'application/vnd.oasis.opendocument.text',
       'application/epub+zip'
     ];
-    
+
     if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|txt|md|rtf|html|odt|epub)$/i)) {
       alert('Desteklenmeyen dosya türü. Lütfen PDF, DOC, DOCX, TXT, MD, RTF, HTML, ODT veya EPUB dosyası seçin.');
       return;
     }
-    
+
     console.log('Dosya yükleniyor:', file.name, 'Boyut:', file.size, 'Tür:', file.type);
-    
+
     try {
       // Loading state'i ayarla
       setUploadingFile(true);
       setFile(file);
-      
+
       const formData = new FormData();
       formData.append('file', file);
-      
+
       // API URL'ini oluştur
       const apiUrl = getApiUrl('/content/upload');
       console.log('Upload API URL:', apiUrl);
-      
-      const res = await fetch(apiUrl, { 
-        method: 'POST', 
+
+      const res = await fetch(apiUrl, {
+        method: 'POST',
         body: formData,
         credentials: 'include'
       });
-      
+
       console.log('Upload response status:', res.status);
-      
+
       if (!res.ok) {
         const errorText = await res.text();
         console.error('Upload error response:', errorText);
-        
+
         // Daha detaylı hata mesajları
         let errorMessage = `Upload failed: ${res.status} ${res.statusText}`;
         if (res.status === 404) {
@@ -630,18 +533,18 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         } else if (res.status === 415) {
           errorMessage = 'Desteklenmeyen dosya türü.';
         }
-        
+
         throw new Error(errorMessage);
       }
-      
+
       const data = await res.json();
       console.log('Upload response data:', data);
-      
+
       if (data.text) {
         setText(data.text); // textarea'ya yaz
         setInputType('text'); // metin moduna geç
         alert(`Dosya başarıyla yüklendi! ${data.text.length} karakter metin çıkarıldı.`);
-        
+
         // Otomatik submit
         setTimeout(() => {
           const inputData: ProcessInputData = {
@@ -665,7 +568,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       console.error('File upload error:', error);
       alert(`Dosya yükleme hatası: ${error.message || 'Bilinmeyen hata'}`);
       setFile(null); // Hata durumunda file state'ini temizle
-      
+
       // Input'u temizle
       if (e.target) {
         e.target.value = '';
@@ -681,7 +584,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
       try {
         console.log("🎯 Generated suggestions çekiliyor...");
         const response = await getGeneratedSuggestions();
-        
+
         if (response.success && response.data.suggestions) {
           setGeneratedSuggestions(response.data.suggestions);
           console.log(`✅ ${response.data.suggestions.length} konu başlığı yüklendi:`, response.data.suggestions);
@@ -696,682 +599,144 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
         setGeneratedSuggestions(['Seyahat ve Turizm', 'Teknoloji ve İnovasyon', 'Sağlık ve Beslenme']);
       }
     };
-    
+
     fetchGeneratedSuggestions();
   }, []);
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-        <div className="flex items-center mb-8">
-          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground font-bold mr-4 shadow-lg">
-            1
-          </span>
-          <h2 className="text-2xl font-bold text-foreground">
-            {t('content_type_and_input')}
-          </h2>
+    <div className="w-full max-w-3xl mx-auto animate-in fade-in duration-700">
+
+      {/* ZERO-UI HERO CONTAINER */}
+      <div className="flex flex-col items-center justify-center min-h-[60vh] sm:min-h-[50vh] space-y-8">
+
+        {/* 1. The Big Question */}
+        <div className="text-center space-y-4">
+          {/* Dynamic Greeting based on time could go here */}
+          <h1 className="text-4xl sm:text-6xl font-serif font-bold text-slate-900 dark:text-amber-50 tracking-tight leading-tight">
+            {t('what_to_learn_today') || "What do you want to learn?"}
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 text-xl font-light">
+            {t('curiosity_prompt') || "Type a topic, and we'll turn it into a lesson."}
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* İçerik Türü Seçimi */}
-          <div className="space-y-4">
-            <label className="block text-lg font-semibold text-gray-800">
-              {t('content_type')}
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {/* Metin - Always show (default feature) */}
-              {(planFeatures?.homepage_features?.text_input !== false) && (
-                <button
-                  type="button"
-                  onClick={() => setInputType('text')}
-                  className={`icon-button group ${inputType === 'text' ? 'icon-button-selected' : 'icon-button-default'}`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span>{t('text')}</span>
-                </button>
-              )}
+        {/* 2. The Focus Input */}
+        <form onSubmit={handleSubmit} className="w-full relative group z-20">
+          <div className="relative transform transition-all duration-300 group-hover:-translate-y-1">
+            <input
+              type="text"
+              value={topic}
+              onChange={(e) => {
+                setTopic(e.target.value);
+                setInputType('topic'); // Ensure we are in topic mode when typing here
+              }}
+              placeholder={t('topic_placeholder_minimal') || "e.g. The history of Jazz..."}
+              className="w-full pl-8 pr-36 py-6 text-2xl font-serif bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-all outline-none text-slate-800 dark:text-slate-100"
+              autoFocus
+            />
 
-              {/* Konu Önerileri - Always show (default feature) */}
-              {(planFeatures?.homepage_features?.topic_suggestions !== false) && (
-                <button
-                  type="button"
-                  onClick={() => setInputType('topic')}
-                  className={`icon-button group ${inputType === 'topic' ? 'icon-button-selected' : 'icon-button-default'}`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                  <span>{t('topic')}</span>
-                </button>
-              )}
-
-              {/* YouTube - Premium feature */}
-              {(() => {
-                const shouldShow = planFeatures?.homepage_features?.youtube;
-                console.log('🔍 YouTube button check:', { planFeatures, shouldShow });
-                return shouldShow;
-              })() && (
-                <button
-                  type="button"
-                  onClick={() => setInputType('youtube')}
-                  className={`icon-button group ${inputType === 'youtube' ? 'icon-button-selected' : 'icon-button-default'}`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>{t('youtube')}</span>
-                </button>
-              )}
-
-              {/* Web Link - Show for now (can be controlled later) */}
+            {/* Action Button (Dynamic) */}
+            <div className="absolute right-3 top-3 bottom-3">
               <button
-                type="button"
-                onClick={() => setInputType('weblink')}
-                className={`icon-button group ${inputType === 'weblink' ? 'icon-button-selected' : 'icon-button-default'}`}
+                type="submit"
+                disabled={!topic && !text && !file}
+                className="h-full px-8 rounded-xl bg-slate-900 dark:bg-amber-500 text-white font-medium hover:bg-slate-800 dark:hover:bg-amber-600 transition-all disabled:opacity-0 disabled:scale-95 transform duration-200 shadow-lg"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-                <span>{t('web_link')}</span>
-              </button>
-
-              {/* Dosya Yükleme - Premium feature */}
-              {planFeatures?.homepage_features?.file_upload && (
-                <button
-                  type="button"
-                  onClick={() => setInputType('file')}
-                  className={`icon-button group ${inputType === 'file' ? 'icon-button-selected' : 'icon-button-default'}`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                  <span>{t('document')}</span>
-                </button>
-              )}
-
-              {/* Podcast - Premium feature */}
-              {planFeatures?.homepage_features?.podcast && (
-                <button
-                  type="button"
-                  onClick={() => setInputType('podcast')}
-                  className={`icon-button group ${inputType === 'podcast' ? 'icon-button-selected' : 'icon-button-default'}`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                  </svg>
-                  <span>{t('podcast')}</span>
-                </button>
-              )}
-
-              {/* Kitap - Premium feature */}
-              {planFeatures?.homepage_features?.book && (
-                <button
-                  type="button"
-                  onClick={() => setInputType('book')}
-                  className={`icon-button group ${inputType === 'book' ? 'icon-button-selected' : 'icon-button-default'}`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <rect x="4" y="4" width="16" height="16" rx="2" strokeWidth={2} stroke="currentColor" fill="none" />
-                    <path d="M8 8h8M8 12h8M8 16h4" strokeWidth={2} stroke="currentColor" />
-                  </svg>
-                  <span>Kitap</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setInputType('suggestion')}
-                className={`icon-button group ${inputType === 'suggestion' ? 'icon-button-selected' : 'icon-button-default'} relative animated-pulse bg-primary/10`}
-                style={{ animation: inputType !== 'suggestion' ? 'pulse 2s infinite' : 'none' }}
-              >
-                <div className={inputType !== 'suggestion' ? 'absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce' : 'hidden'}>
-                  !
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span className="font-bold">Öneriler</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setInputType('hashtag')}
-                className={`icon-button group ${inputType === 'hashtag' ? 'icon-button-selected' : 'icon-button-default'}`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h10M7 12h10M7 17h10" />
-                </svg>
-                <span>Hashtag</span>
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                    <span>{t('creating') || "Creating..."}</span>
+                  </div>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <span>{t('listen') || "Listen"}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
+                  </span>
+                )}
               </button>
             </div>
           </div>
 
-          {/* Giriş Alanları */}
-          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 space-y-6 shadow-inner">
-            {inputType === 'text' && (
-              <div className="space-y-2">
-                <label htmlFor="text-input" className="block text-sm font-semibold text-gray-700">
-                  {t('enter_your_text')}
-                </label>
-                <textarea
-                  id="text-input"
-                  value={text}
-                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value)}
-                  className="input-field h-32 resize-y focus:ring-primary focus:border-primary"
-                  placeholder={t('enter_text_placeholder')}
-                  required
-                />
-              </div>
+          {/* 3. Subtle Tools Bar (Secondary Actions) */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-6 text-slate-500">
+
+            {/* Settings Toggle */}
+            <button
+              type="button"
+              onClick={() => setShowSettings(!showSettings)}
+              className={`flex items-center gap-2 text-sm font-medium transition-colors hover:text-amber-600 ${showSettings ? 'text-amber-600' : ''}`}
+            >
+              <FaCog className={showSettings ? "animate-spin-slow" : ""} />
+              <span>{level} • {voice}</span>
+            </button>
+
+            <div className="h-4 w-px bg-slate-300 dark:bg-slate-700"></div>
+
+            {/* File Upload */}
+            {planFeatures?.homepage_features?.file_upload && (
+              <label className="flex items-center gap-2 text-sm font-medium cursor-pointer hover:text-amber-600 transition-colors">
+                <input type="file" onChange={handleFileUpload} className="hidden" accept=".pdf,.doc,.docx,.txt" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                <span>{t('upload_file') || "Upload File"}</span>
+              </label>
             )}
 
-            {inputType === 'topic' && (
-              <div className="space-y-4">
-                {/* Debug info */}
-                <div className="text-xs text-gray-500">
-                  Debug: {interests.length} ilgi alanı yüklendi
-                </div>
-                
-                {/* Hazır Konu Listesi */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    İlgi Alanlarınızdan Seçin
-                  </label>
-                  <select
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                  >
-                    <option value="" disabled>
-                      {interests.length === 0 ? 'İlgi alanları yükleniyor...' : 'İlgi Alanı Seçin'}
-                    </option>
-                    {interests.length > 0 ? (
-                      interests.map((interest, index) => (
-                        <option key={index} value={interest}>{interest}</option>
-                      ))
-                    ) : (
-                      // Fallback konular eğer API çalışmıyorsa
-                      ['Seyahat ve Turizm', 'Teknoloji ve İnovasyon', 'Sağlık ve Beslenme', 'Çevre ve Sürdürülebilirlik'].map((fallback, index) => (
-                        <option key={`fallback-${index}`} value={fallback}>{fallback} (fallback)</option>
-                      ))
-                    )}
-                  </select>
-                </div>
-                
-                {/* Manuel Konu Girişi */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Veya Kendi Konunuzu Yazın
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Kendi konunuzu yazın..."
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
+            {/* Web Link Trigger */}
+            <button
+              type="button"
+              onClick={() => {
+                const url = prompt(t('enter_url') || "Enter article URL:");
+                if (url) { setWebLink(url); setInputType('weblink'); setTopic(url); }
+              }}
+              className="flex items-center gap-2 text-sm font-medium hover:text-amber-600 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+              <span>{t('paste_link') || "Paste Link"}</span>
+            </button>
 
-            {inputType === 'youtube' && (
-              <div className="space-y-2">
-                <label htmlFor="youtube-input" className="block text-sm font-semibold text-gray-700">
-                  {t('youtube_link')}
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <input
-                    id="youtube-input"
-                    type="url"
-                    value={youtubeLink}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setYoutubeLink(e.target.value)}
-                    className="input-field pl-10 focus:ring-primary focus:border-primary"
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    required
-                  />
-                </div>
-                
-                <div className="mt-2">
-                  <button 
-                    type="button" 
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors disabled:bg-primary/60"
-                    onClick={async () => {
-                      if (!youtubeLink) {
-                        alert("Lütfen bir YouTube linki girin!");
-                        return;
-                      }
-                      
-                      setLoadingTranscript(true);
-                      try {
-                        const transcript = await fetchYoutubeTranscript(youtubeLink);
-                        if (!transcript) {
-                          alert("YouTube video transkripti alınamadı. Lütfen başka bir video deneyin.");
-                          return;
-                        }
-                        setText(transcript);
-                      } catch (error) {
-                        console.error("YouTube transkript çekme hatası:", error);
-                        alert("YouTube transkript işlemi sırasında bir hata oluştu.");
-                      } finally {
-                        setLoadingTranscript(false);
-                      }
-                    }}
-                    disabled={loadingTranscript}
-                  >
-                    {loadingTranscript ? 'Transkript Yükleniyor...' : 'Transkript Çek'}
-                  </button>
-                </div>
-                
-                {/* Metninizi girin bölümü - YouTube transkripti için */}
-                <div className="mt-4">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    {t('your_text')}
-                  </label>
-                  <textarea
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary min-h-[100px]"
-                    placeholder={t('enter_text_or_transcript')}
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
+          </div>
 
-            {inputType === 'weblink' && (
-              <div className="space-y-2">
-                <label htmlFor="weblink-input" className="block text-sm font-semibold text-gray-700">
-                  {t('web_link')}
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    </svg>
-                  </div>
-                  <input
-                    id="weblink-input"
-                    type="url"
-                    value={webLink}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setWebLink(e.target.value)}
-                    className="input-field pl-10 focus:ring-primary focus:border-primary"
-                    placeholder="https://ornek.com/makale..."
-                    required
-                  />
-                </div>
-                <p className="text-sm text-gray-500">{t('web_link_description')}</p>
-              </div>
-            )}
-
-            {inputType === 'podcast' && (
-              <div className="space-y-2">
-                <label htmlFor="podcast-input" className="block text-sm font-semibold text-gray-700">
-                  {t('podcast_link')}
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                    </svg>
-                  </div>
-                  <input
-                    id="podcast-input"
-                    type="url"
-                    value={podcastLink}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setPodcastLink(e.target.value)}
-                    className="input-field pl-10 focus:ring-primary focus:border-primary"
-                    placeholder="https://open.spotify.com/episode/..."
-                    required
-                  />
-                </div>
-              </div>
-            )}
-
-            {inputType === 'file' && (
-              <div className="space-y-2">
-                <label htmlFor="file-input" className="block text-sm font-semibold text-gray-700">
-                  {t('select_document')}
-                </label>
-                <div className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors ${
-                  uploadingFile 
-                    ? 'border-primary bg-primary/10' 
-                    : 'border-gray-300 hover:border-primary'
-                }`}>
-                  <div className="space-y-1 text-center">
-                    {uploadingFile ? (
-                      <>
-                        <svg className="mx-auto h-12 w-12 text-primary animate-spin" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <div className="text-sm text-primary font-medium">
-                          Dosya yükleniyor...
-                        </div>
-                        <p className="text-xs text-primary/80">Lütfen bekleyin</p>
-                      </>
-                    ) : (
-                      <>
-                        <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                          <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4-4m4-4h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                        <div className="flex text-sm text-gray-600">
-                          <label htmlFor="file-upload" className={`relative rounded-md font-medium focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary ${
-                            uploadingFile 
-                              ? 'cursor-not-allowed text-gray-400' 
-                              : 'cursor-pointer bg-white text-primary hover:text-primary/80'
-                          }`}>
-                            <span>{t('upload_file')}</span>
-                            <input
-                              id="file-upload"
-                              name="file-upload"
-                              type="file"
-                              className="sr-only"
-                              onChange={handleFileUpload}
-                              accept=".pdf,.doc,.docx,.txt,.md,.rtf,.html,.odt,.epub"
-                              disabled={uploadingFile}
-                            />
-                          </label>
-                          <p className="pl-1">{t('or_drag_and_drop')}</p>
-                        </div>
-                        <p className="text-xs text-gray-500">{t('supported_file_types')}</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <p className="text-xs text-amber-700 mt-2 text-left">
-                  Bu alana yüklediğiniz PDF ve diğer dokümanların içeriğinin hukuka uygunluğundan,
-                  üçüncü kişilere ait telif hakları ve kişisel veriler de dahil olmak üzere, tamamen siz sorumlusunuz.
-                  LingRoot, kullanıcılar tarafından yüklenen dokümanların içeriğini ön incelemeye tabi tutmaz ve bu içeriklerden
-                  doğabilecek hiçbir hukuki, idari veya cezai sorumluluğu üstlenmez.
-                </p>
-                {file && !uploadingFile && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-sm text-green-700 font-medium">
-                      ✅ {t('selected_file')}: {file.name}
-                    </p>
-                    <p className="text-xs text-green-600 mt-1">
-                      Boyut: {(file.size / 1024).toFixed(1)} KB
-                    </p>
-                  </div>
-                )}
-                
-
-              </div>
-            )}
-
-            {inputType === 'book' && (
-              <div className="space-y-4">
-                <label className="block text-sm font-semibold text-gray-700">Kitap Seçin</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    className="input-field w-full"
-                    placeholder="Ara: Kitap Adı / Yazar / Tür / vb."
-                    value={pendingSearch}
-                    onChange={e => setPendingSearch(e.target.value)}
-                  />
-                  <button type="button" onClick={handleBookSearch} className="btn-primary px-4 py-2">Ara</button>
-                </div>
-                {bookLoading && <div className="text-primary text-sm">Yükleniyor...</div>}
-                {!bookLoading && bookResults.length > 0 && (
-                  <div className="border rounded bg-white max-h-48 overflow-auto">
-                    {bookResults.map(book => (
-                      <div
-                        key={book.id}
-                        className={`p-2 cursor-pointer hover:bg-primary/10 ${selectedBook && selectedBook.id === book.id ? 'bg-primary/20' : ''}`}
-                        onClick={() => setSelectedBook(book)}
+          {/* 4. Collapsible Settings Panel */}
+          {showSettings && (
+            <div className="mt-4 p-6 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 animate-in slide-in-from-top-2 fade-in duration-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {/* Level Selector */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('level')}</label>
+                  <div className="flex gap-2">
+                    {(['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as Level[]).map((l) => (
+                      <button
+                        key={l}
+                        type="button"
+                        onClick={() => setLevel(l)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${level === l ? 'bg-amber-500 text-white shadow-md' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100'}`}
                       >
-                        <div className="font-semibold">{book.title}</div>
-                        <div className="text-xs text-gray-600">{book.authors?.map((a: { name: string }) => a.name).join(', ')}</div>
-                        <div className="text-xs text-gray-400">{book.subjects?.slice(0, 3).join(', ')}</div>
-                      </div>
+                        {l}
+                      </button>
                     ))}
                   </div>
-                )}
-                {selectedBook && bookChapters.length > 0 && (
-                  <div className="mt-4">
-                    <label className="block text-sm font-semibold text-gray-700">Kitap Bölüm Seç</label>
-                    <div className="border rounded bg-white max-h-48 overflow-auto">
-                      {bookChapters.map((ch, idx) => (
-                        <div
-                          key={idx}
-                          className={`p-2 cursor-pointer hover:bg-primary/10 ${selectedChapterIdx === idx ? 'bg-primary/20' : ''}`}
-                          onClick={() => {
-                            setSelectedChapterIdx(idx);
-                            setBookName(selectedBook.title);
-                            setBookChapter(ch.content);
-                          }}
-                        >
-                          <div className="font-semibold">{ch.title}</div>
-                          <div className="text-xs text-gray-500 truncate">{ch.content.substring(0, 80)}...</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {inputType === 'suggestion' && (
-              <div className="space-y-4">
-                <div className="flex flex-row gap-2 items-center">
-                  <div className="w-3/4">
-                    <div className="relative">
-                      <select
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                        value={topic}
-                        onChange={(e) => setTopic(e.target.value)}
-                      >
-                        <option value="" disabled>Konu Seçin</option>
-                        {interests.map((interest, index) => (
-                          <option key={index} value={interest}>{interest}</option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => setShowInterestManager(true)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-primary/10 text-primary hover:bg-primary/20 p-1.5 rounded-full flex items-center justify-center"
-                        title="İlgi Alanlarını Düzenle"
-                      >
-                        <FaCog size={16} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="w-1/4">
-                    <button
-                      type="button"
-                      className="w-full p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:outline-none shadow-lg font-bold"
-                      onClick={handleGetTopicSuggestions}
-                      disabled={isLoadingTopicSuggestions || !topic}
-                      style={{ animation: 'pulse 1.5s infinite' }}
-                    >
-                      {isLoadingTopicSuggestions ? 'Yükleniyor...' : '✨ Konu Öner ✨'}
-                    </button>
-                  </div>
                 </div>
-                
-                {/* İlgi Alanı Düzenleme Modal */}
-                {showInterestManager && (
-                  <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-auto">
-                      <div className="p-5 border-b border-gray-200 flex justify-between items-center">
-                        <h3 className="text-lg font-semibold text-gray-900">İlgi Alanlarını Düzenle</h3>
-                        <button
-                          onClick={() => setShowInterestManager(false)}
-                          className="text-gray-400 hover:text-gray-500"
-                        >
-                          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                      <div className="p-5">
-                        <InterestManager 
-                          showTitle={false}
-                          isEditing={true}
-                          onUpdate={() => {
-                            // Düzenleme yapıldığında ilgi alanlarını yeniden yükle
-                            fetchInterests();
-                            setShowInterestManager(false);
-                          }}
-                        />
-                      </div>
-                      <div className="bg-gray-50 px-5 py-3 flex justify-end">
-                        <button
-                          onClick={() => setShowInterestManager(false)}
-                          className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded"
-                        >
-                          Kapat
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {topicDetailSuggestions.length > 0 && (
-                  <div className="mt-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Detaylı Öneriler
-                    </label>
-                    <select
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                      value={selectedDetailTopic}
-                      onChange={handleDetailTopicSelect}
-                    >
-                      <option value="" disabled>Öneri Seçin</option>
-                      {topicDetailSuggestions.map((suggestion, index) => (
-                        <option key={index} value={suggestion}>{suggestion}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('topic_instructions')}
-                  </label>
-                  <textarea
-                    rows={6}
-                    placeholder={t('topic_placeholder')}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                  />
+
+                {/* Voice Selector */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('voice')}</label>
+                  <select
+                    value={voice}
+                    onChange={(e) => setVoice(e.target.value)}
+                    className="w-full p-2 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-sm"
+                  >
+                    {googleVoices.map(v => (
+                      <option key={v.id || v.name} value={v.id || v.name}>{v.name} ({v.languageCodes?.[0]})</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            )}
-
-            {/* Seviye Seçimi */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
-                {t('english_level')}
-              </label>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map((l) => (
-                  <button
-                    key={l}
-                    type="button"
-                    onClick={() => setLevel(l as Level)}
-                    className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                      level === l
-                        ? 'bg-primary/10 text-primary border-2 border-primary/30 shadow-sm'
-                        : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
             </div>
-
-            {/* Ses Hızı Seçici */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
-                {t('speaking_rate')}
-              </label>
-              <div className="grid grid-cols-4 gap-2">
-                {[0.7, 0.8, 1, 1.2].map((rate) => (
-                  <button
-                    key={rate}
-                    type="button"
-                    onClick={() => setSpeakingRate(rate)}
-                    className={`px-3 py-2 rounded-lg font-medium transition-all duration-200 ${
-                      speakingRate === rate
-                        ? 'bg-primary/10 text-primary border-2 border-primary/30 shadow-sm'
-                        : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    {rate}x
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Ses Seçimi */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700">
-                {t('voice_selection')}
-              </label>
-              <select
-                value={voice}
-                onChange={(e) => setVoice(e.target.value)}
-                className="input-field focus:ring-primary focus:border-primary"
-              >
-                {getFilteredVoices().map((v: any) => {
-                  const id = v.id || v.name;
-                  const label = v.displayName || v.label || id;
-                  const gender = String(v.gender || v.ssmlGender || '').toUpperCase();
-                  const isFemale = gender === 'FEMALE';
-                  return (
-                    <option key={id} value={id}>
-                      {label} ({isFemale ? t('female_voice') : t('male_voice')})
-                    </option>
-                  );
-                })}
-              </select>
-              {featuresLoading && (
-                <p className="text-xs text-gray-500">{t('loading_voices')}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Gönder Butonu */}
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={`btn-primary px-8 py-3 text-lg flex items-center space-x-2 ${
-                isLoading ? 'opacity-75 cursor-not-allowed' : ''
-              }`}
-            >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span>{t('processing')}</span>
-                </>
-              ) : (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>{t('generate_audio')}</span>
-                </>
-              )}
-            </button>
-          </div>
+          )}
         </form>
+
       </div>
+
     </div>
   );
-} 
+}

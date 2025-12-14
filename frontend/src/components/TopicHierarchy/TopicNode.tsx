@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Topic, generateSubtopics, addManualSubtopic, deleteTopicAndChildren } from '../../lib/api';
 import { Button } from '../ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import SubtopicModal from './SubtopicModal';
 import ManualSubtopicModal from './ManualSubtopicModal';
 import { useTranslation } from '../../lib/i18n';
@@ -119,24 +120,14 @@ const TopicNode: React.FC<TopicNodeProps> = ({
   const { totalSubtopics, audioCount, listenedCount } = computeSubtreeStats(topic as any);
   const hasSubtopics = totalSubtopics > 0;
 
-  const createdAt = topic.created_at ? new Date(topic.created_at) : null;
-  const createdAtLabel = createdAt
-    ? `${createdAt.toLocaleDateString('tr-TR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: '2-digit',
-      })} ${createdAt.toLocaleTimeString('tr-TR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      })}`
-    : null;
+
 
   // Alt konu oluştur
   const handleGenerateSubtopics = async (count: number, language: string, angle?: string) => {
     try {
       setIsGenerating(true);
       const response = await generateSubtopics(topic.id, { count, language, angle });
-      
+
       if (response.success) {
         await onRefresh();
         setIsExpanded(true); // Alt konular oluşunca expand et
@@ -154,7 +145,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
   const handleAddManualSubtopic = async (title: string, description?: string) => {
     try {
       const response = await addManualSubtopic(topic.id, { title, description });
-      
+
       if (response.success) {
         await onRefresh();
         setIsExpanded(true);
@@ -171,7 +162,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
     try {
       setIsDeleting(true);
       const response = await deleteTopicAndChildren(topic.id);
-      
+
       if (response.success) {
         await onRefresh();
         setShowDeleteConfirm(false);
@@ -207,7 +198,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
     <div style={{ marginLeft: `${indent}px` }}>
       {/* Node Container */}
       <div className={`${colors.bg} ${colors.border} border-2 rounded-lg p-4 transition-all hover:shadow-md`}>
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           {/* Sol Taraf - Başlık ve Bilgiler (tıklanabilir alan) */}
           <div
             className="flex-1 flex items-start space-x-3 cursor-pointer"
@@ -241,135 +232,94 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                   </span>
                 )}
               </h4>
-              {topic.description && (
-                <p className="text-sm text-gray-600 mb-2">
-                  {topic.description}
-                </p>
-              )}
-              
+              <p className="sr-only">{topic.description}</p>
+              {/* Only show badges, hide text description to reduce clutter */}
+
               {/* Metadata */}
               <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                 <span className={`${colors.badge} text-white px-2 py-0.5 rounded-full`}>
                   {topic.level}
-                </span>
-                <span>
-                  {t('topics_node_depth_label')}: {topic.depth}
                 </span>
                 {topic.is_manual && (
                   <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
                     {t('topics_node_manual_badge')}
                   </span>
                 )}
-                {topic.keywords && topic.keywords.length > 0 && (
-                  <span className="text-gray-400">
-                    {topic.keywords.slice(0, 3).join(', ')}
-                  </span>
-                )}
+
+                {/* Audio Status */}
                 {hasSubtopics ? (
-                  <>
-                    <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                      {audioCount}/{totalSubtopics} {t('topics_node_audio_created_badge_suffix')}
-                    </span>
-                    <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                      {listenedCount}/{totalSubtopics} {t('topics_node_listened_badge_suffix')}
-                    </span>
-                  </>
+                  <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                    {audioCount}/{totalSubtopics} Audio
+                  </span>
                 ) : hasAudio ? (
                   <span
-                    className={`px-2 py-0.5 rounded-full ${
-                      isListened
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-blue-100 text-blue-700'
-                    }`}
+                    className={`px-2 py-0.5 rounded-full ${isListened
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-blue-100 text-blue-700'
+                      }`}
                   >
-                    {isListened
-                      ? t('topics_node_status_listened')
-                      : t('topics_node_status_audio_ready')}
+                    {isListened ? 'Listened' : 'Ready to Listen'}
                   </span>
-                ) : (
-                  <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                    {t('topics_node_status_no_audio')}
-                  </span>
-                )}
-
-                {createdAtLabel && (
-                  <span className="flex items-center text-[11px] text-gray-400">
-                    <i className="fas fa-clock mr-1"></i>
-                    {createdAtLabel}
-                  </span>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
 
-          {/* Sağ Taraf - Aksiyonlar */}
-          <div className="flex flex-col space-y-2 md:items-end mt-3 md:mt-0">
+          {/* Sağ Taraf - Aksiyonlar (SIMPLIFIED) */}
+          <div className="flex items-center space-x-2 w-full md:w-auto mt-2 md:mt-0 justify-end">
+
+            {/* Primary Action: Listen/Create */}
             <Button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 if (isTopicAudioLoading) return;
-                // Ses varsa popup aç
                 if (canPlayFromTree && onOpenAudioModal) {
                   onOpenAudioModal(topic.id);
                   return;
                 }
-                // Ses yoksa TTS başlat
                 handleCreateContent();
               }}
               size="sm"
-              className="text-sm"
+              className={`rounded-full px-6 font-medium ${canPlayFromTree ? 'bg-green-600 hover:bg-green-700' : 'bg-primary hover:bg-primary/90'}`}
               disabled={isTopicAudioLoading}
             >
               {isTopicAudioLoading ? (
-                <>
-                  <i className="fas fa-circle-notch fa-spin mr-1"></i>
-                  {t('topics_node_button_audio_creating')}
-                </>
+                <i className="fas fa-circle-notch fa-spin"></i>
               ) : canPlayFromTree ? (
                 <>
-                  <i className="fas fa-play mr-1"></i>
-                  {t('topics_node_button_listen')}
+                  <i className="fas fa-play mr-2"></i> {t('listen') || "Listen"}
                 </>
               ) : (
                 <>
-                  <i className="fas fa-volume-up mr-1"></i>
-                  {t('topics_node_button_create_audio')}
+                  <i className="fas fa-magic mr-2"></i> {t('create_audio') || "Create Audio"}
                 </>
               )}
             </Button>
 
-            <div className="flex flex-wrap gap-1 justify-start md:justify-end">
-              <Button
-                onClick={() => setShowSubtopicModal(true)}
-                size="sm"
-                variant="outline"
-                className="text-xs"
-                disabled={isGenerating}
-              >
-                <i className="fas fa-robot mr-1"></i>
-                {t('topics_node_button_suggest_subtopic')}
-              </Button>
+            {/* Secondary Actions: Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <i className="fas fa-ellipsis-v text-gray-500"></i>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setShowSubtopicModal(true)} disabled={isGenerating}>
+                  <i className="fas fa-robot mr-2 w-4"></i>
+                  {t('topics_node_button_suggest_subtopic')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowManualModal(true)}>
+                  <i className="fas fa-plus mr-2 w-4"></i>
+                  {t('topics_node_button_add_manual')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="text-red-600 focus:text-red-600">
+                  <i className="fas fa-trash mr-2 w-4"></i>
+                  {t('topics_node_button_delete')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-              <Button
-                onClick={() => setShowManualModal(true)}
-                size="sm"
-                variant="outline"
-                className="text-xs"
-              >
-                <i className="fas fa-plus mr-1"></i>
-                {t('topics_node_button_add_manual')}
-              </Button>
-
-              <Button
-                onClick={() => setShowDeleteConfirm(true)}
-                size="sm"
-                variant="outline"
-                className="text-xs text-red-600 border-red-200 hover:bg-red-50"
-                disabled={isDeleting}
-              >
-                <i className="fas fa-trash mr-1"></i>
-                {t('topics_node_button_delete')}
-              </Button>
-            </div>
           </div>
         </div>
       </div>
@@ -426,7 +376,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
             </div>
 
             <p className="text-sm text-gray-700 mb-1">
-              "{topic.title}" {t('topics_node_delete_description_main')}
+              &quot;{topic.title}&quot; {t('topics_node_delete_description_main')}
             </p>
             <p className="text-sm text-gray-700 mb-4">
               {t('topics_node_delete_description_warning')}
