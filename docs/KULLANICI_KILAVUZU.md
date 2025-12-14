@@ -2,7 +2,7 @@
 
 ## 🎯 LingRoot Nedir?
 
-LingRoot, İngilizce öğrenmenizi kolaylaştıran akıllı bir dil öğrenme platformudur. Yapay zeka destekli özellikleriyle metinleri seviyenize uyarlar, sesli okur ve öğrenme sürecinizi kişiselleştirir.
+LingRoot, kişisel ilgi alanlarınızı İngilizce öğrenme aracına dönüştüren "dinleme odaklı" (listening-first) bir platformdur. Merak ettiğiniz konuları, kitapları veya belgeleri sizin seviyenize (A1-C2) uyarlayarak seslendirir. Yapay zeka asistanı LiRo ile size özel bir öğrenme deneyimi sunar.
 
 ---
 
@@ -150,6 +150,19 @@ Binlerce ücretsiz İngilizce kitabı bölüm bölüm okuyup dinleyin.
 - "İstanbul'un tarihi" → 5 dakikalık podcast
 - "Futbol taktiğleri" → 3 dakikalık podcast
 - "Türk mutfağı" → 7 dakikalık podcast
+
+---
+
+### 6. 🌳 Konu Ağacı (Topic Tree)
+
+**Ne yapar?**
+Bir konuyu derinlemesine keşfetmenizi sağlar.
+
+**Nasıl kullanılır?**
+1. **"Konu"** sekmesinden bir ana başlık seçin (Ör: Tarih)
+2. Alt dallara inin (Avrupa Tarihi → Rönesans → Sanat)
+3. Her adımda yeni ve seviyenize uygun içerikler dinleyin
+4. Bilgi ağacında ilerledikçe dil seviyeniz de gelişir.
 
 ---
 

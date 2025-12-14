@@ -6,12 +6,15 @@ Active Context: CEFR-based content engine, prompt governance, audio pipeline sta
 
 [1. PROJECT VISION & GOALS]
 Core Concept:
-Lingroot, kullanıcıların günlük olarak tükettiği içerikleri (YouTube, podcast, haber, blog, kitap vb.) onların İngilizce seviyesine uyarlayarak, doğal seslendirilmiş ve senkronize altyazılı hale getiren bir yapay zeka destekli dil öğrenme platformudur.
+Lingroot, kullanıcıların ilgi duyduğu içerikleri (kitap, makale, podcast, rapor vb.) onların İngilizce seviyesine uyarlayarak, doğal seslendirilmiş ve senkronize altyazılı hale getiren bir yapay zeka destekli "kişiselleştirilmiş dinleme" platformudur.
 Target Audience:
 İngilizce öğrenmek isteyen 13–65 yaş arası kullanıcılar
 Öğrenme için ekstra zaman ayıramayan kişiler
 Orta seviye motivasyonda ama düzenli içerik tüketen kullanıcılar
-Yabancı dil öğrenirken görsel/işitsel içerikten beslenen kitle
+Yabancı dil öğrenirken işitsel içerikten beslenen kitle
+"Meraklı Entelektüel" (The Curious Mind): İngilizce kaynakları anlamakta zorlanan ama öğrenme isteği yüksek kitle.
+"Meşgul Profesyonel": İş dokümanlarını veya sektörel raporları dinleyerek zaman kazanmak isteyenler.
+"Kitap Severler": Orijinal kitapları dil bariyeri olmadan dinlemek isteyenler.
 Success Criteria:
 30 gün boyunca günlük aktif kullanıcı oranı %40+
 Kullanıcıların %70’inin seviyesine göre içerik anlayabilmesi
@@ -141,6 +144,9 @@ Global CDN optimization
 [2025-11] MFA Kullanımı
 Karar: Google TTS timepoint API yerine MFA forced aligner kullanmak.
 Neden: %99 doğruluk, kelime seviyesinde senkron ihtiyacı.
+[Anti-Pattern]
+Ham YouTube altyazılarını direkt kullanmak.
+Neden yanlış: Çeviri kalitesi düşük ve seviye uyarlaması (CEFR) yok.
 [Anti-Pattern]
 Whisper'ın basic transcript'inden direkt İngilizce üretmek.
 Neden yanlış: CEFR seviyesine uygunluk bozuluyor.

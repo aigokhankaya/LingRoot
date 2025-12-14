@@ -2,7 +2,7 @@
 
 **Son Güncelleme:** Aralık 2025
 
-LingRoot, kullanıcıların dil becerilerini geliştirmelerine yardımcı olan, yapay zeka destekli bir dil öğrenme platformudur. Metin, YouTube, web, kitap ve çeşitli kaynaklardan CEFR seviyesine uyarlanmış sesli içerikler üretir.
+LingRoot, kullanıcıların dil becerilerini geliştirmelerine yardımcı olan, yapay zeka destekli bir dil öğrenme platformudur. Metin, web, kitap ve çeşitli kaynaklardan CEFR seviyesine uyarlanmış sesli içerikler üretir.
 
 ## Project Structure
 
@@ -54,7 +54,7 @@ LingRoot/
 - **Multi-Input Support:**
   - ✅ **Text:** Doğrudan metin girişi
   - ✅ **File:** PDF, DOCX, TXT, EPUB dosya yükleme
-  - ✅ **YouTube:** Video altyazısından içerik çıkarma
+  - ✅ **Topic Tree:** Konu bazlı içerik üretimi
   - ✅ **Web:** Web sayfası içerik çıkarma
   - ✅ **Books:** Gutenberg kütüphanesinden kitap okuma
   - ✅ **Topic Pipeline:** Konu bazlı otomatik içerik üretme
@@ -278,7 +278,7 @@ LingRoot projesinde kodun sürdürülebilirliği ve hatasız build için aşağ�
 
 ### 🧑‍💻 User Interface & Input Handling
 - **File:** `apps/frontend/src/components/InputSection.jsx`  
-  Manages all user input types: text, topic, YouTube link, web link, document upload, book selection, and Spotify link.
+  Manages all user input types: text, topic, web link, document upload, book selection, and Spotify link.
 
 - **File:** `apps/frontend/src/app/page.jsx`  
   Contains the homepage layout and routes the main user flow.
@@ -453,65 +453,3 @@ Henüz yapılmamış türler için endpointler hazır, fonksiyonlar "not impleme
 - Backend ve frontend kurulum adımları değişmedi.
 - Backend'de yeni pipeline ve endpointler eklendi. Tüm içerik türleri için ortak bir iş akışı vardır.
 - Henüz tamamlanmamış içerik türleri için endpointler hazır, ileride kolayca geliştirilebilir.
-
-# LingRoot - YouTube Transcript & TTS Platformu
-
-## Özellikler
-- Transcript temizleme (LLM prompt)
-- TTS ile ses dosyası oluşturma
-- Modern, modüler frontend mimarisi
-
-## Kurulum
-
-1. **Depoyu klonla:**
-   ```sh
-   git clone https://github.com/aigokhankaya/LingRoot.git
-   cd lingroottest
-   ```
-
-2. **Gerekli ortam değişkenlerini ayarla:**
-   `.env.local` dosyasına şunları ekle:
-   ```env
-   JWT_SECRET=xxx
-   DB_URL=xxx
-   TTS_API_KEY=xxx
-   SUPABASE_URL=xxx
-   SUPABASE_SERVICE_KEY=xxx
-   SUPABASE_BUCKET=xxx
-   ```
-
-## YouTube Transcript Microservice (Playwright + FastAPI)
-
-This microservice scrapes YouTube video transcripts from https://youtubetotranscript.com using Playwright and exposes a FastAPI endpoint.
-
-### Kurulum
-
-1. Gerekli Python paketlerini yükleyin:
-   ```bash
-   pip install -r backend/youtubetranscriptservice/requirements.txt
-   python -m playwright install
-   ```
-
-2. Servisi başlatın:
-   ```bash
-   uvicorn backend.youtubetranscriptservice.main:app --host 0.0.0.0 --port 8000 --reload
-   ```
-
-### API Kullanımı
-
-- **POST /scrape-transcript**
-
-  **Body:**
-  ```json
-  { "url": "https://www.youtube.com/watch?v=bhAawejnIrg" }
-  ```
-
-  **Yanıt:**
-  ```json
-  { "transcript": "Welcome to this video. In this lesson..." }
-  ```
-
-### Notlar
-- Playwright Chromium browser otomatik kurulur.
-- DOM selector değişirse `transcript_scraper.py` güncellenmelidir.
-- Geliştirme sırasında `headless=False` ile debug yapılabilir.
