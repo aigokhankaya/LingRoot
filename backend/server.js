@@ -3,7 +3,10 @@ const http = require("http");
 const path = require("path");
 const fs = require("fs");
 const cors = require("cors");
-require("dotenv").config({ path: path.join(__dirname, ".env") });
+require("dotenv").config({
+  path: path.join(__dirname, ".env"),
+  override: process.env.NODE_ENV === 'development',
+});
 
 // Import custom modules
 const logger = require("./utils/logger"); // Winston logger
@@ -58,6 +61,8 @@ if (process.env.NODE_ENV === 'development') {
   const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
   logger.info(`[ENV CHECK] OPENAI_API_KEY loaded: ${hasOpenAI ? 'YES' : 'NO'}`);
 }
+
+logger.info(`[ENV CHECK] USE_MFA_ALIGNMENT=${process.env.USE_MFA_ALIGNMENT || ''} USE_REMOTE_MFA=${process.env.USE_REMOTE_MFA || ''} MFA_DEBUG_DUMP=${process.env.MFA_DEBUG_DUMP || ''}`);
 
 // Increase JSON body size limit to support large document text payloads
 app.use(express.json({ limit: "10mb" }));

@@ -133,6 +133,10 @@ async function generatePodcastScript(options) {
 
   const prompt = `Generate a VERY NATURAL podcast conversation script about "${topic}" for English learners at ${level} CEFR level.
 
+CRITICAL:
+- Output must be 100% English. Do not include Turkish words or phrases.
+- If you need to reference a Turkish concept, translate it fully into English and do not include the original Turkish term.
+
 CRITICAL - MAKE IT SOUND HUMAN:
 - Include natural reactions like "Oh wow!", "Hmm, interesting!", "Right, right", "Exactly!", "Oh I see!"
 - Add thinking pauses like "Well...", "So...", "You know...", "I mean..."
@@ -544,9 +548,24 @@ async function createGoogleTTSPodcast(options) {
   logger.info(`[GOOGLE-PODCAST] Creating podcast - Topic: "${topic}", Level: ${level}, Duration: ${duration}min`);
 
   try {
+    let topicForScript = topic;
+    try {
+      const rawTopic = typeof topic === 'string' ? topic.trim() : '';
+      if (rawTopic) {
+        const { translateToEnglishWithOpenAI } = require('./inputExtractor');
+        const translated = await translateToEnglishWithOpenAI(rawTopic, level);
+        if (translated && translated.text && typeof translated.text === 'string') {
+          topicForScript = translated.text.trim() || topicForScript;
+          logger.info(`[GOOGLE-PODCAST] Topic translated to English for script: "${topicForScript}"`);
+        }
+      }
+    } catch (translateErr) {
+      logger.warn(`[GOOGLE-PODCAST] Topic translation failed, continuing with original topic: ${translateErr.message}`);
+    }
+
     // Step 1: Generate podcast script
     const scriptResult = await generatePodcastScript({
-      topic,
+      topic: topicForScript,
       level,
       duration,
       styleType,
@@ -560,7 +579,21 @@ async function createGoogleTTSPodcast(options) {
       throw new Error('Failed to generate podcast script');
     }
 
-    logger.info(`[GOOGLE-PODCAST] Script generated: ${scriptResult.turns.length} turns`);
+    const splitIntoSentences = (text) => {
+      const raw = typeof text === 'string' ? text : '';
+      const cleaned = raw.replace(/\s+/g, ' ').trim();
+      if (!cleaned) return [];
+      const matches = cleaned.match(/[^.!?]+[.!?]+|[^.!?]+$/g);
+      return (matches || []).map(s => s.trim()).filter(Boolean);
+    };
+
+    const sentenceTurns = (scriptResult.turns || []).flatMap(t => {
+      const speaker = t && typeof t === 'object' ? t.speaker : null;
+      const sentences = splitIntoSentences(t && typeof t === 'object' ? t.text : '');
+      return sentences.map(sentence => ({ speaker: speaker || 'A', text: sentence }));
+    });
+
+    logger.info(`[GOOGLE-PODCAST] Script generated: ${scriptResult.turns.length} turns (sentenceTurns: ${sentenceTurns.length})`);
 
     // Determine final speaker IDs (UI override > script-derived personalities > defaults)
     const isValidGeminiSpeaker = (id) => typeof id === 'string' && !!GEMINI_SPEAKERS[id];
@@ -588,7 +621,7 @@ async function createGoogleTTSPodcast(options) {
     const stylePrompt = STYLE_PROMPTS[styleType] || STYLE_PROMPTS['friendly_chat'];
     
     const audioResult = await synthesizeMultiSpeakerPodcast({
-      turns: scriptResult.turns,
+      turns: sentenceTurns.length > 0 ? sentenceTurns : scriptResult.turns,
       speakerAId: finalHostSpeakerId,
       speakerBId: finalGuestSpeakerId,
       stylePrompt: stylePrompt,
@@ -601,8 +634,20 @@ async function createGoogleTTSPodcast(options) {
 
     let wordsForTiming = null;
     let timepoints = null;
+    let dialogueSegments = null;
     let vttUrl = null;
     const useMFAAlignment = process.env.USE_MFA_ALIGNMENT === 'true';
+    const mfaDebugEnabled = process.env.MFA_DEBUG_DUMP === 'true';
+
+    logger.info(`[GOOGLE-PODCAST] MFA alignment enabled: ${useMFAAlignment}`);
+    if (mfaDebugEnabled) {
+      logger.info(`[GOOGLE-PODCAST] MFA debug dump enabled (file id will be: google_podcast_${fileName.replace(/\.mp3$/i, '')})`);
+    }
+
+    if (audioResult.transcript && typeof audioResult.transcript === 'string') {
+      const fallbackWords = audioResult.transcript.split(/\s+/).filter(w => w.length > 0);
+      wordsForTiming = fallbackWords.length > 0 ? fallbackWords : wordsForTiming;
+    }
 
     if (useMFAAlignment && audioUrl && (audioResult.dialogueText || audioResult.transcript)) {
       const { mfaAligner } = require('./mfaAligner');
@@ -652,8 +697,24 @@ async function createGoogleTTSPodcast(options) {
         const mfaWordTimings = await mfaAligner.generateWordTimestamps(
           tempAudioPath,
           mfaTranscript,
-          locale
+          locale,
+          {
+            debug: mfaDebugEnabled
+              ? {
+                  id: `google_podcast_${fileName.replace(/\.mp3$/i, '')}`,
+                  source: 'googleTTSMultiSpeaker',
+                  fileName,
+                  fallbackUsed: audioResult.fallbackUsed || false,
+                  fallbackMode: audioResult.fallbackMode || null,
+                }
+              : null,
+          }
         );
+
+        logger.info(`[GOOGLE-PODCAST] MFA output timings: ${Array.isArray(mfaWordTimings) ? mfaWordTimings.length : 'non-array'}`);
+        if (Array.isArray(mfaWordTimings) && mfaWordTimings.length > 0) {
+          logger.info(`[GOOGLE-PODCAST] MFA sample timing[0]: ${JSON.stringify(mfaWordTimings[0])}`);
+        }
 
         // Cleanup temp files (both MP3 and WAV)
         await fs.promises.unlink(tempMp3Path).catch(() => {});
@@ -669,6 +730,129 @@ async function createGoogleTTSPodcast(options) {
             hasRealTiming: true,
             source: 'mfa',
           }));
+
+          try {
+            const normalizeToken = (t) => {
+              return (t || '')
+                .normalize('NFKD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '')
+                .trim();
+            };
+
+            const tokenizeForAlignment = (text) => {
+              return (text || '')
+                .normalize('NFKD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+                .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
+                .replace(/[\u2013\u2014]/g, ' ')
+                .replace(/\u2026/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .split(/\s+/)
+                .map(normalizeToken)
+                .filter(Boolean);
+            };
+
+            const mfaNorm = (mfaWordTimings || []).map(t => normalizeToken(t?.word));
+            const turns = audioResult.turns || [];
+
+            const findBestWindow = (tokens, startFrom) => {
+              if (!tokens || tokens.length === 0) return null;
+              const first = tokens[0];
+              if (!first) return null;
+
+              const maxSearchAhead = 500;
+              const searchEnd = Math.min(mfaNorm.length - 1, startFrom + maxSearchAhead);
+
+              let best = null;
+              for (let i = startFrom; i <= searchEnd; i++) {
+                if (mfaNorm[i] !== first) continue;
+
+                let j = i;
+                let ti = 0;
+                let matched = 0;
+                let lastMatchIndex = i;
+                let skips = 0;
+                const maxSkips = Math.max(20, tokens.length * 3);
+
+                while (j < mfaNorm.length && ti < tokens.length) {
+                  if (mfaNorm[j] === tokens[ti]) {
+                    matched += 1;
+                    lastMatchIndex = j;
+                    ti += 1;
+                    j += 1;
+                    continue;
+                  }
+                  skips += 1;
+                  if (skips > maxSkips) break;
+                  j += 1;
+                }
+
+                const score = tokens.length > 0 ? matched / tokens.length : 0;
+                const minMatched = Math.min(tokens.length, Math.max(3, Math.floor(tokens.length * 0.6)));
+                if (matched >= minMatched) {
+                  if (!best || score > best.score) {
+                    best = { startIndex: i, endIndex: lastMatchIndex, score, matched, tokenCount: tokens.length };
+                    if (score >= 0.95) break;
+                  }
+                }
+              }
+
+              return best;
+            };
+
+            let cursor = 0;
+            const segments = [];
+
+            for (let lineIndex = 0; lineIndex < turns.length; lineIndex++) {
+              const turn = turns[lineIndex];
+              const tokens = tokenizeForAlignment(turn?.text || '');
+              if (tokens.length === 0) continue;
+
+              const best = findBestWindow(tokens, cursor);
+              let startWordIndex = null;
+              let endWordIndex = null;
+              let usedFallback = false;
+
+              if (best && best.startIndex != null && best.endIndex != null) {
+                startWordIndex = best.startIndex;
+                endWordIndex = best.endIndex;
+              } else {
+                const approxCount = tokens.length;
+                startWordIndex = Math.min(Math.max(0, cursor), mfaWordTimings.length - 1);
+                endWordIndex = Math.min(Math.max(0, startWordIndex + approxCount - 1), mfaWordTimings.length - 1);
+                usedFallback = true;
+              }
+
+              const startTimeSeconds = mfaWordTimings[startWordIndex]?.startTime ?? null;
+              const endTimeSeconds = mfaWordTimings[endWordIndex]?.endTime ?? null;
+              const speaker = turn?.speaker === 'A' ? 'Host' : 'Guest';
+
+              if (startTimeSeconds != null && endTimeSeconds != null) {
+                segments.push({
+                  lineIndex,
+                  speaker,
+                  startTimeSeconds,
+                  endTimeSeconds,
+                  startWordIndex,
+                  endWordIndex,
+                });
+              }
+
+              cursor = Math.min(mfaWordTimings.length, (endWordIndex != null ? endWordIndex + 1 : cursor));
+
+              if (usedFallback) {
+                logger.warn(`[GOOGLE-PODCAST] dialogue_segments fallback used for lineIndex=${lineIndex} tokens=${tokens.length} cursorNow=${cursor}`);
+              }
+            }
+
+            dialogueSegments = segments.length > 0 ? segments : null;
+          } catch (segErr) {
+            logger.warn(`[GOOGLE-PODCAST] Failed to compute dialogue segments from MFA: ${segErr.message}`);
+          }
 
           const vttContent = createWordLevelVTTFromTimings(mfaWordTimings);
           const vttFileName = `${fileName.replace(/\.mp3$/i, '')}.vtt`;
@@ -693,12 +877,15 @@ async function createGoogleTTSPodcast(options) {
           mp3_url: audioUrl,
           vtt_url: vttUrl,
           input: topic,
-          translated_text: audioResult.transcript,
+          translated_text: (audioResult.dialogueText && typeof audioResult.dialogueText === 'string' && audioResult.dialogueText.trim().length > 0)
+            ? audioResult.dialogueText
+            : audioResult.transcript,
           adapted_text: audioResult.transcript,
           input_type: 'podcast',
           created_at: new Date().toISOString(),
           words: Array.isArray(wordsForTiming) && wordsForTiming.length > 0 ? JSON.stringify(wordsForTiming) : null,
           timepoints: Array.isArray(timepoints) && timepoints.length > 0 ? JSON.stringify(timepoints) : null,
+          dialogue_segments: Array.isArray(dialogueSegments) && dialogueSegments.length > 0 ? JSON.stringify(dialogueSegments) : null,
           tts_provider: 'google-gemini',
           tts_voice_name: 'gemini-2.5-flash-tts',
           audio_duration_seconds: estimatedDuration,
@@ -730,6 +917,7 @@ async function createGoogleTTSPodcast(options) {
       vtt_subtitles: vttUrl,
       transcript: audioResult.transcript,
       dialogue: audioResult.dialogueText,
+      dialogue_segments: dialogueSegments || null,
       turns: audioResult.turns,
       title: scriptResult.title,
       topic: topic,

@@ -38,6 +38,14 @@ interface NewSyncedTextPlayerProps {
   audioUrl: string;
   words: string[];
   timepoints: Timepoint[];
+  dialogueSegments?: Array<{
+    lineIndex: number;
+    speaker?: string;
+    startTimeSeconds: number;
+    endTimeSeconds: number;
+    startWordIndex?: number;
+    endWordIndex?: number;
+  }>;
   originalText: string;
   className?: string;
   showControls?: boolean;
@@ -56,6 +64,7 @@ interface NewSyncedTextPlayerProps {
   onActiveSegmentChange?: (segmentIndex: number) => void;
   onWordChange?: (wordIndex: number, isPlaying: boolean) => void;
   hideText?: boolean;
+  uiVariant?: 'card' | 'bare';
 }
 
 interface ContextMenu {
@@ -70,6 +79,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   audioUrl,
   words,
   timepoints,
+  dialogueSegments,
   originalText,
   className = '',
   showControls = true,
@@ -81,7 +91,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   onPlay,
   onActiveSegmentChange,
   onWordChange,
-  hideText = false
+  hideText = false,
+  uiVariant = 'card'
 }: NewSyncedTextPlayerProps) {
   
   // Use useWordSync hook directly in component
@@ -376,8 +387,22 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     }
   };
 
-  // Map activeWordIndex from useWordSync to a dialogue line index (for Speaker A/B transcripts)
+  // Dialogue highlighting sync: prefer explicit time-based segments if provided
   useEffect(() => {
+    if (dialogueSegments && dialogueSegments.length > 0) {
+      if (!isPlaying) return;
+      const seg = dialogueSegments.find(s => currentTime >= s.startTimeSeconds && currentTime <= s.endTimeSeconds);
+      const newIndex = seg ? seg.lineIndex : -1;
+      if (newIndex !== activeSegmentIndex) {
+        setActiveSegmentIndex(newIndex);
+        if (onActiveSegmentChange) {
+          onActiveSegmentChange(newIndex);
+        }
+      }
+      return;
+    }
+
+    // Fallback: Map activeWordIndex to dialogue line ranges (legacy behavior)
     if (!dialogueLineRanges.length) {
       if (activeSegmentIndex !== -1) {
         setActiveSegmentIndex(-1);
@@ -403,7 +428,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
         onActiveSegmentChange(newIndex);
       }
     }
-  }, [activeWordIndex, dialogueLineRanges, activeSegmentIndex, onActiveSegmentChange]);
+  }, [activeWordIndex, dialogueLineRanges, activeSegmentIndex, onActiveSegmentChange, dialogueSegments, currentTime, isPlaying]);
 
   // Render text with highlighting (word or sentence based)
   const renderText = () => {
@@ -422,8 +447,11 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
       <div className="text-base leading-relaxed select-text cursor-text" onClick={hideContextMenu}>
         {dialogueLines.map((line, lineIndex) => {
           const range = dialogueLineRanges.find(r => r.lineIndex === lineIndex);
+          const seg = dialogueSegments ? dialogueSegments.find(s => s.lineIndex === lineIndex) : null;
           const isActive = lineIndex === activeSegmentIndex;
-          const startTime = range ? (wordTimestamps[range.startIndex]?.startTime ?? 0) : 0;
+          const startTime = seg
+            ? seg.startTimeSeconds
+            : (range ? (wordTimestamps[range.startIndex]?.startTime ?? 0) : 0);
 
           return (
             <div
@@ -433,6 +461,10 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
               }`}
               onClick={(e) => {
                 e.stopPropagation();
+                if (seg) {
+                  seek(startTime);
+                  return;
+                }
                 if (range) {
                   seek(startTime);
                 }
@@ -723,7 +755,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   }
 
   return (
-    <div className={`bg-white rounded-lg shadow-lg p-6 ${className}`}>
+    <div className={uiVariant === 'bare' ? `${className}` : `bg-white rounded-lg shadow-lg p-6 ${className}`}>
       {/* ARIA Live Region for accessibility */}
       <div
         id="word-sync-live-region"

@@ -1331,6 +1331,11 @@ const processTtsRequest = async (req, res) => {
     // const useMFA = false; // Temporarily disabled for debugging
     //const useMFA = true; // Force enable for debugging
     const useMFA = process.env.USE_MFA_ALIGNMENT === 'true';
+    const mfaDebugEnabled = process.env.MFA_DEBUG_DUMP === 'true';
+
+    if (mfaDebugEnabled) {
+      logger.info(`[${requestId}] MFA debug dump enabled (file id will be: text_${requestId}_${uniqueId})`);
+    }
 
     if (useMFA) {
       try {
@@ -1347,7 +1352,17 @@ const processTtsRequest = async (req, res) => {
         mfaWordTimings = await mfaAligner.generateWordTimestamps(
           tempAudioPath,
           adaptedText,
-          locale
+          locale,
+          {
+            debug: mfaDebugEnabled
+              ? {
+                  id: `text_${requestId}_${uniqueId}`,
+                  source: 'ttsController',
+                  requestId,
+                  uniqueId,
+                }
+              : null,
+          }
         );
 
         // Cleanup temp audio file

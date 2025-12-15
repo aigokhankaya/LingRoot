@@ -616,7 +616,7 @@ const Welcome: React.FC = () => {
             'podcast',
             englishLevel.toUpperCase(),
             result.podcast_url,
-            transcriptText,
+            (dialogueText && dialogueText.trim().length > 0) ? dialogueText : transcriptText,
             transcriptText,
             undefined,
             result.timepoints,
@@ -3799,19 +3799,33 @@ const Welcome: React.FC = () => {
 
                             {/* Use OutputSection component for full functionality */}
                             {(() => {
+                              const looksLikeDialogueTranscript = (text: any) => {
+                                if (!text || typeof text !== 'string') return false;
+                                return /^(Speaker\s+[AB]|Host|Guest):/im.test(text);
+                              };
+
                               const audioResult = {
                                 message: item.adapted_text || item.input,
                                 mp3_url: item.mp3_url,
                                 vtt_url: item.mp3_url.replace('.mp3', '.vtt'), // Assume VTT exists
                                 level: item.level,
                                 adapted_text: item.adapted_text || item.input,
-                                translated_text: item.input, // Original Turkish text
+                                translated_text: item.translated_text || item.input,
+                                dialogue: looksLikeDialogueTranscript(item.translated_text) ? item.translated_text : undefined,
                                 topic: getHistoryTypeLabel(item.input_type),
+                                input_type: item.input_type,
+                                dialogue_segments: Array.isArray((item as any).dialogue_segments)
+                                  ? (item as any).dialogue_segments
+                                  : (item as any).dialogue_segments
+                                    ? JSON.parse((item as any).dialogue_segments)
+                                    : undefined,
                                 timepoints: (() => {
                                   try {
-                                    return Array.isArray(item.timepoints) ? item.timepoints : (item.timepoints ? JSON.parse(item.timepoints) : []);
+                                    if (Array.isArray(item.timepoints)) return item.timepoints;
+                                    if (typeof item.timepoints === 'string') return JSON.parse(item.timepoints);
+                                    return [];
                                   } catch (e) {
-                                    console.warn('Failed to parse timepoints:', e);
+                                    console.error('Error parsing timepoints:', e);
                                     return [];
                                   }
                                 })(),

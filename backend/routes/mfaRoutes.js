@@ -80,7 +80,18 @@ router.post('/align', upload.single('audio'), async (req, res) => {
 
     // Perform MFA alignment
     logger.info(`[${requestId}] Starting MFA alignment...`);
-    const timepoints = await mfaAligner.generateWordTimestamps(tempAudioPath, transcript, locale, { forceLocal: true });
+    const mfaDebugEnabled = process.env.MFA_DEBUG_DUMP === 'true';
+    const debugIdFromHeader = req.headers['x-mfa-debug-id'];
+    const timepoints = await mfaAligner.generateWordTimestamps(tempAudioPath, transcript, locale, {
+      forceLocal: true,
+      debug: mfaDebugEnabled
+        ? {
+            id: debugIdFromHeader ? String(debugIdFromHeader) : String(requestId),
+            source: 'mfaRoutes',
+            requestId: String(requestId),
+          }
+        : null,
+    });
     
     logger.info(`[${requestId}] MFA alignment completed: ${timepoints.length} words`);
 

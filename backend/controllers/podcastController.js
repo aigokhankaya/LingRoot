@@ -3,6 +3,84 @@ const { supabase } = require('../utils/supabaseClient');
 const logger = require('../utils/logger');
 const axios = require('axios');
 
+function parseVttTimestampToSeconds(ts) {
+  if (!ts || typeof ts !== 'string') return null;
+  const m = ts.trim().match(/^(\d{2}):(\d{2}):(\d{2})\.(\d{3})$/);
+  if (!m) return null;
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  const ss = Number(m[3]);
+  const ms = Number(m[4]);
+  if ([hh, mm, ss, ms].some(n => Number.isNaN(n))) return null;
+  return hh * 3600 + mm * 60 + ss + ms / 1000;
+}
+
+function parseWordLevelTimepointsFromVtt(vttContent) {
+  if (!vttContent || typeof vttContent !== 'string') return [];
+
+  const lines = vttContent.split(/\r?\n/);
+  const timepoints = [];
+
+  let cueStart = null;
+  let cueEnd = null;
+  let cueTextLines = [];
+
+  const flushCue = () => {
+    if (cueStart == null || cueEnd == null) {
+      cueTextLines = [];
+      return;
+    }
+
+    const text = cueTextLines.join(' ').trim();
+    cueTextLines = [];
+    if (!text) return;
+
+    const tokens = text.split(/\s+/).filter(Boolean);
+    if (tokens.length !== 1) return;
+
+    const word = tokens[0];
+    timepoints.push({
+      word,
+      timeSeconds: cueStart,
+      endTimeSeconds: cueEnd,
+      index: timepoints.length,
+      hasRealTiming: true,
+      source: 'vtt',
+    });
+  };
+
+  for (const raw of lines) {
+    const line = String(raw || '').trim();
+    if (!line) {
+      flushCue();
+      cueStart = null;
+      cueEnd = null;
+      continue;
+    }
+
+    if (line.startsWith('WEBVTT')) {
+      continue;
+    }
+
+    if (/^\d+$/.test(line)) {
+      continue;
+    }
+
+    const tsMatch = line.match(/^(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})/);
+    if (tsMatch) {
+      flushCue();
+      cueStart = parseVttTimestampToSeconds(tsMatch[1]);
+      cueEnd = parseVttTimestampToSeconds(tsMatch[2]);
+      continue;
+    }
+
+    cueTextLines.push(line);
+  }
+
+  flushCue();
+  return timepoints;
+}
+
 /**
  * Podcast upload endpoint for n8n
  * Expects:
@@ -85,6 +163,7 @@ const uploadPodcast = async (req, res) => {
 
     // Handle VTT subtitle
     let vttPublicUrl = null;
+    let vttContentForParsing = null;
     
     // Check if vtt_url is provided directly (already uploaded)
     logger.info('🔍 [PODCAST UPLOAD] Checking vtt_url:', req.body.vtt_url);
@@ -92,6 +171,7 @@ const uploadPodcast = async (req, res) => {
       logger.info('✅ [PODCAST UPLOAD] Using existing VTT URL:', req.body.vtt_url);
       vttPublicUrl = req.body.vtt_url;
     } else if (subtitles && subtitles.vtt) {
+      vttContentForParsing = subtitles.vtt;
       // Upload VTT subtitle to Supabase
       const vttFilename = audioFilename.replace('.mp3', '.vtt');
       const vttBuffer = Buffer.from(subtitles.vtt, 'utf-8');
@@ -171,6 +251,7 @@ const uploadPodcast = async (req, res) => {
             
             if (vttResponse.status === 200) {
               const vttContent = vttResponse.data;
+              vttContentForParsing = typeof vttContent === 'string' ? vttContent : String(vttContent);
               
               const vttLines = vttContent.split('\n');
               const textLines = [];
@@ -209,8 +290,20 @@ const uploadPodcast = async (req, res) => {
           vtt_url: vttPublicUrl,
           level: metadata?.level || 'A1',
           input_type: 'podcast',
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          words: null,
+          timepoints: null,
         };
+
+        const fallbackWords = (extractedText || '').split(/\s+/).filter(w => w.length > 0);
+        const vttTimepoints = vttContentForParsing ? parseWordLevelTimepointsFromVtt(vttContentForParsing) : [];
+
+        const wordsForDb = vttTimepoints.length > 0
+          ? vttTimepoints.map(tp => tp.word)
+          : fallbackWords;
+
+        contentRecord.words = Array.isArray(wordsForDb) && wordsForDb.length > 0 ? JSON.stringify(wordsForDb) : null;
+        contentRecord.timepoints = Array.isArray(vttTimepoints) && vttTimepoints.length > 0 ? JSON.stringify(vttTimepoints) : null;
 
         logger.info('💾 [PODCAST UPLOAD] Saving to contenthistory:', contentRecord);
 
