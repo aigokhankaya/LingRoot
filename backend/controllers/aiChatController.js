@@ -11,6 +11,7 @@ const { supabase } = require('../utils/supabaseClient');
 const { calculateOpenAiCost } = require('../utils/costTracker');
 const { suggestTopicsForUser, extractAndStoreTopic } = require('../lib/rag');
 const directorAgentService = require('../services/directorAgentService');
+const webSearchService = require('../utils/webSearchService');
 
 /**
  * Get all AI conversations for a user
@@ -207,7 +208,22 @@ const sendMessage = async (req, res) => {
       logger.warn('Failed to build content overview for Liro:', overviewError);
     }
 
-    let liroSystemPrompt = liroPromptGenerator.generateSystemPrompt(userProfile);
+    // WEB SEARCH: Check if query needs external info
+    let searchResultsText = '';
+    try {
+      if (webSearchService.shouldSearch(content)) {
+        logger.info('🌐 Simple heuristic triggered web search for:', content);
+        const searchResults = await webSearchService.searchWeb(content);
+        if (searchResults.length > 0) {
+          searchResultsText = webSearchService.formatForPrompt(searchResults);
+          logger.info(`🌐 Injected ${searchResults.length} search results into context.`);
+        }
+      }
+    } catch (searchErr) {
+      logger.warn('Web search failed silently:', searchErr);
+    }
+
+    let liroSystemPrompt = liroPromptGenerator.generateSystemPrompt(userProfile, searchResultsText);
     if (overviewPrompt) {
       liroSystemPrompt = `${liroSystemPrompt}\n\n${overviewPrompt}`;
     }
@@ -330,9 +346,25 @@ const sendMessage = async (req, res) => {
       logger.error('💰 [LIRO COST] Unexpected error while logging chat cost:', costError);
     }
 
-    // Extract and store topic if conversation is mature enough (background task)
+    // TOPIC LOCK DETECTION: Check if AI signaled a topic decision
+    // Look for the "🎯 KONU KİLİTLENDİ:" signal in assistant response
+    const topicLockMatch = assistantContent.match(/KONU KİLİTLENDİ[:\s]*\*?\*?([^*\n]+)/i);
+    if (topicLockMatch) {
+      const lockedTopic = topicLockMatch[1].trim();
+      logger.info(`🎯 Topic Lock detected: "${lockedTopic}"`);
 
-    if (messageHistory.length >= 6) {
+      // Update conversation with the locked topic immediately
+      await db.query(
+        'UPDATE conversations SET suggested_topic = $1, updated_at = NOW() WHERE id = $2',
+        [lockedTopic, conversationId]
+      );
+
+      // Trigger topic extraction immediately (don't wait for 6 messages)
+      extractAndStoreTopic(conversationId, userId).catch(err => {
+        logger.error('Background topic extraction failed after lock:', err);
+      });
+    } else if (messageHistory.length >= 6) {
+      // Fallback: Extract topic if conversation is mature enough
       extractAndStoreTopic(conversationId, userId).catch(err => {
         logger.error('Background topic extraction failed:', err);
       });

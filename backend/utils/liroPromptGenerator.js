@@ -15,7 +15,7 @@ class LiroPromptGenerator {
    * @param {Object} userProfile - UserProfileAnalyzer'dan gelen profil
    * @returns {string} Kişiselleştirilmiş system prompt
    */
-  generateSystemPrompt(userProfile) {
+  generateSystemPrompt(userProfile, searchResultsText = '') {
     if (!userProfile) {
       return this.getDefaultPrompt();
     }
@@ -70,7 +70,8 @@ class LiroPromptGenerator {
         .replace(/{{personalizedOpening}}/g, personalizedOpening)
         .replace(/{{preferredLevel}}/g, preferredLevel)
         .replace(/{{knowledgeBase}}/g, knowledgeSection)
-        .replace(/{{topicTreeStatus}}/g, topicTreeSection);
+        .replace(/{{topicTreeStatus}}/g, topicTreeSection)
+        .replace(/{{searchResults}}/g, searchResultsText);
     } catch (error) {
       logger.error('Failed to load personalized prompt template:', error);
       return this.getDefaultPrompt();
@@ -110,7 +111,7 @@ class LiroPromptGenerator {
     // İlgi alanları
     if (interests.count > 0) {
       const interestList = interests.list.slice(0, 8).join(', ');
-      section.push(`- İlgi alanları: ${interestList}`);
+      section.push(`- 🔒 Kullanıcının Kayıtlı HOBİLERİ (ARKA PLAN BİLGİSİ - DİREKT ÖNERİ OLARAK KULLANMA!): ${interestList}`);
 
       if (interests.recent.length > 0) {
         section.push(`- Son eklenen ilgiler: ${interests.recent.slice(0, 3).join(', ')}`);
