@@ -114,6 +114,7 @@ Deployment kurallarını ihlal etme:
 Cloudflare Tunnel → Backend Only
 MFA alignment hesaplamalarında tahmini formüller yazma.
 Mobil ve Web API’larını birbirinden ayırma; tek şema üzerinden kullan.
+Kullanıcı ile iletişim dili (cevaplar, raporlar, açıklamalar) kesinlikle TÜRKÇE olmalıdır. İngilizce sadece kod içinde ve loglarda kullanılabilir.
 
 [5. PROGRESS & ROADMAP]
 ✓ Phase 1 — Foundation
