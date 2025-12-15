@@ -76,8 +76,13 @@ class MFAAligner {
   }
 
   cleanTranscript(text) {
-    return text
-      .replace(/[.,!?;:"""''—–-]/g, '')
+    return (text || '')
+      .normalize('NFKD')
+      .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+      .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
+      .replace(/[\u2013\u2014]/g, ' ')
+      .replace(/\u2026/g, ' ')
+      .replace(/[.,!?;:\"'\-]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
   }
@@ -209,22 +214,46 @@ class MFAAligner {
     try {
       const axios = require('axios');
       const FormData = require('form-data');
-      const fsSync = require('fs');
+      const path = require('path');
       
       const MFA_SERVICE_URL = process.env.MFA_SERVICE_URL || 'https://api.booklevel.store';
       
       logger.info(`🌐 Using remote MFA service: ${MFA_SERVICE_URL}`);
+
+      const cleanedTranscript = this.cleanTranscript(transcript);
       
-      // Read audio file
+      // Send original MP3 to remote MFA - server handles conversion
+      // This avoids sending large WAV files over the network
       const audioBuffer = await fs.readFile(audioPath);
+      const isWav = audioPath.endsWith('.wav');
+      
+      // DEBUG: Write detailed comparison log to file
+      const debugLogPath = path.join(process.cwd(), 'logs', 'mfa_debug.log');
+      const debugInfo = {
+        timestamp: new Date().toISOString(),
+        mode: audioPath.includes('podcast') ? 'PODCAST' : 'TEXT',
+        audioPath,
+        audioSize: audioBuffer.length,
+        audioFormat: isWav ? 'WAV' : 'MP3',
+        transcriptLength: transcript.length,
+        cleanedTranscriptLength: cleanedTranscript.length,
+        transcriptFirst500: transcript.substring(0, 500),
+        cleanedTranscriptFirst500: cleanedTranscript.substring(0, 500),
+        locale,
+        mfaServiceUrl: MFA_SERVICE_URL
+      };
+      const logLine = `\n${'='.repeat(80)}\n${JSON.stringify(debugInfo, null, 2)}\n`;
+      await fs.appendFile(debugLogPath, logLine).catch(() => {});
+      
+      logger.info(`🌐 [Remote MFA] Audio buffer size: ${audioBuffer.length} bytes, Format: ${isWav ? 'WAV' : 'MP3'}, Transcript length: ${cleanedTranscript.length} chars`);
       
       // Create form data
       const formData = new FormData();
       formData.append('audio', audioBuffer, {
-        filename: 'audio.mp3',
-        contentType: 'audio/mpeg'
+        filename: isWav ? 'audio.wav' : 'audio.mp3',
+        contentType: isWav ? 'audio/wav' : 'audio/mpeg'
       });
-      formData.append('transcript', transcript);
+      formData.append('transcript', cleanedTranscript);
       formData.append('locale', locale);
       
       // Send request to remote MFA service
@@ -243,8 +272,13 @@ class MFAAligner {
       return response.data.timepoints;
       
     } catch (error) {
-      logger.error('❌ Remote MFA alignment failed:', error.message);
-      throw new Error(`Remote MFA not available: ${error.message}`);
+      const errorDetail = error.response?.data?.error || error.response?.data?.message || error.message;
+      const statusCode = error.response?.status || 'N/A';
+      logger.error(`❌ Remote MFA alignment failed: [HTTP ${statusCode}] ${errorDetail}`);
+      if (error.response?.data) {
+        logger.debug(`Remote MFA error response: ${JSON.stringify(error.response.data)}`);
+      }
+      throw new Error(`Remote MFA not available: ${errorDetail}`);
     }
   }
 }

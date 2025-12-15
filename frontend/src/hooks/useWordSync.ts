@@ -175,7 +175,7 @@ export const useWordSync = ({
 
   // Senkronizasyon döngüsü - Web Audio API + requestAnimationFrame
   const syncLoop = useCallback(() => {
-    if (!audioRef.current || !audioContextRef.current) {
+    if (!audioRef.current) {
     // console removed
       return;
     }
@@ -254,7 +254,7 @@ export const useWordSync = ({
   const play = useCallback(async () => {
     // console removed
     
-    if (!audioRef.current || !audioContextRef.current) {
+    if (!audioRef.current) {
       console.log('❌ [PLAY DEBUG] Missing audio references:', {
         hasAudio: !!audioRef.current,
         hasContext: !!audioContextRef.current
@@ -263,12 +263,6 @@ export const useWordSync = ({
     }
 
     try {
-      // Mobil tarayıcılar için AudioContext'i başlatma gerekliliği
-      if (audioContextRef.current.state === 'suspended') {
-        // console removed
-        await audioContextRef.current.resume();
-      }
-
       // console removed
       await audioRef.current.play();
       setIsPlaying(true);
@@ -394,14 +388,10 @@ export const useWordSync = ({
 
     console.log('🚀 [AUDIO SETUP DEBUG] Starting audio initialization...');
 
-    // AudioContext ve HTMLAudioElement'i oluştur
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) {
-      console.error('❌ [AUDIO SETUP DEBUG] Web Audio API desteklenmiyor');
-      return;
-    }
-
-    audioContextRef.current = new AudioContext();
+    // Create the audio element. We intentionally do NOT route through WebAudio here.
+    // Some production browser/CDN combinations can result in silent playback when
+    // using createMediaElementSource + AudioContext.
+    audioContextRef.current = null;
     audioRef.current = new Audio(audioUrl);
 
     // IMPORTANT:
@@ -418,13 +408,9 @@ export const useWordSync = ({
       // If URL parsing fails, do not set crossOrigin to avoid breaking playback.
     }
 
-    // Audio elementini AudioContext'e bağla
-    try {
-      sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
-      sourceNodeRef.current.connect(audioContextRef.current.destination);
-    } catch (error) {
-      console.error('MediaElementSource oluşturma hatası:', error);
-    }
+    // Do not connect the audio element to an AudioContext.
+    // We only rely on HTMLAudioElement events + currentTime for word sync.
+    sourceNodeRef.current = null;
 
     // Olay dinleyicilerini tanımla
     const handleLoadedMetadata = () => {

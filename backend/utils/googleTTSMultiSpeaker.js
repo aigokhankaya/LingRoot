@@ -9,6 +9,9 @@ const { v4: uuidv4 } = require('uuid');
 const { supabase } = require('./supabaseClient');
 const { GoogleAuth } = require('google-auth-library');
 const axios = require('axios');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 // Google TTS Client
 let ttsClient;
@@ -22,6 +25,34 @@ try {
 } catch (error) {
   logger.error('Failed to initialize Google TTS Multi-Speaker client:', error.message);
   ttsClient = null;
+}
+
+const createWordLevelVTTFromTimings = (wordTimings) => {
+  let vttContent = 'WEBVTT\n\n';
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    const millisecs = Math.floor((seconds % 1) * 1000);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${millisecs.toString().padStart(3, '0')}`;
+  };
+
+  (wordTimings || []).forEach((timing) => {
+    const startTime = timing.startTime ?? timing.timeSeconds ?? 0;
+    const endTime = timing.endTime ?? timing.endTimeSeconds ?? (startTime + 0.5);
+    const word = timing.word || '';
+    vttContent += `${formatTime(startTime)} --> ${formatTime(endTime)}\n`;
+    vttContent += `${word}\n\n`;
+  });
+
+  return vttContent;
+};
+
+async function uploadPodcastVtt(vttContent, fileName) {
+  const { uploadToSupabase } = require('./storageUploader');
+  const vttBuffer = Buffer.from(vttContent || '', 'utf-8');
+  const publicUrl = await uploadToSupabase(vttBuffer, `podcast_${fileName}`, 'text/vtt');
+  return publicUrl;
 }
 
 // Available Gemini TTS Speaker IDs
@@ -568,6 +599,86 @@ async function createGoogleTTSPodcast(options) {
     const fileName = `podcast_${uuidv4()}.mp3`;
     const audioUrl = await uploadPodcastAudio(audioResult.audioContent, fileName);
 
+    let wordsForTiming = null;
+    let timepoints = null;
+    let vttUrl = null;
+    const useMFAAlignment = process.env.USE_MFA_ALIGNMENT === 'true';
+
+    if (useMFAAlignment && audioUrl && (audioResult.dialogueText || audioResult.transcript)) {
+      const { mfaAligner } = require('./mfaAligner');
+      const { execSync } = require('child_process');
+      try {
+        // Save as MP3 first, then convert to WAV for MFA (same as text mode)
+        const tempMp3Path = path.join(os.tmpdir(), `podcast_mfa_${Date.now()}.mp3`);
+        const tempWavPath = tempMp3Path.replace('.mp3', '.wav');
+
+        await fs.promises.writeFile(tempMp3Path, audioResult.audioContent);
+        
+        // Convert MP3 to WAV (16kHz mono) - MFA works better with WAV
+        const ffmpegPath = process.env.FFMPEG_PATH || 'ffmpeg';
+        try {
+          execSync(`"${ffmpegPath}" -y -i "${tempMp3Path}" -ar 16000 -ac 1 -acodec pcm_s16le "${tempWavPath}"`, {
+            stdio: 'pipe',
+            timeout: 30000
+          });
+          logger.info(`[GOOGLE-PODCAST] Converted MP3 to WAV for MFA: ${tempWavPath}`);
+        } catch (ffmpegErr) {
+          logger.warn(`[GOOGLE-PODCAST] FFmpeg conversion failed, using MP3: ${ffmpegErr.message}`);
+        }
+        
+        // Use WAV if conversion succeeded, otherwise use MP3
+        const tempAudioPath = require('fs').existsSync(tempWavPath) ? tempWavPath : tempMp3Path;
+        const locale = 'en_US';
+
+        // Choose correct transcript for MFA based on synthesis mode:
+        // - Main Gemini multi-speaker: labels are NOT spoken, use transcript (no labels)
+        // - Fallback modes (gemini-per-turn, neural2-per-turn): labels ARE spoken, use dialogueText
+        let mfaTranscript;
+        if (audioResult.fallbackUsed) {
+          // Fallback modes speak the labels
+          mfaTranscript = audioResult.dialogueText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+          logger.info(`[GOOGLE-PODCAST] Using dialogueText for MFA (fallback mode: ${audioResult.fallbackMode})`);
+        } else {
+          // Main Gemini multi-speaker doesn't speak labels
+          mfaTranscript = audioResult.transcript;
+          logger.info(`[GOOGLE-PODCAST] Using transcript for MFA (main Gemini multi-speaker mode)`);
+        }
+        logger.info(`[GOOGLE-PODCAST] MFA transcript (first 200 chars): ${mfaTranscript.substring(0, 200)}`);
+
+        // Debug: Log audio file info before MFA
+        const audioStats = await fs.promises.stat(tempAudioPath);
+        logger.info(`[GOOGLE-PODCAST] MFA input - Audio size: ${audioStats.size} bytes, Transcript length: ${mfaTranscript.length} chars, Words: ${mfaTranscript.split(/\s+/).length}`);
+
+        const mfaWordTimings = await mfaAligner.generateWordTimestamps(
+          tempAudioPath,
+          mfaTranscript,
+          locale
+        );
+
+        // Cleanup temp files (both MP3 and WAV)
+        await fs.promises.unlink(tempMp3Path).catch(() => {});
+        await fs.promises.unlink(tempWavPath).catch(() => {});
+
+        if (Array.isArray(mfaWordTimings) && mfaWordTimings.length > 0) {
+          wordsForTiming = mfaWordTimings.map(t => t.word);
+          timepoints = mfaWordTimings.map((timing, index) => ({
+            word: timing.word,
+            timeSeconds: timing.startTime,
+            endTimeSeconds: timing.endTime,
+            index,
+            hasRealTiming: true,
+            source: 'mfa',
+          }));
+
+          const vttContent = createWordLevelVTTFromTimings(mfaWordTimings);
+          const vttFileName = `${fileName.replace(/\.mp3$/i, '')}.vtt`;
+          vttUrl = await uploadPodcastVtt(vttContent, vttFileName);
+        }
+      } catch (mfaErr) {
+        logger.warn('[GOOGLE-PODCAST] MFA alignment failed, continuing without timepoints/vtt:', mfaErr.message);
+      }
+    }
+
     // Step 4: Estimate duration (roughly 150 words per minute)
     const wordCount = audioResult.transcript.split(/\s+/).length;
     const estimatedDuration = Math.round((wordCount / 150) * 60);
@@ -580,11 +691,14 @@ async function createGoogleTTSPodcast(options) {
           user_id: userId,
           level: level,
           mp3_url: audioUrl,
+          vtt_url: vttUrl,
           input: topic,
           translated_text: audioResult.transcript,
           adapted_text: audioResult.transcript,
           input_type: 'podcast',
           created_at: new Date().toISOString(),
+          words: Array.isArray(wordsForTiming) && wordsForTiming.length > 0 ? JSON.stringify(wordsForTiming) : null,
+          timepoints: Array.isArray(timepoints) && timepoints.length > 0 ? JSON.stringify(timepoints) : null,
           tts_provider: 'google-gemini',
           tts_voice_name: 'gemini-2.5-flash-tts',
           audio_duration_seconds: estimatedDuration,
@@ -612,6 +726,8 @@ async function createGoogleTTSPodcast(options) {
       podcast_url: audioUrl,
       audio_url: audioUrl,
       mp3_url: audioUrl,
+      vtt_url: vttUrl,
+      vtt_subtitles: vttUrl,
       transcript: audioResult.transcript,
       dialogue: audioResult.dialogueText,
       turns: audioResult.turns,
@@ -624,6 +740,8 @@ async function createGoogleTTSPodcast(options) {
       tts_provider: 'google-gemini',
       fallback_used: audioResult.fallbackUsed || false,
       fallback_mode: audioResult.fallbackMode || null,
+      words: wordsForTiming || null,
+      timepoints: timepoints || null,
       costs: {
         openai_tokens: scriptResult.usage?.total_tokens || 0,
       },

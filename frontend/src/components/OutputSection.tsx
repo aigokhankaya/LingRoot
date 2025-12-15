@@ -8,6 +8,7 @@ interface TtsResponseData {
   mp3_url?: string;
   vtt_url?: string;
   adapted_text?: string;
+  dialogue?: string;
   words?: string[];
   timepoints?: Array<{
     timeSeconds: number;
@@ -363,7 +364,7 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
           audioUrl={playableAudioUrl}
           words={audioResult.words || []}
           timepoints={audioResult.timepoints || []}
-          originalText={adaptedText || audioResult.message}
+          originalText={audioResult.dialogue && audioResult.dialogue.length > 0 ? audioResult.dialogue : (adaptedText || audioResult.message)}
           className=""
           showControls={true}
           level={audioResult.level}

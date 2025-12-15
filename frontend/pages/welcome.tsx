@@ -62,6 +62,7 @@ interface ContentTypeOption {
 interface AudioResult {
   success?: boolean;
   message: string;
+  dialogue?: string;
   mp3_url: string;
   vtt_url: string;
   level: string;
@@ -561,6 +562,15 @@ const Welcome: React.FC = () => {
 
       console.log('🎙️ [PODCAST] Creating podcast with params:', params);
       const result = await createPodcast(params);
+      
+      console.log('🎙️ [PODCAST] Raw result from createPodcast:', {
+        success: result?.success,
+        podcast_url: result?.podcast_url,
+        hasDialogue: !!result?.dialogue,
+        dialogueLength: result?.dialogue?.length || 0,
+        transcript: result?.transcript?.substring(0, 50),
+        allKeys: result ? Object.keys(result) : [],
+      });
 
       if (result.success && result.podcast_url) {
         // Podcast başarıyla oluşturuldu
@@ -568,10 +578,19 @@ const Welcome: React.FC = () => {
         const vttUrl = result.vtt_subtitles || '';
         const topic = result.data?.metadata?.topic || podcastTopic;
         const transcriptText = result.transcript || result.message || topic;
+        const dialogueText = result.dialogue || '';
+        
+        console.log('🎙️ [PODCAST] Dialogue check:', {
+          hasDialogue: !!result.dialogue,
+          dialogueLength: result.dialogue?.length || 0,
+          dialoguePreview: result.dialogue?.substring(0, 100),
+          transcriptPreview: transcriptText?.substring(0, 100),
+        });
 
         // Persist MFA alignment data on audioResult so web player can sync precisely
         setAudioResult({
           message: transcriptText,
+          dialogue: dialogueText,
           mp3_url: result.podcast_url,
           vtt_url: vttUrl,
           level: englishLevel,
