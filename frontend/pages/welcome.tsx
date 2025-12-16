@@ -31,6 +31,7 @@ import OutputSection from '../src/components/OutputSection';
 import Footer from '../src/components/Footer';
 import TopicHierarchySection from '../src/components/TopicHierarchy/TopicHierarchySection';
 import InterestManager from '../src/components/InterestManager';
+import { WelcomePopup } from '../src/components/welcome/WelcomePopup';
 import { Button } from "../src/components/ui/button";
 import { Input } from "../src/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../src/components/ui/tabs";
@@ -205,6 +206,30 @@ const Welcome: React.FC = () => {
   const [showPlanRequired, setShowPlanRequired] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [showWelcomeLoader, setShowWelcomeLoader] = useState<boolean>(false);
+  const [showWelcomePopup, setShowWelcomePopup] = useState<boolean>(false);
+
+  // Welcome popup kontrolü - URL'den showWelcome parametresini kontrol et
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    const { showWelcome } = router.query;
+    if (showWelcome === 'true') {
+      setShowWelcomePopup(true);
+      // URL'den parametreyi temizle
+      const newQuery = { ...router.query };
+      delete newQuery.showWelcome;
+      router.replace({ pathname: router.pathname, query: newQuery }, undefined, { shallow: true });
+    }
+
+    // SessionStorage'dan justRegistered flag'ini kontrol et
+    try {
+      const justRegistered = sessionStorage.getItem('justRegistered');
+      if (justRegistered === 'true') {
+        setShowWelcomePopup(true);
+        sessionStorage.removeItem('justRegistered');
+      }
+    } catch { }
+  }, [router.isReady, router.query]);
 
   // Welcome guard: Eğer middleware çerezleri varsa (suppressWelcome/postLoginTarget), hemen hedefe yönlendir
   useEffect(() => {
@@ -3887,9 +3912,16 @@ const Welcome: React.FC = () => {
         </div>
       </div>
 
+      {/* Welcome Popup */}
+      <WelcomePopup
+        isOpen={showWelcomePopup}
+        onClose={() => setShowWelcomePopup(false)}
+        userEmail={user?.email}
+      />
+
       <Footer />
     </div>
   );
 };
 
-export default Welcome; 
+export default Welcome;

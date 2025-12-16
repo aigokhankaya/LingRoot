@@ -45,7 +45,7 @@ const LoginPage: React.FC = () => {
       const result = await login(email, password, rememberMe);
       if (result.success) {
         let target = nextDecoded && nextDecoded.trim() ? nextDecoded : '/welcome';
-        try { sessionStorage.removeItem('postLoginNext'); } catch {}
+        try { sessionStorage.removeItem('postLoginNext'); } catch { }
         if (target.includes('#')) {
           window.location.assign(target);
         } else {
@@ -92,7 +92,7 @@ const LoginPage: React.FC = () => {
 
       if (result.success) {
         let target = nextDecoded && nextDecoded.trim() ? nextDecoded : '/welcome';
-        try { sessionStorage.removeItem('postLoginNext'); } catch {}
+        try { sessionStorage.removeItem('postLoginNext'); } catch { }
         if (target.includes('#')) {
           window.location.assign(target);
         } else {
@@ -118,10 +118,10 @@ const LoginPage: React.FC = () => {
         </div>
       )}
       <header className="w-full flex justify-center items-center py-8">
-        <div className="flex items-center space-x-4">
+        <Link href="/" className="flex items-center space-x-4 cursor-pointer hover:opacity-80 transition-opacity">
           <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
           <BrandWordmark className="text-3xl" />
-        </div>
+        </Link>
       </header>
 
       <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">

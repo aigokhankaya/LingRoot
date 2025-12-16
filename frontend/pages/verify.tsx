@@ -3,70 +3,122 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { getApiUrl } from '../src/lib/api';
 import { useTranslation } from '../src/lib/i18n';
+import Link from 'next/link';
 
 export default function VerifyPage() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { token } = router.query as { token?: string };
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const { token, email } = router.query as { token?: string; email?: string };
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'check_email'>('idle');
   const [message, setMessage] = useState<string>('');
 
   useEffect(() => {
     const run = async () => {
-      if (!token || typeof token !== 'string') return;
-      setStatus('loading');
-      setMessage(t('verify_verifying'));
-      try {
-        const url = getApiUrl(`auth/verify-email/${encodeURIComponent(token)}`);
-        const res = await fetch(url, { method: 'GET', credentials: 'include' });
-        const json = await res.json().catch(() => ({}));
-        if (res.ok && json?.success) {
-          setStatus('success');
-          setMessage(json.message || t('verify_success'));
-        } else {
+      if (token && typeof token === 'string') {
+        setStatus('loading');
+        setMessage(t('verify_verifying'));
+        try {
+          const url = getApiUrl(`auth/verify-email/${encodeURIComponent(token)}`);
+          const res = await fetch(url, { method: 'GET', credentials: 'include' });
+          const json = await res.json().catch(() => ({}));
+          if (res.ok && json?.success) {
+            setStatus('success');
+            setMessage(json.message || t('verify_success'));
+          } else {
+            console.error('Verify failed:', res.status, json);
+            setStatus('error');
+            setMessage(json?.message || `Doğrulama başarısız (HTTP ${res.status}).`);
+          }
+        } catch (e: any) {
+          console.error('Verify error:', e);
           setStatus('error');
-          setMessage(json?.message || `Doğrulama başarısız (HTTP ${res.status}).`);
+          setMessage(e?.message || t('content_selection_error_generic'));
         }
-      } catch (e: any) {
-        setStatus('error');
-        setMessage(e?.message || t('content_selection_error_generic'));
+      } else if (email) {
+        setStatus('check_email');
+      } else {
+        // idle
       }
     };
-    run();
-  }, [token, router, t]);
+    if (router.isReady) {
+      run();
+    }
+  }, [token, email, router.isReady, t]);
 
   return (
     <>
       <Head>
         <title>{t('verify_title')} - LingRoot</title>
       </Head>
-      <div style={{
-        minHeight: '60vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem',
-        textAlign: 'center'
-      }}>
-        <div>
-          <h1 style={{ marginBottom: '1rem' }}>{t('verify_title')}</h1>
-          {status === 'loading' && <p>{message}</p>}
-          {status === 'success' && (
-            <>
-              <p style={{ color: 'green' }}>{message}</p>
-              <p><a href="/login">{t('verify_success_link')}</a></p>
-            </>
-          )}
-          {status === 'error' && (
-            <>
-              <p style={{ color: 'crimson' }}>{message}</p>
-              <p>
-                {t('verify_error_expired')}
-              </p>
-            </>
-          )}
-          {status === 'idle' && <p>{t('verify_waiting')}</p>}
-        </div>
+      <div className="min-h-screen flex flex-col bg-background">
+        <header className="w-full flex justify-center items-center py-8">
+          <Link href="/" className="flex items-center space-x-4 cursor-pointer hover:opacity-80 transition-opacity">
+            <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
+            <span className="text-3xl font-bold text-gray-900">LingRoot</span>
+          </Link>
+        </header>
+
+        <main className="flex-grow flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white p-8 shadow-md rounded-lg text-center">
+
+            {status === 'loading' && (
+              <div>
+                <h1 className="text-2xl font-bold mb-4">{t('verify_verifying')}</h1>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              </div>
+            )}
+
+            {status === 'success' && (
+              <div>
+                <div className="text-green-500 text-5xl mb-4">✓</div>
+                <h1 className="text-2xl font-bold mb-2">{t('verify_success_title') || 'Doğrulama Başarılı'}</h1>
+                <p className="text-gray-600 mb-6">{message}</p>
+                <Link href="/login" className="inline-block px-6 py-3 bg-primary text-white font-medium rounded-md hover:bg-primary/90 transition-colors">
+                  {t('login_button')}
+                </Link>
+              </div>
+            )}
+
+            {status === 'error' && (
+              <div>
+                <div className="text-red-500 text-5xl mb-4">✕</div>
+                <h1 className="text-2xl font-bold mb-2">{t('error')}</h1>
+                <p className="text-red-600 mb-6">{message}</p>
+                {status === 'error' && (
+                  <p className="text-sm text-gray-500 mb-4">{t('verify_error_expired')}</p>
+                )}
+                <Link href="/login" className="text-primary hover:underline">
+                  {t('login')}
+                </Link>
+              </div>
+            )}
+
+            {status === 'check_email' && (
+              <div>
+                <div className="text-primary text-5xl mb-4">✉️</div>
+                <h1 className="text-2xl font-bold mb-2">{t('welcome_popup_activation_title')}</h1>
+                <p className="text-gray-600 mb-4">
+                  {t('welcome_popup_activation_desc')}
+                </p>
+                <div className="bg-blue-50 p-3 rounded-md mb-4 break-all">
+                  <p className="font-medium text-blue-800">{email}</p>
+                </div>
+                <p className="text-sm text-gray-500 mb-6">
+                  {t('welcome_popup_activation_note')}
+                </p>
+                <Link href="/login" className="inline-block px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 transition-colors">
+                  {t('already_have_account_login')}
+                </Link>
+              </div>
+            )}
+
+            {status === 'idle' && (
+              <div>
+                <h1 className="text-xl font-bold">{t('verify_waiting')}</h1>
+              </div>
+            )}
+          </div>
+        </main>
       </div>
     </>
   );
