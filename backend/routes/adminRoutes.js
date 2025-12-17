@@ -5,6 +5,7 @@ const adminController = require('../controllers/adminController');
 const planController = require('../controllers/planController');
 const { getTtsProviderSetting, setTtsProviderSetting } = require('../controllers/adminController');
 const adminBookController = require('../controllers/adminBookController');
+const notificationController = require('../controllers/notificationController');
 const multer = require('multer');
 
 // Configure multer for PDF uploads (in-memory)
@@ -81,6 +82,10 @@ router.delete('/content/:id', adminController.deleteContent);
 router.get('/subscriptions', adminController.getAllSubscriptions);
 router.put('/subscriptions/:id', adminController.updateSubscription);
 
-// Removed test-google-voices endpoint per request
+// Notification management (Admin)
+router.post('/notifications/send', notificationController.sendNotification);
+router.get('/notifications/history', notificationController.getNotificationHistory);
+router.delete('/notifications/:id', notificationController.deleteNotificationAdmin);
 
 module.exports = router;
+

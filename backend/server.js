@@ -48,6 +48,7 @@ const favoritesRoutes = require("./routes/favoritesRoutes"); // Favorites manage
 const iyzicoRoutes = require("./routes/iyzicoRoutes"); // iyzico credit card payments
 const stripeRoutes = require("./routes/stripeRoutes"); // Stripe credit card payments
 const libraryRoutes = require("./routes/libraryRoutes"); // Unified Library (Book/PDF/Progress)
+const notificationRoutes = require("./routes/notificationRoutes"); // User notifications
 
 // Initialize Express app
 const app = express();
@@ -169,6 +170,7 @@ app.use("/api/favorites", favoritesRoutes); // Favorites management
 app.use("/api/library", libraryRoutes); // Unified Library System
 app.use("/api/iyzico", iyzicoRoutes); // iyzico credit card payments
 app.use("/api/stripe", stripeRoutes); // Stripe credit card payments
+app.use("/api/notifications", notificationRoutes); // User notifications
 
 // Account deletion page (legacy)
 app.get('/delete-account', (req, res) => {

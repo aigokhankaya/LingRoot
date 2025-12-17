@@ -41,6 +41,7 @@ import { Badge } from "../src/components/ui/badge";
 import BrandWordmark from "../src/components/BrandWordmark";
 import LiroAvatar from "../src/components/LiroAvatar";
 import { ProfileDropdownMenu } from "../src/components/shared/ProfileDropdownMenu";
+import NotificationBell from "../src/components/NotificationBell";
 
 interface InputData {
   type: ProcessInputData['type'];
@@ -2050,9 +2051,7 @@ const Welcome: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
-                <i className="fas fa-bell"></i>
-              </Button>
+              <NotificationBell />
               {isAuthenticated && (
                 <ProfileDropdownMenu
                   align="end"

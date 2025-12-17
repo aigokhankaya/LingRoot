@@ -287,11 +287,11 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 <i className="fas fa-circle-notch fa-spin"></i>
               ) : canPlayFromTree ? (
                 <>
-                  <i className="fas fa-play mr-2"></i> {t('listen') || "Listen"}
+                  <i className="fas fa-play mr-2"></i> {t('topics_node_button_listen')}
                 </>
               ) : (
                 <>
-                  <i className="fas fa-magic mr-2"></i> {t('create_audio') || "Create Audio"}
+                  <i className="fas fa-magic mr-2"></i> {t('topics_node_button_create_audio')}
                 </>
               )}
             </Button>
