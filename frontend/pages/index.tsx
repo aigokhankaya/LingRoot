@@ -496,8 +496,8 @@ const App: React.FC = () => {
                 <div className="container mx-auto px-8">
                     <div className="text-center">
                         <Badge className="mb-4 bg-primary/10 text-primary border-none text-sm hero-badge">{t('landing_hero_badge')}</Badge>
-                        <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 leading-tight hero-title max-w-5xl mx-auto">
-                            {t('landing_hero_title')}<span className="text-primary">{t('landing_hero_highlight')}</span>
+                        <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-700 leading-tight hero-title max-w-5xl mx-auto">
+                            {t('landing_hero_title')}<span className="block text-primary">{t('landing_hero_highlight')}</span>
                         </h1>
                         <p className="text-lg md:text-xl lg:text-2xl text-gray-600 mb-6 leading-relaxed hero-description max-w-4xl mx-auto">
                             {t('landing_hero_desc')}

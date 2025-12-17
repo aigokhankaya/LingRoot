@@ -813,9 +813,9 @@ export const translations: Translations = {
     voice_female_us: "Kadın Ses (ABD)",
     // Landing Page
     landing_hero_badge: "🎧 Hayatın Değişmesin, İngilizcen Gelişsin",
-    landing_hero_title: "Rutinlerin İngilizceye Dönsün. ",
-    landing_hero_highlight: "Sevdiğin İçerikleri Kendi Seviyende Dinle.",
-    landing_hero_desc: "Dijital içerikler, kitaplar, podcast'ler ve güncel haberler… LingRoot, ilgilendiğin konulardaki içerikleri İngilizce seviyene göre sadeleştirir, seslendirir ve altyazı ekler. Ekstra zaman harcamadan, dinleyerek geliş.",
+    landing_hero_title: "Rutinlerin İngilizceye Dönsün",
+    landing_hero_highlight: "Sevdiğin İçerikleri Kendi Seviyende Dinle",
+    landing_hero_desc: "Haberler, kitaplar veya podcast'ler… LiRo, internetteki herhangi bir içeriği senin İngilizce seviyene göre sadeleştirir ve seslendirir. Ekstra zaman harcamadan, sadece dinleyerek geliş.",
     landing_hero_button_try: "Ücretsiz Dene",
     landing_hero_button_watch: "Nasıl Çalıştığını İzle",
     landing_nav_howItWorks: "Nasıl Çalışır?",
