@@ -226,7 +226,7 @@ const App: React.FC = () => {
 
     const featuresList = [
         { icon: "fas fa-globe", title: t('landing_features_item1_title'), description: t('landing_features_item1_desc') },
-        { icon: "fas fa-user-cog", title: t('landing_features_item2_title'), description: t('landing_features_item2_desc') },
+        { icon: "fas fa-robot", title: t('landing_features_item2_title'), description: t('landing_features_item2_desc') },
         { icon: "fas fa-headphones-alt", title: t('landing_features_item3_title'), description: t('landing_features_item3_desc') },
         { icon: "fas fa-clock", title: t('landing_features_item4_title'), description: t('landing_features_item4_desc') }
     ];

@@ -60,7 +60,7 @@ Aşağıdaki tabloda `frontend/src/lib/i18n.ts` dosyasında yapılacak spesifik 
 
 ## 4. Uygulama Durumu (Checklist)
 
-- [ ] **i18n.ts** metinlerinin güncellenmesi.
+- [x] **i18n.ts** metinlerinin güncellenmesi. **(Tamamlandı - 17.12.2025)**
 - [ ] **welcome.tsx** içinden "YouTube" sekmesinin kaldırılması (Input Method olarak kalsa da ana UI'dan gizlenmesi). **(Tamamlandı)**
 - [ ] **welcome.tsx** podcast oluşturma akışının basitleştirilmesi. **(Tamamlandı)**
 - [ ] **index.tsx** Hero görselinin değiştirilmesi.
