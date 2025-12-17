@@ -180,6 +180,9 @@ class MFAAligner {
       .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
       .replace(/[\u2013\u2014]/g, ' ')
       .replace(/\u2026/g, ' ')
+      .replace(/\([^)]*\)/g, ' ')
+      .replace(/\[[^\]]*\]/g, ' ')
+      .replace(/\{[^}]*\}/g, ' ')
       .replace(/[.,!?;:\"\-]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -260,7 +263,13 @@ class MFAAligner {
         stdout: truncate(error?.stdout),
         stderr: truncate(error?.stderr),
       });
-      logger.error('❌ MFA alignment failed:', error.message);
+      const msg = error?.message || String(error);
+      const isNoAlignments = msg.includes('NoAlignmentsError') || msg.includes('There were no successful alignments');
+      if (isNoAlignments) {
+        logger.warn(`⚠️ MFA alignment attempt produced no alignments (will retry if configured): ${msg}`);
+      } else {
+        logger.error('❌ MFA alignment failed:', msg);
+      }
       throw error;
     }
   }
@@ -319,9 +328,12 @@ class MFAAligner {
     const { forceLocal = false, debug = null } = options;
     // Check if we should use remote MFA service (production)
     const useRemoteMFA = !forceLocal && process.env.USE_REMOTE_MFA === 'true';
+    const allowRemoteFallbackToLocal = String(process.env.MFA_REMOTE_FALLBACK_TO_LOCAL || 'true').toLowerCase() !== 'false';
 
     const transcriptText = transcript == null ? '' : String(transcript);
     const cleanedTranscript = this.cleanTranscript(transcriptText);
+    const cleanedTokenCount = cleanedTranscript.split(/\s+/).filter(Boolean).length;
+    const shouldUseStrongFirstPass = cleanedTokenCount >= 120;
     const audioExt = path.extname(audioPath || '');
     let audioSize = null;
     try {
@@ -339,10 +351,13 @@ class MFAAligner {
       locale,
       forceLocal,
       useRemoteMFA,
+      allowRemoteFallbackToLocal,
       transcript: transcriptText,
       cleanedTranscript,
+      cleanedTokenCount,
+      shouldUseStrongFirstPass,
     });
-    
+
     if (useRemoteMFA) {
       try {
         const result = await this.generateWordTimestampsRemote(audioPath, transcriptText, locale, { debug, cleanedTranscript });
@@ -362,7 +377,7 @@ class MFAAligner {
           reason: shouldFallbackToLocal ? 'remote_error' : 'remote_error_no_fallback',
           errorMessage: msg,
         });
-        if (!shouldFallbackToLocal) {
+        if (!allowRemoteFallbackToLocal || !shouldFallbackToLocal) {
           throw remoteErr;
         }
         logger.warn(`[MFA] Remote MFA failed (${msg}). Falling back to local MFA...`);
@@ -388,20 +403,30 @@ class MFAAligner {
       });
 
       try {
-        await this.align(corpusDir, dictPath, outputDir, debug);
+        const initialAlignOptions = shouldUseStrongFirstPass
+          ? { singleSpeaker: true }
+          : {};
+        await this.writeDebugLine(debug, {
+          stage: 'local-align-initial-options',
+          initialAlignOptions,
+        });
+        await this.align(corpusDir, dictPath, outputDir, debug, initialAlignOptions);
       } catch (alignErr) {
         const msg = alignErr?.message || String(alignErr);
         const shouldRetry = msg.includes('NoAlignmentsError') || msg.includes('There were no successful alignments');
 
         if (shouldRetry) {
+          const firstRetryOptions = shouldUseStrongFirstPass
+            ? { beam: 100, retryBeam: 400, singleSpeaker: true }
+            : { beam: 100, retryBeam: 400, singleSpeaker: true };
           await this.writeDebugLine(debug, {
             stage: 'local-align-retry',
             reason: 'NoAlignmentsError',
-            retryWith: { beam: 100, retryBeam: 400, singleSpeaker: true },
+            retryWith: firstRetryOptions,
           });
 
           try {
-            await this.align(corpusDir, dictPath, outputDir, debug, { beam: 100, retryBeam: 400, singleSpeaker: true });
+            await this.align(corpusDir, dictPath, outputDir, debug, firstRetryOptions);
           } catch (retryErr) {
             const retryMsg = retryErr?.message || String(retryErr);
             const shouldRetryMore = retryMsg.includes('NoAlignmentsError') || retryMsg.includes('There were no successful alignments');
@@ -503,10 +528,14 @@ class MFAAligner {
       const axios = require('axios');
       const FormData = require('form-data');
       const path = require('path');
-      
-      const MFA_SERVICE_URL = process.env.MFA_SERVICE_URL || 'https://api.booklevel.store';
-      
-      logger.info(`🌐 Using remote MFA service: ${MFA_SERVICE_URL}`);
+
+      const rawMfaServiceUrl = process.env.MFA_SERVICE_URL || 'https://api.booklevel.store';
+      const mfaServiceUrl = String(rawMfaServiceUrl || '')
+        .trim()
+        .replace(/\/+$/, '')
+        .replace(/\/api$/, '');
+
+      logger.info(`🌐 Using remote MFA service: ${mfaServiceUrl}`);
 
       const transcriptText = transcript == null ? '' : String(transcript);
       const cleanedTranscript = cleanedTranscriptFromCaller != null
@@ -520,7 +549,7 @@ class MFAAligner {
       
       await this.writeDebugLine(debug, {
         stage: 'remote-request',
-        mfaServiceUrl: MFA_SERVICE_URL,
+        mfaServiceUrl: mfaServiceUrl,
         audioPath,
         audioSize: audioBuffer.length,
         audioFormat: isWav ? 'WAV' : 'MP3',
@@ -549,28 +578,93 @@ class MFAAligner {
             .slice(0, 120)
         : null;
 
-      const response = await axios.post(`${MFA_SERVICE_URL}/api/mfa/align`, formData, {
+      const useAsync = String(process.env.MFA_REMOTE_ASYNC || 'false').toLowerCase() === 'true';
+      if (!useAsync) {
+        const response = await axios.post(`${mfaServiceUrl}/api/mfa/align`, formData, {
+          headers: {
+            ...formData.getHeaders(),
+            ...(safeId ? { 'x-mfa-debug-id': safeId } : {}),
+          },
+          timeout: Number(process.env.MFA_REMOTE_TIMEOUT_MS || 300000),
+          maxContentLength: 50 * 1024 * 1024, // 50MB
+          maxBodyLength: 50 * 1024 * 1024
+        });
+
+        await this.writeDebugLine(debug, {
+          stage: 'remote-response',
+          status: response?.status,
+          responseData: response?.data,
+        });
+        
+        if (!response.data.success) {
+          throw new Error(response.data.error || 'Remote MFA alignment failed');
+        }
+        
+        logger.info(`✅ Remote MFA alignment completed: ${response.data.wordCount} words`);
+        return response.data.timepoints;
+      }
+
+      const submitResp = await axios.post(`${mfaServiceUrl}/api/mfa/align-async`, formData, {
         headers: {
           ...formData.getHeaders(),
           ...(safeId ? { 'x-mfa-debug-id': safeId } : {}),
         },
-        timeout: Number(process.env.MFA_REMOTE_TIMEOUT_MS || 300000),
-        maxContentLength: 50 * 1024 * 1024, // 50MB
-        maxBodyLength: 50 * 1024 * 1024
+        timeout: 30000,
+        maxContentLength: 50 * 1024 * 1024,
+        maxBodyLength: 50 * 1024 * 1024,
       });
 
       await this.writeDebugLine(debug, {
-        stage: 'remote-response',
-        status: response?.status,
-        responseData: response?.data,
+        stage: 'remote-async-submitted',
+        status: submitResp?.status,
+        responseData: submitResp?.data,
       });
-      
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'Remote MFA alignment failed');
+
+      if (!submitResp?.data?.success || !submitResp?.data?.jobId) {
+        throw new Error(submitResp?.data?.error || 'Remote MFA async submit failed');
       }
-      
-      logger.info(`✅ Remote MFA alignment completed: ${response.data.wordCount} words`);
-      return response.data.timepoints;
+
+      const jobId = String(submitResp.data.jobId);
+      const pollIntervalMs = Number(process.env.MFA_REMOTE_ASYNC_POLL_INTERVAL_MS || 1500);
+      const overallTimeoutMs = Number(process.env.MFA_REMOTE_ASYNC_TIMEOUT_MS || process.env.MFA_REMOTE_TIMEOUT_MS || 300000);
+      const startedAt = Date.now();
+
+      while (Date.now() - startedAt < overallTimeoutMs) {
+        const jobResp = await axios.get(`${mfaServiceUrl}/api/mfa/job/${encodeURIComponent(jobId)}`, {
+          headers: {
+            ...(safeId ? { 'x-mfa-debug-id': safeId } : {}),
+          },
+          timeout: 15000,
+        });
+
+        const job = jobResp?.data?.job;
+        const status = job?.status;
+
+        await this.writeDebugLine(debug, {
+          stage: 'remote-async-poll',
+          jobId,
+          status,
+          progress: job?.progress,
+        });
+
+        if (status === 'completed') {
+          const timepoints = job?.result?.timepoints;
+          const wordCount = job?.result?.wordCount;
+          if (!Array.isArray(timepoints)) {
+            throw new Error('Remote MFA async completed but returned invalid timepoints');
+          }
+          logger.info(`✅ Remote MFA async alignment completed: ${wordCount != null ? wordCount : timepoints.length} words`);
+          return timepoints;
+        }
+
+        if (status === 'failed') {
+          throw new Error(job?.error || 'Remote MFA async job failed');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, Number.isFinite(pollIntervalMs) ? pollIntervalMs : 1500));
+      }
+
+      throw new Error(`Remote MFA async job timeout after ${overallTimeoutMs}ms`);
       
     } catch (error) {
       const errorDetail = error.response?.data?.error || error.response?.data?.message || error.message;

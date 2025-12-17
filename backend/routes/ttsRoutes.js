@@ -629,6 +629,145 @@ router.post("/create-podcast", authenticate, async (req, res) => {
   }
 });
 
+// POST /api/tts/create-podcast-async – Async Google podcast creation with notification
+router.post("/create-podcast-async", authenticate, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Prevent multiple concurrent async TTS jobs per user
+    const existingJob = jobQueue.getActiveJobForUser(userId);
+    if (existingJob) {
+      logger.info(`[AsyncPodcast] Existing active job ${existingJob.id} for user ${userId}; rejecting new request`);
+      return res.status(409).json({
+        success: false,
+        code: 'TTS_JOB_IN_PROGRESS',
+        message: 'Zaten devam eden bir ses oluşturma işleminiz var. Lütfen bitmesini bekleyin.',
+        jobId: existingJob.id,
+        status: existingJob.status,
+      });
+    }
+
+    const body = req.body || {};
+    const rawTopic = body.topic;
+    const topic = typeof rawTopic === 'string' ? rawTopic.trim() : '';
+    if (!topic) {
+      return res.status(400).json({
+        success: false,
+        message: 'Topic is required'
+      });
+    }
+
+    const level = (body.level || 'B1').toString().toUpperCase();
+    const duration = body.duration != null ? body.duration : 10;
+    const ttsProvider = (body.ttsProvider || 'google').toLowerCase();
+
+    // This async endpoint is for Google multi-speaker podcast generation
+    if (!(ttsProvider === 'google' || ttsProvider === 'google-tts')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Async podcast endpoint only supports Google provider'
+      });
+    }
+
+    const job = jobQueue.createJob(userId, {
+      requestBody: body,
+      kind: 'podcast',
+      provider: 'google',
+    });
+
+    res.json({
+      success: true,
+      jobId: job.id,
+      message: 'Podcast creation started. You will receive a notification when it\'s ready.',
+      estimatedTime: '3-10 minutes'
+    });
+
+    setImmediate(async () => {
+      try {
+        jobQueue.updateJob(job.id, { status: 'processing', progress: 10 });
+        const { createGoogleTTSPodcast } = require('../utils/googleTTSMultiSpeaker');
+
+        const result = await createGoogleTTSPodcast({
+          topic,
+          level,
+          duration,
+          styleType: body.styleType,
+          personalityA: body.personalityA,
+          personalityB: body.personalityB,
+          hostSpeakerId: body.hostSpeakerId,
+          guestSpeakerId: body.guestSpeakerId,
+          includeHumor: body.includeHumor !== false,
+          includeFiller: body.includeFiller !== false,
+          userId,
+        });
+
+        if (result && result.success) {
+          jobQueue.updateJob(job.id, {
+            status: 'completed',
+            progress: 100,
+            result,
+          });
+
+          const audioUrl = result.mp3_url || result.audio_url || result.podcast_url;
+          const durationSeconds =
+            typeof result.duration_seconds === 'number'
+              ? result.duration_seconds
+              : (typeof result.duration_seconds === 'string' ? parseFloat(result.duration_seconds) : null);
+
+          await sendPushNotification(userId, {
+            title: '🎧 Podcast Hazır!',
+            body: 'Podcastiniz hazır. Dinlemek için tıklayın.',
+            type: 'audio_created',
+            data: {
+              jobId: job.id,
+              audioId: result.contenthistory_id || job.id,
+              mp3_url: audioUrl,
+              title: result.title || topic,
+              level,
+              duration: durationSeconds,
+              contenthistory_id: result.contenthistory_id || null,
+              transcript: result.transcript,
+              dialogue: result.dialogue,
+              dialogue_segments: result.dialogue_segments,
+              words: Array.isArray(result.words) ? result.words : [],
+              timepoints: Array.isArray(result.timepoints) ? result.timepoints : [],
+              vtt_url: result.vtt_url || null,
+              topic,
+            }
+          });
+
+          logger.info(`[AsyncPodcast] Job ${job.id} completed successfully`);
+        } else {
+          const errMsg = result?.message || 'Podcast processing failed';
+          jobQueue.updateJob(job.id, { status: 'failed', error: errMsg });
+          await sendPushNotification(userId, {
+            title: '❌ Podcast Oluşturulamadı',
+            body: errMsg || 'Bir hata oluştu. Lütfen tekrar deneyin.',
+            type: 'audio_failed',
+            data: { jobId: job.id, error: errMsg }
+          });
+          logger.error(`[AsyncPodcast] Job ${job.id} failed: ${errMsg}`);
+        }
+      } catch (error) {
+        logger.error(`[AsyncPodcast] Job ${job.id} error:`, error);
+        jobQueue.updateJob(job.id, { status: 'failed', error: error.message });
+        await sendPushNotification(userId, {
+          title: '❌ Podcast Oluşturulamadı',
+          body: 'Bir hata oluştu. Lütfen tekrar deneyin.',
+          type: 'audio_failed',
+          data: { jobId: job.id, error: error.message }
+        });
+      }
+    });
+  } catch (error) {
+    logger.error('[AsyncPodcast] Error creating job:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Amazon Polly TTS endpoint
 router.post("/polly", (req, res) => {
   // Implement your Amazon Polly TTS functionality here

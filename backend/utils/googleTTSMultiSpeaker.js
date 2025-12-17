@@ -226,13 +226,55 @@ async function synthesizeMultiSpeakerPodcast(options) {
   logger.info(`[GOOGLE-PODCAST] Speaker A: ${speakerAId}, Speaker B: ${speakerBId}`);
 
   // Build the text with speaker labels for simple multi-speaker format
-  const dialogueText = turns.map(turn => {
+  const dialogueLines = turns.map(turn => {
     const speakerName = turn.speaker === 'A' ? 'Host' : 'Guest';
     return `${speakerName}: ${turn.text}`;
-  }).join('\n');
+  });
+  const dialogueText = dialogueLines.join('\n');
 
   // Build the full transcript (without labels) for display
   const fullTranscript = turns.map(turn => turn.text).join(' ');
+
+  const getUtf8ByteLength = (str) => Buffer.byteLength(String(str || ''), 'utf8');
+  const MAX_INPUT_TEXT_BYTES = 3900;
+
+  const chunkLinesByByteLimit = (lines, maxBytes) => {
+    const chunks = [];
+    let current = '';
+
+    for (const line of (lines || [])) {
+      const safeLine = String(line || '').trim();
+      if (!safeLine) continue;
+
+      const candidate = current ? `${current}\n${safeLine}` : safeLine;
+      if (getUtf8ByteLength(candidate) <= maxBytes) {
+        current = candidate;
+        continue;
+      }
+
+      if (current) chunks.push(current);
+
+      if (getUtf8ByteLength(safeLine) <= maxBytes) {
+        current = safeLine;
+      } else {
+        // If a single line is too long, hard-split it (last resort)
+        let remaining = safeLine;
+        while (remaining.length > 0) {
+          let sliceLen = Math.min(remaining.length, 1000);
+          while (sliceLen > 50 && getUtf8ByteLength(remaining.slice(0, sliceLen)) > maxBytes) {
+            sliceLen = Math.floor(sliceLen * 0.8);
+          }
+          const part = remaining.slice(0, sliceLen).trim();
+          if (part) chunks.push(part);
+          remaining = remaining.slice(sliceLen).trim();
+        }
+        current = '';
+      }
+    }
+
+    if (current) chunks.push(current);
+    return chunks;
+  };
 
   try {
     // Use REST API directly for better multi-speaker support
@@ -244,6 +286,109 @@ async function synthesizeMultiSpeakerPodcast(options) {
     const tokenResult = await auth.getAccessToken();
     const accessToken = typeof tokenResult === 'string' ? tokenResult : tokenResult?.token;
     const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+
+    if (getUtf8ByteLength(stylePrompt) > 4000) {
+      throw new Error('stylePrompt exceeds 4000 byte limit for Gemini TTS input.prompt');
+    }
+
+    // If the dialogue text is too long for Gemini TTS (4000 bytes limit), chunk it.
+    // This avoids per-turn fallback (quota-heavy) while staying within API limits.
+    if (getUtf8ByteLength(dialogueText) > MAX_INPUT_TEXT_BYTES) {
+      logger.warn(`[GOOGLE-PODCAST] dialogueText too long (${getUtf8ByteLength(dialogueText)} bytes). Using chunked multi-speaker synthesis...`);
+
+      const { mergeAudioSegmentsToBuffer } = require('./audioMerger');
+      const chunks = chunkLinesByByteLimit(dialogueLines, MAX_INPUT_TEXT_BYTES);
+      logger.info(`[GOOGLE-PODCAST] Chunked synthesis: ${chunks.length} chunks (max ${MAX_INPUT_TEXT_BYTES} bytes each)`);
+
+      const audioBuffers = [];
+      for (let ci = 0; ci < chunks.length; ci++) {
+        const chunkText = chunks[ci];
+        const requestBody = {
+          input: {
+            text: chunkText,
+            prompt: stylePrompt,
+          },
+          voice: {
+            languageCode: 'en-US',
+            modelName: model,
+            multiSpeakerVoiceConfig: {
+              speakerVoiceConfigs: [
+                {
+                  speakerAlias: 'Host',
+                  speakerId: speakerAId,
+                },
+                {
+                  speakerAlias: 'Guest',
+                  speakerId: speakerBId,
+                },
+              ],
+            },
+          },
+          audioConfig: {
+            audioEncoding: 'MP3',
+            sampleRateHertz: 24000,
+          },
+        };
+
+        logger.info(`[GOOGLE-PODCAST] Chunk ${ci + 1}/${chunks.length} - bytes=${getUtf8ByteLength(chunkText)}`);
+
+        let lastError;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            const response = await axios.post(
+              `https://texttospeech.googleapis.com/v1beta1/text:synthesize`,
+              requestBody,
+              {
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                  'x-goog-user-project': projectId,
+                  'Content-Type': 'application/json',
+                },
+                timeout: 120000,
+              }
+            );
+
+            if (!response.data || !response.data.audioContent) {
+              throw new Error('No audio content received from Gemini-TTS (chunked)');
+            }
+
+            const audioBuffer = Buffer.from(response.data.audioContent, 'base64');
+            audioBuffers.push(audioBuffer);
+            break;
+          } catch (retryError) {
+            lastError = retryError;
+            const errMsg = retryError.response?.data?.error?.message || retryError.message;
+            const errCode = retryError.response?.data?.error?.code || retryError.code || 'UNKNOWN';
+            const errStatus = retryError.response?.status || 'N/A';
+            logger.warn(`[GOOGLE-PODCAST] Chunk ${ci + 1}/${chunks.length} attempt ${attempt}/3 failed: [${errCode}] ${errMsg} (HTTP ${errStatus})`);
+
+            if (attempt < 3) {
+              const delay = Math.pow(2, attempt) * 1000;
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+          }
+        }
+
+        if (audioBuffers.length !== ci + 1) {
+          throw lastError || new Error('Chunked synthesis failed');
+        }
+
+        // Small pacing to reduce chance of per-minute quota bursts
+        await new Promise(resolve => setTimeout(resolve, 350));
+      }
+
+      const mergedAudio = await mergeAudioSegmentsToBuffer(audioBuffers);
+      if (!mergedAudio) {
+        throw new Error('Failed to merge chunked audio buffers');
+      }
+
+      return {
+        audioContent: mergedAudio,
+        transcript: fullTranscript,
+        dialogueText: dialogueText,
+        turns: turns,
+      };
+    }
     
     const requestBody = {
       input: {
@@ -671,8 +816,12 @@ async function createGoogleTTSPodcast(options) {
           logger.warn(`[GOOGLE-PODCAST] FFmpeg conversion failed, using MP3: ${ffmpegErr.message}`);
         }
         
-        // Use WAV if conversion succeeded, otherwise use MP3
-        const tempAudioPath = require('fs').existsSync(tempWavPath) ? tempWavPath : tempMp3Path;
+        const useRemoteMFA = process.env.USE_REMOTE_MFA === 'true';
+        // Use MP3 when remote MFA is enabled (remote server handles conversion and upload is smaller)
+        // Use WAV when running local MFA (WAV tends to align better locally)
+        const tempAudioPath = useRemoteMFA
+          ? tempMp3Path
+          : (require('fs').existsSync(tempWavPath) ? tempWavPath : tempMp3Path);
         const locale = 'en_US';
 
         // Choose correct transcript for MFA based on synthesis mode:

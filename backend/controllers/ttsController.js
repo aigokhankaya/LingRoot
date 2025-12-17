@@ -1342,7 +1342,7 @@ const processTtsRequest = async (req, res) => {
         logger.info(`[${requestId}] 🎯 Starting MFA alignment for high-accuracy timestamps...`);
 
         // Save merged audio to temp file for MFA processing
-        const tempAudioPath = path.join(os.tmpdir(), `mfa_audio_${uniqueId}.wav`);
+        const tempAudioPath = path.join(os.tmpdir(), `mfa_audio_${uniqueId}.mp3`);
         await fs.promises.writeFile(tempAudioPath, mergedAudioBuffer);
 
         // Detect locale from voice name (e.g., en-US-*, en-GB-*)

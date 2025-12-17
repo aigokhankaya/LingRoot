@@ -175,11 +175,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const horizontalScrollRef = useRef<ScrollView>(null);
   const wordRefs = useRef<Map<number, any>>(new Map());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const highlightTickInFlightRef = useRef(false);
+  const pauseRequestedRef = useRef(false);
+  const currentWordIndexRef = useRef(-1);
+  const lastStatusPositionMsRef = useRef(0);
+  const lastStatusTsRef = useRef(0);
+  const pauseFreezePositionMsRef = useRef<number | null>(null);
+  const playbackRateRef = useRef(1);
   const lastAutoScrollTsRef = useRef(0);
   const latestWordPositionRef = useRef<{ top: number; bottom: number; height: number } | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
+  const [originalText, setOriginalText] = useState('');
   const [originalLoading, setOriginalLoading] = useState(false);
-  const [originalText, setOriginalText] = useState<string>(track.original_turkish || '');
   const [manualSeconds, setManualSeconds] = useState('');
   const [manualMillis, setManualMillis] = useState('');
   const [isTestEnvironment, setIsTestEnvironment] = useState(false);
@@ -227,8 +234,22 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Text parsing - Memoized to prevent unnecessary re-renders
   const textData = useMemo(() => {
     const getTextForHighlight = () => {
-      if (track.adapted_text) return track.adapted_text;
-      if (track.translated_text) return track.translated_text;
+      const adapted = track.adapted_text || '';
+      const translated = track.translated_text || '';
+      const isPodcast = track.input_type === 'podcast';
+
+      if (isPodcast) {
+        const hasDialogueLabels = (txt: string) => /^(Speaker\s+[A-Z]:|Host:|Guest:)/im.test(txt);
+        const looksLikeDialogue = (txt: string) => hasDialogueLabels(txt) || /\r?\n/.test(txt);
+
+        // Prefer dialogue-formatted text for podcasts (so bubble view + dialogue highlighting works)
+        if (translated && looksLikeDialogue(translated) && (!adapted || !looksLikeDialogue(adapted))) {
+          return translated;
+        }
+      }
+
+      if (adapted) return adapted;
+      if (translated) return translated;
       return track.title;
     };
 
@@ -254,7 +275,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const isPodcastTranscript = useMemo(() => {
     if (track.input_type === 'podcast') return true;
     if (!textToHighlight) return false;
-    return /Speaker\s+[AB]:/i.test(textToHighlight);
+    return /^(Speaker\s+[AB]:|Host:|Guest:)/im.test(textToHighlight);
   }, [track.input_type, textToHighlight]);
 
   // Dialogue lines derived directly from the transcript text (like web OutputSection/NewSyncedTextPlayer)
@@ -276,7 +297,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       return [] as { lineIndex: number; startIndex: number; endIndex: number }[];
     }
 
-    const hasDialogueFormat = dialogueLines.some(line => /Speaker\s+[AB]:/i.test(line));
+    const hasDialogueFormat = dialogueLines.some(line => /^(Speaker\s+[A-Z]:|Host:|Guest:)/i.test(line));
     if (!hasDialogueFormat) {
       return [] as { lineIndex: number; startIndex: number; endIndex: number }[];
     }
@@ -285,8 +306,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     let globalIndex = 0;
 
     dialogueLines.forEach((line, lineIndex) => {
-      const match = line.match(/^(Speaker\s+[A-Z]):\s*(.*)$/i);
-      const textPart = match ? match[2] : line;
+      const match = line.match(/^(Speaker\s+([A-Z])|Host|Guest):\s*(.*)$/i);
+      const textPart = match ? match[3] : line;
       const wordsInLine = textPart
         .split(/\s+/)
         .filter(word => word.length > 0);
@@ -307,24 +328,42 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Dialogue segments used for rendering (Speaker bubbles) + explicit timing from MFA word timepoints
   const dialogueSegments = useMemo(() => {
     if (!isPodcastTranscript || dialogueLines.length === 0) {
-      return [] as { speaker: string; content: string; startTime?: number; endTime?: number }[];
+      return [] as { speaker: string; speakerLabel?: string; content: string; startTime?: number; endTime?: number }[];
     }
 
     const baseSegments = dialogueLines.map(line => {
-      const match = line.match(/^(Speaker\s+([A-Z])):\s*(.*)$/i);
+      const match = line.match(/^(Speaker\s+([A-Z])|Host|Guest):\s*(.*)$/i);
       if (match) {
+        const prefix = (match[1] || '').trim();
         const speakerLetter = (match[2] || '').trim();
         const content = (match[3] || '').trim();
+
+        const lowerPrefix = prefix.toLowerCase();
+        let speaker = '';
+        let speakerLabel: string | undefined;
+
+        if (lowerPrefix.startsWith('speaker')) {
+          speaker = (speakerLetter || '').toUpperCase();
+          speakerLabel = speaker ? `Speaker ${speaker}` : undefined;
+        } else if (lowerPrefix === 'host') {
+          speaker = 'A';
+          speakerLabel = 'Host';
+        } else if (lowerPrefix === 'guest') {
+          speaker = 'B';
+          speakerLabel = 'Guest';
+        }
+
         return {
-          speaker: speakerLetter || '',
+          speaker,
+          speakerLabel,
           content: content || line,
-        } as { speaker: string; content: string; startTime?: number; endTime?: number };
+        } as { speaker: string; speakerLabel?: string; content: string; startTime?: number; endTime?: number };
       }
 
       return {
         speaker: '',
         content: line,
-      } as { speaker: string; content: string; startTime?: number; endTime?: number };
+      } as { speaker: string; speakerLabel?: string; content: string; startTime?: number; endTime?: number };
     });
 
     if (!timepoints || timepoints.length === 0 || dialogueLineRanges.length === 0) {
@@ -362,7 +401,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const startTp = timepoints[startWordIndex];
       const endTp = timepoints[endWordIndex];
 
-      const segWithTimes: { speaker: string; content: string; startTime?: number; endTime?: number } = {
+      const segWithTimes: { speaker: string; speakerLabel?: string; content: string; startTime?: number; endTime?: number } = {
         ...seg,
       };
 
@@ -384,35 +423,54 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     return segmentsWithTiming;
   }, [isPodcastTranscript, dialogueLines, dialogueLineRanges, timepoints]);
 
-  // Keep currentDialogueIndex in sync with active word index (like web NewSyncedTextPlayer)
-  useEffect(() => {
-    if (!isPodcastTranscript || !dialogueLineRanges.length) {
-      if (currentDialogueIndex !== -1) {
-        setCurrentDialogueIndex(-1);
-      }
+  const dialogueRefs = useRef<Map<number, any>>(new Map());
+
+  const scrollToDialogue = useCallback((dialogueIndex: number) => {
+    if (pageIndex !== 0) return;
+    if (!scrollViewRef.current) return;
+    if (dialogueIndex < 0) return;
+
+    const now = Date.now();
+    const SCROLL_THROTTLE = 250;
+    if (now - lastAutoScrollTsRef.current < SCROLL_THROTTLE) {
       return;
     }
+    const rowRef = dialogueRefs.current.get(dialogueIndex);
+    if (rowRef && scrollViewRef.current) {
+      rowRef.measureLayout(
+        scrollViewRef.current,
+        (_x: number, y: number, _w: number, h: number) => {
+          if (textViewportHeight <= 0) {
+            return;
+          }
 
-    if (currentWordIndex < 0) {
-      if (currentDialogueIndex !== -1) {
-        setCurrentDialogueIndex(-1);
-      }
-      return;
+          const currentScroll = scrollOffsetRef.current || 0;
+          const visibleBottom = currentScroll + textViewportHeight;
+          const bottomTrigger = visibleBottom - 40;
+          const rowBottom = y + h;
+
+          if (rowBottom < bottomTrigger) {
+            return;
+          }
+
+          lastAutoScrollTsRef.current = now;
+          const alignPadding = 16;
+          const desiredOffset = Math.max(0, y - alignPadding);
+          scrollViewRef.current?.scrollTo({ y: desiredOffset, animated: true });
+          scrollOffsetRef.current = desiredOffset;
+        },
+        (_error: any) => {
+          // silently ignore
+        }
+      );
     }
+  }, [pageIndex, textViewportHeight]);
 
-    const matchedRange = dialogueLineRanges.find(
-      range => currentWordIndex >= range.startIndex && currentWordIndex <= range.endIndex
-    );
-    const newIndex = matchedRange ? matchedRange.lineIndex : -1;
-
-    if (newIndex !== currentDialogueIndex) {
-      setCurrentDialogueIndex(newIndex);
-    }
-  }, [isPodcastTranscript, dialogueLineRanges, currentWordIndex, currentDialogueIndex]);
-
-  // Log text data when component mounts or track changes
   useEffect(() => {
-  }, [track.id, textToHighlight, sentences.length, wordsArray.length]);
+    if (!isPodcastTranscript) return;
+    if (currentDialogueIndex < 0) return;
+    scrollToDialogue(currentDialogueIndex);
+  }, [isPodcastTranscript, currentDialogueIndex, scrollToDialogue]);
 
   // Debug: Log initial data - GİZLENDİ
   // GIZLENDİ - Debug console.log mesajları
@@ -473,6 +531,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     };
   }, [visible]);
 
+  useEffect(() => {
+    playbackRateRef.current = playbackRate;
+  }, [playbackRate]);
+
   // Fast highlighting interval - 50ms for smooth word tracking
   useEffect(() => {
     if (isPlaying && sound && isLoaded) {
@@ -483,16 +545,25 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
       // Start fast interval for word highlighting
       intervalRef.current = setInterval(async () => {
-        try {
-          const status = await sound.getStatusAsync();
-          if ((status as any).isLoaded && (status as any).isPlaying) {
-            const currentTimeInSeconds = (status as any).positionMillis / 1000;
-            updateHighlighting(currentTimeInSeconds);
-          }
-        } catch (error) {
-          // Silent error handling
+        if (pauseRequestedRef.current) {
+          return;
         }
-      }, 20); // 20ms = 50 updates per second
+        if (highlightTickInFlightRef.current) return;
+        highlightTickInFlightRef.current = true;
+
+        try {
+          const basePos = lastStatusPositionMsRef.current;
+          const baseTs = lastStatusTsRef.current;
+          const deltaMs = baseTs > 0 ? Math.max(0, Date.now() - baseTs) : 0;
+          const rate = playbackRateRef.current || 1;
+
+          const estimatedPositionMs = basePos + (deltaMs * rate);
+          const currentTimeInSeconds = estimatedPositionMs / 1000;
+          updateHighlighting(currentTimeInSeconds);
+        } finally {
+          highlightTickInFlightRef.current = false;
+        }
+      }, 80); // 80ms ≈ 12.5 updates per second
 
       return () => {
         if (intervalRef.current) {
@@ -566,14 +637,19 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const onPlaybackStatusUpdate = (status: any) => {
     if (status.isLoaded) {
-      
-      setPosition(status.positionMillis || 0);
-      
-      // Update global playing state based on actual audio status
-      setIsPlaying(status.isPlaying);
+      if (!pauseRequestedRef.current) {
+        setPosition(status.positionMillis || 0);
+        setIsPlaying(status.isPlaying);
+        lastStatusPositionMsRef.current = status.positionMillis || 0;
+        lastStatusTsRef.current = Date.now();
+      } else {
+        if (status.isPlaying) {
+          setIsPlaying(false);
+        }
+      }
       
       // Update global current track - only set when playing, clear when finished
-      if (status.isPlaying) {
+      if (!pauseRequestedRef.current && status.isPlaying) {
         setCurrentTrack(track);
       } else if (status.didJustFinish) {
         // Only clear when audio actually finished, not when paused
@@ -749,12 +825,27 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (newWordIndexInArray !== -1) {
       const tp = timepoints[newWordIndexInArray];
       const globalIndex = typeof tp.index === 'number' ? tp.index : newWordIndexInArray;
+      currentWordIndexRef.current = globalIndex;
+
+      if (isPodcastTranscript) {
+        if (dialogueLineRanges.length > 0) {
+          const foundRange = dialogueLineRanges.find(r => globalIndex >= r.startIndex && globalIndex <= r.endIndex);
+          const newDialogueIdx = foundRange ? foundRange.lineIndex : -1;
+          if (newDialogueIdx !== currentDialogueIndex) {
+            setCurrentDialogueIndex(newDialogueIdx);
+          }
+        }
+        return;
+      }
+
       if (globalIndex !== currentWordIndex) {
         setCurrentWordIndex(globalIndex);
-        scrollToWord(globalIndex);
+        if (!isPodcastTranscript) {
+          scrollToWord(globalIndex);
+        }
       }
     }
-  }, [timepoints, currentWordIndex, findWordIndexLinear, scrollToWord, isPodcastTranscript]);
+  }, [timepoints, currentWordIndex, findWordIndexLinear, scrollToWord, isPodcastTranscript, dialogueLineRanges, currentDialogueIndex]);
 
   const updateSentenceHighlighting = (currentTime: number) => {
     const totalDuration = durationRef.current / 1000;
@@ -831,20 +922,55 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
     try {
       if (isPlaying) {
-        await sound.pauseAsync();
-        setIsPlaying(false);
-        
-        // Stop elapsed timer and save accumulated time
+        pauseRequestedRef.current = true;
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        highlightTickInFlightRef.current = false;
+
         if (elapsedTimerRef.current) {
           clearInterval(elapsedTimerRef.current);
           elapsedTimerRef.current = null;
         }
         accumulatedTimeRef.current = elapsedTime;
+        setIsPlaying(false);
+
+        try {
+          const latest = await sound.getStatusAsync();
+          if ((latest as any)?.isLoaded) {
+            const latestPos = (latest as any).positionMillis || position;
+            pauseFreezePositionMsRef.current = latestPos;
+            setPosition(latestPos);
+            lastStatusPositionMsRef.current = latestPos;
+            lastStatusTsRef.current = Date.now();
+          }
+        } catch {
+          pauseFreezePositionMsRef.current = position;
+          lastStatusPositionMsRef.current = position;
+          lastStatusTsRef.current = Date.now();
+        }
+
+        await sound.pauseAsync();
+
+        setTimeout(async () => {
+          try {
+            const st = await sound.getStatusAsync();
+            if ((st as any)?.isLoaded && (st as any)?.isPlaying) {
+              await sound.pauseAsync();
+            }
+          } catch {}
+        }, 150);
       } else {
         console.log('▶️ Playing audio...');
+        pauseRequestedRef.current = false;
+        pauseFreezePositionMsRef.current = null;
         await sound.playAsync();
         console.log('✅ Audio playing');
         setIsPlaying(true);
+
+        lastStatusPositionMsRef.current = position;
+        lastStatusTsRef.current = Date.now();
         
         // Start elapsed timer
         playStartTimeRef.current = Date.now();
@@ -866,6 +992,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       
       await sound.setPositionAsync(positionMs);
       setPosition(positionMs);
+
+      if (!isPlaying) {
+        pauseFreezePositionMsRef.current = positionMs;
+        lastStatusPositionMsRef.current = positionMs;
+        lastStatusTsRef.current = Date.now();
+      }
       
       // CRITICAL: Verify actual position after seek
       const statusImmediate = await sound.getStatusAsync();
@@ -889,8 +1021,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       
       if (knownWordIndex !== undefined) {
         console.log(`🎯 [SEEK] Using known word index ${knownWordIndex}`);
-        setCurrentWordIndex(knownWordIndex);
-        scrollToWord(knownWordIndex);
+        currentWordIndexRef.current = knownWordIndex;
+        if (!isPodcastTranscript) {
+          setCurrentWordIndex(knownWordIndex);
+          scrollToWord(knownWordIndex);
+        } else {
+          updateWordHighlighting(positionMs / 1000);
+        }
       } else {
         const currentTimeInSeconds = positionMs / 1000;
         if (timepoints && timepoints.length > 0) {
@@ -899,8 +1036,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             const foundWord = timepoints[newWordIndexInArray];
             const globalIndex = typeof foundWord.index === 'number' ? foundWord.index : newWordIndexInArray;
             console.log(`🎯 [SEEK] Seeked to ${currentTimeInSeconds.toFixed(2)}s → Found word array index ${newWordIndexInArray}, global index ${globalIndex}: "${foundWord?.word}" (${foundWord?.timeSeconds.toFixed(2)}s - ${foundWord?.endTimeSeconds?.toFixed(2)}s)`);
-            setCurrentWordIndex(globalIndex);
-            scrollToWord(globalIndex);
+            currentWordIndexRef.current = globalIndex;
+            if (!isPodcastTranscript) {
+              setCurrentWordIndex(globalIndex);
+              scrollToWord(globalIndex);
+            } else {
+              updateWordHighlighting(currentTimeInSeconds);
+            }
           } else {
             console.warn(`⚠️ [SEEK] No word found for time ${currentTimeInSeconds.toFixed(2)}s`);
           }
@@ -915,7 +1057,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     } catch (error) {
       console.error('Seek error:', error);
     }
-  }, [sound, timepoints, findWordIndexLinear, scrollToWord, isPlaying, elapsedTime]);
+  }, [sound, timepoints, findWordIndexLinear, scrollToWord, isPlaying, elapsedTime, isPodcastTranscript, updateWordHighlighting]);
 
   const handleSpeedChange = async () => {
     const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
@@ -1359,7 +1501,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           const isActive = index === currentDialogueIndex;
           const speakerKey = (segment.speaker || '').toUpperCase();
           const isRight = speakerKey === 'B';
-          const speakerLabel = segment.speaker
+          const speakerLabel = (segment as any).speakerLabel
+            ? (segment as any).speakerLabel
+            : segment.speaker
             ? `Speaker ${speakerKey}`
             : language === 'tr'
             ? 'Anlatıcı'
@@ -1368,6 +1512,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           return (
             <View
               key={`${index}-${speakerKey}-${segment.content.slice(0, 10)}`}
+              ref={(ref) => {
+                if (ref) {
+                  dialogueRefs.current.set(index, ref);
+                }
+              }}
               style={[
                 styles.podcastDialogueRow,
                 isRight ? styles.podcastDialogueRowRight : styles.podcastDialogueRowLeft,
