@@ -204,22 +204,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           localStorage.setItem('lingroot_loginCount', String(next));
           localStorage.setItem('lingroot_lastLogin', String(now));
         } catch { }
-        // Kullanıcının arayüz dilini backend'den oku ve i18n ile senkronize et
-        try {
-          const { getUserSettings } = await import('./api');
-          const settings: any = await getUserSettings();
-          const rawSettings = (settings && settings.settings) || {};
-          const lang = rawSettings.interface_language || rawSettings.interfaceLanguage;
-          if (lang === 'tr' || lang === 'en' || lang === 'de' || lang === 'ar') {
-            const { setStoredLanguage } = await import('./i18n');
-            setStoredLanguage(lang as any);
-            try {
-              localStorage.setItem('lingroot_interfaceLanguage', lang);
-            } catch { }
+        // Kullanıcının arayüz dilini backend'den oku ve i18n ile senkronize et (Non-blocking)
+        (async () => {
+          try {
+            const { getUserSettings } = await import('./api');
+            const settings: any = await getUserSettings();
+            const rawSettings = (settings && settings.settings) || {};
+            const lang = rawSettings.interface_language || rawSettings.interfaceLanguage;
+            if (lang === 'tr' || lang === 'en' || lang === 'de' || lang === 'ar') {
+              const { setStoredLanguage } = await import('./i18n');
+              setStoredLanguage(lang as any);
+              try {
+                localStorage.setItem('lingroot_interfaceLanguage', lang);
+              } catch { }
+            }
+          } catch (e) {
+            console.log('[AUTH] Failed to sync interface language from backend', e);
           }
-        } catch (e) {
-          console.log('[AUTH] Failed to sync interface language from backend', e);
-        }
+        })();
         console.log('[AUTH] setUser & setIsAuthenticated', user);
         return { success: true };
       } else {
@@ -350,22 +352,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           localStorage.setItem('lingroot_remember_me', rememberMe.toString());
           console.log('[AUTH] Google token kaydedildi:', data.data.token, 'Remember me:', rememberMe);
         }
-        // Kullanıcının arayüz dilini backend'den oku ve i18n ile senkronize et
-        try {
-          const { getUserSettings } = await import('./api');
-          const settings: any = await getUserSettings();
-          const rawSettings = (settings && settings.settings) || {};
-          const lang = rawSettings.interface_language || rawSettings.interfaceLanguage;
-          if (lang === 'tr' || lang === 'en' || lang === 'de' || lang === 'ar') {
-            const { setStoredLanguage } = await import('./i18n');
-            setStoredLanguage(lang as any);
-            try {
-              localStorage.setItem('lingroot_interfaceLanguage', lang);
-            } catch { }
+        // Kullanıcının arayüz dilini backend'den oku ve i18n ile senkronize et (Non-blocking)
+        (async () => {
+          try {
+            const { getUserSettings } = await import('./api');
+            const settings: any = await getUserSettings();
+            const rawSettings = (settings && settings.settings) || {};
+            const lang = rawSettings.interface_language || rawSettings.interfaceLanguage;
+            if (lang === 'tr' || lang === 'en' || lang === 'de' || lang === 'ar') {
+              const { setStoredLanguage } = await import('./i18n');
+              setStoredLanguage(lang as any);
+              try {
+                localStorage.setItem('lingroot_interfaceLanguage', lang);
+              } catch { }
+            }
+          } catch (e) {
+            console.log('[AUTH] Failed to sync interface language from backend (Google)', e);
           }
-        } catch (e) {
-          console.log('[AUTH] Failed to sync interface language from backend (Google)', e);
-        }
+        })();
         // Giriş istatistiklerini güncelle
         try {
           const now = Date.now();
