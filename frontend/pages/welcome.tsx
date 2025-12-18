@@ -265,6 +265,14 @@ const Welcome: React.FC = () => {
     } catch { }
   }, []);
 
+  // Auth check and redirect for unauthenticated users
+  useEffect(() => {
+    if (!authLoading && (!isAuthenticated || !user)) {
+      const target = typeof window !== 'undefined' ? window.location.pathname + window.location.search + window.location.hash : '/welcome';
+      router.push(`/login?next=${encodeURIComponent(target)}`);
+    }
+  }, [authLoading, isAuthenticated, user, router]);
+
   // 🎯 Chat'ten ve URL'den gelen parametreleri işle
   useEffect(() => {
     if (!router.isReady) return;
@@ -1964,21 +1972,13 @@ const Welcome: React.FC = () => {
     );
   }
 
-  // Auth tamamlandıktan sonra user kontrolü
+  // Auth tamamlandıktan sonra user kontrolü - Yönlendirme sırasında loading göster
   if (!isAuthenticated || !user) {
     return (
-      <main className="min-h-screen flex items-center justify-center text-xl text-gray-500">
+      <main className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="mb-4">{t('welcome_login_required')}</p>
-          <button
-            onClick={() => {
-              const target = typeof window !== 'undefined' ? window.location.pathname + window.location.search + window.location.hash : '/welcome';
-              router.push(`/login?next=${encodeURIComponent(target)}`);
-            }}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-md"
-          >
-            {t('welcome_login_button')}
-          </button>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">{t('dashboard_redirecting')}</p>
         </div>
       </main>
     );

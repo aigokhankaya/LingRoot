@@ -87,5 +87,8 @@ router.post('/notifications/send', notificationController.sendNotification);
 router.get('/notifications/history', notificationController.getNotificationHistory);
 router.delete('/notifications/:id', notificationController.deleteNotificationAdmin);
 
+// Subscription maintenance
+router.post('/subscriptions/downgrade-expired', adminController.downgradeExpiredSubscriptions);
+
 module.exports = router;
 

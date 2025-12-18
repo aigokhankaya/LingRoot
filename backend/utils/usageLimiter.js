@@ -114,15 +114,15 @@ async function getActiveSubscriptionWithPlan(userId) {
         .ilike('name', sub.plantype);
       if (Array.isArray(planRows) && planRows.length > 0) plan = planRows[0];
     }
-  } catch {}
-  
+  } catch { }
+
   // Ensure plantype field is set from plan name or existing plantype
   const enrichedSub = {
     ...sub,
     plan,
     plantype: sub.plantype || plan?.name || null
   };
-  
+
   return enrichedSub;
 }
 
@@ -161,12 +161,12 @@ async function checkLimits(userId) {
       return { hasPlan: false };
     }
     const plan = subscription.plan || null;
-    
+
     // Free Trial özel kontrolü - ses oluşturma sayısı bazlı
     if (plan?.name === 'Free Trial') {
       const audioCount = Number(subscription.audio_creation_count || 0);
       const maxAudioCount = 3;
-      
+
       if (audioCount >= maxAudioCount) {
         logger.warn(`[USAGE LIMIT] Free Trial limit reached for user ${userId}. Created: ${audioCount}/${maxAudioCount}`);
         return {
@@ -180,7 +180,7 @@ async function checkLimits(userId) {
           message: 'Ücretsiz deneme hakkınız doldu. Premium pakete geçin.',
         };
       }
-      
+
       return {
         hasPlan: true,
         subscription,
@@ -192,25 +192,53 @@ async function checkLimits(userId) {
         remainingAudioCount: maxAudioCount - audioCount,
       };
     }
-    
+
     const periodStart = getPeriodStart(subscription, plan);
     const periodEnd = subscription?.current_period_end || subscription?.enddate || subscription?.endDate || new Date(new Date(periodStart).getTime() + (plan?.interval === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString();
-    
+
     // Check if subscription has expired
     const now = new Date();
     const endDate = new Date(periodEnd);
     const isExpired = endDate < now;
-    
+
     if (isExpired) {
       logger.warn(`[USAGE LIMIT] Subscription expired for user ${userId}. End date: ${periodEnd}, Current: ${now.toISOString()}`);
-      return { 
-        hasPlan: false, 
-        isExpired: true, 
+
+      // Otomatik olarak Free Trial'a düşür
+      try {
+        const { checkAndDowngradeIfExpired } = require('./subscriptionDowngrader');
+        const downgradeResult = await checkAndDowngradeIfExpired(userId);
+
+        if (downgradeResult.wasDowngraded) {
+          logger.info(`[USAGE LIMIT] User ${userId} auto-downgraded to Free Trial`);
+
+          // Yeni abonelik ile tekrar kontrol et (recursive call yerine direkt Free Trial limit döndür)
+          return {
+            hasPlan: true,
+            subscription: null, // Yeni subscription bilgisini çekmek yerine basit bir şekilde döndür
+            plan: { name: 'Free Trial' },
+            isExceeded: false,
+            isFreeTrialExhausted: false,
+            audioCreationCount: 0,
+            maxAudioCount: 3,
+            remainingAudioCount: 3,
+            wasAutoDowngraded: true,
+            message: 'Paket süreniz dolduğu için Free Trial planına geçirildiniz.',
+          };
+        }
+      } catch (downgradeError) {
+        logger.error(`[USAGE LIMIT] Auto-downgrade failed for user ${userId}:`, downgradeError);
+      }
+
+      // Downgrade başarısız olduysa eski davranışı koru
+      return {
+        hasPlan: false,
+        isExpired: true,
         expiredAt: periodEnd,
-        message: 'Paket süreniz dolmuştur. Lütfen yeni bir paket satın alın.' 
+        message: 'Paket süreniz dolmuştur. Lütfen yeni bir paket satın alın.'
       };
     }
-    
+
     const usage = await getUsageTotals(userId, periodStart, periodEnd);
     // Compute USD budget from TRY plan price and settings-based FX rate using 1/3 rule
     const fx = await getUsdTryRate(40);
@@ -233,16 +261,16 @@ async function checkLimits(userId) {
       usd: limits.monthlyUsdLimit != null && usage.totalCostUsd > limits.monthlyUsdLimit,
     };
     const isExceeded = exceeded.openai || exceeded.tts || exceeded.usd;
-    return { 
-      hasPlan: true, 
-      subscription, 
-      periodStart, 
+    return {
+      hasPlan: true,
+      subscription,
+      periodStart,
       periodEnd,
-      usage, 
-      limits, 
-      exceeded, 
+      usage,
+      limits,
+      exceeded,
       isExceeded,
-      isExpired: false 
+      isExpired: false
     };
   } catch (e) {
     logger.error('[USAGE LIMIT] checkLimits error:', e);
@@ -260,7 +288,7 @@ async function checkLimits(userId) {
 async function checkFeatureAccess(userId, featureType, featureName) {
   try {
     const subscription = await getActiveSubscriptionWithPlan(userId);
-    
+
     if (!subscription || !subscription.plan) {
       // No active plan - return default free features
       const defaultFeatures = {
@@ -279,21 +307,21 @@ async function checkFeatureAccess(userId, featureType, featureName) {
           azure_tts: false
         }
       };
-      
-      const features = featureType === 'homepage' 
-        ? defaultFeatures.homepage_features 
+
+      const features = featureType === 'homepage'
+        ? defaultFeatures.homepage_features
         : defaultFeatures.voice_models;
-      
+
       return {
         hasAccess: features[featureName] === true,
         planName: null,
         features: defaultFeatures
       };
     }
-    
+
     const plan = subscription.plan;
     const planFeatures = plan.plan_features || {};
-    
+
     // Get the relevant feature set
     let features = {};
     if (featureType === 'homepage') {
@@ -301,10 +329,10 @@ async function checkFeatureAccess(userId, featureType, featureName) {
     } else if (featureType === 'voice_model') {
       features = planFeatures.voice_models || {};
     }
-    
+
     // Check if feature is enabled
     const hasAccess = features[featureName] === true;
-    
+
     return {
       hasAccess,
       planName: plan.name,
@@ -329,7 +357,7 @@ async function checkFeatureAccess(userId, featureType, featureName) {
 async function getUserFeatures(userId) {
   try {
     const subscription = await getActiveSubscriptionWithPlan(userId);
-    
+
     if (!subscription || !subscription.plan) {
       // Return default free features
       return {
@@ -356,7 +384,7 @@ async function getUserFeatures(userId) {
         }
       };
     }
-    
+
     const plan = subscription.plan;
     return {
       planName: plan.name,
