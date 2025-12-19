@@ -44,9 +44,9 @@ Mobil uygulamada bu metriklerin hiçbiri görselleştirilmemiştir:
 Web'de kullanıcıya ne yapması gerektiğini söyleyen dinamik bir liste vardır:
 *   🎧 **Dinle:** "Bugün 15dk dinleme yap" (Durum: Yapıldı/Yapılmadı)
 *   📖 **Oku:** "Bir makale oku"
-*   🗣️ **Konuş:** "Telaffuz pratiği yap"
 *   ✍️ **Yaz:** "Kelime testi çöz"
 *   **Eksiklik:** Mobilde kullanıcı uygulamayı açtığında ne yapacağını kendi seçmek zorunda. Bu widget kullanıcıyı yönlendirmek için **şarttır**.
+
 
 ### 4. Sekmelerin (Tabs) Mobil Karşılıkları
 Web `Tabs` yapısı mobilde ayrı ekranlara/navigasyonlara bölünmelidir:

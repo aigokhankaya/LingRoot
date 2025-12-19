@@ -697,18 +697,6 @@ const Dashboard = () => {
                           </Button>
                         </div>
 
-                        <div className="flex items-center p-3 bg-purple-50 rounded-lg border border-purple-100">
-                          <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 mr-3 flex-shrink-0">
-                            <i className="fas fa-comment"></i>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-800">{t('dashboard_task_speak_title')}</h4>
-                            <p className="text-sm text-gray-600">{t('dashboard_task_speak_desc')}</p>
-                          </div>
-                          <Button size="sm" variant="outline" className="ml-2">
-                            {t('dashboard_task_start_button')}
-                          </Button>
-                        </div>
 
                         <div className="flex items-center p-3 bg-amber-50 rounded-lg border border-amber-100">
                           <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mr-3 flex-shrink-0">

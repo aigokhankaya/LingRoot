@@ -78,9 +78,8 @@ export const arTranslations = {
   dashboard_task_listen_done_badge: 'مكتمل',
   dashboard_task_read_title: 'تدريب القراءة',
   dashboard_task_read_desc: 'اقرأ مقالاً B1',
-  dashboard_task_speak_title: 'تدريب المحادثة',
-  dashboard_task_speak_desc: 'تحدث 5 دقائق',
   dashboard_task_write_title: 'تدريب الكتابة',
+
   dashboard_task_write_desc: 'اكتب فقرة قصيرة',
   dashboard_task_vocab_title: 'مراجعة المفردات',
   dashboard_task_vocab_desc: 'راجع 15 كلمة',

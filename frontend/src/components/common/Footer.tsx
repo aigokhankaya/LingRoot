@@ -76,20 +76,8 @@ const footerSections = [
     ),
   },
   {
-    title: 'Telaffuz (Pronunciation)',
-    content: (
-      <>
-        <b>Telaffuzunu Geliştir</b><br />
-        LingRoot'un telaffuz egzersizleriyle konuşma becerilerinizi geliştirin. Sistem, seçtiğiniz kelimeleri veya cümleleri sizin seviyenize uygun şekilde seslendirir. Siz de sesli tekrar ederek uygulamalı öğrenme sürecine katılırsınız.<br /><br />
-        <b>Özellikler:</b><br />
-        Dinle → Tekrar et → Kaydet modeline dayalı egzersizler<br />
-        Otomatik örnek cümle üretimi<br />
-        Seviye bazlı yapılandırma
-      </>
-    ),
-  },
-  {
     title: 'Kelime Hazinesi (Vocabulary)',
+
     content: (
       <>
         <b>Kelime Dağarcığını Takip Et ve Geliştir</b><br />

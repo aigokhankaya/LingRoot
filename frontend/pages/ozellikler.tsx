@@ -16,7 +16,7 @@ export default function Ozellikler() {
         <link rel="icon" href="/lingroot-icon.svg" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
       </Head>
-      
+
       {/* Header */}
       <header className="fixed w-full py-4 px-4 sm:px-6 flex justify-between items-center z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
         <Link href="/" className="flex items-center space-x-3">
@@ -61,7 +61,7 @@ export default function Ozellikler() {
             LingRoot
           </span>
         </Link>
-        
+
         <nav className="hidden md:flex items-center space-x-8">
           <Link href="/about" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             {t('about')}
@@ -84,7 +84,7 @@ export default function Ozellikler() {
           <Link href="/login" className="text-gray-600 hover:text-gray-900 font-medium transition-colors duration-200">
             {t('login')}
           </Link>
-          <Link href="/register" 
+          <Link href="/register"
             className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
             {t('register_now')}
           </Link>
@@ -118,7 +118,7 @@ export default function Ozellikler() {
                 {t('features_main_desc')}
               </p>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               <div className="bg-muted p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-primary/20 hover:border-primary/40 group hover:-translate-y-2">
                 <div className="mb-6 bg-primary text-primary-foreground rounded-xl w-16 h-16 flex items-center justify-center group-hover:scale-110 transition-all duration-300 shadow-lg">
@@ -129,17 +129,17 @@ export default function Ozellikler() {
                 <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-primary transition-all duration-300">{t('feature_personalized_title')}</h3>
                 <p className="text-gray-600 leading-relaxed">{t('feature_personalized_desc')}</p>
               </div>
-              
+
               <div className="bg-white p-6 md:p-8 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-[#28a745] group hover:-translate-y-1">
                 <div className="mb-6 bg-[#d1e7dd] text-[#28a745] rounded-lg w-14 h-14 flex items-center justify-center group-hover:bg-[#28a745] group-hover:text-white transition-colors duration-300">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">{t('feature_pronunciation_title')}</h3>
-                <p className="text-gray-600">{t('feature_pronunciation_desc')}</p>
+                <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">{t('feature_listening_title')}</h3>
+                <p className="text-gray-600">{t('feature_listening_desc')}</p>
               </div>
-              
+
               <div className="bg-white p-6 md:p-8 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-[#28a745] group hover:-translate-y-1">
                 <div className="mb-6 bg-[#d1e7dd] text-[#28a745] rounded-lg w-14 h-14 flex items-center justify-center group-hover:bg-[#28a745] group-hover:text-white transition-colors duration-300">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -149,7 +149,7 @@ export default function Ozellikler() {
                 <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">{t('feature_vocabulary_title')}</h3>
                 <p className="text-gray-600">{t('feature_vocabulary_desc')}</p>
               </div>
-              
+
               <div className="bg-white p-6 md:p-8 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-[#28a745] group hover:-translate-y-1">
                 <div className="mb-6 bg-[#d1e7dd] text-[#28a745] rounded-lg w-14 h-14 flex items-center justify-center group-hover:bg-[#28a745] group-hover:text-white transition-colors duration-300">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -160,7 +160,7 @@ export default function Ozellikler() {
                 <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">{t('feature_realworld_title')}</h3>
                 <p className="text-gray-600">{t('feature_realworld_desc')}</p>
               </div>
-              
+
               <div className="bg-white p-6 md:p-8 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-[#28a745] group hover:-translate-y-1">
                 <div className="mb-6 bg-[#d1e7dd] text-[#28a745] rounded-lg w-14 h-14 flex items-center justify-center group-hover:bg-[#28a745] group-hover:text-white transition-colors duration-300">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -170,7 +170,7 @@ export default function Ozellikler() {
                 <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-[#28a745]">{t('feature_progress_title')}</h3>
                 <p className="text-gray-600">{t('feature_progress_desc')}</p>
               </div>
-              
+
               <div className="bg-white p-6 md:p-8 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-[#28a745] group hover:-translate-y-1">
                 <div className="mb-6 bg-[#d1e7dd] text-[#28a745] rounded-lg w-14 h-14 flex items-center justify-center group-hover:bg-[#28a745] group-hover:text-white transition-colors duration-300">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -181,7 +181,7 @@ export default function Ozellikler() {
                 <p className="text-gray-600">{t('feature_flexible_desc')}</p>
               </div>
             </div>
-            
+
             <div className="mt-16 bg-[#f1f9ee] rounded-xl p-8 border border-[#d1e7dd] shadow-md">
               <div className="flex flex-col md:flex-row items-center">
                 <div className="md:w-2/3 mb-6 md:mb-0 md:pr-8">
@@ -214,13 +214,13 @@ export default function Ozellikler() {
             </div>
           </div>
         </section>
-        
+
         <section className="py-16 bg-gray-50">
           <div className="max-w-6xl mx-auto px-6">
             <h2 className="text-3xl font-['Nunito',sans-serif] font-bold text-[#333333] mb-12 text-center">
               {t('features_tech_title')}
             </h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h3 className="text-xl font-bold text-[#28a745] flex items-center mb-4">
@@ -231,7 +231,7 @@ export default function Ozellikler() {
                 </h3>
                 <p className="text-gray-600">{t('feature_tech_ai_desc')}</p>
               </div>
-              
+
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h3 className="text-xl font-bold text-[#28a745] flex items-center mb-4">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -241,7 +241,7 @@ export default function Ozellikler() {
                 </h3>
                 <p className="text-gray-600">{t('feature_tech_subtitle_desc')}</p>
               </div>
-              
+
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h3 className="text-xl font-bold text-[#28a745] flex items-center mb-4">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -251,7 +251,7 @@ export default function Ozellikler() {
                 </h3>
                 <p className="text-gray-600">{t('feature_tech_vocab_desc')}</p>
               </div>
-              
+
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h3 className="text-xl font-bold text-[#28a745] flex items-center mb-4">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -262,7 +262,7 @@ export default function Ozellikler() {
                 <p className="text-gray-600">{t('feature_tech_offline_desc')}</p>
               </div>
             </div>
-            
+
             <div className="mt-16 text-center">
               <Link href="/register" className="inline-block px-6 py-3 bg-[#28a745] text-white rounded shadow-sm font-medium hover:bg-[#218838] transition-colors">
                 {t('features_cta_button')}
