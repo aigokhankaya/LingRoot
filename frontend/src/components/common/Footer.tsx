@@ -84,7 +84,7 @@ const footerSections = [
         LingRoot, öğrenmekte olduğunuz kelimeleri kaydedip listelemenize imkân tanır. Bu özellik sayesinde kendi kişisel kelime defterinizi oluşturabilir, tekrar sıklığını ayarlayabilir ve gelişiminizi izleyebilirsiniz.<br /><br />
         <b>Özellikler:</b><br />
         Kelime ekle, sil, kategoriye ayır<br />
-        Telaffuzla birlikte sesli tekrar<br />
+        Kelimelerin telaffuzunu dinleme<br />
         Sık tekrar edilen kelimeler için "öncelik" sistemi
       </>
     ),

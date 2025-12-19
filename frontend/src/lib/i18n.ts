@@ -1283,7 +1283,7 @@ export const translations: Translations = {
     vocab_stats_not_learned: 'Öğrenilmemiş',
     vocab_practice_tools_title: 'Pratik Araçları',
     vocab_practice_reminder_button: 'Kelime Tekrarı',
-    vocab_practice_pronunciation_button: 'Telaffuz Pratiği',
+    vocab_practice_pronunciation_button: 'Telaffuzu Dinle',
     vocab_practice_games_button: 'Kelime Oyunları',
     vocab_tips_title: 'Öğrenme İpuçları',
     vocab_tips_regular_title: 'Düzenli Tekrar',
