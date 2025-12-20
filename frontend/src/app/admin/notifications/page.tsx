@@ -352,7 +352,7 @@ export default function NotificationsPage() {
                                 <Switch
                                     id="sendToAll"
                                     checked={sendToAll}
-                                    onCheckedChange={setSendToAll}
+                                    onChange={(e) => setSendToAll(e.target.checked)}
                                 />
                             </div>
 
