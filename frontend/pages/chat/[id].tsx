@@ -30,7 +30,7 @@ export default function ChatPage() {
   const router = useRouter();
   const { id } = router.query;
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -38,7 +38,7 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [audioResult, setAudioResult] = useState<any>(null);
-  
+
   // CTA butonları için state
   const [konuSecildi, setKonuSecildi] = useState(false);
   const [icerikNetlesti, setIcerikNetlesti] = useState(false);
@@ -48,7 +48,7 @@ export default function ChatPage() {
     topic: string;
   }>({ isOpen: false, type: null, topic: '' });
   const [isProcessing, setIsProcessing] = useState(false);
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Butonların aktif/pasif durumu
@@ -74,18 +74,18 @@ export default function ChatPage() {
     // Son mesajları kontrol et
     const recentMessages = messages.slice(-5);
     const assistantMessages = recentMessages.filter(m => m.role === 'assistant');
-    
+
     if (assistantMessages.length > 0) {
       const lastAssistant = assistantMessages[assistantMessages.length - 1];
       const content = lastAssistant.content.toLowerCase();
-      
+
       // Trigger keywords
       const topicKeywords = ['konu', 'hakkında', 'konusunda', 'üzerinde', 'ile ilgili', 'yapalım', 'yapabiliriz', 'oluşturabiliriz'];
       const contentKeywords = ['içerik', 'anlatım', 'podcast', 'metin', 'detaylı', 'araştır'];
-      
+
       const hasTopicKeyword = topicKeywords.some(kw => content.includes(kw));
       const hasContentKeyword = contentKeywords.some(kw => content.includes(kw));
-      
+
       if (hasTopicKeyword) setKonuSecildi(true);
       if (hasContentKeyword) setIcerikNetlesti(true);
     }
@@ -95,11 +95,11 @@ export default function ChatPage() {
   const extractTopicFromMessages = (): string => {
     const assistantMessages = messages.filter(m => m.role === 'assistant');
     if (assistantMessages.length === 0) return 'Belirlenen konu';
-    
+
     const lastMessage = assistantMessages[assistantMessages.length - 1].content;
     const match = lastMessage.match(/"([^"]+)"|'([^']+)'/);
     if (match) return match[1] || match[2];
-    
+
     const firstSentence = lastMessage.split(/[.!?]/)[0];
     return firstSentence.slice(0, 80).trim();
   };
@@ -214,7 +214,7 @@ export default function ChatPage() {
           'Authorization': `Bearer ${token}`,
         },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setConversations(data.conversations || []);
@@ -227,7 +227,7 @@ export default function ChatPage() {
   // Fetch messages for current conversation
   const fetchMessages = async (conversationId: string) => {
     if (!conversationId || conversationId === 'new') return;
-    
+
     setIsLoading(true);
     try {
       const token = localStorage.getItem('lingroot_token');
@@ -236,7 +236,7 @@ export default function ChatPage() {
           'Authorization': `Bearer ${token}`,
         },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setMessages(data.messages || []);
@@ -263,7 +263,7 @@ export default function ChatPage() {
           title: firstMessage.substring(0, 50) + (firstMessage.length > 50 ? '...' : ''),
         }),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         return data.conversation;
@@ -275,7 +275,7 @@ export default function ChatPage() {
     }
   };
 
-  // Send message to Liro
+  // Send message to Liro (with streaming support)
   const sendMessage = async (content?: string | null) => {
     if (typeof content !== 'string') return;
     const trimmed = content.trim();
@@ -297,7 +297,7 @@ export default function ChatPage() {
 
     // Add user message immediately (optimistic update)
     const userMessage: Message = {
-      id: `temp-${Date.now()}`,
+      id: `temp-user-${Date.now()}`,
       conversation_id: conversationId,
       role: 'user',
       content: trimmed,
@@ -306,9 +306,20 @@ export default function ChatPage() {
     setMessages(prev => [...prev, userMessage]);
     setIsTyping(true);
 
+    // Add empty assistant message placeholder for streaming
+    const assistantPlaceholder: Message = {
+      id: `temp-assistant-${Date.now()}`,
+      conversation_id: conversationId,
+      role: 'assistant',
+      content: '',
+      created_at: new Date().toISOString(),
+    };
+
     try {
       const token = localStorage.getItem('lingroot_token');
-      const response = await fetch(getApiUrl(`/api/ai-chat/conversations/${conversationId}/messages`), {
+
+      // Use streaming endpoint
+      const response = await fetch(getApiUrl(`/api/ai-chat/conversations/${conversationId}/messages?stream=true`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -321,23 +332,71 @@ export default function ChatPage() {
         throw new Error('Mesaj gönderilemedi');
       }
 
-      const data = await response.json();
-      
-      // Replace temp message with real one and add assistant response
+      if (!response.body) {
+        throw new Error('Streaming desteklenmiyor');
+      }
+
+      // Add assistant placeholder
+      setMessages(prev => [...prev, assistantPlaceholder]);
+      setIsTyping(false); // Hide typing indicator, show streaming text instead
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let assistantContent = '';
+      let finalUserMessage: Message | null = null;
+      let finalAssistantMessage: Message | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6);
+            try {
+              const parsed = JSON.parse(jsonStr);
+
+              if (parsed.type === 'user_message') {
+                finalUserMessage = parsed.data;
+              } else if (parsed.type === 'chunk') {
+                assistantContent += parsed.data;
+                // Update assistant message content in real-time
+                setMessages(prev => prev.map(m =>
+                  m.id === assistantPlaceholder.id
+                    ? { ...m, content: assistantContent }
+                    : m
+                ));
+              } else if (parsed.type === 'done') {
+                finalAssistantMessage = parsed.data;
+              } else if (parsed.type === 'error') {
+                throw new Error(parsed.data);
+              }
+            } catch (parseErr) {
+              // Skip malformed chunks
+            }
+          }
+        }
+      }
+
+      // Replace temp messages with final ones
       setMessages(prev => {
-        const filtered = prev.filter(m => m.id !== userMessage.id);
-        return [...filtered, data.userMessage, data.assistantMessage];
+        let updated = prev.filter(m => m.id !== userMessage.id && m.id !== assistantPlaceholder.id);
+        if (finalUserMessage) updated.push(finalUserMessage);
+        if (finalAssistantMessage) updated.push(finalAssistantMessage);
+        return updated;
       });
 
       // Refresh conversations list
       fetchConversations();
-      
+
     } catch (error: any) {
       console.error('Failed to send message:', error);
       setError(error.message || 'Mesaj gönderilemedi');
-      // Remove temp message on error
-      setMessages(prev => prev.filter(m => m.id !== userMessage.id));
-    } finally {
+      // Remove temp messages on error
+      setMessages(prev => prev.filter(m => m.id !== userMessage.id && m.id !== assistantPlaceholder.id));
       setIsTyping(false);
     }
   };
@@ -429,7 +488,7 @@ export default function ChatPage() {
                   <p className="text-gray-600 max-w-md mx-auto mb-6">
                     İngilizce öğrenim içeriği oluşturmak için bir mesaj gönderin.
                   </p>
-                  
+
                   {/* Quick starter suggestions */}
                   <div className="mb-8 flex flex-wrap gap-2 justify-center">
                     <button
@@ -467,7 +526,7 @@ export default function ChatPage() {
                       })}
                     />
                   ))}
-                  
+
                   {/* Audio/Podcast Result - Using OutputSection for consistent UI */}
                   {audioResult && audioResult.mp3_url && (
                     <div className="mt-6 relative">
@@ -493,7 +552,7 @@ export default function ChatPage() {
                       />
                     </div>
                   )}
-                  
+
                   {isTyping && <TypingIndicator />}
                   <div ref={messagesEndRef} />
                 </>

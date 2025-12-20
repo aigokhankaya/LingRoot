@@ -41,6 +41,12 @@ export const translations: Translations = {
     chat_create_podcast: "Podcast Oluştur",
     chat_voice_text: "Metni Seslendir",
     chat_action_disabled_tooltip: "Konu/İçerik netleşince aktif olacaktır.",
+    chat_welcome_title: "Merhaba! Ben Liro 🌱",
+    chat_welcome_subtitle: "Seninle birlikte ilginç bir konu keşfetmeye hazırım. Ne hakkında İngilizce pratik yapmak istersin?",
+    chat_placeholder: "Mesajını yaz...",
+    chat_start_placeholder: "Merhaba de veya bir konu öner...",
+    chat_input_hint: "Enter ile gönder, Shift+Enter ile yeni satır",
+    chat_new_conversation: "Yeni Sohbet",
     badge_premium: "Premium",
     badge_gold: "Gold",
     badge_platinum: "Platinium",
@@ -835,7 +841,7 @@ export const translations: Translations = {
     landing_demo_title: "Aynı İçerik, Senin Seviyen",
     landing_demo_desc: "Seviyeni seç ve içeriğin nasıl değiştiğini gör. Dilediğin seviyede dinleyerek İngilizceni geliştir.",
     landing_demo_select: "Seviyeni Seç ve Farkı Gör",
-    landing_demo_original: "Orijinal İçerik (C2)",
+    landing_demo_original: "Orijinal İçerik",
     landing_demo_your: "Senin Seviyen",
     landing_demo_try: "Kendi İçeriğini Dene",
     landing_demo_level0: "Lingroot sevdiğin şeyleri kolay İngilizceye dönüştürür. Kendi seviyende dinleyip anlayabilirsin.",
@@ -844,7 +850,7 @@ export const translations: Translations = {
     landing_demo_level3: "Lingroot beğendiğin içeriği İngilizce seviyene göre uyarlar ve seslendirir. Bu, ilgini çeken şeyleri daha kolay takip etmeni ve anlamanı sağlar.",
     landing_demo_level4: "Lingroot favori içeriğini İngilizce yeterliliğine göre kişiselleştirir ve seslendirir. Bu sayede, becerilerini doğal bir şekilde geliştirirken ilginç konularla etkileşime geçebilirsin.",
     landing_demo_level5: "Lingroot, seçtiğin herhangi bir içeriği tam İngilizce yeterliliğine uyacak şekilde dönüştürür ve profesyonelce seslendirir. Karmaşık bilgileri erişilebilir bir şekilde - dilsel konfor alanına göre uyarlanmış olarak - tüketmeni sağlar.",
-    landing_demo_original_desc: "Lingroot, favori içeriğinizi İngilizce yeterliliğinize göre özelleştirir ve seslendirir. Bu sayede, becerilerinizi doğal bir şekilde geliştirirken ilginç konularla etkileşime geçebilirsiniz.",
+    landing_demo_original_desc: "LingRoot, sevdiğiniz içerikleri İngilizce seviyenize göre dönüştürür ve seslendirir. Böylece dinleme pratiği yaparken, günlük hayatta ilginizi çeken içerikleri dinlersiniz. İngilizce dinleme, hayatınızın doğal bir parçası haline gelir.",
     landing_routine_title: "Günlük Rutinin = İngilizce Dersin",
     landing_routine_desc: "Ekstra zaman ayırmana gerek yok. Zaten yaptığın aktiviteler sırasında İngilizce öğren.",
     landing_routine_act1_title: "Yürüyüş Yaparken",
@@ -1018,8 +1024,6 @@ export const translations: Translations = {
     patterns_modal_translation_label: 'Çeviri',
     patterns_modal_topic_label: 'Bulunduğu Konu',
     patterns_level_unknown: 'Bilinmiyor',
-    chat_placeholder: 'Mesajınızı yazın...',
-    chat_input_hint: 'Enter ile gönder • Shift+Enter ile yeni satır',
     // Welcome Page
     welcome_loading: 'Yükleniyor...',
     welcome_login_required: 'Oturum açmanız gerekiyor.',
@@ -2580,13 +2584,13 @@ export const translations: Translations = {
     landing_demo_original: "Original Content (C2)",
     landing_demo_your: "Your Level",
     landing_demo_try: "Try Your Own Content",
-    landing_demo_level0: "Lingroot changes what you like into easy English. You can listen and understand at your level.",
-    landing_demo_level1: "Lingroot changes and reads your favorite content in your English level. So you can listen and learn easier.",
-    landing_demo_level2: "Lingroot turns the content you choose into your level of English and reads it for you. This helps you enjoy listening while learning.",
-    landing_demo_level3: "Lingroot adapts and dubs the content you like according to your English level. This allows you to follow and understand what interests you more easily.",
-    landing_demo_level4: "Lingroot customizes and dubs your favorite content based on your English proficiency. This way, you can engage with interesting topics while improving your skills naturally.",
-    landing_demo_level5: "Lingroot transforms and professionally dubs any content of your choice to match your exact English proficiency. It enables you to consume complex information in an accessible way — tailored to your linguistic comfort zone.",
-    landing_demo_original_desc: "Lingroot customizes and dubs your favorite content based on your English proficiency. This way, you can engage with interesting topics while improving your skills naturally.",
+    landing_demo_level0: "LingRoot changes the content you like to your English level. It reads the content to you. You listen and practice English. English becomes part of your life.",
+    landing_demo_level1: "LingRoot changes the content you like to your English level and reads it aloud. While you listen to content you enjoy, you practice English listening. English listening becomes part of your daily life.",
+    landing_demo_level2: "LingRoot adapts the content you like to your English level and reads it aloud. This way, you practice listening while enjoying content that interests you. English listening becomes a natural part of your daily life.",
+    landing_demo_level3: "LingRoot adapts the content you enjoy to your English level and brings it to life with audio. You improve your listening skills while consuming content that interests you in daily life. English listening becomes a natural habit.",
+    landing_demo_level4: "LingRoot adapts content you enjoy to your English level and presents it through natural audio. While engaging with topics that interest you, you continuously improve your listening skills. English listening becomes an integral part of your daily routine.",
+    landing_demo_level5: "LingRoot transforms content you enjoy according to your English proficiency and delivers it through high-quality audio. You refine your listening skills while engaging with content that naturally fits into your daily life. English listening becomes an effortless part of who you are.",
+    landing_demo_original_desc: "LingRoot transforms content you love according to your English level and brings it to life with audio. This way, you practice listening with content that interests you in your daily life, making English listening a natural part of your routine.",
     landing_routine_title: "Your Daily Routine = Your English Lesson",
     landing_routine_desc: "No extra time needed. Learn English during activities you already do.",
     landing_routine_act1_title: "While Walking",
@@ -3801,7 +3805,7 @@ export const translations: Translations = {
     landing_demo_level5:
       "LingRoot verwandelt jeden von dir gewählten Inhalt in professionell vertontes Englisch, das genau zu deinem Niveau passt – so werden auch komplexe Informationen gut zugänglich.",
     landing_demo_original_desc:
-      "LingRoot personalisiert und vertont deine Lieblingsinhalte entsprechend deiner Englischkenntnisse, sodass du dich natürlich weiterentwickelst, während du dich mit spannenden Themen beschäftigst.",
+      "LingRoot passt deine Lieblingsinhalte an dein Englischniveau an und erweckt sie mit Audio zum Leben. So übst du das Hörverstehen mit Themen, die dich im Alltag interessieren, und machst Englischhören zu einem natürlichen Teil deiner Routine.",
     landing_routine_title: "Deine tägliche Routine = deine Englischstunde",
     landing_routine_desc:
       "Du brauchst keine zusätzliche Zeit – lerne Englisch, während du sowieso deine täglichen Dinge machst.",
@@ -4261,7 +4265,8 @@ export const translations: Translations = {
     language_pt: "Portugais",
     language_hi: "Hindi",
     language_id: "Bahasa Indonesia",
-    language_ar: "العربية"
+    language_ar: "العربية",
+    landing_demo_original_desc: "LingRoot transforme le contenu que vous aimez selon votre niveau d'anglais et lui donne vie grâce à l'audio. Ainsi, vous pratiquez l'écoute avec des sujets qui vous intéressent au quotidien, faisant de l'anglais une partie naturelle de votre routine."
   },
   es: {
     main_title: "Aprendizaje de inglés impulsado por IA",
@@ -4325,7 +4330,8 @@ export const translations: Translations = {
     language_pt: "Portugués",
     language_hi: "Hindi",
     language_id: "Bahasa Indonesia",
-    language_ar: "العربية"
+    language_ar: "العربية",
+    landing_demo_original_desc: "LingRoot transforma el contenido que te gusta según tu nivel de inglés y le da vida con audio. De esta manera, practicas la escucha con temas que te interesan en tu vida diaria, haciendo que escuchar inglés sea una parte natural de tu rutina."
   },
   pt: {
     main_title: "Aprendizagem de inglês com IA",
@@ -4389,7 +4395,8 @@ export const translations: Translations = {
     language_pt: "Português",
     language_hi: "Hindi",
     language_id: "Bahasa Indonesia",
-    language_ar: "العربية"
+    language_ar: "العربية",
+    landing_demo_original_desc: "O LingRoot transforma o conteúdo que você adora de acordo com o seu nível de inglês e dá vida a ele com áudio. Assim, você pratica a audição com assuntos do seu interesse no dia a dia, tornando o inglês uma parte natural da sua rotina."
   },
   hi: {
     main_title: "एआई-संचालित अंग्रेजी सीखना",
@@ -4453,7 +4460,8 @@ export const translations: Translations = {
     language_pt: "पुर्तगाली",
     language_hi: "हिन्दी",
     language_id: "Bahasa Indonesia",
-    language_ar: "العربية"
+    language_ar: "العربية",
+    landing_demo_original_desc: "LingRoot आपकी पसंदीदा सामग्री को आपके अंग्रेजी स्तर के अनुसार बदलता है और उसे ऑडियो के साथ जीवंत बनाता है। इस तरह, आप अपनी दैनिक जीवन में रुचि रखने वाली सामग्री के साथ सुनने का अभ्यास करते हैं, जिससे अंग्रेजी सुनना आपकी दिनचर्या का एक स्वाभाविक हिस्सा बन जाता है।"
   },
   id: {
     main_title: "Pembelajaran Bahasa Inggris Berbasis AI",
@@ -4517,7 +4525,8 @@ export const translations: Translations = {
     language_pt: "Portugis",
     language_hi: "Hindi",
     language_id: "Bahasa Indonesia",
-    language_ar: "العربية"
+    language_ar: "العربية",
+    landing_demo_original_desc: "LingRoot mengubah konten yang Anda sukai sesuai dengan level bahasa Inggris Anda dan menghidupkannya dengan audio. Dengan cara ini, Anda berlatih mendengarkan dengan konten yang menarik minat Anda dalam kehidupan sehari-hari, menjadikan mendengarkan bahasa Inggris sebagai bagian alami dari rutinitas Anda."
   },
   ar: arTranslations,
 };

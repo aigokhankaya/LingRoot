@@ -7,7 +7,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../src/lib/auth';
 import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
-import { useTranslation, useLanguage, Locale } from '../src/lib/i18n';
+import { useTranslation, useLanguage, Locale, translations } from '../src/lib/i18n';
 
 // shadcn/ui ve diğer kütüphane importları
 import { Button } from "@/components/ui/button";
@@ -573,13 +573,13 @@ const App: React.FC = () => {
                                         <p className="text-gray-700">{t('landing_demo_original_desc') || "Lingroot, favori içeriğinizi İngilizce yeterliliğinize göre özelleştirir ve seslendirir. Bu sayede, becerilerinizi doğal bir şekilde geliştirirken ilginç konularla etkileşime geçebilirsiniz."}</p>
                                     </div>
                                     <div className="p-4 bg-primary/10 rounded-lg border-2 border-primary">
-                                        <h4 className="font-bold mb-2">{t('landing_demo_your')} ({levels[level]})</h4>
-                                        {level === 0 && <p className="text-gray-700">{t('landing_demo_level0')}</p>}
-                                        {level === 1 && <p className="text-gray-700">{t('landing_demo_level1')}</p>}
-                                        {level === 2 && <p className="text-gray-700">{t('landing_demo_level2')}</p>}
-                                        {level === 3 && <p className="text-gray-700">{t('landing_demo_level3')}</p>}
-                                        {level === 4 && <p className="text-gray-700">{t('landing_demo_level4')}</p>}
-                                        {level === 5 && <p className="text-gray-700">{t('landing_demo_level5')}</p>}
+                                        <h4 className="font-bold mb-2">{translations['en']['landing_demo_your']} ({levels[level]})</h4>
+                                        {level === 0 && <p className="text-gray-700">{translations['en']['landing_demo_level0']}</p>}
+                                        {level === 1 && <p className="text-gray-700">{translations['en']['landing_demo_level1']}</p>}
+                                        {level === 2 && <p className="text-gray-700">{translations['en']['landing_demo_level2']}</p>}
+                                        {level === 3 && <p className="text-gray-700">{translations['en']['landing_demo_level3']}</p>}
+                                        {level === 4 && <p className="text-gray-700">{translations['en']['landing_demo_level4']}</p>}
+                                        {level === 5 && <p className="text-gray-700">{translations['en']['landing_demo_level5']}</p>}
                                     </div>
                                 </div>
                             </div>
