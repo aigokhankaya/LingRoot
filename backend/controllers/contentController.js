@@ -8,6 +8,19 @@ const { processTextPipeline } = require('../utils/pipeline');
 const { getNewsForTopic } = require('../utils/newsService');
 const { extractFromWebLink } = require('../utils/inputExtractor');
 
+ function tryParseJson(value) {
+   if (value == null) return value;
+   if (typeof value !== 'string') return value;
+   const trimmed = value.trim();
+   if (!trimmed) return value;
+   if (!(trimmed.startsWith('[') || trimmed.startsWith('{'))) return value;
+   try {
+     return JSON.parse(trimmed);
+   } catch {
+     return value;
+   }
+ }
+
 // Supabase yapılandırması
 const supabaseBucket = process.env.SUPABASE_BUCKET || "lingroot-audio";
 
@@ -231,7 +244,13 @@ exports.getContentHistory = async (req, res) => {
     .order('created_at', { ascending: false });
 
   if (error) return res.status(500).json({ success: false, error: error.message });
-  return res.json({ success: true, data });
+  const normalized = (data || []).map(row => ({
+    ...row,
+    words: tryParseJson(row.words),
+    timepoints: tryParseJson(row.timepoints),
+    dialogue_segments: tryParseJson(row.dialogue_segments),
+  }));
+  return res.json({ success: true, data: normalized });
 };
 
 /**
@@ -262,9 +281,17 @@ exports.getContentById = async (req, res) => {
     }
 
     logger.info(`Successfully fetched content ID: ${id} for user ID: ${userId}`);
+
+    const normalized = {
+      ...data,
+      words: tryParseJson(data.words),
+      timepoints: tryParseJson(data.timepoints),
+      dialogue_segments: tryParseJson(data.dialogue_segments),
+    };
+
     return res.status(200).json({
       success: true,
-      data: data,
+      data: normalized,
     });
   } catch (error) {
     logger.error(`Error fetching content detail for ID ${req.params.id}, user ID ${req.user?.id}:`, error);
@@ -394,7 +421,7 @@ exports.submitContent = async (req, res) => {
   let stepSequence = 1;
 
   try {
-    const { input, input_type, level, mp3_url, translated_text, adapted_text, chapter_id, timepoints, words, detected_mood } = req.body;
+    const { input, input_type, level, mp3_url, translated_text, adapted_text, chapter_id, timepoints, words, dialogue_segments, detected_mood } = req.body;
     const user_id = req.user?.id;
     logger.info(`submitContent request received for user ID: ${user_id || 'anon'}`, {
       input_type,
@@ -482,18 +509,25 @@ exports.submitContent = async (req, res) => {
     logger.info(`Saving content history to database for user ID: ${validUserId}`);
     const now = new Date().toISOString();
 
+    const looksLikeDialogueTranscript = (text) => {
+      if (!text || typeof text !== 'string') return false;
+      return /^(Speaker\s+[AB]|Host|Guest):/im.test(text);
+    };
+
     // Önce mevcut kayıt var mı kontrol et
     let existingId = null;
+    let existingRow = null;
     try {
       const existingQuery = await supabase
         .from('contenthistory')
-        .select('id')
+        .select('id, translated_text, adapted_text, dialogue_segments, input_type')
         .eq('user_id', validUserId)
         .eq('mp3_url', convertedMp3Url)
         .order('created_at', { ascending: false })
         .limit(1);
       if (!existingQuery.error && existingQuery.data && existingQuery.data.length > 0) {
         existingId = existingQuery.data[0].id;
+        existingRow = existingQuery.data[0];
         logger.info(`Existing contenthistory found for user ${validUserId}, id=${existingId}; updating instead of insert`);
       }
     } catch (existErr) {
@@ -503,12 +537,34 @@ exports.submitContent = async (req, res) => {
     let data, error;
     if (existingId) {
       // Güncelle
+      const incomingTranslated = translated_text || '';
+      const incomingAdapted = adapted_text || '';
+      const existingTranslated = (existingRow && typeof existingRow.translated_text === 'string') ? existingRow.translated_text : '';
+      const existingAdapted = (existingRow && typeof existingRow.adapted_text === 'string') ? existingRow.adapted_text : '';
+      const existingDialogueSegments = (existingRow && typeof existingRow.dialogue_segments === 'string') ? existingRow.dialogue_segments : '';
+
+      const resolvedTranslatedText = (input_type === 'podcast')
+        ? (() => {
+            if (existingTranslated && looksLikeDialogueTranscript(existingTranslated) && !looksLikeDialogueTranscript(incomingTranslated)) {
+              return existingTranslated;
+            }
+            if (!incomingTranslated && existingTranslated) {
+              return existingTranslated;
+            }
+            return incomingTranslated;
+          })()
+        : incomingTranslated;
+
+      const resolvedAdaptedText = (input_type === 'podcast')
+        ? (incomingAdapted || existingAdapted || '')
+        : incomingAdapted;
+
       const updatePayload = {
         input,
         input_type,
         level,
-        translated_text: translated_text || '',
-        adapted_text: adapted_text || '',
+        translated_text: resolvedTranslatedText,
+        adapted_text: resolvedAdaptedText,
         chapter_id: chapterIdValue,
         updated_at: now,
         detected_mood: detected_mood || null,
@@ -521,6 +577,12 @@ exports.submitContent = async (req, res) => {
       }
       if (Array.isArray(words) && words.length > 0) {
         updatePayload.words = JSON.stringify(words);
+      }
+
+      if (Array.isArray(dialogue_segments) && dialogue_segments.length > 0) {
+        updatePayload.dialogue_segments = JSON.stringify(dialogue_segments);
+      } else if (input_type === 'podcast' && existingDialogueSegments && (!dialogue_segments || (Array.isArray(dialogue_segments) && dialogue_segments.length === 0))) {
+        updatePayload.dialogue_segments = existingDialogueSegments;
       }
 
       ({ data, error } = await supabase
@@ -549,6 +611,10 @@ exports.submitContent = async (req, res) => {
       }
       if (Array.isArray(words) && words.length > 0) {
         insertPayload.words = JSON.stringify(words);
+      }
+
+      if (Array.isArray(dialogue_segments) && dialogue_segments.length > 0) {
+        insertPayload.dialogue_segments = JSON.stringify(dialogue_segments);
       }
 
       ({ data, error } = await supabase

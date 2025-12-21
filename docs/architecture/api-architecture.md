@@ -167,6 +167,8 @@ X-Request-ID: <uuid>
 | POST | `/api/tts/process-youtube` | Process YouTube URL |
 | POST | `/api/tts/process-web` | Process web page |
 | POST | `/api/tts/process-file` | Process uploaded file |
+| POST | `/api/tts/create-podcast` | Create podcast from topic (n8n or Google) |
+| POST | `/api/tts/create-podcast-async` | Create Google podcast in background and notify when ready |
 | GET | `/api/tts/voices` | Get available voices |
 | GET | `/api/tts/history` | Get processing history |
 

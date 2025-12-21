@@ -336,7 +336,7 @@ const ChatScreen: React.FC = ({ navigation, route }: any) => {
           <TouchableOpacity
             key={attachment.id}
             style={styles.attachmentItem}
-            onPress={() => Linking.openURL(`${API_URL}/api/support-chat/attachments/${attachment.id}`)}
+            onPress={() => Linking.openURL(attachment.file_path)}
           >
             <Text style={styles.fileIcon}>{getFileIcon(attachment.mime_type)}</Text>
             <View style={styles.attachmentInfo}>

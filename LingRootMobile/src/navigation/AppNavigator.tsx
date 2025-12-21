@@ -133,7 +133,7 @@ const MainTabs = () => {
         try {
           await Promise.all(
             audioNotifications.map((notification: any) =>
-              apiService.markNotificationAsRead(notification.id).catch(() => {})
+              apiService.markNotificationAsRead(notification.id).catch(() => { })
             )
           );
         } catch {
@@ -186,15 +186,40 @@ const MainTabs = () => {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: COLORS.brandOrange,
+        tabBarInactiveTintColor: COLORS.slate400,
+        tabBarShowLabel: false,
+        tabBarStyle: {
+          position: 'absolute',
+          bottom: 24,
+          left: 24,
+          right: 24,
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          borderRadius: 32,
+          height: 64,
+          borderWidth: 2,
+          borderColor: COLORS.brandTeal,
+          shadowColor: COLORS.brandIndigo,
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.15,
+          shadowRadius: 24,
+          elevation: 8,
+          paddingHorizontal: 8,
+        },
+        tabBarItemStyle: {
+          borderRadius: 24,
+          marginHorizontal: 4,
+          marginVertical: 8,
+        },
         headerShown: true,
         headerStyle: {
-          backgroundColor: COLORS.primary,
+          backgroundColor: COLORS.brandTeal,
+          shadowColor: 'transparent',
+          elevation: 0,
         },
         headerTintColor: '#fff',
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontWeight: '700',
         },
         headerRight: () => <TestBadge />,
       })}
@@ -506,7 +531,7 @@ const AppNavigator = () => {
               component={TopicTreeScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.primary },
+                headerStyle: { backgroundColor: COLORS.brandTeal },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: language === 'tr' ? 'Konu Ağacım' : 'My Topic Tree',
@@ -517,7 +542,7 @@ const AppNavigator = () => {
               component={VocabularyScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.primary },
+                headerStyle: { backgroundColor: COLORS.brandTeal },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: language === 'tr' ? 'Kelimelerim' : 'My Vocabulary',
@@ -528,7 +553,7 @@ const AppNavigator = () => {
               component={LiroScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.primary },
+                headerStyle: { backgroundColor: COLORS.brandTeal },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: 'LIRO',
@@ -539,7 +564,7 @@ const AppNavigator = () => {
               component={AccountSettingsScreen}
               options={({ navigation }) => ({
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.primary },
+                headerStyle: { backgroundColor: COLORS.brandTeal },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: t('profile.accountSettings'),
@@ -550,7 +575,7 @@ const AppNavigator = () => {
               component={MembershipScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.primary },
+                headerStyle: { backgroundColor: COLORS.brandTeal },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
               }}
@@ -567,7 +592,7 @@ const AppNavigator = () => {
               component={ChatScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.primary },
+                headerStyle: { backgroundColor: COLORS.brandTeal },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: language === 'tr' ? 'Destek' : 'Support',
@@ -585,7 +610,7 @@ const AppNavigator = () => {
               component={PrivacyPolicyScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.primary },
+                headerStyle: { backgroundColor: COLORS.brandTeal },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy',
@@ -596,7 +621,7 @@ const AppNavigator = () => {
               component={TermsOfServiceScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.primary },
+                headerStyle: { backgroundColor: COLORS.brandTeal },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: language === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service',
@@ -607,7 +632,7 @@ const AppNavigator = () => {
               component={ReminderSettingsScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.primary },
+                headerStyle: { backgroundColor: COLORS.brandTeal },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerTitle: language === 'tr' ? 'Hatırlatıcı Ayarları' : 'Reminder Settings',

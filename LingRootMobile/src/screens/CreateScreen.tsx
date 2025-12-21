@@ -33,14 +33,14 @@ const CreateScreen: React.FC = () => {
     route.params?.mode === 'file'
       ? 'file'
       : route.params?.mode === 'book'
-      ? 'book'
-      : route.params?.mode === 'suggestion'
-      ? 'suggestion'
-      : route.params?.mode === 'youtube'
-      ? 'youtube'
-      : route.params?.mode === 'podcast'
-      ? 'podcast'
-      : 'text'
+        ? 'book'
+        : route.params?.mode === 'suggestion'
+          ? 'suggestion'
+          : route.params?.mode === 'youtube'
+            ? 'youtube'
+            : route.params?.mode === 'podcast'
+              ? 'podcast'
+              : 'text'
   );
   const { t, language } = useLanguage();
   const screenHeight = Dimensions.get('window').height;
@@ -85,16 +85,26 @@ const CreateScreen: React.FC = () => {
         route.params?.mode === 'file'
           ? 'file'
           : route.params?.mode === 'book'
-          ? 'book'
-          : route.params?.mode === 'suggestion'
-          ? 'suggestion'
-          : route.params?.mode === 'youtube'
-          ? 'youtube'
-          : route.params?.mode === 'podcast'
-          ? 'podcast'
-          : 'text';
+            ? 'book'
+            : route.params?.mode === 'suggestion'
+              ? 'suggestion'
+              : route.params?.mode === 'youtube'
+                ? 'youtube'
+                : route.params?.mode === 'podcast'
+                  ? 'podcast'
+                  : 'text';
       const prevMode = mode;
       setMode(nextMode);
+
+      // Preselect podcast provider if Create screen is opened in podcast mode
+      if (nextMode === 'podcast') {
+        const providerParam = (route.params as any)?.podcastProvider;
+        if (providerParam === 'google') {
+          setPodcastTtsProvider('google');
+        } else if (providerParam === 'n8n') {
+          setPodcastTtsProvider('n8n');
+        }
+      }
 
       // Ekrana her odaklanıldığında aktif job durumunu kontrol et
       checkActiveJob();
@@ -173,13 +183,14 @@ const CreateScreen: React.FC = () => {
   const [isCreatingPodcast, setIsCreatingPodcast] = useState<boolean>(false);
   const [podcastError, setPodcastError] = useState<string | null>(null);
   const [podcastStyleType, setPodcastStyleType] = useState<string>('friendly_chat');
-  const [podcastVoiceChoice, setPodcastVoiceChoice] = useState<string>('english_female');
   const [podcastHostSpeakerId, setPodcastHostSpeakerId] = useState<string>('Kore');
   const [podcastGuestSpeakerId, setPodcastGuestSpeakerId] = useState<string>('Puck');
   const [podcastPersonalityA, setPodcastPersonalityA] = useState<string>('curious_enthusiast');
   const [podcastPersonalityB, setPodcastPersonalityB] = useState<string>('knowledgeable_friend');
   const [podcastIncludeHumor, setPodcastIncludeHumor] = useState<boolean>(true);
   const [podcastIncludeFiller, setPodcastIncludeFiller] = useState<boolean>(true);
+  const [showPodcastHostVoiceModal, setShowPodcastHostVoiceModal] = useState(false);
+  const [showPodcastGuestVoiceModal, setShowPodcastGuestVoiceModal] = useState(false);
 
   const GEMINI_PODCAST_SPEAKERS = [
     { value: 'Aoede', label: 'Aoede (F)' },
@@ -194,13 +205,18 @@ const CreateScreen: React.FC = () => {
     { value: 'Achilles', label: 'Achilles (M)' },
   ];
 
+  const getGeminiSpeakerLabel = (value?: string) => {
+    const found = GEMINI_PODCAST_SPEAKERS.find(s => s.value === value);
+    return found?.label || value || '';
+  };
+
   useFocusEffect(
     React.useCallback(() => {
       if (mode === 'podcast') {
         setPodcastTopic('');
         setPodcastError(null);
       }
-      return () => {};
+      return () => { };
     }, [mode])
   );
 
@@ -1044,10 +1060,51 @@ const CreateScreen: React.FC = () => {
       return;
     }
 
+    if (isTtsJobLocked) {
+      if (ttsJobMessage) {
+        Alert.alert(t('common.info'), ttsJobMessage);
+      }
+      return;
+    }
+
     setIsCreatingPodcast(true);
     setPodcastError(null);
 
     try {
+      // Google podcast: run async in background and notify when ready
+      if (podcastTtsProvider === 'google') {
+        const response: any = await apiService.createPodcastAsync({
+          topic: podcastTopic.trim(),
+          level: selectedLevel,
+          duration: podcastDuration,
+          ttsProvider: 'google',
+          hostSpeakerId: podcastHostSpeakerId,
+          guestSpeakerId: podcastGuestSpeakerId,
+          styleType: podcastStyleType,
+          personalityA: podcastPersonalityA,
+          personalityB: podcastPersonalityB,
+          includeHumor: podcastIncludeHumor,
+          includeFiller: podcastIncludeFiller,
+        });
+
+        if (response?.success) {
+          const msg =
+            language === 'tr'
+              ? `Podcastiniz arka planda oluşturuluyor. ${response.estimatedTime || 'Birkaç dakika'} içinde bildirim alacaksınız.`
+              : `Your podcast is being created in the background. You'll receive a notification in ${response.estimatedTime || 'a few minutes'}.`;
+          setIsTtsJobLocked(true);
+          setIsCreatingVoice(true);
+          setTtsJobMessage(msg);
+          setPodcastTopic('');
+          Alert.alert(language === 'tr' ? '✅ İşlem Başlatıldı' : '✅ Processing Started', msg);
+          return;
+        }
+
+        throw new Error(
+          response?.message || (language === 'tr' ? 'Podcast oluşturulamadı.' : 'Podcast could not be created.')
+        );
+      }
+
       const response: any = await apiService.createPodcast({
         topic: podcastTopic.trim(),
         level: selectedLevel,
@@ -1056,7 +1113,6 @@ const CreateScreen: React.FC = () => {
         hostSpeakerId: podcastTtsProvider === 'google' ? podcastHostSpeakerId : undefined,
         guestSpeakerId: podcastTtsProvider === 'google' ? podcastGuestSpeakerId : undefined,
         styleType: podcastStyleType,
-        voiceChoice: podcastVoiceChoice,
         personalityA: podcastPersonalityA,
         personalityB: podcastPersonalityB,
         includeHumor: podcastIncludeHumor,
@@ -1078,7 +1134,7 @@ const CreateScreen: React.FC = () => {
       if (!success || !audioUrl) {
         throw new Error(
           response?.message ||
-            (language === 'tr' ? 'Podcast oluşturulamadı.' : 'Podcast could not be created.')
+          (language === 'tr' ? 'Podcast oluşturulamadı.' : 'Podcast could not be created.')
         );
       }
 
@@ -1096,13 +1152,13 @@ const CreateScreen: React.FC = () => {
         if (typeof timepoints === 'string') {
           timepoints = JSON.parse(timepoints);
         }
-      } catch {}
+      } catch { }
 
       try {
         if (typeof words === 'string') {
           words = JSON.parse(words);
         }
-      } catch {}
+      } catch { }
 
       const safeTimepoints = Array.isArray(timepoints) ? timepoints : [];
       const safeWords = Array.isArray(words) ? words : [];
@@ -1250,17 +1306,17 @@ const CreateScreen: React.FC = () => {
 
   const globalCreateLabel = isPodcastMode
     ? (isCreatingPodcast
-        ? (language === 'tr'
-          ? 'Podcast oluşturuluyor...'
-          : 'Creating podcast...')
-        : (language === 'tr'
-          ? 'Podcast Oluştur'
-          : 'Create Podcast'))
+      ? (language === 'tr'
+        ? 'Podcast oluşturuluyor...'
+        : 'Creating podcast...')
+      : (language === 'tr'
+        ? 'Podcast Oluştur'
+        : 'Create Podcast'))
     : (isLoading
-        ? (selectedFile ? t('create.buttons.processingFile') : t('create.buttons.processing'))
-        : isCreatingVoice
-          ? (language === 'tr' ? 'Ses oluşturuluyor...' : 'Creating Voice...')
-          : t('create.buttons.createAudio'));
+      ? (selectedFile ? t('create.buttons.processingFile') : t('create.buttons.processing'))
+      : isCreatingVoice
+        ? (language === 'tr' ? 'Ses oluşturuluyor...' : 'Creating Voice...')
+        : t('create.buttons.createAudio'));
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1311,120 +1367,114 @@ const CreateScreen: React.FC = () => {
                 : 'Enter a topic for the podcast and choose the level and duration.'}
             </Text>
 
-            {/* TTS Provider Selection */}
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
-                {language === 'tr' ? 'Ses Motoru' : 'Audio Engine'}
-              </Text>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    marginRight: 6,
-                    paddingVertical: 12,
-                    paddingHorizontal: 8,
-                    borderRadius: 8,
-                    borderWidth: 2,
-                    borderColor: podcastTtsProvider === 'n8n' ? COLORS.primary : '#ddd',
-                    backgroundColor: podcastTtsProvider === 'n8n' ? '#E3F2FD' : '#fff',
-                    alignItems: 'center',
-                  }}
-                  onPress={() => setPodcastTtsProvider('n8n')}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: podcastTtsProvider === 'n8n' ? COLORS.primary : '#333' }}>
-                    n8n Workflow
-                  </Text>
-                  <Text style={{ fontSize: 11, color: podcastTtsProvider === 'n8n' ? COLORS.primary : '#888', marginTop: 2 }}>
-                    {language === 'tr' ? 'Mevcut yapı' : 'Current system'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    marginLeft: 6,
-                    paddingVertical: 12,
-                    paddingHorizontal: 8,
-                    borderRadius: 8,
-                    borderWidth: 2,
-                    borderColor: podcastTtsProvider === 'google' ? COLORS.primary : '#ddd',
-                    backgroundColor: podcastTtsProvider === 'google' ? '#E3F2FD' : '#fff',
-                    alignItems: 'center',
-                  }}
-                  onPress={() => setPodcastTtsProvider('google')}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: podcastTtsProvider === 'google' ? COLORS.primary : '#333' }}>
-                    Google TTS
-                  </Text>
-                  <Text style={{ fontSize: 11, color: podcastTtsProvider === 'google' ? COLORS.primary : '#888', marginTop: 2 }}>
-                    Gemini Multi-Voice
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            {/* TTS Provider Selection Removed - Defaulting to Google TTS */}
 
             {podcastTtsProvider === 'google' && (
               <View style={{ marginBottom: 16 }}>
-                <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
-                  {language === 'tr' ? 'Host Sesi' : 'Host Voice'}
-                </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                  {GEMINI_PODCAST_SPEAKERS.map((opt) => (
-                    <TouchableOpacity
-                      key={`host_${opt.value}`}
-                      style={{
-                        paddingVertical: 10,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                        borderWidth: 2,
-                        borderColor: podcastHostSpeakerId === opt.value ? COLORS.primary : '#ddd',
-                        backgroundColor: podcastHostSpeakerId === opt.value ? '#E3F2FD' : '#fff',
-                        marginRight: 8,
-                        marginBottom: 8,
-                      }}
-                      onPress={() => setPodcastHostSpeakerId(opt.value)}
-                    >
-                      <Text style={{
-                        fontSize: 12,
-                        fontWeight: '600',
-                        color: podcastHostSpeakerId === opt.value ? COLORS.primary : '#333'
-                      }}>
-                        {opt.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <Text style={styles.filterLabel}>Host voice</Text>
+                <TouchableOpacity
+                  style={styles.voiceSelectionButton}
+                  onPress={() => setShowPodcastHostVoiceModal(true)}
+                >
+                  <Icon name="record-voice-over" size={22} color={COLORS.primary} />
+                  <View style={styles.voiceSelectionInfo}>
+                    <Text style={styles.voiceSelectionText}>{getGeminiSpeakerLabel(podcastHostSpeakerId)}</Text>
+                  </View>
+                  <Icon name="arrow-forward-ios" size={16} color={COLORS.primary} />
+                </TouchableOpacity>
 
-                <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8, marginTop: 8 }}>
-                  {language === 'tr' ? 'Konuk Sesi' : 'Guest Voice'}
-                </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                  {GEMINI_PODCAST_SPEAKERS.map((opt) => (
-                    <TouchableOpacity
-                      key={`guest_${opt.value}`}
-                      style={{
-                        paddingVertical: 10,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                        borderWidth: 2,
-                        borderColor: podcastGuestSpeakerId === opt.value ? COLORS.primary : '#ddd',
-                        backgroundColor: podcastGuestSpeakerId === opt.value ? '#E3F2FD' : '#fff',
-                        marginRight: 8,
-                        marginBottom: 8,
-                      }}
-                      onPress={() => setPodcastGuestSpeakerId(opt.value)}
-                    >
-                      <Text style={{
-                        fontSize: 12,
-                        fontWeight: '600',
-                        color: podcastGuestSpeakerId === opt.value ? COLORS.primary : '#333'
-                      }}>
-                        {opt.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <Text style={[styles.filterLabel, { marginTop: 12 }]}>Guest voice</Text>
+                <TouchableOpacity
+                  style={styles.voiceSelectionButton}
+                  onPress={() => setShowPodcastGuestVoiceModal(true)}
+                >
+                  <Icon name="record-voice-over" size={22} color={COLORS.primary} />
+                  <View style={styles.voiceSelectionInfo}>
+                    <Text style={styles.voiceSelectionText}>{getGeminiSpeakerLabel(podcastGuestSpeakerId)}</Text>
+                  </View>
+                  <Icon name="arrow-forward-ios" size={16} color={COLORS.primary} />
+                </TouchableOpacity>
+
+                <Modal
+                  visible={showPodcastHostVoiceModal}
+                  transparent
+                  animationType="fade"
+                  onRequestClose={() => setShowPodcastHostVoiceModal(false)}
+                >
+                  <View style={styles.voiceModalBackdrop}>
+                    <View style={[styles.voiceModalContent, { maxHeight: '75%', width: '92%' }]}>
+                      <View style={styles.voiceModalHeader}>
+                        <View>
+                          <Text style={styles.voiceModalTitle}>Host voice</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => setShowPodcastHostVoiceModal(false)}>
+                          <Icon name="close" size={24} color="#666" />
+                        </TouchableOpacity>
+                      </View>
+                      <ScrollView style={styles.voiceList} keyboardShouldPersistTaps="handled">
+                        {GEMINI_PODCAST_SPEAKERS.map((opt) => (
+                          <TouchableOpacity
+                            key={`host_${opt.value}`}
+                            style={[styles.voiceItem, podcastHostSpeakerId === opt.value && styles.voiceItemActive]}
+                            onPress={() => {
+                              setPodcastHostSpeakerId(opt.value);
+                              setShowPodcastHostVoiceModal(false);
+                            }}
+                          >
+                            <View style={styles.voiceItemInfo}>
+                              <Text style={styles.voiceItemName}>{opt.label}</Text>
+                            </View>
+                            {podcastHostSpeakerId === opt.value && (
+                              <Icon name="check" size={20} color={COLORS.primary} />
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  </View>
+                </Modal>
+
+                <Modal
+                  visible={showPodcastGuestVoiceModal}
+                  transparent
+                  animationType="fade"
+                  onRequestClose={() => setShowPodcastGuestVoiceModal(false)}
+                >
+                  <View style={styles.voiceModalBackdrop}>
+                    <View style={[styles.voiceModalContent, { maxHeight: '75%', width: '92%' }]}>
+                      <View style={styles.voiceModalHeader}>
+                        <View>
+                          <Text style={styles.voiceModalTitle}>Guest voice</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => setShowPodcastGuestVoiceModal(false)}>
+                          <Icon name="close" size={24} color="#666" />
+                        </TouchableOpacity>
+                      </View>
+                      <ScrollView style={styles.voiceList} keyboardShouldPersistTaps="handled">
+                        {GEMINI_PODCAST_SPEAKERS.map((opt) => (
+                          <TouchableOpacity
+                            key={`guest_${opt.value}`}
+                            style={[styles.voiceItem, podcastGuestSpeakerId === opt.value && styles.voiceItemActive]}
+                            onPress={() => {
+                              setPodcastGuestSpeakerId(opt.value);
+                              setShowPodcastGuestVoiceModal(false);
+                            }}
+                          >
+                            <View style={styles.voiceItemInfo}>
+                              <Text style={styles.voiceItemName}>{opt.label}</Text>
+                            </View>
+                            {podcastGuestSpeakerId === opt.value && (
+                              <Icon name="check" size={20} color={COLORS.primary} />
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  </View>
+                </Modal>
               </View>
             )}
+
 
             <TextInput
               style={[styles.textInput, { minHeight: 100 }]}
@@ -1491,170 +1541,6 @@ const CreateScreen: React.FC = () => {
                   ? `Oluşturulacak içeriğin yaklaşık süresi (±%15 tolerans)`
                   : `Approximate duration of the content (±15% tolerance)`}
               </Text>
-            </View>
-
-            <View style={{ marginTop: 16 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
-                {language === 'tr' ? 'Konuşma Stili' : 'Speaking Style'}
-              </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {[
-                  { value: 'friendly_chat', tr: 'Samimi Sohbet', en: 'Friendly chat' },
-                  { value: 'professional', tr: 'Profesyonel', en: 'Professional' },
-                  { value: 'educational', tr: 'Eğitici', en: 'Educational' },
-                  { value: 'casual', tr: 'Rahat', en: 'Casual' },
-                ].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[
-                      styles.filterButton,
-                      podcastStyleType === opt.value && styles.filterButtonActive,
-                      { marginBottom: 6 },
-                    ]}
-                    onPress={() => setPodcastStyleType(opt.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.filterButtonText,
-                        podcastStyleType === opt.value && styles.filterButtonTextActive,
-                      ]}
-                    >
-                      {language === 'tr' ? opt.tr : opt.en}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={{ marginTop: 16 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
-                {language === 'tr' ? 'Ses Seçimi' : 'Voice Choice'}
-              </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {[
-                  { value: 'english_female', tr: 'İngilizce - Kadın', en: 'English - Female' },
-                  { value: 'english_male', tr: 'İngilizce - Erkek', en: 'English - Male' },
-                  { value: 'american_female', tr: 'Amerikan - Kadın', en: 'American - Female' },
-                  { value: 'american_male', tr: 'Amerikan - Erkek', en: 'American - Male' },
-                  { value: 'british_female', tr: 'İngiliz - Kadın', en: 'British - Female' },
-                  { value: 'british_male', tr: 'İngiliz - Erkek', en: 'British - Male' },
-                ].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[
-                      styles.filterButton,
-                      podcastVoiceChoice === opt.value && styles.filterButtonActive,
-                      { marginBottom: 6 },
-                    ]}
-                    onPress={() => setPodcastVoiceChoice(opt.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.filterButtonText,
-                        podcastVoiceChoice === opt.value && styles.filterButtonTextActive,
-                      ]}
-                    >
-                      {language === 'tr' ? opt.tr : opt.en}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={{ marginTop: 16 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
-                {language === 'tr' ? 'Kişilik A' : 'Personality A'}
-              </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {[
-                  { value: 'curious_enthusiast', tr: 'Meraklı Coşkulu', en: 'Curious Enthusiast' },
-                  { value: 'skeptical_analyst', tr: 'Şüpheci Analist', en: 'Skeptical Analyst' },
-                  { value: 'friendly_guide', tr: 'Samimi Rehber', en: 'Friendly Guide' },
-                  { value: 'professional_expert', tr: 'Profesyonel Uzman', en: 'Professional Expert' },
-                ].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[
-                      styles.filterButton,
-                      podcastPersonalityA === opt.value && styles.filterButtonActive,
-                      { marginBottom: 6 },
-                    ]}
-                    onPress={() => setPodcastPersonalityA(opt.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.filterButtonText,
-                        podcastPersonalityA === opt.value && styles.filterButtonTextActive,
-                      ]}
-                    >
-                      {language === 'tr' ? opt.tr : opt.en}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={{ marginTop: 16 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', marginBottom: 8 }}>
-                {language === 'tr' ? 'Kişilik B' : 'Personality B'}
-              </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {[
-                  { value: 'knowledgeable_friend', tr: 'Bilgili Arkadaş', en: 'Knowledgeable Friend' },
-                  { value: 'experienced_mentor', tr: 'Deneyimli Mentor', en: 'Experienced Mentor' },
-                  { value: 'curious_learner', tr: 'Meraklı Öğrenci', en: 'Curious Learner' },
-                  { value: 'witty_commentator', tr: 'Esprili Yorumcu', en: 'Witty Commentator' },
-                ].map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[
-                      styles.filterButton,
-                      podcastPersonalityB === opt.value && styles.filterButtonActive,
-                      { marginBottom: 6 },
-                    ]}
-                    onPress={() => setPodcastPersonalityB(opt.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.filterButtonText,
-                        podcastPersonalityB === opt.value && styles.filterButtonTextActive,
-                      ]}
-                    >
-                      {language === 'tr' ? opt.tr : opt.en}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}
-                onPress={() => setPodcastIncludeHumor((prev) => !prev)}
-              >
-                <Icon
-                  name={podcastIncludeHumor ? 'check-box' : 'check-box-outline-blank'}
-                  size={20}
-                  color={COLORS.primary}
-                />
-                <Text style={{ marginLeft: 6, fontSize: 14, color: '#333' }}>
-                  {language === 'tr' ? 'Mizah Ekle' : 'Include Humor'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center' }}
-                onPress={() => setPodcastIncludeFiller((prev) => !prev)}
-              >
-                <Icon
-                  name={podcastIncludeFiller ? 'check-box' : 'check-box-outline-blank'}
-                  size={20}
-                  color={COLORS.primary}
-                />
-                <Text style={{ marginLeft: 6, fontSize: 14, color: '#333' }}>
-                  {language === 'tr' ? 'Dolgu Kelimeler Ekle' : 'Include Filler Words'}
-                </Text>
-              </TouchableOpacity>
             </View>
 
             {podcastError && (
@@ -2187,23 +2073,24 @@ const CreateScreen: React.FC = () => {
             </View>
           </View>
         </Modal>
-      </ScrollView>
 
-      <TouchableOpacity
-        style={[
-          styles.createButton,
-          isGlobalCreateDisabled && styles.createButtonDisabled,
-        ]}
-        onPress={isPodcastMode ? handleCreatePodcast : handleCreateAudio}
-        disabled={isGlobalCreateDisabled}
-      >
-        {isGlobalCreateBusy ? (
-          <ActivityIndicator color="white" size="small" />
-        ) : (
-          <Icon name={isPodcastMode ? 'graphic-eq' : 'volume-up'} size={24} color="white" />
-        )}
-        <Text style={styles.createButtonText}>{globalCreateLabel}</Text>
-      </TouchableOpacity>
+        {/* Create Button - Now inside ScrollView */}
+        <TouchableOpacity
+          style={[
+            styles.createButton,
+            isGlobalCreateDisabled && styles.createButtonDisabled,
+          ]}
+          onPress={isPodcastMode ? handleCreatePodcast : handleCreateAudio}
+          disabled={isGlobalCreateDisabled}
+        >
+          {isGlobalCreateBusy ? (
+            <ActivityIndicator color="white" size="small" />
+          ) : (
+            <Icon name={isPodcastMode ? 'graphic-eq' : 'volume-up'} size={24} color="white" />
+          )}
+          <Text style={styles.createButtonText}>{globalCreateLabel}</Text>
+        </TouchableOpacity>
+      </ScrollView>
 
       {/* Audio Player Modal */}
       {createdTrack && (
@@ -2227,7 +2114,7 @@ const CreateScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   loadingOverlay: {
     position: 'absolute',
@@ -2241,270 +2128,315 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   loadingCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
+    backgroundColor: COLORS.surface,
+    borderRadius: 24,
+    padding: 32,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowColor: COLORS.brandIndigo,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 8,
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#333',
+    marginTop: 16,
+    fontSize: 15,
+    color: COLORS.slate700,
     textAlign: 'center',
+    fontWeight: '600',
   },
   // Book search styles
   bookSearchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    marginBottom: 8,
-    backgroundColor: '#fafafa',
-    gap: 8,
+    borderColor: COLORS.slate200,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 12,
+    backgroundColor: COLORS.surface,
+    gap: 12,
   },
   textField: {
     flex: 1,
-    fontSize: 16,
-    color: '#333',
+    fontSize: 15,
+    color: COLORS.slate700,
     paddingVertical: 0,
+    fontWeight: '500',
   },
   searchButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: COLORS.brandTeal,
+    padding: 14,
+    borderRadius: 16,
     gap: 8,
   },
   bookCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 12,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3f51b5',
+    backgroundColor: COLORS.surface,
+    padding: 16,
+    borderRadius: 20,
+    borderLeftWidth: 6,
+    borderLeftColor: COLORS.brandIndigo,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginBottom: 8,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    marginBottom: 12,
   },
   chapterItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 12,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#009688',
+    backgroundColor: COLORS.surface,
+    padding: 16,
+    borderRadius: 20,
+    borderLeftWidth: 6,
+    borderLeftColor: COLORS.brandTeal,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginBottom: 8,
-    gap: 10,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    marginBottom: 12,
+    gap: 12,
   },
   chapterItemActive: {
     borderWidth: 2,
-    borderColor: '#009688',
+    borderColor: COLORS.brandTeal,
+    backgroundColor: 'rgba(39, 190, 170, 0.05)',
   },
   chapterIndex: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#009688',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.brandTeal,
     alignItems: 'center',
     justifyContent: 'center',
   },
   chapterIndexText: {
-    color: 'white',
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontWeight: '800',
     fontSize: 12,
   },
   chapterTitle: {
     flex: 1,
-    fontSize: 15,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: 14,
+    color: COLORS.slate700,
+    fontWeight: '600',
   },
   bookTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.slate800,
   },
   bookAuthor: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: 12,
+    color: COLORS.slate500,
+    marginTop: 2,
   },
   content: {
     flex: 1,
+    paddingBottom: 160,
   },
   header: {
-    padding: 20,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    backgroundColor: 'transparent',
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '800',
+    color: COLORS.slate800,
     marginBottom: 4,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 14,
+    color: COLORS.slate500,
+    fontWeight: '500',
   },
   inputSection: {
-    margin: 20,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
+    marginHorizontal: 24,
+    marginBottom: 20,
+    backgroundColor: COLORS.surfaceGlass,
+    borderRadius: 32,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    shadowColor: COLORS.brandIndigo,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.07,
+    shadowRadius: 32,
+    elevation: 4,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 10,
+    fontWeight: '900',
+    color: COLORS.slate400,
     marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    marginLeft: 4,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#333',
+    borderColor: COLORS.slate100,
+    borderRadius: 16,
+    padding: 16,
+    fontSize: 15,
+    color: COLORS.slate700,
     minHeight: 120,
     textAlignVertical: 'top',
+    backgroundColor: COLORS.slate50,
+    fontWeight: '500',
   },
   charCount: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 10,
+    color: COLORS.slate300,
     textAlign: 'right',
     marginTop: 8,
+    fontWeight: '700',
   },
   textExpander: {
-    marginTop: 8,
+    marginTop: 12,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#F3F8FF',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 16,
+    backgroundColor: COLORS.slate50,
     borderWidth: 1,
-    borderColor: '#D6E6FF',
+    borderColor: COLORS.slate100,
   },
   textExpanderExpanded: {
-    backgroundColor: '#EEF7EE',
-    borderColor: '#BFE5BF',
+    backgroundColor: 'rgba(39, 190, 170, 0.05)',
+    borderColor: COLORS.brandTeal,
   },
   textExpanderLabel: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: '600',
+    color: COLORS.slate400,
+    fontSize: 11,
+    fontWeight: '800',
     textAlign: 'center',
-    flex: 0,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 20,
-    marginVertical: 10,
+    marginHorizontal: 24,
+    marginVertical: 16,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#ddd',
+    backgroundColor: COLORS.slate100,
   },
   dividerText: {
-    marginHorizontal: 15,
-    color: '#666',
-    fontSize: 14,
+    marginHorizontal: 16,
+    color: COLORS.slate300,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   fileButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    marginHorizontal: 24,
+    padding: 24,
+    borderRadius: 24,
     borderWidth: 2,
-    borderColor: COLORS.primary,
+    borderColor: COLORS.slate200,
     borderStyle: 'dashed',
   },
   fileButtonText: {
-    marginLeft: 8,
-    fontSize: 16,
-    color: COLORS.primary,
-    fontWeight: '500',
+    marginLeft: 12,
+    fontSize: 14,
+    color: COLORS.slate500,
+    fontWeight: '700',
   },
   settingsSection: {
-    margin: 20,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
+    marginHorizontal: 24,
+    marginBottom: 20,
+    backgroundColor: COLORS.surfaceGlass,
+    borderRadius: 32,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    shadowColor: COLORS.brandIndigo,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.07,
+    shadowRadius: 32,
+    elevation: 4,
   },
   levelSelector: {
-    marginBottom: 10,
+    marginBottom: 16,
   },
   levelButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-    marginRight: 10,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.surface,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.slate100,
   },
   levelButtonActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.brandTeal,
+    borderColor: COLORS.brandTeal,
+    shadowColor: COLORS.brandTeal,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   levelButtonText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+    fontSize: 12,
+    color: COLORS.slate300,
+    fontWeight: '700',
   },
   levelButtonTextActive: {
-    color: 'white',
+    color: '#FFFFFF',
   },
   levelDescription: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 12,
+    color: COLORS.slate500,
     marginTop: 8,
+    fontWeight: '500',
   },
   speedContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 16,
   },
   speedButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.slate50,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.slate100,
   },
   speedText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginHorizontal: 20,
+    fontWeight: '800',
+    color: COLORS.slate700,
+    marginHorizontal: 24,
     minWidth: 50,
     textAlign: 'center',
   },
@@ -2513,60 +2445,74 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   speedLabel: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 11,
+    color: COLORS.slate400,
+    fontWeight: '500',
   },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: COLORS.brandOrange,
+    marginHorizontal: 24,
+    marginTop: 20,
+    marginBottom: 120,
+    padding: 18,
+    borderRadius: 24,
+    shadowColor: COLORS.brandOrange,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 6,
   },
   createButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: COLORS.slate200,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   createButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '800',
+    marginLeft: 10,
   },
   defaultVoiceButton: {
-    marginTop: 10,
-    backgroundColor: '#16a34a',
-    paddingVertical: 12,
-    borderRadius: 10,
+    marginTop: 12,
+    backgroundColor: COLORS.brandTeal,
+    paddingVertical: 14,
+    borderRadius: 16,
     alignItems: 'center',
+    shadowColor: COLORS.brandTeal,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 2,
   },
   defaultVoiceButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
   textInputDisabled: {
-    backgroundColor: '#f8f8f8',
-    color: '#999',
+    backgroundColor: COLORS.slate50,
+    color: COLORS.slate300,
   },
   selectedFileContainer: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
     padding: 16,
-    marginHorizontal: 20,
+    marginHorizontal: 24,
     marginBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
+    borderLeftWidth: 6,
+    borderLeftColor: COLORS.brandTeal,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   selectedFileInfo: {
     flexDirection: 'row',
@@ -2578,19 +2524,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fileName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.slate800,
     marginBottom: 2,
   },
   fileSize: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 12,
+    color: COLORS.slate500,
   },
   clearFileButton: {
-    padding: 8,
-    backgroundColor: '#FFE5E5',
-    borderRadius: 20,
+    padding: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 16,
   },
 
   // Voice Selection Styles

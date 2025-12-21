@@ -573,4 +573,4 @@ export const useWordSync = ({
     seek,
     setPlaybackRate
   };
-}; 
+};
