@@ -57,10 +57,7 @@ function formatTRPhone(value: string): string {
 export default function RegisterPage() {
   const router = useRouter();
   const { register, loginWithGoogle } = useAuth();
-<<<<<<< HEAD:frontend/src/app/register/page.disabled.tsx
   const { currentLocale } = useTranslation();
-=======
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db:frontend/src/app/register/page.tsx
 
   const [formData, setFormData] = useState({
     firstName: '',

@@ -44,11 +44,7 @@ const LoginPage: React.FC = () => {
     try {
       const result = await login(email, password, rememberMe);
       if (result.success) {
-<<<<<<< HEAD
-        let target = nextDecoded && nextDecoded.trim() ? nextDecoded : '/welcome';
-=======
         const target = nextDecoded && nextDecoded.trim() ? nextDecoded : '/welcome';
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
         try { sessionStorage.removeItem('postLoginNext'); } catch { }
         if (target.includes('#')) {
           window.location.assign(target);
@@ -95,11 +91,7 @@ const LoginPage: React.FC = () => {
       const result = await loginWithGoogle(credential, rememberMe);
 
       if (result.success) {
-<<<<<<< HEAD
-        let target = nextDecoded && nextDecoded.trim() ? nextDecoded : '/welcome';
-=======
         const target = nextDecoded && nextDecoded.trim() ? nextDecoded : '/welcome';
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
         try { sessionStorage.removeItem('postLoginNext'); } catch { }
         if (target.includes('#')) {
           window.location.assign(target);

@@ -290,12 +290,7 @@ const App: React.FC = () => {
                                 </DialogHeader>
                                 <form onSubmit={handleLoginSubmit} className="space-y-4">
                                     <div className="space-y-2">
-<<<<<<< HEAD
-                                        <Label htmlFor="email">{t('login_email_not_verified_message') === 'E-posta veya Kullanıcı Adı' ? t('email') : t('email')}</Label>
-                                        &quot;LingRoot was the missing piece in my language learning journey. Highly recommended!&quot;. 'login_email_label' wasn't in standard keys, checking i18n.ts content. 'email' is safer. */
-=======
                                         <Label htmlFor="email">{t('email')}</Label>
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
                                         <Input id="email" name="email" type="email" placeholder={t('email')} value={loginForm.email} onChange={handleLoginChange} required />
                                     </div>
                                     <div className="space-y-2">
