@@ -1,23 +1,23 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import { AudioPlayer } from '@/components/library/Player/AudioPlayer';
-import { 
-  getLibraryItemDetails, 
-  processTts, 
-  updateProgress,
-  ChapterInfo, 
-  LibraryItemDetails 
+import {
+  getLibraryItemDetails,
+  processTts,
+  ChapterInfo,
+  LibraryItemDetails
 } from '@/lib/api';
-import { 
-  ArrowLeft, 
-  BookOpen, 
-  FileText, 
-  Play, 
-  Check, 
-  Loader2, 
+import {
+  ArrowLeft,
+  BookOpen,
+  FileText,
+  Play,
+  Check,
+  Loader2,
   Volume2,
   ChevronRight,
   Settings
@@ -55,18 +55,12 @@ export default function PlayerPage() {
   }, [user, authLoading, router]);
 
   // Fetch item details
-  useEffect(() => {
-    if (id && type && user) {
-      fetchDetails();
-    }
-  }, [id, type, user]);
-
-  const fetchDetails = async () => {
+  const fetchDetails = useCallback(async () => {
     try {
       setLoading(true);
       const contentType = type as 'book' | 'document';
       const response = await getLibraryItemDetails(Number(id), contentType);
-      
+
       if (response.success && response.data) {
         setItemDetails(response.data);
         setActiveChapterIndex(response.data.progress.current_chapter_index || 1);
@@ -76,12 +70,18 @@ export default function PlayerPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, type]);
+
+  useEffect(() => {
+    if (id && type && user) {
+      fetchDetails();
+    }
+  }, [id, type, user, fetchDetails]);
 
   // Generate audio for a chapter
   const generateChapterAudio = useCallback(async (chapter: ChapterInfo) => {
     const chapterId = chapter.id;
-    
+
     setChapterStates(prev => ({
       ...prev,
       [chapterId]: { status: 'generating' }
@@ -117,7 +117,7 @@ export default function PlayerPage() {
   // Play chapter
   const handlePlayChapter = async (chapter: ChapterInfo) => {
     const currentState = chapterStates[chapter.id];
-    
+
     // If audio already generated, just play
     if (currentState?.status === 'ready' && currentState.audioUrl) {
       setActiveChapterIndex(chapter.index);
@@ -139,7 +139,7 @@ export default function PlayerPage() {
       }, 5000);
     }
   };
-  
+
   // Handle notification click
   const handleNotificationClick = () => {
     if (audioNotification) {
@@ -152,9 +152,9 @@ export default function PlayerPage() {
   // Handle chapter end - auto-play next
   const handleChapterEnded = () => {
     setIsPlaying(false);
-    
+
     if (!itemDetails) return;
-    
+
     const currentIdx = itemDetails.chapters.findIndex(c => c.index === activeChapterIndex);
     if (currentIdx < itemDetails.chapters.length - 1) {
       const nextChapter = itemDetails.chapters[currentIdx + 1];
@@ -201,7 +201,7 @@ export default function PlayerPage() {
         <header className="sticky top-0 z-30 bg-white/80 dark:bg-[#0f1115]/80 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800">
           <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link 
+              <Link
                 href="/dashboard/library"
                 className="p-2 -ml-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-full transition-colors"
               >
@@ -234,7 +234,7 @@ export default function PlayerPage() {
         <div className="max-w-7xl mx-auto px-4 py-6">
           {/* Audio Generation Notification */}
           {audioNotification && (
-            <div 
+            <div
               onClick={handleNotificationClick}
               className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors animate-pulse"
             >
@@ -247,7 +247,7 @@ export default function PlayerPage() {
                   <p className="text-sm text-green-600 dark:text-green-400">Dinlemek için tıklayın</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setAudioNotification(null);
@@ -258,7 +258,7 @@ export default function PlayerPage() {
               </button>
             </div>
           )}
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Chapter List - Left Sidebar */}
             <div className="lg:col-span-1 order-2 lg:order-1">
@@ -269,30 +269,28 @@ export default function PlayerPage() {
                   </h2>
                   <p className="text-sm text-gray-500">{itemDetails.chapters.length} bölüm</p>
                 </div>
-                
+
                 <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-[60vh] overflow-y-auto">
                   {itemDetails.chapters.map((chapter) => {
                     const state = chapterStates[chapter.id];
                     const isActive = chapter.index === activeChapterIndex;
-                    
+
                     return (
                       <button
                         key={chapter.id}
                         onClick={() => handlePlayChapter(chapter)}
                         disabled={state?.status === 'generating'}
-                        className={`w-full p-4 text-left flex items-center gap-3 transition-colors ${
-                          isActive 
-                            ? 'bg-blue-50 dark:bg-blue-900/20' 
-                            : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                        }`}
+                        className={`w-full p-4 text-left flex items-center gap-3 transition-colors ${isActive
+                          ? 'bg-blue-50 dark:bg-blue-900/20'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                          } `}
                       >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          state?.status === 'ready' 
-                            ? 'bg-green-100 text-green-600 dark:bg-green-900/30' 
-                            : state?.status === 'generating'
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${state?.status === 'ready'
+                          ? 'bg-green-100 text-green-600 dark:bg-green-900/30'
+                          : state?.status === 'generating'
                             ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
                             : 'bg-gray-100 text-gray-500 dark:bg-gray-700'
-                        }`}>
+                          } `}>
                           {state?.status === 'generating' ? (
                             <Loader2 size={16} className="animate-spin" />
                           ) : state?.status === 'ready' ? (
@@ -301,11 +299,10 @@ export default function PlayerPage() {
                             <Play size={14} className="ml-0.5" />
                           )}
                         </div>
-                        
+
                         <div className="flex-1 min-w-0">
-                          <p className={`font-medium truncate ${
-                            isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'
-                          }`}>
+                          <p className={`font-medium truncate ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'
+                            } `}>
                             {chapter.title}
                           </p>
                           <p className="text-xs text-gray-500 truncate">
@@ -316,7 +313,7 @@ export default function PlayerPage() {
                         {isActive && isPlaying && (
                           <Volume2 size={16} className="text-blue-500 animate-pulse" />
                         )}
-                        
+
                         <ChevronRight size={16} className="text-gray-400" />
                       </button>
                     );

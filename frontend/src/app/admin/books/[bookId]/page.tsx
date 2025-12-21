@@ -51,7 +51,11 @@ const ALL_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 export default function BookDetailsPage() {
     const router = useRouter();
     const params = useParams();
+<<<<<<< HEAD
     const bookId = typeof params?.bookId === 'string' ? params.bookId : null;
+=======
+    const bookId = params?.bookId;
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
 
     const [book, setBook] = useState<BookDetails | null>(null);
     const [loading, setLoading] = useState(true);
@@ -453,8 +457,8 @@ export default function BookDetailsPage() {
                                                                 size="sm"
                                                                 disabled={isGenerating}
                                                                 className={`h-8 text-xs transition-all ${hasAudio
-                                                                        ? (isThisPlaying ? 'bg-indigo-600 hover:bg-indigo-700 animate-pulse' : 'bg-green-600 hover:bg-green-700')
-                                                                        : 'text-slate-500 border-slate-200 bg-slate-50'
+                                                                    ? (isThisPlaying ? 'bg-indigo-600 hover:bg-indigo-700 animate-pulse' : 'bg-green-600 hover:bg-green-700')
+                                                                    : 'text-slate-500 border-slate-200 bg-slate-50'
                                                                     }`}
                                                                 onClick={() => handleAudioClick(chapter.id, level, hasAudio)}
                                                             >

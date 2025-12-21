@@ -1,4 +1,4 @@
-import { API_BASE_URL, createHeaders, getToken, ApiResponse } from './api';
+import { API_BASE_URL, createHeaders, ApiResponse } from './api';
 
 // Types
 export interface Content {
@@ -35,12 +35,12 @@ export const getAllContent = async (): Promise<ApiResponse<Content[]>> => {
     const response = await fetch(`${API_BASE_URL}/content`, {
       headers: createHeaders()
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to get content list');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Get all content error:', error);
@@ -54,12 +54,12 @@ export const getContentById = async (contentId: string): Promise<ApiResponse<Con
     const response = await fetch(`${API_BASE_URL}/content/${contentId}`, {
       headers: createHeaders()
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to get content');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Get content error:', error);
@@ -75,12 +75,12 @@ export const createContent = async (contentData: ContentCreateParams): Promise<A
       headers: createHeaders(),
       body: JSON.stringify(contentData)
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to create content');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Create content error:', error);
@@ -96,12 +96,12 @@ export const updateContent = async (contentId: string, contentData: ContentUpdat
       headers: createHeaders(),
       body: JSON.stringify(contentData)
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to update content');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Update content error:', error);
@@ -116,12 +116,12 @@ export const deleteContent = async (contentId: string): Promise<ApiResponse> => 
       method: 'DELETE',
       headers: createHeaders()
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to delete content');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Delete content error:', error);
@@ -135,12 +135,12 @@ export const getUserContent = async (): Promise<ApiResponse<Content[]>> => {
     const response = await fetch(`${API_BASE_URL}/content/user`, {
       headers: createHeaders()
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to get user content');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Get user content error:', error);
@@ -160,12 +160,12 @@ export const processTextContent = async (text: string, level: string, voice: str
         voice
       })
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to process text');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Process text error:', error);
@@ -186,12 +186,12 @@ export const processExternalLink = async (url: string, type: string, level: stri
         voice
       })
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || `Failed to process ${type} link`);
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error(`Process ${type} link error:`, error);
@@ -205,12 +205,12 @@ export const getAllContentAdmin = async (): Promise<ApiResponse<Content[]>> => {
     const response = await fetch(`${API_BASE_URL}/admin/content`, {
       headers: createHeaders()
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to get all content');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Get all content (admin) error:', error);
@@ -225,12 +225,12 @@ export const deleteContentAdmin = async (contentId: string): Promise<ApiResponse
       method: 'DELETE',
       headers: createHeaders()
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to delete content');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Delete content (admin) error:', error);

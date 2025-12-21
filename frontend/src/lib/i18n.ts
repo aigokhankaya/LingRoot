@@ -228,7 +228,7 @@ export const translations: Translations = {
     topics_node_status_listened: 'Dinlendi',
     topics_node_status_audio_ready: 'Ses hazır',
     topics_node_status_no_audio: 'Ses yok',
-    topics_node_button_audio_creating: 'Ses Oluşturuluyor...',
+    topics_node_button_audio_creating: 'İçeriğiniz Hazırlanıyor...',
     topics_node_button_listen: 'Dinle',
     topics_node_button_create_audio: 'Ses Oluştur',
     topics_node_button_suggest_subtopic: 'Alt Konu Öner',
@@ -2581,7 +2581,7 @@ export const translations: Translations = {
     landing_demo_title: "Same Content, Your Level",
     landing_demo_desc: "Choose your level and see how the content changes. Improve your English by listening at the level you prefer.",
     landing_demo_select: "Select Your Level and See the Difference",
-    landing_demo_original: "Original Content (C2)",
+    landing_demo_original: "Original Content",
     landing_demo_your: "Your Level",
     landing_demo_try: "Try Your Own Content",
     landing_demo_level0: "LingRoot changes the content you like to your English level. It reads the content to you. You listen and practice English. English becomes part of your life.",
@@ -2606,8 +2606,8 @@ export const translations: Translations = {
     landing_features_desc: "LingRoot takes the English learning experience to a completely different level.",
     landing_features_item1_title: "Real Content",
     landing_features_item1_desc: "Learn with real-life videos and articles, not textbooks",
-    landing_features_item2_title: "Personalized Experience",
-    landing_features_item2_desc: "Content specially prepared according to your level and interests",
+    landing_features_item2_title: "LiRo: Your Personal Assistant",
+    landing_features_item2_desc: "Just tell it what you want to learn. LiRo finds the most engaging content for you, prepares it according to your level, and tracks your progress.",
     landing_features_item3_title: "Learn Just by Listening",
     landing_features_item3_desc: "Passive learning with quality narration, subtitles, and repetition features",
     landing_features_item4_title: "No Extra Time Required",
@@ -3789,7 +3789,7 @@ export const translations: Translations = {
     landing_demo_desc:
       "Wähle dein Niveau und sieh, wie sich derselbe Text verändert. Verbessere dein Englisch, indem du auf deinem Level zuhörst.",
     landing_demo_select: "Wähle dein Niveau und entdecke den Unterschied",
-    landing_demo_original: "Originalinhalt (C2)",
+    landing_demo_original: "Originalinhalt",
     landing_demo_your: "Dein Niveau",
     landing_demo_try: "Probiere deinen eigenen Inhalt",
     landing_demo_level0:
@@ -3827,9 +3827,9 @@ export const translations: Translations = {
     landing_features_item1_title: "Echte Inhalte",
     landing_features_item1_desc:
       "Lerne mit Videos und Artikeln aus dem echten Leben statt nur mit Lehrbüchern.",
-    landing_features_item2_title: "Personalisierte Erfahrung",
+    landing_features_item2_title: "LiRo: Dein persönlicher Assistent",
     landing_features_item2_desc:
-      "Inhalte, die speziell auf dein Niveau und deine Interessen abgestimmt sind.",
+      "Sag einfach, was du lernen möchtest. LiRo findet die interessantesten Inhalte für dich, bereitet sie auf dein Niveau vor und verfolgt deinen Fortschritt.",
     landing_features_item3_title: "Nur durchs Zuhören lernen",
     landing_features_item3_desc:
       "Passives Lernen mit hochwertiger Vertonung, Untertiteln und Wiederholungsfunktionen.",
@@ -3936,6 +3936,10 @@ export const translations: Translations = {
 
     // Footer / Navigation
     contact_us: 'Kontakt aufnehmen',
+<<<<<<< HEAD
+=======
+
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
     legal_documents: 'Rechtliche Dokumente',
 
     // Welcome – üst bölüm
@@ -4635,8 +4639,8 @@ export const useTranslation = (localeOverride?: Locale) => {
 
   const { t, currentLocale } = getTranslation(effectiveLocale);
 
-  // Use useCallback for performance optimization within the hook context
-  const memoizedT = useCallback(t, [currentLocale]);
+  // No need for useCallback here as t is recreated on every render via getTranslation
+  const memoizedT = t;
 
   return { t: memoizedT, currentLocale };
 };

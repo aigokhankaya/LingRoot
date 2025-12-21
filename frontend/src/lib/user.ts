@@ -1,4 +1,4 @@
-import { API_BASE_URL, createHeaders, getToken, ApiResponse } from './api';
+import { API_BASE_URL, createHeaders, ApiResponse } from './api';
 
 // Types
 export interface User {
@@ -31,12 +31,12 @@ export const getAllUsers = async (): Promise<ApiResponse<User[]>> => {
     const response = await fetch(`${API_BASE_URL}/admin/users`, {
       headers: createHeaders()
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to get users');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Get all users error:', error);
@@ -50,12 +50,12 @@ export const getUserById = async (userId: string): Promise<ApiResponse<User>> =>
     const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
       headers: createHeaders()
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to get user');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Get user error:', error);
@@ -69,12 +69,12 @@ export const getCurrentUserProfile = async (): Promise<ApiResponse<User>> => {
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
       headers: createHeaders()
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to get profile');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Get profile error:', error);
@@ -90,12 +90,12 @@ export const updateUserProfile = async (profileData: UserProfile): Promise<ApiRe
       headers: createHeaders(),
       body: JSON.stringify(profileData)
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to update profile');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Update profile error:', error);
@@ -114,12 +114,12 @@ export const changePassword = async (currentPassword: string, newPassword: strin
         newPassword
       })
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to change password');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Change password error:', error);
@@ -135,12 +135,12 @@ export const requestPasswordReset = async (email: string): Promise<ApiResponse> 
       headers: createHeaders(),
       body: JSON.stringify({ email })
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to request password reset');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Request password reset error:', error);
@@ -159,12 +159,12 @@ export const resetPassword = async (token: string, newPassword: string): Promise
         newPassword
       })
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to reset password');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Reset password error:', error);
@@ -180,12 +180,12 @@ export const updateUserRole = async (userId: string, role: string): Promise<ApiR
       headers: createHeaders(),
       body: JSON.stringify({ role })
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to update user role');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Update user role error:', error);
@@ -200,12 +200,12 @@ export const deleteUserAdmin = async (userId: string): Promise<ApiResponse> => {
       method: 'DELETE',
       headers: createHeaders()
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to delete user');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Delete user (admin) error:', error);

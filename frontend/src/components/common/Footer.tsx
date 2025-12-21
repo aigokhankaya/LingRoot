@@ -5,8 +5,8 @@ const footerSections = [
     title: 'Hakkında (About)',
     content: (
       <>
-        <b>Dil Öğrenimini Rutinlerine Kat: LingRoot'un Hikayesi</b><br />
-        LingRoot, geleneksel dil öğrenme yöntemlerine alternatif olarak geliştirilmiş, yapay zeka destekli bir dil edinim platformudur. Amacımız, kullanıcıların zaten günlük yaşamlarında tükettiği içerikleri — YouTube videoları, podcast'ler, haberler, kitaplar gibi — onların İngilizce seviyelerine göre dönüştürerek kişiselleştirilmiş bir öğrenme deneyimi sunmak.<br /><br />
+        <b>Dil Öğrenimini Rutinlerine Kat: LingRoot&apos;un Hikayesi</b><br />
+        LingRoot, geleneksel dil öğrenme yöntemlerine alternatif olarak geliştirilmiş, yapay zeka destekli bir dil edinim platformudur. Amacımız, kullanıcıların zaten günlük yaşamlarında tükettiği içerikleri — YouTube videoları, podcast&apos;ler, haberler, kitaplar gibi — onların İngilizce seviyelerine göre dönüştürerek kişiselleştirilmiş bir öğrenme deneyimi sunmak.<br /><br />
         İngilizce öğrenen bireylerin yaşadığı en büyük sorunlardan biri, ilgilerini çeken içerikleri seviyelerine uygun şekilde bulamamalarıdır. LingRoot bu boşluğu doldurur: Seviyene göre hazırlanmış metin ve ses dosyaları sayesinde sıkılmadan, motive olarak ve doğal şekilde İngilizce öğrenebilirsin.<br /><br />
         Bu platform; eğitici değil, dönüştürücüdür. Sevdiğin içerikleri senin seviyene indirir, öğrenmeyi keyifli hale getirir.
       </>
@@ -30,7 +30,7 @@ const footerSections = [
       <>
         <b>Kişisel Verilerinize Saygılıyız</b><br />
         LingRoot, kullanıcılarının gizliliğini ve veri güvenliğini en üst düzeyde korumayı taahhüt eder. Platformu kullanırken bize sağladığınız bilgiler (e-posta adresiniz, içerik geçmişiniz gibi) hiçbir şekilde üçüncü taraflarla paylaşılmaz.<br /><br />
-        Veri işlemleri, Avrupa Birliği Genel Veri Koruma Tüzüğü (GDPR) ve Türkiye'deki KVKK hükümlerine uygundur.<br /><br />
+        Veri işlemleri, Avrupa Birliği Genel Veri Koruma Tüzüğü (GDPR) ve Türkiye&apos;deki KVKK hükümlerine uygundur.<br /><br />
         Kullanıcılar, diledikleri zaman verilerini silebilir veya hesaplarını kapatarak sistemden tamamen ayrılabilirler.
       </>
     ),
@@ -40,7 +40,7 @@ const footerSections = [
     content: (
       <>
         <b>Platform Kullanım Kuralları</b><br />
-        LingRoot'a erişerek, aşağıdaki şartları kabul etmiş sayılırsınız:<br /><br />
+        LingRoot&apos;a erişerek, aşağıdaki şartları kabul etmiş sayılırsınız:<br /><br />
         Platform yalnızca kişisel öğrenme amaçlı kullanılabilir.<br />
         Yasadışı, nefret söylemi içeren veya telif hakkı ihlali oluşturan içerikler yüklenemez.<br />
         Hesabınızın güvenliğinden siz sorumlusunuz. Şüpheli girişlerde destek ekibimize bildirmeniz beklenir.<br />
@@ -66,7 +66,7 @@ const footerSections = [
     content: (
       <>
         <b>Yazıyı İngilizce Ses Dosyasına Dönüştür</b><br />
-        Yazdığınız herhangi bir metni, seçtiğiniz İngilizce seviyeye uygun şekilde seslendirin. LingRoot, metni önce İngilizce'ye çevirir, ardından CEFR (A1–C2) düzeyinde sadeleştirerek yüksek kaliteli bir ses dosyası oluşturur.<br /><br />
+        Yazdığınız herhangi bir metni, seçtiğiniz İngilizce seviyeye uygun şekilde seslendirin. LingRoot, metni önce İngilizce&apos;ye çevirir, ardından CEFR (A1–C2) düzeyinde sadeleştirerek yüksek kaliteli bir ses dosyası oluşturur.<br /><br />
         <b>Özellikler:</b><br />
         A1–C2 arası seviye seçimi<br />
         Doğal sesler (Google TTS veya Amazon Polly destekli)<br />
@@ -76,6 +76,22 @@ const footerSections = [
     ),
   },
   {
+<<<<<<< HEAD
+=======
+    title: 'Telaffuz (Pronunciation)',
+    content: (
+      <>
+        <b>Telaffuzunu Geliştir</b><br />
+        LingRoot&apos;un telaffuz egzersizleriyle konuşma becerilerinizi geliştirebilirsiniz. Sistem, seçtiğiniz kelimeleri veya cümleleri sizin seviyenize uygun şekilde seslendirir. Siz de sesli tekrar ederek uygulamalı öğrenme sürecine katılırsınız.<br /><br />
+        <b>Özellikler:</b><br />
+        Dinle → Tekrar et → Kaydet modeline dayalı egzersizler<br />
+        Otomatik örnek cümle üretimi<br />
+        Seviye bazlı yapılandırma
+      </>
+    ),
+  },
+  {
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
     title: 'Kelime Hazinesi (Vocabulary)',
 
     content: (
@@ -84,8 +100,13 @@ const footerSections = [
         LingRoot, öğrenmekte olduğunuz kelimeleri kaydedip listelemenize imkân tanır. Bu özellik sayesinde kendi kişisel kelime defterinizi oluşturabilir, tekrar sıklığını ayarlayabilir ve gelişiminizi izleyebilirsiniz.<br /><br />
         <b>Özellikler:</b><br />
         Kelime ekle, sil, kategoriye ayır<br />
+<<<<<<< HEAD
         Kelimelerin telaffuzunu dinleme<br />
         Sık tekrar edilen kelimeler için "öncelik" sistemi
+=======
+        Telaffuzla birlikte sesli tekrar<br />
+        Sık tekrar edilen kelimeler için &quot;öncelik&quot; sistemi
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
       </>
     ),
   },

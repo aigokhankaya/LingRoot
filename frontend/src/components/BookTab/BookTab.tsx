@@ -280,16 +280,26 @@ export default function BookTab() {
 
     const state = chapterAudioStates[chapter.id];
 
+    // Her durumda chapter'ı genişlet (kitap görünümü ve player alanını aç)
+    setExpandedChapterId(chapter.id);
+
     if (state?.status === 'ready' && state.mp3_url) {
-      // Audio already exists - expand and allow playing
-      setExpandedChapterId(chapter.id);
-      setCurrentAudioUrl(state.mp3_url);
-      setIsPlaying(true);
+      // Audio already exists - toggle play/pause
+      if (selectedChapter?.id === chapter.id && isPlaying) {
+        // Aynı chapter çalıyorsa durdur
+        setIsPlaying(false);
+      } else {
+        // Farklı chapter veya durmuşsa oynat
+        setCurrentAudioUrl(state.mp3_url);
+        setIsPlaying(true);
+      }
     } else {
-      // Generate new audio - don't auto-play, show notification
+      // Generate new audio - chapter is already expanded, start generation
       const audioUrl = await generateChapterAudio(chapter);
       if (audioUrl) {
-        // Show notification instead of auto-playing
+        // After generation completes, set audio url but don't auto-play
+        setCurrentAudioUrl(audioUrl);
+        // Show notification
         setAudioNotification({
           chapterId: chapter.id,
           message: 'Seslendirme tamamlandı'
@@ -489,8 +499,8 @@ export default function BookTab() {
                       key={l.id}
                       onClick={() => setLevel(l.id)}
                       className={`relative px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 border overflow-hidden group ${isSelected
-                          ? 'text-white border-transparent shadow-md transform scale-105'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        ? 'text-white border-transparent shadow-md transform scale-105'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                     >
                       {isSelected && (
@@ -549,18 +559,18 @@ export default function BookTab() {
                             <i className="fas fa-book-open text-3xl text-primary/60"></i>
                           </div>
                         )}
-                        {/* Favorite button */}
+                        {/* Favorite button - Clean heart design like Instagram/Netflix */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleFavorite(book.id, book);
                           }}
-                          className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${favoriteIds.includes(book.id)
-                            ? 'bg-red-500 text-white'
-                            : 'bg-white/80 text-gray-500 hover:bg-red-100 hover:text-red-500'
-                            }`}
+                          className="absolute top-3 right-3 z-10 transition-all duration-300 transform hover:scale-125 active:scale-95"
                         >
-                          <i className={`fas fa-heart ${favoriteIds.includes(book.id) ? '' : 'far'}`}></i>
+                          <i className={`text-2xl drop-shadow-lg transition-all duration-300 ${favoriteIds.includes(book.id)
+                            ? 'fas fa-heart text-red-500'
+                            : 'far fa-heart text-white hover:text-red-400'
+                            }`} style={{ textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}></i>
                         </button>
                       </div>
                       <div className="p-4 flex-1 flex flex-col">
@@ -623,15 +633,15 @@ export default function BookTab() {
                             <i className="fas fa-book-open text-3xl text-primary/60"></i>
                           </div>
                         )}
-                        {/* Favorite button */}
+                        {/* Favorite button - Clean heart design like Instagram/Netflix */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleFavorite(book.id, book);
                           }}
-                          className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center bg-red-500 text-white"
+                          className="absolute top-3 right-3 z-10 transition-all duration-300 transform hover:scale-125 active:scale-95"
                         >
-                          <i className="fas fa-heart"></i>
+                          <i className="fas fa-heart text-2xl text-red-500 drop-shadow-lg" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}></i>
                         </button>
                       </div>
                       <div className="p-4 flex-1 flex flex-col">
@@ -734,12 +744,12 @@ export default function BookTab() {
                   </div>
                   <button
                     onClick={() => toggleFavorite(selectedBook.id)}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${favoriteIds.includes(selectedBook.id)
-                      ? 'bg-red-500 text-white'
-                      : 'bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-500'
-                      }`}
+                    className="p-2 transition-all duration-300 transform hover:scale-125 active:scale-95"
                   >
-                    <i className={`fas fa-heart text-lg`}></i>
+                    <i className={`text-2xl transition-all duration-300 ${favoriteIds.includes(selectedBook.id)
+                        ? 'fas fa-heart text-red-500'
+                        : 'far fa-heart text-gray-400 hover:text-red-500'
+                      }`}></i>
                   </button>
                 </div>
                 <div className="flex items-center gap-2 mt-3">
@@ -849,8 +859,8 @@ export default function BookTab() {
                               </>
                             ) : isCurrentlyPlaying ? (
                               <>
-                                <i className="fas fa-pause mr-1"></i>
-                                Durdur
+                                <i className="fas fa-headphones mr-1"></i>
+                                Dinle
                               </>
                             ) : isReady ? (
                               <>

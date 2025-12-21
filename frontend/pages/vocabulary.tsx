@@ -519,7 +519,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
                               {word.example_sentence && (
                                 <div className="bg-gray-50 p-3 rounded-md text-sm mt-2">
                                   <p className="font-medium text-gray-700 mb-1">{t('vocab_example_sentence_label')}:</p>
-                                  <p className="italic text-gray-600">"{word.example_sentence}"</p>
+                                  <p className="italic text-gray-600">&quot;{word.example_sentence}&quot;</p>
                                 </div>
                               )}
                             </div>
@@ -532,7 +532,7 @@ export function VocabularyTabContent({ user }: { user: any }) {
                                     <i className="fas fa-quote-left text-blue-400 text-xs"></i>
                                     <p className="font-medium text-blue-800">{t('vocab_original_sentence_label')}</p>
                                   </div>
-                                  <p className="text-blue-900 mb-1">"{word.original_sentence}"</p>
+                                  <p className="text-blue-900 mb-1">&quot;{word.original_sentence}&quot;</p>
                                   <p className="text-xs text-blue-600/80">{t('vocab_original_sentence_desc')}</p>
                                 </div>
                               )}

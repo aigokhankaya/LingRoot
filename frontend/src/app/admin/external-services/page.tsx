@@ -43,7 +43,7 @@ export default function ExternalServicesPage() {
       setLoading(true);
       setError(null);
       const token = localStorage.getItem('lingroot_token');
-      
+
       const apiUrl = process.env.NODE_ENV === 'development'
         ? 'http://localhost:5001/api/external-services'
         : '/api/external-services';
@@ -79,7 +79,7 @@ export default function ExternalServicesPage() {
 
   const handleCreateOrUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const token = localStorage.getItem('lingroot_token');
       const apiUrl = process.env.NODE_ENV === 'development'
@@ -232,7 +232,7 @@ export default function ExternalServicesPage() {
               <p className="font-medium">Hata oluştu:</p>
               <p className="text-sm mt-1">{error}</p>
               <p className="text-sm mt-2 text-red-600">
-                <strong>Çözüm:</strong> Backend'de migration çalıştırın: <code className="bg-red-100 px-2 py-1 rounded">npm run migrate:external-services</code>
+                <strong>Çözüm:</strong> Backend&apos;de migration çalıştırın: <code className="bg-red-100 px-2 py-1 rounded">npm run migrate:external-services</code>
               </p>
             </div>
           </div>
@@ -272,7 +272,7 @@ export default function ExternalServicesPage() {
                     </p>
                     <p className="text-xs text-gray-400 bg-yellow-50 border border-yellow-200 rounded px-3 py-2">
                       <i className="fas fa-info-circle mr-1"></i>
-                      Migration çalıştırılmamış olabilir. Backend'de: <code className="bg-yellow-100 px-2 py-1 rounded">npm run migrate:external-services</code>
+                      Migration çalıştırılmamış olabilir. Backend&apos;de: <code className="bg-yellow-100 px-2 py-1 rounded">npm run migrate:external-services</code>
                     </p>
                   </div>
                 </td>
@@ -299,11 +299,10 @@ export default function ExternalServicesPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
                       onClick={() => handleToggleStatus(service.id)}
-                      className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        service.is_active
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
+                      className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${service.is_active
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                        }`}
                     >
                       {service.is_active ? 'Aktif' : 'Pasif'}
                     </button>
@@ -336,7 +335,7 @@ export default function ExternalServicesPage() {
             <h2 className="text-2xl font-bold mb-6">
               {editingService ? 'Servisi Düzenle' : 'Yeni Servis Ekle'}
             </h2>
-            
+
             <form onSubmit={handleCreateOrUpdate} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

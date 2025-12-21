@@ -22,16 +22,16 @@ export default function PaymentEnvironmentSelector() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-      
+
       const response = await fetch('/api/admin/payment-environment', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token || ''}`,
         }
       });
-      
+
       const data = await response.json();
 
       if (response.ok && data.success) {
@@ -55,7 +55,7 @@ export default function PaymentEnvironmentSelector() {
       setSuccess(null);
 
       const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
-      
+
       const response = await fetch('/api/admin/payment-environment', {
         method: 'PUT',
         headers: {
@@ -70,7 +70,7 @@ export default function PaymentEnvironmentSelector() {
       if (response.ok && data.success) {
         setCurrentEnvironment(newEnvironment);
         setSuccess(`Ödeme ortamı başarıyla ${newEnvironment === 'production' ? 'Production' : 'Test'} moduna geçirildi`);
-        
+
         // Clear success message after 5 seconds
         setTimeout(() => setSuccess(null), 5000);
       } else {
@@ -124,17 +124,17 @@ export default function PaymentEnvironmentSelector() {
           <div>
             <p className="text-sm font-medium text-gray-700">Mevcut Ödeme Ortamı</p>
             <div className="flex items-center mt-1 space-x-2">
-              <Badge 
-                className={currentEnvironment === 'production' 
-                  ? 'bg-green-100 text-green-800 hover:bg-green-100' 
+              <Badge
+                className={currentEnvironment === 'production'
+                  ? 'bg-green-100 text-green-800 hover:bg-green-100'
                   : 'bg-orange-100 text-orange-800 hover:bg-orange-100'
                 }
               >
                 {currentEnvironment === 'production' ? '🟢 PRODUCTION' : '🟠 TEST'}
               </Badge>
               <span className="text-sm text-gray-600">
-                {currentEnvironment === 'production' 
-                  ? '(Google Play API süreleri aynen kullanılır)' 
+                {currentEnvironment === 'production'
+                  ? '(Google Play API süreleri aynen kullanılır)'
                   : '(Google Play API süresine +1 ay eklenir)'}
               </span>
             </div>
@@ -150,7 +150,7 @@ export default function PaymentEnvironmentSelector() {
               )}
             </div>
             <p className="text-sm text-gray-600 mb-3">
-              Google Play API'den gelen abonelik bitiş tarihi aynen kullanılır.
+              Google Play API&apos;den gelen abonelik bitiş tarihi aynen kullanılır.
             </p>
             <ul className="text-xs text-gray-500 space-y-1 mb-4">
               <li>✓ Gerçek abonelik süreleri</li>
@@ -162,7 +162,7 @@ export default function PaymentEnvironmentSelector() {
               disabled={currentEnvironment === 'production' || updating}
               className="w-full bg-green-600 hover:bg-green-700"
             >
-              {updating ? 'Güncelleniyor...' : 'Production\'a Geç'}
+              {updating ? 'Güncelleniyor...' : 'Production&apos;a Geç'}
             </Button>
           </div>
 
@@ -174,7 +174,7 @@ export default function PaymentEnvironmentSelector() {
               )}
             </div>
             <p className="text-sm text-gray-600 mb-3">
-              Google Play API'den gelen süreye +1 ay eklenir (test abonelikleri için).
+              Google Play API&apos;den gelen süreye +1 ay eklenir (test abonelikleri için).
             </p>
             <ul className="text-xs text-gray-500 space-y-1 mb-4">
               <li>✓ Test abonelikleri için</li>
@@ -186,14 +186,14 @@ export default function PaymentEnvironmentSelector() {
               disabled={currentEnvironment === 'test' || updating}
               className="w-full bg-orange-600 hover:bg-orange-700"
             >
-              {updating ? 'Güncelleniyor...' : 'Test\'e Geç'}
+              {updating ? 'Güncelleniyor...' : 'Test&apos;e Geç'}
             </Button>
           </div>
         </div>
 
         <div className="bg-primary/5 border border-primary/20 rounded-md p-3">
           <p className="text-sm text-primary">
-            <strong>Not:</strong> Test modunda Google Play'in 5 dakikalık test abonelikleri 1 ay boyunca aktif kalır. 
+            <strong>Not:</strong> Test modunda Google Play&apos;in 5 dakikalık test abonelikleri 1 ay boyunca aktif kalır.
             Production modunda gerçek abonelik süreleri kullanılır.
           </p>
         </div>

@@ -130,7 +130,7 @@ export default function BookUploadPage() {
                 <div className="flex items-center space-x-4 mb-6">
                     <Button variant="ghost" size="sm" onClick={() => router.push('/admin/dashboard')} className="text-slate-600 hover:text-slate-900">
                         <ArrowLeft className="w-4 h-4 mr-2" />
-                        Dashboard'a Dön
+                        Dashboard&apos;a Dön
                     </Button>
                     <h1 className="text-3xl font-bold text-slate-900">Yeni Kitap Ekle</h1>
                 </div>

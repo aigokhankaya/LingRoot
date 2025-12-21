@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Link from "next/link";
 import { useTranslation } from '../lib/i18n';
 
 interface PlanRequiredProps {
@@ -62,14 +63,14 @@ const PlanRequired: React.FC<PlanRequiredProps> = ({ message, onClose, isOpen = 
         </p>
         <div className="flex gap-3 justify-center">
           {/* Pure anchor to avoid popup blockers and JS interception */}
-          <a
+          <Link
             href="/dashboard?tab=paket-bilgilerim"
             target="_self"
             rel="noopener noreferrer"
             className="px-6 py-2 rounded bg-indigo-600 text-white font-medium hover:bg-indigo-700 inline-block text-center"
           >
             {t('plan_required_button_ok')}
-          </a>
+          </Link>
         </div>
       </div>
     </div>

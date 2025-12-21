@@ -266,7 +266,11 @@ const Welcome: React.FC = () => {
     } catch { }
   }, []);
 
+<<<<<<< HEAD
   // Auth check and redirect for unauthenticated users
+=======
+  // Auth guard: Giriş yapılmadıysa login sayfasına yönlendir
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !user)) {
       const target = typeof window !== 'undefined' ? window.location.pathname + window.location.search + window.location.hash : '/welcome';
@@ -1356,10 +1360,16 @@ const Welcome: React.FC = () => {
 
     try {
       const response = await getTopicDetailSuggestions(selectedInterest, englishLevel);
+<<<<<<< HEAD
       const suggestions = response.data?.suggestions;
       if (response.success && Array.isArray(suggestions) && suggestions.length > 0) {
         setTopicDetailSuggestions(suggestions);
         console.log(`${selectedInterest} konusu için ${suggestions.length} öneri alındı`);
+=======
+      if (response.success && response.data?.suggestions) {
+        setTopicDetailSuggestions(response.data.suggestions);
+        console.log(`${selectedInterest} konusu için ${response.data.suggestions.length} öneri alındı`);
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
       } else {
         console.error("Konu önerileri alınamadı:", response);
         setError(t('welcome_error_topic_suggestions').replace('{error}', response.message || t('welcome_error_unknown')));
@@ -1991,7 +2001,12 @@ const Welcome: React.FC = () => {
     );
   }
 
+<<<<<<< HEAD
   // Auth tamamlandıktan sonra user kontrolü - Yönlendirme sırasında loading göster
+=======
+  // Auth tamamlandıktan sonra user kontrolü
+  // Auth tamamlandıktan sonra user kontrolü
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
   if (!isAuthenticated || !user) {
     return (
       <main className="min-h-screen flex items-center justify-center">
@@ -3570,16 +3585,12 @@ const Welcome: React.FC = () => {
                               {t('welcome_plan_info_message')}
                             </p>
                             <div className="flex items-center mt-3">
-                              <a
+                              <Link
                                 href="/fiyatlandirma"
                                 className="text-primary hover:text-primary/80 text-sm"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  router.push('/fiyatlandirma');
-                                }}
                               >
                                 {t('welcome_compare_all_plans')}
-                              </a>
+                              </Link>
                             </div>
                           </>
                         ) : (
@@ -3609,16 +3620,12 @@ const Welcome: React.FC = () => {
                                 <i className="fas fa-crown text-yellow-500 mr-2"></i>
                                 {t('welcome_upgrade_to_premium')}
                               </Button>
-                              <a
+                              <Link
                                 href="/fiyatlandirma"
                                 className="text-primary hover:text-primary/80 text-sm"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  router.push('/fiyatlandirma');
-                                }}
                               >
                                 {t('welcome_compare_all_plans')}
-                              </a>
+                              </Link>
                             </div>
                           </div>
                         )}
@@ -3754,11 +3761,11 @@ const Welcome: React.FC = () => {
                     {historyToRender.map((item) => (
                       <div
                         key={item.id}
-                        className="bg-white rounded-xl border border-gray-200 hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden"
+                        className="bg-white rounded-lg border border-gray-200 hover:border-primary/40 hover:shadow-sm transition-all duration-200 overflow-hidden"
                       >
                         {/* Compact Header - Always Visible */}
                         <div
-                          className="p-4 md:p-5 cursor-pointer hover:bg-primary/5 transition-colors"
+                          className="px-3 py-2.5 cursor-pointer hover:bg-primary/5 transition-colors"
                           onClick={() => {
                             console.log('🎯 [HISTORY DEBUG] Item clicked:', {
                               itemId: item.id,
@@ -3771,16 +3778,16 @@ const Welcome: React.FC = () => {
                             setExpandedHistoryItem(expandedHistoryItem === item.id ? null : item.id);
                           }}
                         >
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2 text-xs">
-                                <Badge variant="outline" className="text-xs">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 text-xs">
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                                   {getHistoryTypeLabel(item.input_type)}
                                 </Badge>
-                                <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-primary/5 text-primary border-primary/20">
                                   {item.level || 'N/A'}
                                 </Badge>
-                                <span className="text-xs text-gray-500">
+                                <span className="text-[10px] text-gray-400">
                                   {new Date(item.created_at).toLocaleDateString('tr-TR', {
                                     year: 'numeric',
                                     month: 'short',
@@ -3790,29 +3797,22 @@ const Welcome: React.FC = () => {
                                   })}
                                 </span>
                               </div>
-                              <div className="mb-3">
-                                <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">{t('welcome_adapted_text_label')}</h4>
-                                <p className="text-sm text-gray-700 line-clamp-2">
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-xs font-medium text-gray-600 whitespace-nowrap">{t('welcome_adapted_text_label')}</span>
+                                <p className="text-sm text-gray-800 truncate">
                                   {item.adapted_text || item.input}
                                 </p>
-                                {item.adapted_text && (
-                                  <details className="mt-2">
-                                    <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
-                                      {t('welcome_show_original_text')}
-                                    </summary>
-                                    <p className="text-xs text-gray-500 mt-1 p-2 bg-gray-100 rounded">
-                                      {item.input}
-                                    </p>
-                                  </details>
-                                )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <div className="text-xs text-gray-500">
-                                {expandedHistoryItem === item.id ? t('collapse_button') : t('open_player_button')}
-                              </div>
-                              <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
-                            </div>
+                            <button
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${expandedHistoryItem === item.id
+                                  ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                  : 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-sm hover:shadow-md hover:scale-105'
+                                }`}
+                            >
+                              <i className={`fas ${expandedHistoryItem === item.id ? 'fa-times' : 'fa-play'} text-[10px]`}></i>
+                              <span>{expandedHistoryItem === item.id ? t('collapse_button') : t('open_player_button')}</span>
+                            </button>
                           </div>
                         </div>
 

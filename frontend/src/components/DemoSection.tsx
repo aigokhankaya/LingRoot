@@ -12,7 +12,7 @@ const DemoSection: React.FC = () => {
 
       <div className="bg-gray-100 rounded-2xl p-8 max-w-xl mx-auto shadow-md">
         <p className="text-gray-700 mb-4">
-          "In this video, we explore how coffee affects your brain and what neuroscientists say about your daily cup."
+          &quot;In this video, we explore how coffee affects your brain and what neuroscientists say about your daily cup.&quot;
         </p>
 
         <audio controls className="w-full rounded-xl">

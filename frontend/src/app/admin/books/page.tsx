@@ -351,7 +351,7 @@ export default function BooksPage() {
                                         <td className="px-6 py-4">
                                             <div className="w-12 h-16 bg-slate-100 rounded overflow-hidden border border-slate-200">
                                                 {book.cover_url ? (
-                                                    <img src={book.cover_url} className="w-full h-full object-cover" />
+                                                    <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center text-slate-300">
                                                         <BookOpen className="w-6 h-6" />
