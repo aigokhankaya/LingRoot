@@ -5,7 +5,7 @@ import { getApiUrl } from '../src/lib/api';
 import { useTranslation } from '../src/lib/i18n';
 import Link from 'next/link';
 
-import Link from 'next/link';
+
 
 export default function VerifyPage() {
   const router = useRouter();
@@ -52,7 +52,7 @@ export default function VerifyPage() {
       <Head>
         <title>{t('verify_title')} - LingRoot</title>
       </Head>
-<<<<<<< HEAD
+
       <div className="min-h-screen flex flex-col bg-background">
         <header className="w-full flex justify-center items-center py-8">
           <Link href="/" className="flex items-center space-x-4 cursor-pointer hover:opacity-80 transition-opacity">
@@ -122,35 +122,7 @@ export default function VerifyPage() {
             )}
           </div>
         </main>
-=======
-      <div style={{
-        minHeight: '60vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem',
-        textAlign: 'center'
-      }}>
-        <div>
-          <h1 style={{ marginBottom: '1rem' }}>{t('verify_title')}</h1>
-          {status === 'loading' && <p>{message}</p>}
-          {status === 'success' && (
-            <>
-              <p style={{ color: 'green' }}>{message}</p>
-              <p><Link href="/login">{t('verify_success_link')}</Link></p>
-            </>
-          )}
-          {status === 'error' && (
-            <>
-              <p style={{ color: 'crimson' }}>{message}</p>
-              <p>
-                {t('verify_error_expired')}
-              </p>
-            </>
-          )}
-          {status === 'idle' && <p>{t('verify_waiting')}</p>}
-        </div>
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
+
       </div>
     </>
   );

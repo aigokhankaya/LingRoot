@@ -51,11 +51,7 @@ const ALL_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 export default function BookDetailsPage() {
     const router = useRouter();
     const params = useParams();
-<<<<<<< HEAD
     const bookId = typeof params?.bookId === 'string' ? params.bookId : null;
-=======
-    const bookId = params?.bookId;
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
 
     const [book, setBook] = useState<BookDetails | null>(null);
     const [loading, setLoading] = useState(true);

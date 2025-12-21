@@ -266,11 +266,7 @@ const Welcome: React.FC = () => {
     } catch { }
   }, []);
 
-<<<<<<< HEAD
-  // Auth check and redirect for unauthenticated users
-=======
   // Auth guard: Giriş yapılmadıysa login sayfasına yönlendir
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !user)) {
       const target = typeof window !== 'undefined' ? window.location.pathname + window.location.search + window.location.hash : '/welcome';
@@ -600,7 +596,7 @@ const Welcome: React.FC = () => {
 
       console.log('🎙️ [PODCAST] Creating podcast with params:', params);
       const result = await createPodcast(params);
-      
+
       console.log('🎙️ [PODCAST] Raw result from createPodcast:', {
         success: result?.success,
         podcast_url: result?.podcast_url,
@@ -617,7 +613,7 @@ const Welcome: React.FC = () => {
         const topic = result.data?.metadata?.topic || podcastTopic;
         const transcriptText = result.transcript || result.message || topic;
         const dialogueText = result.dialogue || '';
-        
+
         console.log('🎙️ [PODCAST] Dialogue check:', {
           hasDialogue: !!result.dialogue,
           dialogueLength: result.dialogue?.length || 0,
@@ -1360,16 +1356,10 @@ const Welcome: React.FC = () => {
 
     try {
       const response = await getTopicDetailSuggestions(selectedInterest, englishLevel);
-<<<<<<< HEAD
       const suggestions = response.data?.suggestions;
       if (response.success && Array.isArray(suggestions) && suggestions.length > 0) {
         setTopicDetailSuggestions(suggestions);
         console.log(`${selectedInterest} konusu için ${suggestions.length} öneri alındı`);
-=======
-      if (response.success && response.data?.suggestions) {
-        setTopicDetailSuggestions(response.data.suggestions);
-        console.log(`${selectedInterest} konusu için ${response.data.suggestions.length} öneri alındı`);
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
       } else {
         console.error("Konu önerileri alınamadı:", response);
         setError(t('welcome_error_topic_suggestions').replace('{error}', response.message || t('welcome_error_unknown')));
@@ -2001,12 +1991,7 @@ const Welcome: React.FC = () => {
     );
   }
 
-<<<<<<< HEAD
-  // Auth tamamlandıktan sonra user kontrolü - Yönlendirme sırasında loading göster
-=======
   // Auth tamamlandıktan sonra user kontrolü
-  // Auth tamamlandıktan sonra user kontrolü
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
   if (!isAuthenticated || !user) {
     return (
       <main className="min-h-screen flex items-center justify-center">
@@ -3806,8 +3791,8 @@ const Welcome: React.FC = () => {
                             </div>
                             <button
                               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${expandedHistoryItem === item.id
-                                  ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                  : 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-sm hover:shadow-md hover:scale-105'
+                                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                : 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-sm hover:shadow-md hover:scale-105'
                                 }`}
                             >
                               <i className={`fas ${expandedHistoryItem === item.id ? 'fa-times' : 'fa-play'} text-[10px]`}></i>

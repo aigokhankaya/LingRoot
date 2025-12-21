@@ -3936,10 +3936,7 @@ export const translations: Translations = {
 
     // Footer / Navigation
     contact_us: 'Kontakt aufnehmen',
-<<<<<<< HEAD
-=======
 
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
     legal_documents: 'Rechtliche Dokumente',
 
     // Welcome – üst bölüm
