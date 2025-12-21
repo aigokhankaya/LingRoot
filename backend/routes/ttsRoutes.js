@@ -347,6 +347,16 @@ router.post("/create-podcast", authenticate, async (req, res) => {
     // Route to Google TTS multi-speaker (DEFAULT)
     if (ttsProvider !== 'n8n') {
       try {
+        const allowedGeminiModels = new Set(['gemini-2.5-flash-tts', 'gemini-2.5-pro-tts']);
+        const ttsModel = typeof body.ttsModel === 'string' ? body.ttsModel.trim() : '';
+        if (ttsModel && !allowedGeminiModels.has(ttsModel)) {
+          return res.status(400).json({
+            success: false,
+            code: 'TTS_MODEL_NOT_SUPPORTED',
+            message: `Unsupported Gemini TTS model: ${ttsModel}`,
+          });
+        }
+
         const { createGoogleTTSPodcast } = require('../utils/googleTTSMultiSpeaker');
 
         const result = await createGoogleTTSPodcast({
@@ -358,6 +368,7 @@ router.post("/create-podcast", authenticate, async (req, res) => {
           personalityB: body.personalityB,
           hostSpeakerId: body.hostSpeakerId,
           guestSpeakerId: body.guestSpeakerId,
+          ttsModel: ttsModel || undefined,
           includeHumor: body.includeHumor !== false,
           includeFiller: body.includeFiller !== false,
           userId: req.user?.id,
@@ -365,10 +376,21 @@ router.post("/create-podcast", authenticate, async (req, res) => {
 
         return res.json(result);
       } catch (googleErr) {
-        logger.error('[PODCAST] Google TTS podcast creation failed:', googleErr.message);
+        const msg = googleErr?.message || 'Google TTS podcast creation failed';
+        const code = googleErr?.code || null;
+        logger.error('[PODCAST] Google TTS podcast creation failed:', msg);
+
+        if (code === 'GEMINI_INVALID_ARGUMENT' || code === 'TTS_MODEL_NOT_SUPPORTED') {
+          return res.status(400).json({
+            success: false,
+            code,
+            message: msg,
+          });
+        }
+
         return res.status(500).json({
           success: false,
-          message: `Google TTS podcast creation failed: ${googleErr.message}`,
+          message: `Google TTS podcast creation failed: ${msg}`,
         });
       }
     }
@@ -546,6 +568,11 @@ router.post("/create-podcast", authenticate, async (req, res) => {
         logger.warn('[PODCAST] No user ID on request, skipping contenthistory save');
       } else {
         const durationSeconds = Number(n8nResult.duration || n8nResult.duration_seconds || 0) || null;
+        const { calculateTtsCost } = require('../utils/costTracker');
+        const ttsCharacters = typeof transcriptText === 'string' ? transcriptText.length : 0;
+        const ttsCategory = 'Premium';
+        const ttsCostUsd = calculateTtsCost(ttsCharacters, ttsCategory);
+        const totalCostUsd = Number((ttsCostUsd || 0).toFixed(6));
         const insertData = {
           user_id: userId,
           level: level || 'B1',
@@ -562,15 +589,22 @@ router.post("/create-podcast", authenticate, async (req, res) => {
           openai_completion_tokens: 0,
           openai_total_tokens: 0,
           openai_cost_usd: 0,
-          tts_characters: 0,
-          tts_category: 'podcast',
-          tts_cost_usd: 0,
-          total_cost_usd: 0,
+          tts_characters: ttsCharacters,
+          tts_category: ttsCategory,
+          tts_cost_usd: ttsCostUsd,
+          total_cost_usd: totalCostUsd,
           tts_provider: null,
           tts_voice_name: null,
           audio_duration_seconds: durationSeconds,
           entry_source: 'podcast',
         };
+
+        logger.info('[PODCAST] Cost fields computed for contenthistory', {
+          tts_characters: insertData.tts_characters,
+          tts_category: insertData.tts_category,
+          tts_cost_usd: insertData.tts_cost_usd,
+          total_cost_usd: insertData.total_cost_usd,
+        });
 
         logger.info('[PODCAST] Attempting to save podcast to contenthistory', {
           userId,
@@ -665,6 +699,16 @@ router.post("/create-podcast-async", authenticate, async (req, res) => {
     const duration = body.duration != null ? body.duration : 10;
     const ttsProvider = (body.ttsProvider || 'google').toLowerCase();
 
+    const allowedGeminiModels = new Set(['gemini-2.5-flash-tts', 'gemini-2.5-pro-tts']);
+    const ttsModel = typeof body.ttsModel === 'string' ? body.ttsModel.trim() : '';
+    if (ttsModel && !allowedGeminiModels.has(ttsModel)) {
+      return res.status(400).json({
+        success: false,
+        code: 'TTS_MODEL_NOT_SUPPORTED',
+        message: `Unsupported Gemini TTS model: ${ttsModel}`,
+      });
+    }
+
     // This async endpoint is for Google multi-speaker podcast generation
     if (!(ttsProvider === 'google' || ttsProvider === 'google-tts')) {
       return res.status(400).json({
@@ -700,6 +744,7 @@ router.post("/create-podcast-async", authenticate, async (req, res) => {
           personalityB: body.personalityB,
           hostSpeakerId: body.hostSpeakerId,
           guestSpeakerId: body.guestSpeakerId,
+          ttsModel: ttsModel || undefined,
           includeHumor: body.includeHumor !== false,
           includeFiller: body.includeFiller !== false,
           userId,
@@ -753,13 +798,15 @@ router.post("/create-podcast-async", authenticate, async (req, res) => {
           logger.error(`[AsyncPodcast] Job ${job.id} failed: ${errMsg}`);
         }
       } catch (error) {
+        const msg = error?.message || 'Podcast processing failed';
+        const code = error?.code || null;
         logger.error(`[AsyncPodcast] Job ${job.id} error:`, error);
-        jobQueue.updateJob(job.id, { status: 'failed', error: error.message });
+        jobQueue.updateJob(job.id, { status: 'failed', error: msg });
         await sendPushNotification(userId, {
           title: '❌ Podcast Oluşturulamadı',
           body: 'Bir hata oluştu. Lütfen tekrar deneyin.',
           type: 'audio_failed',
-          data: { jobId: job.id, error: error.message }
+          data: { jobId: job.id, error: msg, code }
         });
       }
     });

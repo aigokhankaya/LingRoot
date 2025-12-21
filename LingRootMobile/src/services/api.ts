@@ -444,6 +444,7 @@ export const apiService = {
     ttsProvider?: string; // 'n8n' (default) or 'google'
     hostSpeakerId?: string;
     guestSpeakerId?: string;
+    ttsModel?: string;
     styleType?: string;
     voiceChoice?: string;
     personalityA?: string;
@@ -460,6 +461,7 @@ export const apiService = {
         ttsProvider: params.ttsProvider || 'n8n',
         hostSpeakerId: params.ttsProvider === 'google' ? params.hostSpeakerId : undefined,
         guestSpeakerId: params.ttsProvider === 'google' ? params.guestSpeakerId : undefined,
+        ttsModel: params.ttsProvider === 'google' ? params.ttsModel : undefined,
         styleType: params.styleType,
         voiceChoice: params.voiceChoice,
         personalityA: params.personalityA,
@@ -489,6 +491,7 @@ export const apiService = {
     ttsProvider?: string; // must be 'google' for async endpoint
     hostSpeakerId?: string;
     guestSpeakerId?: string;
+    ttsModel?: string;
     styleType?: string;
     personalityA?: string;
     personalityB?: string;
@@ -504,6 +507,7 @@ export const apiService = {
         ttsProvider: params.ttsProvider || 'google',
         hostSpeakerId: params.hostSpeakerId,
         guestSpeakerId: params.guestSpeakerId,
+        ttsModel: params.ttsModel,
         styleType: params.styleType,
         personalityA: params.personalityA,
         personalityB: params.personalityB,

@@ -16,19 +16,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { 
-  getVocabulary, 
+import {
+  getVocabulary,
   addWordToVocabulary,
   addWordWithTranslation,
-  deleteWordFromVocabulary, 
+  deleteWordFromVocabulary,
   updateWordInVocabulary,
   VocabularyWord,
   getReminderSettings,
   saveReminderSettings,
-  ReminderSettings 
+  ReminderSettings
 } from '../services/api';
 import { ReminderSettingsService } from '../services/reminderSettingsService';
 import NotificationService from '../services/notificationService';
+import { COLORS } from '../theme/colors';
 
 const { width } = Dimensions.get('window');
 
@@ -62,35 +63,35 @@ export default function VocabularyScreen({ navigation, route }: any) {
 
   // CEFR Seviyeleri Konfigürasyonu
   const wordLevels = {
-    a1: { 
-      title: language === 'tr' ? 'A1 - Başlangıç' : 'A1 - Beginner', 
-      color: '#10B981', 
-      bgColor: '#ECFDF5' 
+    a1: {
+      title: language === 'tr' ? 'A1 - Başlangıç' : 'A1 - Beginner',
+      color: '#10B981',
+      bgColor: '#ECFDF5'
     },
-    a2: { 
-      title: language === 'tr' ? 'A2 - Temel' : 'A2 - Elementary', 
-      color: '#3B82F6', 
-      bgColor: '#EFF6FF' 
+    a2: {
+      title: language === 'tr' ? 'A2 - Temel' : 'A2 - Elementary',
+      color: '#3B82F6',
+      bgColor: '#EFF6FF'
     },
-    b1: { 
-      title: language === 'tr' ? 'B1 - Orta' : 'B1 - Intermediate', 
-      color: '#8B5CF6', 
-      bgColor: '#F3E8FF' 
+    b1: {
+      title: language === 'tr' ? 'B1 - Orta' : 'B1 - Intermediate',
+      color: '#8B5CF6',
+      bgColor: '#F3E8FF'
     },
-    b2: { 
-      title: language === 'tr' ? 'B2 - Orta-Üstü' : 'B2 - Upper Intermediate', 
-      color: '#F59E0B', 
-      bgColor: '#FEF3C7' 
+    b2: {
+      title: language === 'tr' ? 'B2 - Orta-Üstü' : 'B2 - Upper Intermediate',
+      color: '#F59E0B',
+      bgColor: '#FEF3C7'
     },
-    c1: { 
-      title: language === 'tr' ? 'C1 - İleri' : 'C1 - Advanced', 
-      color: '#EF4444', 
-      bgColor: '#FEE2E2' 
+    c1: {
+      title: language === 'tr' ? 'C1 - İleri' : 'C1 - Advanced',
+      color: '#EF4444',
+      bgColor: '#FEE2E2'
     },
-    c2: { 
-      title: language === 'tr' ? 'C2 - Ustalık' : 'C2 - Proficiency', 
-      color: '#EC4899', 
-      bgColor: '#FCE7F3' 
+    c2: {
+      title: language === 'tr' ? 'C2 - Ustalık' : 'C2 - Proficiency',
+      color: '#EC4899',
+      bgColor: '#FCE7F3'
     },
   };
 
@@ -105,25 +106,25 @@ export default function VocabularyScreen({ navigation, route }: any) {
   // Handle notification navigation - expand specific word if wordId is provided
   useEffect(() => {
     const wordId = route?.params?.wordId;
-    
+
     if (wordId && vocabulary.length > 0) {
       // Find word by ID (convert string to number if needed)
       const targetWordId = parseInt(wordId, 10);
-      
+
       const targetWord = vocabulary.find(word => word.id === targetWordId);
-      
+
       if (targetWord) {
         setExpandedWordId(targetWordId);
-        
+
         // Clear the search term to ensure the word is visible
         setSearchTerm('');
         setActiveLevel('all');
         setLearnedFilter('all');
-        
+
         // Scroll to the word after a short delay to allow render
         setTimeout(() => {
           scrollToWord(targetWordId);
-          
+
           // Clear the route params to prevent re-triggering
           navigation.setParams({ wordId: undefined });
         }, 1200); // Increased delay to ensure smooth rendering
@@ -139,14 +140,14 @@ export default function VocabularyScreen({ navigation, route }: any) {
 
     // Try to use the word ref for accurate positioning
     const wordRef = wordRefs.current.get(wordId);
-    
+
     if (wordRef) {
       wordRef.measureLayout(
         scrollViewRef.current as any,
         (x, y, width, height) => {
           // Scroll to position with some offset from top
           const offset = Math.max(0, y - 100); // 100px from top
-          
+
           scrollViewRef.current?.scrollTo({
             y: offset,
             animated: true,
@@ -183,13 +184,13 @@ export default function VocabularyScreen({ navigation, route }: any) {
     }
 
     const wordIndex = filtered.findIndex(word => word.id === wordId);
-    
+
     if (wordIndex !== -1) {
       // More aggressive calculation - scroll closer to end for later items
       const estimatedWordHeight = 120;
       const headerOffset = 400; // Generous header space
       const targetOffset = headerOffset + (wordIndex * estimatedWordHeight);
-      
+
       scrollViewRef.current?.scrollTo({
         y: targetOffset,
         animated: true,
@@ -223,7 +224,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
       } catch (apiError) {
         settings = await ReminderSettingsService.getSettings();
       }
-      
+
       setReminderSettings(settings);
     } catch (error) {
       // silent in production
@@ -238,13 +239,13 @@ export default function VocabularyScreen({ navigation, route }: any) {
       } catch (apiError) {
         // fall back to local only
       }
-      
+
       // Always save to local storage as backup
       await ReminderSettingsService.saveSettings(reminderSettings);
-      
+
       // Restart smart notifications with new settings
       await NotificationService.setupSmartVocabularyNotifications();
-      
+
       setIsReminderModalVisible(false);
       Alert.alert('✅ ' + t('vocabulary.success'), t('vocabulary.reminderSuccess'));
     } catch (error) {
@@ -297,10 +298,10 @@ export default function VocabularyScreen({ navigation, route }: any) {
       const word = vocabulary.find(w => w.id === wordId);
       if (!word) return;
 
-      const updatedWord = await updateWordInVocabulary(wordId, { 
-        is_learned: !word.is_learned 
+      const updatedWord = await updateWordInVocabulary(wordId, {
+        is_learned: !word.is_learned
       });
-      
+
       setVocabulary(vocabulary.map(w =>
         w.id === wordId ? updatedWord : w
       ));
@@ -348,7 +349,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
 
     try {
       const cleanWord = newWord.word.trim();
-      
+
       // Otomatik olarak kelime detaylarını çek (AudioPlayer'daki gibi)
       const result = await addWordWithTranslation(
         cleanWord,
@@ -360,7 +361,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
       setVocabulary([...vocabulary, result.data]);
       setNewWord({ word: '', definition: '', level: '', example: '' });
       setIsAddModalVisible(false);
-      
+
       // Detaylı başarı mesajı göster
       if (result.isExisting) {
         Alert.alert(
@@ -412,7 +413,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
         <View style={styles.authContainer}>
           <Ionicons name="book-outline" size={48} color="#9CA3AF" />
           <Text style={styles.authTitle}>Kelime listenizi görmek için oturum açmanız gerekiyor.</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.loginButton}
             onPress={() => navigation.navigate('Login')}
           >
@@ -463,12 +464,12 @@ export default function VocabularyScreen({ navigation, route }: any) {
 
   const renderWord = ({ item }: { item: VocabularyWord }) => {
     if (!item.id) return null;
-    
+
     const levelData = wordLevels[(item.level || 'a1').toLowerCase() as keyof typeof wordLevels] || wordLevels.a1;
     const isExpanded = expandedWordId === item.id;
 
     return (
-      <View 
+      <View
         ref={(ref) => {
           if (ref && item.id) {
             wordRefs.current.set(item.id, ref);
@@ -529,7 +530,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
                 )}
               </View>
             )}
-            
+
             {item.original_sentence && (
               <View style={styles.originalContainer}>
                 <Text style={styles.originalTitle}>{language === 'tr' ? 'Orijinal Cümle:' : 'Original Sentence:'}</Text>
@@ -601,19 +602,6 @@ export default function VocabularyScreen({ navigation, route }: any) {
               </View>
             </View>
 
-            {/* CEFR Seviyeleri */}
-            <View style={styles.levelsContainer}>
-              <Text style={styles.sectionTitle}>{language === 'tr' ? 'CEFR Seviyeleri' : 'CEFR Levels'}</Text>
-              <FlatList
-                data={Object.entries(wordLevels)}
-                renderItem={renderLevelCard}
-                keyExtractor={(item) => item[0]}
-                numColumns={2}
-                columnWrapperStyle={styles.levelRow}
-                scrollEnabled={false}
-              />
-            </View>
-
             {/* Arama ve Filtreleme */}
             <View style={styles.searchContainer}>
               <View style={styles.searchInputContainer}>
@@ -625,22 +613,45 @@ export default function VocabularyScreen({ navigation, route }: any) {
                   onChangeText={setSearchTerm}
                 />
               </View>
-              
+
+              {/* Status Filters + CEFR Filters */}
               <View style={styles.filterRow}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {/* Status Filters */}
                   <TouchableOpacity
-                    style={[styles.filterButton, activeLevel === 'all' && styles.activeFilter]}
-                    onPress={() => setActiveLevel('all')}
+                    style={[styles.filterButton, learnedFilter === 'all' && styles.statusFilterActive]}
+                    onPress={() => setLearnedFilter('all')}
                   >
-                    <Text style={[styles.filterText, activeLevel === 'all' && styles.activeFilterText]}>
-                      {language === 'tr' ? 'Tüm Seviyeler' : 'All Levels'}
+                    <Text style={[styles.filterText, learnedFilter === 'all' && styles.statusFilterActiveText]}>
+                      {language === 'tr' ? 'Tümü' : 'All'}
                     </Text>
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.filterButton, learnedFilter === 'learned' && styles.statusFilterActive]}
+                    onPress={() => setLearnedFilter('learned')}
+                  >
+                    <Text style={[styles.filterText, learnedFilter === 'learned' && styles.statusFilterActiveText]}>
+                      {language === 'tr' ? 'Öğrenildi' : 'Learned'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.filterButton, learnedFilter === 'unlearned' && styles.statusFilterActive]}
+                    onPress={() => setLearnedFilter('unlearned')}
+                  >
+                    <Text style={[styles.filterText, learnedFilter === 'unlearned' && styles.statusFilterActiveText]}>
+                      {language === 'tr' ? 'Yeni' : 'New'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Divider */}
+                  <View style={styles.filterDivider} />
+
+                  {/* CEFR Level Filters */}
                   {Object.entries(wordLevels).map(([level, data]) => (
                     <TouchableOpacity
                       key={level}
                       style={[styles.filterButton, activeLevel === level && styles.activeFilter]}
-                      onPress={() => setActiveLevel(level)}
+                      onPress={() => setActiveLevel(activeLevel === level ? 'all' : level)}
                     >
                       <Text style={[styles.filterText, activeLevel === level && styles.activeFilterText]}>
                         {level.toUpperCase()}
@@ -659,7 +670,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
                 </Text>
                 <Text style={styles.wordCount}>{filteredWords.length} {language === 'tr' ? 'kelime' : 'words'}</Text>
               </View>
-              
+
               {filteredWords.length > 0 ? (
                 <FlatList
                   ref={flatListRef}
@@ -672,19 +683,19 @@ export default function VocabularyScreen({ navigation, route }: any) {
                 <View style={styles.emptyContainer}>
                   <Ionicons name="book-outline" size={48} color="#9CA3AF" />
                   <Text style={styles.emptyTitle}>
-                    {vocabulary.length === 0 
+                    {vocabulary.length === 0
                       ? (language === 'tr' ? 'Henüz kelime eklenmemiş' : 'No words added yet')
                       : (language === 'tr' ? 'Sonuç bulunamadı' : 'No results found')
                     }
                   </Text>
                   <Text style={styles.emptyText}>
-                    {vocabulary.length === 0 
-                      ? (language === 'tr' 
-                          ? 'Metin oynatıcısında kelimelere uzun basarak kelime ekleyebilirsiniz.'
-                          : 'You can add words by long-pressing on words in the text player.')
+                    {vocabulary.length === 0
+                      ? (language === 'tr'
+                        ? 'Metin oynatıcısında kelimelere uzun basarak kelime ekleyebilirsiniz.'
+                        : 'You can add words by long-pressing on words in the text player.')
                       : (language === 'tr'
-                          ? 'Arama kriterlerinize uygun kelime bulunamadı.'
-                          : 'No words found matching your search criteria.')
+                        ? 'Arama kriterlerinize uygun kelime bulunamadı.'
+                        : 'No words found matching your search criteria.')
                     }
                   </Text>
                 </View>
@@ -710,18 +721,18 @@ export default function VocabularyScreen({ navigation, route }: any) {
               <Text style={styles.modalSave}>{language === 'tr' ? 'Kaydet' : 'Save'}</Text>
             </TouchableOpacity>
           </View>
-          
+
           <ScrollView style={styles.modalContent}>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>{language === 'tr' ? 'Kelime *' : 'Word *'}</Text>
               <TextInput
                 style={styles.textInput}
                 value={newWord.word}
-                onChangeText={(text) => setNewWord({...newWord, word: text})}
+                onChangeText={(text) => setNewWord({ ...newWord, word: text })}
                 placeholder={language === 'tr' ? 'Örn: beautiful' : 'e.g: beautiful'}
               />
               <Text style={styles.helperText}>
-                {language === 'tr' 
+                {language === 'tr'
                   ? '💡 Anlam, örnek cümle ve seviye otomatik olarak AI tarafından belirlenecektir'
                   : '💡 Meaning, example sentence and level will be automatically determined by AI'}
               </Text>
@@ -736,35 +747,34 @@ export default function VocabularyScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: 'transparent',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
+    fontSize: 24,
+    fontWeight: '800',
+    color: COLORS.slate800,
+    letterSpacing: -0.5,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
   },
   contentContainer: {
     paddingTop: 8,
-    paddingBottom: 24,
+    paddingBottom: 120,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#374151',
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.slate800,
     marginBottom: 16,
   },
   statsContainer: {
@@ -778,30 +788,32 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    padding: 24,
+    shadowColor: '#94a3b8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   statCard: {
     flex: 1,
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 12,
     alignItems: 'center',
-    marginHorizontal: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   statNumber: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#374151',
+    fontWeight: '900',
+    color: COLORS.slate800,
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 10,
+    fontWeight: '900',
+    color: COLORS.slate400,
     textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   levelsContainer: {
     marginBottom: 24,
@@ -814,12 +826,12 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 6,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   levelCardHeader: {
     flexDirection: 'row',
@@ -828,19 +840,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   levelTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     flex: 1,
   },
   levelBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
     marginLeft: 8,
   },
   levelBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 9,
+    fontWeight: '900',
     color: 'white',
   },
   progressContainer: {
@@ -852,23 +864,24 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   progressText: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 11,
+    color: COLORS.slate500,
+    fontWeight: '500',
   },
   progressPercent: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '600',
+    fontSize: 11,
+    color: COLORS.slate500,
+    fontWeight: '700',
   },
   progressBar: {
-    height: 8,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 4,
+    height: 6,
+    backgroundColor: COLORS.slate200,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   levelCardFooter: {
     flexDirection: 'row',
@@ -876,17 +889,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   wordCount: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 13,
+    color: COLORS.slate500,
+    fontWeight: '500',
   },
   viewButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
   },
   viewButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     color: 'white',
   },
   searchContainer: {
@@ -895,46 +909,64 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.slate100,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   searchInput: {
     flex: 1,
     marginLeft: 12,
-    fontSize: 16,
-    color: '#374151',
+    fontSize: 14,
+    color: COLORS.slate700,
+    fontWeight: '500',
   },
   filterRow: {
-    height: 40,
+    height: 44,
+    paddingBottom: 4,
   },
   filterButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: 'white',
+    borderRadius: 24,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.slate200,
     marginRight: 8,
   },
   activeFilter: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: COLORS.brandTeal,
+    borderColor: COLORS.brandTeal,
+  },
+  statusFilterActive: {
+    backgroundColor: COLORS.slate800,
+    borderColor: COLORS.slate800,
   },
   filterText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
+    fontSize: 11,
+    color: COLORS.slate400,
+    fontWeight: '700',
   },
   activeFilterText: {
     color: 'white',
+  },
+  statusFilterActiveText: {
+    color: 'white',
+  },
+  filterDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: COLORS.slate200,
+    alignSelf: 'center',
+    marginHorizontal: 8,
   },
   wordListContainer: {
     marginBottom: 24,
@@ -946,15 +978,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   wordCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
     marginBottom: 12,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
+    borderTopWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderTopColor: 'rgba(226, 232, 240, 0.5)',
+    borderRightColor: 'rgba(226, 232, 240, 0.5)',
+    borderBottomColor: 'rgba(226, 232, 240, 0.5)',
+    borderLeftWidth: 6,
+    shadowColor: '#94a3b8',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    overflow: 'hidden',
   },
   wordHeader: {
     flexDirection: 'row',
@@ -979,99 +1018,105 @@ const styles = StyleSheet.create({
   },
   wordText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '800',
+    color: COLORS.slate800,
     flex: 1,
   },
   definitionText: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 14,
+    color: COLORS.slate500,
   },
   wordDetails: {
     padding: 16,
     paddingTop: 0,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
   },
   exampleContainer: {
-    backgroundColor: '#F3F4F6',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+    padding: 16,
+    borderRadius: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.1)',
   },
   exampleTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#3b82f6',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   exampleText: {
-    fontSize: 14,
-    color: '#374151',
-    fontStyle: 'italic',
+    fontSize: 13,
+    color: COLORS.slate700,
+    fontWeight: '700',
+    lineHeight: 20,
     marginBottom: 4,
   },
   exampleTurkish: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
+    fontSize: 12,
+    color: COLORS.slate500,
+    fontStyle: 'italic',
   },
   originalContainer: {
-    backgroundColor: '#EFF6FF',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: 'rgba(99, 102, 241, 0.05)',
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: 'rgba(99, 102, 241, 0.1)',
     marginBottom: 12,
   },
   originalTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E40AF',
-    marginBottom: 6,
+    fontSize: 9,
+    fontWeight: '900',
+    color: COLORS.brandIndigo,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   originalText: {
-    fontSize: 14,
-    color: '#1E40AF',
+    fontSize: 12,
+    color: COLORS.slate600,
     fontStyle: 'italic',
+    lineHeight: 18,
   },
   wordActions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    gap: 8,
   },
   deleteButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
-    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+    flex: 1,
+    justifyContent: 'center',
   },
   deleteText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#EF4444',
-    marginLeft: 4,
-    fontWeight: '500',
+    marginLeft: 6,
+    fontWeight: '700',
   },
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: 48,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.slate700,
     marginTop: 16,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyText: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 14,
+    color: COLORS.slate500,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
     paddingHorizontal: 32,
   },
   loadingContainer: {
@@ -1082,7 +1127,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    color: '#6B7280',
+    color: COLORS.slate500,
+    fontWeight: '500',
   },
   errorContainer: {
     flex: 1,
@@ -1091,73 +1137,83 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
   },
   errorText: {
-    fontSize: 16,
-    color: '#EF4444',
+    fontSize: 14,
+    color: COLORS.danger,
     textAlign: 'center',
     marginBottom: 20,
   },
   retryButton: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
+    backgroundColor: COLORS.brandTeal,
+    borderRadius: 16,
+    shadowColor: COLORS.brandTeal,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 2,
   },
   retryButtonText: {
     color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   // Modal Styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: COLORS.background,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'white',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: COLORS.slate100,
   },
   modalCancel: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 15,
+    color: COLORS.slate500,
+    fontWeight: '500',
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '700',
+    color: COLORS.slate800,
   },
   modalSave: {
-    fontSize: 16,
-    color: '#3B82F6',
-    fontWeight: '600',
+    fontSize: 15,
+    color: COLORS.brandTeal,
+    fontWeight: '700',
   },
   modalContent: {
     flex: 1,
-    padding: 16,
+    padding: 24,
   },
   inputGroup: {
     marginBottom: 24,
   },
   inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontSize: 10,
+    fontWeight: '900',
+    color: COLORS.slate400,
     marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginLeft: 4,
   },
   textInput: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#374151',
+    backgroundColor: COLORS.slate50,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: COLORS.slate700,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.slate100,
+    fontWeight: '500',
   },
   textArea: {
     height: 80,
@@ -1165,18 +1221,18 @@ const styles = StyleSheet.create({
   },
   levelSelector: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 2,
     marginRight: 8,
   },
   levelSelectorText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
   },
   helperText: {
-    fontSize: 13,
-    color: '#6B7280',
+    fontSize: 12,
+    color: COLORS.slate500,
     marginTop: 8,
     fontStyle: 'italic',
   },
@@ -1184,26 +1240,26 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingVertical: 40,
   },
   authTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: COLORS.slate700,
     marginTop: 20,
     marginBottom: 20,
     textAlign: 'center',
   },
   loginButton: {
     paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
+    paddingVertical: 14,
+    backgroundColor: COLORS.brandTeal,
+    borderRadius: 16,
   },
   loginButtonText: {
     color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
 }); 

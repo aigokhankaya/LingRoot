@@ -295,6 +295,25 @@ const uploadPodcast = async (req, res) => {
           timepoints: null,
         };
 
+        try {
+          const { calculateTtsCost } = require('../utils/costTracker');
+          const ttsCharacters = typeof extractedText === 'string' ? extractedText.length : 0;
+          const ttsCategory = 'Premium';
+          const ttsCostUsd = calculateTtsCost(ttsCharacters, ttsCategory);
+          const totalCostUsd = Number((ttsCostUsd || 0).toFixed(6));
+
+          contentRecord.openai_prompt_tokens = 0;
+          contentRecord.openai_completion_tokens = 0;
+          contentRecord.openai_total_tokens = 0;
+          contentRecord.openai_cost_usd = 0;
+          contentRecord.tts_characters = ttsCharacters;
+          contentRecord.tts_category = ttsCategory;
+          contentRecord.tts_cost_usd = ttsCostUsd;
+          contentRecord.total_cost_usd = totalCostUsd;
+        } catch (costErr) {
+          logger.warn('⚠️ [PODCAST UPLOAD] Failed to compute cost fields:', costErr.message);
+        }
+
         const fallbackWords = (extractedText || '').split(/\s+/).filter(w => w.length > 0);
         const vttTimepoints = vttContentForParsing ? parseWordLevelTimepointsFromVtt(vttContentForParsing) : [];
 

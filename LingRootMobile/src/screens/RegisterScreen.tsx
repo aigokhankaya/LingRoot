@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,10 @@ import {
   Platform,
   ScrollView,
   Linking,
+  Animated,
+  Dimensions,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -18,15 +21,14 @@ import { useNavigation, CommonActions } from '@react-navigation/native';
 import { isAppleSignInAvailable } from '../services/socialAuth';
 import { COLORS } from '../theme/colors';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 // Phone helpers: Turkish format +90 555 123 45 67
 const extractDigits = (value: string) => (value || '').replace(/\D+/g, '');
 const extractTRLocalDigits = (value: string) => {
   const digits = extractDigits(value);
-  // Remove country code if present
   let d = digits.startsWith('90') ? digits.slice(2) : digits;
-  // Drop a single leading 0 (common for local format like 0 5xx ...)
   if (d.startsWith('0')) d = d.slice(1);
-  // Limit to max 10 local digits
   d = d.slice(0, 10);
   return d;
 };
@@ -60,9 +62,65 @@ const RegisterScreen: React.FC = () => {
   const { t, language } = useLanguage();
   const navigation = useNavigation();
 
+  // Animations
+  const slideUpAnim = useRef(new Animated.Value(30)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const blob1Anim = useRef(new Animated.Value(0)).current;
+  const blob2Anim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    // Check if Apple Sign-In is available
     isAppleSignInAvailable().then(setShowAppleSignIn);
+  }, []);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideUpAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    const floatBlob1 = Animated.loop(
+      Animated.sequence([
+        Animated.timing(blob1Anim, {
+          toValue: -20,
+          duration: 5000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(blob1Anim, {
+          toValue: 0,
+          duration: 5000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    const floatBlob2 = Animated.loop(
+      Animated.sequence([
+        Animated.timing(blob2Anim, {
+          toValue: -15,
+          duration: 4000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(blob2Anim, {
+          toValue: 0,
+          duration: 4000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    floatBlob1.start();
+    floatBlob2.start();
+
+    return () => {
+      floatBlob1.stop();
+      floatBlob2.stop();
+    };
   }, []);
 
   const emailRegex = useMemo(() => /\S+@\S+\.\S+/, []);
@@ -83,7 +141,7 @@ const RegisterScreen: React.FC = () => {
     if (!acceptTerms) {
       Alert.alert(
         t('common.error'),
-        language === 'tr' 
+        language === 'tr'
           ? 'Devam etmek için Kullanım Koşulları ve Gizlilik Politikasını kabul etmelisiniz.'
           : 'You must accept the Terms of Use and Privacy Policy to continue.'
       );
@@ -97,29 +155,11 @@ const RegisterScreen: React.FC = () => {
     }
   };
 
-  const handleFacebookSignIn = async () => {
-    if (!acceptTerms) {
-      Alert.alert(
-        t('common.error'),
-        language === 'tr' 
-          ? 'Devam etmek için Kullanım Koşulları ve Gizlilik Politikasını kabul etmelisiniz.'
-          : 'You must accept the Terms of Use and Privacy Policy to continue.'
-      );
-      return;
-    }
-    if (!signInWithFacebook) return;
-    try {
-      await signInWithFacebook();
-    } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || 'Facebook ile kayıt başarısız');
-    }
-  };
-
   const handleAppleSignIn = async () => {
     if (!acceptTerms) {
       Alert.alert(
         t('common.error'),
-        language === 'tr' 
+        language === 'tr'
           ? 'Devam etmek için Kullanım Koşulları ve Gizlilik Politikasını kabul etmelisiniz.'
           : 'You must accept the Terms of Use and Privacy Policy to continue.'
       );
@@ -148,15 +188,14 @@ const RegisterScreen: React.FC = () => {
       await signUp(email.trim(), password, fullName.trim(), normalizedPhone);
       setIsLoading(false);
       const goToLogin = () => {
-        try { (navigation as any)?.replace?.('Login'); } catch {}
-        try { (navigation as any)?.navigate?.('Login'); } catch {}
-        try { (navigation as any)?.getParent?.()?.navigate?.('Auth', { screen: 'Login' }); } catch {}
-        try { (navigation as any)?.dispatch?.(CommonActions.reset({ index: 0, routes: [{ name: 'Auth' }] })); } catch {}
-        try { (navigation as any)?.goBack?.(); } catch {}
+        try { (navigation as any)?.replace?.('Login'); } catch { }
+        try { (navigation as any)?.navigate?.('Login'); } catch { }
+        try { (navigation as any)?.getParent?.()?.navigate?.('Auth', { screen: 'Login' }); } catch { }
+        try { (navigation as any)?.dispatch?.(CommonActions.reset({ index: 0, routes: [{ name: 'Auth' }] })); } catch { }
+        try { (navigation as any)?.goBack?.(); } catch { }
       };
       goToLogin();
 
-      // Also show confirmation (pressing OK will try navigate again)
       Alert.alert(
         t('common.success'),
         t('register.success'),
@@ -171,331 +210,446 @@ const RegisterScreen: React.FC = () => {
     }
   };
 
+  const renderInput = (
+    icon: string,
+    placeholder: string,
+    value: string,
+    onChangeText: (text: string) => void,
+    options?: {
+      secureTextEntry?: boolean;
+      showToggle?: boolean;
+      toggleValue?: boolean;
+      onToggle?: () => void;
+      keyboardType?: any;
+      autoCapitalize?: any;
+      autoComplete?: any;
+    }
+  ) => (
+    <View style={styles.inputContainer}>
+      <Icon name={icon} size={20} color={COLORS.slate300} style={styles.inputIcon} />
+      <TextInput
+        style={[styles.input, options?.showToggle && { paddingRight: 50 }]}
+        placeholder={placeholder}
+        placeholderTextColor={COLORS.slate300}
+        value={value}
+        onChangeText={onChangeText}
+        secureTextEntry={options?.secureTextEntry}
+        keyboardType={options?.keyboardType}
+        autoCapitalize={options?.autoCapitalize}
+        autoComplete={options?.autoComplete}
+      />
+      {options?.showToggle && (
+        <TouchableOpacity style={styles.eyeButton} onPress={options.onToggle}>
+          <Icon
+            name={options.toggleValue ? 'visibility-off' : 'visibility'}
+            size={20}
+            color={COLORS.slate400}
+          />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-        <View style={styles.header}>
-          <Text style={styles.title}>{t('register.title')}</Text>
-          <Text style={styles.subtitle}>{t('register.subtitle')}</Text>
-        </View>
+    <View style={styles.container}>
+      {/* Background Gradient */}
+      <LinearGradient
+        colors={[COLORS.slate100, COLORS.slate200]}
+        style={StyleSheet.absoluteFillObject}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
 
-        <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('register.fullName')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t('register.fullName')}
-              placeholderTextColor="#999"
-              value={fullName}
-              onChangeText={setFullName}
-              autoCapitalize="words"
-            />
-          </View>
+      {/* Floating Blobs */}
+      <Animated.View
+        style={[
+          styles.blob,
+          styles.blob1,
+          { transform: [{ translateY: blob1Anim }] }
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.blob,
+          styles.blob2,
+          { transform: [{ translateY: blob2Anim }] }
+        ]}
+      />
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('register.email')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t('register.email')}
-              placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Telefon Numarası</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="+90 555 123 45 67"
-              placeholderTextColor="#999"
-              value={phoneNumber}
-              onChangeText={(v) => setPhoneNumber(formatTRPhone(v))}
-              keyboardType="phone-pad"
-              autoComplete="tel"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('register.password')}</Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={[styles.input, styles.passwordInput]}
-                placeholder={t('register.password')}
-                placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoComplete="password"
-              />
-              <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(v => !v)}>
-                <Icon name={showPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('register.confirmPassword')}</Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={[styles.input, styles.passwordInput]}
-                placeholder={t('register.confirmPassword')}
-                placeholderTextColor="#999"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-                autoComplete="password"
-              />
-              <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirmPassword(v => !v)}>
-                <Icon name={showConfirmPassword ? 'visibility-off' : 'visibility'} size={22} color="#666" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <TouchableOpacity style={styles.termsRow} onPress={() => setAcceptTerms(v => !v)}>
-            <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
-              {acceptTerms && <Icon name="check" size={16} color="#fff" />}
-            </View>
-            <Text style={styles.termsText}>
-              {language === 'tr' ? (
-                <>
-                  <Text 
-                    style={styles.linkText}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      Linking.openURL('https://www.lingroot.com/terms');
-                    }}
-                  >
-                    Hizmet Şartları
-                  </Text>
-                  <Text> ve </Text>
-                  <Text 
-                    style={styles.linkText}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      Linking.openURL('https://www.lingroot.com/privacy-policy');
-                    }}
-                  >
-                    Gizlilik Politikası
-                  </Text>
-                  <Text>'nı okudum ve kabul ediyorum.</Text>
-                </>
-              ) : (
-                <>
-                  <Text>I have read and accept the </Text>
-                  <Text 
-                    style={styles.linkText}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      Linking.openURL('https://www.lingroot.com/terms');
-                    }}
-                  >
-                    Terms of Service
-                  </Text>
-                  <Text> and </Text>
-                  <Text 
-                    style={styles.linkText}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      Linking.openURL('https://www.lingroot.com/privacy-policy');
-                    }}
-                  >
-                    Privacy Policy
-                  </Text>
-                  <Text>.</Text>
-                </>
-              )}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, (isLoading || !isFormValid) && styles.buttonDisabled]}
-            onPress={handleRegister}
-            disabled={isLoading || !isFormValid}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View
+            style={[
+              styles.card,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideUpAnim }]
+              }
+            ]}
           >
-            <Text style={styles.buttonText}>
-              {isLoading ? t('register.registering') : t('register.cta')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.linkButton} onPress={() => { try { (navigation as any)?.navigate?.('Login'); } catch {} }}>
-            <Text style={styles.linkText}>{t('register.haveAccount')}</Text>
-          </TouchableOpacity>
-
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>{language === 'tr' ? 'veya' : 'or'}</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignIn}>
-            <Icon name="google" size={20} color="#DB4437" />
-            <Text style={styles.socialButtonText}>
-              {language === 'tr' ? 'Google ile Kayıt Ol' : 'Sign up with Google'}
-            </Text>
-          </TouchableOpacity>
-
-          {showAppleSignIn && (
-            <TouchableOpacity style={[styles.socialButton, styles.appleButton]} onPress={handleAppleSignIn}>
-              <Icon name="apple" size={20} color="#000" />
-              <Text style={[styles.socialButtonText, styles.appleButtonText]}>
-                {language === 'tr' ? 'Apple ile Kayıt Ol' : 'Sign up with Apple'}
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.iconContainer}>
+                <Icon name="person-add-alt-1" size={32} color="#FFFFFF" />
+              </View>
+              <Text style={styles.title}>
+                {language === 'tr' ? 'LingRoot\'a Katıl' : 'Join LingRoot'}
               </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+              <Text style={styles.subtitle}>
+                {language === 'tr' ? 'AI dil öğrenme yolculuğuna başla' : 'Start your AI language journey'}
+              </Text>
+            </View>
+
+            {/* Form */}
+            <View style={styles.form}>
+              {renderInput('person', language === 'tr' ? 'Ad Soyad' : 'Full Name', fullName, setFullName, { autoCapitalize: 'words' })}
+              {renderInput('alternate-email', language === 'tr' ? 'E-posta Adresi' : 'Email Address', email, setEmail, { keyboardType: 'email-address', autoCapitalize: 'none', autoComplete: 'email' })}
+              {renderInput('phone', '+90 555 123 45 67', phoneNumber, (v) => setPhoneNumber(formatTRPhone(v)), { keyboardType: 'phone-pad', autoComplete: 'tel' })}
+              {renderInput('lock', language === 'tr' ? 'Şifre Oluştur' : 'Create Password', password, setPassword, { secureTextEntry: !showPassword, showToggle: true, toggleValue: showPassword, onToggle: () => setShowPassword(v => !v) })}
+              {renderInput('verified-user', language === 'tr' ? 'Şifreyi Onayla' : 'Confirm Password', confirmPassword, setConfirmPassword, { secureTextEntry: !showConfirmPassword, showToggle: true, toggleValue: showConfirmPassword, onToggle: () => setShowConfirmPassword(v => !v) })}
+
+              {/* Terms Checkbox */}
+              <TouchableOpacity style={styles.termsRow} onPress={() => setAcceptTerms(v => !v)}>
+                <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
+                  {acceptTerms && <Icon name="check" size={14} color="#fff" />}
+                </View>
+                <Text style={styles.termsText}>
+                  {language === 'tr' ? (
+                    <>
+                      <Text
+                        style={styles.termsLink}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          Linking.openURL('https://www.lingroot.com/terms');
+                        }}
+                      >
+                        Hizmet Şartları
+                      </Text>
+                      <Text> ve </Text>
+                      <Text
+                        style={styles.termsLink}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          Linking.openURL('https://www.lingroot.com/privacy-policy');
+                        }}
+                      >
+                        Gizlilik Politikası
+                      </Text>
+                      <Text>'nı kabul ediyorum.</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text>I accept the </Text>
+                      <Text
+                        style={styles.termsLink}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          Linking.openURL('https://www.lingroot.com/terms');
+                        }}
+                      >
+                        Terms of Service
+                      </Text>
+                      <Text> and </Text>
+                      <Text
+                        style={styles.termsLink}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          Linking.openURL('https://www.lingroot.com/privacy-policy');
+                        }}
+                      >
+                        Privacy Policy
+                      </Text>
+                      <Text>.</Text>
+                    </>
+                  )}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Register Button */}
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={handleRegister}
+                disabled={isLoading || !isFormValid}
+                style={styles.registerButtonWrapper}
+              >
+                <LinearGradient
+                  colors={isFormValid ? [COLORS.gradientOrangeStart, COLORS.gradientOrangeEnd] : [COLORS.slate300, COLORS.slate400]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.registerButton}
+                >
+                  <Text style={styles.registerButtonText}>
+                    {isLoading
+                      ? (language === 'tr' ? 'Kayıt Yapılıyor...' : 'Creating Account...')
+                      : (language === 'tr' ? 'Hesap Oluştur' : 'Create Account')}
+                  </Text>
+                  <Icon name="arrow-forward" size={20} color="#FFFFFF" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>
+                {language === 'tr' ? 'VEYA' : 'OR SIGN UP WITH'}
+              </Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Social Buttons */}
+            <View style={styles.socialContainer}>
+              <TouchableOpacity style={styles.socialButton} onPress={handleGoogleSignIn}>
+                <Icon name="g-mobiledata" size={20} color={COLORS.slate700} />
+                <Text style={styles.socialButtonText}>Google</Text>
+              </TouchableOpacity>
+
+              {showAppleSignIn && (
+                <TouchableOpacity style={styles.socialButton} onPress={handleAppleSignIn}>
+                  <Icon name="apple" size={20} color={COLORS.slate900} />
+                  <Text style={styles.socialButtonText}>Apple</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Sign In Link */}
+            <View style={styles.signInContainer}>
+              <Text style={styles.signInText}>
+                {language === 'tr' ? 'Zaten hesabın var mı? ' : 'Already have an account? '}
+              </Text>
+              <TouchableOpacity onPress={() => { try { (navigation as any)?.navigate?.('Login'); } catch { } }}>
+                <Text style={styles.signInLink}>
+                  {language === 'tr' ? 'Giriş Yap' : 'Sign In'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
-  content: {
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    padding: 24,
+    paddingVertical: 40,
+  },
+  blob: {
+    position: 'absolute',
+    borderRadius: 999,
+    opacity: 0.3,
+  },
+  blob1: {
+    width: 256,
+    height: 256,
+    backgroundColor: COLORS.blobIndigo,
+    top: -40,
+    left: -40,
+  },
+  blob2: {
+    width: 320,
+    height: 320,
+    backgroundColor: COLORS.blobTeal,
+    bottom: 80,
+    right: -40,
+  },
+  card: {
+    backgroundColor: COLORS.surfaceGlass,
+    borderRadius: 40,
+    padding: 32,
+    shadowColor: COLORS.brandIndigo,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.07,
+    shadowRadius: 32,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 24,
+  },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    backgroundColor: COLORS.brandTeal,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: COLORS.brandTeal,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-    marginBottom: 8,
+    fontSize: 28,
+    fontWeight: '800',
+    color: COLORS.slate900,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    fontSize: 14,
+    color: COLORS.slate500,
+    fontWeight: '500',
+    marginTop: 4,
   },
   form: {
-    width: '100%',
+    gap: 12,
   },
   inputContainer: {
-    marginBottom: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.slate200,
+    paddingHorizontal: 16,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 6,
+  inputIcon: {
+    marginRight: 12,
   },
   input: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 15,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    color: '#000', // Text color for visibility
-  },
-  inputWrapper: { position: 'relative' },
-  passwordInput: {
-    paddingRight: 48,
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: COLORS.slate700,
+    fontWeight: '500',
   },
   eyeButton: {
-    position: 'absolute',
-    right: 12,
-    top: 15,
+    padding: 8,
   },
   termsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
+    alignItems: 'flex-start',
+    marginTop: 8,
+    marginBottom: 8,
   },
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    marginRight: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: COLORS.slate200,
+    marginRight: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surface,
   },
   checkboxChecked: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: COLORS.brandTeal,
+    borderColor: COLORS.brandTeal,
   },
   termsText: {
     flex: 1,
-    color: '#666',
-    fontSize: 14,
+    color: COLORS.slate500,
+    fontSize: 13,
+    lineHeight: 20,
   },
-  button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    padding: 15,
+  termsLink: {
+    color: COLORS.brandTeal,
+    fontWeight: '700',
+  },
+  registerButtonWrapper: {
+    marginTop: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: COLORS.brandOrange,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  registerButton: {
+    paddingVertical: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 16,
   },
-  buttonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  linkButton: {
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  linkText: {
-    color: COLORS.primary,
-    fontSize: 14,
+  registerButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '800',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: 24,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#ddd',
+    backgroundColor: COLORS.slate100,
   },
   dividerText: {
-    marginHorizontal: 10,
-    color: '#666',
-    fontSize: 14,
+    marginHorizontal: 16,
+    fontSize: 10,
+    fontWeight: '900',
+    color: COLORS.slate300,
+    letterSpacing: 1.5,
+  },
+  socialContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
   },
   socialButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 12,
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 16,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: COLORS.slate200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   socialButtonText: {
-    marginLeft: 10,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.slate700,
   },
-  appleButton: {
-    backgroundColor: '#000',
+  signInContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
-  appleButtonText: {
-    color: '#fff',
+  signInText: {
+    fontSize: 14,
+    color: COLORS.slate500,
+    fontWeight: '500',
+  },
+  signInLink: {
+    fontSize: 14,
+    color: COLORS.brandTeal,
+    fontWeight: '800',
   },
 });
 
-export default RegisterScreen; 
+export default RegisterScreen;

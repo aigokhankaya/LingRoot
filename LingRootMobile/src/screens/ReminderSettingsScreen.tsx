@@ -52,17 +52,17 @@ const ReminderSettingsScreen: React.FC = () => {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      
+
       // Always cancel existing notifications first before saving new settings
       try {
         await NotificationService.stopVocabularyReminders();
       } catch (error) {
         console.error('Error canceling existing notifications:', error);
       }
-      
+
       // Save settings to backend
       await saveReminderSettings(settings);
-      
+
       // If reminders are enabled, reschedule with new settings
       if (settings.isEnabled) {
         try {
@@ -71,12 +71,12 @@ const ReminderSettingsScreen: React.FC = () => {
           console.error('Error rescheduling notifications:', error);
         }
       }
-      
+
       Alert.alert(
         language === 'tr' ? 'Başarılı' : 'Success',
-        language === 'tr' 
+        language === 'tr'
           ? settings.isEnabled
-            ? 'Hatırlatma ayarları başarıyla kaydedildi!\n\nYeni ayarlar aktif olacak.' 
+            ? 'Hatırlatma ayarları başarıyla kaydedildi!\n\nYeni ayarlar aktif olacak.'
             : 'Hatırlatma ayarları kaydedildi.\n\nTüm zamanlanmış bildirimler iptal edildi.'
           : settings.isEnabled
             ? 'Reminder settings saved successfully!\n\nNew settings will be active.'
@@ -94,7 +94,7 @@ const ReminderSettingsScreen: React.FC = () => {
   };
 
   const wordsPerDayOptions = [1, 3, 5, 7, 10, 15, 20];
-  
+
   // Generate all 24 hours
   const allTimeOptions = Array.from({ length: 24 }, (_, i) => {
     const hour = i.toString().padStart(2, '0');
@@ -134,8 +134,8 @@ const ReminderSettingsScreen: React.FC = () => {
             {language === 'tr' ? 'Kelime Hatırlatma Ayarları' : 'Word Reminder Settings'}
           </Text>
           <Text style={styles.headerDescription}>
-            {language === 'tr' 
-              ? 'Kelime öğrenme hatırlatmalarınızı özelleştirin' 
+            {language === 'tr'
+              ? 'Kelime öğrenme hatırlatmalarınızı özelleştirin'
               : 'Customize your word learning reminders'}
           </Text>
         </View>
@@ -148,8 +148,8 @@ const ReminderSettingsScreen: React.FC = () => {
                 {language === 'tr' ? 'Hatırlatıcıları Aktif Et' : 'Enable Reminders'}
               </Text>
               <Text style={styles.sectionDescription}>
-                {language === 'tr' 
-                  ? 'Kelime hatırlatmalarını aç/kapat' 
+                {language === 'tr'
+                  ? 'Kelime hatırlatmalarını aç/kapat'
                   : 'Turn word reminders on/off'}
               </Text>
             </View>
@@ -176,8 +176,8 @@ const ReminderSettingsScreen: React.FC = () => {
             {language === 'tr' ? 'Günlük Kelime Sayısı' : 'Words Per Day'}
           </Text>
           <Text style={[styles.sectionDescription, !settings.isEnabled && styles.textDisabled]}>
-            {language === 'tr' 
-              ? 'Günde kaç kelime hatırlatılsın?' 
+            {language === 'tr'
+              ? 'Günde kaç kelime hatırlatılsın?'
               : 'How many words should be reminded per day?'}
           </Text>
           <View style={styles.optionsGrid}>
@@ -212,8 +212,8 @@ const ReminderSettingsScreen: React.FC = () => {
             {language === 'tr' ? 'Bildirim Saat Aralığı' : 'Notification Time Range'}
           </Text>
           <Text style={[styles.sectionDescription, !settings.isEnabled && styles.textDisabled]}>
-            {language === 'tr' 
-              ? 'Bildirim yapılacak saat aralığını belirleyin' 
+            {language === 'tr'
+              ? 'Bildirim yapılacak saat aralığını belirleyin'
               : 'Set the time range for notifications'}
           </Text>
 
@@ -377,10 +377,11 @@ const ReminderSettingsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   content: {
     flex: 1,
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,
@@ -389,52 +390,62 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    fontSize: 15,
+    color: COLORS.slate500,
+    fontWeight: '600',
   },
   headerInfo: {
-    backgroundColor: 'white',
-    padding: 24,
+    backgroundColor: 'transparent',
+    paddingVertical: 32,
+    paddingHorizontal: 24,
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 12,
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.slate800,
+    marginTop: 16,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   headerDescription: {
     fontSize: 14,
-    color: '#666',
+    color: COLORS.slate500,
     marginTop: 8,
     textAlign: 'center',
+    fontWeight: '500',
   },
   section: {
-    backgroundColor: 'white',
-    marginTop: 20,
-    marginHorizontal: 20,
-    padding: 20,
-    borderRadius: 12,
+    backgroundColor: COLORS.surfaceGlass,
+    marginTop: 16,
+    marginHorizontal: 24,
+    padding: 24,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    shadowColor: COLORS.brandIndigo,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.07,
+    shadowRadius: 32,
+    elevation: 4,
   },
   sectionDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.slate800,
+    marginBottom: 6,
   },
   sectionDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 16,
+    fontSize: 13,
+    color: COLORS.slate500,
+    marginBottom: 20,
+    fontWeight: '500',
   },
   textDisabled: {
-    color: '#999',
+    color: COLORS.slate300,
   },
   toggleRow: {
     flexDirection: 'row',
@@ -449,22 +460,22 @@ const styles = StyleSheet.create({
     width: 56,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#ccc',
+    backgroundColor: COLORS.slate200,
     padding: 2,
     justifyContent: 'center',
   },
   toggleSwitchActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.brandTeal,
   },
   toggleThumb: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
     elevation: 3,
   },
   toggleThumbActive: {
@@ -476,120 +487,138 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   optionButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#f9f9f9',
+    borderColor: COLORS.slate100,
+    backgroundColor: COLORS.surface,
   },
   optionButtonSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: COLORS.brandOrange,
+    borderColor: COLORS.brandOrange,
+    shadowColor: COLORS.brandOrange,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 2,
   },
   optionButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   optionText: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: 13,
+    color: COLORS.slate600,
+    fontWeight: '700',
   },
   optionTextSelected: {
-    color: '#fff',
+    color: '#FFFFFF',
   },
   timeRow: {
     marginBottom: 20,
   },
   timeLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 10,
+    fontWeight: '900',
+    color: COLORS.slate400,
     marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginLeft: 4,
   },
   timeSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    borderColor: COLORS.slate100,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
   },
   timeSelectorText: {
     fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    color: COLORS.slate700,
+    fontWeight: '700',
   },
   timeSelectorDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   infoBox: {
-    backgroundColor: '#E3F2FD',
-    marginHorizontal: 20,
+    backgroundColor: 'rgba(39, 190, 170, 0.08)',
+    marginHorizontal: 24,
     marginTop: 20,
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'flex-start',
+    borderWidth: 1,
+    borderColor: 'rgba(39, 190, 170, 0.15)',
   },
   infoIcon: {
-    marginRight: 12,
+    marginRight: 14,
     marginTop: 2,
   },
   infoText: {
     flex: 1,
-    fontSize: 13,
-    color: '#1976D2',
+    fontSize: 12,
+    color: COLORS.brandTeal,
     lineHeight: 20,
+    fontWeight: '600',
   },
   saveButton: {
-    backgroundColor: COLORS.primary,
-    marginHorizontal: 20,
-    marginTop: 20,
+    backgroundColor: COLORS.brandTeal,
+    marginHorizontal: 24,
+    marginTop: 24,
     marginBottom: 40,
-    padding: 16,
-    borderRadius: 12,
+    padding: 18,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: COLORS.brandTeal,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 6,
   },
   saveButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   saveIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   saveButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '800',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     maxHeight: '70%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: COLORS.slate100,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '800',
+    color: COLORS.slate800,
   },
   timeList: {
     maxHeight: 400,
@@ -598,20 +627,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: 18,
+    paddingHorizontal: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: COLORS.slate100,
   },
   timeOptionSelected: {
-    backgroundColor: '#f0f8ff',
+    backgroundColor: 'rgba(245, 165, 36, 0.08)',
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.brandOrange,
   },
   timeOptionText: {
     fontSize: 16,
-    color: '#333',
+    color: COLORS.slate700,
+    fontWeight: '600',
   },
   timeOptionTextSelected: {
-    color: COLORS.primary,
-    fontWeight: '600',
+    color: COLORS.brandOrange,
+    fontWeight: '700',
   },
 });
 

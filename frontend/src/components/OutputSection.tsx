@@ -79,7 +79,7 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
 
   const getActiveSentenceIndex = (wordIndex: number): number => {
     if (wordIndex < 0) return -1;
-    
+
     let wordCount = 0;
     for (let i = 0; i < englishSentences.length; i++) {
       const sentenceWords = englishSentences[i].split(/\s+/).filter(w => w.length > 0);
@@ -133,8 +133,7 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
 
       if (result.isExisting) {
         alert(
-          `"${cleanWord}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${
-            result.data?.definition || 'Belirtilmemiş'
+          `"${cleanWord}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${result.data?.definition || 'Belirtilmemiş'
           }\nÖrnek: ${result.data?.example_sentence || 'Belirtilmemiş'}`
         );
       } else if (result.translationError) {
@@ -143,8 +142,7 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
         );
       } else {
         alert(
-          `"${cleanWord}" kelimesi başarıyla eklendi!\n\nAnlam: ${
-            result.data?.definition
+          `"${cleanWord}" kelimesi başarıyla eklendi!\n\nAnlam: ${result.data?.definition
           }\nÖrnek Cümle: ${result.data?.example_sentence}\nSeviye: ${result.data?.level}`
         );
       }
@@ -204,8 +202,8 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
     }
 
     const backendBaseUrl = process.env.NODE_ENV === 'production'
-      ? 'https://lingroot-backend.onrender.com'  
-      : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001');  
+      ? 'https://lingroot-backend.onrender.com'
+      : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001');
 
     const cleanPath = url.startsWith('/') ? url.slice(1) : url;
 
@@ -248,7 +246,7 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
           <span className="text-sm text-gray-600">Konu: <span className="font-medium text-gray-800">{audioResult.topic || 'Günlük Yaşam'}</span></span>
           <span className="text-sm text-gray-600">Seviye: <span className="font-medium text-primary">{audioResult.level || 'A1'}</span></span>
         </div>
-        
+
         {/* Show Original Language Toggle */}
         {shouldShowPlainTextArea && (audioResult.translated_text || audioResult.translatedText) && (
           <div className="flex items-center gap-3">
@@ -265,7 +263,7 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
               }}
             >
               <span>Show Original Language</span>
-              <div 
+              <div
                 className="relative inline-block w-10 h-5 rounded-full transition-colors"
                 style={{
                   backgroundColor: showTranslation
@@ -273,7 +271,7 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
                     : 'hsl(var(--primary) / 0.2)'
                 }}
               >
-                <div 
+                <div
                   className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform"
                   style={{ transform: showTranslation ? 'translateX(20px)' : 'translateX(0)' }}
                 />
@@ -292,7 +290,19 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
         }
       >
         <div className={hasPinnedControls ? 'w-full max-w-6xl mx-auto px-6 py-3' : ''}>
-          <div className={hasPinnedControls ? 'bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-3 pointer-events-auto' : ''}>
+          <div className={`relative ${hasPinnedControls ? 'bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-3 pointer-events-auto' : ''}`}>
+            {hasPinnedControls && (
+              <button
+                onClick={() => setHasPinnedControls(false)}
+                className="absolute -top-3 -right-3 z-50 bg-white text-gray-400 hover:text-gray-600 rounded-full p-1 shadow-md border border-gray-200 transition-colors"
+                title="Küçült"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            )}
             <NewSyncedTextPlayer
               audioUrl={playableAudioUrl}
               words={audioResult.words || []}
@@ -350,11 +360,10 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
                 >
                   <div
                     ref={(el) => { dialogueLineRefs.current[index] = el; }}
-                    className={`max-w-3xl rounded-2xl px-4 py-2 text-sm shadow-sm border transition-transform ${
-                      isSpeakerA
+                    className={`max-w-3xl rounded-2xl px-4 py-2 text-sm shadow-sm border transition-transform ${isSpeakerA
                         ? 'bg-blue-50 border-blue-100 text-gray-800'
                         : 'bg-green-50 border-green-100 text-gray-800'
-                    } ${isActive ? 'ring-2 ring-primary shadow-md scale-[1.01]' : ''}`}
+                      } ${isActive ? 'ring-2 ring-primary shadow-md scale-[1.01]' : ''}`}
                   >
                     {speakerLabel && (
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">
@@ -404,11 +413,10 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
                     <span
                       key={index}
                       ref={isCurrentWord ? activeWordRef : undefined}
-                      className={`transition-all duration-100 ${
-                        isCurrentWord
+                      className={`transition-all duration-100 ${isCurrentWord
                           ? 'bg-yellow-300 text-yellow-900 font-semibold px-1 py-0.5 rounded shadow-sm'
                           : ''
-                      }`}
+                        }`}
                       style={{ display: 'inline' }}
                     >
                       {word}{' '}
@@ -435,11 +443,10 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
                     return (
                       <span
                         key={index}
-                        className={`transition-all duration-200 ${
-                          isActiveSentence
+                        className={`transition-all duration-200 ${isActiveSentence
                             ? 'bg-yellow-200 text-yellow-900 px-1 py-0.5 rounded'
                             : ''
-                        }`}
+                          }`}
                         style={{ display: 'inline' }}
                       >
                         {sentence}{' '}
@@ -458,4 +465,3 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
     </div>
   );
 }
- 

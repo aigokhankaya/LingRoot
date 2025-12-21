@@ -95,6 +95,11 @@ const PERSONALITY_SPEAKERS = {
 const DEFAULT_SPEAKER_A = 'Kore';   // Female - Host
 const DEFAULT_SPEAKER_B = 'Charon'; // Male - Guest
 
+const ALLOWED_GEMINI_TTS_MODELS = new Set([
+  'gemini-2.5-flash-tts',
+  'gemini-2.5-pro-tts',
+]);
+
 /**
  * Generate podcast script using OpenAI
  * @param {Object} options - Generation options
@@ -162,8 +167,18 @@ OUTPUT FORMAT (JSON):
     { "speaker": "A", "text": "Speaker A's dialogue" },
     { "speaker": "B", "text": "Speaker B's dialogue" },
     ...
+  ],
+  "turns_original": [
+    { "speaker": "A", "text": "Original-language version of Speaker A's dialogue" },
+    { "speaker": "B", "text": "Original-language version of Speaker B's dialogue" },
+    ...
   ]
 }
+
+IMPORTANT FOR turns_original:
+- turns_original MUST be Turkish (the user's original language).
+- It MUST have the SAME number of items as turns.
+- Each turns_original[i] MUST be a faithful Turkish translation of turns[i] (same meaning, same speaker).
 
 Generate dialogue that sounds like a REAL conversation between friends, NOT a scripted interview.`;
 
@@ -194,6 +209,7 @@ Generate dialogue that sounds like a REAL conversation between friends, NOT a sc
     return {
       title: scriptData.title || topic,
       turns: scriptData.turns || [],
+      turns_original: scriptData.turns_original || [],
       speakerAId: speakerAInfo.speakerId,
       speakerBId: speakerBInfo.speakerId,
       usage: response.usage,
@@ -220,7 +236,41 @@ async function synthesizeMultiSpeakerPodcast(options) {
     speakerBId = 'Charon',
     stylePrompt = 'Have a natural, engaging conversation.',
     model = 'gemini-2.5-flash-tts',
+    _attemptedVoicePairs = null,
   } = options;
+
+  const femaleSpeakers = Object.keys(GEMINI_SPEAKERS).filter(
+    (id) => GEMINI_SPEAKERS[id] && GEMINI_SPEAKERS[id].gender === 'female'
+  );
+  const maleSpeakers = Object.keys(GEMINI_SPEAKERS).filter(
+    (id) => GEMINI_SPEAKERS[id] && GEMINI_SPEAKERS[id].gender === 'male'
+  );
+
+  const toPairKey = (a, b) => `${String(a || '')}|${String(b || '')}`;
+
+  const buildCandidatePairs = () => {
+    const pairs = [];
+    for (const f of femaleSpeakers) {
+      for (const m of maleSpeakers) {
+        pairs.push([f, m]);
+        pairs.push([m, f]);
+      }
+    }
+
+    const defaultKey1 = `${DEFAULT_SPEAKER_A}|${DEFAULT_SPEAKER_B}`;
+    const defaultKey2 = `${DEFAULT_SPEAKER_B}|${DEFAULT_SPEAKER_A}`;
+    pairs.sort((p1, p2) => {
+      const k1 = `${p1[0]}|${p1[1]}`;
+      const k2 = `${p2[0]}|${p2[1]}`;
+      if (k1 === defaultKey1) return -1;
+      if (k2 === defaultKey1) return 1;
+      if (k1 === defaultKey2) return -1;
+      if (k2 === defaultKey2) return 1;
+      return 0;
+    });
+
+    return pairs;
+  };
 
   logger.info(`[GOOGLE-PODCAST] Synthesizing ${turns.length} turns with ${model}`);
   logger.info(`[GOOGLE-PODCAST] Speaker A: ${speakerAId}, Speaker B: ${speakerBId}`);
@@ -301,15 +351,20 @@ async function synthesizeMultiSpeakerPodcast(options) {
       logger.info(`[GOOGLE-PODCAST] Chunked synthesis: ${chunks.length} chunks (max ${MAX_INPUT_TEXT_BYTES} bytes each)`);
 
       const audioBuffers = [];
-      for (let ci = 0; ci < chunks.length; ci++) {
-        const chunkText = chunks[ci];
+      let ttsCharactersTotal = 0;
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunkText = chunks[i];
+        ttsCharactersTotal += String(chunkText || '').length;
+        logger.info(`[GOOGLE-PODCAST] Synthesizing chunk ${i + 1}/${chunks.length} (${getUtf8ByteLength(chunkText)} bytes)`);
+
         const requestBody = {
           input: {
             text: chunkText,
             prompt: stylePrompt,
           },
           voice: {
-            languageCode: 'en-US',
+            languageCode: 'en-us',
             modelName: model,
             multiSpeakerVoiceConfig: {
               speakerVoiceConfigs: [
@@ -330,13 +385,13 @@ async function synthesizeMultiSpeakerPodcast(options) {
           },
         };
 
-        logger.info(`[GOOGLE-PODCAST] Chunk ${ci + 1}/${chunks.length} - bytes=${getUtf8ByteLength(chunkText)}`);
+        logger.info(`[GOOGLE-PODCAST] Chunk ${i + 1}/${chunks.length} - bytes=${getUtf8ByteLength(chunkText)}`);
 
         let lastError;
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             const response = await axios.post(
-              `https://texttospeech.googleapis.com/v1beta1/text:synthesize`,
+              `https://texttospeech.googleapis.com/v1/text:synthesize`,
               requestBody,
               {
                 headers: {
@@ -360,7 +415,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
             const errMsg = retryError.response?.data?.error?.message || retryError.message;
             const errCode = retryError.response?.data?.error?.code || retryError.code || 'UNKNOWN';
             const errStatus = retryError.response?.status || 'N/A';
-            logger.warn(`[GOOGLE-PODCAST] Chunk ${ci + 1}/${chunks.length} attempt ${attempt}/3 failed: [${errCode}] ${errMsg} (HTTP ${errStatus})`);
+            logger.warn(`[GOOGLE-PODCAST] Chunk ${i + 1}/${chunks.length} attempt ${attempt}/3 failed: [${errCode}] ${errMsg} (HTTP ${errStatus})`);
 
             if (attempt < 3) {
               const delay = Math.pow(2, attempt) * 1000;
@@ -369,7 +424,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
           }
         }
 
-        if (audioBuffers.length !== ci + 1) {
+        if (audioBuffers.length !== i + 1) {
           throw lastError || new Error('Chunked synthesis failed');
         }
 
@@ -377,16 +432,15 @@ async function synthesizeMultiSpeakerPodcast(options) {
         await new Promise(resolve => setTimeout(resolve, 350));
       }
 
-      const mergedAudio = await mergeAudioSegmentsToBuffer(audioBuffers);
-      if (!mergedAudio) {
-        throw new Error('Failed to merge chunked audio buffers');
-      }
+      const merged = await mergeAudioSegmentsToBuffer(audioBuffers);
+      logger.info(`[GOOGLE-PODCAST] Merged chunked audio: ${merged.length} bytes`);
 
       return {
-        audioContent: mergedAudio,
+        audioContent: merged,
         transcript: fullTranscript,
         dialogueText: dialogueText,
         turns: turns,
+        ttsCharacters: ttsCharactersTotal,
       };
     }
     
@@ -396,7 +450,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
         prompt: stylePrompt,
       },
       voice: {
-        languageCode: 'en-US',
+        languageCode: 'en-us',
         modelName: model,
         multiSpeakerVoiceConfig: {
           speakerVoiceConfigs: [
@@ -417,7 +471,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
       },
     };
 
-    logger.info('[GOOGLE-PODCAST] Sending request to Gemini-TTS REST API (v1beta1)...');
+    logger.info('[GOOGLE-PODCAST] Sending request to Gemini-TTS REST API (v1)...');
     logger.info(`[GOOGLE-PODCAST] Request config: Host=${speakerAId}, Guest=${speakerBId}, Model=${model}`);
     logger.debug(`[GOOGLE-PODCAST] Request body: ${JSON.stringify(requestBody, null, 2)}`);
     
@@ -425,9 +479,9 @@ async function synthesizeMultiSpeakerPodcast(options) {
     let lastError;
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        // Use v1beta1 endpoint for Gemini TTS multi-speaker support
+        // Use v1 endpoint for Gemini TTS multi-speaker support
         const response = await axios.post(
-          `https://texttospeech.googleapis.com/v1beta1/text:synthesize`,
+          `https://texttospeech.googleapis.com/v1/text:synthesize`,
           requestBody,
           {
             headers: {
@@ -435,7 +489,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
               'x-goog-user-project': projectId,
               'Content-Type': 'application/json',
             },
-            timeout: 120000, // 2 minutes timeout
+            timeout: 120000,
           }
         );
 
@@ -452,15 +506,23 @@ async function synthesizeMultiSpeakerPodcast(options) {
           transcript: fullTranscript,
           dialogueText: dialogueText,
           turns: turns,
+          ttsCharacters: String(dialogueText || '').length,
         };
       } catch (retryError) {
         lastError = retryError;
         const errMsg = retryError.response?.data?.error?.message || retryError.message;
         const errCode = retryError.response?.data?.error?.code || retryError.code || 'UNKNOWN';
         const errStatus = retryError.response?.status || 'N/A';
+        const apiStatus = retryError.response?.data?.error?.status;
+        const httpStatus = retryError.response?.status;
+        const isInvalidArgument = apiStatus === 'INVALID_ARGUMENT' || httpStatus === 400;
         logger.warn(`[GOOGLE-PODCAST] Attempt ${attempt}/3 failed: [${errCode}] ${errMsg} (HTTP ${errStatus})`);
         if (retryError.response?.data) {
           logger.debug(`[GOOGLE-PODCAST] Error response: ${JSON.stringify(retryError.response.data)}`);
+        }
+
+        if (isInvalidArgument) {
+          break;
         }
         
         if (attempt < 3) {
@@ -475,7 +537,34 @@ async function synthesizeMultiSpeakerPodcast(options) {
     throw lastError;
   } catch (error) {
     const errMsg = error.response?.data?.error?.message || error.message;
+    const apiStatus = error.response?.data?.error?.status;
+    const httpStatus = error.response?.status;
+    const isInvalidArgument = apiStatus === 'INVALID_ARGUMENT' || httpStatus === 400;
     logger.error('[GOOGLE-PODCAST] Synthesis failed after retries:', errMsg);
+
+    if (isInvalidArgument) {
+      const attemptedSet = new Set(Array.isArray(_attemptedVoicePairs) ? _attemptedVoicePairs : []);
+      attemptedSet.add(toPairKey(speakerAId, speakerBId));
+
+      const candidates = buildCandidatePairs();
+      const nextPair = candidates.find(([a, b]) => !attemptedSet.has(`${a}|${b}`));
+
+      if (nextPair) {
+        const [nextA, nextB] = nextPair;
+        const attemptNumber = attemptedSet.size + 1;
+        logger.warn(`[GOOGLE-PODCAST] INVALID_ARGUMENT for Host=${speakerAId}, Guest=${speakerBId}. Trying another female/male voice pair (attempt ${attemptNumber}/${candidates.length}): Host=${nextA}, Guest=${nextB}`);
+        return await synthesizeMultiSpeakerPodcast({
+          ...options,
+          speakerAId: nextA,
+          speakerBId: nextB,
+          _attemptedVoicePairs: Array.from(attemptedSet),
+        });
+      }
+
+      const finalErr = new Error('Gemini TTS rejected all available female/male voice pairs (INVALID_ARGUMENT).');
+      finalErr.code = 'GEMINI_INVALID_ARGUMENT';
+      throw finalErr;
+    }
     
     // Try fallback for any error (INTERNAL, multiSpeaker, rate limit, etc.)
     logger.info('[GOOGLE-PODCAST] Trying fallback synthesis with separate speakers...');
@@ -528,7 +617,7 @@ async function synthesizeFallbackPodcast(turns, speakerAId, speakerBId) {
           text: turnText,
         },
         voice: {
-          languageCode: 'en-US',
+          languageCode: 'en-us',
           modelName: 'gemini-2.5-flash-tts',
           multiSpeakerVoiceConfig: {
             speakerVoiceConfigs: [
@@ -549,9 +638,9 @@ async function synthesizeFallbackPodcast(turns, speakerAId, speakerBId) {
         },
       };
 
-      // Use v1beta1 endpoint for Gemini TTS multi-speaker support
+      // Use v1 endpoint for Gemini TTS multi-speaker support
       const response = await axios.post(
-        `https://texttospeech.googleapis.com/v1beta1/text:synthesize`,
+        `https://texttospeech.googleapis.com/v1/text:synthesize`,
         requestBody,
         {
           headers: {
@@ -687,6 +776,7 @@ async function createGoogleTTSPodcast(options) {
     guestSpeakerId,
     includeHumor = true,
     includeFiller = true,
+    ttsModel,
     userId = null,
   } = options;
 
@@ -738,6 +828,12 @@ async function createGoogleTTSPodcast(options) {
       return sentences.map(sentence => ({ speaker: speaker || 'A', text: sentence }));
     });
 
+    const sentenceTurnsOriginal = (scriptResult.turns_original || []).flatMap(t => {
+      const speaker = t && typeof t === 'object' ? t.speaker : null;
+      const sentences = splitIntoSentences(t && typeof t === 'object' ? t.text : '');
+      return sentences.map(sentence => ({ speaker: speaker || 'A', text: sentence }));
+    });
+
     logger.info(`[GOOGLE-PODCAST] Script generated: ${scriptResult.turns.length} turns (sentenceTurns: ${sentenceTurns.length})`);
 
     // Determine final speaker IDs (UI override > script-derived personalities > defaults)
@@ -762,15 +858,30 @@ async function createGoogleTTSPodcast(options) {
 
     logger.info(`[GOOGLE-PODCAST] Final voices - Host: ${finalHostSpeakerId}, Guest: ${finalGuestSpeakerId}`);
 
+    const requestedModel = (typeof ttsModel === 'string' && ttsModel.trim().length > 0)
+      ? ttsModel.trim()
+      : 'gemini-2.5-flash-tts';
+
+    if (!ALLOWED_GEMINI_TTS_MODELS.has(requestedModel)) {
+      const modelErr = new Error(`Unsupported Gemini TTS model: ${requestedModel}. Allowed: ${Array.from(ALLOWED_GEMINI_TTS_MODELS).join(', ')}`);
+      modelErr.code = 'TTS_MODEL_NOT_SUPPORTED';
+      throw modelErr;
+    }
+
     // Step 2: Synthesize audio with Gemini-TTS
     const stylePrompt = STYLE_PROMPTS[styleType] || STYLE_PROMPTS['friendly_chat'];
     
+    const turnsForTts = sentenceTurns.length > 0 ? sentenceTurns : scriptResult.turns;
+    const turnsOriginalForSave = sentenceTurnsOriginal.length > 0
+      ? sentenceTurnsOriginal
+      : (Array.isArray(scriptResult.turns_original) && scriptResult.turns_original.length > 0 ? scriptResult.turns_original : null);
+
     const audioResult = await synthesizeMultiSpeakerPodcast({
-      turns: sentenceTurns.length > 0 ? sentenceTurns : scriptResult.turns,
+      turns: turnsForTts,
       speakerAId: finalHostSpeakerId,
       speakerBId: finalGuestSpeakerId,
       stylePrompt: stylePrompt,
-      model: 'gemini-2.5-flash-tts',
+      model: requestedModel,
     });
 
     // Step 3: Upload audio to storage
@@ -1020,12 +1131,30 @@ async function createGoogleTTSPodcast(options) {
     let contentHistoryId = null;
     if (userId && supabase) {
       try {
+        const { calculateOpenAiCost, calculateTtsCost } = require('./costTracker');
+
+        const openaiCost = calculateOpenAiCost(scriptResult.usage || {}, 'gpt-4o-mini');
+        const ttsCharacters = typeof audioResult?.ttsCharacters === 'number'
+          ? audioResult.ttsCharacters
+          : String(audioResult?.dialogueText || '').length;
+        const ttsCategory = 'Premium';
+        const ttsCostUsd = calculateTtsCost(ttsCharacters, ttsCategory);
+        const totalCostUsd = Number(((openaiCost.totalCostUsd || 0) + (ttsCostUsd || 0)).toFixed(6));
+
+        const turnsOriginalDialogueText = Array.isArray(turnsOriginalForSave) && turnsOriginalForSave.length > 0
+          ? turnsOriginalForSave
+              .map(turn => `${turn?.speaker === 'A' ? 'Host' : 'Guest'}: ${turn?.text || ''}`)
+              .join('\n')
+          : '';
+
         const insertData = {
           user_id: userId,
           level: level,
           mp3_url: audioUrl,
           vtt_url: vttUrl,
-          input: topic,
+          input: (turnsOriginalDialogueText && turnsOriginalDialogueText.trim().length > 0)
+            ? turnsOriginalDialogueText
+            : topic,
           translated_text: (audioResult.dialogueText && typeof audioResult.dialogueText === 'string' && audioResult.dialogueText.trim().length > 0)
             ? audioResult.dialogueText
             : audioResult.transcript,
@@ -1036,10 +1165,27 @@ async function createGoogleTTSPodcast(options) {
           timepoints: Array.isArray(timepoints) && timepoints.length > 0 ? JSON.stringify(timepoints) : null,
           dialogue_segments: Array.isArray(dialogueSegments) && dialogueSegments.length > 0 ? JSON.stringify(dialogueSegments) : null,
           tts_provider: 'google-gemini',
-          tts_voice_name: 'gemini-2.5-flash-tts',
+          tts_voice_name: model,
           audio_duration_seconds: estimatedDuration,
           entry_source: 'google-podcast',
+          openai_prompt_tokens: openaiCost.promptTokens || 0,
+          openai_completion_tokens: openaiCost.completionTokens || 0,
+          openai_total_tokens: openaiCost.totalTokens || 0,
+          openai_cost_usd: openaiCost.totalCostUsd || 0,
+          tts_characters: ttsCharacters,
+          tts_category: ttsCategory,
+          tts_cost_usd: ttsCostUsd,
+          total_cost_usd: totalCostUsd,
         };
+
+        logger.info('[GOOGLE-PODCAST] Cost fields computed for contenthistory', {
+          openai_total_tokens: insertData.openai_total_tokens,
+          openai_cost_usd: insertData.openai_cost_usd,
+          tts_characters: insertData.tts_characters,
+          tts_category: insertData.tts_category,
+          tts_cost_usd: insertData.tts_cost_usd,
+          total_cost_usd: insertData.total_cost_usd,
+        });
 
         const { data, error } = await supabase
           .from('contenthistory')
@@ -1068,6 +1214,7 @@ async function createGoogleTTSPodcast(options) {
       dialogue: audioResult.dialogueText,
       dialogue_segments: dialogueSegments || null,
       turns: audioResult.turns,
+      turns_original: turnsOriginalForSave,
       title: scriptResult.title,
       topic: topic,
       level: level,

@@ -15,8 +15,6 @@ const sequelize = new Sequelize(
         require: true,
         rejectUnauthorized: false
       },
-      // IPv4 zorlaması ekleyin
-      family: 4
     },
     // Use logger.debug for Sequelize logs, only in development
     logging: process.env.NODE_ENV === 'development' ? (msg) => logger.debug(msg) : false,
