@@ -126,7 +126,8 @@ Kullanıcı ile iletişim dili (cevaplar, raporlar, açıklamalar) kesinlikle T�
 🔥 Phase 2 — Intelligent Content Engine (ACTIVE)
 Prompt governance structure
 CEFR adaptation accuracy
-Liro Assistant architecture
+✅ Liro Assistant architecture (v2.0 - User Profiling + Persona Learning)
+✅ User Insight System (Likes/Dislikes/Habits/Goals extraction)
 Multi-level content generation
 Video pipeline (Veo3 integration)
 Full audio synchronization improvement (MFA 2.0)

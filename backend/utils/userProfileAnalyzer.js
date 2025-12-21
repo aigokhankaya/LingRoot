@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const logger = require('./logger');
 const userKnowledgeAnalyzer = require('./userKnowledgeAnalyzer');
+const userInsightService = require('../services/userInsightService');
 
 const LOW_QUALITY_TOPICS = [
   'selam',
@@ -62,6 +63,8 @@ class UserProfileAnalyzer {
         // New Modules
         knowledgeProfile: await userKnowledgeAnalyzer.generateKnowledgeProfile(userId),
         topicTreeStatus: await this.getTopicTreeStatus(userId),
+        // User Persona System
+        userInsights: await userInsightService.getInsights(userId),
       };
 
       return profile;

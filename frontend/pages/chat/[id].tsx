@@ -151,7 +151,27 @@ export default function ChatPage() {
             duration: '10',
           }),
         });
-        result = await response.json();
+      } else if (modalState.type === 'podcast') {
+        const response = await fetch(getApiUrl('/api/tts/create-podcast'), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            topic: modalState.topic,
+            level: 'B1',
+            duration: '10',
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || 'Podcast oluşturulamadı.');
+        }
+
+        result = data;
       } else if (modalState.type === 'tts') {
         const response = await fetch(getApiUrl('/api/tts/process'), {
           method: 'POST',
@@ -166,17 +186,24 @@ export default function ChatPage() {
             speakingRate: 0.8,
           }),
         });
-        result = await response.json();
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Seslendirme başarısız.');
+        }
+
+        result = data;
       }
 
       if (result) {
         setAudioResult(result);
+        closeModal();
       }
-
-      closeModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error('İşlem hatası:', error);
-      alert('Bir hata oluştu. Lütfen tekrar deneyin.');
+      alert(`Hata: ${error.message || 'Bir hata oluştu. Lütfen tekrar deneyin.'}`);
+      // Do not close modal on error so user can retry
     } finally {
       setIsProcessing(false);
     }

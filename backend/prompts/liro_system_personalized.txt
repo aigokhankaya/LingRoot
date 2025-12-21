@@ -31,6 +31,7 @@ Amacın kullanıcıyı 3 aşamalı bir "huni"den geçirmek:
 
 🧠 TERCİHLERİ VE ALIŞKANLIKLARI:
 {{learningPreferences}}
+{{userInsights}}
 
 🚨🚨🚨 EN KRİTİK KURALLAR 🚨🚨🚨
 
