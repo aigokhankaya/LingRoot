@@ -24,6 +24,7 @@ interface UseWordSyncReturn {
   isPlaying: boolean;
   isBuffering: boolean;
   isLoading: boolean;
+  error: string | null;
   currentTime: number;
   duration: number;
   wordTimestamps: WordTimestamp[];
@@ -174,6 +175,7 @@ export const useWordSync = ({
   // Senkronizasyon döngüsü - requestAnimationFrame ile kelime takibi
   const syncLoop = useCallback(() => {
     if (!audioRef.current) {
+      // console removed
       return;
     }
 
@@ -249,7 +251,7 @@ export const useWordSync = ({
 
   // Oynatma fonksiyonu
   const play = useCallback(async () => {
-    console.log('▶️ [PLAY DEBUG] Play function called');
+    // console removed
 
     if (!audioRef.current) {
       console.log('❌ [PLAY DEBUG] Missing audio element');
@@ -283,12 +285,11 @@ export const useWordSync = ({
       console.log('✅ [PLAY DEBUG] audio.play() succeeded');
       setIsPlaying(true);
       startSync();
-    } catch (error) {
+      // console removed
+    } catch (error: any) {
       console.error('❌ [PLAY DEBUG] Oynatma hatası:', error);
-      console.error('❌ [PLAY DEBUG] Error details:', {
-        name: (error as Error).name,
-        message: (error as Error).message
-      });
+      setError(`Oynatma hatası: ${error?.message || 'Bilinmeyen hata'}`);
+      setIsPlaying(false);
     }
   }, [startSync]);
 
@@ -392,6 +393,9 @@ export const useWordSync = ({
     console.log('🔍 [TIMESTAMPS DEBUG] Sample timestamp structure:', calculatedTimestamps[0]);
   }, [timepoints, originalText, duration]);
 
+  // Audio error handling
+  const [error, setError] = useState<string | null>(null);
+
   // Audio kurulum ve temizlik
   useEffect(() => {
     console.log('🔄 [AUDIO SETUP DEBUG] useEffect called with dependencies:', {
@@ -400,26 +404,9 @@ export const useWordSync = ({
       willSkip: isInitializedRef.current
     });
 
-    // ✅ CRITICAL FIX: Reset ALL playback states when audioUrl changes
-    // This prevents the "audio already finished" bug when loading a shorter audio after a longer one
-    console.log('🔄 [AUDIO SETUP DEBUG] Resetting all playback states for new audio...');
-    setCurrentTime(0);
-    setDuration(0);
-    setActiveWordIndex(-1);
-    setIsPlaying(false);
-    setIsBuffering(false);
-    setIsLoading(true);
-    setWordTimestamps([]);
-    lastSeekTimeRef.current = -1;
-
-    // Stop any existing sync loop
-    if (animationFrameId.current) {
-      cancelAnimationFrame(animationFrameId.current);
-      animationFrameId.current = null;
-    }
-
     // Reset initialization for new audioUrl
     isInitializedRef.current = false;
+    setError(null); // Reset error on new url
 
     console.log('🔄 [AUDIO SETUP DEBUG] Reset isInitializedRef, proceeding with setup...');
 
@@ -467,7 +454,9 @@ export const useWordSync = ({
       console.log('✅ [AUDIO DEBUG] handleLoadedMetadata called');
       const audioDuration = audioRef.current?.duration || 0;
       setDuration(audioDuration);
-      console.log(`🎵 Audio metadata loaded: ${audioDuration}s`);
+      setIsLoading(false);
+      setError(null);
+      console.log(`🎵 Audio loaded: ${audioDuration}s`);
       console.log('📊 [DURATION DEBUG] Duration set, word timestamps should be calculated now');
     };
 
@@ -520,10 +509,25 @@ export const useWordSync = ({
       startSync(); // Start sync when audio is playing
     };
 
-    const handleError = (e: Event) => {
+    const handleError = (e: Event | string) => {
       console.error('❌ [AUDIO DEBUG] Audio error occurred:', e);
       console.error('❌ [AUDIO DEBUG] Setting isLoading to false due to error');
+
+      let errorMessage = 'Ses dosyası yüklenemedi';
+      if (audioRef.current && audioRef.current.error) {
+        const code = audioRef.current.error.code;
+        switch (code) {
+          case 1: errorMessage = 'Kullanıcı işlemi iptal etti (MEDIA_ERR_ABORTED)'; break;
+          case 2: errorMessage = 'Ağ hatası (MEDIA_ERR_NETWORK)'; break;
+          case 3: errorMessage = 'Ses çözülemedi (MEDIA_ERR_DECODE)'; break;
+          case 4: errorMessage = 'Dosya bulunamadı veya desteklenmiyor (MEDIA_ERR_SRC_NOT_SUPPORTED)'; break;
+          default: errorMessage = 'Bilinmeyen ses hatası';
+        }
+      }
+
+      setError(errorMessage);
       setIsLoading(false);
+      setIsPlaying(false);
     };
 
     // Olay dinleyicilerini ekle
@@ -552,10 +556,14 @@ export const useWordSync = ({
         audio.removeEventListener('waiting', handleWaiting);
         audio.removeEventListener('playing', handlePlaying);
         audio.removeEventListener('error', handleError);
+      }
 
-        // Stop audio playback
-        audio.pause();
-        audio.src = '';
+      if (sourceNodeRef.current) {
+        sourceNodeRef.current.disconnect();
+      }
+
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
       }
     };
   }, [audioUrl]); // Only rerun when audioUrl changes!
@@ -565,6 +573,7 @@ export const useWordSync = ({
     isPlaying,
     isBuffering,
     isLoading,
+    error,
     currentTime,
     duration,
     wordTimestamps,
