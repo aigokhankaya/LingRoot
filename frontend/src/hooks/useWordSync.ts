@@ -558,9 +558,10 @@ export const useWordSync = ({
         audio.removeEventListener('error', handleError);
       }
 
-      if (sourceNodeRef.current) {
-        sourceNodeRef.current.disconnect();
-      }
+      // sourceNodeRef is unused in this implementation (not using WebAudio graph)
+      // if (sourceNodeRef.current) {
+      //   sourceNodeRef.current.disconnect();
+      // }
 
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         audioContextRef.current.close();
