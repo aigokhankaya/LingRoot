@@ -33,7 +33,7 @@ export default function Checkout() {
   const { t } = useTranslation();
   const { plan: planId } = router.query;
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [planDetails, setPlanDetails] = useState<Plan | null>(null);
@@ -137,8 +137,8 @@ export default function Checkout() {
     }
 
     // Form validasyonu
-    if (!cardInfo.cardHolderName || !cardInfo.cardNumber || !cardInfo.expireMonth || 
-        !cardInfo.expireYear || !cardInfo.cvc) {
+    if (!cardInfo.cardHolderName || !cardInfo.cardNumber || !cardInfo.expireMonth ||
+      !cardInfo.expireYear || !cardInfo.cvc) {
       setError('Lütfen tüm kart bilgilerini doldurun');
       return;
     }
@@ -266,7 +266,7 @@ export default function Checkout() {
             {/* Plan Özeti */}
             <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('checkout_plan_details')}</h2>
-              
+
               <div className="border-b border-gray-200 pb-4 mb-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-600">{t('checkout_plan_label')}</span>
@@ -316,11 +316,10 @@ export default function Checkout() {
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('iyzico')}
-                  className={`p-4 border-2 rounded-lg text-center transition-all ${
-                    paymentMethod === 'iyzico'
+                  className={`p-4 border-2 rounded-lg text-center transition-all ${paymentMethod === 'iyzico'
                       ? 'border-primary bg-primary/5'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <div className="font-semibold text-gray-900">iyzico</div>
                   <div className="text-xs text-gray-500 mt-1">Kredi Kartı / Taksit</div>
@@ -333,11 +332,10 @@ export default function Checkout() {
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('stripe')}
-                  className={`p-4 border-2 rounded-lg text-center transition-all ${
-                    paymentMethod === 'stripe'
+                  className={`p-4 border-2 rounded-lg text-center transition-all ${paymentMethod === 'stripe'
                       ? 'border-primary bg-primary/5'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <div className="font-semibold text-gray-900">Stripe</div>
                   <div className="text-xs text-gray-500 mt-1">Uluslararası Kartlar</div>
@@ -352,146 +350,145 @@ export default function Checkout() {
 
             {/* iyzico Kart Formu - Sadece iyzico seçiliyse göster */}
             {paymentMethod === 'iyzico' && (
-            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <svg className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                </svg>
-                Kredi Kartı Bilgileri
-              </h2>
+              <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <svg className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                  Kredi Kartı Bilgileri
+                </h2>
 
-              <div className="space-y-4">
-                {/* Kart Sahibi */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Kart Üzerindeki İsim
-                  </label>
-                  <input
-                    type="text"
-                    value={cardInfo.cardHolderName}
-                    onChange={(e) => setCardInfo({ ...cardInfo, cardHolderName: e.target.value.toUpperCase() })}
-                    placeholder="AD SOYAD"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                </div>
-
-                {/* Kart Numarası */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Kart Numarası
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={cardInfo.cardNumber}
-                      onChange={handleCardNumberChange}
-                      placeholder="0000 0000 0000 0000"
-                      maxLength={19}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent pr-16"
-                    />
-                    {cardType && (
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                        {cardType}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Son Kullanma ve CVV */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-4">
+                  {/* Kart Sahibi */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ay
-                    </label>
-                    <select
-                      value={cardInfo.expireMonth}
-                      onChange={(e) => setCardInfo({ ...cardInfo, expireMonth: e.target.value })}
-                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    >
-                      <option value="">AA</option>
-                      {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                        <option key={m} value={m.toString().padStart(2, '0')}>
-                          {m.toString().padStart(2, '0')}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Yıl
-                    </label>
-                    <select
-                      value={cardInfo.expireYear}
-                      onChange={(e) => setCardInfo({ ...cardInfo, expireYear: e.target.value })}
-                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    >
-                      <option value="">YY</option>
-                      {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() + i).map((y) => (
-                        <option key={y} value={y.toString().slice(-2)}>
-                          {y}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      CVV
+                      Kart Üzerindeki İsim
                     </label>
                     <input
                       type="text"
-                      value={cardInfo.cvc}
-                      onChange={(e) => setCardInfo({ ...cardInfo, cvc: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-                      placeholder="***"
-                      maxLength={4}
+                      value={cardInfo.cardHolderName}
+                      onChange={(e) => setCardInfo({ ...cardInfo, cardHolderName: e.target.value.toUpperCase() })}
+                      placeholder="AD SOYAD"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     />
                   </div>
-                </div>
 
-                {/* Taksit Seçenekleri */}
-                {installments.length > 1 && (
+                  {/* Kart Numarası */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Taksit Seçenekleri
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Kart Numarası
                     </label>
-                    <div className="space-y-2">
-                      {installments.map((inst) => (
-                        <label
-                          key={inst.installmentNumber}
-                          className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all ${
-                            selectedInstallment === inst.installmentNumber
-                              ? 'border-primary bg-primary/5'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="radio"
-                              name="installment"
-                              value={inst.installmentNumber}
-                              checked={selectedInstallment === inst.installmentNumber}
-                              onChange={() => setSelectedInstallment(inst.installmentNumber)}
-                              className="text-primary focus:ring-primary"
-                            />
-                            <span className="text-sm">
-                              {inst.installmentNumber === 1 ? 'Tek Çekim' : `${inst.installmentNumber} Taksit`}
-                            </span>
-                          </div>
-                          <div className="text-right">
-                            <span className="font-semibold">{Number(inst.totalPrice).toFixed(2)} ₺</span>
-                            {inst.installmentNumber > 1 && (
-                              <span className="text-xs text-gray-500 block">
-                                {inst.installmentNumber} x {Number(inst.installmentPrice).toFixed(2)} ₺
-                              </span>
-                            )}
-                          </div>
-                        </label>
-                      ))}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={cardInfo.cardNumber}
+                        onChange={handleCardNumberChange}
+                        placeholder="0000 0000 0000 0000"
+                        maxLength={19}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent pr-16"
+                      />
+                      {cardType && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          {cardType}
+                        </span>
+                      )}
                     </div>
                   </div>
-                )}
+
+                  {/* Son Kullanma ve CVV */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Ay
+                      </label>
+                      <select
+                        value={cardInfo.expireMonth}
+                        onChange={(e) => setCardInfo({ ...cardInfo, expireMonth: e.target.value })}
+                        className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                      >
+                        <option value="">AA</option>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                          <option key={m} value={m.toString().padStart(2, '0')}>
+                            {m.toString().padStart(2, '0')}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Yıl
+                      </label>
+                      <select
+                        value={cardInfo.expireYear}
+                        onChange={(e) => setCardInfo({ ...cardInfo, expireYear: e.target.value })}
+                        className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                      >
+                        <option value="">YY</option>
+                        {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() + i).map((y) => (
+                          <option key={y} value={y.toString().slice(-2)}>
+                            {y}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        CVV
+                      </label>
+                      <input
+                        type="text"
+                        value={cardInfo.cvc}
+                        onChange={(e) => setCardInfo({ ...cardInfo, cvc: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                        placeholder="***"
+                        maxLength={4}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Taksit Seçenekleri */}
+                  {installments.length > 1 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Taksit Seçenekleri
+                      </label>
+                      <div className="space-y-2">
+                        {installments.map((inst) => (
+                          <label
+                            key={inst.installmentNumber}
+                            className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all ${selectedInstallment === inst.installmentNumber
+                                ? 'border-primary bg-primary/5'
+                                : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="radio"
+                                name="installment"
+                                value={inst.installmentNumber}
+                                checked={selectedInstallment === inst.installmentNumber}
+                                onChange={() => setSelectedInstallment(inst.installmentNumber)}
+                                className="text-primary focus:ring-primary"
+                              />
+                              <span className="text-sm">
+                                {inst.installmentNumber === 1 ? 'Tek Çekim' : `${inst.installmentNumber} Taksit`}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-semibold">{Number(inst.totalPrice).toFixed(2)} ₺</span>
+                              {inst.installmentNumber > 1 && (
+                                <span className="text-xs text-gray-500 block">
+                                  {inst.installmentNumber} x {Number(inst.installmentPrice).toFixed(2)} ₺
+                                </span>
+                              )}
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
             )}
 
             {/* Stripe Bilgi Mesajı - Sadece Stripe seçiliyse göster */}
@@ -504,7 +501,7 @@ export default function Checkout() {
                   <div>
                     <h3 className="font-semibold text-blue-900 mb-1">Stripe ile Güvenli Ödeme</h3>
                     <p className="text-sm text-blue-800">
-                      "Öde" butonuna tıkladığınızda Stripe'ın güvenli ödeme sayfasına yönlendirileceksiniz. 
+                      &quot;Öde&quot; butonuna tıkladığınızda Stripe&apos;ın güvenli ödeme sayfasına yönlendirileceksiniz.
                       Kart bilgilerinizi orada güvenle girebilirsiniz.
                     </p>
                     <div className="flex gap-2 mt-3">

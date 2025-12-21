@@ -453,8 +453,8 @@ export default function BookDetailsPage() {
                                                                 size="sm"
                                                                 disabled={isGenerating}
                                                                 className={`h-8 text-xs transition-all ${hasAudio
-                                                                        ? (isThisPlaying ? 'bg-indigo-600 hover:bg-indigo-700 animate-pulse' : 'bg-green-600 hover:bg-green-700')
-                                                                        : 'text-slate-500 border-slate-200 bg-slate-50'
+                                                                    ? (isThisPlaying ? 'bg-indigo-600 hover:bg-indigo-700 animate-pulse' : 'bg-green-600 hover:bg-green-700')
+                                                                    : 'text-slate-500 border-slate-200 bg-slate-50'
                                                                     }`}
                                                                 onClick={() => handleAudioClick(chapter.id, level, hasAudio)}
                                                             >

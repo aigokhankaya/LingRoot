@@ -5,6 +5,8 @@ import { getApiUrl } from '../src/lib/api';
 import { useTranslation } from '../src/lib/i18n';
 import Link from 'next/link';
 
+
+
 export default function VerifyPage() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -50,6 +52,7 @@ export default function VerifyPage() {
       <Head>
         <title>{t('verify_title')} - LingRoot</title>
       </Head>
+
       <div className="min-h-screen flex flex-col bg-background">
         <header className="w-full flex justify-center items-center py-8">
           <Link href="/" className="flex items-center space-x-4 cursor-pointer hover:opacity-80 transition-opacity">
@@ -119,6 +122,7 @@ export default function VerifyPage() {
             )}
           </div>
         </main>
+
       </div>
     </>
   );

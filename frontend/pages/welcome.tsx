@@ -266,7 +266,7 @@ const Welcome: React.FC = () => {
     } catch { }
   }, []);
 
-  // Auth check and redirect for unauthenticated users
+  // Auth guard: Giriş yapılmadıysa login sayfasına yönlendir
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !user)) {
       const target = typeof window !== 'undefined' ? window.location.pathname + window.location.search + window.location.hash : '/welcome';
@@ -1990,7 +1990,7 @@ const Welcome: React.FC = () => {
     );
   }
 
-  // Auth tamamlandıktan sonra user kontrolü - Yönlendirme sırasında loading göster
+  // Auth tamamlandıktan sonra user kontrolü
   if (!isAuthenticated || !user) {
     return (
       <main className="min-h-screen flex items-center justify-center">
@@ -3534,16 +3534,12 @@ const Welcome: React.FC = () => {
                               {t('welcome_plan_info_message')}
                             </p>
                             <div className="flex items-center mt-3">
-                              <a
+                              <Link
                                 href="/fiyatlandirma"
                                 className="text-primary hover:text-primary/80 text-sm"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  router.push('/fiyatlandirma');
-                                }}
                               >
                                 {t('welcome_compare_all_plans')}
-                              </a>
+                              </Link>
                             </div>
                           </>
                         ) : (
@@ -3573,16 +3569,12 @@ const Welcome: React.FC = () => {
                                 <i className="fas fa-crown text-yellow-500 mr-2"></i>
                                 {t('welcome_upgrade_to_premium')}
                               </Button>
-                              <a
+                              <Link
                                 href="/fiyatlandirma"
                                 className="text-primary hover:text-primary/80 text-sm"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  router.push('/fiyatlandirma');
-                                }}
                               >
                                 {t('welcome_compare_all_plans')}
-                              </a>
+                              </Link>
                             </div>
                           </div>
                         )}
@@ -3783,6 +3775,15 @@ const Welcome: React.FC = () => {
                                 <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
                               </div>
                             </div>
+                            <button
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${expandedHistoryItem === item.id
+                                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                : 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-sm hover:shadow-md hover:scale-105'
+                                }`}
+                            >
+                              <i className={`fas ${expandedHistoryItem === item.id ? 'fa-times' : 'fa-play'} text-[10px]`}></i>
+                              <span>{expandedHistoryItem === item.id ? t('collapse_button') : t('open_player_button')}</span>
+                            </button>
                           </div>
 
                           {/* Expanded Player View - Toggleable */}

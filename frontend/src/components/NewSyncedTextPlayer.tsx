@@ -970,7 +970,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
           >
             <div className="mb-3 text-sm text-gray-500">Seçilen kelime</div>
             <div className="mb-4 text-lg font-semibold text-gray-900">
-              "{wordPopup.data?.original_word || wordPopup.data?.word || wordPopup.word}"
+              &quot;{wordPopup.data?.original_word || wordPopup.data?.word || wordPopup.word}&quot;
             </div>
 
             {wordPopup.mode === 'info' ? (
@@ -1006,7 +1006,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
             ) : (
               <div className="space-y-4 text-sm text-gray-800">
                 <p>
-                  "{wordPopup.word}" kelimesini kelime listenize eklemek istiyor musunuz?
+                  &quot;{wordPopup.word}&quot; kelimesini kelime listenize eklemek istiyor musunuz?
                 </p>
                 <div className="flex justify-end space-x-2">
                   <button

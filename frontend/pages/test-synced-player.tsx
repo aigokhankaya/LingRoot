@@ -52,7 +52,7 @@ export default function TestSyncedPlayer() {
             🎵 Reusable SyncedTextPlayer Test
           </h1>
           <p className="text-gray-600 leading-relaxed">
-            Bu sayfa, yeni oluşturulan reusable <code className="bg-gray-200 px-2 py-1 rounded">SyncedTextPlayer</code> component'ini test etmek için oluşturulmuştur. 
+            Bu sayfa, yeni oluşturulan reusable <code className="bg-gray-200 px-2 py-1 rounded">SyncedTextPlayer</code> component&apos;ini test etmek için oluşturulmuştur.
             Farklı konuşma hızları ve ayarlarla test edebilirsiniz.
           </p>
         </div>
@@ -62,7 +62,7 @@ export default function TestSyncedPlayer() {
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             ⚙️ Test Ayarları
           </h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Speaking Rate */}
             <div>
@@ -148,7 +148,7 @@ export default function TestSyncedPlayer() {
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
             🎵 SyncedTextPlayer Component
           </h2>
-          
+
           <SyncedTextPlayer
             audioUrl={testData.audioUrl}
             vttUrl={undefined} // VTT test etmek için URL eklenebilir
@@ -168,7 +168,7 @@ export default function TestSyncedPlayer() {
             💻 Component Kullanımı
           </h3>
           <pre className="bg-gray-800 text-green-400 p-4 rounded-lg overflow-x-auto text-sm">
-{`import SyncedTextPlayer from '../src/components/SyncedTextPlayer';
+            {`import SyncedTextPlayer from '../src/components/SyncedTextPlayer';
 
 <SyncedTextPlayer
   audioUrl="https://example.com/audio.mp3"

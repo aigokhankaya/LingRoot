@@ -30,7 +30,7 @@ function splitBookIntoChapters(bookText: string) {
   chapterPattern.lastIndex = 0;
   while ((match = chapterPattern.exec(bookText)) !== null) {
     const chapterTitle = match[0];
-    let nextMatch = chapterPattern.exec(bookText);
+    const nextMatch = chapterPattern.exec(bookText);
     let chapterContent = "";
     if (nextMatch) {
       chapterContent = bookText.substring(match.index + chapterTitle.length, nextMatch.index).trim();

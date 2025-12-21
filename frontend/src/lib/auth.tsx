@@ -1,6 +1,7 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getApiUrl } from './api';
 
 // Types
@@ -123,6 +124,48 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     checkToken();
   }, []);
 
+  const logout = useCallback(() => {
+    localStorage.removeItem('lingroot_token');
+    localStorage.removeItem('lingroot_remember_me');
+    setUser(null);
+    setIsAuthenticated(false);
+  }, []);
+
+  // Token süresini kontrol et ve gerekirse logout yap
+  const checkTokenExpiry = useCallback(() => {
+    const token = localStorage.getItem('lingroot_token');
+    const rememberMe = localStorage.getItem('lingroot_remember_me') === 'true';
+
+    if (!token) return;
+
+    try {
+      // JWT token'ı decode et (basit bir şekilde)
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Date.now() / 1000;
+
+      // Token süresi dolmuşsa logout yap
+      if (payload.exp < currentTime) {
+        console.log('[AUTH] Token süresi doldu, logout yapılıyor');
+        logout();
+        return;
+      }
+
+      // Beni hatırla seçili değilse ve 1 saatten fazla geçmişse logout yap
+      if (!rememberMe) {
+        const tokenAge = currentTime - payload.iat;
+        const oneHour = 60 * 60; // 1 saat saniye cinsinden
+
+        if (tokenAge > oneHour) {
+          console.log('[AUTH] Idle timeout, logout yapılıyor');
+          logout();
+        }
+      }
+    } catch (error) {
+      console.error('[AUTH] Token decode hatası:', error);
+      logout();
+    }
+  }, [logout]);
+
   // Token süresini düzenli olarak kontrol et
   useEffect(() => {
     const interval = setInterval(() => {
@@ -130,8 +173,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     }, 60000); // Her dakika kontrol et
 
     return () => clearInterval(interval);
-  }, []);
-
+  }, [checkTokenExpiry]);
   const login = async (email: string, password: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string; code?: string }> => {
     try {
       console.log('[AUTH] login() called', { email });
@@ -273,47 +315,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('lingroot_token');
-    localStorage.removeItem('lingroot_remember_me');
-    setUser(null);
-    setIsAuthenticated(false);
-  };
-
-  // Token süresini kontrol et ve gerekirse logout yap
-  const checkTokenExpiry = () => {
-    const token = localStorage.getItem('lingroot_token');
-    const rememberMe = localStorage.getItem('lingroot_remember_me') === 'true';
-
-    if (!token) return;
-
-    try {
-      // JWT token'ı decode et (basit bir şekilde)
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const currentTime = Date.now() / 1000;
-
-      // Token süresi dolmuşsa logout yap
-      if (payload.exp < currentTime) {
-        console.log('[AUTH] Token süresi doldu, logout yapılıyor');
-        logout();
-        return;
-      }
-
-      // Beni hatırla seçili değilse ve 1 saatten fazla geçmişse logout yap
-      if (!rememberMe) {
-        const tokenAge = currentTime - payload.iat;
-        const oneHour = 60 * 60; // 1 saat saniye cinsinden
-
-        if (tokenAge > oneHour) {
-          console.log('[AUTH] Idle timeout, logout yapılıyor');
-          logout();
-        }
-      }
-    } catch (error) {
-      console.error('[AUTH] Token decode hatası:', error);
-      logout();
-    }
-  };
+  /* checkTokenExpiry moved up */
 
   const loginWithGoogle = async (credential: string, rememberMe: boolean = false): Promise<{ success: boolean; message?: string }> => {
     try {
@@ -449,4 +451,3 @@ export const useAuth = () => {
 };
 
 export default AuthProvider;
-

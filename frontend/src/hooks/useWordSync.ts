@@ -160,8 +160,6 @@ export const useWordSync = ({
   // Ref'ler: Yeniden render'lar arasında değerlerini korur ama render tetiklemezler
   // Ses altyapısı için kullanılırlar
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const animationFrameId = useRef<number | null>(null);
   const isInitializedRef = useRef<boolean>(false);
   const lastSeekTimeRef = useRef<number>(-1);
@@ -174,7 +172,7 @@ export const useWordSync = ({
     }
   }, []);
 
-  // Senkronizasyon döngüsü - Web Audio API + requestAnimationFrame
+  // Senkronizasyon döngüsü - requestAnimationFrame ile kelime takibi
   const syncLoop = useCallback(() => {
     if (!audioRef.current) {
       // console removed
@@ -256,16 +254,35 @@ export const useWordSync = ({
     // console removed
 
     if (!audioRef.current) {
-      console.log('❌ [PLAY DEBUG] Missing audio references:', {
-        hasAudio: !!audioRef.current,
-        hasContext: !!audioContextRef.current
-      });
+      console.log('❌ [PLAY DEBUG] Missing audio element');
       return;
     }
 
     try {
-      // console removed
+      // ✅ CRITICAL FIX: Reset currentTime if it's at or past the end
+      const audioDuration = audioRef.current.duration || 0;
+      const audioCurrentTime = audioRef.current.currentTime || 0;
+
+      console.log('🔍 [PLAY DEBUG] Audio state before play:', {
+        currentTime: audioCurrentTime,
+        duration: audioDuration,
+        paused: audioRef.current.paused,
+        ended: audioRef.current.ended,
+        readyState: audioRef.current.readyState,
+        src: audioRef.current.src ? audioRef.current.src.substring(0, 80) + '...' : 'NO SRC'
+      });
+
+      // If audio is at or past the end, reset to beginning
+      if (audioDuration > 0 && audioCurrentTime >= audioDuration - 0.1) {
+        console.log('🔄 [PLAY DEBUG] Audio at end, resetting to beginning');
+        audioRef.current.currentTime = 0;
+        setCurrentTime(0);
+        setActiveWordIndex(-1);
+      }
+
+      console.log('🎵 [PLAY DEBUG] Calling audio.play()...');
       await audioRef.current.play();
+      console.log('✅ [PLAY DEBUG] audio.play() succeeded');
       setIsPlaying(true);
       startSync();
       // console removed
@@ -395,11 +412,25 @@ export const useWordSync = ({
 
     console.log('🚀 [AUDIO SETUP DEBUG] Starting audio initialization...');
 
-    // Create the audio element. We intentionally do NOT route through WebAudio here.
-    // Some production browser/CDN combinations can result in silent playback when
-    // using createMediaElementSource + AudioContext.
-    audioContextRef.current = null;
+    // ✅ CRITICAL: Clean up previous audio before creating new one
+    if (audioRef.current) {
+      console.log('🧹 [AUDIO SETUP DEBUG] Cleaning up previous audio element...');
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current.load(); // Force release of previous audio resources
+    }
+
+    // AudioContext ve HTMLAudioElement'i oluştur
+    // NOT: Web Audio API (createMediaElementSource) KULLANMIYORUZ çünkü:
+    // 1. createMediaElementSource audio'yu sessiz yapabilir (bağlantı sorunu)
+    // 2. HTML5 Audio API kelime senkronizasyonu için yeterli
+    // 3. Web Audio API sadece ses efektleri için gerekli (bizde yok)
+
     audioRef.current = new Audio(audioUrl);
+    console.log('🎵 [AUDIO SETUP DEBUG] Created new Audio element with URL:', audioUrl.substring(0, 80));
+
+    // Ensure currentTime starts at 0 for new audio
+    audioRef.current.currentTime = 0;
 
     // IMPORTANT:
     // Setting crossOrigin="anonymous" requires the remote host to send proper CORS headers.
@@ -415,19 +446,24 @@ export const useWordSync = ({
       // If URL parsing fails, do not set crossOrigin to avoid breaking playback.
     }
 
-    // Do not connect the audio element to an AudioContext.
-    // We only rely on HTMLAudioElement events + currentTime for word sync.
-    sourceNodeRef.current = null;
+    // Web Audio API KULLANILMIYOR - direkt HTML5 Audio API ile ses çalıyor
+    console.log('✅ [AUDIO SETUP DEBUG] Using HTML5 Audio API (no Web Audio)');
 
     // Olay dinleyicilerini tanımla
     const handleLoadedMetadata = () => {
-      console.log('✅ [AUDIO DEBUG] handleLoadedMetadata called, setting isLoading to false');
+      console.log('✅ [AUDIO DEBUG] handleLoadedMetadata called');
       const audioDuration = audioRef.current?.duration || 0;
       setDuration(audioDuration);
       setIsLoading(false);
       setError(null);
       console.log(`🎵 Audio loaded: ${audioDuration}s`);
       console.log('📊 [DURATION DEBUG] Duration set, word timestamps should be calculated now');
+    };
+
+    const handleCanPlayThrough = () => {
+      console.log('✅ [AUDIO DEBUG] handleCanPlayThrough called - audio is ready to play');
+      setIsLoading(false);
+      console.log('🎵 Audio fully loaded and ready to play');
     };
 
     const handlePlay = () => {
@@ -497,6 +533,7 @@ export const useWordSync = ({
     // Olay dinleyicilerini ekle
     const audio = audioRef.current;
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('canplaythrough', handleCanPlayThrough);
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
@@ -512,6 +549,7 @@ export const useWordSync = ({
 
       if (audio) {
         audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audio.removeEventListener('canplaythrough', handleCanPlayThrough);
         audio.removeEventListener('play', handlePlay);
         audio.removeEventListener('pause', handlePause);
         audio.removeEventListener('ended', handleEnded);
@@ -544,4 +582,4 @@ export const useWordSync = ({
     seek,
     setPlaybackRate
   };
-}; 
+};

@@ -43,7 +43,7 @@ export default function TestGoogleAuth() {
       setStatus('4/4: Google Sign-In tetikleniyor...');
       const result = await signInWithGoogle();
       console.log('✅ Credential alındı:', result.credential.substring(0, 50) + '...');
-      
+
       setCredential(result.credential);
       setStatus('✅ TEST BAŞARILI! Credential alındı.');
     } catch (err: any) {
@@ -56,7 +56,7 @@ export default function TestGoogleAuth() {
   return (
     <div style={{ padding: '40px', fontFamily: 'monospace' }}>
       <h1>Google Auth Test Sayfası</h1>
-      
+
       <div style={{ marginTop: '20px', padding: '20px', background: '#f5f5f5', borderRadius: '8px' }}>
         <h2>Ortam Değişkenleri</h2>
         <p><strong>NEXT_PUBLIC_GOOGLE_CLIENT_ID:</strong></p>
@@ -103,9 +103,9 @@ export default function TestGoogleAuth() {
       <div style={{ marginTop: '40px', padding: '20px', background: '#fff3cd', borderRadius: '8px' }}>
         <h2>Kontrol Listesi</h2>
         <ul style={{ lineHeight: '1.8' }}>
-          <li>✅ Client ID environment variable'da mı? {clientId !== 'YOK' ? 'EVET' : 'HAYIR'}</li>
+          <li>✅ Client ID environment variable&apos;da mı? {clientId !== 'YOK' ? 'EVET' : 'HAYIR'}</li>
           <li>✅ Client ID placeholder değil mi? {clientId.includes('308629480159') ? 'EVET' : 'HAYIR'}</li>
-          <li>⚠️ Google Cloud Console'da Authorized JavaScript Origins eklendi mi?</li>
+          <li>⚠️ Google Cloud Console&apos;da Authorized JavaScript Origins eklendi mi?</li>
           <li>⚠️ Next.js sunucusu .env.local değişikliğinden sonra yeniden başlatıldı mı?</li>
           <li>⚠️ Tarayıcı cache temizlendi mi?</li>
         </ul>
@@ -114,33 +114,33 @@ export default function TestGoogleAuth() {
       <div style={{ marginTop: '20px', padding: '20px', background: '#e3f2fd', borderRadius: '8px' }}>
         <h2>Beklenen Davranış</h2>
         <ol style={{ lineHeight: '1.8' }}>
-          <li>Butona tıkladığınızda Google One Tap popup'ı açılmalı</li>
+          <li>Butona tıkladığınızda Google One Tap popup&apos;ı açılmalı</li>
           <li>Eğer One Tap gösterilmezse, OAuth popup penceresi açılmalı</li>
           <li>Google hesabınızı seçtikten sonra credential alınmalı</li>
-          <li>Credential "✅ TEST BAŞARILI" mesajı ile birlikte gösterilmeli</li>
+          <li>Credential &quot;✅ TEST BAŞARILI&quot; mesajı ile birlikte gösterilmeli</li>
         </ol>
       </div>
 
       <div style={{ marginTop: '20px', padding: '20px', background: '#ffebee', borderRadius: '8px' }}>
         <h2>Yaygın Hatalar ve Çözümleri</h2>
         <dl style={{ lineHeight: '1.8' }}>
-          <dt><strong>"NEXT_PUBLIC_GOOGLE_CLIENT_ID bulunamadı"</strong></dt>
+          <dt><strong>&quot;NEXT_PUBLIC_GOOGLE_CLIENT_ID bulunamadı&quot;</strong></dt>
           <dd>→ .env.local dosyasını kontrol edin ve Next.js'i yeniden başlatın</dd>
-          
-          <dt><strong>"window.google yüklenemedi"</strong></dt>
-          <dd>→ Google Identity Services script'i yüklenemedi. Ağ bağlantısını kontrol edin</dd>
-          
-          <dt><strong>"Google giriş iptal edildi"</strong></dt>
-          <dd>→ Kullanıcı popup'ı kapattı (normal)</dd>
-          
-          <dt><strong>"Origin mismatch"</strong></dt>
-          <dd>→ Google Cloud Console'da http://localhost:3000 ekleyin</dd>
+
+          <dt><strong>&quot;window.google yüklenemedi&quot;</strong></dt>
+          <dd>→ Google Identity Services script&apos;i yüklenemedi. Ağ bağlantısını kontrol edin</dd>
+
+          <dt><strong>&quot;Google giriş iptal edildi&quot;</strong></dt>
+          <dd>→ Kullanıcı popup&apos;ı kapattı (normal)</dd>
+
+          <dt><strong>&quot;Origin mismatch&quot;</strong></dt>
+          <dd>→ Google Cloud Console&apos;da http://localhost:3000 ekleyin</dd>
         </dl>
       </div>
 
       <div style={{ marginTop: '20px', padding: '20px', background: '#f5f5f5', borderRadius: '8px' }}>
         <h2>Google Cloud Console Ayarları</h2>
-        <p>Aşağıdaki URL'leri Google Cloud Console'da ekleyin:</p>
+        <p>Aşağıdaki URL&apos;leri Google Cloud Console&apos;da ekleyin:</p>
         <h3>Authorized JavaScript Origins:</h3>
         <ul>
           <li><code>http://localhost:3000</code></li>
@@ -149,13 +149,13 @@ export default function TestGoogleAuth() {
           <li><code>https://www.lingroot.com</code></li>
         </ul>
         <p style={{ marginTop: '10px' }}>
-          <a 
-            href="https://console.cloud.google.com/apis/credentials" 
-            target="_blank" 
+          <a
+            href="https://console.cloud.google.com/apis/credentials"
+            target="_blank"
             rel="noopener noreferrer"
             style={{ color: '#1976d2', textDecoration: 'underline' }}
           >
-            Google Cloud Console'u Aç →
+            Google Cloud Console&apos;u Aç →
           </a>
         </p>
       </div>

@@ -6,7 +6,7 @@ export default function TextToSpeech() {
       <div className="max-w-2xl bg-white rounded-xl shadow-md p-8 text-left">
         <h1 className="text-2xl font-bold text-primary mb-4">Yazıyı İngilizce Ses Dosyasına Dönüştür</h1>
         <p className="text-gray-700 mb-4">
-          Yazdığınız herhangi bir metni, seçtiğiniz İngilizce seviyeye uygun şekilde seslendirin. LingRoot, metni önce İngilizce'ye çevirir, ardından CEFR (A1–C2) düzeyinde sadeleştirerek yüksek kaliteli bir ses dosyası oluşturur.
+          Yazdığınız herhangi bir metni, seçtiğiniz İngilizce seviyeye uygun şekilde seslendirin. LingRoot, metni önce İngilizce&apos;ye çevirir, ardından CEFR (A1–C2) düzeyinde sadeleştirerek yüksek kaliteli bir ses dosyası oluşturur.
         </p>
         <div className="mb-4">
           <span className="font-semibold text-gray-800">Özellikler:</span>

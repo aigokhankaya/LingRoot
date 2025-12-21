@@ -697,6 +697,18 @@ const Dashboard = () => {
                           </Button>
                         </div>
 
+                        <div className="flex items-center p-3 bg-purple-50 rounded-lg border border-purple-100">
+                          <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 mr-3 flex-shrink-0">
+                            <i className="fas fa-comment"></i>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-800">{t('dashboard_task_speak_title')}</h4>
+                            <p className="text-sm text-gray-600">{t('dashboard_task_speak_desc')}</p>
+                          </div>
+                          <Button size="sm" variant="outline" className="ml-2">
+                            {t('dashboard_task_start_button')}
+                          </Button>
+                        </div>
 
                         <div className="flex items-center p-3 bg-amber-50 rounded-lg border border-amber-100">
                           <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mr-3 flex-shrink-0">
@@ -982,26 +994,14 @@ const Dashboard = () => {
                           {expandedHistoryItem === item.id && (
                             <div className="border-t border-gray-200 bg-white p-4 md:p-5">
                               {(() => {
-                                const looksLikeDialogueTranscript = (text: any) => {
-                                  if (!text || typeof text !== 'string') return false;
-                                  return /^(Speaker\s+[AB]|Host|Guest):/im.test(text);
-                                };
-
                                 const audioResult = {
                                   message: item.adapted_text || item.input,
                                   mp3_url: item.mp3_url,
                                   vtt_url: item.mp3_url.replace('.mp3', '.vtt'),
                                   level: item.level,
                                   adapted_text: item.adapted_text || item.input,
-                                  translated_text: item.translated_text || item.input,
-                                  dialogue: looksLikeDialogueTranscript(item.translated_text) ? item.translated_text : undefined,
+                                  translated_text: item.input, // Original Turkish text
                                   topic: getHistoryTypeLabel(item.input_type),
-                                  input_type: item.input_type,
-                                  dialogue_segments: Array.isArray((item as any).dialogue_segments)
-                                    ? (item as any).dialogue_segments
-                                    : (item as any).dialogue_segments
-                                      ? JSON.parse((item as any).dialogue_segments)
-                                      : undefined,
                                   timepoints: Array.isArray(item.timepoints)
                                     ? item.timepoints
                                     : item.timepoints

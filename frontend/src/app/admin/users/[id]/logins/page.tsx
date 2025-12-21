@@ -57,7 +57,7 @@ export default function AdminUserLoginsPage() {
       {error && (
         <div className="p-3 rounded border border-yellow-300 bg-yellow-50 text-yellow-800 mb-4">
           {error}
-          <div className="text-xs text-yellow-700 mt-1">Bu API henüz mevcut olmayabilir. Backend'e <code className="px-1 bg-yellow-100">GET /api/admin/users/:id/logins</code> eklenmelidir.</div>
+          <div className="text-xs text-yellow-700 mt-1">Bu API henüz mevcut olmayabilir. Backend&apos;e <code className="px-1 bg-yellow-100">GET /api/admin/users/:id/logins</code> eklenmelidir.</div>
         </div>
       )}
       {!error && (!items || items.length === 0) && (
