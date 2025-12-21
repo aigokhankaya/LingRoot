@@ -563,9 +563,10 @@ export const useWordSync = ({
       //   sourceNodeRef.current.disconnect();
       // }
 
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close();
-      }
+      // audioContextRef is unused in this implementation (not using WebAudio graph)
+      // if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      //   audioContextRef.current.close();
+      // }
     };
   }, [audioUrl]); // Only rerun when audioUrl changes!
 
