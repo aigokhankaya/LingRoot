@@ -42,7 +42,7 @@ const findCurrentWordIndex = (wordTimestamps: WordTimestamp[], currentTime: numb
 
   // Debug için mevcut zamanı log et (çok az sıklıkla)
   const shouldDebug = false;
-  if (shouldDebug) {}
+  if (shouldDebug) { }
 
   let low = 0;
   let high = wordTimestamps.length - 1;
@@ -51,25 +51,25 @@ const findCurrentWordIndex = (wordTimestamps: WordTimestamp[], currentTime: numb
     const mid = Math.floor((low + high) / 2);
     const { word, startTime, endTime } = wordTimestamps[mid];
 
-    if (shouldDebug) {}
+    if (shouldDebug) { }
 
     // Kesin geçiş mantığı:
     // currentTime >= startTime && currentTime < endTime
     if (currentTime >= startTime && currentTime < endTime) {
-      if (shouldDebug) {}
+      if (shouldDebug) { }
       return mid;
     } else if (currentTime < startTime) {
       // Aranan zaman kelimeden önce - sol yarıyı ara
       high = mid - 1;
-      if (shouldDebug) {}
+      if (shouldDebug) { }
     } else {
       // currentTime >= endTime - sağ yarıyı ara
       low = mid + 1;
-      if (shouldDebug) {}
+      if (shouldDebug) { }
     }
   }
 
-  if (shouldDebug) {}
+  if (shouldDebug) { }
 
   // Hiçbir kelime aralığında değilse
   return -1;
@@ -82,12 +82,12 @@ const createOptimizedWordTimestamps = (timepoints: Timepoint[], words: string[],
     console.warn('⚠️ [TIMEPOINTS ERROR] timepoints is null/undefined');
     return [];
   }
-  
+
   if (!Array.isArray(timepoints)) {
     console.warn('⚠️ [TIMEPOINTS ERROR] timepoints is not an array:', typeof timepoints, timepoints);
     return [];
   }
-  
+
   if (timepoints.length === 0) {
     console.warn('⚠️ [TIMEPOINTS ERROR] timepoints array is empty');
     return [];
@@ -106,16 +106,16 @@ const createOptimizedWordTimestamps = (timepoints: Timepoint[], words: string[],
         endTime: 0.5
       };
     }
-    
+
     const originalStartTime = tp.timeSeconds || 0;
     const originalEndTime = tp.endTimeSeconds || (tp.timeSeconds + 0.5);
-    
+
     // Offset uygula ama negatif değerleri engelle
     const adjustedStartTime = Math.max(0, originalStartTime - offsetSeconds);
     const adjustedEndTime = Math.max(adjustedStartTime + 0.1, originalEndTime - offsetSeconds);
-    
-    if (false) {}
-    
+
+    if (false) { }
+
     return {
       word: tp.word || words[index] || `word_${index}`,
       startTime: adjustedStartTime,
@@ -131,7 +131,7 @@ const createLinearWordTimestamps = (words: string[], duration: number): WordTime
   }
 
   const timePerWord = duration / words.length;
-  
+
   return words.map((word, index) => ({
     word,
     startTime: index * timePerWord,
@@ -139,14 +139,14 @@ const createLinearWordTimestamps = (words: string[], duration: number): WordTime
   }));
 };
 
-export const useWordSync = ({ 
-  audioUrl, 
-  timepoints, 
-  originalText 
+export const useWordSync = ({
+  audioUrl,
+  timepoints,
+  originalText
 }: UseWordSyncProps): UseWordSyncReturn => {
-  
+
   // DEBUG: Removed verbose init log
-  
+
   // State'ler: Bu state'ler değiştiğinde bileşen yeniden render edilir
   const [activeWordIndex, setActiveWordIndex] = useState<number>(-1);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -159,8 +159,6 @@ export const useWordSync = ({
   // Ref'ler: Yeniden render'lar arasında değerlerini korur ama render tetiklemezler
   // Ses altyapısı için kullanılırlar
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const animationFrameId = useRef<number | null>(null);
   const isInitializedRef = useRef<boolean>(false);
   const lastSeekTimeRef = useRef<number>(-1);
@@ -173,17 +171,16 @@ export const useWordSync = ({
     }
   }, []);
 
-  // Senkronizasyon döngüsü - Web Audio API + requestAnimationFrame
+  // Senkronizasyon döngüsü - requestAnimationFrame ile kelime takibi
   const syncLoop = useCallback(() => {
-    if (!audioRef.current || !audioContextRef.current) {
-    // console removed
+    if (!audioRef.current) {
       return;
     }
 
     // Check actual audio element state instead of just React state to avoid race conditions
     const isActuallyPlaying = !audioRef.current.paused && !audioRef.current.ended;
     console.log(`🎵 [AUDIO STATE DEBUG] React isPlaying: ${isPlaying}, Audio paused: ${audioRef.current.paused}, Audio ended: ${audioRef.current.ended}, isActuallyPlaying: ${isActuallyPlaying}`);
-    
+
     if (!isActuallyPlaying) {
       console.log(`🛑 [SYNC LOOP DEBUG] Stopping - audio not actually playing`);
       return;
@@ -197,14 +194,14 @@ export const useWordSync = ({
     const newIndex = findCurrentWordIndex(wordTimestamps, currentAudioTime);
 
     // DEBUG: Log current sync state every 10 frames (not too spammy)
-    if (false) {}
+    if (false) { }
 
     // Check if we're in a seek operation - if so, don't override the word index
     if (lastSeekTimeRef.current !== -1) {
       console.log(`🚫 Skipping sync loop update - seek in progress to ${lastSeekTimeRef.current}s`);
       return;
     }
-    
+
     console.log(`🔄 [SYNC DEBUG] Sync loop running - currentTime: ${currentAudioTime.toFixed(3)}s, isPlaying: ${isPlaying}`);
 
     // Sadece aktif kelime değiştiğinde state'i güncelle - gereksiz render'ları önler
@@ -212,13 +209,13 @@ export const useWordSync = ({
       if (newIndex !== prevIndex) {
         const prevWord = prevIndex >= 0 ? wordTimestamps[prevIndex]?.word : 'NONE';
         const newWord = newIndex >= 0 ? wordTimestamps[newIndex]?.word : 'NONE';
-        
+
         console.log(`🔄 Sync loop: word ${prevIndex} → ${newIndex} at ${currentAudioTime.toFixed(3)}s`);
-        
+
         if (newIndex >= 0) {
           const { startTime, endTime } = wordTimestamps[newIndex];
           // console removed
-          
+
           // ARIA Live Region güncellemesi
           updateLiveRegion(newIndex, newWord);
         }
@@ -252,37 +249,53 @@ export const useWordSync = ({
 
   // Oynatma fonksiyonu
   const play = useCallback(async () => {
-    // console removed
-    
-    if (!audioRef.current || !audioContextRef.current) {
-      console.log('❌ [PLAY DEBUG] Missing audio references:', {
-        hasAudio: !!audioRef.current,
-        hasContext: !!audioContextRef.current
-      });
+    console.log('▶️ [PLAY DEBUG] Play function called');
+
+    if (!audioRef.current) {
+      console.log('❌ [PLAY DEBUG] Missing audio element');
       return;
     }
 
     try {
-      // Mobil tarayıcılar için AudioContext'i başlatma gerekliliği
-      if (audioContextRef.current.state === 'suspended') {
-        // console removed
-        await audioContextRef.current.resume();
+      // ✅ CRITICAL FIX: Reset currentTime if it's at or past the end
+      const audioDuration = audioRef.current.duration || 0;
+      const audioCurrentTime = audioRef.current.currentTime || 0;
+
+      console.log('🔍 [PLAY DEBUG] Audio state before play:', {
+        currentTime: audioCurrentTime,
+        duration: audioDuration,
+        paused: audioRef.current.paused,
+        ended: audioRef.current.ended,
+        readyState: audioRef.current.readyState,
+        src: audioRef.current.src ? audioRef.current.src.substring(0, 80) + '...' : 'NO SRC'
+      });
+
+      // If audio is at or past the end, reset to beginning
+      if (audioDuration > 0 && audioCurrentTime >= audioDuration - 0.1) {
+        console.log('🔄 [PLAY DEBUG] Audio at end, resetting to beginning');
+        audioRef.current.currentTime = 0;
+        setCurrentTime(0);
+        setActiveWordIndex(-1);
       }
 
-      // console removed
+      console.log('🎵 [PLAY DEBUG] Calling audio.play()...');
       await audioRef.current.play();
+      console.log('✅ [PLAY DEBUG] audio.play() succeeded');
       setIsPlaying(true);
       startSync();
-      // console removed
     } catch (error) {
       console.error('❌ [PLAY DEBUG] Oynatma hatası:', error);
+      console.error('❌ [PLAY DEBUG] Error details:', {
+        name: (error as Error).name,
+        message: (error as Error).message
+      });
     }
   }, [startSync]);
 
   // Duraklatma fonksiyonu
   const pause = useCallback(() => {
     if (!audioRef.current) return;
-    
+
     audioRef.current.pause();
     setIsPlaying(false);
     stopSync();
@@ -294,27 +307,27 @@ export const useWordSync = ({
     if (audioRef.current) {
       // Store seek time to prevent sync loop from overriding
       lastSeekTimeRef.current = time;
-      
+
       audioRef.current.currentTime = time;
-      
+
       // Seek sonrası anında senkronizasyon için kelimeyi bul
       const newIndex = findCurrentWordIndex(wordTimestamps, time);
       console.log(`🔍 After seek, found word index: ${newIndex} for time ${time}s`);
       setActiveWordIndex(newIndex);
       setCurrentTime(time);
-      
+
       if (newIndex >= 0) {
         const word = wordTimestamps[newIndex]?.word || '';
         console.log(`🎯 Setting active word: "${word}" at index ${newIndex}`);
         updateLiveRegion(newIndex, word);
       }
-      
+
       // Clear seek flag after a short delay to allow sync loop to resume
       setTimeout(() => {
         lastSeekTimeRef.current = -1;
         console.log('🔓 [SEEK DEBUG] Seek protection cleared, sync loop can resume');
         if (audioRef.current && !audioRef.current.paused) {
-      startSync();
+          startSync();
         }
       }, 100);
     }
@@ -335,7 +348,7 @@ export const useWordSync = ({
       originalTextLength: originalText?.length || 0,
       timepointsLength: timepoints?.length || 0
     });
-    
+
     if (!duration || !originalText) {
       console.log('⚠️ [TIMESTAMPS DEBUG] Skipping - missing duration or originalText');
       return;
@@ -343,7 +356,7 @@ export const useWordSync = ({
 
     const words = originalText.split(/\s+/).filter(word => word.length > 0);
     console.log(`📝 [TIMESTAMPS DEBUG] Split text into ${words.length} words`);
-    
+
     let calculatedTimestamps: WordTimestamp[] = [];
 
     // Backend timepoints varsa optimize edilmiş timestamps kullan
@@ -354,7 +367,7 @@ export const useWordSync = ({
         firstItem: timepoints[0],
         type: typeof timepoints
       });
-      
+
       // Minimal offset uygula (sadece küçük TTS padding kompensasyonu)
       calculatedTimestamps = createOptimizedWordTimestamps(timepoints, words, 0);
       console.log('🎯 [TIMESTAMPS DEBUG] Using Backend Optimized Timepoints with minimal offset');
@@ -365,14 +378,14 @@ export const useWordSync = ({
         length: timepoints?.length,
         type: typeof timepoints
       });
-      
+
       // Fallback: Linear distribution
       calculatedTimestamps = createLinearWordTimestamps(words, duration);
       console.log('📏 [TIMESTAMPS DEBUG] Using Linear Fallback Timestamps');
     }
 
     setWordTimestamps(calculatedTimestamps);
-    
+
     console.log(`📊 [TIMESTAMPS DEBUG] Word Timestamps Created: ${calculatedTimestamps.length} words, Duration: ${duration}s`);
     console.log('🔍 [TIMESTAMPS DEBUG] First 3 timestamps:', calculatedTimestamps.slice(0, 3));
     console.log('🔍 [TIMESTAMPS DEBUG] Last 3 timestamps:', calculatedTimestamps.slice(-3));
@@ -386,23 +399,51 @@ export const useWordSync = ({
       isInitializedRef: isInitializedRef.current,
       willSkip: isInitializedRef.current
     });
-    
+
+    // ✅ CRITICAL FIX: Reset ALL playback states when audioUrl changes
+    // This prevents the "audio already finished" bug when loading a shorter audio after a longer one
+    console.log('🔄 [AUDIO SETUP DEBUG] Resetting all playback states for new audio...');
+    setCurrentTime(0);
+    setDuration(0);
+    setActiveWordIndex(-1);
+    setIsPlaying(false);
+    setIsBuffering(false);
+    setIsLoading(true);
+    setWordTimestamps([]);
+    lastSeekTimeRef.current = -1;
+
+    // Stop any existing sync loop
+    if (animationFrameId.current) {
+      cancelAnimationFrame(animationFrameId.current);
+      animationFrameId.current = null;
+    }
+
     // Reset initialization for new audioUrl
     isInitializedRef.current = false;
-    
+
     console.log('🔄 [AUDIO SETUP DEBUG] Reset isInitializedRef, proceeding with setup...');
 
     console.log('🚀 [AUDIO SETUP DEBUG] Starting audio initialization...');
 
-    // AudioContext ve HTMLAudioElement'i oluştur
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) {
-      console.error('❌ [AUDIO SETUP DEBUG] Web Audio API desteklenmiyor');
-      return;
+    // ✅ CRITICAL: Clean up previous audio before creating new one
+    if (audioRef.current) {
+      console.log('🧹 [AUDIO SETUP DEBUG] Cleaning up previous audio element...');
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current.load(); // Force release of previous audio resources
     }
 
-    audioContextRef.current = new AudioContext();
+    // AudioContext ve HTMLAudioElement'i oluştur
+    // NOT: Web Audio API (createMediaElementSource) KULLANMIYORUZ çünkü:
+    // 1. createMediaElementSource audio'yu sessiz yapabilir (bağlantı sorunu)
+    // 2. HTML5 Audio API kelime senkronizasyonu için yeterli
+    // 3. Web Audio API sadece ses efektleri için gerekli (bizde yok)
+
     audioRef.current = new Audio(audioUrl);
+    console.log('🎵 [AUDIO SETUP DEBUG] Created new Audio element with URL:', audioUrl.substring(0, 80));
+
+    // Ensure currentTime starts at 0 for new audio
+    audioRef.current.currentTime = 0;
 
     // IMPORTANT:
     // Setting crossOrigin="anonymous" requires the remote host to send proper CORS headers.
@@ -418,22 +459,22 @@ export const useWordSync = ({
       // If URL parsing fails, do not set crossOrigin to avoid breaking playback.
     }
 
-    // Audio elementini AudioContext'e bağla
-    try {
-      sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
-      sourceNodeRef.current.connect(audioContextRef.current.destination);
-    } catch (error) {
-      console.error('MediaElementSource oluşturma hatası:', error);
-    }
+    // Web Audio API KULLANILMIYOR - direkt HTML5 Audio API ile ses çalıyor
+    console.log('✅ [AUDIO SETUP DEBUG] Using HTML5 Audio API (no Web Audio)');
 
     // Olay dinleyicilerini tanımla
     const handleLoadedMetadata = () => {
-      console.log('✅ [AUDIO DEBUG] handleLoadedMetadata called, setting isLoading to false');
+      console.log('✅ [AUDIO DEBUG] handleLoadedMetadata called');
       const audioDuration = audioRef.current?.duration || 0;
       setDuration(audioDuration);
-      setIsLoading(false);
-      console.log(`🎵 Audio loaded: ${audioDuration}s`);
+      console.log(`🎵 Audio metadata loaded: ${audioDuration}s`);
       console.log('📊 [DURATION DEBUG] Duration set, word timestamps should be calculated now');
+    };
+
+    const handleCanPlayThrough = () => {
+      console.log('✅ [AUDIO DEBUG] handleCanPlayThrough called - audio is ready to play');
+      setIsLoading(false);
+      console.log('🎵 Audio fully loaded and ready to play');
     };
 
     const handlePlay = () => {
@@ -445,13 +486,13 @@ export const useWordSync = ({
 
     const handlePause = () => {
       console.log('⏸️ [AUDIO DEBUG] handlePause called');
-      
+
       // Ignore pause events during seek operations
       if (lastSeekTimeRef.current !== -1) {
         console.log('🚫 [PAUSE DEBUG] Ignoring pause during seek operation');
         return;
       }
-      
+
       console.log('🔧 [PAUSE DEBUG] Setting isPlaying to FALSE');
       setIsPlaying(false);
       stopSync();
@@ -488,6 +529,7 @@ export const useWordSync = ({
     // Olay dinleyicilerini ekle
     const audio = audioRef.current;
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('canplaythrough', handleCanPlayThrough);
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
@@ -500,23 +542,20 @@ export const useWordSync = ({
     // Temizlik fonksiyonu
     return () => {
       stopSync();
-      
+
       if (audio) {
         audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audio.removeEventListener('canplaythrough', handleCanPlayThrough);
         audio.removeEventListener('play', handlePlay);
         audio.removeEventListener('pause', handlePause);
         audio.removeEventListener('ended', handleEnded);
         audio.removeEventListener('waiting', handleWaiting);
         audio.removeEventListener('playing', handlePlaying);
         audio.removeEventListener('error', handleError);
-      }
-      
-      if (sourceNodeRef.current) {
-        sourceNodeRef.current.disconnect();
-      }
-      
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close();
+
+        // Stop audio playback
+        audio.pause();
+        audio.src = '';
       }
     };
   }, [audioUrl]); // Only rerun when audioUrl changes!

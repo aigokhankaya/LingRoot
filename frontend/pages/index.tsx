@@ -2,12 +2,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/router';
 
 import { useAuth } from '../src/lib/auth';
 import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
-import { useTranslation, useLanguage, Locale, translations } from '../src/lib/i18n';
+import { useTranslation, useLanguage, Locale } from '../src/lib/i18n';
 
 // shadcn/ui ve diğer kütüphane importları
 import { Button } from "@/components/ui/button";
@@ -226,7 +228,7 @@ const App: React.FC = () => {
 
     const featuresList = [
         { icon: "fas fa-globe", title: t('landing_features_item1_title'), description: t('landing_features_item1_desc') },
-        { icon: "fas fa-robot", title: t('landing_features_item2_title'), description: t('landing_features_item2_desc') },
+        { icon: "fas fa-user-cog", title: t('landing_features_item2_title'), description: t('landing_features_item2_desc') },
         { icon: "fas fa-headphones-alt", title: t('landing_features_item3_title'), description: t('landing_features_item3_desc') },
         { icon: "fas fa-clock", title: t('landing_features_item4_title'), description: t('landing_features_item4_desc') }
     ];
@@ -249,17 +251,17 @@ const App: React.FC = () => {
             <nav className="bg-white/90 border-b border-border backdrop-blur-sm py-3 sticky top-0 z-50">
                 <div className="container mx-auto px-8 flex justify-between items-center">
                     <div className="flex items-center space-x-3">
-                        <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-10 h-10 md:w-12 md:h-12" />
+                        <Image src="/lingroot-icon.svg" alt="LingRoot Logo" width={48} height={48} className="w-10 h-10 md:w-12 md:h-12" />
                         <BrandWordmark className="text-xl md:text-2xl" />
                     </div>
 
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-6">
-                        <a href="/about" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('about')}</a>
-                        <a href="#nasil-calisir" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('landing_nav_howItWorks')}</a>
-                        <a href="#ozellikler" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('landing_nav_features')}</a>
-                        <a href="#yorumlar" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('landing_nav_testimonials')}</a>
-                        <a href="#blog" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('landing_nav_blog')}</a>
+                        <Link href="/about" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('about')}</Link>
+                        <Link href="#nasil-calisir" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('landing_nav_howItWorks')}</Link>
+                        <Link href="#ozellikler" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('landing_nav_features')}</Link>
+                        <Link href="#yorumlar" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('landing_nav_testimonials')}</Link>
+                        <Link href="#blog" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer text-sm lg:text-base">{t('landing_nav_blog')}</Link>
                     </div>
 
                     {/* Desktop Buttons */}
@@ -289,7 +291,7 @@ const App: React.FC = () => {
                                 <form onSubmit={handleLoginSubmit} className="space-y-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="email">{t('login_email_not_verified_message') === 'E-posta veya Kullanıcı Adı' ? t('email') : t('email')}</Label>
-                                        {/* Using generic keys or specific keys if available. 'login_email_label' wasn't in standard keys, checking i18n.ts content. 'email' is safer. */}
+                                        &quot;LingRoot was the missing piece in my language learning journey. Highly recommended!&quot;. 'login_email_label' wasn't in standard keys, checking i18n.ts content. 'email' is safer. */
                                         <Input id="email" name="email" type="email" placeholder={t('email')} value={loginForm.email} onChange={handleLoginChange} required />
                                     </div>
                                     <div className="space-y-2">
@@ -337,7 +339,7 @@ const App: React.FC = () => {
                                     )}
                                     {/* Şifremi unuttum */}
                                     <div className="flex justify-end">
-                                        <a href="/forgot-password" className="text-sm text-primary hover:underline">{t('login_forgot_password')}</a>
+                                        <Link href="/forgot-password" className="text-sm text-primary hover:underline">{t('login_forgot_password')}</Link>
                                     </div>
                                     <Button type="submit" className="w-full !rounded-button" disabled={loading}>
                                         {loading ? t('login_button_loading') : t('login_button')}
@@ -374,9 +376,9 @@ const App: React.FC = () => {
                         </Dialog>
 
                         {/* KAYIT OL BUTONU */}
-                        <a href="/register">
+                        <Link href="/register">
                             <Button className="!rounded-button whitespace-nowrap">{t('landing_nav_signup')}</Button>
-                        </a>
+                        </Link>
                     </div>
 
                     {/* Mobile Menu Button */}
@@ -406,11 +408,11 @@ const App: React.FC = () => {
                 {isMobileMenuOpen && (
                     <div className="md:hidden bg-white border-t border-gray-200 mobile-menu">
                         <div className="container mx-auto px-4 py-4 space-y-4">
-                            <a href="/about" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('about')}</a>
-                            <a href="#nasil-calisir" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_howItWorks')}</a>
-                            <a href="#ozellikler" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_features')}</a>
-                            <a href="#yorumlar" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_testimonials')}</a>
-                            <a href="#blog" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_blog')}</a>
+                            <Link href="/about" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('about')}</Link>
+                            <Link href="#nasil-calisir" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_howItWorks')}</Link>
+                            <Link href="#ozellikler" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_features')}</Link>
+                            <Link href="#yorumlar" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_testimonials')}</Link>
+                            <Link href="#blog" className="block text-gray-600 hover:text-primary transition-colors duration-200 py-2" onClick={() => setIsMobileMenuOpen(false)}>{t('landing_nav_blog')}</Link>
 
                             <div className="pt-4 border-t border-gray-200 space-y-3">
                                 <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
@@ -482,9 +484,9 @@ const App: React.FC = () => {
                                     </DialogContent>
                                 </Dialog>
 
-                                <a href="/register" onClick={() => setIsMobileMenuOpen(false)}>
+                                <Link href="/register" onClick={() => setIsMobileMenuOpen(false)}>
                                     <Button className="w-full !rounded-button">{t('landing_nav_signup')}</Button>
-                                </a>
+                                </Link>
                             </div>
                         </div>
                     </div>
@@ -496,18 +498,18 @@ const App: React.FC = () => {
                 <div className="container mx-auto px-8">
                     <div className="text-center">
                         <Badge className="mb-4 bg-primary/10 text-primary border-none text-sm hero-badge">{t('landing_hero_badge')}</Badge>
-                        <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-700 leading-tight hero-title max-w-5xl mx-auto">
-                            {t('landing_hero_title')}<span className="block text-primary">{t('landing_hero_highlight')}</span>
+                        <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 leading-tight hero-title max-w-5xl mx-auto">
+                            {t('landing_hero_title')}<span className="text-primary">{t('landing_hero_highlight')}</span>
                         </h1>
                         <p className="text-lg md:text-xl lg:text-2xl text-gray-600 mb-6 leading-relaxed hero-description max-w-4xl mx-auto">
                             {t('landing_hero_desc')}
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 hero-buttons justify-center">
-                            <a href="/register">
+                            <Link href="/register">
                                 <Button className="text-base py-4 px-6 !rounded-button whitespace-nowrap">
                                     <i className="fas fa-rocket mr-2"></i> {t('landing_hero_button_try')}
                                 </Button>
-                            </a>
+                            </Link>
                             <Dialog>
                                 <DialogTrigger asChild>
                                     <Button variant="outline" className="border-2 border-primary text-primary hover:bg-primary/10 text-base py-4 px-6 !rounded-button whitespace-nowrap">
@@ -573,13 +575,13 @@ const App: React.FC = () => {
                                         <p className="text-gray-700">{t('landing_demo_original_desc') || "Lingroot, favori içeriğinizi İngilizce yeterliliğinize göre özelleştirir ve seslendirir. Bu sayede, becerilerinizi doğal bir şekilde geliştirirken ilginç konularla etkileşime geçebilirsiniz."}</p>
                                     </div>
                                     <div className="p-4 bg-primary/10 rounded-lg border-2 border-primary">
-                                        <h4 className="font-bold mb-2">{translations['en']['landing_demo_your']} ({levels[level]})</h4>
-                                        {level === 0 && <p className="text-gray-700">{translations['en']['landing_demo_level0']}</p>}
-                                        {level === 1 && <p className="text-gray-700">{translations['en']['landing_demo_level1']}</p>}
-                                        {level === 2 && <p className="text-gray-700">{translations['en']['landing_demo_level2']}</p>}
-                                        {level === 3 && <p className="text-gray-700">{translations['en']['landing_demo_level3']}</p>}
-                                        {level === 4 && <p className="text-gray-700">{translations['en']['landing_demo_level4']}</p>}
-                                        {level === 5 && <p className="text-gray-700">{translations['en']['landing_demo_level5']}</p>}
+                                        <h4 className="font-bold mb-2">{t('landing_demo_your')} ({levels[level]})</h4>
+                                        {level === 0 && <p className="text-gray-700">{t('landing_demo_level0')}</p>}
+                                        {level === 1 && <p className="text-gray-700">{t('landing_demo_level1')}</p>}
+                                        {level === 2 && <p className="text-gray-700">{t('landing_demo_level2')}</p>}
+                                        {level === 3 && <p className="text-gray-700">{t('landing_demo_level3')}</p>}
+                                        {level === 4 && <p className="text-gray-700">{t('landing_demo_level4')}</p>}
+                                        {level === 5 && <p className="text-gray-700">{t('landing_demo_level5')}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -765,13 +767,13 @@ const App: React.FC = () => {
                                     />
                                     <i className="fas fa-link absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                                     <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                                        <a href="/register">
+                                        <Link href="/register">
                                             <Button
                                                 className="h-10 px-5 !rounded-button whitespace-nowrap"
                                             >
                                                 {t('landing_trynow_button')}
                                             </Button>
-                                        </a>
+                                        </Link>
                                     </div>
                                 </div>
                             </div>

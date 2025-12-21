@@ -309,7 +309,7 @@ const Dashboard = () => {
       loadBookHistory();
     }
 
-    if (tab === 'reading-history') {
+    if (tab === 'reading-history' || tab === 'podcasts') {
       fetchContentHistory();
     }
 
@@ -697,6 +697,18 @@ const Dashboard = () => {
                           </Button>
                         </div>
 
+                        <div className="flex items-center p-3 bg-purple-50 rounded-lg border border-purple-100">
+                          <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 mr-3 flex-shrink-0">
+                            <i className="fas fa-comment"></i>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-800">{t('dashboard_task_speak_title')}</h4>
+                            <p className="text-sm text-gray-600">{t('dashboard_task_speak_desc')}</p>
+                          </div>
+                          <Button size="sm" variant="outline" className="ml-2">
+                            {t('dashboard_task_start_button')}
+                          </Button>
+                        </div>
 
                         <div className="flex items-center p-3 bg-amber-50 rounded-lg border border-amber-100">
                           <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mr-3 flex-shrink-0">
@@ -1112,11 +1124,103 @@ const Dashboard = () => {
             </TabsContent>
 
             <TabsContent value="podcasts" className="mt-0">
-              <div className="text-center py-8">
-                <i className="fas fa-podcast text-4xl text-gray-300 mb-2"></i>
-                <h3 className="text-lg font-medium text-gray-700">{t('podcasts_title')}</h3>
-                <p className="text-sm text-gray-500">{t('podcasts_description')}</p>
-              </div>
+              <Card className="border border-border shadow-lg rounded-2xl bg-white">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold mr-4 shadow-sm">
+                        <i className="fas fa-podcast"></i>
+                      </div>
+                      <h2 className="text-2xl font-bold text-primary tracking-tight">{t('podcasts_title')}</h2>
+                    </div>
+                    <Button
+                      onClick={fetchContentHistory}
+                      variant="outline"
+                      className="!rounded-button whitespace-nowrap cursor-pointer"
+                      disabled={loadingHistory}
+                    >
+                      {loadingHistory ? (
+                        <>
+                          <i className="fas fa-circle-notch fa-spin mr-2"></i>
+                          {t('reading_history_refresh_loading')}
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-refresh mr-2"></i>
+                          {t('reading_history_refresh_button')}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {loadingHistory ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                    </div>
+                  ) : (() => {
+                    const podcastItems = contentHistory.filter(item => (item.input_type || '').toLowerCase() === 'podcast');
+                    return podcastItems.length > 0 ? (
+                      <div className="space-y-4">
+                        {podcastItems.map((item) => (
+                          <div
+                            key={item.id}
+                            className="bg-white rounded-xl border border-gray-200 hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden"
+                          >
+                            <div className="p-4">
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2 text-xs">
+                                    <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                                      <i className="fas fa-podcast mr-1"></i>
+                                      Podcast
+                                    </Badge>
+                                    <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
+                                      {item.level || 'N/A'}
+                                    </Badge>
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(item.created_at).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <h4 className="font-semibold text-gray-900 mb-1 text-base">
+                                    {item.input || t('podcasts_untitled')}
+                                  </h4>
+                                  <p className="text-sm text-gray-600 line-clamp-2">
+                                    {item.adapted_text ? item.adapted_text.substring(0, 200) + (item.adapted_text.length > 200 ? '...' : '') : t('podcasts_no_transcript')}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {item.mp3_url && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="!rounded-button whitespace-nowrap cursor-pointer"
+                                      onClick={() => {
+                                        const playableUrl = convertToPlayableUrl(item.mp3_url);
+                                        window.open(playableUrl, '_blank');
+                                      }}
+                                    >
+                                      <i className="fas fa-play mr-2"></i>
+                                      {t('podcasts_play_button') || 'Dinle'}
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="text-gray-400 mb-4">
+                          <i className="fas fa-podcast text-4xl"></i>
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-500 mb-2">{t('podcasts_empty_title') || 'Henüz podcast yok'}</h3>
+                        <p className="text-gray-400">{t('podcasts_empty_desc') || 'Podcast dinleme geçmişiniz burada görünecek.'}</p>
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="pdf" className="mt-0">
