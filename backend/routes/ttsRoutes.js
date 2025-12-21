@@ -29,6 +29,8 @@ const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
 const { mfaAligner } = require('../utils/mfaAligner');
+const { createPodcast } = require('../utils/createPodcast');
+const { translateFromEnglish } = require('../utils/translateFromEnglish');
 
 const router = express.Router();
 
@@ -325,7 +327,15 @@ router.get("/vtt/:vttId", (req, res, next) => {
 // Other TTS Utility Endpoints
 router.post("/translateToEnglish", translateToEnglish);
 router.post("/adaptToCEFR", adaptToCEFR);
+<<<<<<< HEAD
 // Create podcast from topic (supports Google TTS multi-speaker or n8n webhook)
+=======
+router.post("/chunkText", chunkTextAPI);
+router.post("/synthesizeChunk", synthesizeChunkAPI);
+router.post("/mergeAudio", mergeAudioAPI);
+
+// Create podcast from topic (in-code generation using Google TTS)
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
 router.post("/create-podcast", authenticate, async (req, res) => {
   try {
     const body = req.body || {};
@@ -338,6 +348,7 @@ router.post("/create-podcast", authenticate, async (req, res) => {
       });
     }
     const level = (body.level || 'B1').toString().toUpperCase();
+<<<<<<< HEAD
     const duration = body.duration != null ? body.duration : 10;
     // Default to 'google' instead of 'n8n'
     const ttsProvider = (body.ttsProvider || 'google').toLowerCase();
@@ -416,96 +427,64 @@ router.post("/create-podcast", authenticate, async (req, res) => {
     const envToken = process.env.PODCAST_WEBHOOK_TOKEN || process.env.N8N_PODCAST_WEBHOOK_TOKEN;
     let targetUrl = envUrl || (serviceConfig && serviceConfig.api_url);
     let targetToken = envToken || (serviceConfig && serviceConfig.api_token) || null;
+=======
+    const duration = body.duration != null ? Number(body.duration) : 5;
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
 
-    if (!targetUrl) {
-      logger.error('[PODCAST] No podcast webhook URL configured. Define PODCAST_WEBHOOK_URL or configure podcast_generator in external_services.');
+    logger.info(`📻 [PODCAST] Creating podcast in-code for topic: "${topic}", level: ${level}, duration: ${duration}min`);
+
+    // Use the new in-code podcast generator
+    const podcastResult = await createPodcast(topic, level, duration);
+
+    if (!podcastResult || !podcastResult.success) {
+      logger.error('[PODCAST] Podcast generation failed', { podcastResult });
       return res.status(500).json({
         success: false,
-        message: 'Podcast webhook URL not configured on server. Please contact support.',
+        message: podcastResult?.message || 'Podcast generation failed',
       });
     }
-    const payload = {
-      topic,
-      level,
-      duration,
-      styleType: body.styleType,
-      voiceChoice: body.voiceChoice,
-      personalityA: body.personalityA,
-      personalityB: body.personalityB,
-      includeHumor: body.includeHumor,
-      includeFiller: body.includeFiller,
-    };
-    logger.info('[PODCAST] Forwarding request to n8n webhook', {
-      url: targetUrl,
-      level,
-      duration,
-      hasToken: !!targetToken,
-    });
-    const headers = { 'Content-Type': 'application/json' };
-    if (targetToken) {
-      let authHeader = targetToken;
-      if (!/^Bearer\s+/i.test(authHeader)) {
-        authHeader = `Bearer ${authHeader}`;
-      }
-      headers['Authorization'] = authHeader;
-    }
-    const n8nResponse = await fetch(targetUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
-    });
-    const rawText = await n8nResponse.text();
-    if (!n8nResponse.ok) {
-      logger.error(`[#PODCAST] n8n webhook error response: status=${n8nResponse.status}, body=${rawText}`);
-      let errJson = null;
-      try {
-        errJson = rawText ? JSON.parse(rawText) : null;
-      } catch (_e) { /* ignore */ }
-      return res.status(500).json({
-        success: false,
-        message: (errJson && errJson.message) || 'Podcast service error',
-        status: n8nResponse.status,
-      });
-    }
-    if (!rawText || !rawText.trim()) {
-      logger.error('[PODCAST] n8n webhook returned empty body with 200');
-      return res.status(500).json({
-        success: false,
-        message: 'Podcast service returned empty response body',
-      });
-    }
-    let n8nResult;
-    try {
-      n8nResult = JSON.parse(rawText);
-    } catch (parseErr) {
-      logger.error('[PODCAST] Failed to parse n8n JSON response', {
-        body: rawText.slice(0, 500),
-        message: parseErr.message,
-      });
-      return res.status(500).json({
-        success: false,
-        message: 'Podcast service returned invalid JSON response',
-      });
-    }
-    const audioUrl = n8nResult.audioUrl || n8nResult.podcast_url || n8nResult.audio_url;
-    const vttUrl = n8nResult.subtitlesUrl || n8nResult.vtt_url || n8nResult.vtt_subtitles || '';
-    if (!audioUrl) {
-      logger.error('[PODCAST] n8n response missing audioUrl', { n8nResult });
-      return res.status(500).json({
-        success: false,
-        message: 'Podcast service did not return audioUrl',
-      });
-    }
-    // UI için: label'lı transcript 
-    const transcriptText = n8nResult.transcript || '';
-    // MFA ve wordsForTiming için: mümkünse label'siz versiyon
-    const transcriptForMFA = n8nResult.transcriptPlain || transcriptText;
+
+    const audioUrl = podcastResult.audioUrl;
+    const vttUrl = podcastResult.vttUrl || '';
+
+    // Use full transcript if available, fallback to description
+    const transcriptText = podcastResult.transcript || podcastResult.description || '';
+
+    // Generate words and timepoints for frontend player
     let wordsForTiming = null;
     let timepoints = null;
 
-    const useMFAAlignment = process.env.USE_MFA_ALIGNMENT === 'true';
-    if (useMFAAlignment && transcriptForMFA && audioUrl) {
+    if (podcastResult.wordTimings) {
+      // Use accurate timings from synthesis loop
+      wordsForTiming = podcastResult.wordTimings.map(t => t.word);
+      timepoints = podcastResult.wordTimings.map((t, idx) => ({
+        word: t.word,
+        timeSeconds: t.startTime,
+        endTimeSeconds: t.endTime,
+        index: idx,
+        hasRealTiming: false, // estimated from turns
+        source: 'turn_estimation'
+      }));
+    } else if (transcriptText) {
+      // Fallback to estimation from text
+      wordsForTiming = transcriptText.split(/\s+/).filter(w => w.length > 0);
+      const estimatedDurationSec = podcastResult.duration || (duration * 60);
+      const avgTimePerWord = estimatedDurationSec / wordsForTiming.length;
+      timepoints = wordsForTiming.map((word, index) => ({
+        word,
+        timeSeconds: index * avgTimePerWord,
+        endTimeSeconds: (index + 1) * avgTimePerWord,
+        index,
+        hasRealTiming: false,
+        source: 'estimated',
+      }));
+    }
+
+    // Generate accurate translation from English transcript to User's Language (defaulting to Turkish per project rules)
+    let translatedText = transcriptText;
+    if (transcriptText) {
       try {
+<<<<<<< HEAD
         const tempFileName = `podcast_mfa_${Date.now()}.mp3`;
         const tempAudioPath = path.join(os.tmpdir(), tempFileName);
         const audioResp = await fetch(audioUrl);
@@ -542,26 +521,23 @@ router.post("/create-podcast", authenticate, async (req, res) => {
           logger.warn('[PODCAST] Failed to download audio for MFA alignment', {
             status: audioResp.status,
           });
+=======
+        const translationResult = await translateFromEnglish(transcriptText, 'Turkish', level);
+        if (translationResult && translationResult.text) {
+          translatedText = translationResult.text;
+          logger.info(`[PODCAST] Translated transcript to Turkish (${translatedText.length} chars)`);
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
         }
-      } catch (mfaErr) {
-        logger.warn('[PODCAST] MFA alignment failed, continuing without timepoints', {
-          message: mfaErr.message,
-        });
+      } catch (transErr) {
+        logger.warn('[PODCAST] Failed to translate transcript:', transErr.message);
       }
     }
 
-    if (!timepoints && Array.isArray(n8nResult.timepoints)) {
-      timepoints = n8nResult.timepoints;
-    }
-    if (!wordsForTiming && Array.isArray(n8nResult.words)) {
-      wordsForTiming = n8nResult.words;
-    }
-    if (!wordsForTiming && transcriptText) {
-      wordsForTiming = transcriptText.split(/\s+/).filter(w => w.length > 0);
-    }
+    // Save to contenthistory
     let contentHistoryId = null;
     try {
       const userId = req.user && req.user.id;
+<<<<<<< HEAD
       if (!supabase) {
         logger.warn('[PODCAST] Supabase client not initialized, skipping contenthistory save');
       } else if (!userId) {
@@ -573,32 +549,45 @@ router.post("/create-podcast", authenticate, async (req, res) => {
         const ttsCategory = 'Premium';
         const ttsCostUsd = calculateTtsCost(ttsCharacters, ttsCategory);
         const totalCostUsd = Number((ttsCostUsd || 0).toFixed(6));
+=======
+      if (supabase && userId) {
+        const durationSeconds = podcastResult.duration || (duration * 60);
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
         const insertData = {
           user_id: userId,
           level: level || 'B1',
           mp3_url: audioUrl,
           input: topic,
-          translated_text: transcriptText,
-          adapted_text: transcriptText,
+          translated_text: translatedText, // Turkish
+          adapted_text: transcriptText,    // English (Original)
           input_type: 'podcast',
           created_at: new Date().toISOString(),
-          // contenthistory.words/timepoints kolonları TEXT olduğu için JSON string olarak sakla
           words: Array.isArray(wordsForTiming) && wordsForTiming.length > 0 ? JSON.stringify(wordsForTiming) : null,
           timepoints: Array.isArray(timepoints) && timepoints.length > 0 ? JSON.stringify(timepoints) : null,
           openai_prompt_tokens: 0,
           openai_completion_tokens: 0,
           openai_total_tokens: 0,
           openai_cost_usd: 0,
+<<<<<<< HEAD
           tts_characters: ttsCharacters,
           tts_category: ttsCategory,
           tts_cost_usd: ttsCostUsd,
           total_cost_usd: totalCostUsd,
           tts_provider: null,
           tts_voice_name: null,
+=======
+          tts_characters: transcriptText.length,
+          tts_category: 'podcast',
+          tts_cost_usd: 0,
+          total_cost_usd: 0,
+          tts_provider: 'google',
+          tts_voice_name: 'en-US-Journey-F,en-US-Journey-D',
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
           audio_duration_seconds: durationSeconds,
           entry_source: 'podcast',
         };
 
+<<<<<<< HEAD
         logger.info('[PODCAST] Cost fields computed for contenthistory', {
           tts_characters: insertData.tts_characters,
           tts_category: insertData.tts_category,
@@ -613,6 +602,8 @@ router.post("/create-podcast", authenticate, async (req, res) => {
           insertData: JSON.stringify(insertData).slice(0, 500),
         });
 
+=======
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
         const { data, error } = await supabase
           .from('contenthistory')
           .insert(insertData)
@@ -622,44 +613,43 @@ router.post("/create-podcast", authenticate, async (req, res) => {
           logger.error('[PODCAST] Error saving podcast to contenthistory:', {
             message: error.message,
             details: error.details,
-            hint: error.hint,
-            code: error.code,
           });
         } else if (data && data.length > 0) {
           contentHistoryId = data[0].id;
           logger.info(`[PODCAST] Podcast saved to contenthistory with id=${contentHistoryId}`);
-        } else {
-          logger.warn('[PODCAST] Insert into contenthistory returned no data array');
         }
       }
     } catch (dbErr) {
       logger.error('[PODCAST] Exception while saving podcast to contenthistory:', dbErr);
     }
+
     const responseBody = {
       success: true,
       status: 'success',
-      message: `Podcast created: ${n8nResult.topic || topic}`,
+      message: `Podcast created: ${podcastResult.title || topic}`,
       mp3_url: audioUrl,
       podcast_url: audioUrl,
       audio_url: audioUrl,
       vtt_url: vttUrl,
       vtt_subtitles: vttUrl,
-      duration_seconds: n8nResult.duration || n8nResult.duration_seconds || '',
-      topic: n8nResult.topic || topic,
+      duration_seconds: podcastResult.duration || (duration * 60),
+      topic: podcastResult.title || topic,
       level,
       transcript: transcriptText,
       words: wordsForTiming || null,
       timepoints: timepoints || null,
       contenthistory_id: contentHistoryId,
-      data: n8nResult,
     };
+
+    logger.info('[PODCAST] Podcast created successfully', { audioUrl, title: podcastResult.title });
     return res.json(responseBody);
   } catch (error) {
-    logger.error('[PODCAST] Error creating podcast via proxy:', error);
+    logger.error('[PODCAST] Error creating podcast:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to create podcast',
       error: error.message,
+      details: error.stack
     });
   }
 });

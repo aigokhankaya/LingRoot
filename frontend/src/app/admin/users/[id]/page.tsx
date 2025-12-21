@@ -35,7 +35,7 @@ export default function AdminUserGeneralPage() {
         const u = await getUserById(userId);
         setUser(u);
         setIsTestUser((u as any).is_test_user || false);
-        
+
         // Fetch available plans
         const plansRes = await fetch(getApiUrl('admin/plans'), {
           headers: createHeaders('application/json'),
@@ -58,7 +58,7 @@ export default function AdminUserGeneralPage() {
 
   const handleAssignPlan = async () => {
     if (!selectedPlanId || !userId) return;
-    
+
     try {
       setAssigning(true);
       const response = await fetch(getApiUrl(`admin/users/${userId}/assign-plan`), {
@@ -69,7 +69,7 @@ export default function AdminUserGeneralPage() {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         alert('Paket başarıyla atandı!');
         setSelectedPlanId('');
@@ -85,7 +85,7 @@ export default function AdminUserGeneralPage() {
 
   const handleTestStatusChange = async (checked: boolean) => {
     if (!userId) return;
-    
+
     try {
       setUpdatingTestStatus(true);
       const response = await fetch(getApiUrl(`admin/users/${userId}/test-status`), {
@@ -96,7 +96,7 @@ export default function AdminUserGeneralPage() {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setIsTestUser(checked);
         alert(`Test kullanıcısı durumu başarıyla ${checked ? 'aktif' : 'pasif'} edildi!`);
@@ -144,24 +144,24 @@ export default function AdminUserGeneralPage() {
           <Info label="Son Giriş" value={String(user.lastLogin || '-')} />
           {user.phoneNumber && <Info label="Telefon" value={user.phoneNumber} />}
         </div>
-        
+
         {/* Test Kullanıcısı Ayarı */}
         <div className="mt-4 p-4 border rounded-lg bg-yellow-50 border-yellow-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center justify-between">
-            <label className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                checked={isTestUser}
-                onChange={(e) => handleTestStatusChange(e.target.checked)}
-                disabled={updatingTestStatus}
-                className="w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer"
-              />
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={isTestUser}
+                  onChange={(e) => handleTestStatusChange(e.target.checked)}
+                  disabled={updatingTestStatus}
+                  className="w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer"
+                />
                 <div>
                   <span className="text-sm font-medium text-gray-900">Test Kullanıcısı</span>
                   <p className="text-xs text-gray-600 mt-1">
-                    Bu kullanıcı için test ortamını aktif et. Admin panelinde "Mobil Uygulama Ortamı" TEST moduna alındığında, 
-                    sadece test kullanıcıları mobilde test backend'e bağlanır.
+                    Bu kullanıcı için test ortamını aktif et. Admin panelinde &quot;Mobil Uygulama Ortamı&quot; TEST moduna alındığında,
+                    sadece test kullanıcıları mobilde test backend&apos;e bağlanır.
                   </p>
                 </div>
               </label>
@@ -188,11 +188,10 @@ export default function AdminUserGeneralPage() {
               <div>
                 <div className="text-xs text-gray-500">Durum</div>
                 <div className="text-sm font-medium">
-                  <span className={`px-2 py-1 rounded text-xs ${
-                    currentSub.status === 'active' 
-                      ? 'bg-green-100 text-green-800' 
+                  <span className={`px-2 py-1 rounded text-xs ${currentSub.status === 'active'
+                      ? 'bg-green-100 text-green-800'
                       : 'bg-gray-100 text-gray-800'
-                  }`}>
+                    }`}>
                     {currentSub.status === 'active' ? 'Aktif' : currentSub.status}
                   </span>
                 </div>
@@ -222,8 +221,8 @@ export default function AdminUserGeneralPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Paket Seçin
             </label>
-            <select 
-              value={selectedPlanId} 
+            <select
+              value={selectedPlanId}
               onChange={(e) => setSelectedPlanId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             >
@@ -235,8 +234,8 @@ export default function AdminUserGeneralPage() {
               ))}
             </select>
           </div>
-          <Button 
-            onClick={handleAssignPlan} 
+          <Button
+            onClick={handleAssignPlan}
             disabled={!selectedPlanId || assigning}
             className="whitespace-nowrap"
           >

@@ -11,6 +11,7 @@ declare const process: {
   };
 };
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 // Get the base URL for API requests

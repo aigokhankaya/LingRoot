@@ -13,6 +13,8 @@ import { initializeGoogleAuth, signInWithGoogle } from '../../lib/googleAuth';
 import Footer from '@/components/Footer';
 import { useTranslation } from '../../lib/i18n';
 
+import Link from 'next/link';
+
 // Phone helpers: Turkish format +90 555 123 45 67
 function extractDigits(value: string): string {
   return (value || '').replace(/\D+/g, '');
@@ -55,7 +57,10 @@ function formatTRPhone(value: string): string {
 export default function RegisterPage() {
   const router = useRouter();
   const { register, loginWithGoogle } = useAuth();
+<<<<<<< HEAD:frontend/src/app/register/page.disabled.tsx
   const { currentLocale } = useTranslation();
+=======
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db:frontend/src/app/register/page.tsx
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -185,15 +190,15 @@ export default function RegisterPage() {
       <nav className="bg-white shadow-sm py-4 sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            <a href="/" className="flex items-center space-x-3">
+            <Link href="/" className="flex items-center space-x-3">
               <img src="/lingroot-icon.svg" alt="LingRoot Logo" className="w-12 h-12" />
               <span className="text-2xl font-extrabold text-primary tracking-tight">LingRoot</span>
-            </a>
+            </Link>
           </div>
           <div className="flex items-center space-x-4">
-            <a href="/" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer">
+            <Link href="/" className="text-gray-600 hover:text-primary transition-colors duration-200 cursor-pointer">
               <i className="fas fa-arrow-left mr-2"></i> Ana Sayfaya Dön
-            </a>
+            </Link>
           </div>
         </div>
       </nav>
@@ -206,7 +211,7 @@ export default function RegisterPage() {
             <div className="lg:w-7/12 bg-white rounded-xl shadow-xl p-8 mx-auto">
               <div className="max-w-md mx-auto">
                 <h1 className="text-3xl font-bold mb-2 text-gray-900">
-                  <span className="text-primary font-extrabold">LingRoot</span>'a Hoş Geldiniz
+                  <span className="text-primary font-extrabold">LingRoot</span>&apos;a Hoş Geldiniz
                 </h1>
                 <p className="text-gray-600 mb-8">Sevdiğiniz içeriklerle İngilizce öğrenme yolculuğunuza başlamak için hemen kaydolun.</p>
 
@@ -311,11 +316,11 @@ export default function RegisterPage() {
                       className="mt-1"
                     />
                     <Label htmlFor="terms" className="text-sm text-gray-600 font-normal">
-                      <span>LingRoot'un </span>
-                      <a href="/terms" className="text-primary hover:underline cursor-pointer">Kullanım Şartları</a>
+                      <span>LingRoot&apos;un </span>
+                      <Link href="/terms" className="text-primary hover:underline cursor-pointer">Kullanım Şartları</Link>
                       <span> ve </span>
                       <a href="https://www.lingroot.com/privacy-policy" className="text-primary hover:underline cursor-pointer">Gizlilik Politikası</a>
-                      <span>'nı okudum ve kabul ediyorum.</span>
+                      <span>&apos;nı okudum ve kabul ediyorum.</span>
                     </Label>
                   </div>
 
@@ -354,9 +359,9 @@ export default function RegisterPage() {
 
                 <div className="text-center text-gray-600 text-sm mt-8">
                   Zaten bir hesabınız var mı? {" "}
-                  <a href="/login" className="text-primary hover:text-primary/80 cursor-pointer">
+                  <Link href="/login" className="text-primary hover:text-primary/80 cursor-pointer">
                     Giriş Yap
-                  </a>
+                  </Link>
                 </div>
               </div>
             </div>
@@ -389,7 +394,7 @@ export default function RegisterPage() {
                       </div>
                       <div>
                         <h3 className="text-xl font-semibold text-white mb-2">Seviyene Uygun</h3>
-                        <p className="text-white/80">A1'den C2'ye kadar tüm seviyelerde içerikler. Kendi hızında ilerle ve gelişimini gör.</p>
+                        <p className="text-white/80">A1&apos;den C2&apos;ye kadar tüm seviyelerde içerikler. Kendi hızında ilerle ve gelişimini gör.</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
@@ -412,7 +417,7 @@ export default function RegisterPage() {
                         className="w-12 h-12 rounded-full object-cover"
                       />
                       <div>
-                        <p className="text-white italic text-sm">"LingRoot ile sadece 3 ayda A1'den B1 seviyesine yükseldim. Artık sevdiğim YouTube kanallarını anlayabiliyorum!"</p>
+                        <p className="text-white italic text-sm">&quot;LingRoot ile sadece 3 ayda A1&apos;den B1 seviyesine yükseldim. Artık sevdiğim YouTube kanallarını anlayabiliyorum!&quot;</p>
                         <p className="text-white/70 text-sm mt-2">- Zeynep K.</p>
                       </div>
                     </div>

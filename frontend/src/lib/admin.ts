@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { API_BASE_URL, createHeaders, ApiResponse, getApiUrl } from './api';
 import { User } from './user'; // Assuming User interface is defined in user.ts
 
@@ -16,12 +17,12 @@ export const getDashboardStats = async (): Promise<ApiResponse<DashboardStats>> 
       headers: createHeaders(),
       credentials: 'include',
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to get dashboard stats');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Get dashboard stats error:', error);

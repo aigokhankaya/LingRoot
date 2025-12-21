@@ -569,7 +569,10 @@ const getTopicSuggestions = async (req, res) => {
     const userId = req.user.id;
     const { conversationId } = req.params;
     let conversationContext = '';
-    if (conversationId) {
+
+    // Skip database query if conversationId is "new" or not a valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (conversationId && conversationId !== 'new' && uuidRegex.test(conversationId)) {
       const messagesResult = await db.query(
         `SELECT content FROM messages WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 5`,
         [conversationId]

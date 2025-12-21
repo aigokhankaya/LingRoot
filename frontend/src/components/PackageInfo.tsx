@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 
 type UsageSummary = {
   subscription?: any;
@@ -32,7 +33,7 @@ const PackageInfo: React.FC = () => {
       const stored = typeof window !== 'undefined' ? localStorage.getItem('lingroot_locale') : null;
       if (stored) setLocale(stored);
       else if (typeof navigator !== 'undefined' && navigator.language) setLocale(navigator.language);
-    } catch {}
+    } catch { }
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('lingroot_token') : null;
 
@@ -44,7 +45,7 @@ const PackageInfo: React.FC = () => {
           const uJson = await u.json();
           if (u.ok && uJson?.success) setUsage(uJson.data);
         }
-      } catch {}
+      } catch { }
       finally { setLoadingUsage(false); }
 
       try {
@@ -118,23 +119,22 @@ const PackageInfo: React.FC = () => {
           ) : usage?.hasPlan ? (
             <div className="text-sm text-gray-700 space-y-1 mt-1">
               <div>OpenAI Token: <span className="font-semibold">{usage?.usage?.openaiTokens ?? 0}</span> / <span className="text-gray-500">{usage?.limits?.openaiTokenLimit ?? '—'}</span></div>
-              <div>TTS Karakter: <span className="font-semibold">{usage?.usage?.ttsChars ?? 0}</span> / <span className="text-gray-500">{usage?.limits?.ttsCharLimit ?? '—'}</span></div>
               <div>Aylık USD: <span className="font-semibold">${usage?.usage?.totalCostUsd ?? 0}</span> / <span className="text-gray-500">${usage?.limits?.monthlyUsdLimit ?? '—'}</span></div>
               {usage?.isExceeded && (
                 <div className="text-red-600 mt-1">
                   Kullanım sınırınız aşıldı.{" "}
-                  <a href="/dashboard?tab=paket-bilgilerim" className="underline text-red-700 hover:text-red-800">
+                  <Link href="/dashboard?tab=paket-bilgilerim" className="underline text-red-700 hover:text-red-800">
                     Paket yükselt
-                  </a>
+                  </Link>
                 </div>
               )}
             </div>
           ) : (
             <div className="text-gray-600">
               Aktif paket bulunamadı.{" "}
-              <a href="/dashboard?tab=paket-bilgilerim" className="underline text-indigo-700 hover:text-indigo-800">
+              <Link href="/dashboard?tab=paket-bilgilerim" className="underline text-indigo-700 hover:text-indigo-800">
                 Paket seç
-              </a>
+              </Link>
             </div>
           )}
         </div>

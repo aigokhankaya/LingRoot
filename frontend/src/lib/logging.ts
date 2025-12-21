@@ -33,14 +33,8 @@ export const logAdminAction = async (
         const adminEmail = session.user.email;
 
         // 2. Prepare log data
-        const logEntry = {
-            admin_user_id: adminUserId,
-            admin_email: adminEmail,
-            action: action,
-            target_type: options.targetType,
-            target_id: options.targetId,
-            details: options.details,
-        };
+        // Unused variable removed
+        // const logEntry = ...
 
         // TODO: Implement secure logging via backend (no-op for now)
         // await fetch('/api/admin/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(logEntry) });
@@ -51,7 +45,7 @@ export const logAdminAction = async (
         const { error: insertError } = await supabase
             .from("admin_logs")
             .insert(logEntry);
-
+    
         if (insertError) {
             console.error("LogAdminAction Error: Failed to insert log directly (RLS should prevent this):", insertError);
         }

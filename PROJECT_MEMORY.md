@@ -1,6 +1,6 @@
 PROJECT_MEMORY.md
 Project Name: Lingroot
-Last Updated: 2025-12-04
+Last Updated: 2025-12-21
 Current Phase: Phase 2 – Intelligent Content Generation
 Active Context: CEFR-based content engine, prompt governance, audio pipeline stability, mobile/web harmonization.
 
@@ -114,6 +114,7 @@ Deployment kurallarını ihlal etme:
 Cloudflare Tunnel → Backend Only
 MFA alignment hesaplamalarında tahmini formüller yazma.
 Mobil ve Web API’larını birbirinden ayırma; tek şema üzerinden kullan.
+Kullanıcı ile iletişim dili (cevaplar, raporlar, açıklamalar) kesinlikle TÜRKÇE olmalıdır. İngilizce sadece kod içinde ve loglarda kullanılabilir.
 
 [5. PROGRESS & ROADMAP]
 ✓ Phase 1 — Foundation
@@ -123,6 +124,7 @@ Mobil ve Web API’larını birbirinden ayırma; tek şema üzerinden kullan.
 ✓ TTS + MFA prototype
 ✓ Admin panel initial version
 🔥 Phase 2 — Intelligent Content Engine (ACTIVE)
+✓ Podcast Pipeline (in-code, n8n removed - Dec 2025)
 Prompt governance structure
 CEFR adaptation accuracy
 Liro Assistant architecture
@@ -141,6 +143,11 @@ Cloudflare R2 migration (full)
 Global CDN optimization
 
 [6. DECISION LOG & ANTI-PATTERNS]
+[2025-12] Podcast Pipeline n8n → In-Code Migration
+Karar: n8n webhook bağımlılığını kaldırarak podcast generation'ı backend'e taşımak.
+Neden: Daha hızlı response, daha iyi error handling, unified codebase.
+Yeni Yapı: createPodcast.js (OpenAI script + Google TTS multi-speaker + FFmpeg merge)
+Sesler: en-US-Journey-F (Host), en-US-Journey-D (Expert)
 [2025-11] MFA Kullanımı
 Karar: Google TTS timepoint API yerine MFA forced aligner kullanmak.
 Neden: %99 doğruluk, kelime seviyesinde senkron ihtiyacı.

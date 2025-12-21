@@ -168,6 +168,33 @@ backend/prompts/
 7. Content stored in database
 ```
 
+### Podcast Generation (`utils/createPodcast.js`)
+
+Multi-speaker podcast creation with AI-generated scripts.
+
+**Flow:**
+```javascript
+// Podcast Pipeline
+1. User requests topic + level + duration
+2. AI generates Host/Expert dialogue script (GPT-4o)
+3. Multi-speaker TTS (Google Journey voices)
+4. Audio segments merged (FFmpeg)
+5. VTT subtitles generated
+6. Files uploaded to storage
+7. ContentHistory record created
+```
+
+**Voices:**
+| Role | Voice | Character |
+|------|-------|-----------|
+| Host | `en-US-Journey-F` | Friendly, curious |
+| Expert | `en-US-Journey-D` | Authoritative, clear |
+
+**CEFR Adaptation in Script:**
+- A1/A2: Simple vocabulary, short sentences
+- B1/B2: Wider vocabulary, idioms
+- C1/C2: Sophisticated, natural language
+
 ### Embedding & RAG System
 
 ```javascript

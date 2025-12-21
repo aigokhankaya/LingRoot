@@ -40,6 +40,21 @@ export const ProfileDropdownMenu: React.FC<ProfileDropdownMenuProps> = ({
   const { user, logout } = useAuth();
   const router = useRouter();
 
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   if (!user) return null;
 
   const displayName = (user as any)?.name || user?.email || t('profile_menu_user_default');
@@ -56,21 +71,6 @@ export const ProfileDropdownMenu: React.FC<ProfileDropdownMenuProps> = ({
     logout();
     router.push('/');
   };
-
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!containerRef.current) return;
-      if (!containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Menü öğeleri - tek bir yerden yönetiliyor
   const menuItems = [

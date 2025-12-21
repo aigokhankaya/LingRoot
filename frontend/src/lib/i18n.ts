@@ -228,7 +228,7 @@ export const translations: Translations = {
     topics_node_status_listened: 'Dinlendi',
     topics_node_status_audio_ready: 'Ses hazır',
     topics_node_status_no_audio: 'Ses yok',
-    topics_node_button_audio_creating: 'Ses Oluşturuluyor...',
+    topics_node_button_audio_creating: 'İçeriğiniz Hazırlanıyor...',
     topics_node_button_listen: 'Dinle',
     topics_node_button_create_audio: 'Ses Oluştur',
     topics_node_button_suggest_subtopic: 'Alt Konu Öner',
@@ -3936,6 +3936,10 @@ export const translations: Translations = {
 
     // Footer / Navigation
     contact_us: 'Kontakt aufnehmen',
+<<<<<<< HEAD
+=======
+
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
     legal_documents: 'Rechtliche Dokumente',
 
     // Welcome – üst bölüm
@@ -4635,8 +4639,8 @@ export const useTranslation = (localeOverride?: Locale) => {
 
   const { t, currentLocale } = getTranslation(effectiveLocale);
 
-  // Use useCallback for performance optimization within the hook context
-  const memoizedT = useCallback(t, [currentLocale]);
+  // No need for useCallback here as t is recreated on every render via getTranslation
+  const memoizedT = t;
 
   return { t: memoizedT, currentLocale };
 };

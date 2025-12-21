@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+import Link from 'next/link';
+
 export default function DeleteAccountPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -92,9 +94,9 @@ export default function DeleteAccountPage() {
         )}
 
         <div className="mt-6 text-center">
-          <a href="/" className="text-primary hover:text-primary/80 text-sm font-medium">
+          <Link href="/" className="text-primary hover:text-primary/80 text-sm font-medium">
             ← Ana Sayfaya Dön
-          </a>
+          </Link>
         </div>
       </div>
     </div>

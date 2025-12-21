@@ -14,7 +14,10 @@ console.log('Current Language:', getCurrentLanguage());
 // console.log('Translation example:', getCurrentLanguage());
 
 // Example usage of auth functions
+// Example usage of auth functions
 const authExample = () => {
+  // Invalid hook usage outside component - commented out for build
+  /*
   const { user, login, register, logout } = useAuth();
   
   // Login example
@@ -34,6 +37,8 @@ const authExample = () => {
     );
     console.log('Register result:', result);
   };
+  */
+  console.log('Auth example disabled due to invalid hook usage outside component');
 };
 
 // Example usage of user API functions
@@ -42,7 +47,7 @@ const userAPIExample = async () => {
     // Get current user profile
     const profileResult = await userAPI.getCurrentUserProfile();
     console.log('User profile:', profileResult);
-    
+
     // Update user profile
     const updateResult = await userAPI.updateUserProfile({
       firstName: 'Updated',
@@ -50,7 +55,7 @@ const userAPIExample = async () => {
       phoneNumber: '+905551234567'
     });
     console.log('Profile update result:', updateResult);
-    
+
     // Admin functions
     const allUsersResult = await userAPI.getAllUsers();
     console.log('All users:', allUsersResult);
@@ -65,7 +70,7 @@ const contentAPIExample = async () => {
     // Get all content
     const allContentResult = await contentAPI.getAllContent();
     console.log('All content:', allContentResult);
-    
+
     // Create content
     const createResult = await contentAPI.createContent({
       title: 'Test Content',
@@ -74,7 +79,7 @@ const contentAPIExample = async () => {
       level: 'beginner'
     });
     console.log('Content creation result:', createResult);
-    
+
     // Process text
     const processResult = await contentAPI.processTextContent(
       'This is a test text to process',
@@ -92,11 +97,11 @@ const planAPIExample = async () => {
     // Get all plans
     const allPlansResult = await planAPI.getAllPlans();
     console.log('All plans:', allPlansResult);
-    
+
     // Get current subscription
     const subscriptionResult = await planAPI.getCurrentSubscription();
     console.log('Current subscription:', subscriptionResult);
-    
+
     // Admin functions
     const createPlanResult = await planAPI.createPlan({
       name: 'Test Plan',

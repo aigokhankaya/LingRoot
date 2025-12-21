@@ -1,6 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { getUserRole } from '@/lib/supabaseClient'; // Assuming getUserRole is accessible server-side
 
 export async function middleware(request: NextRequest) {
     let response = NextResponse.next({
@@ -82,14 +81,14 @@ export async function middleware(request: NextRequest) {
                 .single();
 
             if (profileError) {
-                 console.error('Middleware: Error fetching user profile:', profileError.message);
-                 // Log out and redirect to login on error fetching profile
-                 await supabase.auth.signOut();
-                 response = NextResponse.redirect(new URL('/admin/login?error=role_check_failed', request.url));
-                 // Clear the cookie manually as redirect might happen before Supabase client updates it
-                 response.cookies.delete('sb-access-token'); // Adjust cookie name if needed
-                 response.cookies.delete('sb-refresh-token'); // Adjust cookie name if needed
-                 return response;
+                console.error('Middleware: Error fetching user profile:', profileError.message);
+                // Log out and redirect to login on error fetching profile
+                await supabase.auth.signOut();
+                response = NextResponse.redirect(new URL('/admin/login?error=role_check_failed', request.url));
+                // Clear the cookie manually as redirect might happen before Supabase client updates it
+                response.cookies.delete('sb-access-token'); // Adjust cookie name if needed
+                response.cookies.delete('sb-refresh-token'); // Adjust cookie name if needed
+                return response;
             }
 
             const userRole = profileData?.role;

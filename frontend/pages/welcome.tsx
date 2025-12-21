@@ -266,7 +266,11 @@ const Welcome: React.FC = () => {
     } catch { }
   }, []);
 
+<<<<<<< HEAD
   // Auth check and redirect for unauthenticated users
+=======
+  // Auth guard: Giriş yapılmadıysa login sayfasına yönlendir
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !user)) {
       const target = typeof window !== 'undefined' ? window.location.pathname + window.location.search + window.location.hash : '/welcome';
@@ -1356,10 +1360,16 @@ const Welcome: React.FC = () => {
 
     try {
       const response = await getTopicDetailSuggestions(selectedInterest, englishLevel);
+<<<<<<< HEAD
       const suggestions = response.data?.suggestions;
       if (response.success && Array.isArray(suggestions) && suggestions.length > 0) {
         setTopicDetailSuggestions(suggestions);
         console.log(`${selectedInterest} konusu için ${suggestions.length} öneri alındı`);
+=======
+      if (response.success && response.data?.suggestions) {
+        setTopicDetailSuggestions(response.data.suggestions);
+        console.log(`${selectedInterest} konusu için ${response.data.suggestions.length} öneri alındı`);
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
       } else {
         console.error("Konu önerileri alınamadı:", response);
         setError(t('welcome_error_topic_suggestions').replace('{error}', response.message || t('welcome_error_unknown')));
@@ -1991,7 +2001,12 @@ const Welcome: React.FC = () => {
     );
   }
 
+<<<<<<< HEAD
   // Auth tamamlandıktan sonra user kontrolü - Yönlendirme sırasında loading göster
+=======
+  // Auth tamamlandıktan sonra user kontrolü
+  // Auth tamamlandıktan sonra user kontrolü
+>>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
   if (!isAuthenticated || !user) {
     return (
       <main className="min-h-screen flex items-center justify-center">
@@ -3570,16 +3585,12 @@ const Welcome: React.FC = () => {
                               {t('welcome_plan_info_message')}
                             </p>
                             <div className="flex items-center mt-3">
-                              <a
+                              <Link
                                 href="/fiyatlandirma"
                                 className="text-primary hover:text-primary/80 text-sm"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  router.push('/fiyatlandirma');
-                                }}
                               >
                                 {t('welcome_compare_all_plans')}
-                              </a>
+                              </Link>
                             </div>
                           </>
                         ) : (
@@ -3609,16 +3620,12 @@ const Welcome: React.FC = () => {
                                 <i className="fas fa-crown text-yellow-500 mr-2"></i>
                                 {t('welcome_upgrade_to_premium')}
                               </Button>
-                              <a
+                              <Link
                                 href="/fiyatlandirma"
                                 className="text-primary hover:text-primary/80 text-sm"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  router.push('/fiyatlandirma');
-                                }}
                               >
                                 {t('welcome_compare_all_plans')}
-                              </a>
+                              </Link>
                             </div>
                           </div>
                         )}
