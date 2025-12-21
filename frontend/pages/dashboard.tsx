@@ -309,7 +309,7 @@ const Dashboard = () => {
       loadBookHistory();
     }
 
-    if (tab === 'reading-history') {
+    if (tab === 'reading-history' || tab === 'podcasts') {
       fetchContentHistory();
     }
 
@@ -1124,11 +1124,131 @@ const Dashboard = () => {
             </TabsContent>
 
             <TabsContent value="podcasts" className="mt-0">
-              <div className="text-center py-8">
-                <i className="fas fa-podcast text-4xl text-gray-300 mb-2"></i>
-                <h3 className="text-lg font-medium text-gray-700">{t('podcasts_title')}</h3>
-                <p className="text-sm text-gray-500">{t('podcasts_description')}</p>
-              </div>
+              <Card className="border border-border shadow-lg rounded-2xl bg-white">
+                <CardContent className="p-6">
+                  <div className="flex flex-col gap-4 mb-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center text-white font-bold mr-4 shadow-sm">
+                          <i className="fas fa-podcast"></i>
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-800 tracking-tight">{t('podcasts_title') || 'Podcastlerim'}</h2>
+                      </div>
+                      <Button
+                        onClick={fetchContentHistory}
+                        variant="outline"
+                        className="!rounded-button whitespace-nowrap cursor-pointer"
+                        disabled={loadingHistory}
+                      >
+                        {loadingHistory ? (
+                          <>
+                            <i className="fas fa-circle-notch fa-spin mr-2"></i>
+                            {t('reading_history_refresh_loading')}
+                          </>
+                        ) : (
+                          <>
+                            <i className="fas fa-sync-alt mr-2"></i>
+                            {t('refresh') || 'Yenile'}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {loadingHistory ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                    </div>
+                  ) : contentHistory.filter(i => (i.input_type || '').toLowerCase() === 'podcast').length > 0 ? (
+                    <div className="space-y-4">
+                      {contentHistory.filter(i => (i.input_type || '').toLowerCase() === 'podcast').map((item) => (
+                        <div
+                          key={item.id}
+                          className="bg-white rounded-xl border border-gray-200 hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden"
+                        >
+                          <div
+                            className="p-3 md:p-3 cursor-pointer hover:bg-primary/5 transition-colors"
+                            onClick={() => {
+                              setExpandedHistoryItem(expandedHistoryItem === item.id ? null : item.id);
+                            }}
+                          >
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1 text-xs">
+                                  <Badge variant="outline" className="text-xs bg-teal-50 text-teal-700 border-teal-200">
+                                    Podcast
+                                  </Badge>
+                                  <span className="text-xs text-gray-500">
+                                    {new Date(item.created_at).toLocaleDateString()}
+                                  </span>
+                                  {item.level && (
+                                    <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
+                                      {item.level}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="mb-2">
+                                  <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">
+                                    {item.input}
+                                  </h4>
+                                  <p className="text-sm text-gray-600 line-clamp-2">
+                                    {item.adapted_text || 'İçerik yükleniyor...'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="text-xs text-gray-500">
+                                  {expandedHistoryItem === item.id ? t('reading_history_collapse') : t('reading_history_open_player')}
+                                </div>
+                                <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
+                              </div>
+                            </div>
+                          </div>
+
+                          {expandedHistoryItem === item.id && (
+                            <div className="border-t border-gray-200 bg-white p-4 md:p-5">
+                              {(() => {
+                                const audioResult = {
+                                  message: item.adapted_text || item.input,
+                                  mp3_url: item.mp3_url,
+                                  vtt_url: item.mp3_url.replace('.mp3', '.vtt'),
+                                  level: item.level,
+                                  adapted_text: item.adapted_text, // English
+                                  translated_text: item.translated_text || item.input, // Turkish (source)
+                                  topic: 'Podcast',
+                                  timepoints: Array.isArray(item.timepoints) ? item.timepoints : (item.timepoints ? JSON.parse(item.timepoints as any) : []),
+                                  words: Array.isArray(item.words) ? item.words : (item.words ? JSON.parse(item.words as any) : []),
+                                  original_turkish: item.input,
+                                  speaking_rate: 1.0
+                                } as any;
+
+                                return (
+                                  <OutputSection
+                                    audioResult={audioResult}
+                                    isLoggedIn={isAuthenticated}
+                                  />
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <i className="fas fa-podcast text-4xl text-gray-300 mb-4"></i>
+                      <h3 className="text-lg font-medium text-gray-900">{t('podcasts_empty_title') || 'Henüz Podcast Yok'}</h3>
+                      <p className="text-gray-500 max-w-sm mx-auto mt-2">{t('podcasts_empty_desc') || 'Oluşturduğunuz podcastler burada listelenecektir.'}</p>
+                      <Link href="/welcome">
+                        <Button className="mt-6">
+                          <i className="fas fa-plus mr-2"></i>
+                          {t('create_new_podcast') || 'Yeni Podcast Oluştur'}
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="pdf" className="mt-0">

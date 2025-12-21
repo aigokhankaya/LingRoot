@@ -30,6 +30,7 @@ const path = require('path');
 const os = require('os');
 const { mfaAligner } = require('../utils/mfaAligner');
 const { createPodcast } = require('../utils/createPodcast');
+const { translateFromEnglish } = require('../utils/translateFromEnglish');
 
 const router = express.Router();
 
@@ -360,15 +361,28 @@ router.post("/create-podcast", authenticate, async (req, res) => {
 
     const audioUrl = podcastResult.audioUrl;
     const vttUrl = podcastResult.vttUrl || '';
-    const transcriptText = podcastResult.description || '';
+
+    // Use full transcript if available, fallback to description
+    const transcriptText = podcastResult.transcript || podcastResult.description || '';
 
     // Generate words and timepoints for frontend player
     let wordsForTiming = null;
     let timepoints = null;
 
-    if (transcriptText) {
+    if (podcastResult.wordTimings) {
+      // Use accurate timings from synthesis loop
+      wordsForTiming = podcastResult.wordTimings.map(t => t.word);
+      timepoints = podcastResult.wordTimings.map((t, idx) => ({
+        word: t.word,
+        timeSeconds: t.startTime,
+        endTimeSeconds: t.endTime,
+        index: idx,
+        hasRealTiming: false, // estimated from turns
+        source: 'turn_estimation'
+      }));
+    } else if (transcriptText) {
+      // Fallback to estimation from text
       wordsForTiming = transcriptText.split(/\s+/).filter(w => w.length > 0);
-      // Simple estimated timepoints (refinement can be done later with MFA)
       const estimatedDurationSec = podcastResult.duration || (duration * 60);
       const avgTimePerWord = estimatedDurationSec / wordsForTiming.length;
       timepoints = wordsForTiming.map((word, index) => ({
@@ -379,6 +393,20 @@ router.post("/create-podcast", authenticate, async (req, res) => {
         hasRealTiming: false,
         source: 'estimated',
       }));
+    }
+
+    // Generate accurate translation from English transcript to User's Language (defaulting to Turkish per project rules)
+    let translatedText = transcriptText;
+    if (transcriptText) {
+      try {
+        const translationResult = await translateFromEnglish(transcriptText, 'Turkish', level);
+        if (translationResult && translationResult.text) {
+          translatedText = translationResult.text;
+          logger.info(`[PODCAST] Translated transcript to Turkish (${translatedText.length} chars)`);
+        }
+      } catch (transErr) {
+        logger.warn('[PODCAST] Failed to translate transcript:', transErr.message);
+      }
     }
 
     // Save to contenthistory
@@ -392,8 +420,8 @@ router.post("/create-podcast", authenticate, async (req, res) => {
           level: level || 'B1',
           mp3_url: audioUrl,
           input: topic,
-          translated_text: transcriptText,
-          adapted_text: transcriptText,
+          translated_text: translatedText, // Turkish
+          adapted_text: transcriptText,    // English (Original)
           input_type: 'podcast',
           created_at: new Date().toISOString(),
           words: Array.isArray(wordsForTiming) && wordsForTiming.length > 0 ? JSON.stringify(wordsForTiming) : null,
@@ -402,7 +430,7 @@ router.post("/create-podcast", authenticate, async (req, res) => {
           openai_completion_tokens: 0,
           openai_total_tokens: 0,
           openai_cost_usd: 0,
-          tts_characters: 0,
+          tts_characters: transcriptText.length,
           tts_category: 'podcast',
           tts_cost_usd: 0,
           total_cost_usd: 0,
@@ -411,12 +439,6 @@ router.post("/create-podcast", authenticate, async (req, res) => {
           audio_duration_seconds: durationSeconds,
           entry_source: 'podcast',
         };
-
-        logger.info('[PODCAST] Saving podcast to contenthistory', {
-          userId,
-          durationSeconds,
-          transcriptLength: transcriptText ? transcriptText.length : 0,
-        });
 
         const { data, error } = await supabase
           .from('contenthistory')
@@ -463,6 +485,7 @@ router.post("/create-podcast", authenticate, async (req, res) => {
       success: false,
       message: 'Failed to create podcast',
       error: error.message,
+      details: error.stack
     });
   }
 });
