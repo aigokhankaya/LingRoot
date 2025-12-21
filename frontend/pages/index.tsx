@@ -7,7 +7,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../src/lib/auth';
 import Footer from '../src/components/Footer';
 import BrandWordmark from '../src/components/BrandWordmark';
-import { useTranslation, useLanguage, Locale } from '../src/lib/i18n';
+import { useTranslation, useLanguage, Locale, translations } from '../src/lib/i18n';
 
 // shadcn/ui ve diğer kütüphane importları
 import { Button } from "@/components/ui/button";
@@ -226,7 +226,7 @@ const App: React.FC = () => {
 
     const featuresList = [
         { icon: "fas fa-globe", title: t('landing_features_item1_title'), description: t('landing_features_item1_desc') },
-        { icon: "fas fa-user-cog", title: t('landing_features_item2_title'), description: t('landing_features_item2_desc') },
+        { icon: "fas fa-robot", title: t('landing_features_item2_title'), description: t('landing_features_item2_desc') },
         { icon: "fas fa-headphones-alt", title: t('landing_features_item3_title'), description: t('landing_features_item3_desc') },
         { icon: "fas fa-clock", title: t('landing_features_item4_title'), description: t('landing_features_item4_desc') }
     ];
@@ -496,8 +496,8 @@ const App: React.FC = () => {
                 <div className="container mx-auto px-8">
                     <div className="text-center">
                         <Badge className="mb-4 bg-primary/10 text-primary border-none text-sm hero-badge">{t('landing_hero_badge')}</Badge>
-                        <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 leading-tight hero-title max-w-5xl mx-auto">
-                            {t('landing_hero_title')}<span className="text-primary">{t('landing_hero_highlight')}</span>
+                        <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-700 leading-tight hero-title max-w-5xl mx-auto">
+                            {t('landing_hero_title')}<span className="block text-primary">{t('landing_hero_highlight')}</span>
                         </h1>
                         <p className="text-lg md:text-xl lg:text-2xl text-gray-600 mb-6 leading-relaxed hero-description max-w-4xl mx-auto">
                             {t('landing_hero_desc')}
@@ -573,13 +573,13 @@ const App: React.FC = () => {
                                         <p className="text-gray-700">{t('landing_demo_original_desc') || "Lingroot, favori içeriğinizi İngilizce yeterliliğinize göre özelleştirir ve seslendirir. Bu sayede, becerilerinizi doğal bir şekilde geliştirirken ilginç konularla etkileşime geçebilirsiniz."}</p>
                                     </div>
                                     <div className="p-4 bg-primary/10 rounded-lg border-2 border-primary">
-                                        <h4 className="font-bold mb-2">{t('landing_demo_your')} ({levels[level]})</h4>
-                                        {level === 0 && <p className="text-gray-700">{t('landing_demo_level0')}</p>}
-                                        {level === 1 && <p className="text-gray-700">{t('landing_demo_level1')}</p>}
-                                        {level === 2 && <p className="text-gray-700">{t('landing_demo_level2')}</p>}
-                                        {level === 3 && <p className="text-gray-700">{t('landing_demo_level3')}</p>}
-                                        {level === 4 && <p className="text-gray-700">{t('landing_demo_level4')}</p>}
-                                        {level === 5 && <p className="text-gray-700">{t('landing_demo_level5')}</p>}
+                                        <h4 className="font-bold mb-2">{translations['en']['landing_demo_your']} ({levels[level]})</h4>
+                                        {level === 0 && <p className="text-gray-700">{translations['en']['landing_demo_level0']}</p>}
+                                        {level === 1 && <p className="text-gray-700">{translations['en']['landing_demo_level1']}</p>}
+                                        {level === 2 && <p className="text-gray-700">{translations['en']['landing_demo_level2']}</p>}
+                                        {level === 3 && <p className="text-gray-700">{translations['en']['landing_demo_level3']}</p>}
+                                        {level === 4 && <p className="text-gray-700">{translations['en']['landing_demo_level4']}</p>}
+                                        {level === 5 && <p className="text-gray-700">{translations['en']['landing_demo_level5']}</p>}
                                     </div>
                                 </div>
                             </div>

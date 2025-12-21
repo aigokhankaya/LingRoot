@@ -5,6 +5,7 @@ const Payment = require('./Payment');
 const AdminLog = require('./AdminLog');
 const PaymentProvider = require('./PaymentProvider');
 const CardTransaction = require('./CardTransaction');
+const Notification = require('./Notification');
 
 // Initialize models
 const models = {
@@ -13,7 +14,8 @@ const models = {
   Payment,
   AdminLog,
   PaymentProvider,
-  CardTransaction
+  CardTransaction,
+  Notification
 };
 
 // Initialize associations
@@ -35,6 +37,10 @@ CardTransaction.belongsTo(PaymentProvider, { foreignKey: 'paymentProviderId' });
 
 Subscription.hasMany(CardTransaction, { foreignKey: 'subscriptionId' });
 CardTransaction.belongsTo(Subscription, { foreignKey: 'subscriptionId' });
+
+// Notification associations
+User.hasMany(Notification, { foreignKey: 'userId', as: 'notifications' });
+Notification.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 module.exports = {
   sequelize,

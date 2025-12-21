@@ -37,13 +37,17 @@
 
 ## 📁 Oluşturulan/Güncellenen Dosyalar
 
-### Yeni Dosyalar (3)
+### Yeni Dosyalar (7)
 1. `backend/utils/userProfileAnalyzer.js` - Kullanıcı profil analiz motoru
 2. `backend/utils/liroPromptGenerator.js` - Dinamik prompt oluşturucu
-3. `LIRO_USER_PROFILING_SYSTEM.md` - Detaylı döküman
+3. `backend/utils/profileCache.js` - **🆕 Memory-based profil cache (5 dk TTL)**
+4. `backend/services/chatService.js` - **🆕 Controller'dan ayrıştırılmış iş mantığı**
+5. `backend/constants/chatConstants.js` - **🆕 Magic string'ler için merkezi sabitler**
+6. `LIRO_USER_PROFILING_SYSTEM.md` - Detaylı döküman
+7. `LIRO_ARCHITECTURE_REVIEW.md` - Mimari değerlendirme raporu
 
 ### Güncellenen Dosyalar (2)
-1. `backend/controllers/aiChatController.js` - Yeni sistem entegrasyonu
+1. `backend/controllers/aiChatController.js` - Cache destekli profil, chatService entegrasyonu
 2. `backend/routes/debugRoutes.js` - Debug endpoint eklendi
 
 ---
@@ -83,15 +87,20 @@ User Message
     ↓
 1. Mesajı kaydet (messages table)
     ↓
-2. userProfileAnalyzer.generateUserProfile(userId)
-   ├─→ users (temel bilgiler)
-   ├─→ user_interests (ilgi alanları)
-   ├─→ conversations (sohbet geçmişi)
-   ├─→ messages (mesaj içeriği)
-   ├─→ content (oluşturulan içerikler)
-   ├─→ vocabulary (kelime öğrenme)
-   ├─→ narrations (audio tercihleri)
-   └─→ Analytics (davranış analizi)
+2. chatService.getUserProfile(userId) 🆕 CACHE DESTEKLİ
+   ├─→ profileCache.get(userId) kontrol
+   │     ├─→ HIT: Cache'den döner (5 dk TTL)
+   │     └─→ MISS: DB'den çeker, cache'e yazar
+   │
+   └─→ userProfileAnalyzer.generateUserProfile(userId)
+       ├─→ users (temel bilgiler)
+       ├─→ user_interests (ilgi alanları)
+       ├─→ conversations (sohbet geçmişi)
+       ├─→ messages (mesaj içeriği)
+       ├─→ content (oluşturulan içerikler)
+       ├─→ vocabulary (kelime öğrenme)
+       ├─→ narrations (audio tercihleri)
+       └─→ Analytics (davranış analizi)
     ↓
 3. liroPromptGenerator.generateSystemPrompt(profile)
    ├─→ Kişiselleştirilmiş giriş

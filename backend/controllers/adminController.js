@@ -187,8 +187,8 @@ exports.getCostDashboard = async (req, res) => {
       let llmUsageDetails = null;
       if (row.llm_usage_details) {
         try {
-          llmUsageDetails = typeof row.llm_usage_details === 'string' 
-            ? JSON.parse(row.llm_usage_details) 
+          llmUsageDetails = typeof row.llm_usage_details === 'string'
+            ? JSON.parse(row.llm_usage_details)
             : row.llm_usage_details;
         } catch (e) {
           logger.warn(`[ADMIN COST] Failed to parse llm_usage_details for item ${row.id}`);
@@ -434,7 +434,7 @@ exports.getAllUsers = async (req, res) => {
     // Fetch active subscriptions for all users
     const userIds = (users || []).map(u => u.id);
     let subscriptionsMap = {};
-    
+
     if (userIds.length > 0) {
       const { data: subscriptions, error: subError } = await supabase
         .from('subscriptions')
@@ -442,7 +442,7 @@ exports.getAllUsers = async (req, res) => {
         .in('user_id', userIds)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
-      
+
       if (subError) {
         logger.warn('[ADMIN USERS] Error fetching subscriptions:', subError);
       } else {
@@ -459,11 +459,11 @@ exports.getAllUsers = async (req, res) => {
     const transformedUsers = (users || []).map(user => {
       const activeSub = subscriptionsMap[user.id];
       let packageName = 'Ücretsiz'; // Default
-      
+
       if (activeSub && activeSub.plantype) {
         packageName = activeSub.plantype;
       }
-      
+
       return {
         id: user.id,
         name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'N/A',
@@ -478,7 +478,7 @@ exports.getAllUsers = async (req, res) => {
     });
 
     logger.info(`[ADMIN USERS] Successfully transformed ${transformedUsers.length} users with subscription data`);
-    
+
     return res.status(200).json({
       success: true,
       users: transformedUsers,
@@ -1109,13 +1109,13 @@ exports.getUserAudioHistoryAdmin = async (req, res) => {
           const parsed = JSON.parse(row.words);
           wordsCount = Array.isArray(parsed) ? parsed.length : null;
         }
-      } catch {}
+      } catch { }
       try {
         if (typeof row.timepoints === 'string') {
           const parsed = JSON.parse(row.timepoints);
           timepointsCount = Array.isArray(parsed) ? parsed.length : null;
         }
-      } catch {}
+      } catch { }
       return {
         ...row,
         words_count: wordsCount,
@@ -1168,14 +1168,14 @@ exports.getUserUsageSummaryAdmin = async (req, res) => {
     const state = await checkLimits(id);
     // Mirror subscriptionController.getUsageSummary shape
     if (!state || !state.hasPlan) {
-      return res.json({ 
-        success: true, 
-        data: { 
+      return res.json({
+        success: true,
+        data: {
           hasPlan: false,
           isExpired: state?.isExpired || false,
           expiredAt: state?.expiredAt,
           message: state?.message
-        } 
+        }
       });
     }
     return res.json({
@@ -1292,7 +1292,7 @@ exports.assignPlanToUser = async (req, res) => {
 exports.updateEnvironment = async (req, res) => {
   try {
     const { environment } = req.body;
-    
+
     // Validate environment value
     if (!environment || !['production', 'test'].includes(environment)) {
       return res.status(400).json({
@@ -1352,7 +1352,7 @@ exports.getPaymentEnvironment = async (req, res) => {
     }
 
     const paymentEnvironment = setting?.value || 'production';
-    
+
     logger.info(`[ADMIN] Payment environment: ${paymentEnvironment}`);
     return res.json({
       success: true,
@@ -1372,7 +1372,7 @@ exports.getPaymentEnvironment = async (req, res) => {
 exports.updatePaymentEnvironment = async (req, res) => {
   try {
     const { paymentEnvironment } = req.body;
-    
+
     // Validate payment environment value
     if (!paymentEnvironment || !['production', 'test'].includes(paymentEnvironment)) {
       return res.status(400).json({
@@ -1451,7 +1451,7 @@ exports.deleteAudioFiles = async (req, res) => {
     // Extract storage paths from mp3_url
     const storagePaths = [];
     const vttPaths = [];
-    
+
     for (const record of audioRecords) {
       if (record.mp3_url) {
         try {
@@ -1459,15 +1459,15 @@ exports.deleteAudioFiles = async (req, res) => {
           // Example URL: https://xxx.supabase.co/storage/v1/object/public/audio/audio/user123/file.mp3
           const url = new URL(record.mp3_url);
           const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/[^\/]+\/(.+)/);
-          
+
           if (pathMatch && pathMatch[1]) {
             const storagePath = pathMatch[1];
             storagePaths.push(storagePath);
-            
+
             // Also add VTT file path (replace .mp3 with .vtt)
             const vttPath = storagePath.replace(/\.mp3$/, '.vtt');
             vttPaths.push(vttPath);
-            
+
             logger.info(`[ADMIN AUDIO DELETE] Extracted paths - MP3: ${storagePath}, VTT: ${vttPath}`);
           }
         } catch (e) {
@@ -1537,6 +1537,39 @@ exports.deleteAudioFiles = async (req, res) => {
       success: false,
       message: 'Server error while deleting audio files',
       error: error.message
+    });
+  }
+};
+
+// Downgrade expired subscriptions to Free Trial
+exports.downgradeExpiredSubscriptions = async (req, res) => {
+  try {
+    logger.info('[ADMIN] Manual trigger: downgrading expired subscriptions to Free Trial');
+
+    const { downgradeAllExpiredSubscriptions } = require('../utils/subscriptionDowngrader');
+    const result = await downgradeAllExpiredSubscriptions();
+
+    if (result.error) {
+      logger.error('[ADMIN] Downgrade failed:', result.error);
+      return res.status(500).json({
+        success: false,
+        message: result.error,
+      });
+    }
+
+    logger.info(`[ADMIN] Downgrade completed. Processed: ${result.processed}, Succeeded: ${result.succeeded}, Failed: ${result.failed}`);
+
+    return res.status(200).json({
+      success: true,
+      message: `Süresi dolmuş ${result.processed} abonelik işlendi. Başarılı: ${result.succeeded}, Başarısız: ${result.failed}`,
+      data: result,
+    });
+  } catch (error) {
+    logger.error('[ADMIN] Server error during subscription downgrade:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Abonelikleri düşürürken sunucu hatası oluştu',
+      error: error.message,
     });
   }
 };

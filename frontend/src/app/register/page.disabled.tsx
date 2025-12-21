@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { initializeGoogleAuth, signInWithGoogle } from '../../lib/googleAuth';
 import Footer from '@/components/Footer';
+import { useTranslation } from '../../lib/i18n';
 
 // Phone helpers: Turkish format +90 555 123 45 67
 function extractDigits(value: string): string {
@@ -54,7 +55,8 @@ function formatTRPhone(value: string): string {
 export default function RegisterPage() {
   const router = useRouter();
   const { register, loginWithGoogle } = useAuth();
-  
+  const { currentLocale } = useTranslation();
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -64,7 +66,7 @@ export default function RegisterPage() {
     confirmPassword: '',
     acceptTerms: false
   });
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,18 +88,18 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    
+
     // Validate form data
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.phoneNumber || !formData.password || !formData.confirmPassword) {
       setError('Lütfen tüm alanları doldurun.');
       return;
     }
-    
+
     if (formData.password !== formData.confirmPassword) {
       setError('Şifreler eşleşmiyor.');
       return;
     }
-    
+
     if (!formData.acceptTerms) {
       setError('Kullanım şartlarını kabul etmelisiniz.');
       return;
@@ -115,7 +117,7 @@ export default function RegisterPage() {
     try {
       // Backend'e kayıt isteği gönder (normalize to +90XXXXXXXXXX)
       const normalizedPhone = normalizeTRPhone(formData.phoneNumber);
-      const result = await register(formData.firstName, formData.lastName, formData.email, normalizedPhone, formData.password);
+      const result = await register(formData.firstName, formData.lastName, formData.email, normalizedPhone, formData.password, currentLocale);
       if (result.success) {
         // Başarılı kayıt sonrası welcome (ses oluşturma) sayfasına yönlendir
         router.push('/welcome');
@@ -132,27 +134,27 @@ export default function RegisterPage() {
   const handleGoogleRegister = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // Google Auth'u başlat
       console.log('🔄 Google Auth başlatılıyor...');
       await initializeGoogleAuth();
-      
+
       // Google Sign-In'i tetikle
       console.log('🔄 Google Sign-In tetikleniyor...');
       const { credential } = await signInWithGoogle();
       console.log('✅ Google credential alındı');
-      
+
       // Backend'e gönder (loginWithGoogle aynı zamanda kayıt da yapar)
       console.log('🔄 Backend\'e gönderiliyor...');
       const result = await loginWithGoogle(credential, false);
-      
+
       if (result.success) {
         console.log('✅ Google ile kayıt/giriş başarılı');
-        
+
         // Token'ın localStorage'a yazılması için kısa bir bekleme
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         // Welcome sayfasına yönlendir
         router.push('/welcome');
       } else {
@@ -207,14 +209,14 @@ export default function RegisterPage() {
                   <span className="text-primary font-extrabold">LingRoot</span>'a Hoş Geldiniz
                 </h1>
                 <p className="text-gray-600 mb-8">Sevdiğiniz içeriklerle İngilizce öğrenme yolculuğunuza başlamak için hemen kaydolun.</p>
-                
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {error && (
                     <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                       <p className="text-sm text-red-700">{error}</p>
                     </div>
                   )}
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">Ad</Label>
@@ -243,7 +245,7 @@ export default function RegisterPage() {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="email">E-posta</Label>
                     <Input
@@ -257,7 +259,7 @@ export default function RegisterPage() {
                       required
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="phoneNumber">Telefon Numarası</Label>
                     <Input
@@ -271,7 +273,7 @@ export default function RegisterPage() {
                       required
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="password">Şifre</Label>
                     <Input
@@ -286,7 +288,7 @@ export default function RegisterPage() {
                       minLength={8}
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword">Şifre Tekrarı</Label>
                     <Input
@@ -300,7 +302,7 @@ export default function RegisterPage() {
                       required
                     />
                   </div>
-                  
+
                   <div className="flex items-start space-x-2 mt-6">
                     <Checkbox
                       id="terms"
@@ -316,7 +318,7 @@ export default function RegisterPage() {
                       <span>'nı okudum ve kabul ediyorum.</span>
                     </Label>
                   </div>
-                  
+
                   <Button
                     type="submit"
                     className="w-full py-6 !rounded-button whitespace-nowrap cursor-pointer"
@@ -325,31 +327,31 @@ export default function RegisterPage() {
                     {loading ? 'Hesap Oluşturuluyor...' : 'Ücretsiz Hesap Oluştur'}
                   </Button>
                 </form>
-                
+
                 <div className="relative my-8">
                   <Separator />
                   <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-gray-500 text-sm">
                     veya
                   </span>
                 </div>
-                
+
                 <div className="space-y-3">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full py-6 border-gray-300 hover:bg-gray-50"
                     onClick={handleGoogleRegister}
                   >
                     <i className="fab fa-google mr-2 text-red-500"></i> Google ile Kaydol
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full py-6 border-gray-300 hover:bg-gray-50"
                     onClick={handleAppleRegister}
                   >
                     <i className="fab fa-apple mr-2"></i> Apple ile Kaydol
                   </Button>
                 </div>
-                
+
                 <div className="text-center text-gray-600 text-sm mt-8">
                   Zaten bir hesabınız var mı? {" "}
                   <a href="/login" className="text-primary hover:text-primary/80 cursor-pointer">

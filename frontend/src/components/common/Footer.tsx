@@ -76,27 +76,15 @@ const footerSections = [
     ),
   },
   {
-    title: 'Telaffuz (Pronunciation)',
-    content: (
-      <>
-        <b>Telaffuzunu Geliştir</b><br />
-        LingRoot'un telaffuz egzersizleriyle konuşma becerilerinizi geliştirin. Sistem, seçtiğiniz kelimeleri veya cümleleri sizin seviyenize uygun şekilde seslendirir. Siz de sesli tekrar ederek uygulamalı öğrenme sürecine katılırsınız.<br /><br />
-        <b>Özellikler:</b><br />
-        Dinle → Tekrar et → Kaydet modeline dayalı egzersizler<br />
-        Otomatik örnek cümle üretimi<br />
-        Seviye bazlı yapılandırma
-      </>
-    ),
-  },
-  {
     title: 'Kelime Hazinesi (Vocabulary)',
+
     content: (
       <>
         <b>Kelime Dağarcığını Takip Et ve Geliştir</b><br />
         LingRoot, öğrenmekte olduğunuz kelimeleri kaydedip listelemenize imkân tanır. Bu özellik sayesinde kendi kişisel kelime defterinizi oluşturabilir, tekrar sıklığını ayarlayabilir ve gelişiminizi izleyebilirsiniz.<br /><br />
         <b>Özellikler:</b><br />
         Kelime ekle, sil, kategoriye ayır<br />
-        Telaffuzla birlikte sesli tekrar<br />
+        Kelimelerin telaffuzunu dinleme<br />
         Sık tekrar edilen kelimeler için "öncelik" sistemi
       </>
     ),

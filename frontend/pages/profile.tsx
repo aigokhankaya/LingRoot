@@ -43,7 +43,7 @@ export default function Profile() {
           setActivities([
             { type: 'TTS', desc: 'Metinden Sese oluşturuldu', date: '2025-05-12', status: 'success' },
             { type: 'Vocabulary', desc: 'Kelime listesi indirildi', date: '2025-05-10', status: 'success' },
-            { type: 'Pronunciation', desc: 'Telaffuz egzersizi yapıldı', date: '2025-05-09', status: 'error' },
+            { type: 'Listening', desc: 'Dinleme egzersizi tamamlandı', date: '2025-05-09', status: 'success' },
           ]);
         }
       } catch {
@@ -114,7 +114,7 @@ export default function Profile() {
         }
         setDefaultLevel((localStorage.getItem('lingroot_defaultLevel') as any) || 'B1');
       }
-    } catch {}
+    } catch { }
   }, [isAuthenticated]);
 
   // Giriş istatistiklerini localStorage'dan yükle
@@ -134,13 +134,13 @@ export default function Profile() {
           setLastLogin(d.toLocaleString('tr-TR'));
         }
       }
-    } catch {}
+    } catch { }
   }, [isAuthenticated]);
 
   const handleLocaleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value || 'tr-TR';
     const langCode = value.split('-')[0] as 'tr' | 'en' | 'de' | 'ar';
-    
+
     setLocale(value);
     setInterfaceLanguage(langCode);
 
@@ -149,10 +149,10 @@ export default function Profile() {
       localStorage.setItem('lingroot_locale', value);
       localStorage.setItem('lingroot_interfaceLanguage', langCode);
       localStorage.setItem('lingroot_language', langCode);
-      
+
       // Veritabanına kaydet
       await saveInterfaceLanguage(langCode);
-      
+
       // Değişikliğin tüm uygulamaya yansıması için sayfayı yenile
       window.location.reload();
     } catch (error) {
@@ -226,7 +226,7 @@ export default function Profile() {
             <div className="flex items-center space-x-2">
               <Link href="/profile" className="flex items-center space-x-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
                 <span className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 text-gray-600 font-bold text-sm border border-gray-300">
-                  {displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0,2)}
+                  {displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
                 </span>
                 <span className="text-gray-700 text-sm font-medium">{displayName || t('user_default')}</span>
               </Link>
@@ -287,7 +287,7 @@ export default function Profile() {
             <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-8 border border-gray-100">
               <div className="flex flex-col items-center text-center space-y-4">
                 <div className="w-24 h-24 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-3xl font-black shadow-lg ring-4 ring-primary/20">
-                  {displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0,2)}
+                  {displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
                 <div className="w-full">
                   <h2 className="text-2xl font-extrabold text-gray-900 mb-1">{displayName}</h2>
@@ -315,7 +315,7 @@ export default function Profile() {
                     <span className="text-3xl font-black text-primary">{stats.contentCreated}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-primary h-2 rounded-full" style={{width: '60%'}}></div>
+                    <div className="bg-primary h-2 rounded-full" style={{ width: '60%' }}></div>
                   </div>
                 </div>
                 <div className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all">
@@ -324,7 +324,7 @@ export default function Profile() {
                     <span className="text-3xl font-black bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{stats.totalLogins}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full" style={{width: '40%'}}></div>
+                    <div className="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full" style={{ width: '40%' }}></div>
                   </div>
                 </div>
                 <div className="bg-white rounded-xl p-4 shadow-sm">
@@ -377,12 +377,12 @@ export default function Profile() {
                         interfaceLanguage === 'tr'
                           ? 'language_tr'
                           : interfaceLanguage === 'en'
-                          ? 'language_en'
-                          : interfaceLanguage === 'de'
-                          ? 'language_de'
-                          : interfaceLanguage === 'ar'
-                          ? 'language_ar'
-                          : 'language_en';
+                            ? 'language_en'
+                            : interfaceLanguage === 'de'
+                              ? 'language_de'
+                              : interfaceLanguage === 'ar'
+                                ? 'language_ar'
+                                : 'language_en';
                       return t(key);
                     })()}
                   </div>
@@ -450,7 +450,7 @@ export default function Profile() {
                     <span className="text-2xl font-black text-green-600">{remaining}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-3 mt-4">
-                    <div className="bg-gradient-to-r from-green-500 to-emerald-600 h-3 rounded-full transition-all duration-500" style={{width: `${dailyLimit === Infinity ? 100 : (remaining / dailyLimit) * 100}%`}}></div>
+                    <div className="bg-gradient-to-r from-green-500 to-emerald-600 h-3 rounded-full transition-all duration-500" style={{ width: `${dailyLimit === Infinity ? 100 : (remaining / dailyLimit) * 100}%` }}></div>
                   </div>
                 </div>
                 <div className="pt-4 mt-2 border-t border-gray-100">

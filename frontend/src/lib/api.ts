@@ -2189,3 +2189,163 @@ export const markTopicAudioListened = async (mp3Url: string): Promise<ApiRespons
   });
   return await handleApiResponse(response);
 };
+
+// ===================== NOTIFICATION API =====================
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  isRead: boolean;
+  link?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationListResponse {
+  success: boolean;
+  data: NotificationItem[];
+  total: number;
+  unreadCount: number;
+  limit: number;
+  offset: number;
+}
+
+export interface UnreadCountResponse {
+  success: boolean;
+  unreadCount: number;
+}
+
+/**
+ * Get all notifications for the authenticated user
+ */
+export const getNotifications = async (
+  limit: number = 20,
+  offset: number = 0,
+  unreadOnly: boolean = false
+): Promise<NotificationListResponse> => {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+    unreadOnly: String(unreadOnly)
+  });
+  const url = getApiUrl(`notifications?${params.toString()}`);
+  const headers = createHeaders();
+  const response = await fetch(url, {
+    method: 'GET',
+    headers,
+    credentials: 'include'
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch notifications: ${response.status}`);
+  }
+  return await response.json();
+};
+
+/**
+ * Get unread notification count
+ */
+export const getUnreadNotificationCount = async (): Promise<UnreadCountResponse> => {
+  const url = getApiUrl('notifications/unread-count');
+  const headers = createHeaders();
+  const response = await fetch(url, {
+    method: 'GET',
+    headers,
+    credentials: 'include'
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch unread count: ${response.status}`);
+  }
+  return await response.json();
+};
+
+/**
+ * Mark a specific notification as read
+ */
+export const markNotificationAsRead = async (notificationId: string): Promise<ApiResponse> => {
+  const url = getApiUrl(`notifications/${notificationId}/read`);
+  const headers = createHeaders();
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers,
+    credentials: 'include'
+  });
+  return await handleApiResponse(response);
+};
+
+/**
+ * Mark all notifications as read
+ */
+export const markAllNotificationsAsRead = async (): Promise<ApiResponse> => {
+  const url = getApiUrl('notifications/read-all');
+  const headers = createHeaders();
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers,
+    credentials: 'include'
+  });
+  return await handleApiResponse(response);
+};
+
+/**
+ * Delete a notification
+ */
+export const deleteNotification = async (notificationId: string): Promise<ApiResponse> => {
+  const url = getApiUrl(`notifications/${notificationId}`);
+  const headers = createHeaders();
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers,
+    credentials: 'include'
+  });
+  return await handleApiResponse(response);
+};
+
+// ===================== ADMIN NOTIFICATION API =====================
+
+/**
+ * Send notification to a user or all users (Admin only)
+ */
+export const sendNotification = async (data: {
+  userId: string | 'all';
+  title: string;
+  message: string;
+  type?: 'info' | 'success' | 'warning' | 'error';
+  link?: string;
+}): Promise<ApiResponse> => {
+  const url = getApiUrl('admin/notifications/send');
+  const headers = createHeaders('application/json');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify(data)
+  });
+  return await handleApiResponse(response);
+};
+
+/**
+ * Get notification history (Admin only)
+ */
+export const getNotificationHistory = async (
+  limit: number = 50,
+  offset: number = 0
+): Promise<NotificationListResponse> => {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset)
+  });
+  const url = getApiUrl(`admin/notifications/history?${params.toString()}`);
+  const headers = createHeaders();
+  const response = await fetch(url, {
+    method: 'GET',
+    headers,
+    credentials: 'include'
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch notification history: ${response.status}`);
+  }
+  return await response.json();
+};

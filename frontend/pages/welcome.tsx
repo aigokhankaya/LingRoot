@@ -31,6 +31,7 @@ import OutputSection from '../src/components/OutputSection';
 import Footer from '../src/components/Footer';
 import TopicHierarchySection from '../src/components/TopicHierarchy/TopicHierarchySection';
 import InterestManager from '../src/components/InterestManager';
+import { WelcomePopup } from '../src/components/welcome/WelcomePopup';
 import { Button } from "../src/components/ui/button";
 import { Input } from "../src/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../src/components/ui/tabs";
@@ -40,6 +41,7 @@ import { Badge } from "../src/components/ui/badge";
 import BrandWordmark from "../src/components/BrandWordmark";
 import LiroAvatar from "../src/components/LiroAvatar";
 import { ProfileDropdownMenu } from "../src/components/shared/ProfileDropdownMenu";
+import NotificationBell from "../src/components/NotificationBell";
 
 interface InputData {
   type: ProcessInputData['type'];
@@ -206,6 +208,30 @@ const Welcome: React.FC = () => {
   const [showPlanRequired, setShowPlanRequired] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [showWelcomeLoader, setShowWelcomeLoader] = useState<boolean>(false);
+  const [showWelcomePopup, setShowWelcomePopup] = useState<boolean>(false);
+
+  // Welcome popup kontrolü - URL'den showWelcome parametresini kontrol et
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    const { showWelcome } = router.query;
+    if (showWelcome === 'true') {
+      setShowWelcomePopup(true);
+      // URL'den parametreyi temizle
+      const newQuery = { ...router.query };
+      delete newQuery.showWelcome;
+      router.replace({ pathname: router.pathname, query: newQuery }, undefined, { shallow: true });
+    }
+
+    // SessionStorage'dan justRegistered flag'ini kontrol et
+    try {
+      const justRegistered = sessionStorage.getItem('justRegistered');
+      if (justRegistered === 'true') {
+        setShowWelcomePopup(true);
+        sessionStorage.removeItem('justRegistered');
+      }
+    } catch { }
+  }, [router.isReady, router.query]);
 
   // Welcome guard: Eğer middleware çerezleri varsa (suppressWelcome/postLoginTarget), hemen hedefe yönlendir
   useEffect(() => {
@@ -239,6 +265,14 @@ const Welcome: React.FC = () => {
       }
     } catch { }
   }, []);
+
+  // Auth check and redirect for unauthenticated users
+  useEffect(() => {
+    if (!authLoading && (!isAuthenticated || !user)) {
+      const target = typeof window !== 'undefined' ? window.location.pathname + window.location.search + window.location.hash : '/welcome';
+      router.push(`/login?next=${encodeURIComponent(target)}`);
+    }
+  }, [authLoading, isAuthenticated, user, router]);
 
   // 🎯 Chat'ten ve URL'den gelen parametreleri işle
   useEffect(() => {
@@ -1957,21 +1991,13 @@ const Welcome: React.FC = () => {
     );
   }
 
-  // Auth tamamlandıktan sonra user kontrolü
+  // Auth tamamlandıktan sonra user kontrolü - Yönlendirme sırasında loading göster
   if (!isAuthenticated || !user) {
     return (
-      <main className="min-h-screen flex items-center justify-center text-xl text-gray-500">
+      <main className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="mb-4">{t('welcome_login_required')}</p>
-          <button
-            onClick={() => {
-              const target = typeof window !== 'undefined' ? window.location.pathname + window.location.search + window.location.hash : '/welcome';
-              router.push(`/login?next=${encodeURIComponent(target)}`);
-            }}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-md"
-          >
-            {t('welcome_login_button')}
-          </button>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">{t('dashboard_redirecting')}</p>
         </div>
       </main>
     );
@@ -2044,9 +2070,7 @@ const Welcome: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
-                <i className="fas fa-bell"></i>
-              </Button>
+              <NotificationBell />
               {isAuthenticated && (
                 <ProfileDropdownMenu
                   align="end"
@@ -3920,9 +3944,16 @@ const Welcome: React.FC = () => {
         </div>
       </div>
 
+      {/* Welcome Popup */}
+      <WelcomePopup
+        isOpen={showWelcomePopup}
+        onClose={() => setShowWelcomePopup(false)}
+        userEmail={user?.email}
+      />
+
       <Footer />
     </div>
   );
 };
 
-export default Welcome; 
+export default Welcome;

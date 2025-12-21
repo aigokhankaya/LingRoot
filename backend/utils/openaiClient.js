@@ -143,6 +143,123 @@ class OpenAIClient {
   }
 
   /**
+   * Generate streaming chat completion
+   * @param {Array} messages - Array of message objects {role, content}
+   * @param {Object} options - Additional options
+   * @param {Function} onChunk - Callback function called with each chunk
+   * @returns {Promise<{content: string, finishReason: string}>} - Full response after streaming ends
+   */
+  async generateChatCompletionStream(messages, options = {}, onChunk) {
+    if (!this.apiKey) {
+      throw new Error('OpenAI API key is not configured');
+    }
+
+    try {
+      const {
+        temperature = 0.8,
+        maxTokens = this.maxTokens,
+        systemPrompt = this.getSystemPrompt(),
+        topP = 0.9,
+        model = this.chatModel,
+      } = options;
+
+      // Prepare messages with system prompt
+      const apiMessages = [
+        { role: 'system', content: systemPrompt },
+        ...messages.map(msg => ({
+          role: msg.role === 'assistant' ? 'assistant' : 'user',
+          content: msg.content,
+        })),
+      ];
+
+      logger.info('🤖 Calling OpenAI Chat API (Streaming)...', {
+        messageCount: messages.length,
+        model: model
+      });
+
+      const response = await fetch(this.chatApiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: apiMessages,
+          temperature,
+          max_tokens: maxTokens,
+          top_p: topP,
+          stream: true, // Enable streaming
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        logger.error('❌ OpenAI API streaming error:', {
+          status: response.status,
+          error: errorData
+        });
+        throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let fullContent = '';
+      let finishReason = 'stop';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              continue;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              const reason = parsed.choices?.[0]?.finish_reason;
+
+              if (delta) {
+                fullContent += delta;
+                if (onChunk) {
+                  onChunk(delta);
+                }
+              }
+
+              if (reason) {
+                finishReason = reason;
+              }
+            } catch (parseErr) {
+              // Skip malformed chunks
+            }
+          }
+        }
+      }
+
+      logger.info('✅ OpenAI streaming response completed', {
+        length: fullContent.length,
+        finishReason
+      });
+
+      return {
+        content: fullContent,
+        finishReason,
+      };
+
+    } catch (error) {
+      logger.error('❌ Failed to generate OpenAI streaming response:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Generate text embedding
    * @param {string|Array<string>} input - Text to embed
    * @returns {Promise<Array<number>|Array<Array<number>>>} - Embedding vector(s)

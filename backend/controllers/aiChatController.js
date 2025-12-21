@@ -11,6 +11,13 @@ const { supabase } = require('../utils/supabaseClient');
 const { calculateOpenAiCost } = require('../utils/costTracker');
 const { suggestTopicsForUser, extractAndStoreTopic } = require('../lib/rag');
 const directorAgentService = require('../services/directorAgentService');
+const webSearchService = require('../utils/webSearchService');
+// NEW: Sonsuz Hafıza ve Dinamik Seviye servisleri
+const conversationSummaryService = require('../services/conversationSummaryService');
+const dynamicLevelAnalyzer = require('../utils/dynamicLevelAnalyzer');
+// NEW: ChatService (cache destekli) ve Constants
+const chatService = require('../services/chatService');
+const { SENDER_TYPES, CHAT_LIMITS, BEGINNER_LEVELS, OPENAI_MODELS } = require('../constants/chatConstants');
 
 /**
  * Get all AI conversations for a user
@@ -136,12 +143,14 @@ const getMessages = async (req, res) => {
 
 /**
  * Send a message and get AI response (OpenAI with smart prompting)
+ * Supports streaming via ?stream=true query parameter
  */
 const sendMessage = async (req, res) => {
   try {
     const userId = req.user.id;
     const { conversationId } = req.params;
     const { content } = req.body;
+    const useStreaming = req.query.stream === 'true';
 
     if (!content || content.trim().length === 0) {
       return res.status(400).json({
@@ -163,7 +172,7 @@ const sendMessage = async (req, res) => {
       });
     }
 
-    // Get conversation history
+    // Get conversation history (expanded for summary logic)
     const historyResult = await db.query(
       `SELECT 
          CASE 
@@ -174,18 +183,53 @@ const sendMessage = async (req, res) => {
        FROM messages 
        WHERE conversation_id = $1 
        ORDER BY created_at ASC 
-       LIMIT 15`,
+       LIMIT 30`,
       [conversationId]
     );
 
-    // Build message history
-    const messageHistory = historyResult.rows;
+    // SONSUZ HAFIZA: Mevcut özeti getir ve uzun sohbetleri özetle
+    let conversationSummary = '';
+    try {
+      const existingSummary = await conversationSummaryService.getExistingSummary(conversationId);
+      conversationSummary = conversationSummaryService.formatSummaryForPrompt(existingSummary);
+
+      // Eğer çok fazla mesaj varsa, arka planda özetleme tetikle
+      const totalMessages = historyResult.rows.length;
+      if (totalMessages >= conversationSummaryService.SUMMARY_THRESHOLD) {
+        // Asenkron özetleme (yanıtı bekletmez)
+        conversationSummaryService.summarizeAndStore(conversationId, historyResult.rows)
+          .catch(err => logger.warn('Background summarization failed:', err));
+      }
+    } catch (summaryErr) {
+      logger.warn('Conversation summary retrieval failed:', summaryErr);
+    }
+
+    // Build message history (son 15 mesajı kullan, geri kalanı özette)
+    const allMessages = historyResult.rows;
+    const messageHistory = allMessages.slice(-conversationSummaryService.MAX_CONTEXT_MESSAGES);
 
     // Add current user message
     messageHistory.push({
       role: 'user',
       content: content.trim()
     });
+
+    // Cache destekli profil alma (chatService üzerinden) - DİNAMİK SEVİYE ANALİZİNDEN ÖNCE
+    const userProfile = await chatService.getUserProfile(userId);
+
+    // DİNAMİK SEVİYE ANALİZİ: Kullanıcının gerçek performansını ölç
+    let dynamicLevelInstruction = '';
+    try {
+      const userLevel = userProfile?.contentHistory?.preferredLevel || 'B1';
+      const sessionAnalysis = dynamicLevelAnalyzer.analyzeSession(messageHistory, userLevel);
+      dynamicLevelInstruction = dynamicLevelAnalyzer.generateLevelInstruction(sessionAnalysis);
+
+      if (sessionAnalysis.shouldAdjust) {
+        logger.info(`📊 Dynamic Level Adjustment: ${userLevel} → ${sessionAnalysis.sessionLevel} (${sessionAnalysis.reason})`);
+      }
+    } catch (levelErr) {
+      logger.warn('Dynamic level analysis failed:', levelErr);
+    }
 
     // Save user message
     const userMessageResult = await db.query(
@@ -194,9 +238,6 @@ const sendMessage = async (req, res) => {
        RETURNING id, conversation_id, 'user' as role, content, created_at`,
       [conversationId, userId, content.trim()]
     );
-
-    logger.info('🧠 Generating user profile for Liro...');
-    const userProfile = await userProfileAnalyzer.generateUserProfile(userId);
 
     let contentOverview = null;
     let overviewPrompt = '';
@@ -207,9 +248,34 @@ const sendMessage = async (req, res) => {
       logger.warn('Failed to build content overview for Liro:', overviewError);
     }
 
-    let liroSystemPrompt = liroPromptGenerator.generateSystemPrompt(userProfile);
+    // WEB SEARCH: Check if query needs external info
+    let searchResultsText = '';
+    try {
+      if (webSearchService.shouldSearch(content)) {
+        logger.info('🌐 Simple heuristic triggered web search for:', content);
+        const searchResults = await webSearchService.searchWeb(content);
+        if (searchResults.length > 0) {
+          searchResultsText = webSearchService.formatForPrompt(searchResults);
+          logger.info(`🌐 Injected ${searchResults.length} search results into context.`);
+        }
+      }
+    } catch (searchErr) {
+      logger.warn('Web search failed silently:', searchErr);
+    }
+
+    let liroSystemPrompt = liroPromptGenerator.generateSystemPrompt(userProfile, searchResultsText);
     if (overviewPrompt) {
       liroSystemPrompt = `${liroSystemPrompt}\n\n${overviewPrompt}`;
+    }
+
+    // SONSUZ HAFIZA: Özeti prompt'a ekle
+    if (conversationSummary) {
+      liroSystemPrompt = `${liroSystemPrompt}\n\n${conversationSummary}`;
+    }
+
+    // DİNAMİK SEVİYE: Seviye ayarını prompt'a ekle
+    if (dynamicLevelInstruction) {
+      liroSystemPrompt = `${liroSystemPrompt}\n\n${dynamicLevelInstruction}`;
     }
 
     // DIRECTOR AGENT: Analyze User Mood and Inject Instruction
@@ -238,12 +304,96 @@ const sendMessage = async (req, res) => {
     const isAdvanced = ['B2', 'C1', 'C2'].includes(userLevel);
     const selectedModel = isAdvanced ? 'gpt-4o' : 'gpt-4o-mini';
 
-    logger.info(`🤖 Liro Chat Model Selected: ${selectedModel} (Level: ${userLevel})`);
+    logger.info(`🤖 Liro Chat Model Selected: ${selectedModel} (Level: ${userLevel}, Streaming: ${useStreaming})`);
 
-    // Get AI response with Liro's personalized prompting
+    // ========== STREAMING MODE ==========
+    if (useStreaming) {
+      // Set up SSE headers
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+      res.flushHeaders();
+
+      // Send user message info first
+      res.write(`data: ${JSON.stringify({ type: 'user_message', data: userMessageResult.rows[0] })}\n\n`);
+
+      let assistantContent = '';
+
+      try {
+        const streamResult = await openaiClient.generateChatCompletionStream(
+          messageHistory,
+          {
+            systemPrompt: liroSystemPrompt,
+            temperature: 0.8,
+            model: selectedModel
+          },
+          (chunk) => {
+            // Send each chunk to client
+            res.write(`data: ${JSON.stringify({ type: 'chunk', data: chunk })}\n\n`);
+          }
+        );
+
+        assistantContent = streamResult.content;
+
+      } catch (openaiError) {
+        logger.error('OpenAI streaming API error:', openaiError);
+        // Fallback to non-streaming Claude
+        try {
+          assistantContent = await claudeClient.generateResponse(messageHistory, {
+            systemPrompt: liroSystemPrompt,
+          });
+          // Send full response as single chunk
+          res.write(`data: ${JSON.stringify({ type: 'chunk', data: assistantContent })}\n\n`);
+        } catch (claudeError) {
+          logger.error('Both AI providers failed:', claudeError);
+          res.write(`data: ${JSON.stringify({ type: 'error', data: 'AI yanıtı alınamadı' })}\n\n`);
+          res.end();
+          return;
+        }
+      }
+
+      // Save assistant message
+      const assistantMessageResult = await db.query(
+        `INSERT INTO messages (conversation_id, sender_id, sender_type, content)
+         VALUES ($1, $2, 'admin', $3)
+         RETURNING id, conversation_id, 'assistant' as role, content, created_at`,
+        [conversationId, userId, assistantContent]
+      );
+
+      // Update conversation's updated_at
+      await db.query(
+        'UPDATE conversations SET updated_at = NOW() WHERE id = $1',
+        [conversationId]
+      );
+
+      // TOPIC LOCK DETECTION
+      const topicLockMatch = assistantContent.match(/KONU KİLİTLENDİ[:\s]*\*?\*?([^*\n]+)/i);
+      if (topicLockMatch) {
+        const lockedTopic = topicLockMatch[1].trim();
+        logger.info(`🎯 Topic Lock detected: "${lockedTopic}"`);
+        await db.query(
+          'UPDATE conversations SET suggested_topic = $1, updated_at = NOW() WHERE id = $2',
+          [lockedTopic, conversationId]
+        );
+        extractAndStoreTopic(conversationId, userId).catch(err => {
+          logger.error('Background topic extraction failed after lock:', err);
+        });
+      } else if (messageHistory.length >= 6) {
+        extractAndStoreTopic(conversationId, userId).catch(err => {
+          logger.error('Background topic extraction failed:', err);
+        });
+      }
+
+      // Send done signal with assistant message info
+      res.write(`data: ${JSON.stringify({ type: 'done', data: assistantMessageResult.rows[0] })}\n\n`);
+      res.end();
+      return;
+    }
+
+    // ========== NON-STREAMING MODE (Legacy) ==========
     let assistantContent;
     let openaiUsage = null;
-    const openaiModel = selectedModel; // Used for cost tracking later
 
     try {
       const response = await openaiClient.generateChatCompletion(messageHistory, {
@@ -255,7 +405,6 @@ const sendMessage = async (req, res) => {
       openaiUsage = response.usage || null;
     } catch (openaiError) {
       logger.error('OpenAI API error:', openaiError);
-      // Fallback to alternative AI provider if OpenAI fails
       try {
         assistantContent = await claudeClient.generateResponse(messageHistory, {
           systemPrompt: liroSystemPrompt,
@@ -269,7 +418,7 @@ const sendMessage = async (req, res) => {
       }
     }
 
-    // Save assistant message (sender_id as user for now, sender_type as admin indicates AI)
+    // Save assistant message
     const assistantMessageResult = await db.query(
       `INSERT INTO messages (conversation_id, sender_id, sender_type, content)
        VALUES ($1, $2, 'admin', $3)
@@ -283,56 +432,19 @@ const sendMessage = async (req, res) => {
       [conversationId]
     );
 
-    // Cost tracking: log OpenAI usage for Liro Chat into contenthistory (no TTS)
-    try {
-      if (openaiUsage && userId) {
-        const cost = calculateOpenAiCost(openaiUsage, openaiModel);
-        const promptTokens = openaiUsage.prompt_tokens || 0;
-        const completionTokens = openaiUsage.completion_tokens || 0;
-        const totalTokens = openaiUsage.total_tokens || (promptTokens + completionTokens);
-        const insertData = {
-          user_id: userId,
-          level: userProfile?.learningProgress?.experienceLevel || 'B1',
-          mp3_url: null,
-          input: content.trim(),
-          translated_text: null,
-          adapted_text: assistantContent,
-          input_type: 'chat',
-          created_at: new Date().toISOString(),
-          words: null,
-          timepoints: null,
-          openai_prompt_tokens: promptTokens,
-          openai_completion_tokens: completionTokens,
-          openai_total_tokens: totalTokens,
-          openai_cost_usd: cost.totalCostUsd || 0,
-          tts_characters: 0,
-          tts_category: null,
-          tts_cost_usd: 0,
-          total_cost_usd: cost.totalCostUsd || 0,
-          tts_provider: null,
-          tts_voice_name: null,
-          audio_duration_seconds: null,
-          entry_source: 'liro_chat',
-        };
-
-        const { data: chData, error: chError } = await supabase
-          .from('contenthistory')
-          .insert(insertData)
-          .select();
-
-        if (chError) {
-          logger.error('💰 [LIRO COST] Failed to insert contenthistory record for chat:', chError);
-        } else {
-          logger.info('💰 [LIRO COST] Logged Liro Chat usage to contenthistory:', { id: chData?.[0]?.id, tokens: totalTokens, costUsd: cost.totalCostUsd });
-        }
-      }
-    } catch (costError) {
-      logger.error('💰 [LIRO COST] Unexpected error while logging chat cost:', costError);
-    }
-
-    // Extract and store topic if conversation is mature enough (background task)
-
-    if (messageHistory.length >= 6) {
+    // TOPIC LOCK DETECTION
+    const topicLockMatch = assistantContent.match(/KONU KİLİTLENDİ[:\s]*\*?\*?([^*\n]+)/i);
+    if (topicLockMatch) {
+      const lockedTopic = topicLockMatch[1].trim();
+      logger.info(`🎯 Topic Lock detected: "${lockedTopic}"`);
+      await db.query(
+        'UPDATE conversations SET suggested_topic = $1, updated_at = NOW() WHERE id = $2',
+        [lockedTopic, conversationId]
+      );
+      extractAndStoreTopic(conversationId, userId).catch(err => {
+        logger.error('Background topic extraction failed after lock:', err);
+      });
+    } else if (messageHistory.length >= 6) {
       extractAndStoreTopic(conversationId, userId).catch(err => {
         logger.error('Background topic extraction failed:', err);
       });
@@ -505,7 +617,7 @@ const getDailySuggestions = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const userProfile = await userProfileAnalyzer.generateUserProfile(userId);
+    const userProfile = await chatService.getUserProfile(userId);
 
     // Read last feedback (if any)
     const lastFeedbackResult = await db.query(
