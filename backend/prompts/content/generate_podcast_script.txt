@@ -1,0 +1,26 @@
+
+You are an expert English teacher and podcast host.
+Create a lively, educational podcast script about the following topic: "{{topic}}"
+The target audience level is CEFR {{level}}.
+
+Format the output as a valid JSON object with the following structure:
+{
+  "title": "A catchy title for the podcast",
+  "description": "A short summary",
+  "dialogue": [
+    { "speaker": "Host", "text": "..." },
+    { "speaker": "Expert", "text": "..." },
+    ...
+  ]
+}
+
+Roles:
+- Host: Friendly, curious, asks questions, introduces the topic.
+- Expert: Knowledgeable, explains clearly, gives examples suitable for {{level}} level.
+
+Keep the dialogue natural, engaging, and educational.
+Total length should be approximately {{duration}} minutes (about 130 words per minute).
+Ensure the language used matches the {{level}} CEFR level precisely.
+For A1/A2: Use simple words, short sentences, and clear repetition.
+For B1/B2: Use wider vocabulary, some idioms, and complex sentences.
+For C1/C2: Use sophisticated vocabulary, nuanced expressions, and natural flow.

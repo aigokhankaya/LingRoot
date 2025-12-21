@@ -15,9 +15,9 @@ const {
   getFilteredVoices,
   testVoices
 } = require("../controllers/ttsController");
-const { 
-  logSyncFeedback, 
-  analyzeSyncFeedback 
+const {
+  logSyncFeedback,
+  analyzeSyncFeedback
 } = require("../controllers/syncFeedbackController");
 const logger = require("../utils/logger");
 const { authenticate } = require('../middleware/auth');
@@ -29,6 +29,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
 const { mfaAligner } = require('../utils/mfaAligner');
+const { createPodcast } = require('../utils/createPodcast');
 
 const router = express.Router();
 
@@ -139,10 +140,10 @@ router.post(
               body: job.data.requestBody,
               file: job.data.file
                 ? {
-                    originalname: job.data.file.originalname,
-                    mimetype: job.data.file.mimetype,
-                    buffer: job.data.file.buffer,
-                  }
+                  originalname: job.data.file.originalname,
+                  mimetype: job.data.file.mimetype,
+                  buffer: job.data.file.buffer,
+                }
                 : null,
               user: req.user,
             }
@@ -158,7 +159,7 @@ router.post(
           };
 
           // Call the actual TTS handler
-          await handleTTSRequest(mockReq, mockRes, () => {});
+          await handleTTSRequest(mockReq, mockRes, () => { });
 
           if (ttsResult && ttsResult.success) {
             // Update job as completed
@@ -216,7 +217,7 @@ router.post(
           }
         } catch (error) {
           logger.error(`[AsyncTTS] Job ${job.id} error:`, error);
-          
+
           jobQueue.updateJob(job.id, {
             status: 'failed',
             error: error.message
@@ -329,7 +330,7 @@ router.post("/chunkText", chunkTextAPI);
 router.post("/synthesizeChunk", synthesizeChunkAPI);
 router.post("/mergeAudio", mergeAudioAPI);
 
-// Create podcast from topic (proxy to n8n webhook)
+// Create podcast from topic (in-code generation using Google TTS)
 router.post("/create-podcast", authenticate, async (req, res) => {
   try {
     const body = req.body || {};
@@ -342,180 +343,50 @@ router.post("/create-podcast", authenticate, async (req, res) => {
       });
     }
     const level = (body.level || 'B1').toString().toUpperCase();
-    const duration = body.duration != null ? body.duration : 10;
-    logger.info(`📻 [PODCAST] Proxy create-podcast for topic: "${topic}", level: ${level}, duration: ${duration}`);
-    let serviceConfig = null;
-    try {
-      const { data, error } = await supabase
-        .from('external_services')
-        .select('api_url, api_token')
-        .eq('service_name', 'podcast_generator')
-        .eq('is_active', true)
-        .single();
-      if (error) {
-        logger.warn('[PODCAST] Error loading podcast_generator config from external_services:', error.message);
-      } else {
-        serviceConfig = data;
-      }
-    } catch (configErr) {
-      logger.warn('[PODCAST] Exception loading podcast_generator config:', configErr.message);
-    }
-    const envUrl = process.env.PODCAST_WEBHOOK_URL || process.env.N8N_PODCAST_WEBHOOK_URL;
-    const envToken = process.env.PODCAST_WEBHOOK_TOKEN || process.env.N8N_PODCAST_WEBHOOK_TOKEN;
-    let targetUrl = envUrl || (serviceConfig && serviceConfig.api_url);
-    let targetToken = envToken || (serviceConfig && serviceConfig.api_token) || null;
+    const duration = body.duration != null ? Number(body.duration) : 5;
 
-    if (!targetUrl) {
-      logger.error('[PODCAST] No podcast webhook URL configured. Define PODCAST_WEBHOOK_URL or configure podcast_generator in external_services.');
+    logger.info(`📻 [PODCAST] Creating podcast in-code for topic: "${topic}", level: ${level}, duration: ${duration}min`);
+
+    // Use the new in-code podcast generator
+    const podcastResult = await createPodcast(topic, level, duration);
+
+    if (!podcastResult || !podcastResult.success) {
+      logger.error('[PODCAST] Podcast generation failed', { podcastResult });
       return res.status(500).json({
         success: false,
-        message: 'Podcast webhook URL not configured on server. Please contact support.',
+        message: podcastResult?.message || 'Podcast generation failed',
       });
     }
-    const payload = {
-      topic,
-      level,
-      duration,
-      styleType: body.styleType,
-      voiceChoice: body.voiceChoice,
-      personalityA: body.personalityA,
-      personalityB: body.personalityB,
-      includeHumor: body.includeHumor,
-      includeFiller: body.includeFiller,
-    };
-    logger.info('[PODCAST] Forwarding request to n8n webhook', {
-      url: targetUrl,
-      level,
-      duration,
-      hasToken: !!targetToken,
-    });
-    const headers = { 'Content-Type': 'application/json' };
-    if (targetToken) {
-      let authHeader = targetToken;
-      if (!/^Bearer\s+/i.test(authHeader)) {
-        authHeader = `Bearer ${authHeader}`;
-      }
-      headers['Authorization'] = authHeader;
-    }
-    const n8nResponse = await fetch(targetUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
-    });
-    const rawText = await n8nResponse.text();
-    if (!n8nResponse.ok) {
-      logger.error(`[#PODCAST] n8n webhook error response: status=${n8nResponse.status}, body=${rawText}`);
-      let errJson = null;
-      try {
-        errJson = rawText ? JSON.parse(rawText) : null;
-      } catch (_e) { /* ignore */ }
-      return res.status(500).json({
-        success: false,
-        message: (errJson && errJson.message) || 'Podcast service error',
-        status: n8nResponse.status,
-      });
-    }
-    if (!rawText || !rawText.trim()) {
-      logger.error('[PODCAST] n8n webhook returned empty body with 200');
-      return res.status(500).json({
-        success: false,
-        message: 'Podcast service returned empty response body',
-      });
-    }
-    let n8nResult;
-    try {
-      n8nResult = JSON.parse(rawText);
-    } catch (parseErr) {
-      logger.error('[PODCAST] Failed to parse n8n JSON response', {
-        body: rawText.slice(0, 500),
-        message: parseErr.message,
-      });
-      return res.status(500).json({
-        success: false,
-        message: 'Podcast service returned invalid JSON response',
-      });
-    }
-    const audioUrl = n8nResult.audioUrl || n8nResult.podcast_url || n8nResult.audio_url;
-    const vttUrl = n8nResult.subtitlesUrl || n8nResult.vtt_url || n8nResult.vtt_subtitles || '';
-    if (!audioUrl) {
-      logger.error('[PODCAST] n8n response missing audioUrl', { n8nResult });
-      return res.status(500).json({
-        success: false,
-        message: 'Podcast service did not return audioUrl',
-      });
-    }
-    // UI için: label'lı transcript 
-    const transcriptText = n8nResult.transcript || '';
-    // MFA ve wordsForTiming için: mümkünse label'siz versiyon
-    const transcriptForMFA = n8nResult.transcriptPlain || transcriptText;
+
+    const audioUrl = podcastResult.audioUrl;
+    const vttUrl = podcastResult.vttUrl || '';
+    const transcriptText = podcastResult.description || '';
+
+    // Generate words and timepoints for frontend player
     let wordsForTiming = null;
     let timepoints = null;
 
-    const useMFAAlignment = process.env.USE_MFA_ALIGNMENT === 'true';
-    if (useMFAAlignment && transcriptForMFA && audioUrl) {
-      try {
-        const tempFileName = `podcast_mfa_${Date.now()}.mp3`;
-        const tempAudioPath = path.join(os.tmpdir(), tempFileName);
-        const audioResp = await fetch(audioUrl);
-        if (audioResp.ok) {
-          const audioBuffer = await audioResp.buffer();
-          await fs.writeFile(tempAudioPath, audioBuffer);
-
-          const voiceChoice = body.voiceChoice ? String(body.voiceChoice) : '';
-          const locale = voiceChoice.includes('GB') ? 'en_GB' : 'en_US';
-
-          const mfaWordTimings = await mfaAligner.generateWordTimestamps(
-            tempAudioPath,
-            transcriptForMFA,
-            locale
-          );
-
-          await fs.unlink(tempAudioPath).catch(() => {});
-
-          if (Array.isArray(mfaWordTimings) && mfaWordTimings.length > 0) {
-            wordsForTiming = transcriptForMFA.split(/\s+/).filter(w => w.length > 0);
-            timepoints = mfaWordTimings.map((timing, index) => ({
-              word: timing.word,
-              timeSeconds: timing.startTime,
-              endTimeSeconds: timing.endTime,
-              index,
-              hasRealTiming: true,
-              source: 'mfa',
-            }));
-            logger.info('[PODCAST] MFA alignment completed for podcast', {
-              timepointCount: timepoints.length,
-            });
-          }
-        } else {
-          logger.warn('[PODCAST] Failed to download audio for MFA alignment', {
-            status: audioResp.status,
-          });
-        }
-      } catch (mfaErr) {
-        logger.warn('[PODCAST] MFA alignment failed, continuing without timepoints', {
-          message: mfaErr.message,
-        });
-      }
-    }
-
-    if (!timepoints && Array.isArray(n8nResult.timepoints)) {
-      timepoints = n8nResult.timepoints;
-    }
-    if (!wordsForTiming && Array.isArray(n8nResult.words)) {
-      wordsForTiming = n8nResult.words;
-    }
-    if (!wordsForTiming && transcriptText) {
+    if (transcriptText) {
       wordsForTiming = transcriptText.split(/\s+/).filter(w => w.length > 0);
+      // Simple estimated timepoints (refinement can be done later with MFA)
+      const estimatedDurationSec = podcastResult.duration || (duration * 60);
+      const avgTimePerWord = estimatedDurationSec / wordsForTiming.length;
+      timepoints = wordsForTiming.map((word, index) => ({
+        word,
+        timeSeconds: index * avgTimePerWord,
+        endTimeSeconds: (index + 1) * avgTimePerWord,
+        index,
+        hasRealTiming: false,
+        source: 'estimated',
+      }));
     }
+
+    // Save to contenthistory
     let contentHistoryId = null;
     try {
       const userId = req.user && req.user.id;
-      if (!supabase) {
-        logger.warn('[PODCAST] Supabase client not initialized, skipping contenthistory save');
-      } else if (!userId) {
-        logger.warn('[PODCAST] No user ID on request, skipping contenthistory save');
-      } else {
-        const durationSeconds = Number(n8nResult.duration || n8nResult.duration_seconds || 0) || null;
+      if (supabase && userId) {
+        const durationSeconds = podcastResult.duration || (duration * 60);
         const insertData = {
           user_id: userId,
           level: level || 'B1',
@@ -525,7 +396,6 @@ router.post("/create-podcast", authenticate, async (req, res) => {
           adapted_text: transcriptText,
           input_type: 'podcast',
           created_at: new Date().toISOString(),
-          // contenthistory.words/timepoints kolonları TEXT olduğu için JSON string olarak sakla
           words: Array.isArray(wordsForTiming) && wordsForTiming.length > 0 ? JSON.stringify(wordsForTiming) : null,
           timepoints: Array.isArray(timepoints) && timepoints.length > 0 ? JSON.stringify(timepoints) : null,
           openai_prompt_tokens: 0,
@@ -536,17 +406,16 @@ router.post("/create-podcast", authenticate, async (req, res) => {
           tts_category: 'podcast',
           tts_cost_usd: 0,
           total_cost_usd: 0,
-          tts_provider: null,
-          tts_voice_name: null,
+          tts_provider: 'google',
+          tts_voice_name: 'en-US-Journey-F,en-US-Journey-D',
           audio_duration_seconds: durationSeconds,
           entry_source: 'podcast',
         };
 
-        logger.info('[PODCAST] Attempting to save podcast to contenthistory', {
+        logger.info('[PODCAST] Saving podcast to contenthistory', {
           userId,
           durationSeconds,
           transcriptLength: transcriptText ? transcriptText.length : 0,
-          insertData: JSON.stringify(insertData).slice(0, 500),
         });
 
         const { data, error } = await supabase
@@ -558,40 +427,38 @@ router.post("/create-podcast", authenticate, async (req, res) => {
           logger.error('[PODCAST] Error saving podcast to contenthistory:', {
             message: error.message,
             details: error.details,
-            hint: error.hint,
-            code: error.code,
           });
         } else if (data && data.length > 0) {
           contentHistoryId = data[0].id;
           logger.info(`[PODCAST] Podcast saved to contenthistory with id=${contentHistoryId}`);
-        } else {
-          logger.warn('[PODCAST] Insert into contenthistory returned no data array');
         }
       }
     } catch (dbErr) {
       logger.error('[PODCAST] Exception while saving podcast to contenthistory:', dbErr);
     }
+
     const responseBody = {
       success: true,
       status: 'success',
-      message: `Podcast created: ${n8nResult.topic || topic}`,
+      message: `Podcast created: ${podcastResult.title || topic}`,
       mp3_url: audioUrl,
       podcast_url: audioUrl,
       audio_url: audioUrl,
       vtt_url: vttUrl,
       vtt_subtitles: vttUrl,
-      duration_seconds: n8nResult.duration || n8nResult.duration_seconds || '',
-      topic: n8nResult.topic || topic,
+      duration_seconds: podcastResult.duration || (duration * 60),
+      topic: podcastResult.title || topic,
       level,
       transcript: transcriptText,
       words: wordsForTiming || null,
       timepoints: timepoints || null,
       contenthistory_id: contentHistoryId,
-      data: n8nResult,
     };
+
+    logger.info('[PODCAST] Podcast created successfully', { audioUrl, title: podcastResult.title });
     return res.json(responseBody);
   } catch (error) {
-    logger.error('[PODCAST] Error creating podcast via proxy:', error);
+    logger.error('[PODCAST] Error creating podcast:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to create podcast',
@@ -611,26 +478,26 @@ router.get('/provider', async (req, res) => {
   try {
     const { supabase } = require('../utils/supabaseClient');
     const { isPollyAvailable } = require('../utils/amazonPolly');
-    
+
     const { data, error } = await supabase
       .from('settings')
       .select('value')
       .eq('key', 'tts_provider')
       .single();
-    
+
     if (error && error.code !== 'PGRST116') {
       logger.error('Error fetching tts_provider:', error);
       return res.status(500).json({ success: false, message: 'Error fetching tts_provider' });
     }
-    
+
     const provider = data ? data.value : 'amazon'; // default: amazon
     const pollyAvailable = isPollyAvailable();
     const hasAwsCredentials = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
-    
+
     logger.info(`TTS provider requested: ${provider}, Polly available: ${pollyAvailable}, AWS credentials: ${hasAwsCredentials}`);
-    
-    return res.json({ 
-      success: true, 
+
+    return res.json({
+      success: true,
       provider,
       pollyAvailable,
       hasAwsCredentials,
@@ -663,28 +530,28 @@ router.get("/test-voices", testVoices);
 router.get('/test-ssml-voices', async (req, res) => {
   try {
     console.log('🎯 SSML VOICES TEST - Request received');
-    
+
     const { languageCode = 'en-US' } = req.query;
-    
+
     console.log(`🎯 Testing SSML-compatible voices for language: ${languageCode}`);
-    
+
     // Tüm sesler ve SSML destekli olanları al
     const { listGoogleVoices } = require('../utils/googleTTS');
     const allVoices = await listGoogleVoices(languageCode);
-    
+
     // SSML destekli olanları filtrele
     const ssmlSupportedVoices = allVoices.filter(voice => voice.ssmlSupport === true);
     const ssmlUnsupportedVoices = allVoices.filter(voice => voice.ssmlSupport === false);
-    
+
     console.log(`🎯 SSML VOICES TEST Results:
       - Total voices: ${allVoices.length}
       - SSML supported: ${ssmlSupportedVoices.length}
       - SSML unsupported: ${ssmlUnsupportedVoices.length}`);
-    
+
     // İlk 5 destekli ses örneği
     const sampleSupportedVoices = ssmlSupportedVoices.slice(0, 5);
     const sampleUnsupportedVoices = ssmlUnsupportedVoices.slice(0, 5);
-    
+
     res.json({
       success: true,
       languageCode,
@@ -699,7 +566,7 @@ router.get('/test-ssml-voices', async (req, res) => {
       allSupportedVoices: ssmlSupportedVoices.map(v => v.name),
       allUnsupportedVoices: ssmlUnsupportedVoices.map(v => v.name)
     });
-    
+
   } catch (error) {
     console.error('🎯 SSML VOICES TEST failed:', error);
     res.status(500).json({
@@ -714,31 +581,31 @@ router.get('/test-ssml-voices', async (req, res) => {
 router.post('/test-ultra-precision', async (req, res) => {
   try {
     console.log('🎯 ULTRA HASSAS TTS TEST - Request received');
-    
+
     const { text, voice, speakingRate, languageCode } = req.body;
-    
+
     // Validation
     if (!text || text.trim().length === 0) {
-      return res.status(400).json({ 
-        error: 'Text is required' 
+      return res.status(400).json({
+        error: 'Text is required'
       });
     }
-    
+
     if (text.length > 1000) {
-      return res.status(400).json({ 
-        error: 'Text too long (max 1000 characters for test)' 
+      return res.status(400).json({
+        error: 'Text too long (max 1000 characters for test)'
       });
     }
-    
+
     console.log(`🎯 Testing ultra precise TTS with:
       - Text: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"
       - Voice: ${voice || 'en-US-Standard-C'}
       - Speaking Rate: ${speakingRate || 1.0}x
       - Language: ${languageCode || 'en-US'}`);
-    
+
     // Google TTS ile ultra hassas timing test
     const { synthesizeWithGoogle } = require('../utils/googleTTS');
-    
+
     const startTime = Date.now();
     const result = await synthesizeWithGoogle({
       text: text,
@@ -746,11 +613,11 @@ router.post('/test-ultra-precision', async (req, res) => {
       languageCode: languageCode || 'en-US',
       speakingRate: speakingRate || 1.0
     });
-    
+
     const processingTime = Date.now() - startTime;
-    
+
     console.log(`🎯 ULTRA HASSAS TTS TEST completed in ${processingTime}ms`);
-    
+
     // Timing analizi
     const timingAnalysis = {
       totalWords: result.wordTimings.length,
@@ -761,7 +628,7 @@ router.post('/test-ultra-precision', async (req, res) => {
       sampleRate: '48kHz',
       processingTime: processingTime
     };
-    
+
     // Response gönder
     res.json({
       success: true,
@@ -781,7 +648,7 @@ router.post('/test-ultra-precision', async (req, res) => {
         ultraPrecisionEnabled: true
       }
     });
-    
+
   } catch (error) {
     console.error('🎯 ULTRA HASSAS TTS TEST failed:', error);
     res.status(500).json({
@@ -796,7 +663,7 @@ router.post('/test-ultra-precision', async (req, res) => {
 router.get('/test-client', (req, res) => {
   try {
     const { listGoogleVoices } = require('../utils/googleTTS');
-    res.json({ 
+    res.json({
       message: 'Google TTS client test',
       hasClient: !!listGoogleVoices,
       env: {
@@ -805,9 +672,9 @@ router.get('/test-client', (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Google TTS client test failed',
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -815,7 +682,7 @@ router.get('/test-client', (req, res) => {
 // New API endpoint for text translation and audio generation
 router.post("/translate-and-speak", async (req, res) => {
   const { text, level, speakingRate, voice } = req.body;
-  
+
   if (!text || !level) {
     return res.status(400).json({
       success: false,
@@ -826,7 +693,7 @@ router.post("/translate-and-speak", async (req, res) => {
   try {
     // 1. Translate text to English
     const translationResult = await translateToEnglish(req, res);
-    
+
     // 2. Adapt to CEFR level
     const adaptedText = await adaptToCEFR({
       text: translationResult.text,
@@ -866,7 +733,7 @@ router.get('/notifications/unread', authenticate, async (req, res) => {
     }
 
     const result = await getUnreadNotifications(userId);
-    
+
     if (!result.success) {
       return res.status(500).json({ success: false, message: 'Failed to fetch notifications' });
     }
@@ -883,7 +750,7 @@ router.post('/notifications/:notificationId/read', authenticate, async (req, res
   try {
     const { notificationId } = req.params;
     const result = await markNotificationAsRead(notificationId);
-    
+
     if (!result.success) {
       return res.status(500).json({ success: false, message: 'Failed to mark notification as read' });
     }
