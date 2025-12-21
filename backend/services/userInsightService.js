@@ -372,7 +372,7 @@ class UserInsightService {
     }
 
     /**
-     * İçerik oluşturma geçmişini topla (TTS, PDF)
+     * İçerik oluşturma geçmişini topla (TÜM TÜRLER: podcast, book, chapter, topic, text, chat)
      */
     async gatherContentHistory(userId) {
         try {
@@ -386,32 +386,61 @@ class UserInsightService {
                  FROM contenthistory
                  WHERE user_id = $1
                  ORDER BY created_at DESC
-                 LIMIT 50`,
+                 LIMIT 100`,
                 [userId]
             );
 
             const rows = result.rows;
-            const hasAudio = rows.filter(r => r.audio_duration_seconds > 0).length;
+
+            // TÜM İÇERİK TÜRLERİNİ AYIR
+            const contentByType = {
+                podcast: [],
+                book: [],
+                chapter: [],
+                topic: [],
+                text: [],
+                chat: [],
+                other: []
+            };
+
+            rows.forEach(r => {
+                const input = r.input?.trim();
+                if (!input || input.length < 3) return;
+
+                const type = r.input_type || 'other';
+                if (contentByType[type]) {
+                    contentByType[type].push(input);
+                } else {
+                    contentByType.other.push(input);
+                }
+            });
+
+            // Her türden en fazla 15 tane al
+            Object.keys(contentByType).forEach(key => {
+                contentByType[key] = contentByType[key].slice(0, 15);
+            });
+
             const levels = rows.map(r => r.level).filter(Boolean);
             const preferredLevel = this.findMode(levels) || 'B1';
-
-            // Konu analizi: input'lardan anahtar kelimeler çıkar
-            const topicKeywords = rows
-                .map(r => r.input)
-                .filter(Boolean)
-                .join(' ')
-                .substring(0, 500);
+            const audioCount = rows.filter(r => r.audio_duration_seconds > 0).length;
 
             return {
                 count: rows.length,
-                audioCount: hasAudio,
+                audioCount,
                 preferredLevel,
-                topicKeywords,
-                summary: `${rows.length} içerik (${hasAudio} sesli), tercih edilen seviye: ${preferredLevel}`
+                contentByType,
+                podcastInputs: contentByType.podcast,
+                textInputs: contentByType.text,
+                summary: `${rows.length} içerik (podcast:${contentByType.podcast.length}, kitap:${contentByType.book.length}, chapter:${contentByType.chapter.length}, topic:${contentByType.topic.length})`
             };
         } catch (error) {
             logger.warn('[UserInsightService] Content history gather failed:', error.message);
-            return { count: 0, audioCount: 0, preferredLevel: 'B1', topicKeywords: '', summary: 'İçerik verisi alınamadı' };
+            return {
+                count: 0, audioCount: 0, preferredLevel: 'B1',
+                contentByType: { podcast: [], book: [], chapter: [], topic: [], text: [], chat: [], other: [] },
+                podcastInputs: [], textInputs: [],
+                summary: 'İçerik verisi alınamadı'
+            };
         }
     }
 
@@ -454,51 +483,75 @@ class UserInsightService {
     }
 
     /**
-     * Konu ağacı verilerini topla
+     * Konu ağacı verilerini topla (TOPICS tablosu - kullanıcının oluşturduğu konular)
      */
     async gatherTopicTree(userId) {
         try {
-            // 1. user_content_progress üzerinden dene
-            let result = await db.query(
-                `SELECT 
-                    tn.title,
-                    tn.path,
-                    ucp.status
-                 FROM user_content_progress ucp
-                 JOIN content_items ci ON ci.id = ucp.content_item_id
-                 JOIN topic_nodes tn ON tn.id = ci.topic_id
-                 WHERE ucp.user_id = $1
-                 ORDER BY ucp.last_interaction_at DESC
+            // 1. ÖNCE: Kullanıcının oluşturduğu konu ağaçları (topics tablosu)
+            const topicsResult = await db.query(
+                `SELECT title, created_at 
+                 FROM topics 
+                 WHERE user_id = $1 
+                 ORDER BY created_at DESC 
                  LIMIT 30`,
                 [userId]
             );
 
-            // 2. Eğer boşsa, `topics` tablosuna bak (kullanıcının oluşturduğu konular)
-            if (result.rows.length === 0) {
-                try {
-                    result = await db.query(
-                        `SELECT title, 'custom' as path, 'active' as status 
-                         FROM topics 
-                         WHERE user_id = $1 
-                         ORDER BY created_at DESC LIMIT 20`,
-                        [userId]
-                    );
-                } catch (e) { /* Tablo yoksa yut */ }
-            }
+            let allTopics = topicsResult.rows.map(r => r.title);
 
-            const topics = result.rows.map(r => r.title);
-            const paths = [...new Set(result.rows.map(r => r.path?.split('/')[0]).filter(Boolean))];
+            // 2. SONRA: user_content_progress üzerinden topic_nodes (varsa ekle)
+            try {
+                const nodesResult = await db.query(
+                    `SELECT DISTINCT tn.title
+                     FROM user_content_progress ucp
+                     JOIN content_items ci ON ci.id = ucp.content_item_id
+                     JOIN topic_nodes tn ON tn.id = ci.topic_id
+                     WHERE ucp.user_id = $1
+                     LIMIT 20`,
+                    [userId]
+                );
+                const nodeTopics = nodesResult.rows.map(r => r.title);
+                allTopics = [...new Set([...allTopics, ...nodeTopics])];
+            } catch (e) { /* topic_nodes bağlantısı yoksa devam */ }
+
+            // Konu başlıklarından ana alanları çıkar (ilk kelime veya genel tema)
+            const mainAreas = this.extractMainAreas(allTopics);
 
             return {
-                topics,
-                mainAreas: paths,
-                count: result.rows.length,
-                summary: `${result.rows.length} konu, alanlar: ${paths.slice(0, 3).join(', ')}`
+                topics: allTopics,
+                mainAreas,
+                count: allTopics.length,
+                summary: `${allTopics.length} konu ağacı: ${allTopics.slice(0, 5).join(', ')}`
             };
         } catch (error) {
-            logger.debug('[UserInsightService] Topic tree not available');
+            logger.debug('[UserInsightService] Topic tree error:', error.message);
             return { topics: [], mainAreas: [], count: 0, summary: 'Konu ağacı verisi yok' };
         }
+    }
+
+    /**
+     * Konu başlıklarından ana alanları çıkar
+     */
+    extractMainAreas(topics) {
+        const areaKeywords = {
+            'Teknoloji': ['yazılım', 'codex', 'software', 'tech', 'app'],
+            'İş Dünyası': ['şirket', 'company', 'business', 'waikiki', 'marka'],
+            'Tarih': ['tarih', 'history', 'savaş', 'war', 'napolyon', 'napoleon'],
+            'Coğrafya': ['kıbrıs', 'bursa', 'elazığ', 'türkiye', 'city', 'köy'],
+            'Kültür': ['dizi', 'film', 'müzik', 'sanat', 'art'],
+            'Sürdürülebilirlik': ['sustainability', 'sürdürülebilir', 'green', 'eco']
+        };
+
+        const foundAreas = new Set();
+        const lowerTopics = topics.map(t => t.toLowerCase()).join(' ');
+
+        for (const [area, keywords] of Object.entries(areaKeywords)) {
+            if (keywords.some(kw => lowerTopics.includes(kw))) {
+                foundAreas.add(area);
+            }
+        }
+
+        return [...foundAreas];
     }
 
     /**
@@ -542,12 +595,40 @@ class UserInsightService {
         }
 
         if (data.content.count > 0) {
-            lines.push(`🎧 OLUŞTURULAN İÇERİKLER (${data.content.count} içerik):`);
-            lines.push(`   Sesli içerik sayısı: ${data.content.audioCount}`);
-            lines.push(`   Tercih edilen seviye: ${data.content.preferredLevel}`);
-            if (data.content.topicKeywords) {
-                lines.push(`   Konu anahtar kelimeleri: ${data.content.topicKeywords.substring(0, 200)}...`);
+            lines.push(`🎧 İÇERİK GEÇMİŞİ (${data.content.count} öğe, Seviye: ${data.content.preferredLevel}):`);
+
+            const cbt = data.content.contentByType || {};
+
+            if (cbt.podcast?.length > 0) {
+                lines.push(`   🎙️ PODCAST'LER (${cbt.podcast.length}):`);
+                cbt.podcast.forEach(p => lines.push(`      - ${p}`));
             }
+
+            if (cbt.book?.length > 0) {
+                lines.push(`   📖 KİTAP İÇERİKLERİ (${cbt.book.length}):`);
+                cbt.book.forEach(b => lines.push(`      - ${b}`));
+            }
+
+            if (cbt.chapter?.length > 0) {
+                lines.push(`   📑 BÖLÜMLER (${cbt.chapter.length}):`);
+                cbt.chapter.forEach(c => lines.push(`      - ${c}`));
+            }
+
+            if (cbt.topic?.length > 0) {
+                lines.push(`   🌳 KONU İÇERİKLERİ (${cbt.topic.length}):`);
+                cbt.topic.forEach(t => lines.push(`      - ${t}`));
+            }
+
+            if (cbt.text?.length > 0) {
+                lines.push(`   📝 METİN ANALİZLERİ (${cbt.text.length}):`);
+                cbt.text.forEach(t => lines.push(`      - ${t}`));
+            }
+
+            if (cbt.chat?.length > 0) {
+                lines.push(`   💬 SOHBET İÇERİKLERİ (${cbt.chat.length}):`);
+                cbt.chat.slice(0, 10).forEach(c => lines.push(`      - ${c}`));
+            }
+
             lines.push('');
         }
 
@@ -560,7 +641,8 @@ class UserInsightService {
 
         if (data.topics.topics.length > 0) {
             lines.push(`🌳 KONU AĞACI (${data.topics.count} konu):`);
-            lines.push(`   Konular: ${data.topics.topics.slice(0, 10).join(', ')}`);
+            // List more topics (up to 20) to give AI better context
+            lines.push(`   Konular: ${data.topics.topics.slice(0, 20).join(', ')}`);
             lines.push(`   Ana alanlar: ${data.topics.mainAreas.join(', ')}`);
             lines.push('');
         }
