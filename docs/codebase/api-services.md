@@ -93,7 +93,6 @@ backend/
 | `processWeb` | POST /tts/process-web | Process web URL |
 | `processFile` | POST /tts/process-file | Process file upload |
 | `processBook` | POST /tts/process-book | Process book chapter |
-| `createPodcast` | POST /tts/create-podcast | Generate AI podcast |
 | `getVoices` | GET /tts/voices | List available voices |
 | `getHistory` | GET /tts/history | User content history |
 | `regenerateAudio` | POST /tts/regenerate | Regenerate audio |
@@ -101,11 +100,6 @@ backend/
 **Processing Flow:**
 ```
 Input → Extract → Translate → CEFR Adapt → Clean → TTS → Merge → Upload → Response
-```
-
-**Podcast Flow:**
-```
-Topic → AI Script (GPT-4o) → Multi-Speaker TTS → Merge → Upload → Response
 ```
 
 ### AI Chat Controller (`controllers/aiChatController.js`)
@@ -175,7 +169,6 @@ Topic → AI Script (GPT-4o) → Multi-Speaker TTS → Merge → Upload → Resp
 | `textProcessor.js` | 15KB | Text cleaning/chunking |
 | `audioMerger.js` | 10KB | FFmpeg audio merging |
 | `bookTextExtractor.js` | 7KB | Book content extraction |
-| `createPodcast.js` | 7KB | AI podcast generation |
 
 ### Storage & Upload
 
