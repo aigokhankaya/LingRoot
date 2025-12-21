@@ -54,7 +54,7 @@ const PackagesScreen: React.FC = () => {
       setLoading(true);
       // apiService kullanarak backend'den paketleri çek
       const response = await apiService.getSubscriptionPlans();
-      
+
       if (response.success && Array.isArray(response.data)) {
         // Sadece aktif ve satın alınabilir paketleri göster (Free Trial hariç)
         const purchasablePlans = response.data.filter((p: SubscriptionPlan) => {
@@ -104,7 +104,7 @@ const PackagesScreen: React.FC = () => {
 
   const handlePurchase = async (plan: SubscriptionPlan) => {
     const productId = Platform.OS === 'ios' ? plan.apple_product_id : plan.google_product_id;
-    
+
     console.log('========================================');
     console.log('[PackagesScreen] Purchase initiated');
     console.log('[PackagesScreen] Plan:', plan.name);
@@ -112,13 +112,13 @@ const PackagesScreen: React.FC = () => {
     console.log('[PackagesScreen] Product ID:', productId);
     console.log('[PackagesScreen] Platform:', Platform.OS);
     console.log('[PackagesScreen] Timestamp:', new Date().toISOString());
-    
+
     if (!productId) {
       const storeName = Platform.OS === 'ios' ? 'Apple Store' : 'Google Play';
       console.error('[PackagesScreen] ❌ No product ID found for this plan');
       Alert.alert(
         language === 'tr' ? 'Hata' : 'Error',
-        language === 'tr' 
+        language === 'tr'
           ? `Bu paket için ${storeName} satın alımı henüz aktif değil`
           : `${storeName} purchase is not yet active for this package`
       );
@@ -127,13 +127,13 @@ const PackagesScreen: React.FC = () => {
 
     setPurchasingPlanId(plan.id);
     console.log('[PackagesScreen] Calling requestSubscription...');
-    
+
     try {
       const result = await requestSubscription(productId);
-      
+
       console.log('[PackagesScreen] requestSubscription returned');
       console.log('[PackagesScreen] Result:', JSON.stringify(result, null, 2));
-      
+
       if (result.ok) {
         console.log('[PackagesScreen] ✅ Purchase successful');
         console.log('[PackagesScreen] Success message:', result.message);
@@ -156,7 +156,7 @@ const PackagesScreen: React.FC = () => {
         console.error('[PackagesScreen] Product ID:', productId);
         console.error('[PackagesScreen] Plan name:', plan.name);
         console.error('[PackagesScreen] Plan ID:', plan.id);
-        
+
         Alert.alert(
           language === 'tr' ? 'Satın Alma Hatası' : 'Purchase Error',
           language === 'tr' ? 'Satın alma başarısız oldu.' : 'Purchase failed.',
@@ -173,7 +173,7 @@ const PackagesScreen: React.FC = () => {
       console.error('[PackagesScreen] Product ID:', productId);
       console.error('[PackagesScreen] Plan name:', plan.name);
       console.error('[PackagesScreen] Plan ID:', plan.id);
-      
+
       Alert.alert(
         language === 'tr' ? 'Hata' : 'Error',
         language === 'tr' ? 'Satın alma sırasında bir hata oluştu.' : 'An error occurred during purchase.',
@@ -189,12 +189,12 @@ const PackagesScreen: React.FC = () => {
     setRestoring(true);
     try {
       const result = await restorePurchases();
-      
+
       if (result.ok) {
         Alert.alert(
           language === 'tr' ? 'Başarılı' : 'Success',
-          result.message || (language === 'tr' 
-            ? 'Satın alımlarınız başarıyla geri yüklendi' 
+          result.message || (language === 'tr'
+            ? 'Satın alımlarınız başarıyla geri yüklendi'
             : 'Your purchases have been restored successfully'),
           [
             {
@@ -240,10 +240,10 @@ const PackagesScreen: React.FC = () => {
 
   const formatFeatures = (features?: string[], currentLanguage?: string) => {
     if (!features || features.length === 0) return [];
-    
+
     // Özellikleri dile göre filtrele
     const langPrefix = currentLanguage === 'tr' ? 'TR:' : 'EN:';
-    
+
     return features
       .filter(feature => feature.startsWith(langPrefix))
       .map(feature => feature.replace(langPrefix, '').trim());
@@ -251,18 +251,18 @@ const PackagesScreen: React.FC = () => {
 
   const formatDescription = (description?: string, currentLanguage?: string) => {
     if (!description) return '';
-    
+
     // Açıklama formatı: "TR: Türkçe metin | EN: English text"
     if (description.includes('|')) {
       const parts = description.split('|');
       const langPrefix = currentLanguage === 'tr' ? 'TR:' : 'EN:';
-      
+
       const langPart = parts.find(part => part.trim().startsWith(langPrefix));
       if (langPart) {
         return langPart.replace(langPrefix, '').trim();
       }
     }
-    
+
     // Eğer format yoksa olduğu gibi döndür
     return description;
   };
@@ -306,8 +306,8 @@ const PackagesScreen: React.FC = () => {
         </View>
 
         <Text style={styles.subtitle}>
-          {language === 'tr' 
-            ? 'Size uygun paketi seçin ve premium özelliklerin keyfini çıkarın' 
+          {language === 'tr'
+            ? 'Size uygun paketi seçin ve premium özelliklerin keyfini çıkarın'
             : 'Choose the package that suits you and enjoy premium features'}
         </Text>
 
@@ -387,7 +387,7 @@ const PackagesScreen: React.FC = () => {
                     </Text>
                     {plan.estimates.video_minutes && (
                       <Text style={styles.estimateText}>
-                        {language === 'tr' 
+                        {language === 'tr'
                           ? `Bu paketle tahmini video: ~${plan.estimates.video_minutes} dk`
                           : `Estimated video with this package: ~${plan.estimates.video_minutes} min`}
                       </Text>
@@ -470,7 +470,7 @@ const PackagesScreen: React.FC = () => {
               ? '• Ödeme, satın alma onaylandığında iTunes Hesabınızdan tahsil edilecektir.\n\n• Abonelik, mevcut dönem bitmeden en az 24 saat önce iptal edilmediği sürece otomatik olarak yenilenir.\n\n• Hesabınız, mevcut dönem sona ermeden 24 saat içinde yenileme için ücretlendirilecektir.\n\n• Abonelikler kullanıcı tarafından yönetilebilir ve otomatik yenileme, satın alma sonrasında kullanıcının Hesap Ayarlarına gidilerek kapatılabilir.\n\n• Ücretsiz deneme süresinin kullanılmayan kısmı, varsa, kullanıcı o yayına abone olduğunda kaybedilecektir.'
               : '• Payment will be charged to iTunes Account at confirmation of purchase.\n\n• Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period.\n\n• Account will be charged for renewal within 24-hours prior to the end of the current period.\n\n• Subscriptions may be managed by the user and auto-renewal may be turned off by going to the user\'s Account Settings after purchase.\n\n• Any unused portion of a free trial period, if offered, will be forfeited when the user purchases a subscription to that publication.'}
           </Text>
-          
+
           <View style={styles.legalLinks}>
             <TouchableOpacity onPress={() => (navigation as any).navigate('PrivacyPolicy')}>
               <Text style={styles.legalLink}>
@@ -493,10 +493,10 @@ const PackagesScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.background,
   },
   scrollContent: {
-    paddingBottom: 24,
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,
@@ -504,180 +504,212 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
+    marginTop: 16,
+    fontSize: 15,
+    color: COLORS.slate500,
+    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: 'transparent',
   },
   backButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#333',
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.slate800,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
+    color: COLORS.slate500,
     textAlign: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingBottom: 24,
+    fontWeight: '500',
   },
   planCard: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: '#FFF',
-    borderRadius: 16,
+    marginHorizontal: 24,
+    marginBottom: 20,
+    backgroundColor: '#f8f9ff',
+    borderRadius: 32,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: '#94a3b8',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
     elevation: 3,
   },
   planHeader: {
-    padding: 20,
+    padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: COLORS.slate100,
   },
   planName: {
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: '900',
     marginBottom: 4,
+    letterSpacing: -0.5,
   },
   planDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    fontSize: 13,
+    color: COLORS.slate500,
+    marginTop: 6,
+    fontWeight: '500',
   },
   planBody: {
-    padding: 20,
+    padding: 24,
   },
   priceSection: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   price: {
     fontSize: 48,
-    fontWeight: '800',
-    color: '#111827',
+    fontWeight: '900',
+    color: COLORS.slate800,
   },
   priceInterval: {
-    fontSize: 18,
-    color: '#6B7280',
+    fontSize: 16,
+    color: COLORS.slate400,
     marginLeft: 4,
+    fontWeight: '600',
   },
   featuresContainer: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   featureText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: 14,
+    color: COLORS.slate700,
     marginLeft: 12,
     flex: 1,
+    fontWeight: '600',
   },
   estimatesContainer: {
-    backgroundColor: '#F9FAFB',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
+    backgroundColor: COLORS.slate50,
+    padding: 20,
+    borderRadius: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: COLORS.slate100,
   },
   estimatesTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 8,
+    fontSize: 10,
+    fontWeight: '900',
+    color: COLORS.slate400,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   estimateText: {
     fontSize: 13,
-    color: '#6B7280',
+    color: COLORS.slate500,
     marginTop: 4,
+    fontWeight: '500',
   },
   validityContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
+    backgroundColor: 'rgba(39, 190, 170, 0.08)',
+    padding: 14,
+    borderRadius: 14,
   },
   validityLabel: {
-    fontSize: 13,
-    color: '#6B7280',
+    fontSize: 12,
+    color: COLORS.slate500,
+    fontWeight: '600',
   },
   validityValue: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: '800',
+    color: COLORS.brandTeal,
   },
   purchaseButton: {
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
+    minHeight: 56,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 4,
   },
   purchaseButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   purchaseButtonText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#FFF',
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 80,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#999',
+    fontSize: 15,
+    color: COLORS.slate400,
     marginTop: 16,
+    fontWeight: '600',
   },
   activePlanCard: {
     borderWidth: 3,
-    borderColor: '#10B981',
-    backgroundColor: '#F0FDF4',
+    borderColor: COLORS.brandTeal,
+    backgroundColor: 'rgba(39, 190, 170, 0.03)',
   },
   activeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#10B981',
+    backgroundColor: COLORS.brandTeal,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
     alignSelf: 'flex-start',
-    marginBottom: 12,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 2 },
+    marginBottom: 16,
+    shadowColor: COLORS.brandTeal,
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 4,
   },
   activeBadgeText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '900',
     color: '#FFFFFF',
     marginLeft: 6,
+    letterSpacing: 0.5,
   },
   restoreContainer: {
-    marginHorizontal: 16,
-    marginTop: 24,
+    marginHorizontal: 24,
+    marginTop: 32,
     marginBottom: 16,
     alignItems: 'center',
   },
@@ -685,59 +717,60 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: '#F0F9FF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    minHeight: 48,
-    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    backgroundColor: COLORS.surface,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: COLORS.brandTeal,
+    minHeight: 52,
+    gap: 10,
   },
   restoreButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.brandTeal,
     marginLeft: 8,
   },
   restoreHint: {
     fontSize: 12,
-    color: '#6B7280',
-    marginTop: 8,
+    color: COLORS.slate400,
+    marginTop: 10,
     textAlign: 'center',
+    fontWeight: '500',
   },
   termsContainer: {
-    marginHorizontal: 16,
-    marginTop: 16,
+    marginHorizontal: 24,
+    marginTop: 24,
     marginBottom: 24,
-    padding: 16,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
+    padding: 20,
+    backgroundColor: COLORS.slate50,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: COLORS.slate100,
   },
   termsText: {
     fontSize: 11,
-    color: '#6B7280',
-    lineHeight: 16,
+    color: COLORS.slate400,
+    lineHeight: 18,
     textAlign: 'left',
   },
   legalLinks: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
+    marginTop: 20,
     gap: 8,
   },
   legalLink: {
     fontSize: 12,
-    color: COLORS.primary,
-    fontWeight: '600',
+    color: COLORS.brandTeal,
+    fontWeight: '700',
     textDecorationLine: 'underline',
   },
   legalSeparator: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: COLORS.slate300,
     marginHorizontal: 8,
   },
 });

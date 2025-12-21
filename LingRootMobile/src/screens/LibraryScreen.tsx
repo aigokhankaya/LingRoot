@@ -90,13 +90,13 @@ const LibraryScreen: React.FC = () => {
                 if (typeof words === 'string') {
                   words = JSON.parse(words);
                 }
-              } catch {}
+              } catch { }
 
               try {
                 if (typeof timepoints === 'string') {
                   timepoints = JSON.parse(timepoints);
                 }
-              } catch {}
+              } catch { }
 
               source = {
                 ...audioData,
@@ -185,12 +185,12 @@ const LibraryScreen: React.FC = () => {
       if (showLoading) {
         setLoading(true);
       }
-      
+
       const currentPage = nextPage || 1;
       const response = await apiService.getUserAudioHistory(user.id, currentPage, PAGE_SIZE);
-      
+
       if (response.success && response.data) {
-        
+
         // Backend verilerini AudioTrack tipine dönüştür
         const tracks: AudioTrack[] = response.data.map((item: any) => {
           // Prefer backend-provided duration; fall back to 180 if missing
@@ -205,13 +205,13 @@ const LibraryScreen: React.FC = () => {
             if (typeof words === 'string') {
               words = JSON.parse(words);
             }
-          } catch {}
+          } catch { }
 
           try {
             if (typeof timepoints === 'string') {
               timepoints = JSON.parse(timepoints);
             }
-          } catch {}
+          } catch { }
 
           const track = {
             // ID'leri string olarak normalize et (favori eşleşmeleri için kritik)
@@ -232,7 +232,7 @@ const LibraryScreen: React.FC = () => {
 
           return track;
         });
-        
+
         if (currentPage === 1) {
           // Favoriler görünümünde listeyi tamamen sıfırlamak yerine birleştir
           if (showFavoritesOnly) {
@@ -263,12 +263,12 @@ const LibraryScreen: React.FC = () => {
         setAudioTracks([]);
       }
     } catch (error) {
-      
+
       // Check if it's a token expiration error
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage === 'Token expired' || errorMessage.includes('Unauthorized')) {
         Alert.alert(
-          'Oturum Süresi Doldu', 
+          'Oturum Süresi Doldu',
           'Lütfen tekrar giriş yapınız.',
           [
             { text: 'Tamam' }
@@ -277,7 +277,7 @@ const LibraryScreen: React.FC = () => {
       } else {
         Alert.alert('Hata', 'Ses geçmişi yüklenirken hata oluştu');
       }
-      
+
       setAudioTracks([]);
     } finally {
       setLoading(false);
@@ -307,7 +307,7 @@ const LibraryScreen: React.FC = () => {
         if (Array.isArray(parsed)) setFavoriteIds(parsed.map((x: any) => String(x)));
       }
     } catch (e) {
-      
+
     }
   };
 
@@ -322,7 +322,7 @@ const LibraryScreen: React.FC = () => {
         }
       });
     } catch (e) {
-      
+
     }
   };
 
@@ -370,7 +370,7 @@ const LibraryScreen: React.FC = () => {
           audioTracksRef.current = merged;
         }
       } catch (e) {
-        
+
       }
       // 3) Sonra filtreyi aç ve arka plan hidrasyonu devreye girsin
       setShowFavoritesOnly(true);
@@ -405,7 +405,7 @@ const LibraryScreen: React.FC = () => {
         if (stillMissing.length === 0) break;
       }
     } catch (e) {
-      
+
     } finally {
       setIsHydratingFavorites(false);
     }
@@ -451,7 +451,7 @@ const LibraryScreen: React.FC = () => {
       if (!showFavoritesOnly) {
         fetchAudioHistory(false, 1);
       }
-      return () => {};
+      return () => { };
     }, [user?.id, showFavoritesOnly])
   );
 
@@ -516,7 +516,7 @@ const LibraryScreen: React.FC = () => {
   };
 
   const handlePlayTrack = (track: AudioTrack) => {
-    
+
     // Her durumda modal'ı aç
     setSelectedTrack(track);
     setPlayerVisible(true);
@@ -529,59 +529,81 @@ const LibraryScreen: React.FC = () => {
 
   const renderAudioTrack = ({ item }: { item: AudioTrack }) => {
     const isCurrentlyPlaying = isTrackPlaying(item.id);
-    
+
     // Debug log sadece durumu değişen track'ler için
     if (isCurrentlyPlaying) {
       // no-op: avoid console in production
     }
-    
+
+    // Content type'a göre renk ve ikon belirle
+    const getContentTypeColor = (inputType?: string) => {
+      switch (inputType?.toLowerCase()) {
+        case 'podcast': return COLORS.brandTeal;
+        case 'books':
+        case 'book': return COLORS.brandOrange;
+        case 'text': return COLORS.slate500;
+        case 'file': return COLORS.brandIndigo;
+        default: return COLORS.brandTeal;
+      }
+    };
+
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
           styles.trackCard,
           isCurrentlyPlaying && styles.trackCardPlaying
-        ]} 
+        ]}
         onPress={() => handlePlayTrack(item)}
         onLongPress={() => handleLongPress(item)}
       >
+        {/* Left - Audio Wave Icon */}
+        <View style={[styles.audioWaveContainer, isCurrentlyPlaying && styles.audioWaveContainerPlaying]}>
+          <Icon name="graphic-eq" size={24} color={isCurrentlyPlaying ? '#FFFFFF' : COLORS.brandTeal} />
+        </View>
+
+        {/* Middle - Track Info */}
         <View style={styles.trackInfo}>
-          <View style={styles.trackHeader}>
-            <Text style={styles.trackTitle} numberOfLines={2}>{item.title}</Text>
-            <View style={styles.headerRightGroup}>
-              <TouchableOpacity onPress={() => toggleFavorite(item)} style={styles.favoriteIconBtn}>
-                <Icon name={isFavorite(item.id) ? 'favorite' : 'favorite-border'} size={20} color={isFavorite(item.id) ? '#E91E63' : '#999'} />
-              </TouchableOpacity>
-              <View style={[styles.levelBadge, { backgroundColor: getLevelColor(item.level) }]}>
-                <Text style={styles.levelText}>{item.level}</Text>
-              </View>
+          <Text style={styles.trackTitle} numberOfLines={1}>{item.title}</Text>
+
+          {/* Meta row: Level badge + Duration + Date */}
+          <View style={styles.trackMeta}>
+            <View style={[styles.levelBadge, { backgroundColor: getLevelColor(item.level) }]}>
+              <Text style={styles.levelText}>{item.level}</Text>
+            </View>
+            <View style={styles.metaTextRow}>
+              <Icon name="access-time" size={12} color={COLORS.slate400} />
+              <Text style={styles.duration}>{formatDuration(item.duration)}</Text>
+              <Text style={styles.metaDot}>•</Text>
+              <Text style={styles.date}>
+                {new Date(item.created_at).toLocaleDateString('tr-TR')}
+              </Text>
             </View>
           </View>
-          <View style={styles.trackMeta}>
-            <Text style={styles.duration}>
-              <Icon name="access-time" size={14} color="#666" /> {formatDuration(item.duration)}
-            </Text>
-            <Text style={styles.date}>
-              {new Date(item.created_at).toLocaleDateString('tr-TR')}
-            </Text>
-          </View>
+
+          {/* Content Type */}
           {item.input_type && (
             <View style={styles.inputTypeContainer}>
-              <Text style={styles.inputType}>{item.input_type}</Text>
+              <Icon
+                name={item.input_type?.toLowerCase() === 'podcast' ? 'podcasts' :
+                  item.input_type?.toLowerCase() === 'books' || item.input_type?.toLowerCase() === 'book' ? 'menu-book' :
+                    item.input_type?.toLowerCase() === 'file' ? 'insert-drive-file' : 'notes'}
+                size={12}
+                color={getContentTypeColor(item.input_type)}
+              />
+              <Text style={[styles.inputType, { color: getContentTypeColor(item.input_type) }]}>
+                {item.input_type}
+              </Text>
             </View>
           )}
         </View>
-        <TouchableOpacity 
-          style={[
-            styles.playButton,
-            isCurrentlyPlaying && styles.playButtonPlaying
-          ]} 
-          onPress={() => handlePlayTrack(item)}
-        >
-          {isCurrentlyPlaying ? (
-            <Icon name="pause" size={24} color="#FFFFFF" />
-          ) : (
-            <Icon name="play-arrow" size={24} color={COLORS.primary} />
-          )}
+
+        {/* Right - Favorite Icon */}
+        <TouchableOpacity onPress={() => toggleFavorite(item)} style={styles.favoriteIconBtn}>
+          <Icon
+            name={isFavorite(item.id) ? 'favorite' : 'favorite-border'}
+            size={22}
+            color={isFavorite(item.id) ? '#E91E63' : COLORS.slate300}
+          />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -613,8 +635,8 @@ const LibraryScreen: React.FC = () => {
               ? 'Ses kütüphanenizi görmek için giriş yapmanız gerekiyor.'
               : 'You need to log in to see your audio library.'}
           </Text>
-          <TouchableOpacity 
-            style={styles.retryButton} 
+          <TouchableOpacity
+            style={styles.retryButton}
             onPress={() => {
               // Intentionally left blank to avoid console logs
             }}
@@ -633,8 +655,8 @@ const LibraryScreen: React.FC = () => {
           <Icon name="refresh" size={24} color={COLORS.primary} />
         </TouchableOpacity>
         <View style={styles.headerButtons}>
-          <TouchableOpacity 
-            style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]} 
+          <TouchableOpacity
+            style={[styles.favoritesToggle, showFavoritesOnly && styles.favoritesToggleActive]}
             onPress={handleToggleFavorites}
           >
             <Icon name={showFavoritesOnly ? 'favorite' : 'favorite-border'} size={18} color={showFavoritesOnly ? '#E91E63' : COLORS.primary} />
@@ -723,7 +745,7 @@ const LibraryScreen: React.FC = () => {
               : (language === 'tr' ? 'Arama sonucu bulunamadı' : 'No results found')}
           </Text>
           <Text style={styles.emptyDescription}>
-            {audioTracks.length === 0 
+            {audioTracks.length === 0
               ? (language === 'tr' ? 'İlk ses dosyanızı oluşturmak için "Ansayfa" sekmesinden uygun bir seçenek kullanın' : 'Use a suitable option from the Home tab to create your first audio')
               : (language === 'tr' ? 'Farklı arama terimleri veya filtreler deneyin' : 'Try different search terms or filters')}
           </Text>
@@ -751,7 +773,7 @@ const LibraryScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   loadingContainer: {
     flex: 1,
@@ -759,26 +781,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
+    marginTop: 12,
+    fontSize: 15,
+    color: COLORS.slate500,
+    fontWeight: '500',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: 'transparent',
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.slate700,
+    letterSpacing: -0.3,
   },
   refreshButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surfaceGlass,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.slate100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   headerButtons: {
     flexDirection: 'row',
@@ -788,35 +823,35 @@ const styles = StyleSheet.create({
   modeToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: 'white',
+    backgroundColor: COLORS.surface,
     borderWidth: 2,
-    borderColor: COLORS.primary,
-    borderRadius: 20,
+    borderColor: COLORS.brandTeal,
+    borderRadius: 24,
   },
   modeToggleActive: {
-    borderColor: '#FF9800',
-    backgroundColor: '#FFF8E1',
+    borderColor: COLORS.brandOrange,
+    backgroundColor: '#fffbeb',
   },
   modeToggleText: {
     marginLeft: 6,
-    color: COLORS.primary,
-    fontWeight: '600',
-    fontSize: 14,
+    color: COLORS.brandTeal,
+    fontWeight: '700',
+    fontSize: 13,
   },
   modeToggleTextActive: {
-    color: '#FF9800',
+    color: COLORS.brandOrange,
   },
   favoritesToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: 'white',
+    backgroundColor: COLORS.surface,
     borderWidth: 2,
-    borderColor: COLORS.primary,
-    borderRadius: 20,
+    borderColor: COLORS.brandTeal,
+    borderRadius: 24,
   },
   favoritesToggleActive: {
     borderColor: '#E91E63',
@@ -824,80 +859,100 @@ const styles = StyleSheet.create({
   },
   favoritesToggleText: {
     marginLeft: 6,
-    color: COLORS.primary,
-    fontWeight: '600',
+    color: COLORS.brandTeal,
+    fontWeight: '700',
+    fontSize: 13,
   },
   favoritesToggleTextActive: {
     color: '#E91E63',
   },
   searchContainer: {
-    padding: 20,
-    backgroundColor: 'white',
+    paddingHorizontal: 24,
+    paddingBottom: 16,
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    height: 44,
+    backgroundColor: 'rgba(241, 245, 249, 0.5)',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   searchInput: {
     flex: 1,
-    marginLeft: 10,
-    fontSize: 16,
-    color: '#333',
+    marginLeft: 12,
+    fontSize: 14,
+    color: COLORS.slate700,
     padding: 0,
+    fontWeight: '500',
   },
   levelFilter: {
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingTop: 4,
+    paddingBottom: 20,
   },
   levelChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 24,
+    backgroundColor: COLORS.surface,
     marginRight: 10,
+    borderWidth: 1,
+    borderColor: COLORS.slate200,
   },
   levelChipActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.brandTeal,
+    borderColor: COLORS.brandTeal,
   },
   levelChipText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+    fontSize: 13,
+    color: COLORS.slate400,
+    fontWeight: '600',
   },
   levelChipTextActive: {
-    color: 'white',
+    color: '#FFFFFF',
   },
   tracksList: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 120,
   },
   trackCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: '#94a3b8',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   trackCardPlaying: {
     borderWidth: 2,
-    borderColor: COLORS.primary,
-    backgroundColor: '#F0F8FF',
+    borderColor: COLORS.brandTeal,
+    backgroundColor: 'rgba(39, 190, 170, 0.03)',
+  },
+  audioWaveContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(39, 190, 170, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  audioWaveContainerPlaying: {
+    backgroundColor: COLORS.brandTeal,
   },
   trackInfo: {
     flex: 1,
+    marginRight: 8,
   },
   trackHeader: {
     flexDirection: 'row',
@@ -910,54 +965,72 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   trackTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    flex: 1,
-    marginRight: 10,
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.slate800,
+    marginBottom: 6,
   },
   levelBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  favoriteIconBtn: {
     paddingHorizontal: 6,
-    paddingVertical: 4,
+    paddingVertical: 3,
+    borderRadius: 6,
     marginRight: 8,
   },
   levelText: {
-    fontSize: 12,
-    color: 'white',
-    fontWeight: 'bold',
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   trackMeta: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 4,
+  },
+  metaTextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaDot: {
+    fontSize: 10,
+    color: COLORS.slate300,
+    marginHorizontal: 4,
   },
   duration: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 11,
+    color: COLORS.slate400,
+    fontWeight: '500',
+    marginLeft: 3,
   },
   date: {
-    fontSize: 12,
-    color: '#999',
-  },
-  inputTypeContainer: {
-    marginTop: 4,
-  },
-  inputType: {
-    fontSize: 12,
-    color: COLORS.primary,
+    fontSize: 11,
+    color: COLORS.slate400,
     fontWeight: '500',
   },
+  inputTypeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  inputType: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+    marginLeft: 4,
+  },
+  favoriteIconBtn: {
+    padding: 4,
+  },
   playButton: {
-    padding: 8,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(39, 190, 170, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   playButtonPlaying: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
+    backgroundColor: COLORS.brandTeal,
   },
   emptyState: {
     flex: 1,
@@ -966,29 +1039,34 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.slate700,
     marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   emptyDescription: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 14,
+    color: COLORS.slate500,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 20,
+    lineHeight: 22,
+    marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    backgroundColor: COLORS.brandTeal,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 16,
+    shadowColor: COLORS.brandTeal,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 2,
   },
   retryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
   footerLoadingContainer: {
     paddingVertical: 40,

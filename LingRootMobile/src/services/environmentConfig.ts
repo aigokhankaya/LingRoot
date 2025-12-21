@@ -1,22 +1,17 @@
 import { EXPO_PUBLIC_API_URL } from '@env';
 
-const DEV_FALLBACK_URL = 'http://192.168.1.4:5001';
-
-const rawEnvUrl = (EXPO_PUBLIC_API_URL || '').trim();
-const isValidEnvUrl = rawEnvUrl.startsWith('http');
-const isDev = typeof __DEV__ !== 'undefined' && __DEV__;
-
-const resolvedApiUrl = isValidEnvUrl ? rawEnvUrl : (isDev ? DEV_FALLBACK_URL : '');
-const resolvedProductionUrl = resolvedApiUrl;
-
-if (resolvedProductionUrl) {
-  console.log('🌐 [ENV CONFIG] Using EXPO_PUBLIC_API_URL:', resolvedProductionUrl);
-} else {
-  console.log('🌐 [ENV CONFIG] EXPO_PUBLIC_API_URL missing, using defaults');
-}
-
 // Environment configuration
 const PRODUCTION_URL = 'https://lingloops-backend.onrender.com';
+
+// Normalize .env value (trim + remove potential BOM)
+const rawEnvUrl = (EXPO_PUBLIC_API_URL || '').trim().replace(/^\uFEFF/, '');
+const isValidEnvUrl = rawEnvUrl.startsWith('http');
+
+// If .env has a valid URL use it; otherwise fall back to production backend URL
+const resolvedApiUrl = isValidEnvUrl ? rawEnvUrl : PRODUCTION_URL;
+
+console.log('🌐 [ENV CONFIG] Raw EXPO_PUBLIC_API_URL from @env:', EXPO_PUBLIC_API_URL || '(empty)');
+console.log('🌐 [ENV CONFIG] Resolved API URL:', resolvedApiUrl);
 
 interface EnvironmentConfig {
   environment: 'production' | 'test';
@@ -36,26 +31,17 @@ export async function getEnvironmentConfig(): Promise<EnvironmentConfig> {
     return cachedConfig;
   }
 
-  // If .env has a URL set, use it directly (for local development)
-  if (resolvedProductionUrl) {
-    const config: EnvironmentConfig = {
-      environment: 'production',
-      baseUrl: resolvedProductionUrl,
-    };
-    cachedConfig = config;
-    console.log('🌍 [ENV CONFIG] Using .env URL:', config);
-    return config;
-  }
-
-  // For APK builds without .env: Always use production URL
-  // Don't fetch from backend to avoid test user redirects
   const config: EnvironmentConfig = {
     environment: 'production',
-    baseUrl: PRODUCTION_URL,
+    baseUrl: resolvedApiUrl,
   };
   
   cachedConfig = config;
-  console.log('🌍 [ENV CONFIG] Using production URL (APK default):', config);
+  if (isValidEnvUrl) {
+    console.log('🌍 [ENV CONFIG] Using .env URL:', config);
+  } else {
+    console.log('🌍 [ENV CONFIG] Using production URL (fallback):', config);
+  }
   return config;
 }
 

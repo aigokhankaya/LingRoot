@@ -58,20 +58,20 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(-1);
   const [currentDialogueIndex, setCurrentDialogueIndex] = useState(-1);
   const [wordPopup, setWordPopup] = useState<{ mode: 'info' | 'confirm'; word: string; data?: any } | null>(null);
-  
+
   // Removed complex drift correction - using simple web-like approach
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set()); // Seçilen kelimeler
   const [highlightMode, setHighlightMode] = useState<'word' | 'sentence' | 'pattern'>(initialHighlightMode); // Use mode from Library
   const [showPatterns, setShowPatterns] = useState(false); // Toggle pattern highlighting
-  const [patterns, setPatterns] = useState<Array<{ 
-    pattern: string; 
+  const [patterns, setPatterns] = useState<Array<{
+    pattern: string;
     meaning?: string;
     pattern_tr?: string;
     example_sentence?: string;
     example_sentence_tr?: string;
   }>>([]);
   const [loadingPatterns, setLoadingPatterns] = useState(false);
-  
+
   // Debug: Log showPatterns changes
   useEffect(() => {
     console.log(`🎨 [AudioPlayer] showPatterns changed to: ${showPatterns}`);
@@ -79,18 +79,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       loadPatterns();
     }
   }, [showPatterns]);
-  
+
   // Load patterns from backend
   const loadPatterns = async () => {
     if (loadingPatterns || !textToHighlight || !track.level) return;
-    
+
     try {
       setLoadingPatterns(true);
       console.log(`🔍 [AudioPlayer] Loading patterns for level: ${track.level}`);
-      
+
       const apiUrl = await getEnvironmentConfig().then(config => config.baseUrl);
       const token = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
-      
+
       const response = await fetch(`${apiUrl}/api/patterns/find`, {
         method: 'POST',
         headers: {
@@ -99,10 +99,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         },
         body: JSON.stringify({ text: textToHighlight, level: track.level })
       });
-      
+
       const data = await response.json();
       console.log(`📊 [AudioPlayer] Found ${data.patterns?.length || 0} patterns`);
-      
+
       if (data.success && data.patterns) {
         setPatterns(data.patterns);
       }
@@ -115,7 +115,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
-  
+
   // Debug: Log pageIndex changes
   useEffect(() => {
     console.log(`📄 [AudioPlayer] pageIndex changed to: ${pageIndex}`);
@@ -167,7 +167,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const elapsedTimerRef = useRef<NodeJS.Timeout | null>(null);
   const playStartTimeRef = useRef<number>(0);
   const accumulatedTimeRef = useRef<number>(0);
-  
+
   // Use refs to track the latest values for highlighting
   const durationRef = useRef(0);
   const isLoadedRef = useRef(false);
@@ -175,22 +175,29 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const horizontalScrollRef = useRef<ScrollView>(null);
   const wordRefs = useRef<Map<number, any>>(new Map());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const highlightTickInFlightRef = useRef(false);
+  const pauseRequestedRef = useRef(false);
+  const currentWordIndexRef = useRef(-1);
+  const lastStatusPositionMsRef = useRef(0);
+  const lastStatusTsRef = useRef(0);
+  const pauseFreezePositionMsRef = useRef<number | null>(null);
+  const playbackRateRef = useRef(1);
   const lastAutoScrollTsRef = useRef(0);
   const latestWordPositionRef = useRef<{ top: number; bottom: number; height: number } | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
+  const [originalText, setOriginalText] = useState('');
   const [originalLoading, setOriginalLoading] = useState(false);
-  const [originalText, setOriginalText] = useState<string>(track.original_turkish || '');
   const [manualSeconds, setManualSeconds] = useState('');
   const [manualMillis, setManualMillis] = useState('');
   const [isTestEnvironment, setIsTestEnvironment] = useState(false);
-  
+
   // Check if app is in test environment
   useEffect(() => {
     getEnvironmentConfig().then(config => {
       setIsTestEnvironment(config.environment === 'test');
     });
   }, []);
-  
+
   useEffect(() => {
     setOriginalText(track.original_turkish || '');
     console.log('[AudioPlayer] track.original_turkish updated:', {
@@ -198,7 +205,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       hasOriginalTurkish: !!track.original_turkish,
       originalTurkishLength: track.original_turkish ? track.original_turkish.length : 0,
     });
-    
+
     // Debug: Log track timing info
     console.log('📊 Track Info:', {
       id: track.id,
@@ -206,11 +213,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       words: words?.length || 0,
       duration: track.real_duration || track.duration,
     });
-    
+
     if (timepoints && timepoints.length > 0) {
       console.log('🎯 First 10 timepoints:', timepoints.slice(0, 10));
       console.log('🎯 Last 3 timepoints:', timepoints.slice(-3));
-      
+
       // Find "Furthermore" and log surrounding words
       const furthermoreIndex = timepoints.findIndex(tp => tp?.word?.toLowerCase().includes('furthermore'));
       if (furthermoreIndex !== -1) {
@@ -224,11 +231,48 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   }, [track.id, track.original_turkish, timepoints, words]);
 
+  useEffect(() => {
+    if (!visible) return;
+    if (track.input_type !== 'podcast') return;
+    if (!showOriginal) return;
+    if (originalLoading) return;
+    if (originalText && originalText.trim().length > 0) return;
+    if (!track.id) return;
+
+    (async () => {
+      try {
+        setOriginalLoading(true);
+        const res = await apiService.getUserContentById(track.id);
+        if ((res as any)?.success && (res as any)?.data?.input) {
+          setOriginalText((res as any).data.input);
+        }
+      } catch (err) {
+        // silent in production
+      } finally {
+        setOriginalLoading(false);
+      }
+    })();
+  }, [visible, track.input_type, track.id, showOriginal, originalLoading, originalText]);
+
   // Text parsing - Memoized to prevent unnecessary re-renders
   const textData = useMemo(() => {
     const getTextForHighlight = () => {
-      if (track.adapted_text) return track.adapted_text;
-      if (track.translated_text) return track.translated_text;
+      const adapted = track.adapted_text || '';
+      const translated = track.translated_text || '';
+      const isPodcast = track.input_type === 'podcast';
+
+      if (isPodcast) {
+        const hasDialogueLabels = (txt: string) => /^(Speaker\s+[A-Z]:|Host:|Guest:)/im.test(txt);
+        const looksLikeDialogue = (txt: string) => hasDialogueLabels(txt) || /\r?\n/.test(txt);
+
+        // Prefer dialogue-formatted text for podcasts (so bubble view + dialogue highlighting works)
+        if (translated && looksLikeDialogue(translated) && (!adapted || !looksLikeDialogue(adapted))) {
+          return translated;
+        }
+      }
+
+      if (adapted) return adapted;
+      if (translated) return translated;
       return track.title;
     };
 
@@ -254,7 +298,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const isPodcastTranscript = useMemo(() => {
     if (track.input_type === 'podcast') return true;
     if (!textToHighlight) return false;
-    return /Speaker\s+[AB]:/i.test(textToHighlight);
+    return /^(Speaker\s+[AB]:|Host:|Guest:)/im.test(textToHighlight);
   }, [track.input_type, textToHighlight]);
 
   // Dialogue lines derived directly from the transcript text (like web OutputSection/NewSyncedTextPlayer)
@@ -269,6 +313,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       .filter(line => line.length > 0);
   }, [isPodcastTranscript, textToHighlight]);
 
+  const originalDialogueLines = useMemo(() => {
+    if (!isPodcastTranscript || !originalText) {
+      return [] as string[];
+    }
+
+    return originalText
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+  }, [isPodcastTranscript, originalText]);
+
   // For each dialogue line, map it to a [startIndex, endIndex] range in the global word sequence
   // so we can convert active word index -> active dialogue index (same as web's dialogueLineRanges)
   const dialogueLineRanges = useMemo(() => {
@@ -276,7 +331,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       return [] as { lineIndex: number; startIndex: number; endIndex: number }[];
     }
 
-    const hasDialogueFormat = dialogueLines.some(line => /Speaker\s+[AB]:/i.test(line));
+    const hasDialogueFormat = dialogueLines.some(line => /^(Speaker\s+[A-Z]:|Host:|Guest:)/i.test(line));
     if (!hasDialogueFormat) {
       return [] as { lineIndex: number; startIndex: number; endIndex: number }[];
     }
@@ -285,8 +340,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     let globalIndex = 0;
 
     dialogueLines.forEach((line, lineIndex) => {
-      const match = line.match(/^(Speaker\s+[A-Z]):\s*(.*)$/i);
-      const textPart = match ? match[2] : line;
+      const match = line.match(/^(Speaker\s+([A-Z])|Host|Guest):\s*(.*)$/i);
+      const textPart = match ? match[3] : line;
       const wordsInLine = textPart
         .split(/\s+/)
         .filter(word => word.length > 0);
@@ -307,24 +362,42 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Dialogue segments used for rendering (Speaker bubbles) + explicit timing from MFA word timepoints
   const dialogueSegments = useMemo(() => {
     if (!isPodcastTranscript || dialogueLines.length === 0) {
-      return [] as { speaker: string; content: string; startTime?: number; endTime?: number }[];
+      return [] as { speaker: string; speakerLabel?: string; content: string; startTime?: number; endTime?: number }[];
     }
 
     const baseSegments = dialogueLines.map(line => {
-      const match = line.match(/^(Speaker\s+([A-Z])):\s*(.*)$/i);
+      const match = line.match(/^(Speaker\s+([A-Z])|Host|Guest):\s*(.*)$/i);
       if (match) {
+        const prefix = (match[1] || '').trim();
         const speakerLetter = (match[2] || '').trim();
         const content = (match[3] || '').trim();
+
+        const lowerPrefix = prefix.toLowerCase();
+        let speaker = '';
+        let speakerLabel: string | undefined;
+
+        if (lowerPrefix.startsWith('speaker')) {
+          speaker = (speakerLetter || '').toUpperCase();
+          speakerLabel = speaker ? `Speaker ${speaker}` : undefined;
+        } else if (lowerPrefix === 'host') {
+          speaker = 'A';
+          speakerLabel = 'Host';
+        } else if (lowerPrefix === 'guest') {
+          speaker = 'B';
+          speakerLabel = 'Guest';
+        }
+
         return {
-          speaker: speakerLetter || '',
+          speaker,
+          speakerLabel,
           content: content || line,
-        } as { speaker: string; content: string; startTime?: number; endTime?: number };
+        } as { speaker: string; speakerLabel?: string; content: string; startTime?: number; endTime?: number };
       }
 
       return {
         speaker: '',
         content: line,
-      } as { speaker: string; content: string; startTime?: number; endTime?: number };
+      } as { speaker: string; speakerLabel?: string; content: string; startTime?: number; endTime?: number };
     });
 
     if (!timepoints || timepoints.length === 0 || dialogueLineRanges.length === 0) {
@@ -362,7 +435,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const startTp = timepoints[startWordIndex];
       const endTp = timepoints[endWordIndex];
 
-      const segWithTimes: { speaker: string; content: string; startTime?: number; endTime?: number } = {
+      const segWithTimes: { speaker: string; speakerLabel?: string; content: string; startTime?: number; endTime?: number } = {
         ...seg,
       };
 
@@ -384,35 +457,71 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     return segmentsWithTiming;
   }, [isPodcastTranscript, dialogueLines, dialogueLineRanges, timepoints]);
 
-  // Keep currentDialogueIndex in sync with active word index (like web NewSyncedTextPlayer)
-  useEffect(() => {
-    if (!isPodcastTranscript || !dialogueLineRanges.length) {
-      if (currentDialogueIndex !== -1) {
-        setCurrentDialogueIndex(-1);
+  const originalDialogueSegments = useMemo(() => {
+    if (!isPodcastTranscript || dialogueSegments.length === 0 || originalDialogueLines.length === 0) {
+      return [] as { content: string }[];
+    }
+
+    const segments = originalDialogueLines.map(line => {
+      const match = line.match(/^(Speaker\s+([A-Z])|Host|Guest):\s*(.*)$/i);
+      if (match) {
+        const content = (match[3] || '').trim();
+        return { content: content || line };
       }
+      return { content: line };
+    });
+
+    return segments;
+  }, [isPodcastTranscript, dialogueSegments.length, originalDialogueLines]);
+
+  const dialogueRefs = useRef<Map<number, any>>(new Map());
+
+  const scrollToDialogue = useCallback((dialogueIndex: number) => {
+    if (pageIndex !== 0) return;
+    if (!scrollViewRef.current) return;
+    if (dialogueIndex < 0) return;
+
+    const now = Date.now();
+    const SCROLL_THROTTLE = 250;
+    if (now - lastAutoScrollTsRef.current < SCROLL_THROTTLE) {
       return;
     }
+    const rowRef = dialogueRefs.current.get(dialogueIndex);
+    if (rowRef && scrollViewRef.current) {
+      rowRef.measureLayout(
+        scrollViewRef.current,
+        (_x: number, y: number, _w: number, h: number) => {
+          if (textViewportHeight <= 0) {
+            return;
+          }
 
-    if (currentWordIndex < 0) {
-      if (currentDialogueIndex !== -1) {
-        setCurrentDialogueIndex(-1);
-      }
-      return;
+          const currentScroll = scrollOffsetRef.current || 0;
+          const visibleBottom = currentScroll + textViewportHeight;
+          const bottomTrigger = visibleBottom - 40;
+          const rowBottom = y + h;
+
+          if (rowBottom < bottomTrigger) {
+            return;
+          }
+
+          lastAutoScrollTsRef.current = now;
+          const alignPadding = 16;
+          const desiredOffset = Math.max(0, y - alignPadding);
+          scrollViewRef.current?.scrollTo({ y: desiredOffset, animated: true });
+          scrollOffsetRef.current = desiredOffset;
+        },
+        (_error: any) => {
+          // silently ignore
+        }
+      );
     }
+  }, [pageIndex, textViewportHeight]);
 
-    const matchedRange = dialogueLineRanges.find(
-      range => currentWordIndex >= range.startIndex && currentWordIndex <= range.endIndex
-    );
-    const newIndex = matchedRange ? matchedRange.lineIndex : -1;
-
-    if (newIndex !== currentDialogueIndex) {
-      setCurrentDialogueIndex(newIndex);
-    }
-  }, [isPodcastTranscript, dialogueLineRanges, currentWordIndex, currentDialogueIndex]);
-
-  // Log text data when component mounts or track changes
   useEffect(() => {
-  }, [track.id, textToHighlight, sentences.length, wordsArray.length]);
+    if (!isPodcastTranscript) return;
+    if (currentDialogueIndex < 0) return;
+    scrollToDialogue(currentDialogueIndex);
+  }, [isPodcastTranscript, currentDialogueIndex, scrollToDialogue]);
 
   // Debug: Log initial data - GİZLENDİ
   // GIZLENDİ - Debug console.log mesajları
@@ -459,12 +568,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setCurrentSentenceIndex(-1);
       setCurrentDialogueIndex(-1);
       setSelectedWords(new Set()); // Seçilen kelimeleri temizle
-      
+
       // Reset refs as well
       durationRef.current = 0;
       isLoadedRef.current = false;
     }
-    
+
     return () => {
       // Cleanup interval but keep audio running globally
       if (intervalRef.current) {
@@ -472,6 +581,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }
     };
   }, [visible]);
+
+  useEffect(() => {
+    playbackRateRef.current = playbackRate;
+  }, [playbackRate]);
 
   // Fast highlighting interval - 50ms for smooth word tracking
   useEffect(() => {
@@ -483,16 +596,25 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
       // Start fast interval for word highlighting
       intervalRef.current = setInterval(async () => {
-        try {
-          const status = await sound.getStatusAsync();
-          if ((status as any).isLoaded && (status as any).isPlaying) {
-            const currentTimeInSeconds = (status as any).positionMillis / 1000;
-            updateHighlighting(currentTimeInSeconds);
-          }
-        } catch (error) {
-          // Silent error handling
+        if (pauseRequestedRef.current) {
+          return;
         }
-      }, 20); // 20ms = 50 updates per second
+        if (highlightTickInFlightRef.current) return;
+        highlightTickInFlightRef.current = true;
+
+        try {
+          const basePos = lastStatusPositionMsRef.current;
+          const baseTs = lastStatusTsRef.current;
+          const deltaMs = baseTs > 0 ? Math.max(0, Date.now() - baseTs) : 0;
+          const rate = playbackRateRef.current || 1;
+
+          const estimatedPositionMs = basePos + (deltaMs * rate);
+          const currentTimeInSeconds = estimatedPositionMs / 1000;
+          updateHighlighting(currentTimeInSeconds);
+        } finally {
+          highlightTickInFlightRef.current = false;
+        }
+      }, 80); // 80ms ≈ 12.5 updates per second
 
       return () => {
         if (intervalRef.current) {
@@ -514,14 +636,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setIsLoaded(false);
       setDuration(0);
       setPosition(0);
-      
+
       // Stop any existing audio first
       await stopAllAudio();
-      
+
       // CRITICAL: Log audio URL to verify which file is being loaded
       console.log(`🎵 [AUDIO LOAD] Loading audio from URL: ${track.url}`);
       console.log(`🎵 [AUDIO LOAD] Track ID: ${track.id}, Title: ${track.adapted_text?.substring(0, 50)}...`);
-      
+
       // Create TrackPlayer-backed sound
       const newSound = await createSound(track.url);
       setSound(newSound);
@@ -542,7 +664,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
         setDuration(finalDuration);
         setIsLoaded(true);
-        
+
         // Update refs as well
         durationRef.current = finalDuration;
         isLoadedRef.current = true;
@@ -566,20 +688,25 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const onPlaybackStatusUpdate = (status: any) => {
     if (status.isLoaded) {
-      
-      setPosition(status.positionMillis || 0);
-      
-      // Update global playing state based on actual audio status
-      setIsPlaying(status.isPlaying);
-      
+      if (!pauseRequestedRef.current) {
+        setPosition(status.positionMillis || 0);
+        setIsPlaying(status.isPlaying);
+        lastStatusPositionMsRef.current = status.positionMillis || 0;
+        lastStatusTsRef.current = Date.now();
+      } else {
+        if (status.isPlaying) {
+          setIsPlaying(false);
+        }
+      }
+
       // Update global current track - only set when playing, clear when finished
-      if (status.isPlaying) {
+      if (!pauseRequestedRef.current && status.isPlaying) {
         setCurrentTrack(track);
       } else if (status.didJustFinish) {
         // Only clear when audio actually finished, not when paused
         setCurrentTrack(null);
       }
-      
+
       // Update duration and isLoaded state from actual audio status
       const statusAny = status as any;
       if (statusAny.durationMillis) {
@@ -602,7 +729,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     // Use refs for the most up-to-date values
     const currentDuration = durationRef.current;
     const currentIsLoaded = isLoadedRef.current;
-    
+
     // Skip if audio is not yet loaded
     if (!currentIsLoaded || currentDuration <= 0) {
       return;
@@ -624,28 +751,28 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Binary search for accurate word finding - matches web implementation
   const findWordIndexLinear = useCallback((currentTime: number, timepoints: Timepoint[]): number => {
     if (timepoints.length === 0) return -1;
-    
+
     // Binary search for efficiency
     let left = 0;
     let right = timepoints.length - 1;
-    
+
     while (left <= right) {
       const mid = Math.floor((left + right) / 2);
       const tp = timepoints[mid];
       const endTime = tp.endTimeSeconds || tp.timeSeconds + 0.5;
-      
+
       // Check if we're in this word's time range
       if (currentTime >= tp.timeSeconds && currentTime < endTime) {
         return mid;
       }
-      
+
       if (currentTime < tp.timeSeconds) {
         right = mid - 1;
       } else {
         left = mid + 1;
       }
     }
-    
+
     // Fallback: find closest word
     return timepoints.reduce((closest, tp, idx) => {
       const currentDist = Math.abs(currentTime - tp.timeSeconds);
@@ -660,21 +787,21 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const WORDS_PER_LINE = 8; // Approximate words per line
   const LINES_PER_SCROLL = 5; // Scroll every 5 lines
   const WORDS_PER_SCROLL = WORDS_PER_LINE * LINES_PER_SCROLL; // ~40 words
-  
+
   const scrollToWord = useCallback((wordIndex: number) => {
     const now = Date.now();
     const SCROLL_THROTTLE = 100; // Only scroll every 100ms
-    
+
     if (now - lastScrollTime.current < SCROLL_THROTTLE) {
       return; // Skip this scroll
     }
-    
+
     // Only scroll if we've moved at least WORDS_PER_SCROLL words
     const wordDifference = Math.abs(wordIndex - lastScrolledWordIndex.current);
     if (lastScrolledWordIndex.current !== -1 && wordDifference < WORDS_PER_SCROLL) {
       return; // Skip - not enough words passed yet
     }
-    
+
     lastScrollTime.current = now;
     lastScrolledWordIndex.current = wordIndex;
     const wordRef = wordRefs.current.get(wordIndex);
@@ -749,12 +876,27 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (newWordIndexInArray !== -1) {
       const tp = timepoints[newWordIndexInArray];
       const globalIndex = typeof tp.index === 'number' ? tp.index : newWordIndexInArray;
+      currentWordIndexRef.current = globalIndex;
+
+      if (isPodcastTranscript) {
+        if (dialogueLineRanges.length > 0) {
+          const foundRange = dialogueLineRanges.find(r => globalIndex >= r.startIndex && globalIndex <= r.endIndex);
+          const newDialogueIdx = foundRange ? foundRange.lineIndex : -1;
+          if (newDialogueIdx !== currentDialogueIndex) {
+            setCurrentDialogueIndex(newDialogueIdx);
+          }
+        }
+        return;
+      }
+
       if (globalIndex !== currentWordIndex) {
         setCurrentWordIndex(globalIndex);
-        scrollToWord(globalIndex);
+        if (!isPodcastTranscript) {
+          scrollToWord(globalIndex);
+        }
       }
     }
-  }, [timepoints, currentWordIndex, findWordIndexLinear, scrollToWord, isPodcastTranscript]);
+  }, [timepoints, currentWordIndex, findWordIndexLinear, scrollToWord, isPodcastTranscript, dialogueLineRanges, currentDialogueIndex]);
 
   const updateSentenceHighlighting = (currentTime: number) => {
     const totalDuration = durationRef.current / 1000;
@@ -831,21 +973,56 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
     try {
       if (isPlaying) {
-        await sound.pauseAsync();
-        setIsPlaying(false);
-        
-        // Stop elapsed timer and save accumulated time
+        pauseRequestedRef.current = true;
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        highlightTickInFlightRef.current = false;
+
         if (elapsedTimerRef.current) {
           clearInterval(elapsedTimerRef.current);
           elapsedTimerRef.current = null;
         }
         accumulatedTimeRef.current = elapsedTime;
+        setIsPlaying(false);
+
+        try {
+          const latest = await sound.getStatusAsync();
+          if ((latest as any)?.isLoaded) {
+            const latestPos = (latest as any).positionMillis || position;
+            pauseFreezePositionMsRef.current = latestPos;
+            setPosition(latestPos);
+            lastStatusPositionMsRef.current = latestPos;
+            lastStatusTsRef.current = Date.now();
+          }
+        } catch {
+          pauseFreezePositionMsRef.current = position;
+          lastStatusPositionMsRef.current = position;
+          lastStatusTsRef.current = Date.now();
+        }
+
+        await sound.pauseAsync();
+
+        setTimeout(async () => {
+          try {
+            const st = await sound.getStatusAsync();
+            if ((st as any)?.isLoaded && (st as any)?.isPlaying) {
+              await sound.pauseAsync();
+            }
+          } catch { }
+        }, 150);
       } else {
         console.log('▶️ Playing audio...');
+        pauseRequestedRef.current = false;
+        pauseFreezePositionMsRef.current = null;
         await sound.playAsync();
         console.log('✅ Audio playing');
         setIsPlaying(true);
-        
+
+        lastStatusPositionMsRef.current = position;
+        lastStatusTsRef.current = Date.now();
+
         // Start elapsed timer
         playStartTimeRef.current = Date.now();
         elapsedTimerRef.current = setInterval(() => {
@@ -863,34 +1040,45 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (!sound) return;
     try {
       console.log(`🎯 [SEEK START] Seeking to ${positionMs}ms (${(positionMs / 1000).toFixed(2)}s)`);
-      
+
       await sound.setPositionAsync(positionMs);
       setPosition(positionMs);
-      
+
+      if (!isPlaying) {
+        pauseFreezePositionMsRef.current = positionMs;
+        lastStatusPositionMsRef.current = positionMs;
+        lastStatusTsRef.current = Date.now();
+      }
+
       // CRITICAL: Verify actual position after seek
       const statusImmediate = await sound.getStatusAsync();
       if (statusImmediate.isLoaded) {
         const immediatePosition = statusImmediate.positionMillis;
         console.log(`🔊 [AUDIO IMMEDIATE] Position right after seek: ${(immediatePosition / 1000).toFixed(2)}s (expected: ${(positionMs / 1000).toFixed(2)}s)`);
       }
-      
+
       // CRITICAL: Wait 500ms and check again - audio buffer might need time
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       const statusDelayed = await sound.getStatusAsync();
       if (statusDelayed.isLoaded) {
         const delayedPosition = statusDelayed.positionMillis;
         console.log(`🔊 [AUDIO DELAYED] Position after 500ms: ${(delayedPosition / 1000).toFixed(2)}s (expected: ${(positionMs / 1000).toFixed(2)}s)`);
-        
+
         if (Math.abs(delayedPosition - positionMs) > 500) {
           console.error(`❌ [SEEK ERROR] Position mismatch after 500ms! Expected ${(positionMs / 1000).toFixed(2)}s but got ${(delayedPosition / 1000).toFixed(2)}s (diff: ${Math.abs(delayedPosition - positionMs)}ms)`);
         }
       }
-      
+
       if (knownWordIndex !== undefined) {
         console.log(`🎯 [SEEK] Using known word index ${knownWordIndex}`);
-        setCurrentWordIndex(knownWordIndex);
-        scrollToWord(knownWordIndex);
+        currentWordIndexRef.current = knownWordIndex;
+        if (!isPodcastTranscript) {
+          setCurrentWordIndex(knownWordIndex);
+          scrollToWord(knownWordIndex);
+        } else {
+          updateWordHighlighting(positionMs / 1000);
+        }
       } else {
         const currentTimeInSeconds = positionMs / 1000;
         if (timepoints && timepoints.length > 0) {
@@ -899,14 +1087,19 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             const foundWord = timepoints[newWordIndexInArray];
             const globalIndex = typeof foundWord.index === 'number' ? foundWord.index : newWordIndexInArray;
             console.log(`🎯 [SEEK] Seeked to ${currentTimeInSeconds.toFixed(2)}s → Found word array index ${newWordIndexInArray}, global index ${globalIndex}: "${foundWord?.word}" (${foundWord?.timeSeconds.toFixed(2)}s - ${foundWord?.endTimeSeconds?.toFixed(2)}s)`);
-            setCurrentWordIndex(globalIndex);
-            scrollToWord(globalIndex);
+            currentWordIndexRef.current = globalIndex;
+            if (!isPodcastTranscript) {
+              setCurrentWordIndex(globalIndex);
+              scrollToWord(globalIndex);
+            } else {
+              updateWordHighlighting(currentTimeInSeconds);
+            }
           } else {
             console.warn(`⚠️ [SEEK] No word found for time ${currentTimeInSeconds.toFixed(2)}s`);
           }
         }
       }
-      
+
       // Reset elapsed timer when seeking
       if (isPlaying) {
         playStartTimeRef.current = Date.now();
@@ -915,7 +1108,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     } catch (error) {
       console.error('Seek error:', error);
     }
-  }, [sound, timepoints, findWordIndexLinear, scrollToWord, isPlaying, elapsedTime]);
+  }, [sound, timepoints, findWordIndexLinear, scrollToWord, isPlaying, elapsedTime, isPodcastTranscript, updateWordHighlighting]);
 
   const handleSpeedChange = async () => {
     const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
@@ -1031,11 +1224,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const handleAddWordToVocabulary = useCallback(async (word: string, wordIndex: number) => {
     const cleanWord = word.replace(/[.,!?;:]/g, ''); // Remove punctuation
-    
+
     // Show loading state
     setAddingWord(true);
     setAddingWordText(language === 'tr' ? `"${cleanWord}" kelimesi ekleniyor...` : `Adding "${cleanWord}"...`);
-    
+
     try {
       // Create context from surrounding words or text
       let context = '';
@@ -1060,7 +1253,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
       // Find original sentence
       const sentences = textToHighlight.split(/[.!?;]+/).map(s => s.trim()).filter(s => s.length > 5);
-      originalSentence = sentences.find(sentence => 
+      originalSentence = sentences.find(sentence =>
         sentence.toLowerCase().includes(cleanWord.toLowerCase())
       ) || context;
 
@@ -1101,7 +1294,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           [{ text: language === 'tr' ? 'Tamam' : 'OK' }]
         );
       }
-      
+
     } catch (error: any) {
       if (error.message?.includes('zaten listede mevcut')) {
         Alert.alert(
@@ -1177,14 +1370,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const renderHighlightedText = () => {
     console.log(`🎨 [AudioPlayer] renderHighlightedText - showPatterns: ${showPatterns}, level: ${track.level}`);
-    
+
     // Always render word/sentence highlighting (Skia-based)
     if (highlightMode === 'word') {
       return renderWordHighlighting;
     } else {
       return renderSentenceHighlighting;
     }
-    
+
     // Note: Pattern highlighting is currently disabled because it conflicts with Skia rendering
     // TODO: Integrate pattern highlighting into Skia components for better performance
   };
@@ -1241,19 +1434,19 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Calculate pattern data with full info
   const patternData = useMemo(() => {
     console.log(`🎨 [AudioPlayer] Calculating pattern data - showPatterns: ${showPatterns}, patterns.length: ${patterns.length}`);
-    
+
     if (!showPatterns || patterns.length === 0) {
       console.log(`⚠️ [AudioPlayer] No patterns to highlight`);
       return [];
     }
-    
+
     const data = patterns.map(p => ({
       pattern: p.pattern.toLowerCase().trim(),
       pattern_tr: p.pattern_tr || '',
       example_sentence: p.example_sentence || '',
       example_sentence_tr: p.example_sentence_tr || ''
     }));
-    
+
     console.log(`🎨 [AudioPlayer] Total pattern data: ${data.length}`);
     return data;
   }, [showPatterns, patterns]);
@@ -1277,7 +1470,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         showPatterns={showPatterns}
       />
     );
-    
+
     // SKIA VERSION (disabled for debugging)
     // return (
     //   <SkiaWordHighlight
@@ -1359,59 +1552,105 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           const isActive = index === currentDialogueIndex;
           const speakerKey = (segment.speaker || '').toUpperCase();
           const isRight = speakerKey === 'B';
-          const speakerLabel = segment.speaker
-            ? `Speaker ${speakerKey}`
-            : language === 'tr'
-            ? 'Anlatıcı'
-            : 'Narrator';
+          const originalSegment = originalDialogueSegments[index];
+          const originalContent = originalSegment?.content ? String(originalSegment.content) : '';
+          const hasOriginal = showOriginal && originalContent.trim().length > 0;
+          const speakerLabel = (segment as any).speakerLabel
+            ? (segment as any).speakerLabel
+            : segment.speaker
+              ? `Speaker ${speakerKey}`
+              : language === 'tr'
+                ? 'Anlatıcı'
+                : 'Narrator';
 
           return (
             <View
               key={`${index}-${speakerKey}-${segment.content.slice(0, 10)}`}
+              ref={(ref) => {
+                if (ref) {
+                  dialogueRefs.current.set(index, ref);
+                }
+              }}
               style={[
                 styles.podcastDialogueRow,
                 isRight ? styles.podcastDialogueRowRight : styles.podcastDialogueRowLeft,
               ]}
             >
-              <View
-                style={[
-                  styles.podcastBubble,
-                  isRight ? styles.podcastBubbleRight : styles.podcastBubbleLeft,
-                  isActive && styles.podcastBubbleActive,
-                ]}
-              >
-                <Text style={[styles.podcastSpeakerLabel, isRight && styles.podcastSpeakerLabelRight]}>
-                  {speakerLabel}
-                </Text>
-                <TouchableOpacity activeOpacity={0.8} onPress={() => handleDialoguePress(index)}>
+              <View style={[styles.podcastBubbleGroup, isRight ? styles.podcastBubbleGroupRight : styles.podcastBubbleGroupLeft]}>
+                {/* Speaker Avatar */}
+                <View style={styles.podcastSpeakerAvatar}>
+                  <Text style={styles.podcastSpeakerAvatarText}>
+                    {isRight ? 'G' : 'H'}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.podcastBubble,
+                    hasOriginal && styles.podcastBubbleCompact,
+                    isRight ? styles.podcastBubbleRight : styles.podcastBubbleLeft,
+                    isActive && styles.podcastBubbleActive,
+                    isActive && (isRight ? styles.podcastBubbleActiveRight : styles.podcastBubbleActiveLeft),
+                  ]}
+                >
+                  <Text style={[
+                    styles.podcastSpeakerLabel,
+                    isRight && styles.podcastSpeakerLabelRight,
+                    isActive && { color: 'rgba(255,255,255,0.8)' }
+                  ]}>
+                    {speakerLabel}
+                  </Text>
+                  <TouchableOpacity activeOpacity={0.8} onPress={() => handleDialoguePress(index)}>
+                    <Text
+                      style={[
+                        styles.podcastBubbleText,
+                        isRight && styles.podcastBubbleTextRight,
+                        isActive && styles.podcastBubbleTextActive,
+                      ]}
+                    >
+                      {segment.content
+                        .split(/\s+/)
+                        .filter(word => word.length > 0)
+                        .map((word, wordIndex, arr) => {
+                          const range = dialogueLineRanges.find(r => r.lineIndex === index);
+                          let globalIndex = range ? range.startIndex + wordIndex : -1;
+                          if (globalIndex < 0 || globalIndex >= wordsArray.length) {
+                            globalIndex = wordIndex;
+                          }
+                          return (
+                            <Text
+                              key={`${index}-${wordIndex}`}
+                              onLongPress={() => handleWordLongPress(word, globalIndex)}
+                            >
+                              {word}
+                              {wordIndex < arr.length - 1 ? ' ' : ''}
+                            </Text>
+                          );
+                        })}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {hasOriginal && (
+                <View
+                  style={[
+                    styles.podcastBubble,
+                    styles.podcastBubbleCompact,
+                    styles.podcastBubbleOriginal,
+                    isRight ? styles.podcastBubbleOriginalRight : styles.podcastBubbleOriginalLeft,
+                  ]}
+                >
                   <Text
                     style={[
-                      styles.podcastBubbleText,
-                      isRight && styles.podcastBubbleTextRight,
+                      styles.podcastBubbleOriginalText,
+                      isRight && styles.podcastBubbleOriginalTextRight,
                     ]}
                   >
-                    {segment.content
-                      .split(/\s+/)
-                      .filter(word => word.length > 0)
-                      .map((word, wordIndex, arr) => {
-                        const range = dialogueLineRanges.find(r => r.lineIndex === index);
-                        let globalIndex = range ? range.startIndex + wordIndex : -1;
-                        if (globalIndex < 0 || globalIndex >= wordsArray.length) {
-                          globalIndex = wordIndex;
-                        }
-                        return (
-                          <Text
-                            key={`${index}-${wordIndex}`}
-                            onLongPress={() => handleWordLongPress(word, globalIndex)}
-                          >
-                            {word}
-                            {wordIndex < arr.length - 1 ? ' ' : ''}
-                          </Text>
-                        );
-                      })}
+                    {originalContent}
                   </Text>
-                </TouchableOpacity>
-              </View>
+                </View>
+              )}
             </View>
           );
         })}
@@ -1458,32 +1697,21 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               </TouchableOpacity>
             </View>
           )}
-          {pageIndex === 0 ? (
-            <TouchableOpacity 
-              style={styles.originalTextButton}
-              onPress={() => {
-                horizontalScrollRef.current?.scrollTo({ x: screenWidth, animated: true });
-              }}
+          {isPodcastTranscript ? (
+            <TouchableOpacity
+              style={[styles.originalToggleButton, showOriginal ? styles.originalToggleButtonOn : styles.originalToggleButtonOff]}
+              onPress={() => setShowOriginal(prev => !prev)}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
-              <Text style={styles.originalTextButtonText}>
-                {t('audioPlayer.originalTextButton')}
+              <Text style={[styles.originalToggleButtonText, showOriginal ? styles.originalToggleButtonTextOn : styles.originalToggleButtonTextOff]}>
+                Show Original Text
               </Text>
-              <Icon name="chevron-right" size={20} color={COLORS.primary} />
+              <View style={[styles.originalTogglePill, showOriginal ? styles.originalTogglePillOn : styles.originalTogglePillOff]}>
+                <View style={[styles.originalToggleKnob, showOriginal ? styles.originalToggleKnobOn : styles.originalToggleKnobOff]} />
+              </View>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity 
-              style={styles.originalTextButton}
-              onPress={() => {
-                horizontalScrollRef.current?.scrollTo({ x: 0, animated: true });
-              }}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Icon name="chevron-left" size={20} color={COLORS.primary} />
-              <Text style={styles.originalTextButtonText}>
-                {t('audioPlayer.backToTranslationButton')}
-              </Text>
-            </TouchableOpacity>
+            <View />
           )}
         </View>
 
@@ -1572,8 +1800,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             </ScrollView>
           </View>
           <View style={{ width: screenWidth, flex: 1 }}>
-            <ScrollView 
-              style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]} 
+            <ScrollView
+              style={[styles.scrollContainer, { paddingTop: 8, width: '100%' }]}
               contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16 }}
               showsVerticalScrollIndicator={true}
               nestedScrollEnabled={true}
@@ -1670,7 +1898,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           {/* Progress Bar */}
           <View style={styles.progressContainer}>
             <Text style={styles.timeText}>{formatTime(position)}</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.progressBar}
               activeOpacity={0.8}
               hitSlop={{ top: 12, bottom: 12, left: 0, right: 0 }}
@@ -1708,12 +1936,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               disabled={isLoading}
             >
               {isLoading ? (
-                <Icon name="hourglass-empty" size={32} color={COLORS.primary} />
+                <Icon name="hourglass-empty" size={32} color="#FFFFFF" />
               ) : (
                 <Icon
                   name={isPlaying ? "pause" : "play-arrow"}
                   size={32}
-                  color={COLORS.primary}
+                  color="#FFFFFF"
                 />
               )}
             </TouchableOpacity>
@@ -1831,7 +2059,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: COLORS.background,
   },
   wordPopupOverlay: {
     flex: 1,
@@ -1842,14 +2070,14 @@ const styles = StyleSheet.create({
   wordPopupCard: {
     width: '85%',
     maxWidth: 380,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
+    backgroundColor: COLORS.surface,
+    borderRadius: 32,
+    padding: 24,
+    shadowColor: COLORS.brandIndigo,
     shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
   wordPopupLabel: {
     fontSize: 12,
@@ -1901,9 +2129,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
     zIndex: 10,
     elevation: 6,
     position: 'absolute',
@@ -1977,6 +2204,61 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.primary,
   },
+  originalToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    marginLeft: 'auto',
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+  },
+  originalToggleButtonOn: {
+    backgroundColor: COLORS.accent,
+    opacity: 1,
+  },
+  originalToggleButtonOff: {
+    backgroundColor: COLORS.accent,
+    opacity: 0.35,
+  },
+  originalToggleButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  originalToggleButtonTextOn: {
+    color: COLORS.accentForeground,
+  },
+  originalToggleButtonTextOff: {
+    color: COLORS.accentForeground,
+  },
+  originalTogglePill: {
+    width: 36,
+    height: 20,
+    borderRadius: 999,
+    padding: 2,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.18)',
+  },
+  originalTogglePillOn: {
+    backgroundColor: 'rgba(0,0,0,0.22)',
+  },
+  originalTogglePillOff: {
+    backgroundColor: 'rgba(0,0,0,0.18)',
+  },
+  originalToggleKnob: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: COLORS.accentForeground,
+  },
+  originalToggleKnobOn: {
+    alignSelf: 'flex-end',
+  },
+  originalToggleKnobOff: {
+    alignSelf: 'flex-start',
+  },
   originalBox: {
     backgroundColor: '#fff',
     borderBottomWidth: 1,
@@ -2009,24 +2291,29 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   levelBadge: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    backgroundColor: COLORS.brandOrange,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
   },
   levelBadgeBottom: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    minWidth: 50,
+    backgroundColor: COLORS.brandOrange,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+    minWidth: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: COLORS.brandOrange,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   levelText: {
     color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '800',
   },
   scrollContainer: {
     flex: 1,
@@ -2153,11 +2440,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   podcastDialoguesContainer: {
-    paddingVertical: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
   },
   podcastDialogueRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   podcastDialogueRowLeft: {
     justifyContent: 'flex-start',
@@ -2165,46 +2453,125 @@ const styles = StyleSheet.create({
   podcastDialogueRowRight: {
     justifyContent: 'flex-end',
   },
+  podcastBubbleGroup: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    flexShrink: 1,
+    minWidth: 0,
+    gap: 8,
+  },
+  podcastBubbleGroupLeft: {
+    flexDirection: 'row',
+  },
+  podcastBubbleGroupRight: {
+    flexDirection: 'row-reverse',
+  },
   podcastBubble: {
     maxWidth: '82%',
-    borderRadius: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: COLORS.slate100,
+    flexShrink: 1,
+    minWidth: 0,
+    backgroundColor: COLORS.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  podcastBubbleCompact: {
+    maxWidth: '72%',
   },
   podcastBubbleLeft: {
-    backgroundColor: '#e5e7eb',
-    borderTopLeftRadius: 4,
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 6,
+    borderColor: COLORS.slate100,
   },
   podcastBubbleRight: {
-    backgroundColor: COLORS.primary,
-    borderTopRightRadius: 4,
+    backgroundColor: COLORS.surface,
+    borderTopRightRadius: 6,
+    borderColor: COLORS.slate100,
+  },
+  podcastBubbleOriginal: {
+    backgroundColor: 'rgba(99, 102, 241, 0.05)',
+    borderColor: 'rgba(99, 102, 241, 0.15)',
+    marginTop: 8,
+    marginLeft: 32,
+  },
+  podcastBubbleOriginalLeft: {
+    marginLeft: 32,
+    borderTopLeftRadius: 6,
+  },
+  podcastBubbleOriginalRight: {
+    marginRight: 32,
+    borderTopRightRadius: 6,
+    marginLeft: 0,
   },
   podcastBubbleActive: {
-    borderWidth: 2,
-    borderColor: '#facc15',
-    shadowColor: '#facc15',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowColor: COLORS.brandIndigo,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
+    transform: [{ scale: 1.02 }],
+  },
+  podcastBubbleActiveLeft: {
+    backgroundColor: COLORS.brandIndigo,
+    borderColor: COLORS.brandIndigo,
+  },
+  podcastBubbleActiveRight: {
+    backgroundColor: COLORS.brandTeal,
+    borderColor: COLORS.brandTeal,
+  },
+  podcastSpeakerAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.slate200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  podcastSpeakerAvatarText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: COLORS.slate500,
   },
   podcastSpeakerLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 4,
-    color: '#4b5563',
+    fontSize: 10,
+    fontWeight: '800',
+    marginBottom: 6,
+    color: COLORS.slate400,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   podcastSpeakerLabelRight: {
-    color: '#e5e7eb',
+    color: 'rgba(255,255,255,0.8)',
     textAlign: 'right',
   },
   podcastBubbleText: {
-    fontSize: 15,
+    fontSize: 14,
     lineHeight: 22,
-    color: '#111827',
+    color: COLORS.slate700,
+    fontWeight: '700',
   },
   podcastBubbleTextRight: {
-    color: '#f9fafb',
+    color: COLORS.slate700,
+    textAlign: 'right',
+  },
+  podcastBubbleTextActive: {
+    color: '#FFFFFF',
+  },
+  podcastBubbleOriginalText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: COLORS.slate500,
+    fontStyle: 'italic',
+  },
+  podcastBubbleOriginalTextRight: {
     textAlign: 'right',
   },
   podcastFallbackText: {
@@ -2212,10 +2579,18 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   controlsContainer: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    backgroundColor: COLORS.surfaceGlass,
+    padding: 20,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    shadowColor: COLORS.brandIndigo,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 6,
   },
   modeToggle: {
     flexDirection: 'row',
@@ -2253,16 +2628,16 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     flex: 1,
-    height: 8,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 4,
+    height: 6,
+    backgroundColor: COLORS.slate100,
+    borderRadius: 3,
     marginHorizontal: 12,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: 4,
+    backgroundColor: COLORS.brandTeal,
+    borderRadius: 3,
   },
   playbackControls: {
     flexDirection: 'row',
@@ -2270,23 +2645,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
   },
   speedButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: COLORS.slate50,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.slate100,
   },
   speedText: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: 12,
+    color: COLORS.slate600,
+    fontWeight: '800',
   },
   playButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#f0f0f0',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.brandOrange,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: COLORS.brandOrange,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 6,
   },
   infoButton: {
     padding: 8,

@@ -54,6 +54,24 @@ Add to your `.env` file:
 ```env
 # Enable MFA alignment (set to 'true' to use MFA, 'false' to use TTS timepoints)
 USE_MFA_ALIGNMENT=true
+
+# (Optional) Use remote MFA alignment service (recommended for production)
+USE_REMOTE_MFA=true
+
+# Remote MFA base URL
+MFA_SERVICE_URL=https://api.booklevel.store
+
+# Remote MFA request timeout (ms)
+MFA_REMOTE_TIMEOUT_MS=300000
+
+# Remote MFA async mode (recommended if you see Cloudflare 524 on long alignments)
+# Uses: POST /api/mfa/align-async + GET /api/mfa/job/:jobId polling
+MFA_REMOTE_ASYNC=true
+MFA_REMOTE_ASYNC_POLL_INTERVAL_MS=1500
+MFA_REMOTE_ASYNC_TIMEOUT_MS=300000
+
+# If remote MFA fails, allow falling back to local MFA
+MFA_REMOTE_FALLBACK_TO_LOCAL=true
 ```
 
 ### 2. Model Download (Automatic)

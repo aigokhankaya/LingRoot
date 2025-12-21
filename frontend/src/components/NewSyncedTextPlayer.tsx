@@ -38,6 +38,14 @@ interface NewSyncedTextPlayerProps {
   audioUrl: string;
   words: string[];
   timepoints: Timepoint[];
+  dialogueSegments?: Array<{
+    lineIndex: number;
+    speaker?: string;
+    startTimeSeconds: number;
+    endTimeSeconds: number;
+    startWordIndex?: number;
+    endWordIndex?: number;
+  }>;
   originalText: string;
   className?: string;
   showControls?: boolean;
@@ -56,6 +64,7 @@ interface NewSyncedTextPlayerProps {
   onActiveSegmentChange?: (segmentIndex: number) => void;
   onWordChange?: (wordIndex: number, isPlaying: boolean) => void;
   hideText?: boolean;
+  uiVariant?: 'card' | 'bare';
 }
 
 interface ContextMenu {
@@ -70,6 +79,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   audioUrl,
   words,
   timepoints,
+  dialogueSegments,
   originalText,
   className = '',
   showControls = true,
@@ -81,7 +91,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   onPlay,
   onActiveSegmentChange,
   onWordChange,
-  hideText = false
+  hideText = false,
+  uiVariant = 'card'
 }: NewSyncedTextPlayerProps) {
   
   // Use useWordSync hook directly in component
@@ -143,7 +154,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     if (!dialogueLines.length) return [] as { lineIndex: number; startIndex: number; endIndex: number }[];
 
     // Only treat as dialogue if at least one line looks like "Speaker A:" / "Speaker B:"
-    const hasDialogueFormat = dialogueLines.some(line => /Speaker\s+[AB]:/i.test(line));
+    const hasDialogueFormat = dialogueLines.some(line => /^(Speaker\s+[AB]|Host|Guest):/i.test(line));
     if (!hasDialogueFormat) return [] as { lineIndex: number; startIndex: number; endIndex: number }[];
 
     const ranges: { lineIndex: number; startIndex: number; endIndex: number }[] = [];
@@ -152,7 +163,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     dialogueLines.forEach((line, lineIndex) => {
       // Speaker label'lerini ("Speaker A:" / "Speaker B:") kelime sayımından çıkar,
       // böylece globalIndex MFA'nin label'siz transcriptPlain'indeki kelime indexleriyle hizalanır.
-      const match = line.match(/^(Speaker\s+[AB]):\s*(.*)$/i);
+      const match = line.match(/^(Speaker\s+[AB]|Host|Guest):\s*(.*)$/i);
       const textOnly = match ? match[2] : line;
       const wordsInLine = textOnly.split(/\s+/).filter(word => word.length > 0);
       if (!wordsInLine.length) {
@@ -167,6 +178,12 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
 
     return ranges;
   }, [dialogueLines]);
+
+  useEffect(() => {
+    if (dialogueLineRanges.length) {
+      setHighlightType('sentence');
+    }
+  }, [dialogueLineRanges.length]);
 
   const [activeSegmentIndex, setActiveSegmentIndex] = useState<number>(-1);
 
@@ -370,8 +387,22 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     }
   };
 
-  // Map activeWordIndex from useWordSync to a dialogue line index (for Speaker A/B transcripts)
+  // Dialogue highlighting sync: prefer explicit time-based segments if provided
   useEffect(() => {
+    if (dialogueSegments && dialogueSegments.length > 0) {
+      if (!isPlaying) return;
+      const seg = dialogueSegments.find(s => currentTime >= s.startTimeSeconds && currentTime <= s.endTimeSeconds);
+      const newIndex = seg ? seg.lineIndex : -1;
+      if (newIndex !== activeSegmentIndex) {
+        setActiveSegmentIndex(newIndex);
+        if (onActiveSegmentChange) {
+          onActiveSegmentChange(newIndex);
+        }
+      }
+      return;
+    }
+
+    // Fallback: Map activeWordIndex to dialogue line ranges (legacy behavior)
     if (!dialogueLineRanges.length) {
       if (activeSegmentIndex !== -1) {
         setActiveSegmentIndex(-1);
@@ -397,15 +428,54 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
         onActiveSegmentChange(newIndex);
       }
     }
-  }, [activeWordIndex, dialogueLineRanges, activeSegmentIndex, onActiveSegmentChange]);
+  }, [activeWordIndex, dialogueLineRanges, activeSegmentIndex, onActiveSegmentChange, dialogueSegments, currentTime, isPlaying]);
 
   // Render text with highlighting (word or sentence based)
   const renderText = () => {
+    if (dialogueLineRanges.length) {
+      return renderDialogueLines();
+    }
     if (highlightType === 'sentence') {
       return renderSentences();
     } else {
       return renderWords();
     }
+  };
+
+  const renderDialogueLines = () => {
+    return (
+      <div className="text-base leading-relaxed select-text cursor-text" onClick={hideContextMenu}>
+        {dialogueLines.map((line, lineIndex) => {
+          const range = dialogueLineRanges.find(r => r.lineIndex === lineIndex);
+          const seg = dialogueSegments ? dialogueSegments.find(s => s.lineIndex === lineIndex) : null;
+          const isActive = lineIndex === activeSegmentIndex;
+          const startTime = seg
+            ? seg.startTimeSeconds
+            : (range ? (wordTimestamps[range.startIndex]?.startTime ?? 0) : 0);
+
+          return (
+            <div
+              key={lineIndex}
+              className={`mb-2 rounded-lg px-3 py-2 transition-colors ${
+                isActive ? 'bg-yellow-200 text-yellow-900 border border-yellow-400' : 'bg-white text-gray-800 border border-transparent'
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (seg) {
+                  seek(startTime);
+                  return;
+                }
+                if (range) {
+                  seek(startTime);
+                }
+              }}
+            >
+              {line}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   // Render sentences with highlighting and word-level interaction
@@ -685,7 +755,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   }
 
   return (
-    <div className={`bg-white rounded-lg shadow-lg p-6 ${className}`}>
+    <div className={uiVariant === 'bare' ? `${className}` : `bg-white rounded-lg shadow-lg p-6 ${className}`}>
       {/* ARIA Live Region for accessibility */}
       <div
         id="word-sync-live-region"

@@ -1795,6 +1795,7 @@ export interface PodcastCreationResponse {
   message?: string;
   podcast_url?: string;
   transcript?: string;
+  dialogue?: string;
   audio_url?: string;
   vtt_subtitles?: string;
   srt_subtitles?: string;
@@ -1880,6 +1881,12 @@ export const createPodcast = async (params: PodcastCreationParams): Promise<Podc
       throw new Error('Podcast service returned non-JSON response from backend.');
     }
     console.log('🎙️ [PODCAST] Backend success response:', result);
+    console.log('🎙️ [PODCAST] Dialogue field check:', {
+      hasDialogue: !!result.dialogue,
+      dialogueLength: result.dialogue?.length || 0,
+      dialoguePreview: result.dialogue?.substring(0, 100),
+      hasTranscript: !!result.transcript,
+    });
 
     // Backend already normalizes keys for web & mobile clients
     // Ensure shape matches PodcastCreationResponse expected by welcome.tsx
@@ -1896,6 +1903,7 @@ export const createPodcast = async (params: PodcastCreationParams): Promise<Podc
       duration_seconds: result.duration_seconds,
       file_name: result.file_name,
       transcript: result.transcript || result.topic,
+      dialogue: result.dialogue,
       // Pass through MFA word timings so web player can use them directly
       timepoints: Array.isArray(result.timepoints) ? result.timepoints : [],
       words: Array.isArray(result.words) ? result.words : [],

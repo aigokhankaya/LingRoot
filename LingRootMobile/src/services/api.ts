@@ -422,6 +422,19 @@ export const apiService = {
     }
   },
 
+  async getTopicSuggestions(topic: string, level?: string): Promise<any> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.post('/api/topic-pipeline/suggestions', {
+        topic,
+        level,
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Öneriler alınamadı');
+    }
+  },
+
   // Podcast creation API (Sync) - mirrors web podcast flow
   // Supports both n8n webhook and Google TTS multi-speaker
   async createPodcast(params: {
@@ -431,6 +444,7 @@ export const apiService = {
     ttsProvider?: string; // 'n8n' (default) or 'google'
     hostSpeakerId?: string;
     guestSpeakerId?: string;
+    ttsModel?: string;
     styleType?: string;
     voiceChoice?: string;
     personalityA?: string;
@@ -447,6 +461,7 @@ export const apiService = {
         ttsProvider: params.ttsProvider || 'n8n',
         hostSpeakerId: params.ttsProvider === 'google' ? params.hostSpeakerId : undefined,
         guestSpeakerId: params.ttsProvider === 'google' ? params.guestSpeakerId : undefined,
+        ttsModel: params.ttsProvider === 'google' ? params.ttsModel : undefined,
         styleType: params.styleType,
         voiceChoice: params.voiceChoice,
         personalityA: params.personalityA,
@@ -465,6 +480,52 @@ export const apiService = {
         data: error?.response?.data,
       });
       throw new Error(error.response?.data?.message || 'Podcast oluşturma işlemi başarısız');
+    }
+  },
+
+  // Podcast creation API (Async - with notification)
+  async createPodcastAsync(params: {
+    topic: string;
+    level: string;
+    duration: number | string;
+    ttsProvider?: string; // must be 'google' for async endpoint
+    hostSpeakerId?: string;
+    guestSpeakerId?: string;
+    ttsModel?: string;
+    styleType?: string;
+    personalityA?: string;
+    personalityB?: string;
+    includeHumor?: boolean;
+    includeFiller?: boolean;
+  }): Promise<{ success: boolean; jobId: string; message: string; estimatedTime: string }> {
+    try {
+      await wakeBackendIfNeeded();
+      const body = {
+        topic: params.topic,
+        level: params.level,
+        duration: params.duration,
+        ttsProvider: params.ttsProvider || 'google',
+        hostSpeakerId: params.hostSpeakerId,
+        guestSpeakerId: params.guestSpeakerId,
+        ttsModel: params.ttsModel,
+        styleType: params.styleType,
+        personalityA: params.personalityA,
+        personalityB: params.personalityB,
+        includeHumor: params.includeHumor,
+        includeFiller: params.includeFiller,
+      };
+      const response = await apiClient.post('/api/tts/create-podcast-async', body, {
+        timeout: 30000,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('🔴 [ASYNC PODCAST ERROR]:', error);
+      const msg = error.response?.data?.message || 'Async podcast işlemi başlatılamadı';
+      const err: any = new Error(msg);
+      if (error.response?.data?.code) {
+        err.code = error.response.data.code;
+      }
+      throw err;
     }
   },
 
@@ -868,6 +929,16 @@ export const apiService = {
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Ses kaydı dinlenmiş olarak işaretlenemedi');
+    }
+  },
+
+  async getAvailableVoices(): Promise<APIResponse> {
+    try {
+      await wakeBackendIfNeeded();
+      const response = await apiClient.get('/api/tts/voices/filter');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Ses listesi yüklenemedi');
     }
   },
 

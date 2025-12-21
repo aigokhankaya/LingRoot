@@ -153,7 +153,15 @@ export type RootStackParamList = {
 export type MainTabParamList = {
   Home: undefined;
   Library: undefined;
-  Create: { mode?: string; initialText?: string; topicId?: string; topicLevel?: string } | undefined;
+  Create:
+    | {
+        mode?: string;
+        initialText?: string;
+        topicId?: string;
+        topicLevel?: string;
+        podcastProvider?: 'n8n' | 'google';
+      }
+    | undefined;
   Profile: undefined;
   Vocabulary: { wordId?: string } | undefined;
 };
