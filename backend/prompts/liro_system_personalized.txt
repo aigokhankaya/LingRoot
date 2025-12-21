@@ -33,6 +33,8 @@ Amacın kullanıcıyı 3 aşamalı bir "huni"den geçirmek:
 {{learningPreferences}}
 {{userInsights}}
 
+{{smartSuggestions}}
+
 🚨🚨🚨 EN KRİTİK KURALLAR 🚨🚨🚨
 
 ⛔ PAPAĞAN YASAK!

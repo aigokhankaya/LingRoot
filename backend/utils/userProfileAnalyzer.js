@@ -65,6 +65,8 @@ class UserProfileAnalyzer {
         topicTreeStatus: await this.getTopicTreeStatus(userId),
         // User Persona System
         userInsights: await userInsightService.getInsights(userId),
+        // Smart Recommendation System
+        smartSuggestions: await userInsightService.generateSmartSuggestions(userId),
       };
 
       return profile;

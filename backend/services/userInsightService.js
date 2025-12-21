@@ -263,8 +263,140 @@ class UserInsightService {
             return result.rows;
         } catch (error) {
             logger.error('[UserInsightService] Failed to get stats:', error);
+        }
+    }
+
+    /**
+     * 🎯 AKILLI ÖNERİ SİSTEMİ
+     * Konu derinliğini hesapla (kullanıcı bir konuda ne kadar içerik tüketti)
+     */
+    async calculateTopicDepths(userId) {
+        try {
+            // contenthistory'den konu bazlı sayım
+            const result = await db.query(
+                `SELECT 
+                    input as topic,
+                    COUNT(*) as depth,
+                    MAX(created_at) as last_interaction
+                 FROM contenthistory
+                 WHERE user_id = $1 AND input IS NOT NULL AND LENGTH(input) > 3
+                 GROUP BY input
+                 ORDER BY depth DESC
+                 LIMIT 20`,
+                [userId]
+            );
+
+            // topics tablosundan da ekle
+            const topicsResult = await db.query(
+                `SELECT title as topic, 1 as depth FROM topics WHERE user_id = $1`,
+                [userId]
+            );
+
+            // Birleştir
+            const depthMap = {};
+            result.rows.forEach(r => {
+                depthMap[r.topic] = parseInt(r.depth) || 1;
+            });
+            topicsResult.rows.forEach(r => {
+                depthMap[r.topic] = (depthMap[r.topic] || 0) + 1;
+            });
+
+            return depthMap;
+        } catch (error) {
+            logger.error('[UserInsightService] Failed to calculate topic depths:', error);
+            return {};
+        }
+    }
+
+    /**
+     * 🧠 AI-Powered Smart Suggestion Generator
+     * Kullanıcının bilgi derinliğine göre akıllı öneriler üret
+     */
+    async generateSmartSuggestions(userId) {
+        try {
+            // 1. Mevcut insight'ları al
+            const insights = await this.getInsights(userId);
+
+            // 2. Konu derinliklerini hesapla
+            const topicDepths = await this.calculateTopicDepths(userId);
+
+            // 3. Son içerikleri al
+            const recentContent = await db.query(
+                `SELECT input, input_type FROM contenthistory 
+                 WHERE user_id = $1 
+                 ORDER BY created_at DESC LIMIT 10`,
+                [userId]
+            );
+
+            // 4. Prompt'u yükle
+            let suggestionPrompt;
+            try {
+                const promptPath = path.join(__dirname, '../prompts/liro/smart_suggestion_generator.txt');
+                suggestionPrompt = fs.readFileSync(promptPath, 'utf-8');
+            } catch (e) {
+                suggestionPrompt = 'Generate 3-5 smart, specific topic suggestions based on user interests.';
+            }
+
+            // 5. AI'ya gönder
+            const inputData = {
+                insights: {
+                    likes: insights.likes?.map(i => i.value) || [],
+                    dislikes: insights.dislikes?.map(i => i.value) || [],
+                    goals: insights.goals?.map(i => i.value) || [],
+                    preferences: insights.preferences?.map(i => i.value) || [],
+                    traits: insights.traits?.map(i => i.value) || []
+                },
+                topicDepths: Object.entries(topicDepths)
+                    .slice(0, 15)
+                    .map(([topic, depth]) => ({ topic, depth })),
+                recentContent: recentContent.rows.map(r => r.input).slice(0, 10)
+            };
+
+            const response = await openaiClient.generateChatCompletion([
+                { role: 'user', content: `${suggestionPrompt}\n\n## USER DATA:\n${JSON.stringify(inputData, null, 2)}` }
+            ], {
+                temperature: 0.7,
+                maxTokens: 800,
+                model: 'gpt-4o-mini'
+            });
+
+            // 6. Parse et
+            const content = response.content.replace(/```json/g, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(content);
+
+            logger.info(`[UserInsightService] Generated ${parsed.suggestions?.length || 0} smart suggestions`);
+            return parsed.suggestions || [];
+
+        } catch (error) {
+            logger.error('[UserInsightService] Smart suggestion generation failed:', error);
             return [];
         }
+    }
+
+    /**
+     * Smart suggestion'ları prompt'a uygun formatta döndür
+     */
+    formatSmartSuggestionsForPrompt(suggestions) {
+        if (!suggestions || suggestions.length === 0) {
+            return '';
+        }
+
+        let output = '🎯 AKILLI ÖNERİLER (Kullanıcıya özel, derinlik analizi yapılmış):\n';
+        suggestions.forEach((s, i) => {
+            const typeEmoji = {
+                'deep_cut': '🔬',
+                'lateral': '🔀',
+                'foundation': '📚',
+                'challenge': '🚀'
+            }[s.type] || '💡';
+
+            output += `${i + 1}. ${typeEmoji} "${s.topic}"\n`;
+            output += `   → Neden: ${s.reason}\n`;
+            output += `   → Bağlantı: ${s.connection}\n`;
+        });
+
+        output += '\n⚠️ Bu önerileri OLDUĞU GİBİ sunma! Doğal sohbet akışına entegre et.';
+        return output;
     }
 
     /**
