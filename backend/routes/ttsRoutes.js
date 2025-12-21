@@ -30,7 +30,6 @@ const path = require('path');
 const os = require('os');
 const { mfaAligner } = require('../utils/mfaAligner');
 const { createPodcast } = require('../utils/createPodcast');
-const { translateFromEnglish } = require('../utils/translateFromEnglish');
 
 const router = express.Router();
 
@@ -327,15 +326,11 @@ router.get("/vtt/:vttId", (req, res, next) => {
 // Other TTS Utility Endpoints
 router.post("/translateToEnglish", translateToEnglish);
 router.post("/adaptToCEFR", adaptToCEFR);
-<<<<<<< HEAD
-// Create podcast from topic (supports Google TTS multi-speaker or n8n webhook)
-=======
 router.post("/chunkText", chunkTextAPI);
 router.post("/synthesizeChunk", synthesizeChunkAPI);
 router.post("/mergeAudio", mergeAudioAPI);
 
 // Create podcast from topic (in-code generation using Google TTS)
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
 router.post("/create-podcast", authenticate, async (req, res) => {
   try {
     const body = req.body || {};
@@ -348,88 +343,7 @@ router.post("/create-podcast", authenticate, async (req, res) => {
       });
     }
     const level = (body.level || 'B1').toString().toUpperCase();
-<<<<<<< HEAD
-    const duration = body.duration != null ? body.duration : 10;
-    // Default to 'google' instead of 'n8n'
-    const ttsProvider = (body.ttsProvider || 'google').toLowerCase();
-
-    logger.info(`📻 [PODCAST] Create podcast - Topic: "${topic}", Level: ${level}, Duration: ${duration}, Provider: ${ttsProvider}`);
-
-    // Route to Google TTS multi-speaker (DEFAULT)
-    if (ttsProvider !== 'n8n') {
-      try {
-        const allowedGeminiModels = new Set(['gemini-2.5-flash-tts', 'gemini-2.5-pro-tts']);
-        const ttsModel = typeof body.ttsModel === 'string' ? body.ttsModel.trim() : '';
-        if (ttsModel && !allowedGeminiModels.has(ttsModel)) {
-          return res.status(400).json({
-            success: false,
-            code: 'TTS_MODEL_NOT_SUPPORTED',
-            message: `Unsupported Gemini TTS model: ${ttsModel}`,
-          });
-        }
-
-        const { createGoogleTTSPodcast } = require('../utils/googleTTSMultiSpeaker');
-
-        const result = await createGoogleTTSPodcast({
-          topic,
-          level,
-          duration,
-          styleType: body.styleType,
-          personalityA: body.personalityA,
-          personalityB: body.personalityB,
-          hostSpeakerId: body.hostSpeakerId,
-          guestSpeakerId: body.guestSpeakerId,
-          ttsModel: ttsModel || undefined,
-          includeHumor: body.includeHumor !== false,
-          includeFiller: body.includeFiller !== false,
-          userId: req.user?.id,
-        });
-
-        return res.json(result);
-      } catch (googleErr) {
-        const msg = googleErr?.message || 'Google TTS podcast creation failed';
-        const code = googleErr?.code || null;
-        logger.error('[PODCAST] Google TTS podcast creation failed:', msg);
-
-        if (code === 'GEMINI_INVALID_ARGUMENT' || code === 'TTS_MODEL_NOT_SUPPORTED') {
-          return res.status(400).json({
-            success: false,
-            code,
-            message: msg,
-          });
-        }
-
-        return res.status(500).json({
-          success: false,
-          message: `Google TTS podcast creation failed: ${msg}`,
-        });
-      }
-    }
-
-    // n8n webhook flow (only if explicitly requested with ttsProvider: 'n8n')
-    let serviceConfig = null;
-    try {
-      const { data, error } = await supabase
-        .from('external_services')
-        .select('api_url, api_token')
-        .eq('service_name', 'podcast_generator')
-        .eq('is_active', true)
-        .single();
-      if (error) {
-        logger.warn('[PODCAST] Error loading podcast_generator config from external_services:', error.message);
-      } else {
-        serviceConfig = data;
-      }
-    } catch (configErr) {
-      logger.warn('[PODCAST] Exception loading podcast_generator config:', configErr.message);
-    }
-    const envUrl = process.env.PODCAST_WEBHOOK_URL || process.env.N8N_PODCAST_WEBHOOK_URL;
-    const envToken = process.env.PODCAST_WEBHOOK_TOKEN || process.env.N8N_PODCAST_WEBHOOK_TOKEN;
-    let targetUrl = envUrl || (serviceConfig && serviceConfig.api_url);
-    let targetToken = envToken || (serviceConfig && serviceConfig.api_token) || null;
-=======
     const duration = body.duration != null ? Number(body.duration) : 5;
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
 
     logger.info(`📻 [PODCAST] Creating podcast in-code for topic: "${topic}", level: ${level}, duration: ${duration}min`);
 
@@ -446,28 +360,15 @@ router.post("/create-podcast", authenticate, async (req, res) => {
 
     const audioUrl = podcastResult.audioUrl;
     const vttUrl = podcastResult.vttUrl || '';
-
-    // Use full transcript if available, fallback to description
-    const transcriptText = podcastResult.transcript || podcastResult.description || '';
+    const transcriptText = podcastResult.description || '';
 
     // Generate words and timepoints for frontend player
     let wordsForTiming = null;
     let timepoints = null;
 
-    if (podcastResult.wordTimings) {
-      // Use accurate timings from synthesis loop
-      wordsForTiming = podcastResult.wordTimings.map(t => t.word);
-      timepoints = podcastResult.wordTimings.map((t, idx) => ({
-        word: t.word,
-        timeSeconds: t.startTime,
-        endTimeSeconds: t.endTime,
-        index: idx,
-        hasRealTiming: false, // estimated from turns
-        source: 'turn_estimation'
-      }));
-    } else if (transcriptText) {
-      // Fallback to estimation from text
+    if (transcriptText) {
       wordsForTiming = transcriptText.split(/\s+/).filter(w => w.length > 0);
+      // Simple estimated timepoints (refinement can be done later with MFA)
       const estimatedDurationSec = podcastResult.duration || (duration * 60);
       const avgTimePerWord = estimatedDurationSec / wordsForTiming.length;
       timepoints = wordsForTiming.map((word, index) => ({
@@ -480,86 +381,19 @@ router.post("/create-podcast", authenticate, async (req, res) => {
       }));
     }
 
-    // Generate accurate translation from English transcript to User's Language (defaulting to Turkish per project rules)
-    let translatedText = transcriptText;
-    if (transcriptText) {
-      try {
-<<<<<<< HEAD
-        const tempFileName = `podcast_mfa_${Date.now()}.mp3`;
-        const tempAudioPath = path.join(os.tmpdir(), tempFileName);
-        const audioResp = await fetch(audioUrl);
-        if (audioResp.ok) {
-          const audioBuffer = await audioResp.buffer();
-          await fs.writeFile(tempAudioPath, audioBuffer);
-
-          const voiceChoice = body.voiceChoice ? String(body.voiceChoice) : '';
-          const locale = voiceChoice.includes('GB') ? 'en_GB' : 'en_US';
-
-          const mfaWordTimings = await mfaAligner.generateWordTimestamps(
-            tempAudioPath,
-            transcriptForMFA,
-            locale
-          );
-
-          await fs.unlink(tempAudioPath).catch(() => { });
-
-          if (Array.isArray(mfaWordTimings) && mfaWordTimings.length > 0) {
-            wordsForTiming = transcriptForMFA.split(/\s+/).filter(w => w.length > 0);
-            timepoints = mfaWordTimings.map((timing, index) => ({
-              word: timing.word,
-              timeSeconds: timing.startTime,
-              endTimeSeconds: timing.endTime,
-              index,
-              hasRealTiming: true,
-              source: 'mfa',
-            }));
-            logger.info('[PODCAST] MFA alignment completed for podcast', {
-              timepointCount: timepoints.length,
-            });
-          }
-        } else {
-          logger.warn('[PODCAST] Failed to download audio for MFA alignment', {
-            status: audioResp.status,
-          });
-=======
-        const translationResult = await translateFromEnglish(transcriptText, 'Turkish', level);
-        if (translationResult && translationResult.text) {
-          translatedText = translationResult.text;
-          logger.info(`[PODCAST] Translated transcript to Turkish (${translatedText.length} chars)`);
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
-        }
-      } catch (transErr) {
-        logger.warn('[PODCAST] Failed to translate transcript:', transErr.message);
-      }
-    }
-
     // Save to contenthistory
     let contentHistoryId = null;
     try {
       const userId = req.user && req.user.id;
-<<<<<<< HEAD
-      if (!supabase) {
-        logger.warn('[PODCAST] Supabase client not initialized, skipping contenthistory save');
-      } else if (!userId) {
-        logger.warn('[PODCAST] No user ID on request, skipping contenthistory save');
-      } else {
-        const durationSeconds = Number(n8nResult.duration || n8nResult.duration_seconds || 0) || null;
-        const { calculateTtsCost } = require('../utils/costTracker');
-        const ttsCharacters = typeof transcriptText === 'string' ? transcriptText.length : 0;
-        const ttsCategory = 'Premium';
-        const ttsCostUsd = calculateTtsCost(ttsCharacters, ttsCategory);
-        const totalCostUsd = Number((ttsCostUsd || 0).toFixed(6));
-=======
       if (supabase && userId) {
         const durationSeconds = podcastResult.duration || (duration * 60);
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
         const insertData = {
           user_id: userId,
           level: level || 'B1',
           mp3_url: audioUrl,
           input: topic,
-          translated_text: translatedText, // Turkish
-          adapted_text: transcriptText,    // English (Original)
+          translated_text: transcriptText,
+          adapted_text: transcriptText,
           input_type: 'podcast',
           created_at: new Date().toISOString(),
           words: Array.isArray(wordsForTiming) && wordsForTiming.length > 0 ? JSON.stringify(wordsForTiming) : null,
@@ -568,42 +402,22 @@ router.post("/create-podcast", authenticate, async (req, res) => {
           openai_completion_tokens: 0,
           openai_total_tokens: 0,
           openai_cost_usd: 0,
-<<<<<<< HEAD
-          tts_characters: ttsCharacters,
-          tts_category: ttsCategory,
-          tts_cost_usd: ttsCostUsd,
-          total_cost_usd: totalCostUsd,
-          tts_provider: null,
-          tts_voice_name: null,
-=======
-          tts_characters: transcriptText.length,
+          tts_characters: 0,
           tts_category: 'podcast',
           tts_cost_usd: 0,
           total_cost_usd: 0,
           tts_provider: 'google',
           tts_voice_name: 'en-US-Journey-F,en-US-Journey-D',
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
           audio_duration_seconds: durationSeconds,
           entry_source: 'podcast',
         };
 
-<<<<<<< HEAD
-        logger.info('[PODCAST] Cost fields computed for contenthistory', {
-          tts_characters: insertData.tts_characters,
-          tts_category: insertData.tts_category,
-          tts_cost_usd: insertData.tts_cost_usd,
-          total_cost_usd: insertData.total_cost_usd,
-        });
-
-        logger.info('[PODCAST] Attempting to save podcast to contenthistory', {
+        logger.info('[PODCAST] Saving podcast to contenthistory', {
           userId,
           durationSeconds,
           transcriptLength: transcriptText ? transcriptText.length : 0,
-          insertData: JSON.stringify(insertData).slice(0, 500),
         });
 
-=======
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
         const { data, error } = await supabase
           .from('contenthistory')
           .insert(insertData)
@@ -649,160 +463,7 @@ router.post("/create-podcast", authenticate, async (req, res) => {
       success: false,
       message: 'Failed to create podcast',
       error: error.message,
-      details: error.stack
     });
-  }
-});
-
-// POST /api/tts/create-podcast-async – Async Google podcast creation with notification
-router.post("/create-podcast-async", authenticate, async (req, res) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    // Prevent multiple concurrent async TTS jobs per user
-    const existingJob = jobQueue.getActiveJobForUser(userId);
-    if (existingJob) {
-      logger.info(`[AsyncPodcast] Existing active job ${existingJob.id} for user ${userId}; rejecting new request`);
-      return res.status(409).json({
-        success: false,
-        code: 'TTS_JOB_IN_PROGRESS',
-        message: 'Zaten devam eden bir ses oluşturma işleminiz var. Lütfen bitmesini bekleyin.',
-        jobId: existingJob.id,
-        status: existingJob.status,
-      });
-    }
-
-    const body = req.body || {};
-    const rawTopic = body.topic;
-    const topic = typeof rawTopic === 'string' ? rawTopic.trim() : '';
-    if (!topic) {
-      return res.status(400).json({
-        success: false,
-        message: 'Topic is required'
-      });
-    }
-
-    const level = (body.level || 'B1').toString().toUpperCase();
-    const duration = body.duration != null ? body.duration : 10;
-    const ttsProvider = (body.ttsProvider || 'google').toLowerCase();
-
-    const allowedGeminiModels = new Set(['gemini-2.5-flash-tts', 'gemini-2.5-pro-tts']);
-    const ttsModel = typeof body.ttsModel === 'string' ? body.ttsModel.trim() : '';
-    if (ttsModel && !allowedGeminiModels.has(ttsModel)) {
-      return res.status(400).json({
-        success: false,
-        code: 'TTS_MODEL_NOT_SUPPORTED',
-        message: `Unsupported Gemini TTS model: ${ttsModel}`,
-      });
-    }
-
-    // This async endpoint is for Google multi-speaker podcast generation
-    if (!(ttsProvider === 'google' || ttsProvider === 'google-tts')) {
-      return res.status(400).json({
-        success: false,
-        message: 'Async podcast endpoint only supports Google provider'
-      });
-    }
-
-    const job = jobQueue.createJob(userId, {
-      requestBody: body,
-      kind: 'podcast',
-      provider: 'google',
-    });
-
-    res.json({
-      success: true,
-      jobId: job.id,
-      message: 'Podcast creation started. You will receive a notification when it\'s ready.',
-      estimatedTime: '3-10 minutes'
-    });
-
-    setImmediate(async () => {
-      try {
-        jobQueue.updateJob(job.id, { status: 'processing', progress: 10 });
-        const { createGoogleTTSPodcast } = require('../utils/googleTTSMultiSpeaker');
-
-        const result = await createGoogleTTSPodcast({
-          topic,
-          level,
-          duration,
-          styleType: body.styleType,
-          personalityA: body.personalityA,
-          personalityB: body.personalityB,
-          hostSpeakerId: body.hostSpeakerId,
-          guestSpeakerId: body.guestSpeakerId,
-          ttsModel: ttsModel || undefined,
-          includeHumor: body.includeHumor !== false,
-          includeFiller: body.includeFiller !== false,
-          userId,
-        });
-
-        if (result && result.success) {
-          jobQueue.updateJob(job.id, {
-            status: 'completed',
-            progress: 100,
-            result,
-          });
-
-          const audioUrl = result.mp3_url || result.audio_url || result.podcast_url;
-          const durationSeconds =
-            typeof result.duration_seconds === 'number'
-              ? result.duration_seconds
-              : (typeof result.duration_seconds === 'string' ? parseFloat(result.duration_seconds) : null);
-
-          await sendPushNotification(userId, {
-            title: '🎧 Podcast Hazır!',
-            body: 'Podcastiniz hazır. Dinlemek için tıklayın.',
-            type: 'audio_created',
-            data: {
-              jobId: job.id,
-              audioId: result.contenthistory_id || job.id,
-              mp3_url: audioUrl,
-              title: result.title || topic,
-              level,
-              duration: durationSeconds,
-              contenthistory_id: result.contenthistory_id || null,
-              transcript: result.transcript,
-              dialogue: result.dialogue,
-              dialogue_segments: result.dialogue_segments,
-              words: Array.isArray(result.words) ? result.words : [],
-              timepoints: Array.isArray(result.timepoints) ? result.timepoints : [],
-              vtt_url: result.vtt_url || null,
-              topic,
-            }
-          });
-
-          logger.info(`[AsyncPodcast] Job ${job.id} completed successfully`);
-        } else {
-          const errMsg = result?.message || 'Podcast processing failed';
-          jobQueue.updateJob(job.id, { status: 'failed', error: errMsg });
-          await sendPushNotification(userId, {
-            title: '❌ Podcast Oluşturulamadı',
-            body: errMsg || 'Bir hata oluştu. Lütfen tekrar deneyin.',
-            type: 'audio_failed',
-            data: { jobId: job.id, error: errMsg }
-          });
-          logger.error(`[AsyncPodcast] Job ${job.id} failed: ${errMsg}`);
-        }
-      } catch (error) {
-        const msg = error?.message || 'Podcast processing failed';
-        const code = error?.code || null;
-        logger.error(`[AsyncPodcast] Job ${job.id} error:`, error);
-        jobQueue.updateJob(job.id, { status: 'failed', error: msg });
-        await sendPushNotification(userId, {
-          title: '❌ Podcast Oluşturulamadı',
-          body: 'Bir hata oluştu. Lütfen tekrar deneyin.',
-          type: 'audio_failed',
-          data: { jobId: job.id, error: msg, code }
-        });
-      }
-    });
-  } catch (error) {
-    logger.error('[AsyncPodcast] Error creating job:', error);
-    return res.status(500).json({ success: false, message: error.message });
   }
 });
 

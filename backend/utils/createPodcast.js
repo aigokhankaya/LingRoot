@@ -83,17 +83,15 @@ async function createPodcast(topic, level = 'B1', durationMinutes = 5) {
         const expertVoice = 'en-US-Journey-D';
 
         const audioSegments = [];
+        let combinedText = ""; // For transcript/VTT generation
         const wordTimings = []; // For accurate VTT
-        let transcript = ""; // Full transcript with speakers
         let currentTimeOffset = 0;
 
         // 3. Synthesize Each Turn
         for (const turn of script.dialogue) {
-            const speaker = turn.speaker; // Original case for updated text
+            const speaker = turn.speaker.toLowerCase();
             const text = turn.text;
-            const voiceName = speaker.toLowerCase() === 'host' ? hostVoice : expertVoice;
-
-            transcript += `${speaker}: ${text}\n\n`;
+            const voiceName = speaker === 'host' ? hostVoice : expertVoice;
 
             logger.info(`[${requestId}] Synthesizing turn: ${speaker} (${text.length} chars)`);
 
@@ -108,6 +106,11 @@ async function createPodcast(topic, level = 'B1', durationMinutes = 5) {
 
             if (ttsResult && ttsResult.audioContent) {
                 audioSegments.push(ttsResult.audioContent);
+
+                // Add silence between turns (0.5s)
+                // Note: synthesizeWithGoogle returns raw audio. 
+                // We might need a silence buffer. audioMerger handles just concat.
+                // ideally we would add silence here, but for MVP just concat is fine.
 
                 // Estimate duration for VTT (approximate based on char length if timing not available)
                 // Google TTS returns audioContent, but not timing unless requested.
@@ -162,8 +165,6 @@ async function createPodcast(topic, level = 'B1', durationMinutes = 5) {
             vttUrl: vttPublicUrl || '',
             title: script.title,
             description: script.description,
-            transcript: transcript.trim(),
-            wordTimings: wordTimings,
             duration: currentTimeOffset // estimated
         };
 
