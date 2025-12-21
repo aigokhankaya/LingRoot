@@ -76,8 +76,6 @@ const footerSections = [
     ),
   },
   {
-<<<<<<< HEAD
-=======
     title: 'Telaffuz (Pronunciation)',
     content: (
       <>
@@ -91,7 +89,6 @@ const footerSections = [
     ),
   },
   {
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
     title: 'Kelime Hazinesi (Vocabulary)',
 
     content: (
@@ -100,13 +97,8 @@ const footerSections = [
         LingRoot, öğrenmekte olduğunuz kelimeleri kaydedip listelemenize imkân tanır. Bu özellik sayesinde kendi kişisel kelime defterinizi oluşturabilir, tekrar sıklığını ayarlayabilir ve gelişiminizi izleyebilirsiniz.<br /><br />
         <b>Özellikler:</b><br />
         Kelime ekle, sil, kategoriye ayır<br />
-<<<<<<< HEAD
-        Kelimelerin telaffuzunu dinleme<br />
-        Sık tekrar edilen kelimeler için "öncelik" sistemi
-=======
         Telaffuzla birlikte sesli tekrar<br />
         Sık tekrar edilen kelimeler için &quot;öncelik&quot; sistemi
->>>>>>> f95b00b50895fab8a764f8f2f7e05fbb20fe19db
       </>
     ),
   },
