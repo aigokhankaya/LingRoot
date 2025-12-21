@@ -94,13 +94,14 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   hideText = false,
   uiVariant = 'card'
 }: NewSyncedTextPlayerProps) {
-  
+
   // Use useWordSync hook directly in component
   const {
     activeWordIndex,
     isPlaying,
     isBuffering,
     isLoading,
+    error,
     currentTime,
     duration,
     wordTimestamps,
@@ -114,6 +115,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     originalText
   });
 
+
   // Component local state
   const [playbackRate, setLocalPlaybackRate] = useState<number>(1.0);
   const [highlightType, setHighlightType] = useState<'word' | 'sentence'>('word'); // Kelime vurgusu aktif
@@ -121,11 +123,11 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   const [patterns, setPatterns] = useState<PatternInfo[]>([]);
   const [loadingPatterns, setLoadingPatterns] = useState(false);
   const [selectedPattern, setSelectedPattern] = useState<PatternInfo | null>(null);
-  
+
   // Text processing
   const textWords = originalText.split(/\s+/).filter(word => word.length > 0);
-  const [contextMenu, setContextMenu] = useState<ContextMenu>({ 
-    show: false, x: 0, y: 0, word: '', wordIndex: -1 
+  const [contextMenu, setContextMenu] = useState<ContextMenu>({
+    show: false, x: 0, y: 0, word: '', wordIndex: -1
   });
   const [isAddingWord, setIsAddingWord] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
@@ -143,9 +145,9 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     () =>
       originalText
         ? originalText
-            .split(/\r?\n/)
-            .map(line => line.trim())
-            .filter(line => line.length > 0)
+          .split(/\r?\n/)
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
         : [],
     [originalText]
   );
@@ -190,11 +192,11 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   // Load patterns from backend
   const loadPatterns = async () => {
     if (loadingPatterns || !originalText || !level) return;
-    
+
     try {
       setLoadingPatterns(true);
       console.log(`🔍 [Pattern] Loading patterns for level: ${level}`);
-      
+
       const token = localStorage.getItem('lingroot_token') || localStorage.getItem('auth_token') || localStorage.getItem('userToken');
       const apiUrl = getApiUrl('patterns/find');
       const response = await fetch(apiUrl, {
@@ -205,10 +207,10 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
         },
         body: JSON.stringify({ text: originalText, level })
       });
-      
+
       const data = await response.json();
       console.log(`📊 [Pattern] Found ${data.patterns?.length || 0} patterns`);
-      
+
       if (data.success && data.patterns) {
         setPatterns(data.patterns);
       }
@@ -291,14 +293,14 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   const handleWordClick = async (wordIndex: number) => {
     const timestamp = wordTimestamps[wordIndex];
     const clickedWord = textWords[wordIndex];
-    
+
     console.log(`📍 [WEB WORD PRESS] Clicked word index: ${wordIndex}, word: "${clickedWord}"`);
     console.log(`📍 [WEB WORD PRESS] Timepoints length: ${wordTimestamps.length}, Words length: ${textWords.length}`);
-    
+
     if (timestamp) {
       console.log(`📍 [WEB WORD PRESS] Clicked word from array: "${clickedWord}"`);
       console.log(`📍 [WEB WORD PRESS] Timepoint word: "${timestamp.word}", time=${timestamp.startTime.toFixed(2)}s`);
-      
+
       seek(timestamp.startTime);
     }
 
@@ -358,7 +360,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   // Add word to vocabulary
   const handleAddToVocabulary = async () => {
     if (!contextMenu.word || isAddingWord) return;
-    
+
     setIsAddingWord(true);
     try {
       // Create context from surrounding words
@@ -367,15 +369,15 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
         Math.min(words.length, contextMenu.wordIndex + 6)
       );
       const context = contextWords.join(' ');
-      
+
       // Find original sentence
       const sentences = originalText.split(/[.!?;]+/).map(s => s.trim()).filter(s => s.length > 5);
-      const originalSentence = sentences.find(sentence => 
+      const originalSentence = sentences.find(sentence =>
         sentence.toLowerCase().includes(contextMenu.word.toLowerCase())
       ) || '';
-      
+
       const result = await addWordWithTranslation(contextMenu.word, context, '', originalSentence); // Level boş - OpenAI otomatik belirleyecek
-      
+
       console.log('Kelime başarıyla eklendi:', result);
       alert(`"${contextMenu.word}" kelimesi kelime listenize eklendi!`);
     } catch (error) {
@@ -456,9 +458,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
           return (
             <div
               key={lineIndex}
-              className={`mb-2 rounded-lg px-3 py-2 transition-colors ${
-                isActive ? 'bg-yellow-200 text-yellow-900 border border-yellow-400' : 'bg-white text-gray-800 border border-transparent'
-              }`}
+              className={`mb-2 rounded-lg px-3 py-2 transition-colors ${isActive ? 'bg-yellow-200 text-yellow-900 border border-yellow-400' : 'bg-white text-gray-800 border border-transparent'
+                }`}
               onClick={(e) => {
                 e.stopPropagation();
                 if (seg) {
@@ -482,16 +483,16 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   const renderSentences = () => {
     // Metni cümlelere böl
     const sentences = originalText.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 0);
-    
+
     // Basit cümle vurgusu - current time'a göre yaklaşık hesaplama
     const getCurrentSentenceIndex = () => {
       if (!duration || duration === 0) return -1;
       const progress = currentTime / duration;
       return Math.floor(progress * sentences.length);
     };
-    
+
     const currentSentenceIndex = getCurrentSentenceIndex();
-    
+
     // Genel kelime index'ini hesapla (tüm metindeki kelime sırası için)
     const getWordIndexInText = (sentenceIndex: number, wordIndexInSentence: number) => {
       let totalWords = 0;
@@ -501,11 +502,11 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
       }
       return totalWords + wordIndexInSentence;
     };
-    
+
     return (
-      <div 
+      <div
         className="text-lg leading-relaxed select-text cursor-text"
-        style={{ 
+        style={{
           lineHeight: '2rem',
           overflow: 'hidden',
           position: 'relative',
@@ -518,15 +519,14 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
           textWords.map((word, index) => {
             const isCurrentWord = index === activeWordIndex;
             const timestamp = wordTimestamps[index];
-            
+
             return (
               <span
                 key={index}
-                className={`inline-block cursor-pointer transition-all duration-200 mx-1 px-2 py-1 rounded ${
-                  isCurrentWord 
-                    ? 'bg-yellow-300 text-yellow-900 font-semibold shadow-md scale-105' 
+                className={`inline-block cursor-pointer transition-all duration-200 mx-1 px-2 py-1 rounded ${isCurrentWord
+                    ? 'bg-yellow-300 text-yellow-900 font-semibold shadow-md scale-105'
                     : 'text-gray-800 hover:bg-gray-100'
-                }`}
+                  }`}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (timestamp) {
@@ -534,8 +534,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
                   }
                 }}
                 onContextMenu={(e) => handleWordRightClick(e, word, index)}
-                title={timestamp ? 
-                  `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s` : 
+                title={timestamp ?
+                  `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s` :
                   `Kelime ${index + 1}`
                 }
               >
@@ -548,15 +548,14 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
           sentences.map((sentence, sentenceIndex) => {
             const isCurrentSentence = sentenceIndex === currentSentenceIndex;
             const words = sentence.split(/\s+/).filter(word => word.length > 0);
-            
+
             return (
               <span
                 key={sentenceIndex}
-                className={`inline-block mx-1 my-1 transition-all duration-200 font-normal ${
-                  isCurrentSentence 
-                    ? 'bg-primary/10 text-primary px-3 py-2 rounded-lg shadow-lg border-2 border-primary/40' 
+                className={`inline-block mx-1 my-1 transition-all duration-200 font-normal ${isCurrentSentence
+                    ? 'bg-primary/10 text-primary px-3 py-2 rounded-lg shadow-lg border-2 border-primary/40'
                     : 'text-gray-800 px-2 py-1 hover:bg-gray-100 rounded'
-                }`}
+                  }`}
                 title={`Cümle ${sentenceIndex + 1}`}
                 style={{
                   minHeight: '2rem',
@@ -599,25 +598,25 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   // Calculate pattern ranges with useMemo
   const patternRanges = useMemo(() => {
     console.log(`🎨 [Pattern Ranges] showPatterns: ${showPatterns}, patterns.length: ${patterns.length}`);
-    
+
     if (!showPatterns || patterns.length === 0) {
       console.log(`⚠️ [Pattern Ranges] Returning empty - showPatterns: ${showPatterns}, patterns: ${patterns.length}`);
       return [];
     }
-    
+
     const ranges: Array<{ startIndex: number; endIndex: number; patternData: PatternInfo }> = [];
-    
+
     for (const pData of patterns) {
       const phrase = pData.pattern.toLowerCase();
       const phraseWords = phrase.split(/\s+/);
       const phraseLength = phraseWords.length;
-      
+
       console.log(`🔍 [Pattern] Searching for: "${phrase}" (${phraseLength} words)`);
-      
+
       for (let startIdx = 0; startIdx <= textWords.length - phraseLength; startIdx++) {
         const candidateWords = textWords.slice(startIdx, startIdx + phraseLength);
         const candidatePhrase = candidateWords.map(w => w.toLowerCase().replace(/[.,!?;:]/g, '')).join(' ');
-        
+
         if (candidatePhrase === phrase) {
           console.log(`✅ [Pattern] Found "${phrase}" at index ${startIdx}-${startIdx + phraseLength - 1}`);
           ranges.push({
@@ -628,7 +627,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
         }
       }
     }
-    
+
     console.log(`📊 [Pattern Ranges] Total ranges found: ${ranges.length}`);
     return ranges;
   }, [showPatterns, patterns, textWords]);
@@ -648,23 +647,22 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
   const renderWords = () => {
     const elements: React.ReactNode[] = [];
     let index = 0;
-    
+
     while (index < textWords.length) {
       const patternEntry = patternStartMap.get(index);
-      
+
       if (patternEntry) {
         const { endIndex, patternData } = patternEntry;
         const phraseWords = textWords.slice(index, endIndex + 1);
         const phraseText = phraseWords.join(' ');
         const patternStartIndex = index;
         const isActive = activeWordIndex >= patternStartIndex && activeWordIndex <= endIndex;
-        
+
         elements.push(
           <span
             key={`pattern-${patternStartIndex}`}
-            className={`inline-flex cursor-pointer transition-all duration-150 px-3 py-1 rounded-xl border-2 ${
-              isActive ? 'bg-yellow-300 border-yellow-500 shadow-lg' : 'bg-yellow-100 border-yellow-300'
-            }`}
+            className={`inline-flex cursor-pointer transition-all duration-150 px-3 py-1 rounded-xl border-2 ${isActive ? 'bg-yellow-300 border-yellow-500 shadow-lg' : 'bg-yellow-100 border-yellow-300'
+              }`}
             style={{
               margin: '0.1rem 0.25rem',
               alignItems: 'center',
@@ -679,23 +677,22 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
             <span className="text-gray-900 font-medium">{phraseText}</span>
           </span>
         );
-        
+
         index = endIndex + 1;
         continue;
       }
-      
+
       const word = textWords[index];
       const isCurrentWord = index === activeWordIndex;
       const timestamp = wordTimestamps[index];
-      
+
       elements.push(
         <span
           key={`word-${index}`}
-          className={`inline-block cursor-pointer transition-all duration-75 hover:text-primary font-normal ${
-            isCurrentWord 
-              ? 'bg-yellow-300 text-yellow-900 rounded-md shadow-md scale-105' 
+          className={`inline-block cursor-pointer transition-all duration-75 hover:text-primary font-normal ${isCurrentWord
+              ? 'bg-yellow-300 text-yellow-900 rounded-md shadow-md scale-105'
               : 'text-gray-800'
-          }`}
+            }`}
           onClick={(e) => {
             e.stopPropagation();
             if (timestamp) {
@@ -703,8 +700,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
             }
           }}
           onContextMenu={(e) => handleWordRightClick(e, word, index)}
-          title={timestamp ? 
-            `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s` : 
+          title={timestamp ?
+            `Kelime ${index + 1}: ${timestamp.startTime.toFixed(2)}s` :
             'Timing bilgisi yok'
           }
           style={{
@@ -724,14 +721,14 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
           {word}
         </span>
       );
-      
+
       index += 1;
     }
-    
+
     return (
-      <div 
+      <div
         className="text-lg leading-relaxed select-text cursor-text"
-        style={{ 
+        style={{
           lineHeight: '1.8rem',
           // Prevent layout shifts
           overflow: 'hidden',
@@ -750,6 +747,23 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         <span className="ml-3">Audio yükleniyor...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-red-600 bg-red-50 rounded-lg border border-red-200">
+        <div className="flex items-center mb-2">
+          <i className="fas fa-exclamation-circle mr-2 text-xl"></i>
+          <span className="font-semibold">Ses Yükleme Hatası</span>
+        </div>
+        <div className="text-sm text-center">
+          {error}
+          <div className="mt-2 text-xs text-gray-500 font-mono break-all max-w-full">
+            {audioUrl}
+          </div>
+        </div>
       </div>
     );
   }
@@ -845,11 +859,10 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
                   setShowPatterns(!showPatterns);
                 }}
                 disabled={loadingPatterns}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  showPatterns 
-                    ? 'bg-yellow-500 hover:bg-yellow-600 text-white' 
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                }`}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${showPatterns
+                  ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
                 title="Günlük kullanım kalıplarını göster"
               >
                 {loadingPatterns ? (

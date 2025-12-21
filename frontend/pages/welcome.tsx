@@ -365,7 +365,6 @@ const Welcome: React.FC = () => {
   // Podcast state'leri
   const [podcastTopic, setPodcastTopic] = useState<string>('');
   const [podcastDuration, setPodcastDuration] = useState<number>(5); // Podcast için varsayılan 5 dk
-  const [podcastTtsProvider, setPodcastTtsProvider] = useState<string>('n8n'); // TTS Provider: 'n8n' or 'google'
   const [podcastStyleType, setPodcastStyleType] = useState<string>('friendly_chat');
   const [podcastVoiceChoice, setPodcastVoiceChoice] = useState<string>('english_female');
   const [podcastHostSpeakerId, setPodcastHostSpeakerId] = useState<string>('Kore');
@@ -578,14 +577,14 @@ const Welcome: React.FC = () => {
     setPodcastError(null);
 
     try {
-      // Podcast creation params - supports both n8n and Google TTS providers
+      // Podcast creation params - hardcoded to Google TTS
       const params: PodcastCreationParams = {
         topic: podcastTopic,
         level: englishLevel.toUpperCase(),
         duration: podcastDuration,
-        ttsProvider: podcastTtsProvider,
-        hostSpeakerId: podcastTtsProvider === 'google' ? podcastHostSpeakerId : undefined,
-        guestSpeakerId: podcastTtsProvider === 'google' ? podcastGuestSpeakerId : undefined,
+        ttsProvider: 'google',
+        hostSpeakerId: podcastHostSpeakerId,
+        guestSpeakerId: podcastGuestSpeakerId,
         styleType: podcastStyleType,
         voiceChoice: podcastVoiceChoice,
         personalityA: podcastPersonalityA,
@@ -596,7 +595,7 @@ const Welcome: React.FC = () => {
 
       console.log('🎙️ [PODCAST] Creating podcast with params:', params);
       const result = await createPodcast(params);
-      
+
       console.log('🎙️ [PODCAST] Raw result from createPodcast:', {
         success: result?.success,
         podcast_url: result?.podcast_url,
@@ -613,7 +612,7 @@ const Welcome: React.FC = () => {
         const topic = result.data?.metadata?.topic || podcastTopic;
         const transcriptText = result.transcript || result.message || topic;
         const dialogueText = result.dialogue || '';
-        
+
         console.log('🎙️ [PODCAST] Dialogue check:', {
           hasDialogue: !!result.dialogue,
           dialogueLength: result.dialogue?.length || 0,
@@ -2659,75 +2658,38 @@ const Welcome: React.FC = () => {
                     {/* Podcast sekmesi */}
                     {contentType === 'podcast' && (
                       <div className="space-y-4">
-                        {/* TTS Provider Seçici - En Üstte */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            <i className="fas fa-microphone-alt mr-2"></i>
-                            {t('welcome_podcast_tts_provider_label') || 'Ses Motoru'}
-                          </label>
-                          <div className="grid grid-cols-2 gap-3">
-                            <button
-                              type="button"
-                              onClick={() => setPodcastTtsProvider('n8n')}
-                              className={`p-4 rounded-lg border-2 transition-all text-center ${podcastTtsProvider === 'n8n'
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
-                                }`}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              {t('welcome_podcast_host_voice_label') || 'Host Voice'}
+                            </label>
+                            <select
+                              value={podcastHostSpeakerId}
+                              onChange={(e) => setPodcastHostSpeakerId(e.target.value)}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                             >
-                              <div className="font-semibold">n8n Workflow</div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                {t('welcome_podcast_n8n_description') || 'Mevcut podcast yapısı'}
-                              </div>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPodcastTtsProvider('google')}
-                              className={`p-4 rounded-lg border-2 transition-all text-center ${podcastTtsProvider === 'google'
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
-                                }`}
+                              {GEMINI_PODCAST_SPEAKERS.map((v) => (
+                                <option key={v.value} value={v.value}>{v.label}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              {t('welcome_podcast_guest_voice_label') || 'Guest Voice'}
+                            </label>
+                            <select
+                              value={podcastGuestSpeakerId}
+                              onChange={(e) => setPodcastGuestSpeakerId(e.target.value)}
+                              className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
                             >
-                              <div className="font-semibold">Google TTS</div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                {t('welcome_podcast_google_description') || 'Gemini Multi-Voice'}
-                              </div>
-                            </button>
+                              {GEMINI_PODCAST_SPEAKERS.map((v) => (
+                                <option key={v.value} value={v.value}>{v.label}</option>
+                              ))}
+                            </select>
                           </div>
                         </div>
 
-                        {podcastTtsProvider === 'google' && (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                {t('welcome_podcast_host_voice_label') || 'Host Voice'}
-                              </label>
-                              <select
-                                value={podcastHostSpeakerId}
-                                onChange={(e) => setPodcastHostSpeakerId(e.target.value)}
-                                className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
-                              >
-                                {GEMINI_PODCAST_SPEAKERS.map((v) => (
-                                  <option key={v.value} value={v.value}>{v.label}</option>
-                                ))}
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                {t('welcome_podcast_guest_voice_label') || 'Guest Voice'}
-                              </label>
-                              <select
-                                value={podcastGuestSpeakerId}
-                                onChange={(e) => setPodcastGuestSpeakerId(e.target.value)}
-                                className="w-full p-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-primary"
-                              >
-                                {GEMINI_PODCAST_SPEAKERS.map((v) => (
-                                  <option key={v.value} value={v.value}>{v.label}</option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        )}
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2768,6 +2730,7 @@ const Welcome: React.FC = () => {
                           </p>
                         </div>
 
+                        {/* Hidden Fields for Podcast Configuration - Defaults are used
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2859,6 +2822,7 @@ const Welcome: React.FC = () => {
                             <span className="text-sm text-gray-700">{t('welcome_filler_words_label')}</span>
                           </label>
                         </div>
+                        */}
 
                         <div className="flex justify-center pt-2">
                           <Button
@@ -3631,15 +3595,17 @@ const Welcome: React.FC = () => {
           </Card>
 
           {/* Konu Ağacım - sadece konu ağacı sekmesi seçiliyken, Ses Ayarları kartının altında */}
-          {contentType === 'topic_tree' && user && (
-            <div className="mt-8">
-              <TopicHierarchySection
-                userId={user.id}
-                level={englishLevel}
-                targetDurationMinutes={contentDuration}
-              />
-            </div>
-          )}
+          {
+            contentType === 'topic_tree' && user && (
+              <div className="mt-8">
+                <TopicHierarchySection
+                  userId={user.id}
+                  level={englishLevel}
+                  targetDurationMinutes={contentDuration}
+                />
+              </div>
+            )
+          }
 
           <div className="flex justify-center mt-8">
             <Button
@@ -3662,297 +3628,301 @@ const Welcome: React.FC = () => {
           </div>
 
           {/* Output Section */}
-          {audioResult && (
-            <Card className="mt-8 border-none shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center mb-6">
-                  <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-bold mr-4">
-                    <i className="fas fa-check"></i>
+          {
+            audioResult && (
+              <Card className="mt-8 border-none shadow-lg">
+                <CardContent className="p-6">
+                  <div className="flex items-center mb-6">
+                    <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-bold mr-4">
+                      <i className="fas fa-check"></i>
+                    </div>
+                    <h2 className="text-2xl font-bold text-green-600">{t('welcome_audio_created_title')}</h2>
                   </div>
-                  <h2 className="text-2xl font-bold text-green-600">{t('welcome_audio_created_title')}</h2>
-                </div>
-                <OutputSection
-                  audioResult={audioResult}
-                  isLoggedIn={isAuthenticated}
-                />
-              </CardContent>
-            </Card>
-          )}
+                  <OutputSection
+                    audioResult={audioResult}
+                    isLoggedIn={isAuthenticated}
+                  />
+                </CardContent>
+              </Card>
+            )
+          }
 
           {/* Content History Section */}
-          {isAuthenticated && (
-            <Card className="mt-12 border border-border shadow-lg rounded-2xl bg-white">
-              <CardContent className="p-6">
-                <div className="flex flex-col gap-4 mb-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold mr-4 shadow-sm">
-                        <i className="fas fa-history"></i>
-                      </div>
-                      <h2 className="text-2xl font-bold text-primary tracking-tight">{t('welcome_audio_history_title')}</h2>
-                    </div>
-                    <Button
-                      onClick={fetchContentHistory}
-                      variant="outline"
-                      className="!rounded-button whitespace-nowrap cursor-pointer"
-                      disabled={loadingHistory}
-                    >
-                      {loadingHistory ? (
-                        <>
-                          <i className="fas fa-circle-notch fa-spin mr-2"></i>
-                          {t('welcome_loading')}
-                        </>
-                      ) : (
-                        <>
-                          <i className="fas fa-refresh mr-2"></i>
-                          {t('welcome_refresh')}
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 justify-between">
-                    <div className="flex flex-wrap gap-2">
-                      {historyTypeOptions.map((option) => {
-                        const isActive = activeHistoryTypes.includes(option.id);
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => {
-                              setActiveHistoryTypes((prev) => {
-                                const exists = prev.includes(option.id);
-                                if (exists) {
-                                  // En az bir filtre daima açık kalsın
-                                  const next = prev.filter((t) => t !== option.id);
-                                  return next.length === 0 ? prev : next;
-                                }
-                                return [...prev, option.id];
-                              });
-                            }}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${isActive
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                              }`}
-                          >
-                            {option.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="text-xs text-gray-500 whitespace-nowrap">
-                      {filteredHistory.length} {t('records_viewing_suffix')}
-                    </div>
-                  </div>
-                </div>
-
-                {loadingHistory ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-                  </div>
-                ) : filteredHistory.length > 0 ? (
-                  <div className="space-y-4">
-                    {historyToRender.map((item) => (
-                      <div
-                        key={item.id}
-                        className="bg-white rounded-xl border border-gray-200 hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden"
-                      >
-                        {/* Compact Header - Always Visible */}
-                        <div
-                          className="p-4 md:p-5 cursor-pointer hover:bg-primary/5 transition-colors"
-                          onClick={() => {
-                            console.log('🎯 [HISTORY DEBUG] Item clicked:', {
-                              itemId: item.id,
-                              currentExpanded: expandedHistoryItem,
-                              willBeExpanded: expandedHistoryItem === item.id ? null : item.id,
-                              mp3_url: item.mp3_url,
-                              hasTimepoints: !!item.timepoints,
-                              timepointsLength: item.timepoints?.length || 0
-                            });
-                            setExpandedHistoryItem(expandedHistoryItem === item.id ? null : item.id);
-                          }}
-                        >
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2 text-xs">
-                                <Badge variant="outline" className="text-xs">
-                                  {getHistoryTypeLabel(item.input_type)}
-                                </Badge>
-                                <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
-                                  {item.level || 'N/A'}
-                                </Badge>
-                                <span className="text-xs text-gray-500">
-                                  {new Date(item.created_at).toLocaleDateString('tr-TR', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
-                                </span>
-                              </div>
-                              <div className="mb-3">
-                                <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">{t('welcome_adapted_text_label')}</h4>
-                                <p className="text-sm text-gray-700 line-clamp-2">
-                                  {item.adapted_text || item.input}
-                                </p>
-                                {item.adapted_text && (
-                                  <details className="mt-2">
-                                    <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
-                                      {t('welcome_show_original_text')}
-                                    </summary>
-                                    <p className="text-xs text-gray-500 mt-1 p-2 bg-gray-100 rounded">
-                                      {item.input}
-                                    </p>
-                                  </details>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="text-xs text-gray-500">
-                                {expandedHistoryItem === item.id ? t('collapse_button') : t('open_player_button')}
-                              </div>
-                              <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
-                            </div>
-                          </div>
+          {
+            isAuthenticated && (
+              <Card className="mt-12 border border-border shadow-lg rounded-2xl bg-white">
+                <CardContent className="p-6">
+                  <div className="flex flex-col gap-4 mb-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold mr-4 shadow-sm">
+                          <i className="fas fa-history"></i>
                         </div>
+                        <h2 className="text-2xl font-bold text-primary tracking-tight">{t('welcome_audio_history_title')}</h2>
+                      </div>
+                      <Button
+                        onClick={fetchContentHistory}
+                        variant="outline"
+                        className="!rounded-button whitespace-nowrap cursor-pointer"
+                        disabled={loadingHistory}
+                      >
+                        {loadingHistory ? (
+                          <>
+                            <i className="fas fa-circle-notch fa-spin mr-2"></i>
+                            {t('welcome_loading')}
+                          </>
+                        ) : (
+                          <>
+                            <i className="fas fa-refresh mr-2"></i>
+                            {t('welcome_refresh')}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 justify-between">
+                      <div className="flex flex-wrap gap-2">
+                        {historyTypeOptions.map((option) => {
+                          const isActive = activeHistoryTypes.includes(option.id);
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              onClick={() => {
+                                setActiveHistoryTypes((prev) => {
+                                  const exists = prev.includes(option.id);
+                                  if (exists) {
+                                    // En az bir filtre daima açık kalsın
+                                    const next = prev.filter((t) => t !== option.id);
+                                    return next.length === 0 ? prev : next;
+                                  }
+                                  return [...prev, option.id];
+                                });
+                              }}
+                              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${isActive
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                                }`}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="text-xs text-gray-500 whitespace-nowrap">
+                        {filteredHistory.length} {t('records_viewing_suffix')}
+                      </div>
+                    </div>
+                  </div>
 
-                        {/* Expanded Player View - Toggleable */}
-                        {expandedHistoryItem === item.id && (
-                          <div className="border-t border-gray-200 bg-white p-6">
-                            {/* GİZLENDİ - Senkronize Oynatıcı başlığı ve debug console.log */}
-
-                            {/* Use OutputSection component for full functionality */}
-                            {(() => {
-                              const looksLikeDialogueTranscript = (text: any) => {
-                                if (!text || typeof text !== 'string') return false;
-                                return /^(Speaker\s+[AB]|Host|Guest):/im.test(text);
-                              };
-
-                              const audioResult = {
-                                message: item.adapted_text || item.input,
+                  {loadingHistory ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                    </div>
+                  ) : filteredHistory.length > 0 ? (
+                    <div className="space-y-4">
+                      {historyToRender.map((item) => (
+                        <div
+                          key={item.id}
+                          className="bg-white rounded-xl border border-gray-200 hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden"
+                        >
+                          {/* Compact Header - Always Visible */}
+                          <div
+                            className="p-4 md:p-5 cursor-pointer hover:bg-primary/5 transition-colors"
+                            onClick={() => {
+                              console.log('🎯 [HISTORY DEBUG] Item clicked:', {
+                                itemId: item.id,
+                                currentExpanded: expandedHistoryItem,
+                                willBeExpanded: expandedHistoryItem === item.id ? null : item.id,
                                 mp3_url: item.mp3_url,
-                                vtt_url: item.mp3_url.replace('.mp3', '.vtt'), // Assume VTT exists
-                                level: item.level,
-                                adapted_text: item.adapted_text || item.input,
-                                translated_text: item.translated_text || item.input,
-                                dialogue: looksLikeDialogueTranscript(item.translated_text) ? item.translated_text : undefined,
-                                topic: getHistoryTypeLabel(item.input_type),
-                                input_type: item.input_type,
-                                dialogue_segments: Array.isArray((item as any).dialogue_segments)
-                                  ? (item as any).dialogue_segments
-                                  : (item as any).dialogue_segments
-                                    ? JSON.parse((item as any).dialogue_segments)
-                                    : undefined,
-                                timepoints: (() => {
-                                  try {
-                                    if (Array.isArray(item.timepoints)) return item.timepoints;
-                                    if (typeof item.timepoints === 'string') return JSON.parse(item.timepoints);
-                                    return [];
-                                  } catch (e) {
-                                    console.error('Error parsing timepoints:', e);
-                                    return [];
-                                  }
-                                })(),
-                                words: (() => {
-                                  try {
-                                    return Array.isArray(item.words) ? item.words : (item.words ? JSON.parse(item.words) : (item.adapted_text || item.input).split(/\s+/).filter(word => word.length > 0));
-                                  } catch (e) {
-                                    console.warn('Failed to parse words:', e);
-                                    return (item.adapted_text || item.input).split(/\s+/).filter(word => word.length > 0);
-                                  }
-                                })(),
-                                original_turkish: item.input,
-                                speaking_rate: 1.0
-                              };
-
-                              console.log('🔍 [OUTPUT DEBUG] About to pass to OutputSection:', {
-                                hasMessage: !!audioResult.message,
-                                hasMp3Url: !!audioResult.mp3_url,
-                                messageLength: audioResult.message?.length || 0,
-                                timepointsLength: audioResult.timepoints?.length || 0,
-                                wordsLength: audioResult.words?.length || 0,
-                                mp3_url: audioResult.mp3_url,
-                                firstFewWords: audioResult.words?.slice(0, 5)
+                                hasTimepoints: !!item.timepoints,
+                                timepointsLength: item.timepoints?.length || 0
                               });
-
-                              return (
-                                <OutputSection
-                                  audioResult={audioResult}
-                                  isLoggedIn={isAuthenticated}
-                                />
-                              );
-                            })()}
-
-                            {/* Quick actions */}
-                            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="!rounded-button whitespace-nowrap cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  window.open(convertToPlayableUrl(item.mp3_url), '_blank');
-                                }}
-                              >
-                                <i className="fas fa-external-link-alt mr-2"></i>
-                                {t('open_in_new_tab')}
-                              </Button>
-
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="!rounded-button whitespace-nowrap cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedHistoryItem(null);
-                                }}
-                              >
-                                <i className="fas fa-times mr-2"></i>
-                                {t('close_button')}
-                              </Button>
+                              setExpandedHistoryItem(expandedHistoryItem === item.id ? null : item.id);
+                            }}
+                          >
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2 text-xs">
+                                  <Badge variant="outline" className="text-xs">
+                                    {getHistoryTypeLabel(item.input_type)}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
+                                    {item.level || 'N/A'}
+                                  </Badge>
+                                  <span className="text-xs text-gray-500">
+                                    {new Date(item.created_at).toLocaleDateString('tr-TR', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                </div>
+                                <div className="mb-3">
+                                  <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">{t('welcome_adapted_text_label')}</h4>
+                                  <p className="text-sm text-gray-700 line-clamp-2">
+                                    {item.adapted_text || item.input}
+                                  </p>
+                                  {item.adapted_text && (
+                                    <details className="mt-2">
+                                      <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+                                        {t('welcome_show_original_text')}
+                                      </summary>
+                                      <p className="text-xs text-gray-500 mt-1 p-2 bg-gray-100 rounded">
+                                        {item.input}
+                                      </p>
+                                    </details>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="text-xs text-gray-500">
+                                  {expandedHistoryItem === item.id ? t('collapse_button') : t('open_player_button')}
+                                </div>
+                                <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
+                              </div>
                             </div>
                           </div>
-                        )}
-                      </div>
-                    ))}
 
-                    {contentHistory.length > 5 && (
-                      <div className="text-center pt-4">
-                        <Button
-                          variant="outline"
-                          className="!rounded-button whitespace-nowrap cursor-pointer"
-                          onClick={() => setShowAllHistory(!showAllHistory)}
-                        >
-                          <i className={`fas ${showAllHistory ? 'fa-chevron-up' : 'fa-chevron-down'} mr-2`}></i>
-                          {showAllHistory ? t('welcome_show_less') : t('welcome_show_more')}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="text-gray-400 mb-4">
-                      <i className="fas fa-microphone-slash text-4xl"></i>
+                          {/* Expanded Player View - Toggleable */}
+                          {expandedHistoryItem === item.id && (
+                            <div className="border-t border-gray-200 bg-white p-6">
+                              {/* GİZLENDİ - Senkronize Oynatıcı başlığı ve debug console.log */}
+
+                              {/* Use OutputSection component for full functionality */}
+                              {(() => {
+                                const looksLikeDialogueTranscript = (text: any) => {
+                                  if (!text || typeof text !== 'string') return false;
+                                  return /^(Speaker\s+[AB]|Host|Guest):/im.test(text);
+                                };
+
+                                const audioResult = {
+                                  message: item.adapted_text || item.input,
+                                  mp3_url: item.mp3_url,
+                                  vtt_url: item.mp3_url.replace('.mp3', '.vtt'), // Assume VTT exists
+                                  level: item.level,
+                                  adapted_text: item.adapted_text || item.input,
+                                  translated_text: item.translated_text || item.input,
+                                  dialogue: looksLikeDialogueTranscript(item.translated_text) ? item.translated_text : undefined,
+                                  topic: getHistoryTypeLabel(item.input_type),
+                                  input_type: item.input_type,
+                                  dialogue_segments: Array.isArray((item as any).dialogue_segments)
+                                    ? (item as any).dialogue_segments
+                                    : (item as any).dialogue_segments
+                                      ? JSON.parse((item as any).dialogue_segments)
+                                      : undefined,
+                                  timepoints: (() => {
+                                    try {
+                                      if (Array.isArray(item.timepoints)) return item.timepoints;
+                                      if (typeof item.timepoints === 'string') return JSON.parse(item.timepoints);
+                                      return [];
+                                    } catch (e) {
+                                      console.error('Error parsing timepoints:', e);
+                                      return [];
+                                    }
+                                  })(),
+                                  words: (() => {
+                                    try {
+                                      return Array.isArray(item.words) ? item.words : (item.words ? JSON.parse(item.words) : (item.adapted_text || item.input).split(/\s+/).filter(word => word.length > 0));
+                                    } catch (e) {
+                                      console.warn('Failed to parse words:', e);
+                                      return (item.adapted_text || item.input).split(/\s+/).filter(word => word.length > 0);
+                                    }
+                                  })(),
+                                  original_turkish: item.input,
+                                  speaking_rate: 1.0
+                                };
+
+                                console.log('🔍 [OUTPUT DEBUG] About to pass to OutputSection:', {
+                                  hasMessage: !!audioResult.message,
+                                  hasMp3Url: !!audioResult.mp3_url,
+                                  messageLength: audioResult.message?.length || 0,
+                                  timepointsLength: audioResult.timepoints?.length || 0,
+                                  wordsLength: audioResult.words?.length || 0,
+                                  mp3_url: audioResult.mp3_url,
+                                  firstFewWords: audioResult.words?.slice(0, 5)
+                                });
+
+                                return (
+                                  <OutputSection
+                                    audioResult={audioResult}
+                                    isLoggedIn={isAuthenticated}
+                                  />
+                                );
+                              })()}
+
+                              {/* Quick actions */}
+                              <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="!rounded-button whitespace-nowrap cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(convertToPlayableUrl(item.mp3_url), '_blank');
+                                  }}
+                                >
+                                  <i className="fas fa-external-link-alt mr-2"></i>
+                                  {t('open_in_new_tab')}
+                                </Button>
+
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="!rounded-button whitespace-nowrap cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedHistoryItem(null);
+                                  }}
+                                >
+                                  <i className="fas fa-times mr-2"></i>
+                                  {t('close_button')}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {contentHistory.length > 5 && (
+                        <div className="text-center pt-4">
+                          <Button
+                            variant="outline"
+                            className="!rounded-button whitespace-nowrap cursor-pointer"
+                            onClick={() => setShowAllHistory(!showAllHistory)}
+                          >
+                            <i className={`fas ${showAllHistory ? 'fa-chevron-up' : 'fa-chevron-down'} mr-2`}></i>
+                            {showAllHistory ? t('welcome_show_less') : t('welcome_show_more')}
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    <h3 className="text-lg font-medium text-gray-500 mb-2">{t('welcome_no_audio_yet')}</h3>
-                    <p className="text-gray-400">{t('welcome_no_audio_hint')}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-gray-400 mb-4">
+                        <i className="fas fa-microphone-slash text-4xl"></i>
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-500 mb-2">{t('welcome_no_audio_yet')}</h3>
+                      <p className="text-gray-400">{t('welcome_no_audio_hint')}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          }
+        </div >
+      </div >
 
       {/* Welcome Popup */}
-      <WelcomePopup
+      < WelcomePopup
         isOpen={showWelcomePopup}
         onClose={() => setShowWelcomePopup(false)}
         userEmail={user?.email}
       />
 
       <Footer />
-    </div>
+    </div >
   );
 };
 

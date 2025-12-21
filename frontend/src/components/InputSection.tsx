@@ -14,11 +14,7 @@ interface InputSectionProps {
   isLoading: boolean;
 }
 
-// Polly'nin desteklediği İngilizce sesler (örnek, tam liste için backend'den çekilebilir)
-const POLLY_VOICES = [
-  { Id: 'en-US-Wavenet-F', Name: 'en-US-Wavenet-F', LanguageName: 'English (US)', Gender: 'Female', Engine: 'Neural' },
-  { Id: 'Amy', Name: 'Amy', LanguageName: 'English (UK)', Gender: 'Female', Engine: 'Neural' },
-];
+
 
 // Kitap metnini bölümlere ayıran fonksiyon (örnek: Chapter/Letter başlıkları)
 function splitBookIntoChapters(bookText: string) {
@@ -76,7 +72,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   const [bookChapters, setBookChapters] = useState<{ title: string; content: string }[]>([]);
   const [selectedChapterIdx, setSelectedChapterIdx] = useState<number | null>(null);
   const [bookLoading, setBookLoading] = useState<boolean>(false);
-  const [ttsProvider, setTtsProvider] = useState<'amazon' | 'google'>('google');
+
   const [interests, setInterests] = useState<string[]>([]);
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
@@ -104,17 +100,7 @@ export default function InputSection({ onSubmit, isLoading }: InputSectionProps)
   }, [level]);
 
   useEffect(() => {
-    // TTS provider bilgisini backend'den çek
-    const fetchProvider = async () => {
-      try {
-        const res = await fetch('/api/admin/settings/tts-provider');
-        const data = await res.json();
-        setTtsProvider(data.tts_provider || 'google');
-      } catch {
-        setTtsProvider('google');
-      }
-    };
-    fetchProvider();
+
     // Google seslerini çek
     const backendUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
       ? 'http://localhost:5001/api/tts/voices'
