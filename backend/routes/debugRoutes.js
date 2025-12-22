@@ -4,6 +4,7 @@ const logger = require('../utils/logger');
 const { authenticate } = require('../middleware/auth');
 const userProfileAnalyzer = require('../utils/userProfileAnalyzer');
 const liroPromptGenerator = require('../utils/liroPromptGenerator');
+const userInsightService = require('../services/userInsightService');
 
 // Debug endpoint: Son TTS isteğinin timing kalitesini göster
 let lastTTSDebugInfo = null;
@@ -25,15 +26,15 @@ router.get('/tts-debug', (req, res) => {
 router.get('/user-profile', authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
-    
+
     logger.info(`🔍 Debugging user profile for: ${userId}`);
-    
+
     // Profil oluştur
     const userProfile = await userProfileAnalyzer.generateUserProfile(userId);
-    
+
     // Liro prompt'u oluştur
     const liroPrompt = liroPromptGenerator.generateSystemPrompt(userProfile);
-    
+
     res.json({
       success: true,
       userId,
@@ -53,6 +54,53 @@ router.get('/user-profile', authenticate, async (req, res) => {
     });
   } catch (error) {
     logger.error('Failed to generate debug profile:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 🔄 User Insight Backfill: Geçmiş verilerden insight çıkar
+router.post('/insights/backfill', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    logger.info(`🔄 Starting insight backfill for user: ${userId}`);
+
+    const report = await userInsightService.analyzeUserHistory(userId);
+
+    res.json({
+      success: true,
+      message: `Backfill tamamlandı: ${report.extractedInsights.length} yeni insight çıkarıldı`,
+      report
+    });
+  } catch (error) {
+    logger.error('Insight backfill failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 📊 User Insights: Mevcut insight'ları getir
+router.get('/insights', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const insights = await userInsightService.getInsights(userId);
+    const stats = await userInsightService.getStats(userId);
+
+    res.json({
+      success: true,
+      userId,
+      insights,
+      stats,
+      formattedPrompt: userInsightService.formatForPrompt(insights)
+    });
+  } catch (error) {
+    logger.error('Failed to get insights:', error);
     res.status(500).json({
       success: false,
       error: error.message

@@ -107,7 +107,8 @@ const App: React.FC = () => {
         try {
             const result = await login(loginForm.email, loginForm.password, loginForm.rememberMe);
             if (result.success) {
-                setIsLoginOpen(false); // Başarılı olunca modalı kapat
+                // Modal açık ve loading spinner dönerken yönlendirme yap
+                // Bu sayede kullanıcı ana sayfayı görmez
                 const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
                 const raw = params.get('next') || '';
                 const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
@@ -117,13 +118,15 @@ const App: React.FC = () => {
                 } else {
                     router.replace(target);
                 }
+                // Başarılı login sonrası loading ve modal açık kalır, sayfa değişene kadar
+                return;
             } else {
                 setError(result.message || t('login_failed_generic'));
                 setErrorCode((result as any).code || null);
+                setLoading(false);
             }
         } catch (err: any) {
             setError(err.message || t('login_failed_error'));
-        } finally {
             setLoading(false);
         }
     };
@@ -189,9 +192,7 @@ const App: React.FC = () => {
             const result = await loginWithGoogle(credential, loginForm.rememberMe);
 
             if (result.success) {
-                setIsLoginOpen(false);
-                await new Promise(resolve => setTimeout(resolve, 100));
-
+                // Modal açık ve loading spinner dönerken yönlendirme yap
                 const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
                 const raw = params.get('next') || '';
                 const next = raw ? (() => { try { return decodeURIComponent(raw); } catch { return raw; } })() : '';
@@ -201,13 +202,15 @@ const App: React.FC = () => {
                 } else {
                     router.replace(target);
                 }
+                // Başarılı login sonrası loading ve modal açık kalır, sayfa değişene kadar
+                return;
             } else {
                 setError(result.message || t('login_failed_generic'));
+                setLoading(false);
             }
         } catch (err: any) {
             console.error('❌ Google login error:', err);
             setError(err.message || t('login_failed_error'));
-        } finally {
             setLoading(false);
         }
     };

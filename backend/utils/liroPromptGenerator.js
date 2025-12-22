@@ -1,6 +1,7 @@
 const logger = require('./logger');
 const fs = require('fs');
 const path = require('path');
+const userInsightService = require('../services/userInsightService');
 
 /**
  * 🎯 Liro Prompt Generator
@@ -41,6 +42,8 @@ class LiroPromptGenerator {
         recommendations,
         knowledgeProfile,
         topicTreeStatus,
+        userInsights,
+        smartSuggestions, // NEW: AI-generated smart suggestions
       } = userProfile;
 
       const username = basicInfo?.username || 'Kullanıcı';
@@ -57,6 +60,8 @@ class LiroPromptGenerator {
       const personalizedOpening = this.generatePersonalizedOpening(userProfile);
       const knowledgeSection = this.generateKnowledgeSection(knowledgeProfile);
       const topicTreeSection = this.generateTopicTreeSection(topicTreeStatus);
+      const userInsightsSection = userInsightService.formatForPrompt(userInsights);
+      const smartSuggestionsSection = userInsightService.formatSmartSuggestionsForPrompt(smartSuggestions);
 
       // Replace all placeholders
       return promptTemplate
@@ -71,6 +76,8 @@ class LiroPromptGenerator {
         .replace(/{{preferredLevel}}/g, preferredLevel)
         .replace(/{{knowledgeBase}}/g, knowledgeSection)
         .replace(/{{topicTreeStatus}}/g, topicTreeSection)
+        .replace(/{{userInsights}}/g, userInsightsSection)
+        .replace(/{{smartSuggestions}}/g, smartSuggestionsSection)
         .replace(/{{searchResults}}/g, searchResultsText);
     } catch (error) {
       logger.error('Failed to load personalized prompt template:', error);

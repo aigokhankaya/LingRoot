@@ -18,6 +18,8 @@ const dynamicLevelAnalyzer = require('../utils/dynamicLevelAnalyzer');
 // NEW: ChatService (cache destekli) ve Constants
 const chatService = require('../services/chatService');
 const { SENDER_TYPES, CHAT_LIMITS, BEGINNER_LEVELS, OPENAI_MODELS } = require('../constants/chatConstants');
+// NEW: User Insight Service (Persona Learning)
+const userInsightService = require('../services/userInsightService');
 
 /**
  * Get all AI conversations for a user
@@ -382,6 +384,13 @@ const sendMessage = async (req, res) => {
       } else if (messageHistory.length >= 6) {
         extractAndStoreTopic(conversationId, userId).catch(err => {
           logger.error('Background topic extraction failed:', err);
+        });
+      }
+
+      // USER INSIGHT EXTRACTION: Her 10 mesajda bir persona öğren
+      if (messageHistory.length >= 10 && messageHistory.length % 10 === 0) {
+        userInsightService.extractInsights(userId, conversationId, messageHistory).catch(err => {
+          logger.error('Background insight extraction failed:', err);
         });
       }
 

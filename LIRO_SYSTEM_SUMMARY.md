@@ -33,22 +33,38 @@
 - ✅ `LIRO_USER_PROFILING_SYSTEM.md` - Detaylı sistem dokümantasyonu
 - ✅ `LIRO_SYSTEM_SUMMARY.md` - Bu özet dosya
 
+### 6. 🆕 User Insight System (Persona Öğrenme)
+- ✅ `user_insights` tablosu (migration: `0031_add_user_insights.sql`)
+- ✅ `userInsightService.js` - Sohbetlerden tercih çıkarma
+- ✅ `user_insight_extraction.txt` - AI extraction prompt
+- ✅ Controller'a arka plan insight çıkarma entegrasyonu
+- ✅ Prompt'a `{{userInsights}}` placeholder eklendi
+- ✅ **🔄 Backfill Analizi:** Geçmiş verilerden insight çıkarma
+  - `POST /api/debug/insights/backfill` - Geçmiş analizi tetikle
+  - `GET /api/debug/insights` - Mevcut insight'ları görüntüle
+  - Analiz kaynakları: Sohbetler, TTS/PDF içerikler, Kitaplar, Konu Ağacı
+
 ---
 
 ## 📁 Oluşturulan/Güncellenen Dosyalar
 
-### Yeni Dosyalar (7)
+### Yeni Dosyalar (10)
 1. `backend/utils/userProfileAnalyzer.js` - Kullanıcı profil analiz motoru
 2. `backend/utils/liroPromptGenerator.js` - Dinamik prompt oluşturucu
-3. `backend/utils/profileCache.js` - **🆕 Memory-based profil cache (5 dk TTL)**
-4. `backend/services/chatService.js` - **🆕 Controller'dan ayrıştırılmış iş mantığı**
-5. `backend/constants/chatConstants.js` - **🆕 Magic string'ler için merkezi sabitler**
-6. `LIRO_USER_PROFILING_SYSTEM.md` - Detaylı döküman
-7. `LIRO_ARCHITECTURE_REVIEW.md` - Mimari değerlendirme raporu
+3. `backend/utils/profileCache.js` - Memory-based profil cache (5 dk TTL)
+4. `backend/services/chatService.js` - Controller'dan ayrıştırılmış iş mantığı
+5. `backend/constants/chatConstants.js` - Magic string'ler için merkezi sabitler
+6. `backend/services/userInsightService.js` - **🆕 Persona öğrenme servisi**
+7. `backend/prompts/liro/user_insight_extraction.txt` - **🆕 Insight çıkarma prompt'u**
+8. `backend/migrations/0031_add_user_insights.sql` - **🆕 user_insights tablosu**
+9. `LIRO_USER_PROFILING_SYSTEM.md` - Detaylı döküman
+10. `LIRO_ARCHITECTURE_REVIEW.md` - Mimari değerlendirme raporu
 
-### Güncellenen Dosyalar (2)
-1. `backend/controllers/aiChatController.js` - Cache destekli profil, chatService entegrasyonu
-2. `backend/routes/debugRoutes.js` - Debug endpoint eklendi
+### Güncellenen Dosyalar (4)
+1. `backend/controllers/aiChatController.js` - Cache + Insight extraction entegrasyonu
+2. `backend/utils/userProfileAnalyzer.js` - userInsights alanı eklendi
+3. `backend/utils/liroPromptGenerator.js` - {{userInsights}} placeholder eklendi
+4. `backend/prompts/liro_system_personalized.txt` - Persona bölümü eklendi
 
 ---
 
@@ -100,26 +116,34 @@ User Message
        ├─→ content (oluşturulan içerikler)
        ├─→ vocabulary (kelime öğrenme)
        ├─→ narrations (audio tercihleri)
-       └─→ Analytics (davranış analizi)
+       ├─→ Analytics (davranış analizi)
+       └─→ 🆕 userInsights (öğrenilmiş tercihler)
     ↓
 3. liroPromptGenerator.generateSystemPrompt(profile)
    ├─→ Kişiselleştirilmiş giriş
    ├─→ Profil özeti
    ├─→ Öğrenim tercihleri
+   ├─→ 🆕 User Insights (Likes/Dislikes/Habits/Goals)
    ├─→ Strateji belirleme
    ├─→ Tekrar önleme
    ├─→ Odak alanları
    └─→ Konuşma stili
     ↓
 4. OpenAI API Call
-   systemPrompt: liroSystemPrompt
+   systemPrompt: liroSystemPrompt (+ userInsights)
    messages: conversation history
     ↓
 5. AI Response
     ↓
 6. Yanıtı kaydet (messages table)
     ↓
-7. Frontend'e gönder
+7. 🆕 Arka Plan İşlemleri (Async):
+   ├─→ Topic Extraction (her 6 mesajda)
+   └─→ Insight Extraction (her 10 mesajda)
+       └─→ userInsightService.extractInsights()
+           └─→ Likes, Dislikes, Habits, Goals → user_insights tablosu
+    ↓
+8. Frontend'e gönder
 ```
 
 ---
@@ -135,6 +159,7 @@ User Message
 | `content` | Oluşturulan içerik | topic, level, title |
 | `vocabulary` | Kelime öğrenme | word, mastery_level |
 | `narrations` | Audio tercihleri | voice_id, completion_rate |
+| `user_insights` | 🆕 **Öğrenilmiş tercihler** | insight_type, insight_value, confidence |
 
 ---
 
