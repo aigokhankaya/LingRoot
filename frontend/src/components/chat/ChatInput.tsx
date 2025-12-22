@@ -1,4 +1,4 @@
-import React, { useState, KeyboardEvent } from 'react';
+import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Loader2 } from 'lucide-react';
@@ -7,22 +7,39 @@ import { useTranslation } from '../../lib/i18n';
 interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
+  isProcessing?: boolean;
   placeholder?: string;
+  autoFocus?: boolean;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
   disabled = false,
-  placeholder
+  isProcessing = false,
+  placeholder,
+  autoFocus = true
 }) => {
   const { t } = useTranslation();
   const inputPlaceholder = placeholder || t('chat_placeholder');
   const [message, setMessage] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-focus on mount and after sending
+  useEffect(() => {
+    if (autoFocus && textareaRef.current && !disabled) {
+      textareaRef.current.focus();
+    }
+  }, [autoFocus, disabled]);
 
   const handleSend = () => {
-    if (message.trim() && !disabled) {
+    const canSend = !disabled && !isProcessing;
+    if (message.trim() && canSend) {
       onSend(message.trim());
       setMessage('');
+      // Re-focus textarea after sending
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 0);
     }
   };
 
@@ -38,6 +55,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       <div className="flex gap-2 max-w-4xl mx-auto">
         <div className="flex-1 relative">
           <Textarea
+            ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -48,7 +66,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           />
           <Button
             onClick={handleSend}
-            disabled={disabled || !message.trim()}
+            disabled={disabled || isProcessing || !message.trim()}
             className="absolute right-2 bottom-2 rounded-full h-9 w-9 p-0 bg-primary hover:bg-primary/90 text-primary-foreground disabled:bg-gray-300 disabled:cursor-not-allowed"
             size="icon"
           >

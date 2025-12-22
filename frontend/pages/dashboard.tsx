@@ -309,7 +309,7 @@ const Dashboard = () => {
       loadBookHistory();
     }
 
-    if (tab === 'reading-history') {
+    if (tab === 'reading-history' || tab === 'podcasts') {
       fetchContentHistory();
     }
 
@@ -1124,11 +1124,130 @@ const Dashboard = () => {
             </TabsContent>
 
             <TabsContent value="podcasts" className="mt-0">
-              <div className="text-center py-8">
-                <i className="fas fa-podcast text-4xl text-gray-300 mb-2"></i>
-                <h3 className="text-lg font-medium text-gray-700">{t('podcasts_title')}</h3>
-                <p className="text-sm text-gray-500">{t('podcasts_description')}</p>
-              </div>
+              <Card className="border border-border shadow-lg rounded-2xl bg-white">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold mr-4 shadow-sm">
+                        <i className="fas fa-podcast"></i>
+                      </div>
+                      <h2 className="text-2xl font-bold text-primary tracking-tight">{t('podcasts_title')}</h2>
+                    </div>
+                    <Button
+                      onClick={fetchContentHistory}
+                      variant="outline"
+                      className="!rounded-button whitespace-nowrap cursor-pointer"
+                      disabled={loadingHistory}
+                    >
+                      {loadingHistory ? (
+                        <>
+                          <i className="fas fa-circle-notch fa-spin mr-2"></i>
+                          {t('reading_history_refresh_loading')}
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-refresh mr-2"></i>
+                          {t('reading_history_refresh_button')}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {loadingHistory ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                    </div>
+                  ) : contentHistory.filter(item => (item.input_type || '').toLowerCase() === 'podcast').length > 0 ? (
+                    <div className="space-y-4">
+                      {contentHistory
+                        .filter(item => (item.input_type || '').toLowerCase() === 'podcast')
+                        .map((item) => (
+                          <div
+                            key={item.id}
+                            className="bg-white rounded-xl border border-gray-200 hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden"
+                          >
+                            <div
+                              className="p-3 md:p-3 cursor-pointer hover:bg-primary/5 transition-colors"
+                              onClick={() => {
+                                setExpandedHistoryItem(expandedHistoryItem === item.id ? null : item.id);
+                              }}
+                            >
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1 text-xs">
+                                    <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                                      <i className="fas fa-podcast mr-1"></i>
+                                      {t('podcast')}
+                                    </Badge>
+                                    <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
+                                      {item.level || 'N/A'}
+                                    </Badge>
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(item.created_at).toLocaleDateString()}
+                                    </span>
+                                    {item.detected_mood && item.detected_mood !== 'Neutral' && (
+                                      <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                                        <i className="fas fa-theater-masks mr-1"></i>
+                                        {item.detected_mood}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="mb-2">
+                                    <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">{item.input || t('podcasts_title')}</h4>
+                                    <p className="text-sm text-gray-700 line-clamp-2">
+                                      {item.adapted_text || item.translated_text || ''}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="text-xs text-gray-500">
+                                    {expandedHistoryItem === item.id ? t('reading_history_collapse') : t('reading_history_open_player')}
+                                  </div>
+                                  <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
+                                </div>
+                              </div>
+                            </div>
+
+                            {expandedHistoryItem === item.id && (
+                              <div className="border-t border-gray-100 bg-gray-50 p-4">
+                                <div className="space-y-4">
+                                  {item.mp3_url && (
+                                    <div className="bg-white rounded-lg p-3 shadow-sm border">
+                                      <OutputSection
+                                        audioUrl={convertToPlayableUrl(item.mp3_url)}
+                                        translatedText={item.translated_text || ''}
+                                        adaptedText={item.adapted_text || ''}
+                                        level={item.level || ''}
+                                        words={item.words || []}
+                                        timepoints={item.timepoints || []}
+                                      />
+                                    </div>
+                                  )}
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setExpandedHistoryItem(null)}
+                                  >
+                                    <i className="fas fa-times mr-2"></i>
+                                    {t('reading_history_close')}
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-gray-400 mb-4">
+                        <i className="fas fa-podcast text-4xl"></i>
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-500 mb-2">{t('podcasts_title')}</h3>
+                      <p className="text-gray-400">{t('podcasts_description')}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="pdf" className="mt-0">

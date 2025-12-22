@@ -115,6 +115,7 @@ Cloudflare Tunnel → Backend Only
 MFA alignment hesaplamalarında tahmini formüller yazma.
 Mobil ve Web API’larını birbirinden ayırma; tek şema üzerinden kullan.
 Kullanıcı ile iletişim dili (cevaplar, raporlar, açıklamalar) kesinlikle TÜRKÇE olmalıdır. İngilizce sadece kod içinde ve loglarda kullanılabilir.
+NO AGENTIC MODE: `task_boundary` tool'unu kullanma, artifact oluşturma, planlama moduna girme. Doğrudan kod değişikliğine odaklan.
 
 [5. PROGRESS & ROADMAP]
 ✓ Phase 1 — Foundation

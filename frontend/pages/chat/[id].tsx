@@ -585,8 +585,9 @@ export default function ChatPage() {
           {/* Input Area */}
           <ChatInput
             onSend={sendMessage}
-            disabled={isTyping}
+            isProcessing={isTyping}
             placeholder="Mesajınızı yazın... (örn: 'B1 seviyesinde spor hakkında bir metin oluştur')"
+            autoFocus={true}
           />
         </main>
       </div>
