@@ -91,7 +91,7 @@ class DirectorAgentService {
             switch (m) {
                 case 'melancholic': return `User seems to be in a reflective or sad mood. Be empathetic, patient, and deeper in your responses. Avoid being overly cheery.`;
                 case 'cheerful': return `User seems happy/energetic. Match their energy! Be enthusiastic, use emojis, and keep the conversation light and fun.`;
-                case 'suspenseful': return `The topic is mysterious. Maintain the intrigue. Use "..." and ask rhetorical questions.`;
+                case 'suspenseful': return `The topic is mysterious. Use suspenseful storytelling techniques (short sentences, pauses), but ensure you provide CONCRETE DETAILS or FACTS to anchor the mystery.`;
                 case 'inspiring': return `The content is motivating. Be a coach! Use encouraging language ("You can do it!", "Keep going!").`;
                 default: return `Maintain a helpful, friendly, and professional assistant persona.`;
             }
