@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import { pick, keepLocalCopy } from '@react-native-documents/picker';
 import { CEFRLevel, TTSRequest, Voice, VoiceCategory, VoiceFilter, AudioTrack } from '../types';
 import { useRoute, useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -56,6 +57,10 @@ const CreateScreen: React.FC = () => {
   const [createdTrack, setCreatedTrack] = useState<AudioTrack | null>(null);
   const [showPlayer, setShowPlayer] = useState(false);
   const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null);
+
+  // Success alert modal state
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const [successAlertEstimatedTime, setSuccessAlertEstimatedTime] = useState('');
 
   useFocusEffect(
     React.useCallback(() => {
@@ -937,20 +942,9 @@ const CreateScreen: React.FC = () => {
 
         if (response.success) {
           setSelectedFile(null);
-          Alert.alert(
-            language === 'tr' ? '✅ İşlem Başlatıldı' : '✅ Processing Started',
-            language === 'tr'
-              ? `Sesiniz arka planda oluşturuluyor. ${response.estimatedTime} içinde bildirim alacaksınız.`
-              : `Your audio is being created in the background. You'll receive a notification in ${response.estimatedTime}.`,
-            [
-              {
-                text: language === 'tr' ? 'Tamam' : 'OK',
-                onPress: () => {
-                  setIsCreatingVoice(true);
-                },
-              },
-            ],
-          );
+          setSuccessAlertEstimatedTime(response.estimatedTime || '2-5 minutes');
+          setShowSuccessAlert(true);
+          setIsCreatingVoice(true);
         } else {
           Alert.alert(t('common.error'), t('create.alerts.fileProcessFailed'));
         }
@@ -986,20 +980,9 @@ const CreateScreen: React.FC = () => {
             setSelectedChapterText('');
           }
 
-          Alert.alert(
-            language === 'tr' ? '✅ İşlem Başlatıldı' : '✅ Processing Started',
-            language === 'tr'
-              ? `Sesiniz arka planda oluşturuluyor. ${response.estimatedTime} içinde bildirim alacaksınız.`
-              : `Your audio is being created in the background. You'll receive a notification in ${response.estimatedTime}.`,
-            [
-              {
-                text: language === 'tr' ? 'Tamam' : 'OK',
-                onPress: () => {
-                  setIsCreatingVoice(true);
-                },
-              },
-            ],
-          );
+          setSuccessAlertEstimatedTime(response.estimatedTime || '2-5 minutes');
+          setShowSuccessAlert(true);
+          setIsCreatingVoice(true);
         } else {
           Alert.alert(t('common.error'), t('create.alerts.audioCreateFailed'));
         }
@@ -2101,6 +2084,63 @@ const CreateScreen: React.FC = () => {
           words={createdTrack.words || []}
         />
       )}
+
+      {/* Success Alert Modal */}
+      <Modal
+        visible={showSuccessAlert}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSuccessAlert(false)}
+      >
+        <TouchableOpacity
+          style={styles.successModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSuccessAlert(false)}
+        >
+          <View style={styles.successModalContainer}>
+            {/* Success Icon */}
+            <View style={styles.successIconContainer}>
+              <LinearGradient
+                colors={[COLORS.brandTeal, '#0D9488']}
+                style={styles.successIconGradient}
+              >
+                <Icon name="check" size={40} color="#FFFFFF" />
+              </LinearGradient>
+            </View>
+
+            {/* Title */}
+            <Text style={styles.successModalTitle}>
+              {language === 'tr' ? 'İşlem Başlatıldı!' : 'Processing Started!'}
+            </Text>
+
+            {/* Message */}
+            <Text style={styles.successModalMessage}>
+              {language === 'tr'
+                ? `Sesiniz arka planda oluşturuluyor.\n${successAlertEstimatedTime} içinde bildirim alacaksınız.`
+                : `Your audio is being created in the background.\nYou'll receive a notification in ${successAlertEstimatedTime}.`}
+            </Text>
+
+            {/* Progress indicator */}
+            <View style={styles.successProgressRow}>
+              <Icon name="notifications-active" size={16} color={COLORS.brandTeal} />
+              <Text style={styles.successProgressText}>
+                {language === 'tr' ? 'Bildirim gönderilecek' : 'Notification will be sent'}
+              </Text>
+            </View>
+
+            {/* OK Button */}
+            <TouchableOpacity
+              style={styles.successModalButton}
+              onPress={() => setShowSuccessAlert(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.successModalButtonText}>
+                {language === 'tr' ? 'Tamam' : 'OK'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -2713,6 +2753,90 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     marginTop: 2,
     fontWeight: '600',
+  },
+  // Success Modal Styles
+  successModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  successModalContainer: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    padding: 28,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.2,
+    shadowRadius: 40,
+    elevation: 24,
+  },
+  successIconContainer: {
+    marginBottom: 20,
+  },
+  successIconGradient: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: COLORS.brandTeal,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  successModalTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.slate800,
+    textAlign: 'center',
+    marginBottom: 12,
+    letterSpacing: -0.3,
+  },
+  successModalMessage: {
+    fontSize: 15,
+    color: COLORS.slate500,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 20,
+    fontWeight: '500',
+  },
+  successProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.brandTeal + '10',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginBottom: 24,
+    gap: 8,
+  },
+  successProgressText: {
+    fontSize: 13,
+    color: COLORS.brandTeal,
+    fontWeight: '600',
+  },
+  successModalButton: {
+    width: '100%',
+    backgroundColor: COLORS.brandTeal,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: COLORS.brandTeal,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  successModalButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
 
