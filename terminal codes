@@ -181,3 +181,12 @@ docker start n8n-local
 # vercel hataları için lokalde test:
 cd frontend
 npm run build
+
+
+## internet yavaşlık sorunu
+ipconfig /flushdns
+netsh winsock reset
+netsh int ip reset
+
+## PR description şablonu
+F:\Main\.github\pull_request_template.md-->PR description şablonu

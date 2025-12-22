@@ -329,81 +329,54 @@ router.post("/chunkText", chunkTextAPI);
 router.post("/synthesizeChunk", synthesizeChunkAPI);
 router.post("/mergeAudio", mergeAudioAPI);
 
-// Create podcast from topic (using Google TTS Multi-Speaker)
+// Google TTS Multi-Speaker Podcast Creator
+const { createGoogleTTSPodcast } = require("../utils/googleTTSMultiSpeaker");
+
+// Create podcast from topic (Direct Google TTS Implementation)
 router.post("/create-podcast", authenticate, async (req, res) => {
   try {
     const body = req.body || {};
     const rawTopic = body.topic;
     const topic = typeof rawTopic === 'string' ? rawTopic.trim() : '';
+
     if (!topic) {
       return res.status(400).json({
         success: false,
         message: 'Topic is required'
       });
     }
+
     const level = (body.level || 'B1').toString().toUpperCase();
-    const duration = body.duration != null ? Number(body.duration) : 5;
-    const userId = req.user && req.user.id;
+    const duration = body.duration != null ? Number(body.duration) : 10;
 
-    logger.info(`📻 [PODCAST] Creating podcast with Google TTS - Topic: "${topic}", Level: ${level}, Duration: ${duration}min`);
+    logger.info(`📻 [PODCAST APP] Received create-podcast request:`, {
+      topic,
+      level,
+      duration,
+      userId: req.user?.id
+    });
 
-    // Import the Google TTS Multi-Speaker podcast generator
-    const { createGoogleTTSPodcast } = require('../utils/googleTTSMultiSpeaker');
-
-    // Call the integrated Google TTS podcast generator
+    // Call Direct Google TTS implementation
     const result = await createGoogleTTSPodcast({
       topic,
       level,
       duration,
-      styleType: body.styleType || 'friendly_chat',
-      personalityA: body.personalityA || 'curious_enthusiast',
-      personalityB: body.personalityB || 'knowledgeable_friend',
-      hostSpeakerId: body.hostSpeakerId,
-      guestSpeakerId: body.guestSpeakerId,
-      includeHumor: body.includeHumor !== false,
-      includeFiller: body.includeFiller !== false,
-      ttsModel: body.ttsModel,
-      userId: userId,
+      styleType: body.styleType,
+      voiceChoice: body.voiceChoice,
+      personalityA: body.personalityA,
+      personalityB: body.personalityB,
+      includeHumor: body.includeHumor,
+      includeFiller: body.includeFiller,
+      userId: req.user?.id
     });
 
-    if (!result || !result.success) {
-      logger.error('[PODCAST] Google TTS podcast generation failed:', result?.message || 'Unknown error');
-      return res.status(500).json({
-        success: false,
-        message: result?.message || 'Podcast generation failed',
-      });
-    }
-
-    logger.info(`[PODCAST] Podcast created successfully: ${result.mp3_url}`);
-
-    // Build response matching expected format
-    const responseBody = {
+    return res.json({
       success: true,
-      status: 'success',
-      message: result.message || `Podcast created: ${topic}`,
-      mp3_url: result.mp3_url,
-      podcast_url: result.podcast_url,
-      audio_url: result.audio_url,
-      vtt_url: result.vtt_url || '',
-      vtt_subtitles: result.vtt_subtitles || '',
-      duration_seconds: result.duration_seconds || '',
-      topic: result.topic || topic,
-      level: result.level || level,
-      transcript: result.transcript || '',
-      dialogue: result.dialogue || '',
-      dialogue_segments: result.dialogue_segments || null,
-      turns: result.turns || null,
-      turns_original: result.turns_original || null,
-      words: result.words || null,
-      timepoints: result.timepoints || null,
-      contenthistory_id: result.contenthistory_id || null,
-      tts_provider: result.tts_provider || 'google-gemini',
-      fallback_used: result.fallback_used || false,
-    };
+      ...result
+    });
 
-    return res.json(responseBody);
   } catch (error) {
-    logger.error('[PODCAST] Error creating podcast:', error);
+    logger.error('[PODCAST APP] Error creating podcast:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to create podcast',

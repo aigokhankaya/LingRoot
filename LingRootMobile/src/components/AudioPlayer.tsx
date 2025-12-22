@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   Pressable,
   TextInput,
-  Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
@@ -28,6 +27,7 @@ import { SkiaWordHighlight } from './SkiaWordHighlight';
 import { SkiaSentenceHighlight } from './SkiaSentenceHighlight';
 import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
+import { useCustomAlert } from '../contexts/AlertContext';
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -50,6 +50,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const { language, t } = useLanguage();
+  const { showAlert } = useCustomAlert();
   const { setCurrentTrack, setIsPlaying, isPlaying, currentTrack, sound, setSound, stopAllAudio } = useAudioContext();
   const [isLoading, setIsLoading] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -133,11 +134,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       const result = await apiService.lookupVocabularyWord(cleanWord);
 
       if (!result.found || !result.data) {
-        Alert.alert(
+        showAlert(
           language === 'tr' ? 'Bilgi' : 'Info',
           language === 'tr'
             ? `"${cleanWord}" kelimesi için henüz sözlük kaydı bulunamadı.\n\nBu kelimeyi kelime listenize ekleyebilirsiniz.`
             : `There is no dictionary entry yet for "${cleanWord}".\n\nYou can add this word to your vocabulary list.`,
+          [{ text: 'OK', style: 'default' }],
+          'info-outline',
+          '#3B82F6'
         );
         return;
       }
@@ -151,11 +155,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       });
       await loadPronunciation(cleanWord);
     } catch (error: any) {
-      Alert.alert(
+      showAlert(
         language === 'tr' ? 'Hata' : 'Error',
         language === 'tr'
           ? `Kelime bilgisi yüklenirken hata oluştu: ${error?.message || 'Bilinmeyen hata'}`
           : `An error occurred while loading word info: ${error?.message || 'Unknown error'}`,
+        [{ text: 'OK', style: 'default' }],
+        'error-outline',
+        '#EF4444'
       );
     }
   }, [language, loadPronunciation]);
@@ -680,7 +687,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }
 
     } catch (error) {
-      Alert.alert('Hata', `Ses dosyası yüklenirken hata oluştu: ${error}`);
+      showAlert('Hata', `Ses dosyası yüklenirken hata oluştu: ${error}`, [{ text: 'OK', style: 'default' }], 'error-outline', '#EF4444');
     } finally {
       setIsLoading(false);
     }
@@ -1032,7 +1039,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }
     } catch (error) {
       console.error('Play/Pause error:', error);
-      Alert.alert('Hata', 'Ses çalıştırılırken hata oluştu');
+      showAlert('Hata', 'Ses çalıştırılırken hata oluştu', [{ text: 'OK', style: 'default' }], 'error-outline', '#EF4444');
     }
   };
 
@@ -1270,45 +1277,57 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
       // Show detailed success message like web version
       if (result.isExisting) {
-        Alert.alert(
+        showAlert(
           language === 'tr' ? 'Bilgi!' : 'Info!',
           language === 'tr'
             ? `"${cleanWord}" kelimesi zaten kelime listenizdedir:\n\nAnlam: ${result.data.definition || 'Belirtilmemiş'}\nÖrnek: ${result.data.example_sentence || 'Belirtilmemiş'}`
             : `"${cleanWord}" is already in your vocabulary list:\n\nMeaning: ${result.data.definition || 'Not specified'}\nExample: ${result.data.example_sentence || 'Not specified'}`,
-          [{ text: language === 'tr' ? 'Tamam' : 'OK' }]
+          [{ text: language === 'tr' ? 'Tamam' : 'OK', style: 'default' }],
+          'info-outline',
+          '#3B82F6'
         );
       } else if (result.translationError) {
-        Alert.alert(
+        showAlert(
           language === 'tr' ? 'Uyarı!' : 'Warning!',
           language === 'tr'
             ? `"${cleanWord}" kelimesi eklendi ancak çeviri yapılamadı. Anlamı manuel olarak ekleyebilirsiniz.`
             : `"${cleanWord}" was added but translation failed. You can add the meaning manually.`,
-          [{ text: language === 'tr' ? 'Tamam' : 'OK' }]
+          [{ text: language === 'tr' ? 'Tamam' : 'OK', style: 'default' }],
+          'warning',
+          '#F59E0B'
         );
       } else {
-        Alert.alert(
+        showAlert(
           language === 'tr' ? 'Başarılı!' : 'Success!',
           language === 'tr'
             ? `"${cleanWord}" kelimesi başarıyla eklendi!\n\nAnlam: ${result.data.definition}\nÖrnek Cümle: ${result.data.example_sentence}\nSeviye: ${result.data.level}`
             : `"${cleanWord}" was successfully added!\n\nMeaning: ${result.data.definition}\nExample: ${result.data.example_sentence}\nLevel: ${result.data.level}`,
-          [{ text: language === 'tr' ? 'Tamam' : 'OK' }]
+          [{ text: language === 'tr' ? 'Tamam' : 'OK', style: 'default' }],
+          'check-circle',
+          '#10B981'
         );
       }
 
     } catch (error: any) {
       if (error.message?.includes('zaten listede mevcut')) {
-        Alert.alert(
+        showAlert(
           language === 'tr' ? 'Bilgi' : 'Info',
           language === 'tr'
             ? `"${cleanWord}" kelimesi zaten kelime listenizdedir.`
-            : `"${cleanWord}" is already in your vocabulary list.`
+            : `"${cleanWord}" is already in your vocabulary list.`,
+          [{ text: 'OK', style: 'default' }],
+          'info-outline',
+          '#3B82F6'
         );
       } else {
-        Alert.alert(
+        showAlert(
           language === 'tr' ? 'Hata' : 'Error',
           language === 'tr'
             ? `Kelime eklenirken bir hata oluştu: ${error.message || 'Lütfen internet bağlantınızı kontrol edin.'}`
-            : `An error occurred while adding the word: ${error.message || 'Please check your internet connection.'}`
+            : `An error occurred while adding the word: ${error.message || 'Please check your internet connection.'}`,
+          [{ text: 'OK', style: 'default' }],
+          'error-outline',
+          '#EF4444'
         );
       }
     } finally {
@@ -1342,7 +1361,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
 
     // CASE 2 & 3: Kullanıcı için kelime kaydı yoksa - web ile aynı mantıkta kısa bir onay sor
-    Alert.alert(
+    showAlert(
       language === 'tr' ? 'Kelime Ekle' : 'Add Word',
       language === 'tr'
         ? `"${cleanWord}" kelimesini kelime listenize eklemek istiyor musunuz?`
@@ -1358,6 +1377,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           onPress: () => handleAddWordToVocabulary(cleanWord, wordIndex),
         },
       ],
+      'add-circle-outline',
+      '#14B8A6'
     );
   }, [language, handleAddWordToVocabulary, loadPronunciation]);
 
@@ -1819,10 +1840,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                       const textToCopy = originalText || track.original_turkish || '';
                       if (textToCopy) {
                         Clipboard.setString(textToCopy);
-                        Alert.alert(
+                        showAlert(
                           t('audioPlayer.copySuccessTitle'),
                           t('audioPlayer.copySuccessMessage'),
-                          [{ text: t('common.ok') }]
+                          [{ text: t('common.ok'), style: 'default' }],
+                          'content-copy',
+                          '#10B981'
                         );
                       }
                     }}
@@ -1948,7 +1971,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
             <TouchableOpacity
               style={styles.infoButton}
-              onPress={() => Alert.alert('Bilgi', `Kelime sayısı: ${wordsArray.length}\nSüre: ${formatTime(duration)}\nCümle sayısı: ${sentences.length}\nAktif cümle: ${currentSentenceIndex + 1}`)}
+              onPress={() => showAlert(
+                'Bilgi',
+                `Kelime sayısı: ${wordsArray.length}\nSüre: ${formatTime(duration)}\nCümle sayısı: ${sentences.length}\nAktif cümle: ${currentSentenceIndex + 1}`,
+                [{ text: 'OK', style: 'default' }],
+                'info-outline',
+                '#3B82F6'
+              )}
             >
               <Icon name="info" size={24} color="#666" />
             </TouchableOpacity>
