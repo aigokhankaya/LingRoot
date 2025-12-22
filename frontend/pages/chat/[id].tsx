@@ -151,19 +151,6 @@ export default function ChatPage() {
             duration: '10',
           }),
         });
-      } else if (modalState.type === 'podcast') {
-        const response = await fetch(getApiUrl('/api/tts/create-podcast'), {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            topic: modalState.topic,
-            level: 'B1',
-            duration: '10',
-          }),
-        });
 
         const data = await response.json();
 
