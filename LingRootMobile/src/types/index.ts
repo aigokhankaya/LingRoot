@@ -154,14 +154,15 @@ export type MainTabParamList = {
   Home: undefined;
   Library: undefined;
   Create:
-    | {
-        mode?: string;
-        initialText?: string;
-        topicId?: string;
-        topicLevel?: string;
-        podcastProvider?: 'n8n' | 'google';
-      }
-    | undefined;
+  | {
+    mode?: string;
+    initialText?: string;
+    topicId?: string;
+    topicLevel?: string;
+    topicSubject?: string; // Topic title/subject for narration generation
+    podcastProvider?: 'n8n' | 'google';
+  }
+  | undefined;
   Profile: undefined;
   Vocabulary: { wordId?: string } | undefined;
 };
@@ -172,7 +173,7 @@ export interface APIResponse<T = any> {
   data?: T;
   message?: string;
   error?: string;
-} 
+}
 
 // Books
 export interface BookItem {
