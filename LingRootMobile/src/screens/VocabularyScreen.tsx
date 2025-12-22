@@ -614,51 +614,47 @@ export default function VocabularyScreen({ navigation, route }: any) {
                 />
               </View>
 
-              {/* Status Filters + CEFR Filters */}
+              {/* Status Filters - Row 1 */}
               <View style={styles.filterRow}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {/* Status Filters */}
-                  <TouchableOpacity
-                    style={[styles.filterButton, learnedFilter === 'all' && styles.statusFilterActive]}
-                    onPress={() => setLearnedFilter('all')}
-                  >
-                    <Text style={[styles.filterText, learnedFilter === 'all' && styles.statusFilterActiveText]}>
-                      {language === 'tr' ? 'Tümü' : 'All'}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.filterButton, learnedFilter === 'learned' && styles.statusFilterActive]}
-                    onPress={() => setLearnedFilter('learned')}
-                  >
-                    <Text style={[styles.filterText, learnedFilter === 'learned' && styles.statusFilterActiveText]}>
-                      {language === 'tr' ? 'Öğrenildi' : 'Learned'}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.filterButton, learnedFilter === 'unlearned' && styles.statusFilterActive]}
-                    onPress={() => setLearnedFilter('unlearned')}
-                  >
-                    <Text style={[styles.filterText, learnedFilter === 'unlearned' && styles.statusFilterActiveText]}>
-                      {language === 'tr' ? 'Yeni' : 'New'}
-                    </Text>
-                  </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterButton, learnedFilter === 'all' && styles.statusFilterActive]}
+                  onPress={() => setLearnedFilter('all')}
+                >
+                  <Text style={[styles.filterText, learnedFilter === 'all' && styles.statusFilterActiveText]}>
+                    {language === 'tr' ? 'Tümü' : 'All'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterButton, learnedFilter === 'learned' && styles.statusFilterActive]}
+                  onPress={() => setLearnedFilter('learned')}
+                >
+                  <Text style={[styles.filterText, learnedFilter === 'learned' && styles.statusFilterActiveText]}>
+                    {language === 'tr' ? 'Öğrenildi' : 'Learned'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.filterButton, learnedFilter === 'unlearned' && styles.statusFilterActive]}
+                  onPress={() => setLearnedFilter('unlearned')}
+                >
+                  <Text style={[styles.filterText, learnedFilter === 'unlearned' && styles.statusFilterActiveText]}>
+                    {language === 'tr' ? 'Yeni' : 'New'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-                  {/* Divider */}
-                  <View style={styles.filterDivider} />
-
-                  {/* CEFR Level Filters */}
-                  {Object.entries(wordLevels).map(([level, data]) => (
-                    <TouchableOpacity
-                      key={level}
-                      style={[styles.filterButton, activeLevel === level && styles.activeFilter]}
-                      onPress={() => setActiveLevel(activeLevel === level ? 'all' : level)}
-                    >
-                      <Text style={[styles.filterText, activeLevel === level && styles.activeFilterText]}>
-                        {level.toUpperCase()}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+              {/* CEFR Level Filters - Row 2 */}
+              <View style={[styles.filterRow, { marginTop: 8 }]}>
+                {Object.entries(wordLevels).map(([level, data]) => (
+                  <TouchableOpacity
+                    key={level}
+                    style={[styles.filterButton, activeLevel === level && styles.activeFilter]}
+                    onPress={() => setActiveLevel(activeLevel === level ? 'all' : level)}
+                  >
+                    <Text style={[styles.filterText, activeLevel === level && styles.activeFilterText]}>
+                      {level.toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
 
@@ -930,17 +926,20 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   filterRow: {
-    height: 44,
-    paddingBottom: 4,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 24,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.slate200,
-    marginRight: 8,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   activeFilter: {
     backgroundColor: COLORS.brandTeal,

@@ -101,6 +101,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     isPlaying,
     isBuffering,
     isLoading,
+    error,
     currentTime,
     duration,
     wordTimestamps,
@@ -113,6 +114,7 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     timepoints,
     originalText
   });
+
 
   // Component local state
   const [playbackRate, setLocalPlaybackRate] = useState<number>(1.0);
@@ -456,9 +458,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
           return (
             <div
               key={lineIndex}
-              className={`mb-2 rounded-lg px-3 py-2 transition-colors ${
-                isActive ? 'bg-yellow-200 text-yellow-900 border border-yellow-400' : 'bg-white text-gray-800 border border-transparent'
-              }`}
+              className={`mb-2 rounded-lg px-3 py-2 transition-colors ${isActive ? 'bg-yellow-200 text-yellow-900 border border-yellow-400' : 'bg-white text-gray-800 border border-transparent'
+                }`}
               onClick={(e) => {
                 e.stopPropagation();
                 if (seg) {
@@ -750,6 +751,23 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-red-600 bg-red-50 rounded-lg border border-red-200">
+        <div className="flex items-center mb-2">
+          <i className="fas fa-exclamation-circle mr-2 text-xl"></i>
+          <span className="font-semibold">Ses Yükleme Hatası</span>
+        </div>
+        <div className="text-sm text-center">
+          {error}
+          <div className="mt-2 text-xs text-gray-500 font-mono break-all max-w-full">
+            {audioUrl}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={uiVariant === 'bare' ? `${className}` : `bg-white rounded-lg shadow-lg p-6 ${className}`}>
       {/* ARIA Live Region for accessibility */}
@@ -842,8 +860,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
                 }}
                 disabled={loadingPatterns}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${showPatterns
-                    ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                   }`}
                 title="Günlük kullanım kalıplarını göster"
               >
