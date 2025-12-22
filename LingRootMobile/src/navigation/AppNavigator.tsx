@@ -198,6 +198,7 @@ const MainTabs = () => {
           borderRadius: 32,
           height: 64,
           borderWidth: 2,
+          borderTopWidth: 2,
           borderColor: COLORS.brandTeal,
           shadowColor: COLORS.brandIndigo,
           shadowOffset: { width: 0, height: 8 },

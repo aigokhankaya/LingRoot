@@ -170,10 +170,10 @@ const CreateScreen: React.FC = () => {
   // --- İçerik Süresi Seçenekleri ---
   // 1.5 dk, 5 dk, 10 dk, 15 dk seçenekleri (tüm modlar için ortak)
   const DURATION_OPTIONS = [
-    { value: 1.5, label: '1.5 dk', description: '~225 kelime' },
-    { value: 5, label: '5 dk', description: '~750 kelime' },
-    { value: 10, label: '10 dk', description: '~1500 kelime' },
-    { value: 15, label: '15 dk', description: '~2250 kelime' },
+    { value: 1.5, label: '1.5 dk', description: '~225\nkelime' },
+    { value: 5, label: '5 dk', description: '~750\nkelime' },
+    { value: 10, label: '10 dk', description: '~1500\nkelime' },
+    { value: 15, label: '15 dk', description: '~2250\nkelime' },
   ];
 
   // --- Podcast Mode State ---
@@ -1477,7 +1477,7 @@ const CreateScreen: React.FC = () => {
 
 
             <TextInput
-              style={[styles.textInput, { minHeight: 100 }]}
+              style={[styles.textInput, { minHeight: 100, borderColor: COLORS.slate300 }]}
               placeholder={
                 language === 'tr'
                   ? 'Podcast için bir konu girin (Örn: İnternetin tarihi)...'
@@ -1529,6 +1529,7 @@ const CreateScreen: React.FC = () => {
                         fontSize: 10,
                         color: podcastDuration === opt.value ? COLORS.primary : '#888',
                         marginTop: 2,
+                        textAlign: 'center',
                       }}
                     >
                       {opt.description}
@@ -1799,12 +1800,7 @@ const CreateScreen: React.FC = () => {
 
         <View style={styles.settingsSection}>
           <Text style={styles.sectionTitle}>{t('create.cefr.title')}</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.levelSelector}
-            keyboardShouldPersistTaps="handled"
-          >
+          <View style={styles.levelSelector}>
             {levels.map((level) => (
               <TouchableOpacity
                 key={level}
@@ -1824,7 +1820,7 @@ const CreateScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </View>
           <Text style={styles.levelDescription}>{levelDescriptions[selectedLevel]}</Text>
         </View>
 
@@ -1855,54 +1851,54 @@ const CreateScreen: React.FC = () => {
         )}
 
         {/* Voice Selection Section */}
-        <View style={styles.settingsSection}>
-          <Text style={styles.sectionTitle}>{t('create.voice.title')}</Text>
+        {!isPodcastMode && (
+          <View style={styles.settingsSection}>
+            <Text style={styles.sectionTitle}>{t('create.voice.title')}</Text>
 
-          {/* Voice Categories */}
-          <View style={styles.voiceCategoryContainer}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {voiceCategories.map((category) => (
-                <TouchableOpacity
-                  key={category.value}
-                  style={[
-                    styles.voiceCategoryButton,
-                    selectedVoiceCategory === category.value && styles.voiceCategoryButtonActive,
-                  ]}
-                  onPress={() => {
-                    const newCategory = category.value;
-                    setSelectedVoiceCategory(newCategory);
-                    // Reset voice selection when category changes
-                    const filteredVoices = filterVoices(
-                      availableVoices,
-                      newCategory,
-                      selectedGender,
-                      selectedAccent
-                    );
-                    if (filteredVoices.length > 0) {
-                      const preferred = filteredVoices.find(v => (selectedGender === 'all') || v.gender === selectedGender);
-                      setSelectedVoice(preferred?.name || filteredVoices[0].name);
-                    }
-                  }}
-                >
-                  <Icon name={category.icon} size={16} color={selectedVoiceCategory === category.value ? '#FFF' : COLORS.primary} />
-                  <Text style={[
-                    styles.voiceCategoryText,
-                    selectedVoiceCategory === category.value && styles.voiceCategoryTextActive,
-                  ]}>
-                    {category.label}
-                  </Text>
-                  <View style={styles.voiceBadge}>
-                    <Text style={styles.voiceBadgeText}>{category.badge}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+            {/* Voice Categories */}
+            <View style={styles.voiceCategoryContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                {voiceCategories.map((category) => (
+                  <TouchableOpacity
+                    key={category.value}
+                    style={[
+                      styles.voiceCategoryButton,
+                      selectedVoiceCategory === category.value && styles.voiceCategoryButtonActive,
+                    ]}
+                    onPress={() => {
+                      const newCategory = category.value;
+                      setSelectedVoiceCategory(newCategory);
+                      // Reset voice selection when category changes
+                      const filteredVoices = filterVoices(
+                        availableVoices,
+                        newCategory,
+                        selectedGender,
+                        selectedAccent
+                      );
+                      if (filteredVoices.length > 0) {
+                        const preferred = filteredVoices.find(v => (selectedGender === 'all') || v.gender === selectedGender);
+                        setSelectedVoice(preferred?.name || filteredVoices[0].name);
+                      }
+                    }}
+                  >
+                    <Icon name={category.icon} size={16} color={selectedVoiceCategory === category.value ? '#FFF' : COLORS.primary} />
+                    <Text style={[
+                      styles.voiceCategoryText,
+                      selectedVoiceCategory === category.value && styles.voiceCategoryTextActive,
+                    ]}>
+                      {category.label}
+                    </Text>
+                    <View style={styles.voiceBadge}>
+                      <Text style={styles.voiceBadgeText}>{category.badge}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
 
-          {/* Voice Filters */}
-          <View style={styles.voiceFiltersContainer}>
-            <View style={styles.filterRow}>
-              <View style={styles.filterGroup}>
+            {/* Voice Filters */}
+            <View style={styles.voiceFiltersContainer}>
+              <View style={[styles.filterGroup, { marginBottom: 16, marginRight: 0 }]}>
                 <Text style={styles.filterLabel}>{t('create.voice.filters.accent')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                   {accentOptions.map((accent) => (
@@ -1925,7 +1921,7 @@ const CreateScreen: React.FC = () => {
                 </ScrollView>
               </View>
 
-              <View style={styles.filterGroup}>
+              <View style={[styles.filterGroup, { marginRight: 0 }]}>
                 <Text style={styles.filterLabel}>{t('create.voice.filters.gender')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                   {genderOptions.map((gender) => (
@@ -1948,41 +1944,39 @@ const CreateScreen: React.FC = () => {
                 </ScrollView>
               </View>
             </View>
-          </View>
 
-          {/* Voice Selection Button */}
-          <TouchableOpacity
-            style={styles.voiceSelectionButton}
-            onPress={async () => {
-              // Modal açılmadan önce web'deki gibi mevcut filtrelerle backend'den tazele
-              try {
-                if (hasActiveFilters) {
-                  await fetchFilteredVoices(selectedAccent, selectedGender, selectedVoiceCategory);
-                } else {
-                  await fetchAvailableVoices();
+            {/* Voice Selection Button */}
+            <TouchableOpacity
+              style={styles.voiceSelectionButton}
+              onPress={async () => {
+                // Modal açılmadan önce web'deki gibi mevcut filtrelerle backend'den tazele
+                try {
+                  if (hasActiveFilters) {
+                    await fetchFilteredVoices(selectedAccent, selectedGender, selectedVoiceCategory);
+                  } else {
+                    await fetchAvailableVoices();
+                  }
+                } catch (e) {
+
                 }
-              } catch (e) {
-
-              }
-              setShowVoiceSelection(true);
-            }}
-          >
-            <Icon name="record-voice-over" size={24} color={COLORS.primary} />
-            <View style={styles.voiceSelectionInfo}>
-              <Text style={styles.voiceSelectionText}>
-                {selectedVoice
-                  ? getVoiceDisplayName(selectedVoice, language, selectedVoice)
-                  : t('create.voice.selectPrompt')}
-              </Text>
-              <Text style={styles.voiceSelectionSubtext}>
-                {getFilteredVoicesByCategory().find(v => v.name === selectedVoice)?.description || t('create.voice.selectHint')}
-              </Text>
-            </View>
-            <Icon name="arrow-forward-ios" size={16} color={COLORS.primary} />
-          </TouchableOpacity>
-
-
-        </View>
+                setShowVoiceSelection(true);
+              }}
+            >
+              <Icon name="record-voice-over" size={24} color={COLORS.primary} />
+              <View style={styles.voiceSelectionInfo}>
+                <Text style={styles.voiceSelectionText}>
+                  {selectedVoice
+                    ? getVoiceDisplayName(selectedVoice, language, selectedVoice)
+                    : t('create.voice.selectPrompt')}
+                </Text>
+                <Text style={styles.voiceSelectionSubtext}>
+                  {getFilteredVoicesByCategory().find(v => v.name === selectedVoice)?.description || t('create.voice.selectHint')}
+                </Text>
+              </View>
+              <Icon name="arrow-forward-ios" size={16} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Voice Selection Modal - uses RN Modal so it opens in viewport regardless of scroll */}
         <Modal
@@ -2285,7 +2279,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     borderWidth: 1,
-    borderColor: COLORS.slate100,
+    borderColor: COLORS.slate300,
     borderRadius: 16,
     padding: 16,
     fontSize: 15,
@@ -2380,14 +2374,17 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   levelSelector: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 12,
     marginBottom: 16,
   },
   levelButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: COLORS.surface,
-    marginRight: 8,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
