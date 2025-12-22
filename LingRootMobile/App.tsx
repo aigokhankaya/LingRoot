@@ -5,6 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { LanguageProvider } from './src/contexts/LanguageContext';
 import { AudioProvider } from './src/contexts/AudioContext';
+import { AlertProvider } from './src/contexts/AlertContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useAuth } from './src/contexts/AuthContext';
 import TrackPlayer from 'react-native-track-player';
@@ -43,7 +44,7 @@ export default function App() {
     };
 
     initializeServices();
-    
+
     // Listen for app returning to foreground to re-schedule for the day
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
@@ -70,7 +71,9 @@ export default function App() {
     <LanguageProvider>
       <AuthProvider>
         <AudioProvider>
-          <AppNavigator />
+          <AlertProvider>
+            <AppNavigator />
+          </AlertProvider>
         </AudioProvider>
       </AuthProvider>
     </LanguageProvider>

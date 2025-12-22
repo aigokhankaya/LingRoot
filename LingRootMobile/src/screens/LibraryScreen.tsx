@@ -681,30 +681,51 @@ const LibraryScreen: React.FC = () => {
       </View>
 
       <View style={styles.levelFilter}>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={levels}
-          keyExtractor={(item) => item}
-          renderItem={({ item }) => (
+        {/* Row 1: A1, A2, B1 */}
+        <View style={styles.levelFilterRow}>
+          {(['A1', 'A2', 'B1'] as CEFRLevel[]).map((level) => (
             <TouchableOpacity
+              key={level}
               style={[
                 styles.levelChip,
-                selectedLevel === item && styles.levelChipActive,
+                selectedLevel === level && styles.levelChipActive,
               ]}
-              onPress={() => setSelectedLevel(item)}
+              onPress={() => setSelectedLevel(selectedLevel === level ? 'all' : level)}
             >
               <Text
                 style={[
                   styles.levelChipText,
-                  selectedLevel === item && styles.levelChipTextActive,
+                  selectedLevel === level && styles.levelChipTextActive,
                 ]}
               >
-                {item === 'all' ? t('library.all') : item}
+                {level}
               </Text>
             </TouchableOpacity>
-          )}
-        />
+          ))}
+        </View>
+
+        {/* Row 2: B2, C1, C2 */}
+        <View style={[styles.levelFilterRow, { marginTop: 8 }]}>
+          {(['B2', 'C1', 'C2'] as CEFRLevel[]).map((level) => (
+            <TouchableOpacity
+              key={level}
+              style={[
+                styles.levelChip,
+                selectedLevel === level && styles.levelChipActive,
+              ]}
+              onPress={() => setSelectedLevel(selectedLevel === level ? 'all' : level)}
+            >
+              <Text
+                style={[
+                  styles.levelChipText,
+                  selectedLevel === level && styles.levelChipTextActive,
+                ]}
+              >
+                {level}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       {filteredTracks.length > 0 ? (
@@ -893,14 +914,21 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 20,
   },
+  levelFilterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
   levelChip: {
-    paddingHorizontal: 20,
+    flex: 1,
     paddingVertical: 10,
-    borderRadius: 24,
+    borderRadius: 20,
     backgroundColor: COLORS.surface,
-    marginRight: 10,
     borderWidth: 1,
     borderColor: COLORS.slate200,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   levelChipActive: {
     backgroundColor: COLORS.brandTeal,
