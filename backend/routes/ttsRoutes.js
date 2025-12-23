@@ -353,6 +353,8 @@ router.post("/create-podcast", authenticate, async (req, res) => {
       topic,
       level,
       duration,
+      hostSpeakerId: body.hostSpeakerId,
+      guestSpeakerId: body.guestSpeakerId,
       userId: req.user?.id
     });
 
@@ -365,6 +367,8 @@ router.post("/create-podcast", authenticate, async (req, res) => {
       voiceChoice: body.voiceChoice,
       personalityA: body.personalityA,
       personalityB: body.personalityB,
+      hostSpeakerId: body.hostSpeakerId,
+      guestSpeakerId: body.guestSpeakerId,
       includeHumor: body.includeHumor,
       includeFiller: body.includeFiller,
       userId: req.user?.id

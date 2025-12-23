@@ -353,12 +353,11 @@ const Welcome: React.FC = () => {
   const [showAudioSettings, setShowAudioSettings] = useState<boolean>(false);
 
   // İçerik süresi seçenekleri (tüm modlar için ortak)
-  // 1.5 dk, 5 dk, 10 dk, 15 dk seçenekleri
+  // 2 dk, 5 dk, 10 dk seçenekleri
   const DURATION_OPTIONS = [
-    { value: 1.5, label: `1.5 ${t('duration_min')}`, description: t('duration_words_approx').replace('{count}', '225') },
+    { value: 2, label: `2 ${t('duration_min')}`, description: t('duration_words_approx').replace('{count}', '300') },
     { value: 5, label: `5 ${t('duration_min')}`, description: t('duration_words_approx').replace('{count}', '750') },
     { value: 10, label: `10 ${t('duration_min')}`, description: t('duration_words_approx').replace('{count}', '1500') },
-    { value: 15, label: `15 ${t('duration_min')}`, description: t('duration_words_approx').replace('{count}', '2250') },
   ];
   const [contentDuration, setContentDuration] = useState<number>(5); // Varsayılan 5 dakika
 

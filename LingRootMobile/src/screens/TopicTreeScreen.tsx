@@ -15,6 +15,7 @@ const TopicTreeScreen: React.FC = () => {
   const navigation = useNavigation();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Creation State
@@ -309,15 +310,67 @@ const TopicTreeScreen: React.FC = () => {
 
             <View style={styles.actionsGrid}>
               {/* CREATE AUDIO - Primary Action */}
-              <TouchableOpacity style={styles.actionBtnPrimary} onPress={() => {
-                // Navigate to Create screen with this topic
-                (navigation as any).navigate('Main', {
-                  screen: 'Create',
-                  params: { mode: 'podcast', initialTopic: activeTopic?.title, topicId: activeTopic?.id, topicLevel: activeTopic?.level || selectedLevel },
-                });
-              }}>
-                <Icon name="campaign" size={22} color="#FFFFFF" />
-                <Text style={styles.actionBtnLabelPrimary}>{language === 'tr' ? 'Ses Oluştur' : 'Create Audio'}</Text>
+              <TouchableOpacity
+                style={[styles.actionBtnPrimary, isGeneratingNarration && { opacity: 0.7 }]}
+                disabled={isGeneratingNarration}
+                onPress={async () => {
+                  // Build subject from topic title + description (like web version)
+                  const topicSubject = activeTopic?.description
+                    ? `${activeTopic.title}: ${activeTopic.description}`
+                    : activeTopic?.title || '';
+                  const lvl = activeTopic?.level || selectedLevel;
+
+                  setIsGeneratingNarration(true);
+                  try {
+                    // First generate the narration text from subject
+                    const res = await apiService.generateTopicNarrationFromSubject(topicSubject, lvl);
+                    const data = (res as any)?.data || res;
+
+                    // Get the Turkish text to put in the input field
+                    const generatedText = data?.translated_text || data?.adapted_text || '';
+
+                    if (generatedText) {
+                      // Navigate to Create screen with generated text
+                      (navigation as any).navigate('Main', {
+                        screen: 'Create',
+                        params: {
+                          mode: 'text',
+                          initialText: generatedText,
+                          topicId: activeTopic?.id,
+                          topicLevel: lvl
+                        },
+                      });
+                    } else {
+                      showAlert(
+                        language === 'tr' ? 'Hata' : 'Error',
+                        language === 'tr' ? 'Metin oluşturulamadı' : 'Could not generate text',
+                        [{ text: 'OK', style: 'default' }],
+                        'error-outline',
+                        '#EF4444'
+                      );
+                    }
+                  } catch (err: any) {
+                    showAlert(
+                      language === 'tr' ? 'Hata' : 'Error',
+                      err?.message || (language === 'tr' ? 'Metin oluşturulamadı' : 'Could not generate text'),
+                      [{ text: 'OK', style: 'default' }],
+                      'error-outline',
+                      '#EF4444'
+                    );
+                  } finally {
+                    setIsGeneratingNarration(false);
+                  }
+                }}>
+                {isGeneratingNarration ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Icon name="campaign" size={22} color="#FFFFFF" />
+                )}
+                <Text style={styles.actionBtnLabelPrimary}>
+                  {isGeneratingNarration
+                    ? (language === 'tr' ? 'Oluşturuluyor...' : 'Generating...')
+                    : (language === 'tr' ? 'Ses Oluştur' : 'Create Audio')}
+                </Text>
               </TouchableOpacity>
 
               {hasAudio && (

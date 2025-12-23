@@ -61,13 +61,13 @@ class MFAAligner {
       const rawId = typeof debug === 'string' ? debug : (debug.id || debug.requestId || debug.tag);
       const debugId = rawId
         ? String(rawId)
-            .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
-            .replace(/\s+/g, '_')
-            .slice(0, 120)
+          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+          .replace(/\s+/g, '_')
+          .slice(0, 120)
         : null;
       if (!debugId) return;
       const logsDir = path.join(__dirname, '../logs');
-      await fs.mkdir(logsDir, { recursive: true }).catch(() => {});
+      await fs.mkdir(logsDir, { recursive: true }).catch(() => { });
       const debugPath = path.join(logsDir, `mfa_${debugId}.jsonl`);
       const line = JSON.stringify({
         ts: new Date().toISOString(),
@@ -101,7 +101,7 @@ class MFAAligner {
       const fs = require('fs');
       const dictExists = fs.existsSync(this.localModelPaths.dictFile);
       const acousticExists = fs.existsSync(path.join(this.localModelPaths.acousticDir, 'final.mdl'));
-      
+
       if (dictExists && acousticExists) {
         logger.info('✅ MFA acoustic model already available: english');
         logger.info('✅ MFA dictionary already available: english.dict');
@@ -190,7 +190,7 @@ class MFAAligner {
 
   async prepareDictionary(corpusDir) {
     const dictPath = path.join(corpusDir, 'english.dict');
-    
+
     try {
       // Copy the local english.dict to corpus directory
       await fs.copyFile(this.localModelPaths.dictFile, dictPath);
@@ -215,7 +215,7 @@ class MFAAligner {
     if (beam != null) extraArgs.push(`--beam ${Number(beam)}`);
     if (retryBeam != null) extraArgs.push(`--retry_beam ${Number(retryBeam)}`);
 
-    const command = `docker run --rm ` +
+    const command = `docker run --rm --user root ` +
       `-v "${dockerCorpusDir}:/corpus" ` +
       `-v "${dockerOutputDir}:/output" ` +
       `-v "${dockerDictDir}:/dict" ` +
@@ -233,7 +233,7 @@ class MFAAligner {
       dockerAcousticDir,
       alignOptions: { beam, retryBeam, singleSpeaker },
     });
-    
+
     try {
       const { stdout, stderr } = await execAsync(command, { maxBuffer: 50 * 1024 * 1024, timeout: 300000 });
       const truncate = (s, max = 20000) => {
@@ -279,13 +279,13 @@ class MFAAligner {
       const content = await fs.readFile(textGridPath, 'utf-8');
       const words = [];
       const lines = content.split('\n');
-      
+
       let inWords = false;
       let start = null, end = null, text = null;
-      
+
       for (const line of lines) {
         const trimmed = line.trim();
-        
+
         if (trimmed.includes('name = "words"')) {
           inWords = true;
           continue;
@@ -294,12 +294,12 @@ class MFAAligner {
           inWords = false;
           continue;
         }
-        
+
         if (inWords) {
           const xminMatch = trimmed.match(/xmin = ([\d.]+)/);
           const xmaxMatch = trimmed.match(/xmax = ([\d.]+)/);
           const textMatch = trimmed.match(/text = "([^"]+)"/);
-          
+
           if (xminMatch) start = parseFloat(xminMatch[1]);
           if (xmaxMatch) end = parseFloat(xmaxMatch[1]);
           if (textMatch) {
@@ -315,7 +315,7 @@ class MFAAligner {
           }
         }
       }
-      
+
       logger.info(`✅ Parsed ${words.length} words from TextGrid`);
       return words;
     } catch (error) {
@@ -384,7 +384,7 @@ class MFAAligner {
         // Continue into local MFA processing below
       }
     }
-    
+
     // Local MFA processing
     let corpusDir = null, outputDir = null;
     try {
@@ -517,8 +517,8 @@ class MFAAligner {
       logger.error('MFA pipeline failed:', error);
       throw error;
     } finally {
-      if (corpusDir) await fs.rm(corpusDir, { recursive: true, force: true }).catch(() => {});
-      if (outputDir) await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {});
+      if (corpusDir) await fs.rm(corpusDir, { recursive: true, force: true }).catch(() => { });
+      if (outputDir) await fs.rm(outputDir, { recursive: true, force: true }).catch(() => { });
     }
   }
 
@@ -541,12 +541,12 @@ class MFAAligner {
       const cleanedTranscript = cleanedTranscriptFromCaller != null
         ? cleanedTranscriptFromCaller
         : this.cleanTranscript(transcriptText);
-      
+
       // Send original MP3 to remote MFA - server handles conversion
       // This avoids sending large WAV files over the network
       const audioBuffer = await fs.readFile(audioPath);
       const isWav = audioPath.endsWith('.wav');
-      
+
       await this.writeDebugLine(debug, {
         stage: 'remote-request',
         mfaServiceUrl: mfaServiceUrl,
@@ -557,9 +557,9 @@ class MFAAligner {
         cleanedTranscript,
         locale,
       });
-      
+
       logger.info(`🌐 [Remote MFA] Audio buffer size: ${audioBuffer.length} bytes, Format: ${isWav ? 'WAV' : 'MP3'}, Transcript length: ${cleanedTranscript.length} chars`);
-      
+
       // Create form data
       const formData = new FormData();
       formData.append('audio', audioBuffer, {
@@ -568,14 +568,14 @@ class MFAAligner {
       });
       formData.append('transcript', cleanedTranscript);
       formData.append('locale', locale);
-      
+
       // Send request to remote MFA service
       const rawId = typeof debug === 'string' ? debug : (debug?.id || debug?.requestId || debug?.tag);
       const safeId = rawId
         ? String(rawId)
-            .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
-            .replace(/\s+/g, '_')
-            .slice(0, 120)
+          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+          .replace(/\s+/g, '_')
+          .slice(0, 120)
         : null;
 
       const useAsync = String(process.env.MFA_REMOTE_ASYNC || 'false').toLowerCase() === 'true';
@@ -585,7 +585,8 @@ class MFAAligner {
             ...formData.getHeaders(),
             ...(safeId ? { 'x-mfa-debug-id': safeId } : {}),
           },
-          timeout: Number(process.env.MFA_REMOTE_TIMEOUT_MS || 300000),
+          // 15 minutes timeout for synchronous requests
+          timeout: Number(process.env.MFA_REMOTE_TIMEOUT_MS || 900000),
           maxContentLength: 50 * 1024 * 1024, // 50MB
           maxBodyLength: 50 * 1024 * 1024
         });
@@ -595,11 +596,11 @@ class MFAAligner {
           status: response?.status,
           responseData: response?.data,
         });
-        
+
         if (!response.data.success) {
           throw new Error(response.data.error || 'Remote MFA alignment failed');
         }
-        
+
         logger.info(`✅ Remote MFA alignment completed: ${response.data.wordCount} words`);
         return response.data.timepoints;
       }
@@ -626,7 +627,7 @@ class MFAAligner {
 
       const jobId = String(submitResp.data.jobId);
       const pollIntervalMs = Number(process.env.MFA_REMOTE_ASYNC_POLL_INTERVAL_MS || 1500);
-      const overallTimeoutMs = Number(process.env.MFA_REMOTE_ASYNC_TIMEOUT_MS || process.env.MFA_REMOTE_TIMEOUT_MS || 300000);
+      const overallTimeoutMs = Number(process.env.MFA_REMOTE_ASYNC_TIMEOUT_MS || process.env.MFA_REMOTE_TIMEOUT_MS || 900000); // 15 mins default
       const startedAt = Date.now();
 
       while (Date.now() - startedAt < overallTimeoutMs) {
@@ -665,7 +666,7 @@ class MFAAligner {
       }
 
       throw new Error(`Remote MFA async job timeout after ${overallTimeoutMs}ms`);
-      
+
     } catch (error) {
       const errorDetail = error.response?.data?.error || error.response?.data?.message || error.message;
       const statusCode = error.response?.status || 'N/A';
@@ -676,7 +677,8 @@ class MFAAligner {
         responseData: error.response?.data,
         stack: error?.stack,
       });
-      logger.error(`❌ Remote MFA alignment failed: [HTTP ${statusCode}] ${errorDetail}`);
+      // Use warn to indicate fallback possibility
+      logger.warn(`⚠️ Remote MFA alignment failed (trying local fallback if enabled): [HTTP ${statusCode}] ${errorDetail}`);
       if (error.response?.data) {
         logger.debug(`Remote MFA error response: ${JSON.stringify(error.response.data)}`);
       }

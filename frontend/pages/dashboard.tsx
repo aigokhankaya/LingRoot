@@ -1214,12 +1214,26 @@ const Dashboard = () => {
                                   {item.mp3_url && (
                                     <div className="bg-white rounded-lg p-3 shadow-sm border">
                                       <OutputSection
-                                        audioUrl={convertToPlayableUrl(item.mp3_url)}
-                                        translatedText={item.translated_text || ''}
-                                        adaptedText={item.adapted_text || ''}
-                                        level={item.level || ''}
-                                        words={item.words || []}
-                                        timepoints={item.timepoints || []}
+                                        audioResult={{
+                                          message: item.adapted_text || item.input || '',
+                                          mp3_url: item.mp3_url,
+                                          vtt_url: item.mp3_url?.replace('.mp3', '.vtt'),
+                                          level: item.level || '',
+                                          adapted_text: item.adapted_text || '',
+                                          translated_text: item.translated_text || item.input || '',
+                                          topic: item.input || 'Podcast',
+                                          timepoints: Array.isArray(item.timepoints)
+                                            ? item.timepoints
+                                            : item.timepoints
+                                              ? JSON.parse(item.timepoints as any)
+                                              : [],
+                                          words: Array.isArray(item.words)
+                                            ? item.words
+                                            : item.words
+                                              ? JSON.parse(item.words as any)
+                                              : (item.adapted_text || '').split(/\s+/).filter((w: string) => w.length > 0),
+                                        }}
+                                        isLoggedIn={isAuthenticated}
                                       />
                                     </div>
                                   )}
