@@ -1247,8 +1247,10 @@ const processTtsRequest = async (req, res) => {
           else if (selectedVoice?.includes('Studio')) ttsCategory = 'Platinum';
         } else if (ttsProvider === 'openai') {
           // OpenAI TTS pricing: tts-1 = standard, tts-1-hd = HD
-          const openaiModel = req.body.openaiModel || 'tts-1';
-          ttsCategory = openaiModel === 'tts-1-hd' ? 'openai-hd' : 'openai-standard';
+          // NOTE: HD model disabled for now - always use standard
+          // const openaiModel = req.body.openaiModel || 'tts-1';
+          // ttsCategory = openaiModel === 'tts-1-hd' ? 'openai-hd' : 'openai-standard';
+          ttsCategory = 'openai-standard';
         }
 
         // Clean ve original words'leri topla
