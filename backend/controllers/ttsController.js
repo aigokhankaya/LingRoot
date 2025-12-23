@@ -1245,6 +1245,10 @@ const processTtsRequest = async (req, res) => {
           else if (selectedVoice?.includes('Wavenet') || selectedVoice?.includes('Neural2')) ttsCategory = 'Premium';
           else if (selectedVoice?.includes('Chirp') || selectedVoice?.includes('Journey')) ttsCategory = 'Gold';
           else if (selectedVoice?.includes('Studio')) ttsCategory = 'Platinum';
+        } else if (ttsProvider === 'openai') {
+          // OpenAI TTS pricing: tts-1 = standard, tts-1-hd = HD
+          const openaiModel = req.body.openaiModel || 'tts-1';
+          ttsCategory = openaiModel === 'tts-1-hd' ? 'openai-hd' : 'openai-standard';
         }
 
         // Clean ve original words'leri topla
