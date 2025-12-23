@@ -27,6 +27,81 @@ try {
   ttsClient = null;
 }
 
+/**
+ * Write detailed debug log to file
+ */
+async function writeDebugLog(message, data = {}) {
+  try {
+    const logsDir = path.join(__dirname, '../logs');
+    const logFile = path.join(logsDir, 'podcast_openai_debug.log');
+    const timestamp = new Date().toISOString();
+    const logEntry = `[${timestamp}] ${message}\n${JSON.stringify(data, null, 2)}\n${'='.repeat(80)}\n`;
+    fs.appendFileSync(logFile, logEntry);
+  } catch (e) {
+    logger.error('[DEBUG LOG] Failed to write debug log:', e.message);
+  }
+}
+
+/**
+ * Retry wrapper with exponential backoff for rate limit (429) errors
+ */
+async function withRetry(fn, maxRetries = 3, baseDelayMs = 5000) {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await fn();
+      if (attempt > 0) {
+        await writeDebugLog('OpenAI request succeeded after retry', { attempt: attempt + 1 });
+      }
+      return result;
+    } catch (error) {
+      lastError = error;
+      const isRateLimit = error.status === 429 || error.message?.includes('429');
+
+      // Log detailed error info to file
+      await writeDebugLog('OpenAI API Error', {
+        attempt: attempt + 1,
+        maxRetries: maxRetries + 1,
+        isRateLimit,
+        errorStatus: error.status,
+        errorCode: error.code,
+        errorType: error.type,
+        errorMessage: error.message,
+        errorHeaders: error.headers,
+        errorResponse: error.response?.data || error.error,
+        rateLimitInfo: {
+          'x-ratelimit-limit-requests': error.headers?.['x-ratelimit-limit-requests'],
+          'x-ratelimit-limit-tokens': error.headers?.['x-ratelimit-limit-tokens'],
+          'x-ratelimit-remaining-requests': error.headers?.['x-ratelimit-remaining-requests'],
+          'x-ratelimit-remaining-tokens': error.headers?.['x-ratelimit-remaining-tokens'],
+          'x-ratelimit-reset-requests': error.headers?.['x-ratelimit-reset-requests'],
+          'x-ratelimit-reset-tokens': error.headers?.['x-ratelimit-reset-tokens'],
+          'retry-after': error.headers?.['retry-after'],
+        },
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error), 2),
+      });
+
+      if (!isRateLimit || attempt === maxRetries) {
+        await writeDebugLog('OpenAI request failed - not retrying', {
+          reason: !isRateLimit ? 'not a rate limit error' : 'max retries reached',
+          willThrow: true
+        });
+        throw error;
+      }
+
+      const delay = baseDelayMs * Math.pow(2, attempt); // 5s, 10s, 20s
+      logger.warn(`[OpenAI] Rate limit hit (attempt ${attempt + 1}/${maxRetries + 1}). Waiting ${delay / 1000}s before retry...`);
+      await writeDebugLog('OpenAI rate limit - waiting before retry', {
+        delayMs: delay,
+        nextAttempt: attempt + 2
+      });
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError;
+}
+
+
 const createWordLevelVTTFromTimings = (wordTimings) => {
   let vttContent = 'WEBVTT\n\n';
 
@@ -133,7 +208,7 @@ async function generatePodcastScript(options) {
       speakerBInfo = PERSONALITY_SPEAKERS['curious_enthusiast']; // Female: Kore
     }
   }
-  
+
   logger.info(`[GOOGLE-PODCAST] Using voices - A: ${speakerAInfo.speakerId} (${speakerAInfo.gender}), B: ${speakerBInfo.speakerId} (${speakerBInfo.gender})`);
 
   const prompt = `Generate a VERY NATURAL podcast conversation script about "${topic}" for English learners at ${level} CEFR level.
@@ -150,7 +225,9 @@ CRITICAL - MAKE IT SOUND HUMAN:
 - Add emotional expressions like laughing "(laughs)", surprised reactions, enthusiasm
 
 REQUIREMENTS:
-- Total word count: approximately ${targetWordCount} words (for ${duration} minutes of audio)
+- CRITICAL: Total word count must be EXACTLY approximately ${targetWordCount} words (for ${duration} minutes of audio at 150 words/minute)
+- This is a ${duration}-minute podcast - generate enough content to fill ${duration} FULL minutes
+- Minimum ${Math.round(targetWordCount * 0.9)} words, maximum ${Math.round(targetWordCount * 1.1)} words
 - Style: ${STYLE_PROMPTS[styleType] || STYLE_PROMPTS['friendly_chat']}
 - Speaker A (Host): ${speakerAInfo.style}
 - Speaker B (Guest/Co-host): ${speakerBInfo.style}
@@ -188,7 +265,112 @@ Generate dialogue that sounds like a REAL conversation between friends, NOT a sc
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    const response = await openai.chat.completions.create({
+    // For podcasts longer than 5 minutes, split into segments and generate multiple times
+    const MAX_SEGMENT_DURATION = 5; // minutes per segment
+    const segmentCount = Math.ceil(duration / MAX_SEGMENT_DURATION);
+
+    if (segmentCount > 1) {
+      logger.info(`[GOOGLE-PODCAST] Long podcast (${duration} min) - splitting into ${segmentCount} segments`);
+
+      const allTurns = [];
+      const allTurnsOriginal = [];
+      let previousContext = '';
+
+      for (let seg = 0; seg < segmentCount; seg++) {
+        const segmentDuration = seg === segmentCount - 1
+          ? duration - (seg * MAX_SEGMENT_DURATION)
+          : MAX_SEGMENT_DURATION;
+        const segmentWordCount = Math.round(segmentDuration * 150);
+
+        const segmentPrompt = `Generate segment ${seg + 1} of ${segmentCount} of a podcast conversation about "${topic}" for English learners at ${level} CEFR level.
+
+${seg === 0 ? 'This is the OPENING segment - introduce the topic and speakers.' : ''}
+${seg === segmentCount - 1 ? 'This is the CLOSING segment - wrap up the discussion and conclude.' : ''}
+${seg > 0 && seg < segmentCount - 1 ? 'This is a MIDDLE segment - continue the discussion naturally.' : ''}
+
+${previousContext ? `PREVIOUS CONTEXT (continue from here naturally):\n${previousContext}\n` : ''}
+
+CRITICAL - WORD COUNT:
+- This segment must be EXACTLY ${segmentWordCount} words (${segmentDuration} minutes at 150 words/minute)
+- Minimum ${Math.round(segmentWordCount * 0.9)} words, maximum ${Math.round(segmentWordCount * 1.1)} words
+
+CRITICAL - MAKE IT SOUND HUMAN:
+- Include natural reactions like "Oh wow!", "Hmm, interesting!", "Right, right", "Exactly!", "Oh I see!"
+- Add thinking pauses like "Well...", "So...", "You know...", "I mean..."
+- Include slight interruptions and agreements like "Yeah!", "Mhm!", "Oh really?"
+- Vary sentence lengths - some short reactions, some longer explanations
+
+REQUIREMENTS:
+- Style: ${STYLE_PROMPTS[styleType] || STYLE_PROMPTS['friendly_chat']}
+- Speaker A (Host): ${speakerAInfo.style}
+- Speaker B (Guest/Co-host): ${speakerBInfo.style}
+${includeHumor ? '- Include humor, jokes, and playful banter' : '- Keep it informative but friendly'}
+${includeFiller ? '- Include natural filler words (um, uh, well, you know, like)' : '- Minimal filler words'}
+- Use vocabulary appropriate for ${level} level English learners
+- Output 100% English only
+
+OUTPUT FORMAT (JSON):
+{
+  "turns": [
+    { "speaker": "A", "text": "Speaker A's dialogue" },
+    { "speaker": "B", "text": "Speaker B's dialogue" }
+  ],
+  "turns_original": [
+    { "speaker": "A", "text": "Turkish translation of Speaker A's dialogue" },
+    { "speaker": "B", "text": "Turkish translation of Speaker B's dialogue" }
+  ]
+}`;
+
+        const segResponse = await withRetry(() => openai.chat.completions.create({
+          model: 'gpt-4o-mini',  // Use cost-effective model for all podcasts
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert at writing realistic, natural-sounding podcast conversations. Generate EXACTLY the word count requested. Always output valid JSON.',
+            },
+            { role: 'user', content: segmentPrompt },
+          ],
+          temperature: 0.9,
+          max_tokens: 8000,
+          response_format: { type: 'json_object' },
+        }));
+
+        const segData = JSON.parse(segResponse.choices[0].message.content);
+
+        if (segData.turns && segData.turns.length > 0) {
+          allTurns.push(...segData.turns);
+          if (segData.turns_original) {
+            allTurnsOriginal.push(...segData.turns_original);
+          }
+
+          // Keep last 2 turns as context for next segment
+          const lastTurns = segData.turns.slice(-2);
+          previousContext = lastTurns.map(t => `${t.speaker === 'A' ? 'Host' : 'Guest'}: ${t.text}`).join('\n');
+        }
+
+        logger.info(`[GOOGLE-PODCAST] Segment ${seg + 1}/${segmentCount}: ${segData.turns?.length || 0} turns generated`);
+
+        // Add delay between segments to avoid rate limiting
+        if (seg < segmentCount - 1) {
+          logger.info(`[GOOGLE-PODCAST] Waiting 2 seconds before next segment to avoid rate limiting...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+
+      logger.info(`[GOOGLE-PODCAST] Generated total ${allTurns.length} turns for ${duration}-minute podcast`);
+
+      return {
+        title: topic,
+        turns: allTurns,
+        turns_original: allTurnsOriginal,
+        speakerAId: speakerAInfo.speakerId,
+        speakerBId: speakerBInfo.speakerId,
+        usage: { segmentCount },
+      };
+    }
+
+    // For short podcasts (<=5 min), use single generation
+    const response = await withRetry(() => openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
@@ -197,15 +379,15 @@ Generate dialogue that sounds like a REAL conversation between friends, NOT a sc
         },
         { role: 'user', content: prompt },
       ],
-      temperature: 0.9, // Higher for more natural variation
-      max_tokens: 4000,
+      temperature: 0.9,
+      max_tokens: Math.min(8000, Math.max(4000, Math.round(duration * 1500))),
       response_format: { type: 'json_object' },
-    });
+    }));
 
     const scriptData = JSON.parse(response.choices[0].message.content);
-    
+
     logger.info(`[GOOGLE-PODCAST] Generated script with ${scriptData.turns?.length || 0} turns`);
-    
+
     return {
       title: scriptData.title || topic,
       turns: scriptData.turns || [],
@@ -332,7 +514,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
       keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
       scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     });
-    
+
     const tokenResult = await auth.getAccessToken();
     const accessToken = typeof tokenResult === 'string' ? tokenResult : tokenResult?.token;
     const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
@@ -443,7 +625,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
         ttsCharacters: ttsCharactersTotal,
       };
     }
-    
+
     const requestBody = {
       input: {
         text: dialogueText,
@@ -474,7 +656,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
     logger.info('[GOOGLE-PODCAST] Sending request to Gemini-TTS REST API (v1)...');
     logger.info(`[GOOGLE-PODCAST] Request config: Host=${speakerAId}, Guest=${speakerBId}, Model=${model}`);
     logger.debug(`[GOOGLE-PODCAST] Request body: ${JSON.stringify(requestBody, null, 2)}`);
-    
+
     // Retry logic with exponential backoff
     let lastError;
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -524,15 +706,15 @@ async function synthesizeMultiSpeakerPodcast(options) {
         if (isInvalidArgument) {
           break;
         }
-        
+
         if (attempt < 3) {
           const delay = Math.pow(2, attempt) * 1000; // 2s, 4s
-          logger.info(`[GOOGLE-PODCAST] Retrying in ${delay/1000}s...`);
+          logger.info(`[GOOGLE-PODCAST] Retrying in ${delay / 1000}s...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
     }
-    
+
     // All retries failed, throw the last error
     throw lastError;
   } catch (error) {
@@ -553,6 +735,8 @@ async function synthesizeMultiSpeakerPodcast(options) {
         const [nextA, nextB] = nextPair;
         const attemptNumber = attemptedSet.size + 1;
         logger.warn(`[GOOGLE-PODCAST] INVALID_ARGUMENT for Host=${speakerAId}, Guest=${speakerBId}. Trying another female/male voice pair (attempt ${attemptNumber}/${candidates.length}): Host=${nextA}, Guest=${nextB}`);
+        logger.info(`[SELECTED-HOST]:${nextA} (fallback)`);
+        logger.info(`[SELECTED-GUEST]:${nextB} (fallback)`);
         return await synthesizeMultiSpeakerPodcast({
           ...options,
           speakerAId: nextA,
@@ -565,7 +749,7 @@ async function synthesizeMultiSpeakerPodcast(options) {
       finalErr.code = 'GEMINI_INVALID_ARGUMENT';
       throw finalErr;
     }
-    
+
     // Try fallback for any error (INTERNAL, multiSpeaker, rate limit, etc.)
     logger.info('[GOOGLE-PODCAST] Trying fallback synthesis with separate speakers...');
     try {
@@ -606,7 +790,7 @@ async function synthesizeFallbackPodcast(turns, speakerAId, speakerBId) {
     const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
 
     logger.info(`[GOOGLE-PODCAST] Starting Gemini per-turn synthesis for ${turns.length} turns...`);
-    
+
     for (let i = 0; i < turns.length; i++) {
       const turn = turns[i];
       const speakerAlias = turn.speaker === 'A' ? 'Host' : 'Guest';
@@ -659,7 +843,7 @@ async function synthesizeFallbackPodcast(turns, speakerAId, speakerBId) {
       const audioBuffer = Buffer.from(response.data.audioContent, 'base64');
       audioBuffers.push(audioBuffer);
       fullTranscript.push(turn.text);
-      
+
       if ((i + 1) % 10 === 0) {
         logger.info(`[GOOGLE-PODCAST] Gemini per-turn progress: ${i + 1}/${turns.length} turns synthesized`);
       }
@@ -728,7 +912,7 @@ async function synthesizeFallbackPodcast(turns, speakerAId, speakerBId) {
  */
 async function uploadPodcastAudio(audioContent, fileName) {
   const { uploadToSupabase } = require('./storageUploader');
-  
+
   try {
     // Ensure audioContent is a Buffer (Google TTS may return Uint8Array or base64)
     let audioBuffer;
@@ -742,15 +926,15 @@ async function uploadPodcastAudio(audioContent, fileName) {
     } else {
       throw new Error('Invalid audio content type');
     }
-    
+
     logger.info(`[GOOGLE-PODCAST] Uploading audio: ${audioBuffer.length} bytes`);
-    
+
     const publicUrl = await uploadToSupabase(audioBuffer, `podcast_${fileName}`, 'audio/mpeg');
-    
+
     if (!publicUrl) {
       throw new Error('Upload returned null URL');
     }
-    
+
     logger.info(`[GOOGLE-PODCAST] Audio uploaded: ${publicUrl}`);
     return publicUrl;
   } catch (error) {
@@ -857,6 +1041,8 @@ async function createGoogleTTSPodcast(options) {
     }
 
     logger.info(`[GOOGLE-PODCAST] Final voices - Host: ${finalHostSpeakerId}, Guest: ${finalGuestSpeakerId}`);
+    logger.info(`[SELECTED-HOST]:${finalHostSpeakerId}`);
+    logger.info(`[SELECTED-GUEST]:${finalGuestSpeakerId}`);
 
     const requestedModel = (typeof ttsModel === 'string' && ttsModel.trim().length > 0)
       ? ttsModel.trim()
@@ -870,7 +1056,7 @@ async function createGoogleTTSPodcast(options) {
 
     // Step 2: Synthesize audio with Gemini-TTS
     const stylePrompt = STYLE_PROMPTS[styleType] || STYLE_PROMPTS['friendly_chat'];
-    
+
     const turnsForTts = sentenceTurns.length > 0 ? sentenceTurns : scriptResult.turns;
     const turnsOriginalForSave = sentenceTurnsOriginal.length > 0
       ? sentenceTurnsOriginal
@@ -914,7 +1100,7 @@ async function createGoogleTTSPodcast(options) {
         const tempWavPath = tempMp3Path.replace('.mp3', '.wav');
 
         await fs.promises.writeFile(tempMp3Path, audioResult.audioContent);
-        
+
         // Convert MP3 to WAV (16kHz mono) - MFA works better with WAV
         const ffmpegPath = process.env.FFMPEG_PATH || 'ffmpeg';
         try {
@@ -926,7 +1112,7 @@ async function createGoogleTTSPodcast(options) {
         } catch (ffmpegErr) {
           logger.warn(`[GOOGLE-PODCAST] FFmpeg conversion failed, using MP3: ${ffmpegErr.message}`);
         }
-        
+
         const useRemoteMFA = process.env.USE_REMOTE_MFA === 'true';
         // Use MP3 when remote MFA is enabled (remote server handles conversion and upload is smaller)
         // Use WAV when running local MFA (WAV tends to align better locally)
@@ -961,12 +1147,12 @@ async function createGoogleTTSPodcast(options) {
           {
             debug: mfaDebugEnabled
               ? {
-                  id: `google_podcast_${fileName.replace(/\.mp3$/i, '')}`,
-                  source: 'googleTTSMultiSpeaker',
-                  fileName,
-                  fallbackUsed: audioResult.fallbackUsed || false,
-                  fallbackMode: audioResult.fallbackMode || null,
-                }
+                id: `google_podcast_${fileName.replace(/\.mp3$/i, '')}`,
+                source: 'googleTTSMultiSpeaker',
+                fileName,
+                fallbackUsed: audioResult.fallbackUsed || false,
+                fallbackMode: audioResult.fallbackMode || null,
+              }
               : null,
           }
         );
@@ -977,8 +1163,8 @@ async function createGoogleTTSPodcast(options) {
         }
 
         // Cleanup temp files (both MP3 and WAV)
-        await fs.promises.unlink(tempMp3Path).catch(() => {});
-        await fs.promises.unlink(tempWavPath).catch(() => {});
+        await fs.promises.unlink(tempMp3Path).catch(() => { });
+        await fs.promises.unlink(tempWavPath).catch(() => { });
 
         if (Array.isArray(mfaWordTimings) && mfaWordTimings.length > 0) {
           wordsForTiming = mfaWordTimings.map(t => t.word);
@@ -1143,8 +1329,8 @@ async function createGoogleTTSPodcast(options) {
 
         const turnsOriginalDialogueText = Array.isArray(turnsOriginalForSave) && turnsOriginalForSave.length > 0
           ? turnsOriginalForSave
-              .map(turn => `${turn?.speaker === 'A' ? 'Host' : 'Guest'}: ${turn?.text || ''}`)
-              .join('\n')
+            .map(turn => `${turn?.speaker === 'A' ? 'Host' : 'Guest'}: ${turn?.text || ''}`)
+            .join('\n')
           : '';
 
         const insertData = {
