@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { MessageSquare, Plus, MoreVertical, Edit2, Trash2 } from 'lucide-react';
+import { MessageSquare, Plus, MoreVertical, Edit2, Trash2, PanelLeftClose } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from '../../lib/auth';
@@ -26,6 +26,7 @@ interface ConversationListProps {
   onNewChat: () => void;
   isLoading?: boolean;
   onRefreshConversations?: () => void;
+  onToggle?: () => void;
 }
 
 export const ConversationList: React.FC<ConversationListProps> = ({
@@ -34,6 +35,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   onNewChat,
   isLoading = false,
   onRefreshConversations,
+  onToggle,
 }) => {
   const { user } = useAuth();
   const router = useRouter();
@@ -107,27 +109,42 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 border-r border-gray-200">
-      {/* Logo Section - Top */}
+    <div className="flex flex-col h-full bg-gray-50 border-r border-gray-200 overflow-visible">
+      {/* Logo Section - Top with Toggle Button */}
       <div className="p-4 border-b border-gray-200">
-        <Link href="/welcome" className="flex items-center space-x-3 cursor-pointer group">
-          <img 
-            src="/lingroot-icon.svg" 
-            alt="LingRoot Logo" 
-            className="w-8 h-8" 
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = '/LingRoot_IconOnly.png';
-            }}
-          />
-          <span className="text-lg font-bold text-gray-800 tracking-tight group-hover:opacity-80 transition-opacity">
-            LingRoot
-          </span>
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link href="/welcome" className="flex items-center space-x-3 cursor-pointer group">
+            <img
+              src="/lingroot-icon.svg"
+              alt="LingRoot Logo"
+              className="w-8 h-8"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/LingRoot_IconOnly.png';
+              }}
+            />
+            <span className="text-lg font-bold text-gray-800 tracking-tight group-hover:opacity-80 transition-opacity">
+              LingRoot
+            </span>
+          </Link>
+
+          {/* Toggle Button - ChatGPT Style */}
+          {onToggle && (
+            <Button
+              onClick={onToggle}
+              variant="ghost"
+              size="icon"
+              className="w-8 h-8 rounded-lg hover:bg-gray-200 transition-colors flex-shrink-0"
+              title="Menüyü Kapat"
+            >
+              <PanelLeftClose className="w-5 h-5 text-gray-600" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* New Chat Button */}
       <div className="p-3 border-b border-gray-200">
-        <Button 
+        <Button
           onClick={onNewChat}
           className="w-full justify-start bg-transparent hover:bg-gray-100 text-gray-700 border-0 rounded-lg transition-colors"
           variant="ghost"
@@ -154,11 +171,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             conversations.map((conv) => (
               <div
                 key={conv.id}
-                className={`group p-2.5 md:p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                  currentConversationId === conv.id
-                    ? 'bg-gray-200 text-gray-900'
-                    : 'hover:bg-gray-100 text-gray-700 hover:text-gray-900'
-                }`}
+                className={`group p-2.5 md:p-3 rounded-lg cursor-pointer transition-all duration-200 ${currentConversationId === conv.id
+                  ? 'bg-gray-200 text-gray-900'
+                  : 'hover:bg-gray-100 text-gray-700 hover:text-gray-900'
+                  }`}
                 onClick={() => router.push(`/chat/${conv.id}`)}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -216,28 +232,26 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         </div>
       </ScrollArea>
 
-      {/* Profile Section - Bottom */}
-      <div className="mt-auto border-t border-gray-200">
-        {/* User Profile with Dropdown Menu */}
-        {user && (
-          <div className="p-3">
-            <ProfileDropdownMenu
-              align="end"
-              side="top"
-              avatarSize="sm"
-              showUserInfo={false}
-              showChevron={false}
-              showHomeLink={true}
-              triggerClassName="w-full rounded-xl p-2 hover:bg-gray-100 transition-colors"
-            />
-          </div>
-        )}
-        
-        {/* AI Assistant Status */}
-        <div className="px-3 py-2 flex items-center justify-center gap-2 text-xs text-gray-500">
+      {/* Profile Section - Bottom (Single Row) */}
+      <div className="mt-auto border-t border-gray-200 px-3 py-2 flex items-center justify-between relative">
+        {/* AI Assistant Status - Left */}
+        <div className="flex items-center gap-1.5 text-xs text-gray-500">
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
           <span>LingRoot AI Assistant</span>
         </div>
+
+        {/* User Profile - Right (Clickable indicator) */}
+        {user && (
+          <ProfileDropdownMenu
+            align="end"
+            side="top"
+            avatarSize="sm"
+            showUserInfo={false}
+            showChevron={true}
+            showHomeLink={true}
+            triggerClassName="rounded-lg px-2 py-1 border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-all shadow-sm cursor-pointer"
+          />
+        )}
       </div>
     </div>
   );
