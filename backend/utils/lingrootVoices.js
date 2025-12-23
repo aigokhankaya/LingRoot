@@ -129,6 +129,72 @@ const LINGROOT_VOICES = [
     accent: 'american',
     quality: 'ultra',
     google: { name: 'en-US-Journey-F', languageCode: 'en-US' }
+  },
+  // OpenAI TTS Voices - Premium quality, human-like
+  {
+    id: 'lr_openai_alloy',
+    label: 'Alloy – Nötr (OpenAI)',
+    gender: 'neutral',
+    accent: 'american',
+    quality: 'premium',
+    openai: { name: 'alloy', model: 'tts-1' }
+  },
+  {
+    id: 'lr_openai_echo',
+    label: 'Echo – Erkek Sıcak (OpenAI)',
+    gender: 'male',
+    accent: 'american',
+    quality: 'premium',
+    openai: { name: 'echo', model: 'tts-1' }
+  },
+  {
+    id: 'lr_openai_fable',
+    label: 'Fable – Kadın İngiliz (OpenAI)',
+    gender: 'female',
+    accent: 'british',
+    quality: 'premium',
+    openai: { name: 'fable', model: 'tts-1' }
+  },
+  {
+    id: 'lr_openai_onyx',
+    label: 'Onyx – Erkek Otoriter (OpenAI)',
+    gender: 'male',
+    accent: 'american',
+    quality: 'premium',
+    openai: { name: 'onyx', model: 'tts-1' }
+  },
+  {
+    id: 'lr_openai_nova',
+    label: 'Nova – Kadın Enerjik (OpenAI)',
+    gender: 'female',
+    accent: 'american',
+    quality: 'premium',
+    openai: { name: 'nova', model: 'tts-1' }
+  },
+  {
+    id: 'lr_openai_shimmer',
+    label: 'Shimmer – Kadın Sakin (OpenAI)',
+    gender: 'female',
+    accent: 'american',
+    quality: 'premium',
+    openai: { name: 'shimmer', model: 'tts-1' }
+  },
+  // OpenAI TTS HD Voices - Ultra premium quality
+  {
+    id: 'lr_openai_nova_hd',
+    label: 'Nova HD – Kadın Enerjik (OpenAI Ultra)',
+    gender: 'female',
+    accent: 'american',
+    quality: 'ultra',
+    openai: { name: 'nova', model: 'tts-1-hd' }
+  },
+  {
+    id: 'lr_openai_onyx_hd',
+    label: 'Onyx HD – Erkek Otoriter (OpenAI Ultra)',
+    gender: 'male',
+    accent: 'american',
+    quality: 'ultra',
+    openai: { name: 'onyx', model: 'tts-1-hd' }
   }
 ];
 
@@ -148,6 +214,10 @@ function mapLingrootToProviderVoice(id, provider) {
   const normalized = (provider || '').toLowerCase();
   if (normalized === 'polly' || normalized === 'amazon') {
     return voice.polly || null;
+  }
+
+  if (normalized === 'openai') {
+    return voice.openai || null;
   }
 
   // Default to Google for any other provider ('google', 'azure', unknown)

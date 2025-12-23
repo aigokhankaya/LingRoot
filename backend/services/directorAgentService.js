@@ -161,6 +161,79 @@ class DirectorAgentService {
             };
         }
     }
+    /**
+     * Suggests and saves a voice for a book at a specific CEFR level.
+     * @param {Object} book - The book object (id, title, subjects)
+     * @param {string} level - CEFR level (A1, A2, B1, B2, C1, C2)
+     * @param {Object} currentSettings - Current voice_settings JSON
+     * @returns {Promise<Object>} - The selected voice config { voice_id, style }
+     */
+    async suggestAndSaveBookVoice(book, level, currentSettings = {}) {
+        try {
+            const prompt = `
+        You are an Audiobook Casting Director. Cast the perfect voice for this book at CEFR Level ${level}.
+        
+        Book Title: "${book.title}"
+        Subjects: "${book.subjects ? book.subjects.join(', ') : 'General'}"
+        Target Level: ${level} (A1=Slow/Clear, C2=Natural/Fast)
+
+        Available Voices:
+        - alloy (Neutral, Balanced)
+        - echo (Male, Warm)
+        - fable (Female, British, Expressive) - Good for fiction/fantasy
+        - onyx (Male, Deep, Authoritative) - Good for thriller/history
+        - nova (Female, Energetic) - Good for non-fiction/guides
+        - shimmer (Female, Calm) - Good for romance/poetry
+
+        Rules:
+        - Lower levels (A1-A2) need clearer voices (Alloy, Nova).
+        - Higher levels (B2-C2) can use more expressive/accented voices (Fable, Onyx).
+        - Match voice to book genre.
+
+        Output JSON:
+        {
+            "voice_id": "selected_voice_name",
+            "style": "description of why"
+        }
+      `;
+
+            const response = await openaiClient.generateChatCompletion([
+                { role: 'user', content: prompt }
+            ], {
+                temperature: 0.4,
+                maxTokens: 100,
+                model: 'gpt-4o-mini',
+                systemPrompt: 'You are an expert Casting Director. Output JSON only.'
+            });
+
+            const content = response.content.replace(/```json/g, '').replace(/```/g, '').trim();
+            const selection = JSON.parse(content);
+
+            // Update settings
+            const newSettings = { ...currentSettings };
+            newSettings[level] = {
+                voice_id: selection.voice_id,
+                style: selection.style,
+                assigned_at: new Date().toISOString()
+            };
+
+            // Persist to DB
+            const { supabase } = require('../utils/supabaseClient');
+            await supabase
+                .from('books')
+                .update({ voice_settings: newSettings })
+                .eq('id', book.id);
+
+            logger.info(`[DirectorAgent] 🎬 Casted voice for book "${book.title}" (${level}): ${selection.voice_id}`);
+
+            return newSettings[level];
+
+        } catch (error) {
+            logger.error('[DirectorAgent] Voice casting failed:', error);
+            // Fallback default
+            return { voice_id: 'alloy', style: 'Fallback default' };
+        }
+    }
 }
 
 module.exports = new DirectorAgentService();
