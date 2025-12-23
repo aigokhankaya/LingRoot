@@ -11,6 +11,7 @@ const { translateAndAdaptToCEFR } = require("../utils/translateAndAdapt");
 const { synthesizeWithGoogle, listGoogleVoices, getVoiceGender } = require("../utils/googleTTS");
 const { synthesizeWithAzure, listAzureVoices, isAzureTTSAvailable } = require("../utils/azureTTS");
 const { synthesizeWithPolly, listPollyVoices, isPollyAvailable } = require("../utils/amazonPolly");
+const { synthesizeWithOpenAI, listOpenAIVoices, isOpenAITTSAvailable } = require("../utils/openaiTTS");
 const { mergeAudioSegments, mergeAudioSegmentsToBuffer } = require("../utils/audioMerger");
 const { uploadToSupabase } = require("../utils/storageUploader");
 const { analyzeAndAdjustTimings } = require('../utils/audioAnalyzer');
@@ -837,39 +838,54 @@ const processTtsRequest = async (req, res) => {
     const ttsProvider = await getTtsProvider();
 
     if (!requestedVoice) {
-      // DIRECTOR MODE VOICE SELECTION
-      if (req.directorAnalysis) {
-        if (ttsProvider === 'azure') {
-          // Azure offers specific styles. Guy is good for general storytelling.
-          // Davis is also good. 
-          selectedVoice = 'en-US-GuyNeural';
-          logger.info(`[${requestId}] 🎬 Director Mode: Selected Azure Storytelling Voice (${selectedVoice})`);
-        } else if (ttsProvider === 'google') {
-          // Google Studio voices are better for long form
-          selectedVoice = 'en-US-Studio-M';
-          logger.info(`[${requestId}] 🎬 Director Mode: Selected Google Studio Voice (${selectedVoice})`);
-        } else if (ttsProvider === 'openai') {
-          selectedVoice = 'onyx';
-          logger.info(`[${requestId}] 🎬 Director Mode: Selected OpenAI Voice (${selectedVoice})`);
-        } else {
-          // Fallback or Polly
-          selectedVoice = 'Joanna'; // Polly standard
-          logger.info(`[${requestId}] 🎬 Director Mode: Selected Fallback Voice (${selectedVoice})`);
+      // 1. Check if Book has a persistent voice setting for this level
+      let bookVoiceSetting = null;
+      let bookData = null;
+
+      try {
+        const { data: book } = await supabase
+          .from('books')
+          .select('id, title, subjects, voice_settings')
+          .eq('id', bookId)
+          .single();
+
+        if (book) {
+          bookData = book;
+          const settings = book.voice_settings || {};
+          // Check specific level first, then fallback to 'default' or any existing
+          bookVoiceSetting = settings[level] || settings['default'];
         }
+      } catch (err) {
+        logger.warn(`[${requestId}] Failed to fetch book voice settings: ${err.message}`);
+      }
+
+      if (bookVoiceSetting && bookVoiceSetting.voice_id) {
+        selectedVoice = bookVoiceSetting.voice_id;
+        logger.info(`[${requestId}] 📖 Using persisted book voice for ${level}: ${selectedVoice} (${bookVoiceSetting.style})`);
+      } else if (bookData && req.directorAnalysis) {
+        // 2. No setting exists -> Ask Director to Cast and Save
+        logger.info(`[${requestId}] 🎬 Director Mode: Casting new voice for book "${bookData.title}" (${level})...`);
+        const newSetting = await DirectorAgentService.suggestAndSaveBookVoice(bookData, level, bookData.voice_settings);
+        selectedVoice = newSetting.voice_id;
       } else {
-        // No voice requested: pick default Lingroot voice, then map to provider
-        lingrootVoiceId = getDefaultLingrootVoiceId(languageCode);
-        const mapped = mapLingrootToProviderVoice(lingrootVoiceId, ttsProvider);
-        if (mapped && mapped.name) {
-          selectedVoice = mapped.name;
-          languageCode = mapped.languageCode || languageCode;
-          if (mapped.engine) {
-            pollyEngine = mapped.engine;
-          }
-          logger.info(`[${requestId}] 🎯 No voice requested, using default Lingroot voice ${lingrootVoiceId} -> ${ttsProvider}:${selectedVoice}`);
+        // 3. Fallback to old logic (Director dynamic or Lingroot mapping)
+        if (req.directorAnalysis) {
+          if (ttsProvider === 'openai') selectedVoice = 'onyx'; // Old hardcoded fallback
+          else selectedVoice = 'Joanna';
+          logger.info(`[${requestId}] 🎬 Director Mode: Dynamic fallback voice (${selectedVoice})`);
         } else {
-          selectedVoice = await getDefaultVoiceForProvider(ttsProvider, languageCode);
-          logger.info(`[${requestId}] 🎯 No voice requested, Lingroot mapping missing, using provider default for ${ttsProvider}: ${selectedVoice}`);
+          // ... existing Lingroot mapping logic ...
+          lingrootVoiceId = getDefaultLingrootVoiceId(languageCode);
+          const mapped = mapLingrootToProviderVoice(lingrootVoiceId, ttsProvider);
+          if (mapped && mapped.name) {
+            selectedVoice = mapped.name;
+            languageCode = mapped.languageCode || languageCode;
+            if (mapped.engine) pollyEngine = mapped.engine;
+            logger.info(`[${requestId}] 🎯 No voice requested, using default Lingroot voice: ${selectedVoice}`);
+          } else {
+            selectedVoice = await getDefaultVoiceForProvider(ttsProvider, languageCode);
+            logger.info(`[${requestId}] 🎯 No voice requested, using provider default: ${selectedVoice}`);
+          }
         }
       }
     } else {
@@ -1169,12 +1185,29 @@ const processTtsRequest = async (req, res) => {
             languageCode: languageCode,
             speakingRate: speakingRate
           });
+        } else if (ttsProvider === 'openai' && isOpenAITTSAvailable()) {
+          logger.info(`[${requestId}] Using OpenAI TTS for chunk ${i + 1}`);
+          // Get OpenAI voice config from Lingroot mapping
+          const openaiVoiceConfig = lingrootVoiceId
+            ? mapLingrootToProviderVoice(lingrootVoiceId, 'openai')
+            : null;
+          const openaiVoice = openaiVoiceConfig?.name || selectedVoice || 'nova';
+          const openaiModel = openaiVoiceConfig?.model || 'tts-1';
+
+          ttsResult = await synthesizeWithOpenAI({
+            text: chunk,
+            voice: openaiVoice,
+            model: openaiModel,
+            speed: speakingRate
+          });
         } else {
           // Default to Google TTS
           if (ttsProvider === 'azure') {
             logger.warn(`[${requestId}] Azure TTS not available, falling back to Google TTS`);
           } else if (ttsProvider === 'polly' || ttsProvider === 'amazon') {
             logger.warn(`[${requestId}] Amazon Polly not available, falling back to Google TTS`);
+          } else if (ttsProvider === 'openai') {
+            logger.warn(`[${requestId}] OpenAI TTS not available, falling back to Google TTS`);
           }
           logger.info(`[${requestId}] Using Google TTS for chunk ${i + 1}`);
           ttsResult = await synthesizeWithGoogle({
@@ -1356,11 +1389,11 @@ const processTtsRequest = async (req, res) => {
           {
             debug: mfaDebugEnabled
               ? {
-                  id: `text_${requestId}_${uniqueId}`,
-                  source: 'ttsController',
-                  requestId,
-                  uniqueId,
-                }
+                id: `text_${requestId}_${uniqueId}`,
+                source: 'ttsController',
+                requestId,
+                uniqueId,
+              }
               : null,
           }
         );
