@@ -19,6 +19,9 @@ const defaultTtsPricingPer1kChars = {
   Premium: 0.016,    // Wavenet/Neural2
   Gold: 0.020,       // Chirp/Journey (approx)
   Platinum: 0.160,   // Studio
+  // OpenAI TTS pricing per 1K chars
+  'openai-standard': 0.015,  // tts-1: $15/1M chars = $0.015/1K
+  'openai-hd': 0.030,        // tts-1-hd: $30/1M chars = $0.030/1K
 };
 
 // Amazon Polly pricing per 1K chars

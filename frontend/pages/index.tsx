@@ -43,7 +43,7 @@ const App: React.FC = () => {
 
     // --- ESKİ MANTIKTAN ENTEGRE EDİLEN HOOK'LAR VE STATE'LER ---
     const router = useRouter();
-    const { login, loginWithGoogle, isAuthenticated, register } = useAuth();
+    const { login, loginWithGoogle, isAuthenticated, isLoading: authLoading, register } = useAuth();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [errorCode, setErrorCode] = useState<string | null>(null);
@@ -247,6 +247,18 @@ const App: React.FC = () => {
         t('landing_cta_benefit2'),
         t('landing_cta_benefit3')
     ];
+
+    // Auth kontrolü sırasında veya kullanıcı authenticated iken (yönlendirme beklerken) loading göster
+    // Bu, flash sorununu önler
+    if (authLoading || isAuthenticated) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-background">

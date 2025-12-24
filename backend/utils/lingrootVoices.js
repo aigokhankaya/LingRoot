@@ -237,6 +237,10 @@ function mapLingrootToProviderVoice(id, provider) {
     return voice.polly || null;
   }
 
+  if (normalized === 'openai') {
+    return voice.openai || null;
+  }
+
   // Default to Google for any other provider ('google', 'azure', unknown)
   return voice.google || null;
 }
