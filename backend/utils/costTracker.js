@@ -1,6 +1,7 @@
 // backend/utils/costTracker.js
-// Centralized cost calculation for OpenAI and Google TTS
+// Centralized cost calculation and logging for OpenAI, Google TTS, and Amazon Polly
 const logger = require('./logger');
+const { supabase } = require('./supabaseClient');
 
 // Default pricing (USD) per 1K tokens or chars. Can be overridden via ENV JSON.
 const defaultOpenAiPricing = {
@@ -18,6 +19,13 @@ const defaultTtsPricingPer1kChars = {
   Premium: 0.016,    // Wavenet/Neural2
   Gold: 0.020,       // Chirp/Journey (approx)
   Platinum: 0.160,   // Studio
+};
+
+// Amazon Polly pricing per 1K chars
+const defaultPollyPricingPer1kChars = {
+  standard: 0.004,   // Standard voices
+  neural: 0.016,     // Neural voices
+  long_form: 0.016,  // Long-form voices
 };
 
 function getPricingFromEnv(envKey, fallback) {
@@ -68,9 +76,66 @@ function calculateTtsCost(characters, category) {
   return Number(cost.toFixed(6));
 }
 
+/**
+ * Calculate Amazon Polly cost based on character count and engine
+ * @param {number} characters
+ * @param {'standard'|'neural'|'long_form'} engine
+ */
+function calculatePollyCost(characters, engine = 'standard') {
+  const pollyPricing = getPricingFromEnv('POLLY_PRICING_JSON', defaultPollyPricingPer1kChars);
+  const per1k = pollyPricing[engine] || pollyPricing['standard'];
+  const cost = (characters / 1000) * per1k;
+  return Number(cost.toFixed(6));
+}
+
+/**
+ * Log API cost to api_costs table
+ * @param {Object} params
+ * @param {string} params.userId - User ID
+ * @param {string} params.feature - Feature name (e.g., 'topic_subtopics', 'podcast_creation')
+ * @param {string} params.provider - Provider name (e.g., 'openai', 'google_tts', 'aws_polly')
+ * @param {string} [params.model] - Model name (e.g., 'gpt-4o-mini', 'Joanna')
+ * @param {number} [params.inputQuantity] - Input tokens/characters
+ * @param {number} [params.outputQuantity] - Output tokens (for OpenAI)
+ * @param {number} params.costUsd - Cost in USD
+ * @param {Object} [params.metadata] - Additional context (e.g., topic_id)
+ */
+async function logApiCost({ userId, feature, provider, model, inputQuantity, outputQuantity, costUsd, metadata }) {
+  try {
+    if (!supabase) {
+      logger.error('[COST] Supabase client is not initialized!');
+      return;
+    }
+
+    const insertData = {
+      user_id: userId,
+      feature,
+      provider,
+      model: model || null,
+      input_quantity: inputQuantity || 0,
+      output_quantity: outputQuantity || 0,
+      cost_usd: costUsd,
+      metadata: metadata || null,
+    };
+
+    const { data, error } = await supabase
+      .from('api_costs')
+      .insert(insertData)
+      .select();
+
+    if (error) {
+      logger.error('[COST] Failed to log API cost:', error.message || error.code || JSON.stringify(error));
+    } else {
+      logger.debug(`[COST] Logged: ${feature} | ${provider} | $${costUsd.toFixed(6)}`);
+    }
+  } catch (err) {
+    logger.error('[COST] Exception logging API cost:', err.message);
+  }
+}
+
 module.exports = {
   calculateOpenAiCost,
   calculateTtsCost,
+  calculatePollyCost,
+  logApiCost,
 };
-
-

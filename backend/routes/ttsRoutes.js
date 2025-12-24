@@ -2,6 +2,8 @@
 
 const express = require("express");
 const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
 const {
   handleTTSRequest,
   translateToEnglish,
@@ -23,10 +25,18 @@ const logger = require("../utils/logger");
 const { authenticate } = require('../middleware/auth');
 const jobQueue = require('../utils/jobQueue');
 const { sendPushNotification, getUnreadNotifications, markNotificationAsRead } = require('../utils/pushNotification');
+
+// Helper function to write podcast-specific logs
+const podcastLogPath = path.join(__dirname, '../logs/podcast_logs.log');
+function logPodcast(message, data = {}) {
+  const timestamp = new Date().toISOString();
+  const logLine = `[${timestamp}] ${message} ${JSON.stringify(data)}\n`;
+  fs.appendFileSync(podcastLogPath, logLine);
+  logger.info(`[PODCAST-LOG] ${message}`, data);
+}
 const fetch = require('node-fetch');
 const { supabase } = require('../utils/supabaseClient');
-const fs = require('fs').promises;
-const path = require('path');
+const fsPromises = require('fs').promises;
 const os = require('os');
 const { mfaAligner } = require('../utils/mfaAligner');
 
@@ -386,6 +396,173 @@ router.post("/create-podcast", authenticate, async (req, res) => {
       message: 'Failed to create podcast',
       error: error.message,
     });
+  }
+});
+
+// Async Podcast Creation with Notification
+router.post("/create-podcast-async", authenticate, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Prevent multiple concurrent async podcast jobs per user
+    const existingJob = jobQueue.getActiveJobForUser(userId);
+    if (existingJob) {
+      logger.info(`[AsyncPodcast] Existing active job ${existingJob.id} for user ${userId}; rejecting new request`);
+      return res.status(409).json({
+        success: false,
+        code: 'PODCAST_JOB_IN_PROGRESS',
+        message: 'Zaten devam eden bir podcast oluşturma işleminiz var. Lütfen bitmesini bekleyin.',
+        jobId: existingJob.id,
+        status: existingJob.status,
+      });
+    }
+
+    const body = req.body || {};
+    const rawTopic = body.topic;
+    const topic = typeof rawTopic === 'string' ? rawTopic.trim() : '';
+
+    if (!topic) {
+      return res.status(400).json({
+        success: false,
+        message: 'Topic is required'
+      });
+    }
+
+    const level = (body.level || 'B1').toString().toUpperCase();
+    const duration = body.duration != null ? Number(body.duration) : 10;
+
+    // Create job
+    const job = jobQueue.createJob(userId, {
+      type: 'podcast',
+      topic,
+      level,
+      duration,
+      styleType: body.styleType,
+      voiceChoice: body.voiceChoice,
+      personalityA: body.personalityA,
+      personalityB: body.personalityB,
+      hostSpeakerId: body.hostSpeakerId,
+      guestSpeakerId: body.guestSpeakerId,
+      includeHumor: body.includeHumor,
+      includeFiller: body.includeFiller,
+    });
+
+    logger.info(`📻 [AsyncPodcast] Job ${job.id} created for user ${userId}`, { topic, level, duration });
+
+    // Return job ID immediately
+    res.json({
+      success: true,
+      jobId: job.id,
+      message: 'Podcast oluşturma başlatıldı. Hazır olduğunda bildirim alacaksınız.',
+      estimatedTime: '3-7 minutes'
+    });
+
+    // Process in background
+    setImmediate(async () => {
+      try {
+        jobQueue.updateJob(job.id, { status: 'processing', progress: 10 });
+
+        // Call Direct Google TTS implementation
+        const result = await createGoogleTTSPodcast({
+          topic,
+          level,
+          duration,
+          styleType: body.styleType,
+          voiceChoice: body.voiceChoice,
+          personalityA: body.personalityA,
+          personalityB: body.personalityB,
+          hostSpeakerId: body.hostSpeakerId,
+          guestSpeakerId: body.guestSpeakerId,
+          includeHumor: body.includeHumor,
+          includeFiller: body.includeFiller,
+          userId
+        });
+
+        if (result && result.mp3_url) {
+          // Try to use the contenthistory_id from createGoogleTTSPodcast
+          const savedContentId = result.contenthistory_id || null;
+
+          // If createGoogleTTSPodcast failed to save, throw error - no fallback
+          if (!savedContentId) {
+            const saveError = new Error('createGoogleTTSPodcast failed to save to contenthistory');
+            logPodcast('SAVE_FAILED', { reason: 'contenthistory_id is null', topic, level, userId });
+            throw saveError;
+          }
+
+          logPodcast('PRIMARY_SAVE_SUCCESS', { contenthistory_id: savedContentId, topic });
+
+          // Update job as completed
+          jobQueue.updateJob(job.id, {
+            status: 'completed',
+            progress: 100,
+            result: { ...result, contenthistory_id: savedContentId }
+          });
+
+          // Send push notification - keep payload small to avoid FCM "message too big" error
+          // Use 'audio_created' type so iOS notification handler can process it (same as TTS)
+          await sendPushNotification(userId, {
+            title: '🎙️ Podcast Hazır!',
+            body: 'Podcast\'iniz hazır. Dinlemek için tıklayın.',
+            type: 'audio_created',
+            data: {
+              jobId: job.id,
+              audioId: savedContentId,
+              contenthistory_id: savedContentId,
+              mp3_url: result.mp3_url,
+              title: result.title || topic,
+              level: level,
+              duration: result.duration_seconds,
+              input_type: 'podcast',
+            }
+          });
+
+          logger.info(`[AsyncPodcast] Job ${job.id} completed successfully`);
+        } else {
+          // Update job as failed
+          jobQueue.updateJob(job.id, {
+            status: 'failed',
+            error: result?.message || 'Podcast oluşturulamadı'
+          });
+
+          // Send failure notification
+          await sendPushNotification(userId, {
+            title: '❌ Podcast Oluşturulamadı',
+            body: result?.message || 'Bir hata oluştu. Lütfen tekrar deneyin.',
+            type: 'podcast_failed',
+            data: {
+              jobId: job.id,
+              error: result?.message
+            }
+          });
+
+          logger.error(`[AsyncPodcast] Job ${job.id} failed:`, result?.message);
+        }
+      } catch (error) {
+        logger.error(`[AsyncPodcast] Job ${job.id} error:`, error);
+
+        jobQueue.updateJob(job.id, {
+          status: 'failed',
+          error: error.message
+        });
+
+        // Send failure notification
+        await sendPushNotification(userId, {
+          title: '❌ Podcast Oluşturulamadı',
+          body: 'Bir hata oluştu. Lütfen tekrar deneyin.',
+          type: 'podcast_failed',
+          data: {
+            jobId: job.id,
+            error: error.message
+          }
+        });
+      }
+    });
+  } catch (error) {
+    logger.error(`[AsyncPodcast] Error creating job:`, error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 });
 

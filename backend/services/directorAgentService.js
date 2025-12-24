@@ -24,9 +24,10 @@ class DirectorAgentService {
     /**
      * Analyzes the text to determine its dominant emotional tone.
      * @param {string} text - The text to analyze
+     * @param {string} userId - Optional user ID for cost tracking
      * @returns {Promise<string>} - The detected mood
      */
-    async analyzeMood(text) {
+    async analyzeMood(text, userId = null) {
         // Short circuit for very short text
         if (!text || text.length < 10) return 'Neutral';
 
@@ -50,6 +51,26 @@ class DirectorAgentService {
                 model: 'gpt-4o-mini', // Fast and cheap
                 systemPrompt: 'You are an emotional analysis engine (Director Agent).'
             });
+
+            // Log cost if userId provided
+            if (userId && response.usage) {
+                try {
+                    const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+                    const costInfo = calculateOpenAiCost(response.usage, 'gpt-4o-mini');
+                    await logApiCost({
+                        userId,
+                        feature: 'mood_analysis',
+                        provider: 'openai',
+                        model: 'gpt-4o-mini',
+                        inputQuantity: response.usage.prompt_tokens || 0,
+                        outputQuantity: response.usage.completion_tokens || 0,
+                        costUsd: costInfo.totalCostUsd,
+                        metadata: { text_length: text.length },
+                    });
+                } catch (costErr) {
+                    logger.warn('[DirectorAgent] Failed to log mood analysis cost:', costErr?.message);
+                }
+            }
 
             let detectedMood = response.content.trim().replace(/[^a-zA-Z]/g, '');
 

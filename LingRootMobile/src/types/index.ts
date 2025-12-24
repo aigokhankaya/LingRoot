@@ -38,6 +38,7 @@ export interface TTSRequest {
   gender?: 'male' | 'female' | 'neutral';
   accent?: 'american' | 'british' | 'australian' | 'canadian' | 'indian' | 'international' | 'all';
   topic_id?: string;
+  engine?: string;
 }
 
 export interface TTSResponse {
@@ -72,12 +73,19 @@ export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 export interface Voice {
   id: string;
   name: string;
+  displayName?: string;
   accent: 'american' | 'british' | 'australian' | 'canadian' | 'indian' | 'international';
   gender: 'male' | 'female';
-  category: 'standard' | 'wavenet' | 'neural2' | 'studio' | 'chirp3d';
+  category: 'standard' | 'wavenet' | 'neural2' | 'studio' | 'chirp3d' | 'neural' | 'generative' | 'ultra' | 'premium' | 'basic';
   emotion?: 'neutral' | 'cheerful' | 'serious' | 'professional' | 'excited' | 'calm' | 'friendly';
   ssmlSupport: boolean;
   description?: string;
+  quality?: string;
+  providerVoice?: {
+    name: string;
+    languageCode?: string;
+    engine?: string;
+  };
 }
 
 export interface VoiceCategory {

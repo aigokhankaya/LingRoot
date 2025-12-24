@@ -44,7 +44,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
             </Link>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold">
-                {user?.name ? user.name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase() : 'LR'}
+                {user?.name ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'LR'}
               </div>
               <div>
                 <div className="font-semibold text-gray-900">{user?.name || user?.email || 'Kullanıcı'}</div>
@@ -66,6 +66,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
             <MenuItem href={`/admin/users/${userId}`} label="Kullanıcı Bilgileri" active={isActive(`/admin/users/${userId}`)} />
             <MenuItem href={`/admin/users/${userId}/audio`} label="Ses Kayıtları" active={isActive(`/admin/users/${userId}/audio`)} />
             <MenuItem href={`/admin/users/${userId}/package`} label="Kullanım Bilgileri" active={isActive(`/admin/users/${userId}/package`)} />
+            <MenuItem href={`/admin/users/${userId}/costs`} label="Maliyet Geçmişi" active={isActive(`/admin/users/${userId}/costs`)} />
             <MenuItem href={`/admin/users/${userId}/logins`} label="Login Bilgileri" active={isActive(`/admin/users/${userId}/logins`)} />
           </nav>
         </aside>

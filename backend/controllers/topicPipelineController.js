@@ -130,6 +130,27 @@ exports.processTopicToEnglishText = async (req, res) => {
       logger.info(`[${requestId}] Step 1 complete: ${result.suggestions.length} suggestions generated`);
       logRequestStep(requestId, 'topic-pipeline:suggestions:end', { count: result.suggestions.length });
 
+      // Log cost for topic suggestions
+      try {
+        const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+        const usage = result.usage.suggestions;
+        if (usage && req.user?.id) {
+          const costInfo = calculateOpenAiCost(usage, 'gpt-4o-mini');
+          await logApiCost({
+            userId: req.user.id,
+            feature: 'topic_pipeline_suggestions',
+            provider: 'openai',
+            model: 'gpt-4o-mini',
+            inputQuantity: costInfo.promptTokens,
+            outputQuantity: costInfo.completionTokens,
+            costUsd: costInfo.totalCostUsd,
+            metadata: { topic, level },
+          });
+        }
+      } catch (costErr) {
+        logger.warn(`[${requestId}] Failed to log topic suggestions cost:`, costErr?.message);
+      }
+
       // Use first suggestion as selected_subtopic if not provided
       result.selected_subtopic = result.suggestions[0] || topic;
     }
@@ -176,6 +197,27 @@ exports.processTopicToEnglishText = async (req, res) => {
           translatedLength: result.narration_tr.length,
           tokens: bilingualResult.usage?.total_tokens
         });
+
+        // Log cost for bilingual generation
+        try {
+          const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+          const usage = bilingualResult.usage;
+          if (usage && req.user?.id) {
+            const costInfo = calculateOpenAiCost(usage, bilingualResult.model || 'gpt-4o-mini');
+            await logApiCost({
+              userId: req.user.id,
+              feature: 'topic_pipeline_bilingual',
+              provider: 'openai',
+              model: bilingualResult.model || 'gpt-4o-mini',
+              inputQuantity: costInfo.promptTokens,
+              outputQuantity: costInfo.completionTokens,
+              costUsd: costInfo.totalCostUsd,
+              metadata: { topic: result.selected_subtopic, level },
+            });
+          }
+        } catch (costErr) {
+          logger.warn(`[${requestId}] Failed to log bilingual generation cost:`, costErr?.message);
+        }
       } else {
         throw new Error('Bilingual generation returned incomplete result');
       }
@@ -242,6 +284,27 @@ exports.processTopicToEnglishText = async (req, res) => {
       logRequestStep(requestId, 'topic-pipeline:daily-patterns:end', {
         count: result.daily_usage_patterns.length
       });
+
+      // Log cost for daily patterns extraction (if not skipped)
+      if (patternExtraction.usage && !patternExtraction.skipped && req.user?.id) {
+        try {
+          const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+          const usage = patternExtraction.usage;
+          const costInfo = calculateOpenAiCost(usage, usage.model || 'gpt-4o-mini');
+          await logApiCost({
+            userId: req.user.id,
+            feature: 'topic_pipeline_daily_patterns',
+            provider: 'openai',
+            model: usage.model || 'gpt-4o-mini',
+            inputQuantity: costInfo.promptTokens,
+            outputQuantity: costInfo.completionTokens,
+            costUsd: costInfo.totalCostUsd,
+            metadata: { level, pattern_count: result.daily_usage_patterns.length },
+          });
+        } catch (costErr) {
+          logger.warn(`[${requestId}] Failed to log daily patterns cost:`, costErr?.message);
+        }
+      }
 
       if (supabase) {
         const insertPayload = {

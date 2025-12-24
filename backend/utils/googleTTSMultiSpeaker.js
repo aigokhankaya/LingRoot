@@ -1317,15 +1317,21 @@ async function createGoogleTTSPodcast(options) {
     let contentHistoryId = null;
     if (userId && supabase) {
       try {
-        const { calculateOpenAiCost, calculateTtsCost } = require('./costTracker');
+        logger.info('[GOOGLE-PODCAST] Step 5.1: Loading costTracker...');
+        const { calculateOpenAiCost, calculateTtsCost, logApiCost } = require('./costTracker');
 
+        logger.info('[GOOGLE-PODCAST] Step 5.2: Calculating OpenAI cost...');
         const openaiCost = calculateOpenAiCost(scriptResult.usage || {}, 'gpt-4o-mini');
+
+        logger.info('[GOOGLE-PODCAST] Step 5.3: Calculating TTS cost...', { audioResultTtsChars: audioResult?.ttsCharacters });
         const ttsCharacters = typeof audioResult?.ttsCharacters === 'number'
           ? audioResult.ttsCharacters
           : String(audioResult?.dialogueText || '').length;
         const ttsCategory = 'Premium';
         const ttsCostUsd = calculateTtsCost(ttsCharacters, ttsCategory);
         const totalCostUsd = Number(((openaiCost.totalCostUsd || 0) + (ttsCostUsd || 0)).toFixed(6));
+
+        logger.info('[GOOGLE-PODCAST] Step 5.4: Costs calculated', { openaiCost: openaiCost.totalCostUsd, ttsCostUsd, totalCostUsd });
 
         const turnsOriginalDialogueText = Array.isArray(turnsOriginalForSave) && turnsOriginalForSave.length > 0
           ? turnsOriginalForSave
@@ -1351,7 +1357,7 @@ async function createGoogleTTSPodcast(options) {
           timepoints: Array.isArray(timepoints) && timepoints.length > 0 ? JSON.stringify(timepoints) : null,
           dialogue_segments: Array.isArray(dialogueSegments) && dialogueSegments.length > 0 ? JSON.stringify(dialogueSegments) : null,
           tts_provider: 'google-gemini',
-          tts_voice_name: model,
+          tts_voice_name: requestedModel,
           audio_duration_seconds: estimatedDuration,
           entry_source: 'google-podcast',
           openai_prompt_tokens: openaiCost.promptTokens || 0,
@@ -1373,17 +1379,51 @@ async function createGoogleTTSPodcast(options) {
           total_cost_usd: insertData.total_cost_usd,
         });
 
+        // Log costs to api_costs table
+        // Log OpenAI script generation cost
+        await logApiCost({
+          userId,
+          feature: 'podcast_script',
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          inputQuantity: openaiCost.promptTokens,
+          outputQuantity: openaiCost.completionTokens,
+          costUsd: openaiCost.totalCostUsd,
+          metadata: { topic, level },
+        });
+        // Log Google TTS synthesis cost
+        await logApiCost({
+          userId,
+          feature: 'podcast_tts',
+          provider: 'google_tts',
+          model: requestedModel,
+          inputQuantity: ttsCharacters,
+          outputQuantity: 0,
+          costUsd: ttsCostUsd,
+          metadata: { duration_seconds: estimatedDuration },
+        });
+
         const { data, error } = await supabase
           .from('contenthistory')
           .insert(insertData)
           .select();
 
-        if (!error && data && data.length > 0) {
+        if (error) {
+          logger.error(`[GOOGLE-PODCAST] Database error saving to contenthistory: ${error.message}`, { code: error.code, details: error.details, hint: error.hint });
+        } else if (data && data.length > 0) {
           contentHistoryId = data[0].id;
           logger.info(`[GOOGLE-PODCAST] Saved to contenthistory: ${contentHistoryId}`);
+        } else {
+          logger.warn('[GOOGLE-PODCAST] Insert returned no data');
         }
       } catch (dbErr) {
-        logger.warn('[GOOGLE-PODCAST] Failed to save to contenthistory:', dbErr.message);
+        logger.error('[GOOGLE-PODCAST] Failed to save to contenthistory:', {
+          message: dbErr?.message,
+          name: dbErr?.name,
+          code: dbErr?.code,
+          stack: dbErr?.stack?.split('\n')[0],
+          fullError: JSON.stringify(dbErr, Object.getOwnPropertyNames(dbErr || {}))
+        });
       }
     }
 
