@@ -161,7 +161,7 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
         <Text style={styles.categorySectionTitle}>
           {language === 'tr' ? 'Kategoriye göre kalan kullanım' : 'Remaining usage by category'}
         </Text>
-        {((['standard', 'neural2', 'wavenet', 'studio', 'chirp3d'] as VoiceCategory[])).map((cat, idx, arr) => (
+        {((['standard', 'neural', 'generative'] as VoiceCategory[])).map((cat, idx, arr) => (
           <View
             key={cat}
             style={[
@@ -170,7 +170,11 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
             ]}
           >
             <View style={styles.row}>
-              <Text style={styles.categoryLabel}>{cat}</Text>
+              <Text style={styles.categoryLabel}>
+                {cat === 'neural' ? 'Neural (Premium)' :
+                  cat === 'generative' ? 'Generative (Ultra)' :
+                    cat === 'standard' ? 'Standard' : cat}
+              </Text>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.categoryValue}>
                   {perCategory[cat].remainingChars === null
@@ -180,21 +184,34 @@ const UsageEstimateCard: React.FC<Props> = ({ refreshKey }) => {
                 <Text style={styles.categoryValueSub}>
                   {perCategory[cat].remainingCharsByUsd === null
                     ? (language === 'tr' ? 'Sınırsız' : 'Unlimited')
-                    : `${formatNumberTR(Math.floor((perCategory[cat].remainingCharsByUsd || 0) / CHARS_PER_VIDEO_MINUTE))} ${language === 'tr' ? 'dk' : 'min'}`}
-                </Text>
-                <Text style={styles.categoryValueSub}>
-                  {perCategory[cat].remainingCharsByUsd === null
-                    ? (language === 'tr' ? 'Sınırsız' : 'Unlimited')
-                    : `${formatNumberTR(Math.floor((perCategory[cat].remainingCharsByUsd || 0) / CHARS_PER_A4_PAGE))} ${language === 'tr' ? 'sayfa' : 'pages'}`}
+                    : `${formatNumberTR(Math.floor((perCategory[cat].remainingCharsByUsd || 0) / CHARS_PER_VIDEO_MINUTE))} ${language === 'tr' ? 'dk video' : 'min video'}`}
                 </Text>
               </View>
             </View>
           </View>
         ))}
 
+        {/* Podcast Section - Separate */}
+        <View style={[styles.categoryItem, styles.podcastSection]}>
+          <View style={styles.row}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Icon name="podcasts" size={18} color={COLORS.slate500} />
+              <Text style={styles.categoryLabel}>Podcast (Google TTS)</Text>
+            </View>
+            <Text style={styles.categoryValue}>
+              {perCategory.standard?.remainingPodcasts === null
+                ? (language === 'tr' ? 'Sınırsız' : 'Unlimited')
+                : `~${perCategory.standard?.remainingPodcasts} ${language === 'tr' ? 'adet' : 'items'}`}
+            </Text>
+          </View>
+        </View>
+
         {(() => {
-          const cats = ['standard', 'neural2', 'wavenet', 'studio', 'chirp3d'] as VoiceCategory[];
-          const allSame = cats.every((c) => perCategory[c].remainingChars === perCategory[cats[0]].remainingChars);
+          const cats = ['standard', 'neural', 'generative'] as VoiceCategory[];
+          // Check if key exists to avoid crash if type mismatch during HMR
+          if (!perCategory.standard) return null;
+
+          const allSame = cats.every((c) => perCategory[c]?.remainingChars === perCategory[cats[0]]?.remainingChars);
           const charLimitExists = perCategory.standard.remainingCharsByLimit !== null;
           if (allSame && charLimitExists) {
             return (
@@ -316,6 +333,12 @@ const styles = StyleSheet.create({
   categoryItemBorder: {
     borderBottomWidth: 1,
     borderBottomColor: COLORS.slate100,
+  },
+  podcastSection: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.slate200,
+    marginTop: 8,
+    paddingTop: 12,
   },
   categoryLabel: {
     color: COLORS.slate600,

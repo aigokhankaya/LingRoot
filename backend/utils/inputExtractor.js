@@ -358,12 +358,14 @@ async function cleanTranscriptWithPrompt(rawTranscript) {
             temperature: 0.2,
         });
         const cleaned = completion.choices[0]?.message?.content?.trim();
+        const usage = completion.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+
         if (cleaned) {
             logger.info(`Successfully cleaned transcript.`);
-            return cleaned;
+            return { text: cleaned, usage, model: 'gpt-4o' };
         } else {
             logger.error(`OpenAI response did not contain cleaned transcript.`);
-            return null;
+            return { text: null, usage, model: 'gpt-4o' };
         }
     } catch (error) {
         logger.error(`Error cleaning transcript: ${error.message}`);
@@ -413,12 +415,14 @@ async function rewriteTranscriptClean(text, requestLogger) {
         temperature: 0.2,
     });
     const cleaned = completion.choices[0]?.message?.content?.trim();
+    const usage = completion.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+
     if (!cleaned) {
         logger.error('rewriteTranscriptClean: OpenAI response did not contain cleaned transcript.');
-        return null;
+        return { text: null, usage, model: 'gpt-4o' };
     }
     logger.info('rewriteTranscriptClean: Successfully cleaned transcript.');
-    return cleaned;
+    return { text: cleaned, usage, model: 'gpt-4o' };
 }
 
 module.exports = {

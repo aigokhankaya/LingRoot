@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getApiBaseUrl } from '../services/environmentConfig';
 import AudioPlayer from '../components/AudioPlayer';
+import { SmartPromptSuggester } from '../components/chat/SmartPromptSuggester';
 import { AudioTrack, Timepoint } from '../types';
 
 interface AnimatedFeatureButtonProps {
@@ -659,18 +660,8 @@ const LiroScreen: React.FC = () => {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.heroSection}>
-            <Text style={styles.badge}>
-              {language === 'tr'
-                ? ' Hayatın Değişmesin, İngilizcen Gelişsin'
-                : " Don't Change Your Life, Improve Your English"}
-            </Text>
-            <Text style={styles.heroTitle}>
-              {heroTitle}{' '}
-              <Text style={styles.heroHighlight}>{heroHighlight}</Text>
-            </Text>
-            <Text style={styles.heroDescription}>{heroDescription}</Text>
-          </View>
+
+          {/* Hero section removed as per design update */}
 
           {error && (
             <View style={styles.errorBox}>
@@ -688,6 +679,13 @@ const LiroScreen: React.FC = () => {
                   ? 'İçerik oluşturmak için LIRO ile sohbet etmeye başla.'
                   : 'Start chatting with LIRO to create English content.'}
               </Text>
+              {/* SmartPromptSuggester - Popular topics for empty state */}
+              <SmartPromptSuggester
+                conversationId={conversationId}
+                onSelectSuggestion={(text) => handleSuggestionPress(text)}
+                language={language}
+              />
+              {/* Fallback static suggestions */}
               <View style={styles.suggestionRow}>
                 <TouchableOpacity
                   style={styles.suggestionChip}
@@ -977,7 +975,7 @@ const LiroScreen: React.FC = () => {
                       style={[
                         styles.sidebarItem,
                         conv.id === conversationId &&
-                          styles.sidebarItemActive,
+                        styles.sidebarItemActive,
                       ]}
                       onPress={() => handleSelectConversation(conv)}
                     >

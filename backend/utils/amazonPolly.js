@@ -19,7 +19,7 @@ function initializePollyClient() {
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
       },
     });
-    
+
     logger.info('Amazon Polly client initialized successfully');
     return true;
   } catch (error) {
@@ -65,7 +65,7 @@ function cleanTextForTiming(text) {
   const cleanWords = originalWords.map(word => {
     return word.replace(/[^\w]/g, '').trim();
   }).filter(word => word.length > 0);
-  
+
   return {
     originalWords,
     cleanWords,
@@ -110,32 +110,44 @@ async function synthesizeWithPolly(options) {
     const ssml = `<speak><prosody rate="${rateString}">${escapeSSML(text)}</prosody></speak>`;
 
     // Step 1: Get Speech Marks (word timings) - JSON output
-    logger.info(`[Polly] Requesting speech marks for word timings...`);
-    const speechMarksCommand = new SynthesizeSpeechCommand({
-      OutputFormat: 'json',
-      Text: ssml,
-      TextType: 'ssml',
-      VoiceId: voiceName,
-      LanguageCode: languageCode,
-      Engine: engine,
-      SpeechMarkTypes: ['word'] // Get word-level timing marks
-    });
+    // NOTE: Generative and Long-form engines do not support speech marks.
+    // We must check engine type or handle error.
+    let speechMarks = [];
+    const isGenerativeOrLongForm = engine === 'generative' || engine === 'long-form';
 
-    const speechMarksResponse = await polly.send(speechMarksCommand);
-    
-    if (!speechMarksResponse.AudioStream) {
-      throw new Error('Polly did not return speech marks');
+    if (!isGenerativeOrLongForm) {
+      try {
+        logger.info(`[Polly] Requesting speech marks for word timings...`);
+        const speechMarksCommand = new SynthesizeSpeechCommand({
+          OutputFormat: 'json',
+          Text: ssml,
+          TextType: 'ssml',
+          VoiceId: voiceName,
+          LanguageCode: languageCode,
+          Engine: engine,
+          SpeechMarkTypes: ['word'] // Get word-level timing marks
+        });
+
+        const speechMarksResponse = await polly.send(speechMarksCommand);
+
+        if (speechMarksResponse.AudioStream) {
+          // Parse speech marks JSON (each line is a separate JSON object)
+          const speechMarksBuffer = Buffer.from(await speechMarksResponse.AudioStream.transformToByteArray());
+          const speechMarksText = speechMarksBuffer.toString('utf-8');
+          speechMarks = speechMarksText
+            .split('\n')
+            .filter(line => line.trim())
+            .map(line => JSON.parse(line));
+
+          logger.info(`[Polly] Received ${speechMarks.length} speech marks`);
+        }
+      } catch (smError) {
+        logger.warn(`[Polly] Speech marks request failed (likely unsupported by engine/voice): ${smError.message}. Proceeding with linear timing estimation byword.`);
+        // Fallback to empty speechMarks array -> triggers linear estimation below
+      }
+    } else {
+      logger.info(`[Polly] Engine '${engine}' does not support speech marks. Using linear timing estimation.`);
     }
-
-    // Parse speech marks JSON (each line is a separate JSON object)
-    const speechMarksBuffer = Buffer.from(await speechMarksResponse.AudioStream.transformToByteArray());
-    const speechMarksText = speechMarksBuffer.toString('utf-8');
-    const speechMarks = speechMarksText
-      .split('\n')
-      .filter(line => line.trim())
-      .map(line => JSON.parse(line));
-
-    logger.info(`[Polly] Received ${speechMarks.length} speech marks`);
 
     // Step 2: Get actual audio - MP3 output
     logger.info(`[Polly] Requesting audio synthesis...`);
@@ -149,7 +161,7 @@ async function synthesizeWithPolly(options) {
     });
 
     const audioResponse = await polly.send(audioCommand);
-    
+
     if (!audioResponse.AudioStream) {
       throw new Error('Polly did not return audio stream');
     }
@@ -161,40 +173,63 @@ async function synthesizeWithPolly(options) {
     const { cleanWords, originalWords } = cleanTextForTiming(text);
     const wordTimings = [];
 
-    // Speech marks provide time in milliseconds, convert to seconds
-    speechMarks.forEach((mark, index) => {
-      if (mark.type === 'word') {
-        const timeSeconds = mark.time / 1000; // Convert ms to seconds
-        
-        // Calculate end time (use next word's start or estimate)
-        let endTimeSeconds;
-        if (index < speechMarks.length - 1) {
-          endTimeSeconds = speechMarks[index + 1].time / 1000;
-        } else {
-          // Last word: estimate duration
-          const avgWordDuration = 0.5 / speakingRate;
-          endTimeSeconds = timeSeconds + avgWordDuration;
-        }
+    if (speechMarks.length > 0) {
+      // Speech marks provide time in milliseconds, convert to seconds
+      speechMarks.forEach((mark, index) => {
+        if (mark.type === 'word') {
+          const timeSeconds = mark.time / 1000; // Convert ms to seconds
 
-        // Ensure minimum word duration
-        const minDuration = 0.1 / speakingRate;
-        if (endTimeSeconds - timeSeconds < minDuration) {
-          endTimeSeconds = timeSeconds + minDuration;
+          // Calculate end time (use next word's start or estimate)
+          let endTimeSeconds;
+          if (index < speechMarks.length - 1) {
+            endTimeSeconds = speechMarks[index + 1].time / 1000;
+          } else {
+            // Last word: estimate duration
+            const avgWordDuration = 0.5 / speakingRate;
+            endTimeSeconds = timeSeconds + avgWordDuration;
+          }
+
+          // Ensure minimum word duration
+          const minDuration = 0.1 / speakingRate;
+          if (endTimeSeconds - timeSeconds < minDuration) {
+            endTimeSeconds = timeSeconds + minDuration;
+          }
+
+          wordTimings.push({
+            word: mark.value,
+            timeSeconds: timeSeconds,
+            endTimeSeconds: endTimeSeconds,
+            hasDirectTiming: true
+          });
+
+          // Log first few words
+          if (index < 5) {
+            logger.info(`🎯 Word ${index}: "${mark.value}" | ${timeSeconds.toFixed(3)}s - ${endTimeSeconds.toFixed(3)}s`);
+          }
         }
+      });
+    } else {
+      // FALLBACK: Linear Timing Estimation
+      // Used when speech marks are unsupported (Generative/Long-form) or failed
+      const estimatedTotalDuration = cleanWords.length * (0.6 / speakingRate); // Roughly 0.6s per word for generative (often slower/more expressive)
+      // Improve estimation using audio length if possible? 
+      // Audio length in bytes roughly maps to duration for MP3 but depends on bitrate.
+      // Polly MP3 usually variable bit rate? Let's stick to word count for simplicity similar to Google fallback.
+
+      logger.info(`[Polly] Falling back to linear timing for ${cleanWords.length} words.`);
+
+      cleanWords.forEach((word, index) => {
+        const startTime = (index / cleanWords.length) * estimatedTotalDuration;
+        const endTime = ((index + 1) / cleanWords.length) * estimatedTotalDuration;
 
         wordTimings.push({
-          word: mark.value,
-          timeSeconds: timeSeconds,
-          endTimeSeconds: endTimeSeconds,
-          hasDirectTiming: true
+          word: word,
+          timeSeconds: startTime,
+          endTimeSeconds: endTime,
+          hasDirectTiming: false
         });
-
-        // Log first few words
-        if (index < 5) {
-          logger.info(`🎯 Word ${index}: "${mark.value}" | ${timeSeconds.toFixed(3)}s - ${endTimeSeconds.toFixed(3)}s`);
-        }
-      }
-    });
+      });
+    }
 
     // Calculate total duration
     const totalDuration = wordTimings.length > 0
@@ -204,8 +239,8 @@ async function synthesizeWithPolly(options) {
     // Timing quality analysis
     const timingQuality = {
       totalWords: cleanWords.length,
-      markedWords: wordTimings.length,
-      markAccuracy: (wordTimings.length / cleanWords.length) * 100,
+      markedWords: wordTimings.filter(w => w.hasDirectTiming).length,
+      markAccuracy: (wordTimings.filter(w => w.hasDirectTiming).length / cleanWords.length) * 100,
       avgWordDuration: wordTimings.reduce((sum, w) => sum + (w.endTimeSeconds - w.timeSeconds), 0) / wordTimings.length
     };
 
@@ -224,7 +259,7 @@ async function synthesizeWithPolly(options) {
       totalDuration: totalDuration,
       speakingRate: speakingRate,
       voiceName: voiceName,
-      timingMethod: 'Amazon Polly Speech Marks',
+      timingMethod: speechMarks.length > 0 ? 'Amazon Polly Speech Marks' : 'Fallback Linear Estimation',
       speechMarks: speechMarks,
       timingQuality: timingQuality,
       success: true
@@ -262,27 +297,35 @@ async function listPollyVoices(languageCode = 'en-US') {
 
   try {
     logger.info(`Fetching Amazon Polly voices for language: ${languageCode}`);
-    
+
     // Fetch all voices (both standard and neural)
-    const command = new DescribeVoicesCommand({ 
+    const command = new DescribeVoicesCommand({
       LanguageCode: languageCode
       // No Engine parameter - get all engines
     });
-    
+
     const response = await polly.send(command);
     const voices = (response.Voices || []).map(voice => {
       // Determine primary engine based on supported engines
       // Prefer neural if available, otherwise use standard
       const supportedEngines = voice.SupportedEngines || [];
-      const primaryEngine = supportedEngines.includes('neural') ? 'neural' : 'standard';
-      
+      let primaryEngine = 'standard';
+
+      if (supportedEngines.includes('generative')) {
+        primaryEngine = 'generative';
+      } else if (supportedEngines.includes('long-form')) {
+        primaryEngine = 'generative'; // Map long-form to generative category for UI simplicity or use distinct category
+      } else if (supportedEngines.includes('neural')) {
+        primaryEngine = 'neural';
+      }
+
       return {
         name: voice.Id,
         displayName: voice.Name,
         languageCode: voice.LanguageCode,
         languageName: voice.LanguageName,
         gender: voice.Gender,
-        engine: primaryEngine, // Set based on supported engines
+        engine: primaryEngine, // Set based on supported engines priority
         supportedEngines: supportedEngines,
         additionalLanguageCodes: voice.AdditionalLanguageCodes || []
       };
@@ -296,7 +339,7 @@ async function listPollyVoices(languageCode = 'en-US') {
 
     logger.info(`Retrieved ${voices.length} Amazon Polly voices for ${languageCode}`);
     return voices;
-    
+
   } catch (error) {
     logger.error(`Failed to list Amazon Polly voices: ${error.message}`);
     throw error;
@@ -311,8 +354,8 @@ function isPollyAvailable() {
   return polly !== null;
 }
 
-module.exports = { 
-  synthesizeWithPolly, 
+module.exports = {
+  synthesizeWithPolly,
   listPollyVoices,
   isPollyAvailable,
   POLLY_NEURAL_VOICES
