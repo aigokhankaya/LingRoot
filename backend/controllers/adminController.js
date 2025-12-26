@@ -1063,7 +1063,7 @@ exports.getUserAudioHistoryAdmin = async (req, res) => {
       .select(
         `id, user_id, input, input_type, level, mp3_url, translated_text, adapted_text, created_at, words, timepoints,
          openai_prompt_tokens, openai_completion_tokens, openai_total_tokens, openai_cost_usd,
-         tts_characters, tts_category, tts_cost_usd, total_cost_usd`,
+         tts_characters, tts_category, tts_cost_usd, total_cost_usd, processing_duration_ms`,
         { count: 'exact' }
       )
       .eq('user_id', id)

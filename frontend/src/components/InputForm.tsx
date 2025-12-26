@@ -30,6 +30,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
     setIsError(false);
     setErrorMessage("");
     setIsSuccess(false);
+    const startTime = Date.now(); // Track processing duration
 
     const data: ProcessInputData = {
       type: inputType,
@@ -59,7 +60,7 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
           setIsLoading(false);
           return;
         }
-      } catch {}
+      } catch { }
 
       const result: TtsResponseData = await processTts(data);
       if (result.mp3_url) {
@@ -75,12 +76,17 @@ const InputForm: React.FC<InputFormProps> = ({ onSuccess }) => {
         try {
           const logInput = data.text || data.input || data.file?.name || "unknown_input";
           await submitContent(
-            logInput, 
-            inputType, 
-            result.level || level, 
+            logInput,
+            inputType,
+            result.level || level,
             result.mp3_url,
             result.translated_text || result.translatedText || '',
-            result.adapted_text || result.adaptedText || ''
+            result.adapted_text || result.adaptedText || '',
+            undefined, // chapterId
+            undefined, // timepoints
+            undefined, // words
+            undefined, // detectedMood
+            Date.now() - startTime // processingDurationMs
           );
           console.log("Content submission logged successfully.");
         } catch (logError) {

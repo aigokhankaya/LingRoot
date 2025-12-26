@@ -104,6 +104,7 @@ export interface AdminAudioHistoryItem {
   tts_category?: 'Basic' | 'Premium' | 'Gold' | 'Platinum' | string;
   tts_cost_usd?: number;
   total_cost_usd?: number;
+  processing_duration_ms?: number;
 }
 
 export interface AdminAudioHistoryResponse extends ApiResponse<AdminAudioHistoryItem[]> {

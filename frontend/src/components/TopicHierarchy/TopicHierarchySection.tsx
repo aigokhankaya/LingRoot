@@ -70,6 +70,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
       const suggestedInput: string = data.suggestedInput;
 
       setTopicAudioLoadingId(topicId);
+      const startTime = Date.now(); // Track processing duration
 
       // Kullanım/abonelik kontrolü
       try {
@@ -136,7 +137,8 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
             undefined, // chapterId
             undefined, // timepoints
             undefined, // words
-            result.detected_mood
+            result.detected_mood,
+            Date.now() - startTime // processingDurationMs
           );
           console.log('Topic audio saved to content history.');
         } catch (logErr) {
