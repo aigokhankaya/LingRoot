@@ -526,6 +526,7 @@ export const arTranslations = {
   welcome_login_button: 'تسجيل الدخول',
   welcome_nav_home: 'الرئيسية',
   welcome_nav_reading_history: 'سجل القراءة',
+  welcome_nav_progress: 'تقدمي',
   welcome_hero_title: 'تعلم الإنجليزية مع Liro بطريقة مخصصة',
   welcome_hero_desc: 'أنشئ محتوى إنجليزياً مكيّفاً لكل مستوى وطوّر مهارة الاستماع لديك بالصوت.',
   welcome_hero_button: 'ابدأ الآن',

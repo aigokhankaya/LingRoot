@@ -1030,6 +1030,7 @@ export const translations: Translations = {
     welcome_login_button: 'Giriş Yap',
     welcome_nav_home: 'Ana Sayfa',
     welcome_nav_reading_history: 'Okuma Geçmişim',
+    welcome_nav_progress: 'İlerlemem',
     welcome_hero_title: 'Liro ile Kişiselleştirilmiş İngilizce Öğrenimi',
     welcome_hero_desc: 'Her seviyeye uygun kişiselleştirilmiş İngilizce içerik oluşturun ve ses dönüşümleriyle öğrenme deneyiminizi geliştirin.',
     welcome_hero_button: 'Hemen Başlayın',
@@ -2772,6 +2773,7 @@ export const translations: Translations = {
     welcome_login_button: 'Log In',
     welcome_nav_home: 'Home',
     welcome_nav_reading_history: 'Reading History',
+    welcome_nav_progress: 'My Progress',
     welcome_hero_title: 'Personalized English Learning with Liro',
     welcome_hero_desc: 'Create personalized English content suitable for every level and enhance your learning experience with audio conversions.',
     welcome_hero_button: 'Get Started Now',
@@ -3945,6 +3947,7 @@ export const translations: Translations = {
     welcome_login_button: 'Anmelden',
     welcome_nav_home: 'Startseite',
     welcome_nav_reading_history: 'Hörverlauf',
+    welcome_nav_progress: 'Mein Fortschritt',
     welcome_hero_title: 'Personalisierte Englischlernplattform mit Liro',
     welcome_hero_desc:
       'Erstellen Sie personalisierte englische Inhalte für jedes Niveau und verbessern Sie Ihr Lernerlebnis mit Audio.',

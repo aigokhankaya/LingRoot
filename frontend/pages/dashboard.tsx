@@ -432,10 +432,11 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background fadeIn">
       {/* Top Navigation Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="w-full px-4">
+        <div className="container mx-auto px-4">
           <div className="flex justify-between items-center h-16">
             {/* Left: Logo & Navigation */}
             <div className="flex items-center space-x-6">
+              {/* Logo + Brand (same as welcome page) */}
               <Link href="/">
                 <div className="flex items-center space-x-3 flex-shrink-0">
                   <img
@@ -446,18 +447,28 @@ const Dashboard = () => {
                   <BrandWordmark className="hidden sm:inline-block text-lg sm:text-xl md:text-2xl" />
                 </div>
               </Link>
-              <Link href="/welcome">
-                <button className="text-gray-700 hover:text-primary transition-colors text-sm font-medium">
-                  <i className="fas fa-home mr-2"></i>
-                  {t('dashboard_nav_home')}
-                </button>
-              </Link>
-              <Link href="/welcome">
-                <button className="text-gray-700 hover:text-primary transition-colors text-sm font-medium">
-                  <i className="fas fa-headphones mr-2"></i>
-                  {t('dashboard_nav_listen')}
-                </button>
-              </Link>
+
+              {/* Ana menü linkleri (same as welcome page) */}
+              <div className="flex items-center space-x-2">
+                <Link href="/">
+                  <button className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 !rounded-button cursor-pointer">
+                    <i className="fas fa-home mr-2"></i>
+                    {t('welcome_nav_home')}
+                  </button>
+                </Link>
+                <Link href="/dashboard?tab=reading-history">
+                  <button className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 !rounded-button cursor-pointer">
+                    <i className="fas fa-history mr-2"></i>
+                    {t('welcome_nav_reading_history')}
+                  </button>
+                </Link>
+                <Link href="/progress">
+                  <button className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 !rounded-button cursor-pointer">
+                    <span className="mr-2">🏆</span>
+                    {t('welcome_nav_progress')}
+                  </button>
+                </Link>
+              </div>
             </div>
 
             {/* Right: Profile Menu */}

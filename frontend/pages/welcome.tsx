@@ -42,6 +42,8 @@ import BrandWordmark from "../src/components/BrandWordmark";
 import LiroAvatar from "../src/components/LiroAvatar";
 import { ProfileDropdownMenu } from "../src/components/shared/ProfileDropdownMenu";
 import NotificationBell from "../src/components/NotificationBell";
+import { OnboardingFlow, LevelProgressBar, LevelUpModal, AchievementModal } from "../src/components/gamification";
+import { useGamification } from "../src/hooks/useGamification";
 
 interface InputData {
   type: ProcessInputData['type'];
@@ -210,6 +212,21 @@ const Welcome: React.FC = () => {
   const [showWelcomeLoader, setShowWelcomeLoader] = useState<boolean>(false);
   const [showWelcomePopup, setShowWelcomePopup] = useState<boolean>(false);
 
+  // 🎮 Gamification Hook & Onboarding State
+  const {
+    stats: gamificationStats,
+    loading: gamificationLoading,
+    showLevelUp,
+    levelUpData,
+    closeLevelUp,
+    showAchievement,
+    newAchievement,
+    closeAchievement,
+    fetchStats: refreshGamificationStats,
+    checkIn
+  } = useGamification();
+  const [showOnboardingFlow, setShowOnboardingFlow] = useState(false);
+
   // Welcome popup kontrolü - URL'den showWelcome parametresini kontrol et
   useEffect(() => {
     if (!router.isReady) return;
@@ -232,6 +249,21 @@ const Welcome: React.FC = () => {
       }
     } catch { }
   }, [router.isReady, router.query]);
+
+  // 🎮 Gamification: Onboarding tamamlanmadıysa modalı göster
+  useEffect(() => {
+    if (!gamificationLoading && gamificationStats && !gamificationStats.onboardingCompleted) {
+      // Onboarding henüz tamamlanmamış, modalı göster
+      setShowOnboardingFlow(true);
+    }
+  }, [gamificationLoading, gamificationStats]);
+
+  // 🎮 Streak check-in on page load
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      checkIn();
+    }
+  }, [isAuthenticated, user]);
 
   // Welcome guard: Eğer middleware çerezleri varsa (suppressWelcome/postLoginTarget), hemen hedefe yönlendir
   useEffect(() => {
@@ -2033,6 +2065,29 @@ const Welcome: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* 🎮 Gamification Modals */}
+      {showOnboardingFlow && (
+        <OnboardingFlow
+          onComplete={() => {
+            setShowOnboardingFlow(false);
+            refreshGamificationStats();
+          }}
+        />
+      )}
+
+      <LevelUpModal
+        isOpen={showLevelUp}
+        oldLevel={levelUpData?.oldLevel || 1}
+        newLevel={levelUpData?.newLevel || 1}
+        onClose={closeLevelUp}
+      />
+
+      <AchievementModal
+        isOpen={showAchievement}
+        achievement={newAchievement}
+        onClose={closeAchievement}
+      />
+
       {/* Top Navigation */}
       <div className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4">
@@ -2065,9 +2120,19 @@ const Welcome: React.FC = () => {
                     {t('welcome_nav_reading_history')}
                   </Button>
                 </Link>
+                <Link href="/progress">
+                  <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
+                    <span className="mr-2">🏆</span>
+                    {t('welcome_nav_progress')}
+                  </Button>
+                </Link>
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Compact Level Progress in Header */}
+              <div className="hidden md:block">
+                <LevelProgressBar compact={true} />
+              </div>
               <NotificationBell />
               {isAuthenticated && (
                 <ProfileDropdownMenu
