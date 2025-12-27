@@ -23,31 +23,43 @@ interface Word {
 
 interface FlashcardDeckProps {
     onSessionComplete?: (stats: { reviewed: number; correct: number }) => void;
+    initialMode?: 'due' | 'random' | 'all';
 }
 
-const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete }) => {
+const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete, initialMode }) => {
     const [cards, setCards] = useState<Word[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState({ reviewed: 0, correct: 0 });
+    const [stats, setStats] = useState({ reviewed: 0, correct: 0, earnedXP: 0 });
     const [sessionComplete, setSessionComplete] = useState(false);
+    const [wordSource, setWordSource] = useState<'due' | 'random' | 'all'>(initialMode || 'due');
 
     // Fetch due words
     useEffect(() => {
         fetchDueWords();
-    }, []);
+    }, [wordSource]); // Refetch when source mode changes
 
     const fetchDueWords = async () => {
+        setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_BASE}/api/vocabulary/due?limit=20`, {
+            const token = localStorage.getItem('lingroot_token');
+            let endpoint = '/api/vocabulary/due?limit=20';
+
+            if (wordSource === 'random') {
+                endpoint = '/api/vocabulary/random?limit=15&excludeRecent=false';
+            } else if (wordSource === 'all') {
+                endpoint = '/api/vocabulary/collection?limit=20';
+            }
+
+            const res = await fetch(`${API_BASE}${endpoint}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
-            console.log('[FlashcardDeck] API Response:', { status: res.status, data });
+            console.log('[FlashcardDeck] API Response:', { source: wordSource, status: res.status, data });
 
             if (data.success && data.data && data.data.length > 0) {
                 setCards(data.data);
+                setCurrentIndex(0);
             } else {
                 console.log('[FlashcardDeck] No cards returned from API');
                 setCards([]);
@@ -63,10 +75,11 @@ const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete }) => {
     const handleSwipe = useCallback(async (direction: 'left' | 'right', wordId: number) => {
         // Rating: left = 1 (Hard), right = 2 (Good)
         const rating = direction === 'right' ? 2 : 1;
+        let xpEarned = 0;
 
         try {
-            const token = localStorage.getItem('token');
-            await fetch(`${API_BASE}/api/vocabulary/review`, {
+            const token = localStorage.getItem('lingroot_token');
+            const res = await fetch(`${API_BASE}/api/vocabulary/review`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -74,6 +87,13 @@ const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete }) => {
                 },
                 body: JSON.stringify({ wordId, rating })
             });
+
+            const data = await res.json();
+
+            if (data.success && data.data && data.data.xp) {
+                xpEarned = data.data.xp.earned || 0;
+                console.log(`[FlashcardDeck] Earned ${xpEarned} XP for word ${wordId}`);
+            }
         } catch (error) {
             console.error('Review submit error:', error);
         }
@@ -81,7 +101,8 @@ const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete }) => {
         // Update stats
         setStats(prev => ({
             reviewed: prev.reviewed + 1,
-            correct: direction === 'right' ? prev.correct + 1 : prev.correct
+            correct: direction === 'right' ? prev.correct + 1 : prev.correct,
+            earnedXP: prev.earnedXP + xpEarned
         }));
 
         // Move to next card
@@ -123,23 +144,63 @@ const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete }) => {
                 </p>
 
                 {/* Stats */}
-                <div className="grid grid-cols-2 gap-6 mb-8">
-                    <div className="bg-slate-100 rounded-2xl p-6">
-                        <p className="text-4xl font-bold text-teal-600">{stats.reviewed}</p>
-                        <p className="text-sm text-slate-500">Kelime</p>
+                <div className="grid grid-cols-3 gap-4 mb-8 w-full max-w-sm">
+                    <div className="bg-slate-100 rounded-2xl p-4">
+                        <p className="text-3xl font-bold text-teal-600">{stats.reviewed}</p>
+                        <p className="text-xs text-slate-500">Kelime</p>
                     </div>
-                    <div className="bg-slate-100 rounded-2xl p-6">
-                        <p className="text-4xl font-bold text-emerald-600">{accuracy}%</p>
-                        <p className="text-sm text-slate-500">Doğruluk</p>
+                    <div className="bg-slate-100 rounded-2xl p-4">
+                        <p className="text-3xl font-bold text-emerald-600">{accuracy}%</p>
+                        <p className="text-xs text-slate-500">Doğruluk</p>
+                    </div>
+                    {/* Estimated XP Display */}
+                    <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
+                        <p className="text-3xl font-bold text-amber-500">+{stats.earnedXP}</p>
+                        <p className="text-xs text-amber-600/70">XP Kazanıldı</p>
                     </div>
                 </div>
 
-                <button
-                    onClick={() => { setCurrentIndex(0); setStats({ reviewed: 0, correct: 0 }); setSessionComplete(false); fetchDueWords(); }}
-                    className="px-8 py-3 bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
-                >
-                    Tekrar Başla
-                </button>
+                <div className="flex flex-col gap-3 w-full max-w-xs">
+                    {/* Smart Flow: Direct to Content Creation if session was good */}
+                    <div className="text-sm text-slate-500 mb-1">Sıradaki Önerilen Görev:</div>
+                    <button
+                        onClick={() => window.location.href = '/welcome'}
+                        className="w-full px-8 py-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:shadow-xl transition-all flex items-center justify-center gap-2 group relative overflow-hidden"
+                    >
+                        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                        <span className="text-xl">🎙️</span>
+                        <div className="flex flex-col items-start leading-tight">
+                            <span>Yeni İçerik Oluştur</span>
+                            <span className="text-[10px] opacity-80 font-medium">Öğrendiklerini pekiştir</span>
+                        </div>
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity ml-auto">→</span>
+                    </button>
+
+                    <div className="flex gap-3">
+                        <button
+                            onClick={async () => {
+                                setSessionComplete(false);
+                                setCurrentIndex(0);
+                                await fetchDueWords();
+                            }}
+                            className="flex-1 px-4 py-3 bg-white border-2 border-slate-100 text-slate-600 rounded-xl font-semibold hover:border-slate-200 hover:bg-slate-50 transition-all"
+                        >
+                            📚 Çalışmaya Devam
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                setCurrentIndex(0);
+                                setStats({ reviewed: 0, correct: 0, earnedXP: 0 });
+                                setSessionComplete(false);
+                                fetchDueWords();
+                            }}
+                            className="flex-1 px-4 py-3 bg-white border-2 border-slate-100 text-slate-600 rounded-xl font-semibold hover:border-slate-200 hover:bg-slate-50 transition-all"
+                        >
+                            🔄 Tekrar Et
+                        </button>
+                    </div>
+                </div>
             </motion.div>
         );
     }
@@ -147,17 +208,58 @@ const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete }) => {
     if (cards.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-[500px] text-center p-8">
+                {/* Word Source Selector */}
+                <div className="mb-8 flex gap-2">
+                    {[
+                        { key: 'due', label: '📅 Tekrar Bekleyen', desc: 'SRS' },
+                        { key: 'random', label: '🎲 Rastgele', desc: 'Karışık' },
+                        { key: 'all', label: '📚 Tüm Kelimeler', desc: 'Koleksiyon' }
+                    ].map((opt) => (
+                        <button
+                            key={opt.key}
+                            onClick={() => { setWordSource(opt.key as any); }}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${wordSource === opt.key
+                                ? 'bg-teal-500 text-white'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
                 <div className="text-6xl mb-4">📚</div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Henüz Kelime Yok</h3>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">
+                    {wordSource === 'due' ? 'Bugün Tekrar Yok' : 'Henüz Kelime Yok'}
+                </h3>
                 <p className="text-slate-500 mb-6">
-                    İçerik okurken kelimelere tıklayarak listeye ekleyebilirsin.
+                    {wordSource === 'due'
+                        ? 'Tekrar bekleyen kelimen yok. Farklı bir mod dene!'
+                        : 'İçerik okurken kelimelere tıklayarak listeye ekleyebilirsin.'}
                 </p>
-                <button
-                    onClick={() => window.location.href = '/welcome'}
-                    className="px-6 py-3 bg-teal-500 text-white rounded-xl font-semibold hover:bg-teal-600 transition-colors"
-                >
-                    İçerik Keşfet
-                </button>
+                <div className="flex gap-3">
+                    {wordSource === 'due' && (
+                        <button
+                            onClick={() => setWordSource('random')}
+                            className="px-6 py-3 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+                        >
+                            🎲 Rastgele Çalış
+                        </button>
+                    )}
+                    {wordSource !== 'due' ? (
+                        <button
+                            onClick={() => fetchDueWords()}
+                            className="px-6 py-3 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+                        >
+                            🔄 Yenile
+                        </button>
+                    ) : null}
+                    <button
+                        onClick={() => window.location.href = '/welcome'}
+                        className="px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition-colors"
+                    >
+                        İçerik Keşfet
+                    </button>
+                </div>
             </div>
         );
     }

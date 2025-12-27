@@ -149,17 +149,19 @@ class PlacementTestService {
 
     /**
      * Process user's answer and adapt difficulty
+     * @param {Object} session - Current test session
+     * @param {number} questionId - Question ID
+     * @param {string} selectedAnswer - The actual answer text selected by user
      */
-    processAnswer(session, questionId, selectedIndex) {
+    processAnswer(session, questionId, selectedAnswer) {
         const question = QUESTION_BANK.find(q => q.id === questionId);
         if (!question) throw new Error('Question not found');
 
         session.questionsAsked.push(questionId);
         session.totalByLevel[question.level]++;
 
-        const options = this.shuffleArray([question.correct, ...question.distractors]);
-        const correctIndex = options.indexOf(question.correct);
-        const isCorrect = selectedIndex === correctIndex;
+        // Compare selected answer text directly with correct answer (case-insensitive)
+        const isCorrect = selectedAnswer.toLowerCase().trim() === question.correct.toLowerCase().trim();
 
         if (isCorrect) {
             session.correctByLevel[question.level]++;

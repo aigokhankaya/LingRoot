@@ -17,6 +17,7 @@ interface UseWordSyncProps {
   audioUrl: string;
   timepoints: Timepoint[];
   originalText: string;
+  onEnded?: () => void;
 }
 
 interface UseWordSyncReturn {
@@ -143,7 +144,8 @@ const createLinearWordTimestamps = (words: string[], duration: number): WordTime
 export const useWordSync = ({
   audioUrl,
   timepoints,
-  originalText
+  originalText,
+  onEnded
 }: UseWordSyncProps): UseWordSyncReturn => {
 
   // DEBUG: Removed verbose init log
@@ -493,6 +495,7 @@ export const useWordSync = ({
       stopSync();
       setActiveWordIndex(-1);
       updateLiveRegion(-1, '');
+      if (onEnded) onEnded();
     };
 
     const handleWaiting = () => {
@@ -568,7 +571,7 @@ export const useWordSync = ({
       //   audioContextRef.current.close();
       // }
     };
-  }, [audioUrl]); // Only rerun when audioUrl changes!
+  }, [audioUrl, onEnded]); // Only rerun when audioUrl changes!
 
   return {
     activeWordIndex,

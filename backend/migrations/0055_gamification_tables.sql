@@ -21,8 +21,8 @@ CREATE TABLE IF NOT EXISTS user_gamification (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_user_gamification_level ON user_gamification(current_level);
-CREATE INDEX idx_user_gamification_streak ON user_gamification(streak_count);
+CREATE INDEX IF NOT EXISTS idx_user_gamification_level ON user_gamification(current_level);
+CREATE INDEX IF NOT EXISTS idx_user_gamification_streak ON user_gamification(streak_count);
 
 -- 2. Kullanıcı Hedefleri (The Prophecy)
 CREATE TABLE IF NOT EXISTS user_goals (
@@ -40,8 +40,8 @@ CREATE TABLE IF NOT EXISTS user_goals (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_user_goals_user ON user_goals(user_id);
-CREATE INDEX idx_user_goals_status ON user_goals(status);
+CREATE INDEX IF NOT EXISTS idx_user_goals_user ON user_goals(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_goals_status ON user_goals(status);
 
 -- 3. Başarımlar (Achievements/Badges)
 CREATE TABLE IF NOT EXISTS achievements (
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS user_achievements (
     PRIMARY KEY (user_id, achievement_id)
 );
 
-CREATE INDEX idx_user_achievements_user ON user_achievements(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements(user_id);
 
 -- 4. Görev Düğümleri (Quest Nodes - Yol Haritası)
 CREATE TABLE IF NOT EXISTS quest_nodes (
@@ -93,8 +93,8 @@ CREATE TABLE IF NOT EXISTS quest_nodes (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_quest_nodes_order ON quest_nodes(step_order);
-CREATE INDEX idx_quest_nodes_week ON quest_nodes(week_number);
+CREATE INDEX IF NOT EXISTS idx_quest_nodes_order ON quest_nodes(step_order);
+CREATE INDEX IF NOT EXISTS idx_quest_nodes_week ON quest_nodes(week_number);
 
 -- 5. Kullanıcı Görev İlerlemesi
 CREATE TABLE IF NOT EXISTS user_quest_progress (
@@ -108,8 +108,8 @@ CREATE TABLE IF NOT EXISTS user_quest_progress (
     PRIMARY KEY (user_id, node_id)
 );
 
-CREATE INDEX idx_user_quest_progress_user ON user_quest_progress(user_id);
-CREATE INDEX idx_user_quest_progress_status ON user_quest_progress(status);
+CREATE INDEX IF NOT EXISTS idx_user_quest_progress_user ON user_quest_progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_quest_progress_status ON user_quest_progress(status);
 
 -- 6. Günlük Görevler (Daily Quests)
 CREATE TABLE IF NOT EXISTS daily_quests (
@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS daily_quests (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_daily_quests_user_date ON daily_quests(user_id, quest_date);
+CREATE INDEX IF NOT EXISTS idx_daily_quests_user_date ON daily_quests(user_id, quest_date);
 
 -- 7. Kelime Tekrar Sistemi (SRS - Spaced Repetition)
 CREATE TABLE IF NOT EXISTS word_reviews (
@@ -147,8 +147,8 @@ CREATE TABLE IF NOT EXISTS word_reviews (
     UNIQUE(user_id, word)
 );
 
-CREATE INDEX idx_word_reviews_user ON word_reviews(user_id);
-CREATE INDEX idx_word_reviews_next ON word_reviews(user_id, next_review_date);
+CREATE INDEX IF NOT EXISTS idx_word_reviews_user ON word_reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_word_reviews_next ON word_reviews(user_id, next_review_date);
 
 -- 8. Kelime Ustalık Matrisi (Global Status)
 CREATE TABLE IF NOT EXISTS word_mastery (
@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS word_mastery (
     PRIMARY KEY (user_id, word)
 );
 
-CREATE INDEX idx_word_mastery_user_status ON word_mastery(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_word_mastery_user_status ON word_mastery(user_id, status);
 
 -- 9. Quiz Sonuçları
 CREATE TABLE IF NOT EXISTS quiz_attempts (
@@ -180,8 +180,8 @@ CREATE TABLE IF NOT EXISTS quiz_attempts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_quiz_attempts_user ON quiz_attempts(user_id);
-CREATE INDEX idx_quiz_attempts_type ON quiz_attempts(quiz_type);
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user ON quiz_attempts(user_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_type ON quiz_attempts(quiz_type);
 
 -- 10. XP Transaction Log (Audit Trail)
 CREATE TABLE IF NOT EXISTS xp_transactions (
@@ -196,8 +196,8 @@ CREATE TABLE IF NOT EXISTS xp_transactions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_xp_transactions_user ON xp_transactions(user_id);
-CREATE INDEX idx_xp_transactions_date ON xp_transactions(created_at);
+CREATE INDEX IF NOT EXISTS idx_xp_transactions_user ON xp_transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_xp_transactions_date ON xp_transactions(created_at);
 
 -- ============================================
 -- DEFAULT ACHIEVEMENTS (Seed Data)

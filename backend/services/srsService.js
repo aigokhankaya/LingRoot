@@ -7,6 +7,7 @@
 
 const db = require('../config/db');
 const logger = require('../utils/logger');
+const gamificationService = require('./gamificationService');
 
 class SrsService {
     /**
@@ -130,7 +131,35 @@ class SrsService {
                 ]
             );
 
-            return { success: true, ...result };
+            // Award XP for correct answers
+            let xpResult = null;
+            try {
+                if (rating >= 2) {
+                    // Good or Easy - award XP
+                    xpResult = await gamificationService.addXP(
+                        userId,
+                        gamificationService.xpRewards?.WORD_REVIEW_CORRECT || 3,
+                        'word_review',
+                        `word_${wordId}`,
+                        'Kelime tekrarı tamamlandı'
+                    );
+                }
+                // Update daily quest progress
+                await gamificationService.updateDailyQuestProgress(userId, 'review_words', 1);
+            } catch (xpError) {
+                logger.warn('[SRS] Gamification update failed:', xpError.message);
+            }
+
+            return {
+                success: true,
+                ...result,
+                xp: xpResult ? {
+                    earned: xpResult.xpAdded,
+                    totalXP: xpResult.totalXP,
+                    currentLevel: xpResult.currentLevel,
+                    leveledUp: xpResult.leveledUp
+                } : null
+            };
 
         } catch (error) {
             logger.error('[SRS Service] Process review error:', error);
@@ -146,13 +175,18 @@ class SrsService {
     async getDueWords(userId, limit = 20) {
         console.log('[SRS] getDueWords called with userId:', userId, 'limit:', limit);
         // Get user vocabulary joined with word details
+        // Priority: 1) New words (status='new'), 2) Due for review (next_review_at <= NOW())
+        // Order by: new first, then by earliest review date
         const res = await db.query(
             `SELECT uv.*, v.word, v.original_word, v.definition, v.example_sentence, 
                     v.example_sentence_turkish, v.level, v.meanings
              FROM user_vocabulary uv
              JOIN vocabulary v ON uv.word_id = v.id
              WHERE uv.user_id = $1 
-             ORDER BY uv.created_at DESC NULLS LAST
+               AND (uv.status = 'new' OR uv.next_review_at <= NOW() OR uv.status = 'learning')
+             ORDER BY 
+               CASE WHEN uv.status = 'new' THEN 0 ELSE 1 END,
+               uv.next_review_at ASC NULLS FIRST
              LIMIT $2`,
             [userId, limit]
         );

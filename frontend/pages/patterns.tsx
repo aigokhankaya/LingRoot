@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { getApiUrl } from '../src/lib/api';
 import { useTranslation } from '../src/lib/i18n';
+import AppHeader from '@/components/AppHeader';
 
 interface Pattern {
   pattern: string;
@@ -89,6 +90,7 @@ export default function PatternsPage() {
         <title>{t('patterns_page_title')}</title>
       </Head>
 
+      <AppHeader />
       <div className="min-h-screen bg-muted py-8 px-4">
         <div className="max-w-6xl mx-auto">
           {/* Header */}

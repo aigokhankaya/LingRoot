@@ -714,6 +714,71 @@ export const getContentHistory = async (): Promise<ApiResponse> => {
   }
 };
 
+// Get in-progress content for resume functionality
+export const getInProgressContent = async (): Promise<ApiResponse<any[]>> => {
+  const url = getApiUrl('/content/in-progress');
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  return handleApiResponse<any[]>(response);
+};
+
+// Update listening progress for a content item
+export const updateContentProgress = async (
+  contentId: string,
+  position: number,
+  duration?: number
+): Promise<ApiResponse<{ position: number; isCompleted: boolean; xpEarned: number }>> => {
+  const url = getApiUrl(`/content/${contentId}/progress`);
+  const headers = createHeaders('application/json');
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({ position, duration })
+  });
+  return handleApiResponse<{ position: number; isCompleted: boolean; xpEarned: number }>(response);
+};
+
+// Generate quiz for a content item
+export const generateContentQuiz = async (contentId: string): Promise<ApiResponse<{
+  contentId: string;
+  totalQuestions: number;
+  questions: Array<{
+    id: number;
+    word: string;
+    options: string[];
+    correctAnswer: string;
+  }>;
+}>> => {
+  const url = getApiUrl(`/content/${contentId}/quiz`);
+  const headers = createHeaders();
+  const response = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  return handleApiResponse(response);
+};
+
+// Submit quiz answers
+export const submitContentQuiz = async (
+  contentId: string,
+  answers: Array<{ word: string; selectedAnswer: string }>
+): Promise<ApiResponse<{
+  score: number;
+  correctCount: number;
+  totalQuestions: number;
+  passed: boolean;
+  xpEarned: number;
+  results: Array<{ word: string; selectedAnswer: string; isCorrect: boolean }>;
+}>> => {
+  const url = getApiUrl(`/content/${contentId}/quiz/submit`);
+  const headers = createHeaders('application/json');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({ answers })
+  });
+  return handleApiResponse(response);
+};
+
 // Book-based audio history item (linked to book chapters)
 export interface BookHistoryItem {
   id: string;
@@ -1564,9 +1629,10 @@ export const addWordWithTranslation = async (
   translationError?: boolean;
 }> => {
   try {
+    // Use the existing /add endpoint which already does AI enrichment
     const url = process.env.NODE_ENV === 'development'
-      ? 'http://localhost:5001/api/vocabulary/add-with-translation'
-      : '/api/vocabulary/add-with-translation';
+      ? 'http://localhost:5001/api/vocabulary/add'
+      : '/api/vocabulary/add';
 
     const headers = createHeaders('application/json');
 
@@ -1576,18 +1642,32 @@ export const addWordWithTranslation = async (
       headers,
       body: JSON.stringify({
         word,
-        context,
+        context, // Backend uses this as example sentence if definition not provided
+        definition: undefined, // Let backend enrich via AI
         level,
-        originalSentence
+        sourceContext: originalSentence
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
+      // Check if word already exists (409 Conflict)
+      if (response.status === 409) {
+        return {
+          data: errorData.data || { word },
+          message: errorData.error || 'Bu kelime zaten listenizde',
+          isExisting: true
+        };
+      }
       throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    return {
+      data: result.data,
+      message: result.message || 'Kelime başarıyla eklendi',
+      isExisting: false
+    };
   } catch (error) {
     console.error('Error adding word with translation:', error);
     throw error;

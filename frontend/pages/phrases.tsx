@@ -10,6 +10,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import FlashcardDeck from '../src/components/vocabulary/FlashcardDeck';
+import AppHeader from '@/components/AppHeader';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
@@ -39,7 +40,7 @@ export default function PhrasesPage() {
 
     const fetchPhraseData = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('lingroot_token');
 
             // Fetch stats for phrases
             const statsRes = await fetch(`${API_BASE}/api/vocabulary/stats?type=phrase`, {
@@ -71,20 +72,7 @@ export default function PhrasesPage() {
 
             <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
                 {/* Header */}
-                <header className="bg-white/80 backdrop-blur-lg border-b border-slate-200 sticky top-0 z-50">
-                    <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-                        <Link href="/welcome" className="flex items-center gap-2 text-slate-600 hover:text-slate-800">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                            <span>Geri</span>
-                        </Link>
-
-                        <h1 className="text-lg font-bold text-slate-800">💬 Cümle Kalıpları</h1>
-
-                        <div className="w-16" /> {/* Spacer for centering */}
-                    </div>
-                </header>
+                <AppHeader />
 
                 {/* Stats Bar */}
                 <div className="bg-white border-b border-slate-200">

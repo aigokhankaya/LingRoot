@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import FlashcardDeck from '../src/components/vocabulary/FlashcardDeck';
 import AdaptivePlacementTest from '../src/components/vocabulary/AdaptivePlacementTest';
+import AppHeader from '@/components/AppHeader';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
@@ -37,6 +38,22 @@ export default function VocabularyPage() {
   const [words, setWords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userLevel, setUserLevel] = useState<string | null>(null);
+  const [collectionFilter, setCollectionFilter] = useState<'all' | 'learning' | 'mastered'>('all');
+  const [initialMode, setInitialMode] = useState<'due' | 'random' | 'all'>('due');
+
+  const filteredWords = words.filter(w => {
+    if (collectionFilter === 'all') return true;
+    if (collectionFilter === 'mastered') return w.status === 'mastered';
+    return w.status === 'learning' || w.status === 'new';
+  });
+
+  // Read mode from URL query
+  useEffect(() => {
+    const mode = router.query.mode as string;
+    if (mode === 'random' || mode === 'due' || mode === 'all') {
+      setInitialMode(mode);
+    }
+  }, [router.query.mode]);
 
   useEffect(() => {
     fetchVocabularyData();
@@ -44,29 +61,33 @@ export default function VocabularyPage() {
 
   const fetchVocabularyData = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('lingroot_token');
 
-      // Fetch stats
+      // Fetch stats from dedicated stats endpoint
       const statsRes = await fetch(`${API_BASE}/api/vocabulary/stats`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      const statsData = await statsRes.json();
 
-      // Fetch all words for collection view
-      const wordsRes = await fetch(`${API_BASE}/api/vocabulary/all`, {
+      if (statsData.success && statsData.data) {
+        setStats(statsData.data);
+      }
+
+      // Fetch all words for collection view (using collection endpoint, not due)
+      const wordsRes = await fetch(`${API_BASE}/api/vocabulary/collection?limit=100`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      const wordsData = await wordsRes.json();
 
-      // Use mock data if API fails
-      setStats({
-        totalWords: 42,
-        mastered: 15,
-        learning: 27,
-        dueToday: 8,
-        streak: 5
-      });
+      if (wordsData.success && wordsData.data) {
+        setWords(wordsData.data);
+      } else {
+        setWords([]);
+      }
 
     } catch (error) {
       console.error('Fetch vocabulary data error:', error);
+      setWords([]);
     } finally {
       setLoading(false);
     }
@@ -81,20 +102,7 @@ export default function VocabularyPage() {
 
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
         {/* Header */}
-        <header className="bg-white/80 backdrop-blur-lg border-b border-slate-200 sticky top-0 z-50">
-          <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-            <Link href="/welcome" className="flex items-center gap-2 text-slate-600 hover:text-slate-800">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              <span>Geri</span>
-            </Link>
-
-            <h1 className="text-lg font-bold text-slate-800">📚 Kelime Kartları</h1>
-
-            <div className="w-16" /> {/* Spacer for centering */}
-          </div>
-        </header>
+        <AppHeader />
 
         {/* Stats Bar */}
         <div className="bg-white border-b border-slate-200">
@@ -169,6 +177,7 @@ export default function VocabularyPage() {
         <div className="max-w-4xl mx-auto px-4 py-8">
           {activeTab === 'review' && (
             <FlashcardDeck
+              initialMode={initialMode}
               onSessionComplete={(sessionStats) => {
                 console.log('Session complete:', sessionStats);
               }}
@@ -206,46 +215,59 @@ export default function VocabularyPage() {
 
           {activeTab === 'collection' && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-slate-800">Tüm Kelimeler</h2>
-                <select className="px-3 py-2 bg-slate-100 rounded-lg text-sm border-0">
-                  <option>Tümü</option>
-                  <option>Öğreniliyor</option>
-                  <option>Ustalaşıldı</option>
-                </select>
+              </div>
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setCollectionFilter('all')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${collectionFilter === 'all' ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >Tümü</button>
+                <button
+                  onClick={() => setCollectionFilter('learning')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${collectionFilter === 'learning' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >Öğreniliyor</button>
+                <button
+                  onClick={() => setCollectionFilter('mastered')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${collectionFilter === 'mastered' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >Ustalaşıldı</button>
               </div>
 
-              {/* Word List */}
-              <div className="space-y-3">
-                {[
-                  { word: 'Negotiate', level: 'B2', status: 'learning', streak: 2 },
-                  { word: 'Deadline', level: 'B1', status: 'mastered', streak: 5 },
-                  { word: 'Implement', level: 'B2', status: 'learning', streak: 1 },
-                  { word: 'Collaborate', level: 'B2', status: 'new', streak: 0 },
-                ].map((word, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${word.status === 'mastered' ? 'bg-emerald-100' :
-                        word.status === 'learning' ? 'bg-amber-100' : 'bg-slate-200'
-                        }`}>
-                        {word.status === 'mastered' ? '⭐' : word.status === 'learning' ? '📝' : '🆕'}
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500" />
+                </div>
+              ) : filteredWords.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <p>{collectionFilter === 'all' ? 'Henüz kelime eklenmemiş.' : 'Bu kategoride kelime yok.'}</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredWords.map((word, idx) => (
+                    <div
+                      key={word.id || idx}
+                      className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${word.status === 'mastered' ? 'bg-emerald-100' :
+                          word.status === 'learning' ? 'bg-amber-100' : 'bg-slate-200'
+                          }`}>
+                          {word.status === 'mastered' ? '⭐' : word.status === 'learning' ? '📝' : '🆕'}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-800">{word.word}</p>
+                          <p className="text-xs text-slate-500">
+                            {word.level || '-'} • {word.definition ? word.definition.substring(0, 30) : '-'}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold text-slate-800">{word.word}</p>
-                        <p className="text-xs text-slate-500">
-                          {word.level} • {word.streak > 0 ? `${word.streak}🔥` : 'Yeni'}
-                        </p>
-                      </div>
+                      <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </div>
-                    <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -316,6 +338,13 @@ export const VocabularyTabContent: React.FC<{ user?: any }> = ({ user }) => {
   const [activeTab, setActiveTab] = useState<'review' | 'collection'>('review');
   const [words, setWords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'learning' | 'mastered'>('all');
+
+  const filteredWords = words.filter(w => {
+    if (filterStatus === 'all') return true;
+    if (filterStatus === 'mastered') return w.status === 'mastered';
+    return w.status === 'learning' || w.status === 'new';
+  });
 
   useEffect(() => {
     if (activeTab === 'collection') {
@@ -326,8 +355,9 @@ export const VocabularyTabContent: React.FC<{ user?: any }> = ({ user }) => {
   const fetchWords = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/vocabulary/due?limit=100`, {
+      const token = localStorage.getItem('lingroot_token');
+      // Use /collection endpoint to get all user's words (not just due words)
+      const res = await fetch(`${API_BASE}/api/vocabulary/collection?limit=100`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -379,13 +409,22 @@ export const VocabularyTabContent: React.FC<{ user?: any }> = ({ user }) => {
 
       {activeTab === 'collection' && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-slate-800">Tüm Kelimeler</h2>
-            <select className="px-3 py-2 bg-slate-100 rounded-lg text-sm border-0">
-              <option>Tümü</option>
-              <option>Öğreniliyor</option>
-              <option>Ustalaşıldı</option>
-            </select>
+          </div>
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setFilterStatus('all')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterStatus === 'all' ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            >Tümü</button>
+            <button
+              onClick={() => setFilterStatus('learning')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterStatus === 'learning' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            >Öğreniliyor</button>
+            <button
+              onClick={() => setFilterStatus('mastered')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterStatus === 'mastered' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            >Ustalaşıldı</button>
           </div>
 
           {/* Word List */}
@@ -393,13 +432,13 @@ export const VocabularyTabContent: React.FC<{ user?: any }> = ({ user }) => {
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500" />
             </div>
-          ) : words.length === 0 ? (
+          ) : filteredWords.length === 0 ? (
             <div className="text-center py-8 text-slate-500">
-              <p>Henüz kelime eklenmemiş.</p>
+              <p>{filterStatus === 'all' ? 'Henüz kelime eklenmemiş.' : 'Bu kategoride kelime yok.'}</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {words.map((word, idx) => (
+              {filteredWords.map((word, idx) => (
                 <div
                   key={word.id || idx}
                   className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"

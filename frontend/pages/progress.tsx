@@ -17,6 +17,7 @@ import {
   OnboardingFlow
 } from '@/components/gamification';
 import { useGamification, Achievement } from '@/hooks/useGamification';
+import AppHeader from '@/components/AppHeader';
 
 const ProgressPage: React.FC = () => {
   const router = useRouter();
@@ -47,7 +48,7 @@ const ProgressPage: React.FC = () => {
 
   const fetchAchievements = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('lingroot_token');
       if (!token) return;
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/gamification/achievements`, {
@@ -91,17 +92,7 @@ const ProgressPage: React.FC = () => {
 
       <div className="min-h-screen bg-background">
         {/* Header */}
-        <header className="bg-white/80 backdrop-blur-md border-b sticky top-0 z-50">
-          <div className="container mx-auto px-4 h-16 flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
-              className="p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
-            >
-              <span className="text-xl">←</span>
-            </button>
-            <h1 className="text-xl font-bold text-slate-800">İlerleme Durumun</h1>
-          </div>
-        </header>
+        <AppHeader />
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8 max-w-4xl space-y-8">
@@ -114,7 +105,7 @@ const ProgressPage: React.FC = () => {
           <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Vocabulary Card */}
             <button
-              onClick={() => router.push('/vocabulary')}
+              onClick={() => router.push('/vocabulary?mode=random')}
               className="group bg-gradient-to-br from-teal-500 to-emerald-600 p-6 rounded-2xl shadow-lg text-white text-left hover:shadow-xl hover:-translate-y-1 transition-all"
             >
               <div className="flex items-center justify-between">

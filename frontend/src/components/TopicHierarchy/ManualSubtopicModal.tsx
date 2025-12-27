@@ -27,7 +27,7 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!title.trim()) {
       return;
     }
@@ -35,7 +35,7 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
     try {
       setIsSubmitting(true);
       await onAdd(title.trim(), description.trim() || undefined);
-      
+
       // Başarılıysa form'u temizle ve kapat
       setTitle('');
       setDescription('');
@@ -48,8 +48,14 @@ const ManualSubtopicModal: React.FC<ManualSubtopicModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={() => !isSubmitting && onClose()}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
             <i className="fas fa-plus-circle mr-2 text-green-600"></i>

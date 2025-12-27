@@ -8,8 +8,11 @@
 import React from 'react';
 import { useGamification, DailyQuest } from '@/hooks/useGamification';
 
+import { useRouter } from 'next/router';
+
 export const DailyQuestsCard: React.FC = () => {
   const { stats, claimDailyQuest, loading } = useGamification();
+  const router = useRouter();
 
   if (loading || !stats) {
     return (
@@ -23,6 +26,27 @@ export const DailyQuestsCard: React.FC = () => {
       </div>
     );
   }
+
+  const handleQuestClick = (quest: DailyQuest) => {
+    if (quest.is_completed) return;
+
+    switch (quest.task_type) {
+      case 'learn_words':
+        router.push('/vocabulary?mode=new');
+        break;
+      case 'review_words':
+        router.push('/vocabulary?mode=due');
+        break;
+      case 'listen_minutes':
+      case 'complete_content':
+      case 'listen_content':
+      case 'create_content':
+      case 'complete_quiz':
+      default:
+        router.push('/welcome');
+        break;
+    }
+  };
 
   const completedCount = stats.dailyQuests.filter(q => q.is_completed).length;
   const totalCount = stats.dailyQuests.length;
@@ -47,6 +71,7 @@ export const DailyQuestsCard: React.FC = () => {
             key={quest.id}
             quest={quest}
             onClaim={() => claimDailyQuest(quest.id)}
+            onClick={() => handleQuestClick(quest)}
           />
         ))}
       </div>
@@ -64,9 +89,10 @@ export const DailyQuestsCard: React.FC = () => {
 interface QuestItemProps {
   quest: DailyQuest;
   onClaim: () => void;
+  onClick: () => void;
 }
 
-const QuestItem: React.FC<QuestItemProps> = ({ quest, onClaim }) => {
+const QuestItem: React.FC<QuestItemProps> = ({ quest, onClaim, onClick }) => {
   const progress = Math.min((quest.current_amount / quest.target_amount) * 100, 100);
   const isComplete = quest.is_completed;
   const isClaimed = quest.is_claimed;
@@ -76,17 +102,22 @@ const QuestItem: React.FC<QuestItemProps> = ({ quest, onClaim }) => {
       listen_minutes: '🎧',
       learn_words: '📚',
       complete_content: '✅',
-      complete_quiz: '🧠'
+      complete_quiz: '🧠',
+      review_words: '📝',
+      create_content: '✨',
+      listen_content: '👂'
     };
     return icons[type] || '📋';
   };
 
   return (
-    <div className={`
-            flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300
+    <div
+      onClick={!isComplete ? onClick : undefined}
+      className={`
+            flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 relative overflow-hidden
             ${isComplete
-        ? 'bg-emerald-50/50 border-emerald-100'
-        : 'bg-white border-slate-100 hover:border-slate-200 shadow-sm hover:shadow-md'}
+          ? 'bg-emerald-50/50 border-emerald-100'
+          : 'bg-white border-slate-100 hover:border-slate-200 shadow-sm hover:shadow-md cursor-pointer hover:bg-slate-50'}
             ${isClaimed ? 'opacity-60 saturate-50' : ''}
         `}>
       <div className={`
@@ -121,8 +152,11 @@ const QuestItem: React.FC<QuestItemProps> = ({ quest, onClaim }) => {
 
       {isComplete && !isClaimed && (
         <button
-          onClick={onClaim}
-          className="ml-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-emerald-200 animate-pulse hover:scale-105 active:scale-95 transition-transform"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClaim();
+          }}
+          className="ml-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-emerald-200 animate-pulse hover:scale-105 active:scale-95 transition-transform z-10"
         >
           Al!
         </button>

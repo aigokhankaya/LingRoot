@@ -4,10 +4,27 @@
  * Tinder-style swipeable flashcard with flip animation.
  * Front: Word + Audio button
  * Back: Definition, Example, Context Hook
+ * 
+ * NEW: Sector-based meanings support
+ * Words can have multiple meanings across sectors (General, Medical, Tech, etc.)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
+
+// Sector meaning structure
+interface SectorMeaning {
+    sector?: string;
+    definition?: string;
+    definition_en?: string;
+    definition_tr?: string;
+    example?: string;
+    example_sentence?: string;
+    example_tr?: string;
+    cefr_level?: string;
+    level?: string;
+    part_of_speech?: string;
+}
 
 interface VocabularyCardProps {
     word: {
@@ -18,6 +35,7 @@ interface VocabularyCardProps {
         level?: string;
         source_context?: string; // "From Podcast: Business English"
         ipa?: string;
+        meanings?: SectorMeaning[] | string; // JSON array of sector meanings
     };
     onSwipe: (direction: 'left' | 'right', wordId: number) => void;
     isActive: boolean;
@@ -27,6 +45,47 @@ const VocabularyCard: React.FC<VocabularyCardProps> = ({ word, onSwipe, isActive
     const [isFlipped, setIsFlipped] = useState(false);
     const [exitX, setExitX] = useState(0);
     const [showExample, setShowExample] = useState(false);
+    const [activeSectorIndex, setActiveSectorIndex] = useState(0);
+
+    // Parse meanings - handle both JSON string and array
+    const parsedMeanings = useMemo<SectorMeaning[]>(() => {
+        if (!word.meanings) return [];
+
+        try {
+            if (typeof word.meanings === 'string') {
+                const parsed = JSON.parse(word.meanings);
+                return Array.isArray(parsed) ? parsed : [];
+            }
+            return Array.isArray(word.meanings) ? word.meanings : [];
+        } catch {
+            return [];
+        }
+    }, [word.meanings]);
+
+    // Get unique sectors from meanings
+    const sectors = useMemo(() => {
+        if (parsedMeanings.length === 0) return [];
+
+        const sectorSet = new Set<string>();
+        parsedMeanings.forEach(m => {
+            sectorSet.add(m.sector || 'Genel');
+        });
+        return Array.from(sectorSet);
+    }, [parsedMeanings]);
+
+    // Get current active meaning based on selected sector
+    const activeMeaning = useMemo<SectorMeaning | null>(() => {
+        if (parsedMeanings.length === 0) return null;
+
+        const targetSector = sectors[activeSectorIndex] || 'Genel';
+        return parsedMeanings.find(m => (m.sector || 'Genel') === targetSector) || parsedMeanings[0];
+    }, [parsedMeanings, sectors, activeSectorIndex]);
+
+    // Determine what to display (prioritize sector meaning, fallback to legacy)
+    const displayDefinition = activeMeaning?.definition || activeMeaning?.definition_tr || activeMeaning?.definition_en || word.definition;
+    const displayExample = activeMeaning?.example || activeMeaning?.example_sentence || word.example_sentence;
+    const displayExampleTranslation = activeMeaning?.example_tr;
+    const displayLevel = activeMeaning?.cefr_level || activeMeaning?.level || word.level;
 
     const x = useMotionValue(0);
     const rotate = useTransform(x, [-200, 200], [-25, 25]);
@@ -67,6 +126,31 @@ const VocabularyCard: React.FC<VocabularyCardProps> = ({ word, onSwipe, isActive
             'C2': 'bg-purple-100 text-purple-700',
         };
         return colors[level || 'B1'] || 'bg-slate-100 text-slate-700';
+    };
+
+    const getSectorIcon = (sector: string) => {
+        const icons: Record<string, string> = {
+            'Genel': '📚',
+            'General': '📚',
+            'Tıp': '🏥',
+            'Medical': '🏥',
+            'Teknoloji': '💻',
+            'Technology': '💻',
+            'Tech': '💻',
+            'Hukuk': '⚖️',
+            'Legal': '⚖️',
+            'Finans': '💰',
+            'Finance': '💰',
+            'Bilim': '🔬',
+            'Science': '🔬',
+            'Sanat': '🎨',
+            'Art': '🎨',
+            'Spor': '⚽',
+            'Sports': '⚽',
+            'İş': '💼',
+            'Business': '💼',
+        };
+        return icons[sector] || '📖';
     };
 
     if (!isActive) return null;
@@ -112,9 +196,27 @@ const VocabularyCard: React.FC<VocabularyCardProps> = ({ word, onSwipe, isActive
                         style={{ backfaceVisibility: 'hidden' }}
                     >
                         {/* Level Badge */}
-                        <span className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-semibold ${getLevelColor(word.level)}`}>
-                            {word.level || 'B1'}
+                        <span className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-semibold ${getLevelColor(displayLevel)}`}>
+                            {displayLevel || 'B1'}
                         </span>
+
+                        {/* Sector Tabs - Only show if multiple sectors exist */}
+                        {sectors.length > 1 && (
+                            <div className="absolute top-4 left-4 flex gap-1">
+                                {sectors.map((sector, idx) => (
+                                    <button
+                                        key={sector}
+                                        onClick={(e) => { e.stopPropagation(); setActiveSectorIndex(idx); }}
+                                        className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${idx === activeSectorIndex
+                                            ? 'bg-teal-500 text-white shadow-md'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                            }`}
+                                    >
+                                        {getSectorIcon(sector)} {sector}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Word */}
                         <h2 className="text-5xl font-bold text-slate-800 mb-4 tracking-tight">
@@ -137,7 +239,7 @@ const VocabularyCard: React.FC<VocabularyCardProps> = ({ word, onSwipe, isActive
                         </button>
 
                         {/* Example Sentence Toggle */}
-                        <div className="mt-6 min-h-[60px] flex items-center justify-center">
+                        <div className="mt-6 min-h-[60px] flex flex-col items-center justify-center">
                             {!showExample ? (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setShowExample(true); }}
@@ -149,13 +251,20 @@ const VocabularyCard: React.FC<VocabularyCardProps> = ({ word, onSwipe, isActive
                                     Örnek cümle göster
                                 </button>
                             ) : (
-                                <motion.p
+                                <motion.div
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="text-center text-slate-600 italic text-sm px-4 leading-relaxed"
+                                    className="text-center px-4"
                                 >
-                                    "{word.example_sentence || 'Example sentence not available.'}"
-                                </motion.p>
+                                    <p className="text-slate-600 italic text-sm leading-relaxed">
+                                        "{displayExample || 'Example sentence not available.'}"
+                                    </p>
+                                    {displayExampleTranslation && (
+                                        <p className="text-slate-400 text-xs mt-1">
+                                            ({displayExampleTranslation})
+                                        </p>
+                                    )}
+                                </motion.div>
                             )}
                         </div>
 
@@ -167,11 +276,40 @@ const VocabularyCard: React.FC<VocabularyCardProps> = ({ word, onSwipe, isActive
 
                     {/* BACK */}
                     <motion.div
-                        className="absolute inset-0 rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl p-8 flex flex-col text-white"
+                        className="absolute inset-0 rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl p-6 flex flex-col text-white overflow-y-auto"
                         style={{ backfaceVisibility: 'hidden', rotateY: 180 }}
                     >
-                        {/* Context Hook */}
-                        {word.source_context && (
+                        {/* Sector Tabs on Back - if multiple sectors */}
+                        {sectors.length > 1 && (
+                            <div className="flex gap-1 mb-4 flex-wrap">
+                                {sectors.map((sector, idx) => (
+                                    <button
+                                        key={sector}
+                                        onClick={(e) => { e.stopPropagation(); setActiveSectorIndex(idx); }}
+                                        className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${idx === activeSectorIndex
+                                                ? 'bg-teal-500 text-white shadow-md'
+                                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                            }`}
+                                    >
+                                        {getSectorIcon(sector)} {sector}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Active Sector Indicator */}
+                        {sectors.length > 0 && (
+                            <div className="bg-teal-500/20 rounded-xl px-4 py-2 mb-4 text-teal-300 text-sm flex items-center gap-2">
+                                <span>{getSectorIcon(sectors[activeSectorIndex] || 'Genel')}</span>
+                                <span className="font-medium">{sectors[activeSectorIndex] || 'Genel'}</span>
+                                {activeMeaning?.part_of_speech && (
+                                    <span className="text-slate-400 ml-auto text-xs">({activeMeaning.part_of_speech})</span>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Context Hook - if no sectors but has source */}
+                        {sectors.length === 0 && word.source_context && (
                             <div className="bg-teal-500/20 rounded-xl px-4 py-2 mb-4 text-teal-300 text-sm flex items-center gap-2">
                                 <span>📍</span>
                                 <span>{word.source_context}</span>
@@ -179,10 +317,10 @@ const VocabularyCard: React.FC<VocabularyCardProps> = ({ word, onSwipe, isActive
                         )}
 
                         {/* Definition */}
-                        <div className="mb-6">
+                        <div className="mb-4">
                             <h4 className="text-xs uppercase tracking-wider text-slate-400 mb-2">Anlam</h4>
                             <p className="text-xl font-medium">
-                                {word.definition || 'Tanım henüz eklenmedi.'}
+                                {displayDefinition || 'Tanım henüz eklenmedi.'}
                             </p>
                         </div>
 
@@ -190,12 +328,17 @@ const VocabularyCard: React.FC<VocabularyCardProps> = ({ word, onSwipe, isActive
                         <div className="flex-1">
                             <h4 className="text-xs uppercase tracking-wider text-slate-400 mb-2">Örnek Cümle</h4>
                             <p className="text-lg text-slate-300 italic leading-relaxed">
-                                "{word.example_sentence || 'Örnek cümle henüz eklenmedi.'}"
+                                "{displayExample || 'Örnek cümle henüz eklenmedi.'}"
                             </p>
+                            {displayExampleTranslation && (
+                                <p className="text-slate-400 text-sm mt-2">
+                                    ({displayExampleTranslation})
+                                </p>
+                            )}
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-4 mt-auto pt-6">
+                        <div className="flex gap-4 mt-auto pt-4">
                             <button
                                 onClick={(e) => { e.stopPropagation(); onSwipe('left', word.id); }}
                                 className="flex-1 py-3 rounded-xl bg-red-500/20 text-red-400 font-semibold hover:bg-red-500/30 transition-colors"

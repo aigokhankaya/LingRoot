@@ -388,7 +388,11 @@ class GamificationService {
         const questTemplates = [
             { type: 'listen_minutes', title: '10 dakika dinle', target: 10, xp: 50 },
             { type: 'learn_words', title: '5 kelime öğren', target: 5, xp: 30 },
+            { type: 'review_words', title: '10 kelime tekrar et', target: 10, xp: 40 },
             { type: 'complete_content', title: '1 içerik tamamla', target: 1, xp: 75 },
+            { type: 'create_content', title: 'Yeni içerik oluştur', target: 1, xp: 100 },
+            { type: 'listen_content', title: 'İçerik dinle', target: 1, xp: 50 },
+            { type: 'complete_quiz', title: 'Quiz tamamla', target: 1, xp: 50 },
         ];
 
         // Rastgele 2-3 görev seç

@@ -128,7 +128,7 @@ export function useGamification() {
     // Token helper
     const getToken = () => {
         if (typeof window !== 'undefined') {
-            return localStorage.getItem('token');
+            return localStorage.getItem('lingroot_token');
         }
         return null;
     };

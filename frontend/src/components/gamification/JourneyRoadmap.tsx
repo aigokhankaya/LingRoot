@@ -46,7 +46,7 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
 
   const fetchRoadmap = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('lingroot_token');
       if (!token) return;
 
       const response = await fetch(`${API_BASE}/api/gamification/roadmap`, {
@@ -67,7 +67,7 @@ export const JourneyRoadmap: React.FC<JourneyRoadmapProps> = ({ onQuestClick, on
   const createDefaultRoadmap = async () => {
     setIsGenerating(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('lingroot_token');
 
       // Token kontrolü
       if (!token || token === 'null' || token.length < 10) {

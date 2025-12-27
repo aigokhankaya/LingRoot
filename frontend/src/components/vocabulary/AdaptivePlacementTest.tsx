@@ -46,7 +46,7 @@ const AdaptivePlacementTest: React.FC<AdaptivePlacementTestProps> = ({ onComplet
     const startTest = useCallback(async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('lingroot_token');
             const res = await fetch(`${API_BASE}/api/assessment/start`, {
                 method: 'POST',
                 headers: {
@@ -76,7 +76,7 @@ const AdaptivePlacementTest: React.FC<AdaptivePlacementTestProps> = ({ onComplet
         setShowResult(true);
 
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('lingroot_token');
             const res = await fetch(`${API_BASE}/api/assessment/answer`, {
                 method: 'POST',
                 headers: {
@@ -85,7 +85,8 @@ const AdaptivePlacementTest: React.FC<AdaptivePlacementTestProps> = ({ onComplet
                 },
                 body: JSON.stringify({
                     questionId: currentQuestion.id,
-                    selectedIndex
+                    selectedIndex,
+                    selectedAnswer: currentQuestion.options[selectedIndex] // Send actual text
                 })
             });
             const data = await res.json();
@@ -244,7 +245,7 @@ const AdaptivePlacementTest: React.FC<AdaptivePlacementTestProps> = ({ onComplet
                         <span className="px-3 py-1 bg-slate-100 text-slate-500 text-xs font-medium rounded-full">
                             {currentQuestion.level} Seviyesi
                         </span>
-                        {showResult && (
+                        {lastAnswerCorrect !== null && (
                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${lastAnswerCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                                 }`}>
                                 {lastAnswerCorrect ? '✓ Doğru!' : '✗ Yanlış'}
@@ -273,12 +274,12 @@ const AdaptivePlacementTest: React.FC<AdaptivePlacementTestProps> = ({ onComplet
                                     onClick={() => !showResult && submitAnswer(idx)}
                                     disabled={showResult}
                                     className={`w-full p-4 rounded-xl text-left font-medium transition-all ${isCorrect
-                                            ? 'bg-green-100 border-2 border-green-500 text-green-700'
-                                            : isWrong
-                                                ? 'bg-red-100 border-2 border-red-500 text-red-700'
-                                                : isSelected
-                                                    ? 'bg-purple-100 border-2 border-purple-500 text-purple-700'
-                                                    : 'bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-700'
+                                        ? 'bg-green-100 border-2 border-green-500 text-green-700'
+                                        : isWrong
+                                            ? 'bg-red-100 border-2 border-red-500 text-red-700'
+                                            : isSelected
+                                                ? 'bg-purple-100 border-2 border-purple-500 text-purple-700'
+                                                : 'bg-slate-50 border-2 border-transparent hover:bg-slate-100 text-slate-700'
                                         }`}
                                 >
                                     <span className="inline-block w-6 h-6 rounded-full bg-white text-center text-sm mr-3 border">

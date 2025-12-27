@@ -44,14 +44,15 @@ exports.startTest = async (req, res) => {
 exports.submitAnswer = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { questionId, selectedIndex } = req.body;
+        const { questionId, selectedIndex, selectedAnswer } = req.body;
 
         const session = sessions.get(userId);
         if (!session) {
             return res.status(400).json({ success: false, error: 'Test oturumu bulunamadı' });
         }
 
-        const result = placementTestService.processAnswer(session, questionId, selectedIndex);
+        // Pass selectedAnswer (text) to processAnswer
+        const result = placementTestService.processAnswer(session, questionId, selectedAnswer);
         const nextQuestion = placementTestService.getNextQuestion(session);
 
         if (!nextQuestion) {

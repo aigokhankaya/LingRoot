@@ -44,6 +44,9 @@ import { ProfileDropdownMenu } from "../src/components/shared/ProfileDropdownMen
 import NotificationBell from "../src/components/NotificationBell";
 import { OnboardingFlow, LevelProgressBar, LevelUpModal, AchievementModal } from "../src/components/gamification";
 import { useGamification } from "../src/hooks/useGamification";
+import ResumeContentCard from "../src/components/content/ResumeContentCard";
+import ContentQuizModal from "../src/components/quiz/ContentQuizModal";
+import AppHeader from "../src/components/AppHeader";
 
 interface InputData {
   type: ProcessInputData['type'];
@@ -79,6 +82,7 @@ interface AudioResult {
   topic?: string;
   adapted_text?: string;
   translated_text?: string;
+  contentId?: string;
 }
 
 interface ContentHistoryItem {
@@ -211,6 +215,9 @@ const Welcome: React.FC = () => {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [showWelcomeLoader, setShowWelcomeLoader] = useState<boolean>(false);
   const [showWelcomePopup, setShowWelcomePopup] = useState<boolean>(false);
+  const [showQuizModal, setShowQuizModal] = useState<boolean>(false);
+  const [quizContentId, setQuizContentId] = useState<string | null>(null);
+  const [quizContentTitle, setQuizContentTitle] = useState<string>('');
 
   // 🎮 Gamification Hook & Onboarding State
   const {
@@ -251,12 +258,24 @@ const Welcome: React.FC = () => {
   }, [router.isReady, router.query]);
 
   // 🎮 Gamification: Onboarding tamamlanmadıysa modalı göster
+  // 🎮 Gamification: Onboarding tamamlanmadıysa modalı göster
   useEffect(() => {
-    if (!gamificationLoading && gamificationStats && !gamificationStats.onboardingCompleted) {
-      // Onboarding henüz tamamlanmamış, modalı göster
+    if (!isAuthenticated) return; // Henüz login değilse işlem yapma
+
+    // Yüklemeler devam ediyorsa bekle
+    if (gamificationLoading || loadingHistory) return;
+
+    // Gamification datası geldi ve onboarding tamamlanmamış görünüyorsa
+    if (gamificationStats && !gamificationStats.onboardingCompleted) {
+      // Ancak kullanıcının geçmişi varsa (eski kullanıcı), onboarding'i atla
+      if (contentHistory && contentHistory.length > 0) {
+        return;
+      }
+
+      // Gerçekten yeni kullanıcı ise modalı göster
       setShowOnboardingFlow(true);
     }
-  }, [gamificationLoading, gamificationStats]);
+  }, [gamificationLoading, gamificationStats, contentHistory, loadingHistory, isAuthenticated]);
 
   // 🎮 Streak check-in on page load
   useEffect(() => {
@@ -674,8 +693,9 @@ const Welcome: React.FC = () => {
         });
 
         // Podcast'i contenthistory tablosuna kaydet (mevcut submitContent akışını kullanarak)
+        // Podcast'i contenthistory tablosuna kaydet (mevcut submitContent akışını kullanarak)
         try {
-          await submitContent(
+          const contentResponse = await submitContent(
             topic,
             'podcast',
             englishLevel.toUpperCase(),
@@ -686,7 +706,12 @@ const Welcome: React.FC = () => {
             result.timepoints,
             result.words,
           );
-          console.log('🎙️ [PODCAST] Podcast submitted to contenthistory via submitContent');
+          console.log('🎙️ [PODCAST] Podcast submitted to contenthistory via submitContent', contentResponse);
+
+          // Update audioResult with the new content ID so quiz can work
+          if (contentResponse?.data?.id) {
+            setAudioResult((prev) => prev ? { ...prev, contentId: contentResponse.data.id } : null);
+          }
         } catch (submitErr) {
           console.error('🎙️ [PODCAST] submitContent failed for podcast:', submitErr);
         }
@@ -699,6 +724,35 @@ const Welcome: React.FC = () => {
     } finally {
       setIsCreatingPodcast(false);
     }
+  };
+
+  const handleResumeContent = (item: any) => {
+    // Scroll to player first
+    setTimeout(() => {
+      const outputSection = document.getElementById('output-section');
+      if (outputSection) {
+        const rect = outputSection.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        window.scrollTo({
+          top: rect.top + scrollTop - 100, // Header için pay
+          behavior: 'smooth'
+        });
+      }
+    }, 100);
+
+    const audioData: AudioResult = {
+      message: item.input, // text -> message mapping
+      audio_url: item.mp3_url,
+      mp3_url: item.mp3_url,
+      text: item.input,
+      translated_text: null,
+      words: [],
+      contentId: item.id,
+      topic: item.input_type === 'podcast' ? 'Podcast' : 'İçerik',
+      level: item.level
+    };
+
+    setAudioResult(audioData);
   };
 
   // Konu önerileri alma fonksiyonu
@@ -2089,64 +2143,7 @@ const Welcome: React.FC = () => {
       />
 
       {/* Top Navigation */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-6">
-              {/* Logo + Brand (same as home page) */}
-              <Link href="/">
-                <div className="flex items-center space-x-3 flex-shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/lingroot-icon.svg"
-                    alt="LingRoot Logo"
-                    className="w-10 h-10 md:w-12 md:h-12"
-                  />
-                  <BrandWordmark className="hidden sm:inline-block text-lg sm:text-xl md:text-2xl" />
-                </div>
-              </Link>
-
-              {/* Ana menü linkleri */}
-              <div className="flex items-center space-x-2">
-                <Link href="/">
-                  <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
-                    <i className="fas fa-home mr-2"></i>
-                    {t('welcome_nav_home')}
-                  </Button>
-                </Link>
-                <Link href="/dashboard?tab=reading-history">
-                  <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
-                    <i className="fas fa-history mr-2"></i>
-                    {t('welcome_nav_reading_history')}
-                  </Button>
-                </Link>
-                <Link href="/progress">
-                  <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer">
-                    <span className="mr-2">🏆</span>
-                    {t('welcome_nav_progress')}
-                  </Button>
-                </Link>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              {/* Compact Level Progress in Header */}
-              <div className="hidden md:block">
-                <LevelProgressBar compact={true} />
-              </div>
-              <NotificationBell />
-              {isAuthenticated && (
-                <ProfileDropdownMenu
-                  align="end"
-                  side="bottom"
-                  avatarSize="md"
-                  showUserInfo={true}
-                  showChevron={true}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <AppHeader />
 
       {/* Hero Section */}
       <div className="relative w-full h-[440px] md:h-[480px] overflow-hidden slideUp">
@@ -2183,6 +2180,10 @@ const Welcome: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Kaldığın Yerden Devam Et */}
+          {/* Kaldığın Yerden Devam Et */}
+          <ResumeContentCard onResumePlay={handleResumeContent} />
 
           {/* AI Content Entry Card */}
           <div
@@ -3686,7 +3687,7 @@ const Welcome: React.FC = () => {
           {/* Output Section */}
           {
             audioResult && (
-              <Card className="mt-8 border-none shadow-lg">
+              <Card className="mt-8 border-none shadow-lg" id="output-section">
                 <CardContent className="p-6">
                   <div className="flex items-center mb-6">
                     <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-bold mr-4">
@@ -3697,6 +3698,13 @@ const Welcome: React.FC = () => {
                   <OutputSection
                     audioResult={audioResult}
                     isLoggedIn={isAuthenticated}
+                    onAudioComplete={() => {
+                      if (audioResult.contentId) {
+                        setQuizContentId(audioResult.contentId);
+                        setQuizContentTitle(audioResult.topic || audioResult.translated_text?.substring(0, 30) || 'İçerik Testi');
+                        setShowQuizModal(true);
+                      }
+                    }}
                   />
                 </CardContent>
               </Card>

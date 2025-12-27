@@ -270,8 +270,77 @@ Generate a JSON roadmap with weekly milestones:
             };
 
         } catch (error) {
-            logger.error('[OnboardingService] Roadmap generation failed:', error);
-            throw error;
+            logger.error('[OnboardingService] Roadmap generation failed (using fallback):', error);
+
+            // FALLBACK ROADMAP
+            // OpenAI başarısız olursa standart bir plan ile devam et
+            const fallbackRoadmap = {
+                "summary": "AI planı oluşturulamadı, ancak senin için optimize edilmiş standart başarı programı hazır!",
+                "totalWeeks": 8,
+                "weeklyMilestones": [
+                    {
+                        "week": 1,
+                        "theme": "Hızlı Başlangıç",
+                        "goals": ["Sistemi tanı", "İlk kelimeleri öğren"],
+                        "tasks": [
+                            { "type": "vocabulary", "title": "Kelime Kartları (İlk 20)", "duration": 15 },
+                            { "type": "listen", "title": "Başlangıç Podcasti", "duration": 10 },
+                            { "type": "quiz", "title": "İlk Quiz", "difficulty": "easy" }
+                        ],
+                        "milestone": "Başlangıç rozetini kazan"
+                    },
+                    {
+                        "week": 2,
+                        "theme": "Ritmi Yakala",
+                        "goals": ["Günlük 20dk çalışma", "Dinleme pratiği"],
+                        "tasks": [
+                            { "type": "listen", "title": "Günlük Haberler", "duration": 15 },
+                            { "type": "vocabulary", "title": "Tema: Seyahat", "duration": 20 },
+                            { "type": "quiz", "title": "Haftalık Tekrar", "difficulty": "medium" }
+                        ],
+                        "milestone": "3 Günlük Seri Yap"
+                    },
+                    {
+                        "week": 3,
+                        "theme": "Derinleşme",
+                        "goals": ["İçerik üretimi", "Aktif dinleme"],
+                        "tasks": [
+                            { "type": "listen", "title": "İlgi Alanı Podcasti", "duration": 20 },
+                            { "type": "vocabulary", "title": "Tema: İş Dünyası", "duration": 20 },
+                            { "type": "milestone", "title": "Aylık Değerlendirme", "duration": 30 }
+                        ],
+                        "milestone": "İlk Ayı Tamamla"
+                    }
+                ],
+                "finalMilestone": `Hedef: ${targetCEFR} Seviyesi`
+            };
+
+            try {
+                // Hedefi kaydet
+                await this.saveGoal(userId, {
+                    archetype,
+                    currentCEFR,
+                    targetCEFR,
+                    weeklyMinutes,
+                    totalWeeks: 8,
+                    deadline: this.calculateDeadline(8)
+                });
+
+                // Quest nodes oluştur
+                await this.createQuestNodes(userId, fallbackRoadmap);
+
+                return {
+                    success: true,
+                    roadmap: fallbackRoadmap,
+                    archetypeDetails: this.getArchetypeDetails(archetype),
+                    estimatedWeeks: 8,
+                    dailyMinutes: Math.ceil(weeklyMinutes / 7)
+                };
+
+            } catch (fallbackError) {
+                logger.error('[OnboardingService] Critical failure in fallback:', fallbackError);
+                throw fallbackError;
+            }
         }
     }
 
