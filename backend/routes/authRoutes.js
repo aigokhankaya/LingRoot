@@ -19,6 +19,7 @@ router.post('/resend-verification', authController.resendVerificationEmail);
 router.get('/me', authenticate, authController.getCurrentUser);
 router.put('/update-profile', authenticate, authController.updateProfile);
 router.put('/change-password', authenticate, authController.changePassword);
+router.post('/update-level', authenticate, authController.updateLevel);
 router.post('/logout', authenticate, authController.logout);
 
 // Social login routes

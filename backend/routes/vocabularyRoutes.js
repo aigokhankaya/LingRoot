@@ -1,5 +1,13 @@
+/**
+ * 🗂️ Vocabulary Routes
+ * 
+ * SRS review system endpoints.
+ */
+
 const express = require('express');
 const router = express.Router();
+const vocabularyController = require('../controllers/vocabularyController');
+const { authenticate } = require('../middleware/auth');
 const { authenticate } = require('../middleware/authMiddleware');
 const { supabase } = require('../utils/supabaseClient');
 const logger = require('../utils/logger');
@@ -832,86 +840,28 @@ router.post('/add-with-translation', authenticate, async (req, res) => {
                 .eq('word', normalizedWord)
                 .single();
 
-            if (existingAfterErrorCheck && existingAfterErrorCheck.code !== 'PGRST116') {
-                logger.error('Error checking vocabulary after translation failure:', existingAfterErrorCheck);
-                return res.status(500).json({
-                    success: false,
-                    error: 'Kelime kaydedilirken hata oluştu'
-                });
-            }
+router.use(authenticate);
 
-            if (existingAfterError) {
-                vocabularyRow = existingAfterError;
-            } else {
-                const { data: fallbackVocabulary, error: fallbackInsertError } = await supabase
-                    .from('vocabulary')
-                    .insert({
-                        word: normalizedWord,
-                        original_word: word,
-                        definition: '',
-                        example_sentence: '',
-                        example_sentence_turkish: '',
-                        level: (level || 'B1').toUpperCase(),
-                        meanings: null
-                    })
-                    .select()
-                    .single();
+// Lookup word in global vocabulary
+router.get('/lookup', vocabularyController.lookupWord);
 
-                if (fallbackInsertError) {
-                    logger.error('Error inserting fallback vocabulary word:', fallbackInsertError);
-                    return res.status(500).json({
-                        success: false,
-                        error: 'Kelime kaydedilirken hata oluştu'
-                    });
-                }
+// Get Flashcards (Daily Mix)
+router.get('/due', vocabularyController.getDueWords);
 
-                vocabularyRow = fallbackVocabulary;
-            }
+// Get User Stats (for dashboard)
+router.get('/stats', vocabularyController.getStats);
 
-            const { data: newUserWord, error: insertUserWordError } = await supabase
-                .from('user_vocabulary')
-                .insert({
-                    user_id: userId,
-                    word_id: vocabularyRow.id,
-                    original_sentence: originalSentence || '',
-                    translated_sentence: '',
-                    is_learned: false,
-                    created_at: new Date().toISOString()
-                })
-                .select(`
-                    id,
-                    user_id,
-                    word_id,
-                    original_sentence,
-                    translated_sentence,
-                    is_learned,
-                    created_at,
-                    updated_at,
-                    vocabulary (
-                        id,
-                        word,
-                        original_word,
-                        definition,
-                        example_sentence,
-                        example_sentence_turkish,
-                        level,
-                        meanings,
-                        created_at,
-                        updated_at
-                    )
-                `)
-                .single();
+// Get User Collection (all words)
+router.get('/collection', vocabularyController.getCollection);
 
-            if (insertUserWordError) {
-                logger.error('Error inserting user_vocabulary word without translation:', insertUserWordError);
-                return res.status(500).json({
-                    success: false,
-                    error: 'Kelime kaydedilirken hata oluştu'
-                });
-            }
+// Get Random Words (for variety practice)
+router.get('/random', vocabularyController.getRandomWords);
 
-            const mappedNew = mapUserVocabularyRow(newUserWord);
+// Submit Review (Flashcard Swipe)
+router.post('/review', vocabularyController.submitReview);
 
+// Add Word (from Context Menu etc.)
+router.post('/add', vocabularyController.addWord);
             res.json({
                 success: true,
                 data: mappedNew,

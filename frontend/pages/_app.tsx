@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 import Head from 'next/head';
 import AuthProvider from '../src/lib/auth';
 import { MembershipProvider } from '../src/context/MembershipContext';
+import { AudioPlayerProvider } from '../src/context/AudioPlayerContext';
+import { GlobalAudioContainer } from '../src/components/AudioPlayer';
 
 function MyApp({ Component, pageProps }: AppProps) {
   useEffect(() => {
@@ -18,7 +20,7 @@ function MyApp({ Component, pageProps }: AppProps) {
     window.alert = (...args: any[]) => {
       try {
         console.warn('[alert suppressed]', ...args);
-      } catch {}
+      } catch { }
       return;
     };
     return () => {
@@ -36,7 +38,10 @@ function MyApp({ Component, pageProps }: AppProps) {
       </Head>
       <AuthProvider>
         <MembershipProvider>
-          <Component {...pageProps} />
+          <AudioPlayerProvider>
+            <Component {...pageProps} />
+            <GlobalAudioContainer />
+          </AudioPlayerProvider>
         </MembershipProvider>
       </AuthProvider>
     </>

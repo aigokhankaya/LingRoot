@@ -144,6 +144,11 @@ Hybrid serverless architecture
 Cloudflare R2 migration (full)
 Global CDN optimization
 
+[NEW ARCHITECTURE]
+Gamified Onboarding & Progression Strategy
+See: docs/architecture/gamification-strategy.md
+Implements "Hero's Journey" onboarding, Quest-based roadmap, SRS vocabulary system, and Gamified quizzes.
+
 [6. DECISION LOG & ANTI-PATTERNS]
 [2025-11] MFA Kullanımı
 Karar: Google TTS timepoint API yerine MFA forced aligner kullanmak.

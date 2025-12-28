@@ -44,13 +44,10 @@ const LoginPage: React.FC = () => {
     try {
       const result = await login(email, password, rememberMe);
       if (result.success) {
-        const target = nextDecoded && nextDecoded.trim() ? nextDecoded : '/welcome';
+        // Her zaman welcome sayfasına yönlendir
+        const target = '/welcome';
         try { sessionStorage.removeItem('postLoginNext'); } catch { }
-        if (target.includes('#')) {
-          window.location.assign(target);
-        } else {
-          router.replace(target);
-        }
+        router.replace(target);
       } else {
         setError(result.message || t('login_failed_generic'));
         setErrorCode(result.code || null);
@@ -91,13 +88,10 @@ const LoginPage: React.FC = () => {
       const result = await loginWithGoogle(credential, rememberMe);
 
       if (result.success) {
-        const target = nextDecoded && nextDecoded.trim() ? nextDecoded : '/welcome';
+        // Her zaman welcome sayfasına yönlendir
+        const target = '/welcome';
         try { sessionStorage.removeItem('postLoginNext'); } catch { }
-        if (target.includes('#')) {
-          window.location.assign(target);
-        } else {
-          router.replace(target);
-        }
+        router.replace(target);
       } else {
         setError(result.message || t('login_failed_generic'));
       }

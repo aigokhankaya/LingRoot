@@ -3,6 +3,7 @@ const OpenAI = require('openai');
 const logger = require('../utils/logger');
 const path = require('path');
 const fs = require('fs');
+const gamificationService = require('../services/gamificationService');
 const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
 
 // Initialize OpenAI
@@ -114,10 +115,17 @@ exports.markTopicListened = async (req, res) => {
     }
 
     const contentId = data[0].id;
+    const totalDuration = data[0].total_duration_seconds || 0;
 
     const { error: updateError } = await supabase
       .from('topic_contents')
-      .update({ listened_at: new Date().toISOString() })
+      .update({
+        listened_at: new Date().toISOString(),
+        is_completed: true,
+        progress_percentage: 100,
+        last_position_seconds: totalDuration > 0 ? totalDuration : null,
+        last_listened_at: new Date().toISOString()
+      })
       .eq('id', contentId);
 
     if (updateError) {
@@ -131,10 +139,42 @@ exports.markTopicListened = async (req, res) => {
 
     logger.info(`[TOPIC HIERARCHY] Topic audio marked as listened: topic_contents.id=${contentId}`);
 
-    return res.json({
-      success: true,
-      message: 'Ses kaydı dinlenmiş olarak işaretlendi'
-    });
+    // 🎮 Gamification: İçerik tamamlama XP ve günlük görev ilerlemesi
+    try {
+      // Günlük görevi güncelle
+      await gamificationService.updateDailyQuestProgress(userId, 'complete_content', 1);
+      await gamificationService.updateDailyQuestProgress(userId, 'listen_content', 1);
+
+      // XP ekle (100 XP for content complete)
+      const xpResult = await gamificationService.addXP(
+        userId,
+        100,
+        'content',
+        contentId,
+        'Konu içeriği dinleme tamamlandı'
+      );
+
+      // Streak güncelle
+      await gamificationService.updateStreak(userId);
+
+      logger.info(`[GAMIFICATION] User ${userId} earned 100 XP for completing content ${contentId}`);
+
+      return res.json({
+        success: true,
+        message: 'Ses kaydı dinlenmiş olarak işaretlendi',
+        gamification: {
+          xpEarned: 100,
+          ...xpResult
+        }
+      });
+    } catch (gamificationError) {
+      // Gamification hatası dinleme işaretini etkilememeli
+      logger.error('[GAMIFICATION] Error updating gamification:', gamificationError);
+      return res.json({
+        success: true,
+        message: 'Ses kaydı dinlenmiş olarak işaretlendi (gamification hatası oluştu)'
+      });
+    }
   } catch (error) {
     logger.error('[TOPIC HIERARCHY] Error in markTopicListened:', error);
     return res.status(500).json({
@@ -707,6 +747,254 @@ exports.createContentFromTopic = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'İçerik oluşturulurken hata oluştu',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Dinleme pozisyonunu kaydet
+ * POST /api/topic-hierarchy/topics/save-progress
+ * Body: { mp3_url: string, position_seconds: number, total_duration: number }
+ */
+exports.saveListeningProgress = async (req, res) => {
+  try {
+    const { mp3_url, position_seconds, total_duration } = req.body;
+    const userId = req.user.id;
+
+    if (!mp3_url || typeof mp3_url !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'mp3_url zorunludur'
+      });
+    }
+
+    if (typeof position_seconds !== 'number' || position_seconds < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Geçerli bir position_seconds değeri gerekli'
+      });
+    }
+
+    // Kullanıcıya ait bu mp3_url ile ilişkili topic_contents kaydını bul
+    const { data, error } = await supabase
+      .from('topic_contents')
+      .select('id, topic_id, last_position_seconds, topics!inner(user_id)')
+      .eq('mp3_url', mp3_url)
+      .eq('topics.user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error || !data || data.length === 0) {
+      logger.warn(`[LISTENING PROGRESS] No topic_contents found for mp3_url=${mp3_url}`);
+      return res.status(404).json({
+        success: false,
+        message: 'İlgili içerik bulunamadı'
+      });
+    }
+
+    const contentId = data[0].id;
+    const duration = total_duration || 0;
+    const progressPercentage = duration > 0 ? (position_seconds / duration) * 100 : 0;
+    const isCompleted = progressPercentage >= 90;
+
+    // Pozisyonu güncelle
+    const { error: updateError } = await supabase
+      .from('topic_contents')
+      .update({
+        last_position_seconds: position_seconds,
+        total_duration_seconds: duration,
+        progress_percentage: Math.min(progressPercentage, 100),
+        last_listened_at: new Date().toISOString(),
+        is_completed: isCompleted
+      })
+      .eq('id', contentId);
+
+    if (updateError) {
+      logger.error('[LISTENING PROGRESS] Error updating progress:', updateError);
+      return res.status(500).json({
+        success: false,
+        message: 'İlerleme kaydedilirken hata oluştu',
+        error: updateError.message
+      });
+    }
+
+    logger.info(`[LISTENING PROGRESS] Saved progress for content ${contentId}: ${position_seconds}s / ${duration}s (${progressPercentage.toFixed(1)}%)`);
+
+    // Günlük görev: listen_minutes ilerlemesini güncelle
+    // Önceki pozisyondan farkı hesaplayarak sadece yeni dinlenen süreyi ekle
+    try {
+      const previousPosition = data[0].last_position_seconds || 0;
+      const newListenedSeconds = position_seconds - previousPosition;
+
+      // Sadece pozitif fark varsa (ileri gidildiyse) dakikaya çevir ve güncelle
+      if (newListenedSeconds > 0) {
+        const newListenedMinutes = Math.floor(newListenedSeconds / 60);
+        if (newListenedMinutes > 0) {
+          await gamificationService.updateDailyQuestProgress(userId, 'listen_minutes', newListenedMinutes);
+          logger.info(`[GAMIFICATION] Updated listen_minutes quest: +${newListenedMinutes} minutes for user ${userId}`);
+        }
+      }
+    } catch (gamificationError) {
+      // Gamification hatası dinleme kaydını etkilememeli
+      logger.error('[GAMIFICATION] Error updating listen_minutes quest:', gamificationError);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Dinleme ilerlemesi kaydedildi',
+      data: {
+        position_seconds,
+        progress_percentage: progressPercentage,
+        is_completed: isCompleted
+      }
+    });
+  } catch (error) {
+    logger.error('[LISTENING PROGRESS] Error saving progress:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'İlerleme kaydedilirken hata oluştu',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Kullanıcının yarıda kalan dinlemelerini getir
+ * GET /api/topic-hierarchy/topics/incomplete
+ */
+exports.getIncompleteListenings = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    logger.info(`[LISTENING PROGRESS] Fetching incomplete listenings for user ${userId}`);
+
+    // Kullanıcının tüm topic'lerini al
+    const { data: userTopics, error: topicsError } = await supabase
+      .from('topics')
+      .select('id')
+      .eq('user_id', userId);
+
+    if (topicsError) {
+      throw topicsError;
+    }
+
+    if (!userTopics || userTopics.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          incomplete: [],
+          count: 0
+        }
+      });
+    }
+
+    const topicIds = userTopics.map(t => t.id);
+
+    // Yarıda kalan içerikleri getir (is_completed = false AND last_position_seconds > 0)
+    const { data: incompleteContents, error: contentsError } = await supabase
+      .from('topic_contents')
+      .select(`
+        id,
+        topic_id,
+        mp3_url,
+        last_position_seconds,
+        total_duration_seconds,
+        progress_percentage,
+        last_listened_at,
+        created_at,
+        topics!inner (
+          id,
+          title,
+          level,
+          parent_id
+        )
+      `)
+      .in('topic_id', topicIds)
+      .eq('is_completed', false)
+      .gt('last_position_seconds', 0)
+      .order('last_listened_at', { ascending: false })
+      .limit(10);
+
+    if (contentsError) {
+      throw contentsError;
+    }
+
+    logger.info(`[LISTENING PROGRESS] Found ${incompleteContents?.length || 0} incomplete listenings`);
+
+    return res.json({
+      success: true,
+      data: {
+        incomplete: incompleteContents || [],
+        count: incompleteContents?.length || 0
+      }
+    });
+  } catch (error) {
+    logger.error('[LISTENING PROGRESS] Error fetching incomplete listenings:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Yarıda kalan dinlemeler getirilirken hata oluştu',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Belirli bir içeriğin dinleme durumunu getir
+ * GET /api/topic-hierarchy/topics/progress/:mp3_url (encoded)
+ */
+exports.getListeningProgress = async (req, res) => {
+  try {
+    const mp3_url = decodeURIComponent(req.params.mp3_url);
+    const userId = req.user.id;
+
+    const { data, error } = await supabase
+      .from('topic_contents')
+      .select(`
+        id,
+        mp3_url,
+        last_position_seconds,
+        total_duration_seconds,
+        progress_percentage,
+        is_completed,
+        last_listened_at,
+        listened_at,
+        topics!inner (
+          user_id,
+          title
+        )
+      `)
+      .eq('mp3_url', mp3_url)
+      .eq('topics.user_id', userId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          message: 'İçerik bulunamadı'
+        });
+      }
+      throw error;
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        position_seconds: data.last_position_seconds || 0,
+        total_duration_seconds: data.total_duration_seconds || 0,
+        progress_percentage: data.progress_percentage || 0,
+        is_completed: data.is_completed || false,
+        last_listened_at: data.last_listened_at,
+        listened_at: data.listened_at,
+        title: data.topics?.title
+      }
+    });
+  } catch (error) {
+    logger.error('[LISTENING PROGRESS] Error getting progress:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'İlerleme bilgisi alınırken hata oluştu',
       error: error.message
     });
   }

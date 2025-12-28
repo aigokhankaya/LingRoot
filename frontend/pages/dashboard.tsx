@@ -19,6 +19,7 @@ import OutputSection from '../src/components/OutputSection';
 import { ProfileDropdownMenu } from '../src/components/shared/ProfileDropdownMenu';
 import { useTranslation } from '../src/lib/i18n';
 import BookTab from '../src/components/BookTab/BookTab';
+import AppHeader from '../src/components/AppHeader';
 
 interface ContentHistoryItem {
   id: string;
@@ -431,50 +432,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background fadeIn">
       {/* Top Navigation Header */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="w-full px-4">
-          <div className="flex justify-between items-center h-16">
-            {/* Left: Logo & Navigation */}
-            <div className="flex items-center space-x-6">
-              <Link href="/">
-                <div className="flex items-center space-x-3 flex-shrink-0">
-                  <img
-                    src="/lingroot-icon.svg"
-                    alt="LingRoot Logo"
-                    className="w-10 h-10 md:w-12 md:h-12"
-                  />
-                  <BrandWordmark className="hidden sm:inline-block text-lg sm:text-xl md:text-2xl" />
-                </div>
-              </Link>
-              <Link href="/welcome">
-                <button className="text-gray-700 hover:text-primary transition-colors text-sm font-medium">
-                  <i className="fas fa-home mr-2"></i>
-                  {t('dashboard_nav_home')}
-                </button>
-              </Link>
-              <Link href="/welcome">
-                <button className="text-gray-700 hover:text-primary transition-colors text-sm font-medium">
-                  <i className="fas fa-headphones mr-2"></i>
-                  {t('dashboard_nav_listen')}
-                </button>
-              </Link>
-            </div>
-
-            {/* Right: Profile Menu */}
-            <div className="flex items-center space-x-4">
-              {isAuthenticated && (
-                <ProfileDropdownMenu
-                  align="end"
-                  side="bottom"
-                  avatarSize="md"
-                  showUserInfo={true}
-                  showChevron={true}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <AppHeader />
 
       {/* Profile Header */}
       <div className="relative w-full h-[160px] md:h-[190px] overflow-hidden mb-8 slideUp">
