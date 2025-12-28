@@ -52,6 +52,8 @@ const iyzicoRoutes = require("./routes/iyzicoRoutes"); // iyzico credit card pay
 const stripeRoutes = require("./routes/stripeRoutes"); // Stripe credit card payments
 const libraryRoutes = require("./routes/libraryRoutes"); // Unified Library (Book/PDF/Progress)
 const notificationRoutes = require("./routes/notificationRoutes"); // User notifications
+const gamificationRoutes = require("./routes/gamificationRoutes"); // 🎮 Gamification & Onboarding
+const assessmentRoutes = require("./routes/assessmentRoutes"); // 🎯 Vocabulary Placement Test
 const apiCostsRoutes = require("./routes/apiCostsRoutes"); // API Costs Analytics (Admin)
 
 // Initialize Express app
@@ -179,6 +181,8 @@ app.use("/api/library", libraryRoutes); // Unified Library System
 app.use("/api/iyzico", iyzicoRoutes); // iyzico credit card payments
 app.use("/api/stripe", stripeRoutes); // Stripe credit card payments
 app.use("/api/notifications", notificationRoutes); // User notifications
+app.use("/api/gamification", gamificationRoutes); // 🎮 Gamification, XP, Levels, Onboarding
+app.use("/api/assessment", assessmentRoutes); // 🎯 Vocabulary Placement Test
 
 // Account deletion page (legacy)
 app.get('/delete-account', (req, res) => {

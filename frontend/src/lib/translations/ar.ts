@@ -526,6 +526,7 @@ export const arTranslations = {
   welcome_login_button: 'تسجيل الدخول',
   welcome_nav_home: 'الرئيسية',
   welcome_nav_reading_history: 'سجل القراءة',
+  welcome_nav_progress: 'تقدمي',
   welcome_hero_title: 'تعلم الإنجليزية مع Liro بطريقة مخصصة',
   welcome_hero_desc: 'أنشئ محتوى إنجليزياً مكيّفاً لكل مستوى وطوّر مهارة الاستماع لديك بالصوت.',
   welcome_hero_button: 'ابدأ الآن',
@@ -803,6 +804,7 @@ export const arTranslations = {
   topics_node_button_suggest_subtopic: 'اقتراح مواضيع فرعية',
   topics_node_button_add_manual: 'إضافة يدوية',
   topics_node_button_delete: 'حذف',
+  topics_node_button_show_subtopics: 'عرض المواضيع الفرعية',
   topics_node_delete_title: 'هل تريد حذف هذا الموضوع؟',
   topics_node_delete_description_main:
     'سيتم حذف هذا الموضوع وكل المواضيع الفرعية التابعة له بشكل نهائي.',

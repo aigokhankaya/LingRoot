@@ -52,6 +52,11 @@ LingRoot'un pazarlama stratejisi, aşağıdaki 6 temel yetenek üzerine kuruludu
 *   **Stratejik Değer:** Öğrenmeyi sistematikleştirir. Kullanıcıya bir "yol haritası" ve "ilerleme" hissi verir (Gamification unsuru).
 *   **Mesaj:** *"Bilginin köklerine in. Her dalda yeni bir keşif."*
 
+### 2.7. Kelime, Deyim, Cümle Kalıpları ve Günlük Yaşam İfadeleri
+*   **Özellik:** İçeriklerde geçen kritik kelimeleri, "Native" konuşmacıların kullandığı deyimleri (idioms), yaygın cümle kalıplarını ve günlük hayatta sık kullanılan ifadeleri (daily expressions) analiz eder ve bağlamıyla birlikte sunar.
+*   **Stratejik Değer:** "Kitabi" İngilizce ile "Yaşayan" İngilizce arasındaki farkı kapatır. Pasif dinlemeyi, bağlamsal kelime ve kalıp öğrenimiyle (Contextual Learning) birleştirir.
+*   **Mesaj:** *"Deyimleri, kalıpları ve sokağın dilini; ezber listelerinden değil, hikayelerin içinden öğren."*
+
 ---
 
 ## 3. İLETİŞİM DİLİ VE TONU

@@ -1,4 +1,4 @@
-const express = require('express'); 
+const express = require('express');
 const router = express.Router();
 const contentController = require('../controllers/contentController');
 const { authenticate } = require('../middleware/authMiddleware');
@@ -37,6 +37,14 @@ router.get('/test-db', contentController.testSupabaseConnection);
 router.get('/history', authenticate, contentController.getContentHistory);
 router.get('/history/:id', authenticate, contentController.getContentById);
 router.delete('/history/:id', authenticate, contentController.deleteContent);
+
+// Progress tracking & Resume
+router.get('/in-progress', authenticate, contentController.getInProgress);
+router.put('/:id/progress', authenticate, contentController.updateProgress);
+
+// Content Quizzes
+router.get('/:id/quiz', authenticate, contentController.generateQuiz);
+router.post('/:id/quiz/submit', authenticate, contentController.submitQuiz);
 
 router.post('/', authenticate, contentController.createContent);
 // router.get('/history', authenticate, contentController.getUserContentHistory); // ÇAKIŞMA ÖNLENDİ

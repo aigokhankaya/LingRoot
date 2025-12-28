@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import NewSyncedTextPlayer from './NewSyncedTextPlayer';
-import { markTopicAudioListened, addWordWithTranslation } from '../lib/api';
+import { markTopicAudioListened, addWordWithTranslation, lookupVocabularyWord } from '../lib/api';
 
 interface TtsResponseData {
   success?: boolean;
@@ -40,14 +40,31 @@ interface TtsResponseData {
 interface OutputSectionProps {
   audioResult: TtsResponseData;
   isLoggedIn: boolean;
+  onAudioComplete?: () => void;
+  disableSticky?: boolean; // Yeni prop: Sticky davranışı devre dışı bırakmak için
 }
 
-export default function OutputSection({ audioResult, isLoggedIn }: OutputSectionProps) {
+export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete, disableSticky = false }: OutputSectionProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [activeDialogueIndex, setActiveDialogueIndex] = useState<number | null>(null);
   const [activeWordIndex, setActiveWordIndex] = useState<number>(-1);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [hasPinnedControls, setHasPinnedControls] = useState(false);
+
+  // Word popup state for vocabulary features
+  const [wordPopup, setWordPopup] = useState<{
+    mode: 'info' | 'confirm';
+    word: string;
+    data?: {
+      original_word?: string;
+      word?: string;
+      definition?: string;
+      example_sentence?: string;
+      example_sentence_turkish?: string;
+      level?: string;
+    } | null;
+  } | null>(null);
+  const [isAddingWord, setIsAddingWord] = useState(false);
 
   const activeWordRef = useRef<HTMLSpanElement | null>(null);
   const dialogueLineRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -57,7 +74,8 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
   const handleWordChange = (wordIndex: number, playing: boolean) => {
     setActiveWordIndex(wordIndex);
     setIsAudioPlaying(playing);
-    if (playing) {
+    // Sticky davranış disabled ise hasPinnedControls'u asla true yapma
+    if (playing && !disableSticky) {
       setHasPinnedControls(true);
     }
   };
@@ -92,6 +110,118 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
   };
 
   const activeSentenceIndex = isAudioPlaying ? getActiveSentenceIndex(activeWordIndex) : -1;
+
+  // Handle English word click (tıklama veya sağ tıklama)
+  const handleEnglishWordClick = async (rawWord: string, wordIndex: number) => {
+    const cleanWord = (rawWord || '').replace(/[.,!?;:]/g, '').trim();
+    if (!cleanWord) return;
+
+    console.log('📚 [ENGLISH WORD CLICK] Word:', cleanWord, 'index:', wordIndex);
+
+    let result: any = null;
+    try {
+      result = await lookupVocabularyWord(cleanWord);
+    } catch (err) {
+      console.error('Error during vocabulary lookup (OutputSection):', err);
+    }
+
+    // Eğer kelime zaten kullanıcının listesinde varsa bilgi popup'ı göster
+    if (result && result.found && result.data && result.hasUserWord) {
+      const w = result.data;
+      setWordPopup({
+        mode: 'info',
+        word: cleanWord,
+        data: {
+          original_word: w.original_word,
+          word: w.word,
+          definition: w.definition,
+          example_sentence: w.example_sentence,
+          example_sentence_turkish: w.example_sentence_turkish,
+          level: w.level,
+        },
+      });
+      return;
+    }
+
+    // Kelime listede yoksa ekleme onay popup'ı göster
+    setWordPopup({
+      mode: 'confirm',
+      word: cleanWord,
+      data: result?.data || null,
+    });
+  };
+
+  // Add word to vocabulary from popup
+  const handleAddWordFromPopup = async () => {
+    if (!wordPopup?.word || isAddingWord) return;
+
+    setIsAddingWord(true);
+    try {
+      const cleanWord = wordPopup.word;
+      const originalText = adaptedText || audioResult.message || '';
+      let context = '';
+      let originalSentence = '';
+
+      if (originalText) {
+        const lower = originalText.toLowerCase();
+        const pos = lower.indexOf(cleanWord.toLowerCase());
+        if (pos >= 0) {
+          const start = Math.max(0, pos - 50);
+          const end = Math.min(originalText.length, pos + 50);
+          context = originalText.substring(start, end).trim();
+        }
+
+        const sentences = originalText
+          .split(/[.!?;]+/)
+          .map(s => s.trim())
+          .filter(s => s.length > 5);
+        originalSentence =
+          sentences.find(s => s.toLowerCase().includes(cleanWord.toLowerCase())) || context;
+      }
+
+      if (!context) {
+        context = `The word "${cleanWord}" appears in an English text.`;
+      }
+
+      const result = await addWordWithTranslation(cleanWord, context, '', originalSentence);
+
+      if (result.isExisting) {
+        // Zaten var, bilgi popup'ına dönüştür
+        setWordPopup({
+          mode: 'info',
+          word: cleanWord,
+          data: {
+            original_word: result.data?.original_word || result.data?.word,
+            word: result.data?.word,
+            definition: result.data?.definition || 'Belirtilmemiş',
+            example_sentence: result.data?.example_sentence || 'Belirtilmemiş',
+            example_sentence_turkish: result.data?.example_sentence_turkish,
+            level: result.data?.level,
+          },
+        });
+      } else {
+        // Başarıyla eklendi, bilgi popup'ı göster
+        setWordPopup({
+          mode: 'info',
+          word: cleanWord,
+          data: {
+            original_word: result.data?.original_word || result.data?.word,
+            word: result.data?.word,
+            definition: result.data?.definition,
+            example_sentence: result.data?.example_sentence,
+            example_sentence_turkish: result.data?.example_sentence_turkish,
+            level: result.data?.level,
+          },
+        });
+      }
+    } catch (error: any) {
+      console.error('Word add error:', error);
+      alert(`Kelime eklenirken hata oluştu: ${error?.message || 'Bilinmeyen hata'}`);
+      setWordPopup(null);
+    } finally {
+      setIsAddingWord(false);
+    }
+  };
 
   const handleDialogueWordRightClick = async (e: React.MouseEvent, rawWord: string) => {
     e.preventDefault();
@@ -284,14 +414,14 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
       {/* Audio Player - Moved to bottom */}
       <div
         className={
-          hasPinnedControls
+          hasPinnedControls && !disableSticky
             ? 'fixed top-0 left-0 right-0 z-50 bg-transparent pointer-events-none'
             : 'mt-6 pt-6 border-t border-gray-200'
         }
       >
-        <div className={hasPinnedControls ? 'w-full max-w-6xl mx-auto px-6 py-3' : ''}>
-          <div className={`relative ${hasPinnedControls ? 'bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-3 pointer-events-auto' : ''}`}>
-            {hasPinnedControls && (
+        <div className={hasPinnedControls && !disableSticky ? 'w-full max-w-6xl mx-auto px-6 py-3' : ''}>
+          <div className={`relative ${hasPinnedControls && !disableSticky ? 'bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-3 pointer-events-auto' : ''}`}>
+            {hasPinnedControls && !disableSticky && (
               <button
                 onClick={() => setHasPinnedControls(false)}
                 className="absolute -top-3 -right-3 z-50 bg-white text-gray-400 hover:text-gray-600 rounded-full p-1 shadow-md border border-gray-200 transition-colors"
@@ -323,16 +453,22 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
                 wordsCount: audioResult.words?.length,
                 timepointsCount: audioResult.timepoints?.length
               }}
-              onPlay={async () => {
-                if (!audioResult.mp3_url) return;
-                try {
-                  await markTopicAudioListened(audioResult.mp3_url);
-                } catch (e) {
-                  console.error('markTopicAudioListened error:', e);
-                }
-              }}
+              onPlay={() => { }}
               onActiveSegmentChange={(hasDialogueTranscript || (audioResult.dialogue_segments && audioResult.dialogue_segments.length > 0)) ? setActiveDialogueIndex : undefined}
               onWordChange={handleWordChange}
+              onComplete={async () => {
+                // Dinleme tamamlandığında işaretle
+                if (audioResult.mp3_url) {
+                  try {
+                    await markTopicAudioListened(audioResult.mp3_url);
+                    console.log('✅ Topic audio marked as listened');
+                  } catch (e) {
+                    console.error('markTopicAudioListened error:', e);
+                  }
+                }
+                // Parent callback'i de çağır
+                onAudioComplete?.();
+              }}
               hideText={true}
             />
           </div>
@@ -361,8 +497,8 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
                   <div
                     ref={(el) => { dialogueLineRefs.current[index] = el; }}
                     className={`max-w-3xl rounded-2xl px-4 py-2 text-sm shadow-sm border transition-transform ${isSpeakerA
-                        ? 'bg-blue-50 border-blue-100 text-gray-800'
-                        : 'bg-green-50 border-green-100 text-gray-800'
+                      ? 'bg-blue-50 border-blue-100 text-gray-800'
+                      : 'bg-green-50 border-green-100 text-gray-800'
                       } ${isActive ? 'ring-2 ring-primary shadow-md scale-[1.01]' : ''}`}
                   >
                     {speakerLabel && (
@@ -413,11 +549,21 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
                     <span
                       key={index}
                       ref={isCurrentWord ? activeWordRef : undefined}
-                      className={`transition-all duration-100 ${isCurrentWord
-                          ? 'bg-yellow-300 text-yellow-900 font-semibold px-1 py-0.5 rounded shadow-sm'
-                          : ''
+                      className={`transition-all duration-100 cursor-pointer hover:bg-gray-200 rounded px-0.5 ${isCurrentWord
+                        ? 'bg-yellow-300 text-yellow-900 font-semibold px-1 py-0.5 rounded shadow-sm'
+                        : ''
                         }`}
                       style={{ display: 'inline' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEnglishWordClick(word, index);
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleEnglishWordClick(word, index);
+                      }}
+                      title={`Kelimeye tıklayarak bilgi alın veya ekleyin`}
                     >
                       {word}{' '}
                     </span>
@@ -444,8 +590,8 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
                       <span
                         key={index}
                         className={`transition-all duration-200 ${isActiveSentence
-                            ? 'bg-yellow-200 text-yellow-900 px-1 py-0.5 rounded'
-                            : ''
+                          ? 'bg-yellow-200 text-yellow-900 px-1 py-0.5 rounded'
+                          : ''
                           }`}
                         style={{ display: 'inline' }}
                       >
@@ -453,6 +599,75 @@ export default function OutputSection({ audioResult, isLoggedIn }: OutputSection
                       </span>
                     );
                   })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Word Popup Modal */}
+      {wordPopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+          onClick={() => setWordPopup(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 text-sm text-gray-500">Seçilen kelime</div>
+            <div className="mb-4 text-lg font-semibold text-gray-900">
+              &quot;{wordPopup.data?.original_word || wordPopup.data?.word || wordPopup.word}&quot;
+            </div>
+
+            {wordPopup.mode === 'info' ? (
+              <div className="space-y-3 text-sm text-gray-800">
+                <div>
+                  <span className="font-semibold">Anlam: </span>
+                  <span>{wordPopup.data?.definition || '-'}</span>
+                </div>
+                <div>
+                  <span className="font-semibold">Seviye: </span>
+                  <span>{(wordPopup.data?.level || '').toUpperCase() || '-'}</span>
+                </div>
+                <div>
+                  <span className="font-semibold">Örnek Cümle: </span>
+                  <span>{wordPopup.data?.example_sentence || '-'}</span>
+                </div>
+                <div>
+                  <span className="font-semibold">Türkçe Örnek: </span>
+                  <span>{wordPopup.data?.example_sentence_turkish || '-'}</span>
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={() => setWordPopup(null)}
+                    className="px-4 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  >
+                    Kapat
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4 text-sm text-gray-800">
+                <p>
+                  &quot;{wordPopup.word}&quot; kelimesini kelime listenize eklemek istiyor musunuz?
+                </p>
+                <div className="flex justify-end space-x-2">
+                  <button
+                    onClick={() => setWordPopup(null)}
+                    className="px-4 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+                  >
+                    İptal
+                  </button>
+                  <button
+                    onClick={handleAddWordFromPopup}
+                    disabled={isAddingWord}
+                    className="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    {isAddingWord ? 'Ekleniyor...' : 'Kelimeyi Ekle'}
+                  </button>
                 </div>
               </div>
             )}

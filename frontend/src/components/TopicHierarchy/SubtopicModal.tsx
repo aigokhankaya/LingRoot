@@ -32,8 +32,14 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={() => !isLoading && onClose()}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
             <i className="fas fa-robot mr-2 text-primary"></i>
@@ -67,11 +73,10 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
                   key={num}
                   onClick={() => setCount(num)}
                   disabled={isLoading}
-                  className={`py-2 px-4 rounded-lg border-2 transition-all ${
-                    count === num
+                  className={`py-2 px-4 rounded-lg border-2 transition-all ${count === num
                       ? 'bg-primary text-primary-foreground border-primary'
                       : 'bg-white text-gray-700 border-gray-300 hover:border-primary/50'
-                  }`}
+                    }`}
                 >
                   {num}
                 </button>
