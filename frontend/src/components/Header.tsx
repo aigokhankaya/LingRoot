@@ -35,6 +35,7 @@ export default function Header() {
           <Link href="#neden" className="hover:text-primary transition-colors">{t('header_why_lingroot')}</Link>
           <Link href="#nasil" className="hover:text-primary transition-colors">{t('header_how_it_works')}</Link>
           <Link href="#yorumlar" className="hover:text-primary transition-colors">{t('header_testimonials')}</Link>
+          <Link href="/pattern-lab" className="hover:text-primary transition-colors text-indigo-600 font-bold">Dil Laboratuvarı</Link>
         </nav>
         {/* Hemen Başla Butonu */}
         <Link href="/login" className="ml-4">
