@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Topic,
@@ -11,12 +11,11 @@ import {
   ProcessInputData,
   TtsResponseData,
   submitContent,
-  saveListeningProgress,
 } from '../../lib/api';
 import { useTranslation } from '../../lib/i18n';
-import OutputSection from '../OutputSection';
 import TopicInput from './TopicInput';
 import TopicTree from './TopicTree';
+import { useAudioPlayer, AudioTrack } from '../../context/AudioPlayerContext';
 
 interface TopicHierarchySectionProps {
   userId: string;
@@ -40,57 +39,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [topicAudioLoadingId, setTopicAudioLoadingId] = useState<string | null>(null);
   const [topicAudioResults, setTopicAudioResults] = useState<Record<string, TtsResponseData>>({});
-  const [modalTopicId, setModalTopicId] = useState<string | null>(null);
   const [audioCompletedTopicId, setAudioCompletedTopicId] = useState<string | null>(null);
-
-  // Audio element ref for tracking playback position when modal closes
-  const modalAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Modal kapatma fonksiyonu - progress kaydeder
-  const handleCloseModal = useCallback(async () => {
-    if (modalTopicId && topicAudioResults[modalTopicId]) {
-      const audioResult = topicAudioResults[modalTopicId];
-
-      // Sayfadaki tüm audio elementlerini bul ve durdur
-      const audioElements = Array.from(document.querySelectorAll('audio'));
-      let savedProgress = false;
-
-      for (let i = 0; i < audioElements.length; i++) {
-        const audio = audioElements[i];
-        if (!audio.paused && audio.src.includes(audioResult.mp3_url || '')) {
-          const currentTime = audio.currentTime;
-          const duration = audio.duration;
-
-          // Sesi durdur
-          audio.pause();
-
-          // Progress kaydet (tamamlanmadıysa)
-          if (currentTime > 0 && duration > 0 && audioResult.mp3_url) {
-            const progressPercentage = (currentTime / duration) * 100;
-
-            // Sadece %90'dan az tamamlandıysa kaydet (tamamlanmış sayılmıyor)
-            if (progressPercentage < 90) {
-              try {
-                await saveListeningProgress(audioResult.mp3_url, currentTime, duration);
-                console.log(`📊 [MODAL CLOSE] Saved progress: ${currentTime.toFixed(1)}s / ${duration.toFixed(1)}s (${progressPercentage.toFixed(1)}%)`);
-                savedProgress = true;
-              } catch (e) {
-                console.error('[MODAL CLOSE] Failed to save progress:', e);
-              }
-            }
-          }
-          break;
-        }
-      }
-
-      // Ağacı yenile (progress badge'lerini güncellemek için)
-      if (savedProgress) {
-        await loadTopicTree();
-      }
-    }
-
-    setModalTopicId(null);
-  }, [modalTopicId, topicAudioResults]);
 
   // Konu ağacını yükle
   const loadTopicTree = async () => {
@@ -239,16 +188,21 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
     return null;
   };
 
+  // Global Audio Player hook
+  const audioPlayer = useAudioPlayer();
+
   const handleOpenAudioModal = (topicId: string) => {
+    const topic = findTopicById(topics, topicId);
+    const latest: any = topic && (topic as any).latest_content;
+
+    if (!latest || !latest.mp3_url) {
+      console.warn('No audio content for topic:', topicId);
+      return;
+    }
+
+    // Update local cache
     setTopicAudioResults((prev) => {
       if (prev[topicId]) return prev;
-
-      const topic = findTopicById(topics, topicId);
-      const latest: any = topic && (topic as any).latest_content;
-
-      if (!latest || !latest.mp3_url) {
-        return prev;
-      }
 
       const audioResult: TtsResponseData = {
         success: true,
@@ -264,13 +218,25 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         adaptedText: latest.adapted_text,
       };
 
-      return {
-        ...prev,
-        [topicId]: audioResult,
-      };
+      return { ...prev, [topicId]: audioResult };
     });
 
-    setModalTopicId(topicId);
+    // Use Global Audio Player instead of local modal
+    const audioTrack: AudioTrack = {
+      id: topicId,
+      url: latest.mp3_url,
+      title: topic?.title || 'Ses Oynatıcı',
+      level: latest.level || level.toUpperCase(),
+      words: latest.words || [],
+      timepoints: latest.timepoints || [],
+      originalText: latest.adapted_text || latest.message || '',
+      translatedText: latest.translated_text || '',
+      dialogueSegments: latest.dialogue_segments || [],
+      topic: topic?.title,
+    };
+
+    console.log('🎵 [TOPIC HIERARCHY] Opening global audio player for:', topic?.title);
+    audioPlayer.playTrack(audioTrack);
   };
 
   const renderEmptyState = (formPosition: 'above' | 'below') => (
@@ -469,41 +435,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
         </>
       )}
 
-      {/* Topic audio popup player */}
-      {modalTopicId && topicAudioResults[modalTopicId] && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
-          onClick={handleCloseModal}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">
-                {topics.find((t) => t.id === modalTopicId)?.title || 'Ses Önizleme'}
-              </h3>
-              <button
-                onClick={handleCloseModal}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-
-            <OutputSection
-              audioResult={{
-                ...topicAudioResults[modalTopicId],
-                topic:
-                  topics.find((t) => t.id === modalTopicId)?.title ||
-                  (topicAudioResults[modalTopicId] as any).topic,
-              } as any}
-              isLoggedIn={true}
-              disableSticky={true}
-            />
-          </div>
-        </div>
-      )}
+      {/* Topic audio popup player - Artık GlobalAudioContainer tarafından yönetiliyor */}
     </div>
   );
 };

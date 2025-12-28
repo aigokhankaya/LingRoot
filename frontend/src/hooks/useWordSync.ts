@@ -544,6 +544,9 @@ export const useWordSync = ({
       stopSync();
 
       if (audio) {
+        // ✅ CRITICAL FIX: Component unmount olduğunda sesi durdur
+        audio.pause();
+
         audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
         audio.removeEventListener('canplaythrough', handleCanPlayThrough);
         audio.removeEventListener('play', handlePlay);

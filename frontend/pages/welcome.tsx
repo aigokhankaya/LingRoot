@@ -757,11 +757,10 @@ const Welcome: React.FC = () => {
     }, 100);
 
     const audioData: AudioResult = {
-      message: item.input, // text -> message mapping
-      audio_url: item.mp3_url,
+      message: item.input,
       mp3_url: item.mp3_url,
-      text: item.input,
-      translated_text: null,
+      vtt_url: '',
+      translated_text: undefined,
       words: [],
       contentId: item.id,
       topic: item.input_type === 'podcast' ? 'Podcast' : 'İçerik',
