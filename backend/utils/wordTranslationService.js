@@ -2,6 +2,7 @@ const OpenAI = require("openai");
 const fs = require("fs");
 const path = require("path");
 const logger = require("./logger");
+const { calculateOpenAiCost, logApiCost } = require("./costTracker");
 
 // Initialize OpenAI client
 let openai;
@@ -32,7 +33,7 @@ async function translateWordToTurkish(word, context) {
     try {
         const promptPath = path.join(__dirname, '../prompts/translate_word_to_turkish.txt');
         const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
-        
+
         const prompt = promptTemplate
             .replace('{{word}}', word)
             .replace('{{context}}', context);
@@ -42,9 +43,9 @@ async function translateWordToTurkish(word, context) {
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
-                { 
-                    role: "system", 
-                    content: "Sen Türkçe-İngilizce çeviri konusunda uzman bir asistansın. Verilen kelimenin bağlamına uygun en doğru Türkçe karşılığını buluyorsun." 
+                {
+                    role: "system",
+                    content: "Sen Türkçe-İngilizce çeviri konusunda uzman bir asistansın. Verilen kelimenin bağlamına uygun en doğru Türkçe karşılığını buluyorsun."
                 },
                 { role: "user", content: prompt }
             ],
@@ -53,9 +54,14 @@ async function translateWordToTurkish(word, context) {
         });
 
         const turkishMeaning = completion.choices[0]?.message?.content?.trim() || "";
-        
+        const usage = completion.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+
         logger.info(`Word "${word}" translated to: "${turkishMeaning}"`);
-        return turkishMeaning.toLowerCase().replace(/^(bir |birkaç |bazı |çok |şu |bu )/i, ''); // Clean up articles
+        return {
+            result: turkishMeaning.toLowerCase().replace(/^(bir |birkaç |bazı |çok |şu |bu )/i, ''),
+            usage,
+            model: "gpt-4o-mini"
+        };
 
     } catch (error) {
         logger.error(`Error translating word "${word}":`, error);
@@ -78,7 +84,7 @@ async function generateExampleSentence(word, turkishMeaning, level = 'B1') {
     try {
         const promptPath = path.join(__dirname, '../prompts/generate_example_sentence.txt');
         const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
-        
+
         const prompt = promptTemplate
             .replace('{{word}}', word)
             .replace('{{level}}', level.toUpperCase())
@@ -89,9 +95,9 @@ async function generateExampleSentence(word, turkishMeaning, level = 'B1') {
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
-                { 
-                    role: "system", 
-                    content: "Sen İngilizce öğretimi konusunda uzman bir asistansın. Verilen kelimeleri kullanarak seviyeye uygun örnek cümleler oluşturuyorsun." 
+                {
+                    role: "system",
+                    content: "Sen İngilizce öğretimi konusunda uzman bir asistansın. Verilen kelimeleri kullanarak seviyeye uygun örnek cümleler oluşturuyorsun."
                 },
                 { role: "user", content: prompt }
             ],
@@ -100,9 +106,14 @@ async function generateExampleSentence(word, turkishMeaning, level = 'B1') {
         });
 
         const exampleSentence = completion.choices[0]?.message?.content?.trim() || "";
-        
+        const usage = completion.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+
         logger.info(`Generated example sentence for "${word}": "${exampleSentence}"`);
-        return exampleSentence;
+        return {
+            result: exampleSentence,
+            usage,
+            model: "gpt-4o-mini"
+        };
 
     } catch (error) {
         logger.error(`Error generating example sentence for "${word}":`, error);
@@ -123,7 +134,7 @@ async function translateSentenceToTurkish(englishSentence) {
     try {
         const promptPath = path.join(__dirname, '../prompts/translate_sentence_to_turkish.txt');
         const promptTemplate = fs.readFileSync(promptPath, 'utf-8');
-        
+
         const prompt = promptTemplate.replace('{{english_sentence}}', englishSentence);
 
         logger.info(`Translating sentence to Turkish: "${englishSentence.substring(0, 50)}..."`);
@@ -131,9 +142,9 @@ async function translateSentenceToTurkish(englishSentence) {
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
-                { 
-                    role: "system", 
-                    content: "Sen İngilizce-Türkçe çeviri konusunda uzman bir asistansın. Verilen İngilizce cümleleri doğal Türkçeye çeviriyorsun." 
+                {
+                    role: "system",
+                    content: "Sen İngilizce-Türkçe çeviri konusunda uzman bir asistansın. Verilen İngilizce cümleleri doğal Türkçeye çeviriyorsun."
                 },
                 { role: "user", content: prompt }
             ],
@@ -142,9 +153,14 @@ async function translateSentenceToTurkish(englishSentence) {
         });
 
         const turkishTranslation = completion.choices[0]?.message?.content?.trim() || "";
-        
+        const usage = completion.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+
         logger.info(`Turkish translation: "${turkishTranslation}"`);
-        return turkishTranslation;
+        return {
+            result: turkishTranslation,
+            usage,
+            model: "gpt-4o-mini"
+        };
 
     } catch (error) {
         logger.error(`Error translating sentence:`, error);
@@ -162,10 +178,10 @@ async function estimateCEFRLevel(word, context = '') {
     if (!openai) {
         // Fallback: basit tahmin
         const lowerWord = word.toLowerCase();
-        if (lowerWord.length <= 4) return 'A1';
-        if (lowerWord.length <= 6) return 'A2';
-        if (lowerWord.length >= 12) return 'C1';
-        return 'B1';
+        if (lowerWord.length <= 4) return { result: 'A1', usage: null, model: null };
+        if (lowerWord.length <= 6) return { result: 'A2', usage: null, model: null };
+        if (lowerWord.length >= 12) return { result: 'C1', usage: null, model: null };
+        return { result: 'B1', usage: null, model: null };
     }
 
     try {
@@ -194,9 +210,9 @@ Respond with ONLY the level code (A1, A2, B1, B2, C1, or C2).`;
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
-                { 
-                    role: "system", 
-                    content: "You are an expert in English language teaching and CEFR (Common European Framework of Reference) level assessment. You accurately determine the difficulty level of English words." 
+                {
+                    role: "system",
+                    content: "You are an expert in English language teaching and CEFR (Common European Framework of Reference) level assessment. You accurately determine the difficulty level of English words."
                 },
                 { role: "user", content: prompt }
             ],
@@ -205,22 +221,27 @@ Respond with ONLY the level code (A1, A2, B1, B2, C1, or C2).`;
         });
 
         const level = completion.choices[0]?.message?.content?.trim().toUpperCase() || 'B1';
-        
+        const usage = completion.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+
         // Validate level
         const validLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
         const finalLevel = validLevels.includes(level) ? level : 'B1';
-        
+
         logger.info(`CEFR level for "${word}": ${finalLevel}`);
-        return finalLevel;
+        return {
+            result: finalLevel,
+            usage,
+            model: "gpt-4o-mini"
+        };
 
     } catch (error) {
         logger.error(`Error estimating CEFR level for "${word}":`, error);
         // Fallback to simple estimation
         const lowerWord = word.toLowerCase();
-        if (lowerWord.length <= 4) return 'A1';
-        if (lowerWord.length <= 6) return 'A2';
-        if (lowerWord.length >= 12) return 'C1';
-        return 'B1';
+        if (lowerWord.length <= 4) return { result: 'A1', usage: null, model: null };
+        if (lowerWord.length <= 6) return { result: 'A2', usage: null, model: null };
+        if (lowerWord.length >= 12) return { result: 'C1', usage: null, model: null };
+        return { result: 'B1', usage: null, model: null };
     }
 }
 
@@ -230,29 +251,49 @@ Respond with ONLY the level code (A1, A2, B1, B2, C1, or C2).`;
  * @param {string} context - Bağlam
  * @param {string} level - CEFR seviyesi (opsiyonel)
  * @param {string} originalSentence - Kelimenin geçtiği orijinal cümle
+ * @param {string} userId - Kullanıcı ID'si (maliyet takibi için)
  * @returns {Promise<Object>} - Çeviri ve örnek cümle bilgileri
  */
-async function processWordForVocabulary(word, context, level = null, originalSentence = '') {
+async function processWordForVocabulary(word, context, level = null, originalSentence = '', userId = null) {
     try {
         logger.info(`Processing word "${word}" for vocabulary with context: "${context.substring(0, 50)}..."`);
-        
+
+        // Maliyet takibi için usage bilgilerini topla
+        const usageList = [];
+
         // Seviye belirtilmemişse OpenAI ile tahmin et
         let estimatedLevel = level;
         if (!estimatedLevel) {
-            estimatedLevel = await estimateCEFRLevel(word, context);
+            const levelResult = await estimateCEFRLevel(word, context);
+            estimatedLevel = levelResult.result;
+            if (levelResult.usage) {
+                usageList.push({ usage: levelResult.usage, model: levelResult.model, step: 'estimate_level' });
+            }
         }
-        
+
         // Türkçe çeviriyi al
-        const turkishMeaning = await translateWordToTurkish(word, context);
-        
+        const translationResult = await translateWordToTurkish(word, context);
+        const turkishMeaning = translationResult.result;
+        if (translationResult.usage) {
+            usageList.push({ usage: translationResult.usage, model: translationResult.model, step: 'translate_word' });
+        }
+
         // Örnek cümle oluştur
-        const exampleSentence = await generateExampleSentence(word, turkishMeaning, estimatedLevel);
-        
+        const exampleResult = await generateExampleSentence(word, turkishMeaning, estimatedLevel);
+        const exampleSentence = exampleResult.result;
+        if (exampleResult.usage) {
+            usageList.push({ usage: exampleResult.usage, model: exampleResult.model, step: 'generate_example' });
+        }
+
         // Örnek cümleyi Türkçeye çevir
         let exampleSentenceTurkish = '';
         if (exampleSentence) {
             try {
-                exampleSentenceTurkish = await translateSentenceToTurkish(exampleSentence);
+                const sentenceTransResult = await translateSentenceToTurkish(exampleSentence);
+                exampleSentenceTurkish = sentenceTransResult.result;
+                if (sentenceTransResult.usage) {
+                    usageList.push({ usage: sentenceTransResult.usage, model: sentenceTransResult.model, step: 'translate_example' });
+                }
                 logger.info(`Example sentence translated to Turkish: "${exampleSentenceTurkish}"`);
             } catch (error) {
                 logger.error(`Error translating example sentence to Turkish:`, error);
@@ -260,7 +301,40 @@ async function processWordForVocabulary(word, context, level = null, originalSen
                 exampleSentenceTurkish = '';
             }
         }
-        
+
+        // Toplam maliyeti hesapla ve logla
+        if (userId && usageList.length > 0) {
+            let totalPromptTokens = 0;
+            let totalCompletionTokens = 0;
+            let totalCostUsd = 0;
+
+            for (const item of usageList) {
+                if (item.usage) {
+                    const costInfo = calculateOpenAiCost(item.usage, item.model);
+                    totalPromptTokens += costInfo.promptTokens;
+                    totalCompletionTokens += costInfo.completionTokens;
+                    totalCostUsd += costInfo.totalCostUsd;
+                }
+            }
+
+            // api_costs tablosuna kaydet
+            await logApiCost({
+                userId,
+                feature: 'vocabulary_word_add',
+                provider: 'openai',
+                model: 'gpt-4o-mini',
+                inputQuantity: totalPromptTokens,
+                outputQuantity: totalCompletionTokens,
+                costUsd: totalCostUsd,
+                metadata: {
+                    word: word,
+                    steps: usageList.map(u => u.step)
+                }
+            });
+
+            logger.info(`[COST] Vocabulary word add for "${word}": ${totalPromptTokens} input + ${totalCompletionTokens} output tokens = $${totalCostUsd.toFixed(6)}`);
+        }
+
         const result = {
             word: word.toLowerCase(),
             original_word: word,
@@ -271,10 +345,10 @@ async function processWordForVocabulary(word, context, level = null, originalSen
             context: context.substring(0, 200), // İlk 200 karakteri sakla
             original_sentence: originalSentence || ''
         };
-        
+
         logger.info(`Successfully processed word "${word}":`, result);
         return result;
-        
+
     } catch (error) {
         logger.error(`Error processing word "${word}":`, error);
         throw error;

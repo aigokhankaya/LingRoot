@@ -54,6 +54,7 @@ const libraryRoutes = require("./routes/libraryRoutes"); // Unified Library (Boo
 const notificationRoutes = require("./routes/notificationRoutes"); // User notifications
 const gamificationRoutes = require("./routes/gamificationRoutes"); // 🎮 Gamification & Onboarding
 const assessmentRoutes = require("./routes/assessmentRoutes"); // 🎯 Vocabulary Placement Test
+const apiCostsRoutes = require("./routes/apiCostsRoutes"); // API Costs Analytics (Admin)
 
 // Initialize Express app
 const app = express();
@@ -147,6 +148,7 @@ app.use(contentRoutes); // legacy fallback
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/subscriptions", subscriptionRoutes); // Support both singular and plural
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin", apiCostsRoutes); // API Costs Analytics
 app.use("/api/tts", ttsRoutes);
 app.use("/api/topic-suggest", topicSuggestRoutes);
 app.use("/api/topic-detail", topicDetailRoutes);

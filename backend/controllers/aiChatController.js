@@ -8,7 +8,7 @@ const userProfileAnalyzer = require('../utils/userProfileAnalyzer');
 const liroPromptGenerator = require('../utils/liroPromptGenerator');
 const liroContentGraph = require('../utils/liroContentGraph');
 const { supabase } = require('../utils/supabaseClient');
-const { calculateOpenAiCost } = require('../utils/costTracker');
+const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
 const { suggestTopicsForUser, extractAndStoreTopic } = require('../lib/rag');
 const directorAgentService = require('../services/directorAgentService');
 const webSearchService = require('../utils/webSearchService');
@@ -394,6 +394,32 @@ const sendMessage = async (req, res) => {
         });
       }
 
+      // LOG API COST for streaming mode (estimate based on content length)
+      try {
+        // For streaming, we estimate tokens since usage is not returned
+        const estimatedInputTokens = Math.ceil(liroSystemPrompt.length / 4) + messageHistory.reduce((acc, m) => acc + Math.ceil(m.content.length / 4), 0);
+        const estimatedOutputTokens = Math.ceil(assistantContent.length / 4);
+        const estimatedUsage = {
+          prompt_tokens: estimatedInputTokens,
+          completion_tokens: estimatedOutputTokens,
+          total_tokens: estimatedInputTokens + estimatedOutputTokens
+        };
+        const costData = calculateOpenAiCost(estimatedUsage, selectedModel);
+        await logApiCost({
+          userId,
+          feature: 'liro_chat_streaming',
+          provider: 'openai',
+          model: selectedModel,
+          inputQuantity: costData.promptTokens,
+          outputQuantity: costData.completionTokens,
+          costUsd: costData.totalCostUsd,
+          metadata: { conversationId, mood: userMood, estimated: true }
+        });
+        logger.debug(`[LIRO COST] Streaming: ${selectedModel} | $${costData.totalCostUsd}`);
+      } catch (costErr) {
+        logger.warn('[LIRO COST] Failed to log streaming cost:', costErr.message);
+      }
+
       // Send done signal with assistant message info
       res.write(`data: ${JSON.stringify({ type: 'done', data: assistantMessageResult.rows[0] })}\n\n`);
       res.end();
@@ -457,6 +483,26 @@ const sendMessage = async (req, res) => {
       extractAndStoreTopic(conversationId, userId).catch(err => {
         logger.error('Background topic extraction failed:', err);
       });
+    }
+
+    // LOG API COST for non-streaming mode
+    if (openaiUsage) {
+      try {
+        const costData = calculateOpenAiCost(openaiUsage, selectedModel);
+        await logApiCost({
+          userId,
+          feature: 'liro_chat',
+          provider: 'openai',
+          model: selectedModel,
+          inputQuantity: costData.promptTokens,
+          outputQuantity: costData.completionTokens,
+          costUsd: costData.totalCostUsd,
+          metadata: { conversationId, mood: userMood }
+        });
+        logger.debug(`[LIRO COST] Non-streaming: ${selectedModel} | $${costData.totalCostUsd}`);
+      } catch (costErr) {
+        logger.warn('[LIRO COST] Failed to log non-streaming cost:', costErr.message);
+      }
     }
 
     res.json({

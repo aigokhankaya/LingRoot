@@ -422,7 +422,7 @@ exports.submitContent = async (req, res) => {
   let stepSequence = 1;
 
   try {
-    const { input, input_type, level, mp3_url, translated_text, adapted_text, chapter_id, timepoints, words, dialogue_segments, detected_mood } = req.body;
+    const { input, input_type, level, mp3_url, translated_text, adapted_text, chapter_id, timepoints, words, dialogue_segments, detected_mood, processing_duration_ms } = req.body;
     const user_id = req.user?.id;
     logger.info(`submitContent request received for user ID: ${user_id || 'anon'}`, {
       input_type,
@@ -571,6 +571,11 @@ exports.submitContent = async (req, res) => {
         detected_mood: detected_mood || null,
       };
 
+      // Processing duration tracking (if provided)
+      if (typeof processing_duration_ms === 'number' && processing_duration_ms > 0) {
+        updatePayload.processing_duration_ms = Math.round(processing_duration_ms);
+      }
+
       // Podcast zamanlamas3i i e7in g f6nderilen timepoints/words varsa g fcncelle
       // contenthistory.words/timepoints kolonlar31 TEXT oldu1fu i e7in JSON string olarak sakla
       if (Array.isArray(timepoints) && timepoints.length > 0) {
@@ -605,6 +610,11 @@ exports.submitContent = async (req, res) => {
         updated_at: now,
         detected_mood: detected_mood || null,
       };
+
+      // Processing duration tracking (if provided)
+      if (typeof processing_duration_ms === 'number' && processing_duration_ms > 0) {
+        insertPayload.processing_duration_ms = Math.round(processing_duration_ms);
+      }
 
       // Podcast zamanlamas3i i e7in g f6nderilen timepoints/words varsa JSON string olarak sakla
       if (Array.isArray(timepoints) && timepoints.length > 0) {

@@ -4,6 +4,7 @@ const logger = require('../utils/logger');
 const path = require('path');
 const fs = require('fs');
 const gamificationService = require('../services/gamificationService');
+const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -294,6 +295,23 @@ JSON formatında döndür:
     }
 
     logger.info(`[TOPIC HIERARCHY] OpenAI returned ${parsed.subtopics.length} subtopics`);
+
+    // Log API cost
+    const usage = completion.usage;
+    if (usage) {
+      const costInfo = calculateOpenAiCost(usage, 'gpt-4o-mini');
+      await logApiCost({
+        userId,
+        feature: 'topic_subtopics',
+        provider: 'openai',
+        model: 'gpt-4o-mini',
+        inputQuantity: costInfo.promptTokens,
+        outputQuantity: costInfo.completionTokens,
+        costUsd: costInfo.totalCostUsd,
+        metadata: { topic_id: id, subtopics_count: parsed.subtopics.length },
+      });
+      logger.info(`[TOPIC HIERARCHY] Cost logged: $${costInfo.totalCostUsd}`);
+    }
 
     // Benzer başlıkları temizlemek için basit kelime tabanlı benzerlik kontrolü
     const tokenizeTitle = (title) => {

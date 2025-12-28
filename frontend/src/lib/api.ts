@@ -586,7 +586,8 @@ export const submitContent = async (
   chapterId?: string | number,
   timepoints?: any[],
   words?: any[],
-  detectedMood?: string
+  detectedMood?: string,
+  processingDurationMs?: number
 ): Promise<ApiResponse> => {
   const url = getApiUrl('/content/submit');
   const headers = createHeaders("application/json");
@@ -608,6 +609,11 @@ export const submitContent = async (
   }
   if (Array.isArray(words) && words.length > 0) {
     payload.words = words;
+  }
+
+  // Processing duration tracking
+  if (typeof processingDurationMs === 'number' && processingDurationMs > 0) {
+    payload.processing_duration_ms = Math.round(processingDurationMs);
   }
 
   const body = JSON.stringify(payload);

@@ -776,6 +776,30 @@ const processTtsRequest = async (req, res) => {
       logger.info(`[${requestId}] no_tts flag detected. Skipping TTS synthesis, returning text only.`);
       logRequestStep(requestId, 'tts:skipped', { reason: 'no_tts flag set' });
 
+      // Log OpenAI cost for content generation (preview mode)
+      try {
+        const userId = req.user?.id;
+        if (userId && openaiUsage && openaiUsage.total_tokens > 0) {
+          const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+          // Determine model from breakdown or default
+          const model = usageBreakdown.length > 0 ? usageBreakdown[0].model : 'gpt-4o-mini';
+          const costInfo = calculateOpenAiCost(openaiUsage, model);
+          await logApiCost({
+            userId,
+            feature: 'content_preview',
+            provider: 'openai',
+            model: model,
+            inputQuantity: openaiUsage.prompt_tokens || 0,
+            outputQuantity: openaiUsage.completion_tokens || 0,
+            costUsd: costInfo.totalCostUsd,
+            metadata: { level, input_type: inputType },
+          });
+          logger.info(`[${requestId}] 💰 Preview content cost logged: $${costInfo.totalCostUsd.toFixed(6)}`);
+        }
+      } catch (costErr) {
+        logger.warn(`[${requestId}] Failed to log preview cost:`, costErr?.message);
+      }
+
       return res.json({
         success: true,
         message: "Text generation complete. TTS synthesis skipped.",
@@ -831,11 +855,26 @@ const processTtsRequest = async (req, res) => {
 
     // --- Get and validate voice BEFORE chunking ---
     const requestedVoice = req.body.voice || req.body.voiceName;
+    const requestedEngine = req.body.engine; // Capture engine preference (e.g. generative)
 
     let selectedVoice;
     let lingrootVoiceId = null;
-    let pollyEngine = null;
+    let pollyEngine = requestedEngine || null;
     const ttsProvider = await getTtsProvider();
+
+    // --- CUSTOM LOGGING FOR CREATE CONTENT ---
+    try {
+      const logVoiceName = requestedVoice || 'default';
+      const logApiName = ttsProvider;
+      // rawText is extracted earlier in the function
+      const logFirst25 = rawText ? rawText.substring(0, 25).replace(/\n/g, ' ') : (req.body.input ? String(req.body.input).substring(0, 25) : '');
+
+      const logEntry = `VOICE_NAME=${logVoiceName}\nAPI_NAME=${logApiName}\nFIRST_25=${logFirst25}\n\n`;
+      fs.appendFileSync(path.join(__dirname, '../logs/create_content.log'), logEntry);
+      logger.info(`[${requestId}] 📝 Logged creation request to logs/create_content.log`);
+    } catch (logErr) {
+      logger.warn(`[${requestId}] ⚠️ Failed to log to logs/create_content.log: ${logErr.message}`);
+    }
 
     if (!requestedVoice) {
       // 1. Check if Book has a persistent voice setting for this level
@@ -1609,7 +1648,7 @@ const processTtsRequest = async (req, res) => {
       }
       if (userId) {
         // Calculate costs
-        const { calculateOpenAiCost, calculateTtsCost } = require('../utils/costTracker');
+        const { calculateOpenAiCost, calculateTtsCost, logApiCost } = require('../utils/costTracker');
         // Sum costs per model using detailed breakdown if available; fallback to total with default model
         let openaiCost = { totalCostUsd: 0 };
         if (usageBreakdown.length > 0) {
@@ -1730,6 +1769,39 @@ const processTtsRequest = async (req, res) => {
           }
         } catch (counterErr) {
           logger.warn(`[${requestId}] Failed to update Free Trial counter:`, counterErr?.message);
+        }
+
+        // Log costs to api_costs table
+        try {
+          // Log OpenAI cost (if any)
+          if (openaiCost.totalCostUsd > 0) {
+            await logApiCost({
+              userId,
+              feature: 'standard_tts_openai',
+              provider: 'openai',
+              model: 'gpt-4o',
+              inputQuantity: openaiUsage.prompt_tokens || 0,
+              outputQuantity: openaiUsage.completion_tokens || 0,
+              costUsd: openaiCost.totalCostUsd,
+              metadata: { entry_source: normalizedEntrySource, level },
+            });
+          }
+          // Log TTS cost
+          if (ttsCostUsd > 0) {
+            const ttsProviderName = (ttsProvider === 'polly' || ttsProvider === 'amazon') ? 'aws_polly' : 'google_tts';
+            await logApiCost({
+              userId,
+              feature: 'standard_tts',
+              provider: ttsProviderName,
+              model: selectedVoice,
+              inputQuantity: ttsCharactersTotal,
+              outputQuantity: 0,
+              costUsd: ttsCostUsd,
+              metadata: { duration_seconds: audioDurationSeconds, entry_source: normalizedEntrySource },
+            });
+          }
+        } catch (costLogErr) {
+          logger.warn(`[${requestId}] Failed to log api_costs:`, costLogErr?.message);
         }
       } else {
         logger.warn(`[${requestId}] ⚠️ No user ID found, skipping contenthistory save`);
@@ -2210,6 +2282,8 @@ const getFilteredVoices = async (req, res) => {
         voices = voices.filter(v => v.quality === 'gold');
       } else if (c === 'studio' || c === 'platinum') {
         voices = voices.filter(v => v.quality === 'platinum');
+      } else if (c === 'generative' || c === 'ultra') {
+        voices = voices.filter(v => v.quality === 'generative' || v.quality === 'ultra');
       }
     }
 

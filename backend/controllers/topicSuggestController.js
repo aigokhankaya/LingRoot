@@ -1,9 +1,10 @@
 const OpenAI = require("openai");
+const logger = require('../utils/logger');
 let openai = null;
 if (process.env.OPENAI_API_KEY) {
   try {
     openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  } catch {}
+  } catch { }
 }
 const { logRequestStep } = require('../utils/requestLogger');
 const { v4: uuidv4 } = require('uuid');
@@ -31,6 +32,28 @@ exports.suggestTopics = async (req, res) => {
     });
     const text = completion.choices[0]?.message?.content?.trim() || "";
     const suggestions = text.split(/\n+/).filter(Boolean).map(s => s.replace(/^[0-9\-\.\)]*\s*/, ''));
+
+    // Log cost to api_costs table
+    try {
+      const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+      const usage = completion.usage;
+      if (usage && req.user?.id) {
+        const costInfo = calculateOpenAiCost(usage, 'gpt-4o-mini');
+        await logApiCost({
+          userId: req.user.id,
+          feature: 'topic_suggest',
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          inputQuantity: costInfo.promptTokens,
+          outputQuantity: costInfo.completionTokens,
+          costUsd: costInfo.totalCostUsd,
+          metadata: { input_keyword: input },
+        });
+      }
+    } catch (costErr) {
+      logger.warn(`[${requestId}] Failed to log topic suggest cost:`, costErr?.message);
+    }
+
     logRequestStep(requestId, 'topic-suggest:end', { suggestions });
     res.json({ success: true, suggestions, prompt });
   } catch (err) {

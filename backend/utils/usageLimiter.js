@@ -127,24 +127,46 @@ async function getActiveSubscriptionWithPlan(userId) {
 }
 
 async function getUsageTotals(userId, periodStartIso, periodEndIso) {
-  // Sum usage from contenthistory since periodStart
+  // Sum usage from api_costs table since periodStart (New Implementation)
   const { data, error } = await supabase
-    .from('contenthistory')
-    .select('openai_total_tokens, tts_characters, openai_cost_usd, tts_cost_usd, created_at')
+    .from('api_costs')
+    .select('cost_usd, input_quantity, feature, provider')
     .eq('user_id', userId)
     .gte('created_at', periodStartIso)
     .lt('created_at', periodEndIso);
+
   if (error) throw error;
+
   let openaiTokens = 0;
   let ttsChars = 0;
   let openaiCost = 0;
   let ttsCost = 0;
+
   for (const row of data || []) {
-    openaiTokens += Number(row.openai_total_tokens || 0);
-    ttsChars += Number(row.tts_characters || 0);
-    openaiCost += Number(row.openai_cost_usd || 0);
-    ttsCost += Number(row.tts_cost_usd || 0);
+    const cost = Number(row.cost_usd || 0);
+    const quantity = Number(row.input_quantity || 0);
+    const feature = (row.feature || '').toLowerCase();
+    const provider = (row.provider || '').toLowerCase();
+
+    // Identify TTS usage:
+    // 1. Feature is 'tts'
+    // 2. Provider is known TTS provider
+    // 3. Provider is 'openai' but feature is 'tts' (OpenAI TTS)
+    const isTTS = feature === 'tts' ||
+      ['google', 'azure', 'polly', 'amazon', 'elevenlabs'].includes(provider) ||
+      (provider === 'openai' && feature === 'tts');
+
+    if (isTTS) {
+      // For TTS, input_quantity is usually characters
+      ttsChars += quantity;
+      ttsCost += cost;
+    } else if (provider === 'openai' || provider === 'deepseek' || provider === 'anthropic') {
+      // For LLMs, input_quantity is tokens. Assume openai-like providers are LLM unless feature says otherwise.
+      openaiTokens += quantity;
+      openaiCost += cost;
+    }
   }
+
   return {
     openaiTokens,
     ttsChars,

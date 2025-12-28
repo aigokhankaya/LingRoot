@@ -211,18 +211,97 @@ async function generatePodcastScript(options) {
 
   logger.info(`[GOOGLE-PODCAST] Using voices - A: ${speakerAInfo.speakerId} (${speakerAInfo.gender}), B: ${speakerBInfo.speakerId} (${speakerBInfo.gender})`);
 
+  // CEFR seviyelerine göre dil kuralları
+  const CEFR_LANGUAGE_RULES = {
+    'A1': `VOCABULARY & GRAMMAR (A1 - Beginner):
+- Use ONLY basic, everyday vocabulary (Oxford 3000 A1 subset)
+- Simple present tense, basic "to be" and "have"
+- Very short sentences (5-10 words maximum)
+- No idioms, phrasal verbs, or complex expressions
+- Basic connectors: "and", "but", "because"
+- Repeat key words for reinforcement
+- Examples: "I like...", "This is...", "It is good"`,
+
+    'A2': `VOCABULARY & GRAMMAR (A2 - Elementary):
+- Use common everyday vocabulary (Oxford 3000 A2 subset)
+- Simple past tense, basic future with "will" and "going to"
+- Short sentences (8-12 words)
+- Simple phrasal verbs: "get up", "look at", "come back"
+- Basic connectors: "then", "so", "when", "if"
+- Avoid complex grammar structures
+- Examples: "I went to...", "We will see...", "That was interesting"`,
+
+    'B1': `VOCABULARY & GRAMMAR (B1 - Intermediate):
+- Use intermediate vocabulary from NGSL Core 2000
+- Past continuous, present perfect, conditionals type 1
+- Medium sentences (10-15 words)
+- Common idioms: "on the other hand", "as far as I know"
+- Connectors: "however", "although", "therefore", "meanwhile"
+- Can express opinions with simple reasoning
+- Examples: "In my opinion...", "I believe that...", "It seems like..."`,
+
+    'B2': `VOCABULARY & GRAMMAR (B2 - Upper-Intermediate):
+- Use upper-intermediate vocabulary from NGSL Core 3000
+- All tenses, passive voice, reported speech, conditionals type 2-3
+- Complex sentences with multiple clauses (15-25 words)
+- Idiomatic expressions: "to be honest", "at the end of the day", "when it comes to"
+- Academic connectors: "consequently", "furthermore", "nevertheless", "in contrast"
+- Express nuanced opinions with supporting arguments
+- Examples: "From my perspective...", "Taking into account...", "It could be argued that..."`,
+
+    'C1': `VOCABULARY & GRAMMAR (C1 - Advanced):
+- Use sophisticated, precise vocabulary including academic and technical terms
+- Complex grammatical structures, subjunctive mood, inversion
+- Elaborate sentences with embedded clauses (20-30 words)
+- Advanced idioms and collocations: "to shed light on", "on the grounds that", "by virtue of"
+- Discourse markers: "notwithstanding", "insofar as", "be that as it may"
+- Express complex ideas with clarity, nuance, and rhetorical skill
+- Use subtle humor, irony, and wordplay
+- Examples: "One might argue...", "It stands to reason that...", "Paradoxically speaking..."`,
+
+    'C2': `VOCABULARY & GRAMMAR (C2 - Mastery/Near-Native):
+- Use full range of vocabulary: erudite, conceptual, abstract, domain-specific terminology
+- Highly sophisticated grammatical structures, archaic forms when stylistically appropriate
+- Rhetorically crafted sentences with layered meaning (25-40 words)
+- Literary and academic expressions: "quintessentially", "paradigmatic", "notwithstanding the foregoing"
+- Advanced discourse: "be that as it may", "in contradistinction to", "ipso facto"
+- Express deeply nuanced ideas with elegance and precision
+- Use sophisticated wordplay, literary allusions, and intellectual wit
+- Demonstrate mastery through varied register and stylistic range
+- CRITICAL: Do NOT use simple phrases like "Oh wow!", "That's cool!", "Really?"
+- Instead use: "How utterly fascinating!", "A compelling observation indeed", "That's a paradigm-shifting perspective"
+- Examples: "To posit such a thesis would be...", "The ramifications of which are...", "One cannot help but marvel at..."
+
+SPEAKER STYLE FOR C2:
+- Host: Erudite, intellectually rigorous, uses academic vocabulary, poses thought-provoking questions
+- Guest: Scholarly, articulate, provides nuanced analysis, references historical/cultural context
+- Avoid casual fillers; use sophisticated transitions: "Indeed", "Precisely", "Quite so"
+- Include intellectual banter, not casual chat`
+  };
+
+  const levelRules = CEFR_LANGUAGE_RULES[level] || CEFR_LANGUAGE_RULES['B1'];
+
   const prompt = `Generate a VERY NATURAL podcast conversation script about "${topic}" for English learners at ${level} CEFR level.
+
+CRITICAL - LANGUAGE LEVEL:
+${levelRules}
 
 CRITICAL:
 - Output must be 100% English. Do not include Turkish words or phrases.
 - If you need to reference a Turkish concept, translate it fully into English and do not include the original Turkish term.
 
-CRITICAL - MAKE IT SOUND HUMAN:
+${level === 'C2' || level === 'C1' ? `SOPHISTICATED DIALOGUE STYLE:
+- Replace casual reactions with intellectual observations
+- Instead of "Oh wow!" use "How utterly fascinating!" or "What a compelling observation!"
+- Instead of "Really?" use "Is that so?" or "Extraordinary!"
+- Instead of "Right, right" use "Precisely" or "Indeed" or "Quite so"
+- Use thoughtful transitions like "This brings to mind..." or "The implications of which..."
+- Include references to broader contexts, historical parallels, or theoretical frameworks` : `NATURAL DIALOGUE STYLE:
 - Include natural reactions like "Oh wow!", "Hmm, interesting!", "Right, right", "Exactly!", "Oh I see!"
 - Add thinking pauses like "Well...", "So...", "You know...", "I mean..."
 - Include slight interruptions and agreements like "Yeah!", "Mhm!", "Oh really?"
 - Vary sentence lengths - some short reactions, some longer explanations
-- Add emotional expressions like laughing "(laughs)", surprised reactions, enthusiasm
+- Add emotional expressions like laughing "(laughs)", surprised reactions, enthusiasm`}
 
 REQUIREMENTS:
 - CRITICAL: Total word count must be EXACTLY approximately ${targetWordCount} words (for ${duration} minutes of audio at 150 words/minute)
@@ -231,11 +310,10 @@ REQUIREMENTS:
 - Style: ${STYLE_PROMPTS[styleType] || STYLE_PROMPTS['friendly_chat']}
 - Speaker A (Host): ${speakerAInfo.style}
 - Speaker B (Guest/Co-host): ${speakerBInfo.style}
-${includeHumor ? '- Include humor, jokes, and playful banter' : '- Keep it informative but friendly'}
-${includeFiller ? '- Include natural filler words (um, uh, well, you know, like) throughout' : '- Minimal filler words'}
-- Use vocabulary appropriate for ${level} level English learners
-- Make speakers interrupt each other occasionally for realism
-- Include back-and-forth quick exchanges, not just long monologues
+${includeHumor ? (level === 'C2' ? '- Include sophisticated wit, intellectual humor, and erudite wordplay' : '- Include humor, jokes, and playful banter') : '- Keep it informative but friendly'}
+${includeFiller ? (level === 'C2' || level === 'C1' ? '- Use sophisticated transitions and discourse markers instead of casual fillers' : '- Include natural filler words (um, uh, well, you know, like) throughout') : '- Minimal filler words'}
+- Make speakers interact naturally for realism
+- Include back-and-forth exchanges, not just long monologues
 
 OUTPUT FORMAT (JSON):
 {
@@ -257,7 +335,7 @@ IMPORTANT FOR turns_original:
 - It MUST have the SAME number of items as turns.
 - Each turns_original[i] MUST be a faithful Turkish translation of turns[i] (same meaning, same speaker).
 
-Generate dialogue that sounds like a REAL conversation between friends, NOT a scripted interview.`;
+Generate dialogue that sounds like a REAL conversation at the ${level} level, NOT a scripted interview.`;
 
   try {
     const OpenAI = require('openai');
@@ -290,23 +368,29 @@ ${seg > 0 && seg < segmentCount - 1 ? 'This is a MIDDLE segment - continue the d
 
 ${previousContext ? `PREVIOUS CONTEXT (continue from here naturally):\n${previousContext}\n` : ''}
 
+CRITICAL - LANGUAGE LEVEL:
+${levelRules}
+
 CRITICAL - WORD COUNT:
 - This segment must be EXACTLY ${segmentWordCount} words (${segmentDuration} minutes at 150 words/minute)
 - Minimum ${Math.round(segmentWordCount * 0.9)} words, maximum ${Math.round(segmentWordCount * 1.1)} words
 
-CRITICAL - MAKE IT SOUND HUMAN:
+${level === 'C2' || level === 'C1' ? `SOPHISTICATED DIALOGUE STYLE:
+- Replace casual reactions with intellectual observations
+- Instead of "Oh wow!" use "How utterly fascinating!" or "What a compelling observation!"
+- Instead of "Really?" use "Is that so?" or "Extraordinary!"
+- Use thoughtful transitions like "This brings to mind..." or "The implications of which..."` : `NATURAL DIALOGUE STYLE:
 - Include natural reactions like "Oh wow!", "Hmm, interesting!", "Right, right", "Exactly!", "Oh I see!"
 - Add thinking pauses like "Well...", "So...", "You know...", "I mean..."
 - Include slight interruptions and agreements like "Yeah!", "Mhm!", "Oh really?"
-- Vary sentence lengths - some short reactions, some longer explanations
+- Vary sentence lengths - some short reactions, some longer explanations`}
 
 REQUIREMENTS:
 - Style: ${STYLE_PROMPTS[styleType] || STYLE_PROMPTS['friendly_chat']}
 - Speaker A (Host): ${speakerAInfo.style}
 - Speaker B (Guest/Co-host): ${speakerBInfo.style}
-${includeHumor ? '- Include humor, jokes, and playful banter' : '- Keep it informative but friendly'}
-${includeFiller ? '- Include natural filler words (um, uh, well, you know, like)' : '- Minimal filler words'}
-- Use vocabulary appropriate for ${level} level English learners
+${includeHumor ? (level === 'C2' ? '- Include sophisticated wit and intellectual humor' : '- Include humor, jokes, and playful banter') : '- Keep it informative but friendly'}
+${includeFiller ? (level === 'C2' || level === 'C1' ? '- Use sophisticated transitions instead of casual fillers' : '- Include natural filler words (um, uh, well, you know, like)') : '- Minimal filler words'}
 - Output 100% English only
 
 OUTPUT FORMAT (JSON):
@@ -321,12 +405,17 @@ OUTPUT FORMAT (JSON):
   ]
 }`;
 
+        // C1/C2 için system prompt'u da sofistike yap
+        const systemPromptForLevel = (level === 'C2' || level === 'C1')
+          ? `You are an expert at writing sophisticated, intellectually engaging podcast conversations for advanced English learners. Generate dialogue that demonstrates mastery-level vocabulary, complex grammatical structures, and erudite discourse. Avoid casual language - use refined, academic expressions. Generate EXACTLY the word count requested. Always output valid JSON.`
+          : `You are an expert at writing realistic, natural-sounding podcast conversations. Generate EXACTLY the word count requested. Always output valid JSON.`;
+
         const segResponse = await withRetry(() => openai.chat.completions.create({
           model: 'gpt-4o-mini',  // Use cost-effective model for all podcasts
           messages: [
             {
               role: 'system',
-              content: 'You are an expert at writing realistic, natural-sounding podcast conversations. Generate EXACTLY the word count requested. Always output valid JSON.',
+              content: systemPromptForLevel,
             },
             { role: 'user', content: segmentPrompt },
           ],
@@ -370,12 +459,17 @@ OUTPUT FORMAT (JSON):
     }
 
     // For short podcasts (<=5 min), use single generation
+    // C1/C2 için system prompt'u da sofistike yap
+    const systemPrompt = (level === 'C2' || level === 'C1')
+      ? `You are an expert at writing sophisticated, intellectually engaging podcast conversations for advanced English learners. Generate dialogue that demonstrates mastery-level vocabulary, complex grammatical structures, and erudite discourse. The speakers should sound like two intellectuals having a refined discussion - with thoughtful observations, scholarly references, and elegant expressions. Avoid casual fillers and simple reactions. Always output valid JSON.`
+      : `You are an expert at writing realistic, natural-sounding podcast conversations. Your dialogues should sound like two real people talking - with natural reactions, interruptions, laughter, and genuine emotion. Never write stiff or robotic dialogue. Always output valid JSON.`;
+
     const response = await withRetry(() => openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: 'You are an expert at writing realistic, natural-sounding podcast conversations. Your dialogues should sound like two real people talking - with natural reactions, interruptions, laughter, and genuine emotion. Never write stiff or robotic dialogue. Always output valid JSON.',
+          content: systemPrompt,
         },
         { role: 'user', content: prompt },
       ],
@@ -1317,15 +1411,21 @@ async function createGoogleTTSPodcast(options) {
     let contentHistoryId = null;
     if (userId && supabase) {
       try {
-        const { calculateOpenAiCost, calculateTtsCost } = require('./costTracker');
+        logger.info('[GOOGLE-PODCAST] Step 5.1: Loading costTracker...');
+        const { calculateOpenAiCost, calculateTtsCost, logApiCost } = require('./costTracker');
 
+        logger.info('[GOOGLE-PODCAST] Step 5.2: Calculating OpenAI cost...');
         const openaiCost = calculateOpenAiCost(scriptResult.usage || {}, 'gpt-4o-mini');
+
+        logger.info('[GOOGLE-PODCAST] Step 5.3: Calculating TTS cost...', { audioResultTtsChars: audioResult?.ttsCharacters });
         const ttsCharacters = typeof audioResult?.ttsCharacters === 'number'
           ? audioResult.ttsCharacters
           : String(audioResult?.dialogueText || '').length;
         const ttsCategory = 'Premium';
         const ttsCostUsd = calculateTtsCost(ttsCharacters, ttsCategory);
         const totalCostUsd = Number(((openaiCost.totalCostUsd || 0) + (ttsCostUsd || 0)).toFixed(6));
+
+        logger.info('[GOOGLE-PODCAST] Step 5.4: Costs calculated', { openaiCost: openaiCost.totalCostUsd, ttsCostUsd, totalCostUsd });
 
         const turnsOriginalDialogueText = Array.isArray(turnsOriginalForSave) && turnsOriginalForSave.length > 0
           ? turnsOriginalForSave
@@ -1351,7 +1451,7 @@ async function createGoogleTTSPodcast(options) {
           timepoints: Array.isArray(timepoints) && timepoints.length > 0 ? JSON.stringify(timepoints) : null,
           dialogue_segments: Array.isArray(dialogueSegments) && dialogueSegments.length > 0 ? JSON.stringify(dialogueSegments) : null,
           tts_provider: 'google-gemini',
-          tts_voice_name: model,
+          tts_voice_name: requestedModel,
           audio_duration_seconds: estimatedDuration,
           entry_source: 'google-podcast',
           openai_prompt_tokens: openaiCost.promptTokens || 0,
@@ -1373,17 +1473,51 @@ async function createGoogleTTSPodcast(options) {
           total_cost_usd: insertData.total_cost_usd,
         });
 
+        // Log costs to api_costs table
+        // Log OpenAI script generation cost
+        await logApiCost({
+          userId,
+          feature: 'podcast_script',
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          inputQuantity: openaiCost.promptTokens,
+          outputQuantity: openaiCost.completionTokens,
+          costUsd: openaiCost.totalCostUsd,
+          metadata: { topic, level },
+        });
+        // Log Google TTS synthesis cost
+        await logApiCost({
+          userId,
+          feature: 'podcast_tts',
+          provider: 'google_tts',
+          model: requestedModel,
+          inputQuantity: ttsCharacters,
+          outputQuantity: 0,
+          costUsd: ttsCostUsd,
+          metadata: { duration_seconds: estimatedDuration },
+        });
+
         const { data, error } = await supabase
           .from('contenthistory')
           .insert(insertData)
           .select();
 
-        if (!error && data && data.length > 0) {
+        if (error) {
+          logger.error(`[GOOGLE-PODCAST] Database error saving to contenthistory: ${error.message}`, { code: error.code, details: error.details, hint: error.hint });
+        } else if (data && data.length > 0) {
           contentHistoryId = data[0].id;
           logger.info(`[GOOGLE-PODCAST] Saved to contenthistory: ${contentHistoryId}`);
+        } else {
+          logger.warn('[GOOGLE-PODCAST] Insert returned no data');
         }
       } catch (dbErr) {
-        logger.warn('[GOOGLE-PODCAST] Failed to save to contenthistory:', dbErr.message);
+        logger.error('[GOOGLE-PODCAST] Failed to save to contenthistory:', {
+          message: dbErr?.message,
+          name: dbErr?.name,
+          code: dbErr?.code,
+          stack: dbErr?.stack?.split('\n')[0],
+          fullError: JSON.stringify(dbErr, Object.getOwnPropertyNames(dbErr || {}))
+        });
       }
     }
 

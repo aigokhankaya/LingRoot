@@ -234,44 +234,150 @@ class MFAAligner {
       alignOptions: { beam, retryBeam, singleSpeaker },
     });
 
-    try {
-      const { stdout, stderr } = await execAsync(command, { maxBuffer: 50 * 1024 * 1024, timeout: 300000 });
-      const truncate = (s, max = 20000) => {
-        if (s == null) return s;
-        const str = String(s);
-        if (str.length <= max) return str;
-        return str.slice(0, max) + `... (truncated, total=${str.length})`;
-      };
-      await this.writeDebugLine(debug, {
-        stage: 'local-align-output',
-        stdout: truncate(stdout),
-        stderr: truncate(stderr),
+    // Use spawn for real-time progress logging
+    const { spawn } = require('child_process');
+
+    return new Promise((resolve, reject) => {
+      const startTime = Date.now();
+      let stdout = '';
+      let stderr = '';
+
+      // MFA adımlarını takip etmek için
+      const mfaSteps = [
+        'Setting up corpus',
+        'Loading corpus',
+        'Initializing multiprocessing',
+        'Normalizing text',
+        'Generating MFCCs',
+        'Calculating CMVN',
+        'Generating final features',
+        'Creating corpus split',
+        'Compiling training graphs',
+        'Performing first-pass alignment',
+        'Generating alignments',
+        'Collecting phone and word alignments',
+        'Analyzing alignment quality',
+        'Exporting alignment TextGrids'
+      ];
+      let currentStep = 0;
+
+      const child = spawn('cmd', ['/c', command], {
+        shell: true,
+        windowsHide: true
       });
-      if (stderr) logger.warn('MFA stderr:', stderr);
-      logger.info('✅ MFA alignment completed');
-      return outputDir;
-    } catch (error) {
-      const truncate = (s, max = 20000) => {
-        if (s == null) return s;
-        const str = String(s);
-        if (str.length <= max) return str;
-        return str.slice(0, max) + `... (truncated, total=${str.length})`;
-      };
-      await this.writeDebugLine(debug, {
-        stage: 'local-align-exec-error',
-        errorMessage: error?.message || String(error),
-        stdout: truncate(error?.stdout),
-        stderr: truncate(error?.stderr),
+
+      // this referansını event handler'larda kullanmak için kaydet
+      const self = this;
+
+      child.stdout.on('data', (data) => {
+        const text = data.toString();
+        stdout += text;
+        // Alt-progress bar'ları loglama - sadece adım bazlı ilerleme yeterli
       });
-      const msg = error?.message || String(error);
-      const isNoAlignments = msg.includes('NoAlignmentsError') || msg.includes('There were no successful alignments');
-      if (isNoAlignments) {
-        logger.warn(`⚠️ MFA alignment attempt produced no alignments (will retry if configured): ${msg}`);
-      } else {
-        logger.error('❌ MFA alignment failed:', msg);
-      }
-      throw error;
-    }
+
+      child.stderr.on('data', (data) => {
+        const text = data.toString();
+        stderr += text;
+
+        // MFA INFO/WARNING/ERROR mesajlarını parse et
+        const lines = text.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+
+          // MFA adımını tespit et
+          for (let i = currentStep; i < mfaSteps.length; i++) {
+            if (trimmed.toLowerCase().includes(mfaSteps[i].toLowerCase())) {
+              currentStep = i + 1;
+              const stepPercent = Math.round((currentStep / mfaSteps.length) * 100);
+              const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+              logger.info(`📍 MFA Step ${currentStep}/${mfaSteps.length} (${stepPercent}%): ${mfaSteps[i]} [${elapsed}s]`);
+              // Log dosyasına da yaz
+              self.writeDebugLine(debug, {
+                stage: 'mfa-step',
+                stepNumber: currentStep,
+                totalSteps: mfaSteps.length,
+                stepPercent,
+                stepName: mfaSteps[i],
+                elapsedSeconds: parseFloat(elapsed),
+              }).catch(() => { });
+              break;
+            }
+          }
+
+          // ERROR mesajlarını özel olarak logla
+          if (trimmed.includes('ERROR')) {
+            logger.error(`❌ MFA: ${trimmed}`);
+            // Error'ları da log dosyasına yaz
+            self.writeDebugLine(debug, {
+              stage: 'mfa-error-line',
+              errorLine: trimmed,
+              elapsedSeconds: parseFloat(((Date.now() - startTime) / 1000).toFixed(1)),
+            }).catch(() => { });
+          }
+        }
+      });
+
+      child.on('error', (err) => {
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        logger.error(`❌ MFA process error after ${elapsed}s:`, err.message);
+        reject(err);
+      });
+
+      child.on('close', async (code) => {
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+        const truncate = (s, max = 20000) => {
+          if (s == null) return s;
+          const str = String(s);
+          if (str.length <= max) return str;
+          return str.slice(0, max) + `... (truncated, total=${str.length})`;
+        };
+
+        if (code === 0) {
+          await this.writeDebugLine(debug, {
+            stage: 'local-align-output',
+            stdout: truncate(stdout),
+            stderr: truncate(stderr),
+            elapsedSeconds: parseFloat(elapsed),
+          });
+          logger.info(`✅ MFA alignment completed in ${elapsed}s`);
+          resolve(outputDir);
+        } else {
+          const errorMsg = `MFA alignment failed with exit code ${code}`;
+          const fullError = new Error(`Command failed: ${command}\n${stderr}`);
+          fullError.stdout = stdout;
+          fullError.stderr = stderr;
+          fullError.code = code;
+
+          await this.writeDebugLine(debug, {
+            stage: 'local-align-exec-error',
+            errorMessage: errorMsg,
+            stdout: truncate(stdout),
+            stderr: truncate(stderr),
+            exitCode: code,
+            elapsedSeconds: parseFloat(elapsed),
+          });
+
+          const isNoAlignments = stderr.includes('NoAlignmentsError') || stderr.includes('There were no successful alignments');
+          if (isNoAlignments) {
+            logger.warn(`⚠️ MFA alignment attempt produced no alignments after ${elapsed}s (will retry if configured)`);
+          } else {
+            logger.error(`❌ MFA alignment failed after ${elapsed}s with exit code ${code}`);
+          }
+          reject(fullError);
+        }
+      });
+
+      // 5 dakika timeout
+      setTimeout(() => {
+        child.kill('SIGTERM');
+        const timeoutErr = new Error(`MFA alignment timed out after 300 seconds`);
+        timeoutErr.stdout = stdout;
+        timeoutErr.stderr = stderr;
+        reject(timeoutErr);
+      }, 300000);
+    });
   }
 
   async parseTextGrid(textGridPath) {
@@ -358,6 +464,8 @@ class MFAAligner {
       shouldUseStrongFirstPass,
     });
 
+    const mfaStartTime = Date.now(); // Track total MFA duration
+
     if (useRemoteMFA) {
       try {
         const result = await this.generateWordTimestampsRemote(audioPath, transcriptText, locale, { debug, cleanedTranscript });
@@ -367,6 +475,7 @@ class MFAAligner {
           resultType: Array.isArray(result) ? 'array' : typeof result,
           resultCount: Array.isArray(result) ? result.length : null,
           sample: Array.isArray(result) && result.length > 0 ? result[0] : null,
+          TOTAL_DURATION_MS: Date.now() - mfaStartTime,
         });
         return result;
       } catch (remoteErr) {
@@ -402,13 +511,17 @@ class MFAAligner {
         models: this.localModelPaths,
       });
 
+      // Uzun metinler için (>=120 kelime) doğrudan agresif beam ayarlarıyla başla
+      // Bu, düşük beam ile başarısız olacak denemeleri atlayarak 3-5 dakika tasarruf sağlar
+      const initialAlignOptions = shouldUseStrongFirstPass
+        ? { beam: 1000, retryBeam: 4000, singleSpeaker: true }
+        : { singleSpeaker: true };
+
       try {
-        const initialAlignOptions = shouldUseStrongFirstPass
-          ? { singleSpeaker: true }
-          : {};
         await this.writeDebugLine(debug, {
           stage: 'local-align-initial-options',
           initialAlignOptions,
+          shouldUseStrongFirstPass,
         });
         await this.align(corpusDir, dictPath, outputDir, debug, initialAlignOptions);
       } catch (alignErr) {
@@ -416,75 +529,105 @@ class MFAAligner {
         const shouldRetry = msg.includes('NoAlignmentsError') || msg.includes('There were no successful alignments');
 
         if (shouldRetry) {
-          const firstRetryOptions = shouldUseStrongFirstPass
-            ? { beam: 100, retryBeam: 400, singleSpeaker: true }
-            : { beam: 100, retryBeam: 400, singleSpeaker: true };
-          await this.writeDebugLine(debug, {
-            stage: 'local-align-retry',
-            reason: 'NoAlignmentsError',
-            retryWith: firstRetryOptions,
-          });
-
-          try {
-            await this.align(corpusDir, dictPath, outputDir, debug, firstRetryOptions);
-          } catch (retryErr) {
-            const retryMsg = retryErr?.message || String(retryErr);
-            const shouldRetryMore = retryMsg.includes('NoAlignmentsError') || retryMsg.includes('There were no successful alignments');
-            if (shouldRetryMore) {
-              await this.writeDebugLine(debug, {
-                stage: 'local-align-retry',
-                reason: 'NoAlignmentsError',
-                retryWith: { beam: 1000, retryBeam: 4000, singleSpeaker: true },
-              });
-              try {
-                await this.align(corpusDir, dictPath, outputDir, debug, { beam: 1000, retryBeam: 4000, singleSpeaker: true });
-              } catch (retry2Err) {
-                const retry2Msg = retry2Err?.message || String(retry2Err);
-                const shouldTryOovFilter = retry2Msg.includes('NoAlignmentsError') || retry2Msg.includes('There were no successful alignments');
-                if (shouldTryOovFilter) {
-                  const filteredTranscript = await this.filterTranscriptToDictionary(transcriptText);
-                  await this.writeDebugLine(debug, {
-                    stage: 'local-align-retry',
-                    reason: 'oov_filter',
-                    originalTokenCount: cleanedTranscript.split(/\s+/).filter(Boolean).length,
-                    filteredTokenCount: filteredTranscript.split(/\s+/).filter(Boolean).length,
-                  });
-                  try {
-                    const transcriptPath = path.join(corpusDir, 'audio.txt');
-                    const filteredTokens = filteredTranscript.split(/\s+/).filter(Boolean);
-                    const chunked = [];
-                    for (let i = 0; i < filteredTokens.length; i += 18) {
-                      chunked.push(filteredTokens.slice(i, i + 18).join(' '));
-                    }
-                    await fs.writeFile(transcriptPath, chunked.join(os.EOL), 'utf-8');
-                    await this.align(corpusDir, dictPath, outputDir, debug, { beam: 1000, retryBeam: 4000, singleSpeaker: true });
-                  } catch (oovErr) {
-                    await this.writeDebugLine(debug, {
-                      stage: 'local-align-error',
-                      errorMessage: oovErr?.message || String(oovErr),
-                      stdout: oovErr?.stdout,
-                      stderr: oovErr?.stderr,
-                    });
-                    throw oovErr;
-                  }
-                } else {
-                  await this.writeDebugLine(debug, {
-                    stage: 'local-align-error',
-                    errorMessage: retry2Msg,
-                    stdout: retry2Err?.stdout,
-                    stderr: retry2Err?.stderr,
-                  });
-                  throw retry2Err;
-                }
+          // Eğer zaten yüksek beam ile başladıysak (shouldUseStrongFirstPass), 
+          // ara denemeleri atla ve doğrudan OOV filtrelemeye geç
+          if (shouldUseStrongFirstPass) {
+            // Doğrudan OOV (sözlük dışı kelime) filtreleme stratejisine geç
+            const filteredTranscript = await this.filterTranscriptToDictionary(transcriptText);
+            await this.writeDebugLine(debug, {
+              stage: 'local-align-retry',
+              reason: 'oov_filter_direct',
+              originalTokenCount: cleanedTranscript.split(/\s+/).filter(Boolean).length,
+              filteredTokenCount: filteredTranscript.split(/\s+/).filter(Boolean).length,
+            });
+            try {
+              const transcriptPath = path.join(corpusDir, 'audio.txt');
+              const filteredTokens = filteredTranscript.split(/\s+/).filter(Boolean);
+              const chunked = [];
+              for (let i = 0; i < filteredTokens.length; i += 18) {
+                chunked.push(filteredTokens.slice(i, i + 18).join(' '));
               }
-            } else {
+              await fs.writeFile(transcriptPath, chunked.join(os.EOL), 'utf-8');
+              await this.align(corpusDir, dictPath, outputDir, debug, { beam: 1000, retryBeam: 4000, singleSpeaker: true });
+            } catch (oovErr) {
               await this.writeDebugLine(debug, {
                 stage: 'local-align-error',
-                errorMessage: retryMsg,
-                stdout: retryErr?.stdout,
-                stderr: retryErr?.stderr,
+                errorMessage: oovErr?.message || String(oovErr),
+                stdout: oovErr?.stdout,
+                stderr: oovErr?.stderr,
               });
-              throw retryErr;
+              throw oovErr;
+            }
+          } else {
+            // Kısa metinler için: önce beam 100, sonra beam 1000, sonra OOV filtre
+            const firstRetryOptions = { beam: 100, retryBeam: 400, singleSpeaker: true };
+            await this.writeDebugLine(debug, {
+              stage: 'local-align-retry',
+              reason: 'NoAlignmentsError',
+              retryWith: firstRetryOptions,
+            });
+
+            try {
+              await this.align(corpusDir, dictPath, outputDir, debug, firstRetryOptions);
+            } catch (retryErr) {
+              const retryMsg = retryErr?.message || String(retryErr);
+              const shouldRetryMore = retryMsg.includes('NoAlignmentsError') || retryMsg.includes('There were no successful alignments');
+              if (shouldRetryMore) {
+                await this.writeDebugLine(debug, {
+                  stage: 'local-align-retry',
+                  reason: 'NoAlignmentsError',
+                  retryWith: { beam: 1000, retryBeam: 4000, singleSpeaker: true },
+                });
+                try {
+                  await this.align(corpusDir, dictPath, outputDir, debug, { beam: 1000, retryBeam: 4000, singleSpeaker: true });
+                } catch (retry2Err) {
+                  const retry2Msg = retry2Err?.message || String(retry2Err);
+                  const shouldTryOovFilter = retry2Msg.includes('NoAlignmentsError') || retry2Msg.includes('There were no successful alignments');
+                  if (shouldTryOovFilter) {
+                    const filteredTranscript = await this.filterTranscriptToDictionary(transcriptText);
+                    await this.writeDebugLine(debug, {
+                      stage: 'local-align-retry',
+                      reason: 'oov_filter',
+                      originalTokenCount: cleanedTranscript.split(/\s+/).filter(Boolean).length,
+                      filteredTokenCount: filteredTranscript.split(/\s+/).filter(Boolean).length,
+                    });
+                    try {
+                      const transcriptPath = path.join(corpusDir, 'audio.txt');
+                      const filteredTokens = filteredTranscript.split(/\s+/).filter(Boolean);
+                      const chunked = [];
+                      for (let i = 0; i < filteredTokens.length; i += 18) {
+                        chunked.push(filteredTokens.slice(i, i + 18).join(' '));
+                      }
+                      await fs.writeFile(transcriptPath, chunked.join(os.EOL), 'utf-8');
+                      await this.align(corpusDir, dictPath, outputDir, debug, { beam: 1000, retryBeam: 4000, singleSpeaker: true });
+                    } catch (oovErr) {
+                      await this.writeDebugLine(debug, {
+                        stage: 'local-align-error',
+                        errorMessage: oovErr?.message || String(oovErr),
+                        stdout: oovErr?.stdout,
+                        stderr: oovErr?.stderr,
+                      });
+                      throw oovErr;
+                    }
+                  } else {
+                    await this.writeDebugLine(debug, {
+                      stage: 'local-align-error',
+                      errorMessage: retry2Msg,
+                      stdout: retry2Err?.stdout,
+                      stderr: retry2Err?.stderr,
+                    });
+                    throw retry2Err;
+                  }
+                }
+              } else {
+                await this.writeDebugLine(debug, {
+                  stage: 'local-align-error',
+                  errorMessage: retryMsg,
+                  stdout: retryErr?.stdout,
+                  stderr: retryErr?.stderr,
+                });
+                throw retryErr;
+              }
             }
           }
         } else {
@@ -506,6 +649,7 @@ class MFAAligner {
         resultType: Array.isArray(parsed) ? 'array' : typeof parsed,
         resultCount: Array.isArray(parsed) ? parsed.length : null,
         sample: Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : null,
+        TOTAL_DURATION_MS: Date.now() - mfaStartTime,
       });
       return parsed;
     } catch (error) {
@@ -627,7 +771,7 @@ class MFAAligner {
 
       const jobId = String(submitResp.data.jobId);
       const pollIntervalMs = Number(process.env.MFA_REMOTE_ASYNC_POLL_INTERVAL_MS || 1500);
-      const overallTimeoutMs = Number(process.env.MFA_REMOTE_ASYNC_TIMEOUT_MS || process.env.MFA_REMOTE_TIMEOUT_MS || 900000); // 15 mins default
+      const overallTimeoutMs = Number(process.env.MFA_REMOTE_ASYNC_TIMEOUT_MS || process.env.MFA_REMOTE_TIMEOUT_MS || 1500000); // 25 mins default
       const startedAt = Date.now();
 
       while (Date.now() - startedAt < overallTimeoutMs) {
