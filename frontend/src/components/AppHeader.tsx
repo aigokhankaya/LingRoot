@@ -11,7 +11,7 @@ import { LevelProgressBar } from '@/components/gamification';
 
 export const AppHeader: React.FC = () => {
     const { t } = useTranslation();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
 
     return (
         <div className="bg-white shadow-sm border-b sticky top-0 z-50">
@@ -51,6 +51,15 @@ export const AppHeader: React.FC = () => {
                                     {t('welcome_nav_progress')}
                                 </Button>
                             </Link>
+                            {/* Admin Only: Pattern Lab */}
+                            {user?.role === 'admin' && (
+                                <Link href="/pattern-lab">
+                                    <Button variant="ghost" className="!rounded-button whitespace-nowrap cursor-pointer text-purple-600 hover:text-purple-700 hover:bg-purple-50">
+                                        <span className="mr-2">🧪</span>
+                                        Pattern Lab
+                                    </Button>
+                                </Link>
+                            )}
                         </div>
                     </div>
                     <div className="flex items-center space-x-4">

@@ -29,6 +29,7 @@ Thumbs.db
 # Backend logs
 backend/logs/
 backend/logs/requests/
+mfa/logs/
 
 # Next.js build output
 /.next
