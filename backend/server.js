@@ -170,6 +170,7 @@ app.use("/api/external-services", externalServicesRoutes); // External services 
 app.use("/api/podcast", podcastRoutes); // Podcast upload and management
 app.use("/api/config", configRoutes); // Config routes (environment, etc.)
 app.use("/api/patterns", patternRoutes); // Daily usage patterns
+app.use('/api/translations', require('./routes/translationRoutes')); // Multi-provider translation lab
 app.use("/api/mfa", mfaRoutes); // MFA alignment routes
 app.use("/api/topic-hierarchy", topicHierarchyRoutes); // Topic Hierarchy (multi-level content tree)
 app.use("/api/documents", documentRoutes); // Document/PDF workflow
