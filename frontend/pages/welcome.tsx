@@ -259,23 +259,7 @@ const Welcome: React.FC = () => {
 
   // 🎮 Gamification: Onboarding tamamlanmadıysa modalı göster
   // 🎮 Gamification: Onboarding tamamlanmadıysa modalı göster
-  useEffect(() => {
-    if (!isAuthenticated) return; // Henüz login değilse işlem yapma
 
-    // Yüklemeler devam ediyorsa bekle
-    if (gamificationLoading || loadingHistory) return;
-
-    // Gamification datası geldi ve onboarding tamamlanmamış görünüyorsa
-    if (gamificationStats && !gamificationStats.onboardingCompleted) {
-      // Ancak kullanıcının geçmişi varsa (eski kullanıcı), onboarding'i atla
-      if (contentHistory && contentHistory.length > 0) {
-        return;
-      }
-
-      // Gerçekten yeni kullanıcı ise modalı göster
-      setShowOnboardingFlow(true);
-    }
-  }, [gamificationLoading, gamificationStats, contentHistory, loadingHistory, isAuthenticated]);
 
   // 🎮 Streak check-in on page load
   useEffect(() => {
@@ -474,6 +458,38 @@ const Welcome: React.FC = () => {
     { id: 'subject', name: t('subject'), icon: <FaGraduationCap /> },
     { id: 'custom', name: t('content_type_custom'), icon: <FaPlus /> },
   ];
+
+  // 🎮 Gamification: Onboarding tamamlanmadıysa modalı göster
+  useEffect(() => {
+    if (!isAuthenticated) return; // Henüz login değilse işlem yapma
+
+    // LocalStorage'da onboarding tamamlandı flag'i varsa, asla gösterme
+    try {
+      const localOnboardingDone = localStorage.getItem('onboarding_completed');
+      if (localOnboardingDone === 'true') {
+        return;
+      }
+    } catch { }
+
+    // Yüklemeler devam ediyorsa bekle
+    if (gamificationLoading || loadingHistory) return;
+
+    // Gamification datası henüz gelmediyse (null/undefined), bekle
+    if (!gamificationStats) return;
+
+    // Gamification datası geldi ve onboarding zaten tamamlanmışsa, gösterme
+    if (gamificationStats.onboardingCompleted) {
+      return;
+    }
+
+    // Kullanıcının geçmişi varsa (eski kullanıcı), onboarding'i atla
+    if (contentHistory && contentHistory.length > 0) {
+      return;
+    }
+
+    // Gerçekten yeni kullanıcı ise modalı göster
+    setShowOnboardingFlow(true);
+  }, [gamificationLoading, gamificationStats, contentHistory, loadingHistory, isAuthenticated]);
 
   const levelOptions = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   const rateOptions = [

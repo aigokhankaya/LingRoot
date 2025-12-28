@@ -41,9 +41,10 @@ interface OutputSectionProps {
   audioResult: TtsResponseData;
   isLoggedIn: boolean;
   onAudioComplete?: () => void;
+  disableSticky?: boolean; // Yeni prop: Sticky davranışı devre dışı bırakmak için
 }
 
-export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete }: OutputSectionProps) {
+export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete, disableSticky = false }: OutputSectionProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [activeDialogueIndex, setActiveDialogueIndex] = useState<number | null>(null);
   const [activeWordIndex, setActiveWordIndex] = useState<number>(-1);
@@ -73,7 +74,8 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
   const handleWordChange = (wordIndex: number, playing: boolean) => {
     setActiveWordIndex(wordIndex);
     setIsAudioPlaying(playing);
-    if (playing) {
+    // Sticky davranış disabled ise hasPinnedControls'u asla true yapma
+    if (playing && !disableSticky) {
       setHasPinnedControls(true);
     }
   };
@@ -412,14 +414,14 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
       {/* Audio Player - Moved to bottom */}
       <div
         className={
-          hasPinnedControls
+          hasPinnedControls && !disableSticky
             ? 'fixed top-0 left-0 right-0 z-50 bg-transparent pointer-events-none'
             : 'mt-6 pt-6 border-t border-gray-200'
         }
       >
-        <div className={hasPinnedControls ? 'w-full max-w-6xl mx-auto px-6 py-3' : ''}>
-          <div className={`relative ${hasPinnedControls ? 'bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-3 pointer-events-auto' : ''}`}>
-            {hasPinnedControls && (
+        <div className={hasPinnedControls && !disableSticky ? 'w-full max-w-6xl mx-auto px-6 py-3' : ''}>
+          <div className={`relative ${hasPinnedControls && !disableSticky ? 'bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-3 pointer-events-auto' : ''}`}>
+            {hasPinnedControls && !disableSticky && (
               <button
                 onClick={() => setHasPinnedControls(false)}
                 className="absolute -top-3 -right-3 z-50 bg-white text-gray-400 hover:text-gray-600 rounded-full p-1 shadow-md border border-gray-200 transition-colors"
@@ -451,17 +453,22 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
                 wordsCount: audioResult.words?.length,
                 timepointsCount: audioResult.timepoints?.length
               }}
-              onPlay={async () => {
-                if (!audioResult.mp3_url) return;
-                try {
-                  await markTopicAudioListened(audioResult.mp3_url);
-                } catch (e) {
-                  console.error('markTopicAudioListened error:', e);
-                }
-              }}
+              onPlay={() => { }}
               onActiveSegmentChange={(hasDialogueTranscript || (audioResult.dialogue_segments && audioResult.dialogue_segments.length > 0)) ? setActiveDialogueIndex : undefined}
               onWordChange={handleWordChange}
-              onComplete={onAudioComplete}
+              onComplete={async () => {
+                // Dinleme tamamlandığında işaretle
+                if (audioResult.mp3_url) {
+                  try {
+                    await markTopicAudioListened(audioResult.mp3_url);
+                    console.log('✅ Topic audio marked as listened');
+                  } catch (e) {
+                    console.error('markTopicAudioListened error:', e);
+                  }
+                }
+                // Parent callback'i de çağır
+                onAudioComplete?.();
+              }}
               hideText={true}
             />
           </div>

@@ -89,14 +89,29 @@ const TopicNode: React.FC<TopicNodeProps> = ({
   const latestContent = (topic as any).latest_content || null;
   const hasAudio = !!(latestContent && latestContent.mp3_url);
   const isListened = !!(latestContent && latestContent.listened_at);
+  const isCompleted = !!(latestContent && latestContent.is_completed);
+  const progressPercentage = latestContent?.progress_percentage || 0;
+  const lastPositionSeconds = latestContent?.last_position_seconds || 0;
+  const hasStartedListening = lastPositionSeconds > 0;
+
+  // Dinleme durumu hesapla
+  const getListeningStatus = () => {
+    if (!hasAudio) return null;
+    if (isCompleted || isListened) return 'completed';
+    if (hasStartedListening && progressPercentage > 0 && progressPercentage < 90) return 'in_progress';
+    return 'ready';
+  };
+  const listeningStatus = getListeningStatus();
+
   // Ses oynatılabilir mi? (backend'de audio varsa veya bu oturumda yeni üretildiyse)
   const canPlayFromTree = hasAudio || hasInlineAudio;
 
-  // Alt konu istatistikleri (toplam alt konu, ses oluşturulan ve dinlenen sayıları)
+  // Alt konu istatistikleri (toplam alt konu, ses oluşturulan, dinlenen ve yarım kalan sayıları)
   const computeSubtreeStats = (root: any) => {
     let totalSubtopics = 0;
     let audioCount = 0;
     let listenedCount = 0;
+    let inProgressCount = 0;
 
     const traverse = (node: any) => {
       if (!node.children || node.children.length === 0) return;
@@ -105,19 +120,27 @@ const TopicNode: React.FC<TopicNodeProps> = ({
         const childLatest = child.latest_content;
         if (childLatest && childLatest.mp3_url) {
           audioCount += 1;
-        }
-        if (childLatest && childLatest.listened_at) {
-          listenedCount += 1;
+
+          // Dinlenme durumu kontrolü
+          const isChildCompleted = childLatest.is_completed || childLatest.listened_at;
+          const hasStartedListening = (childLatest.last_position_seconds || 0) > 0;
+          const childProgress = childLatest.progress_percentage || 0;
+
+          if (isChildCompleted) {
+            listenedCount += 1;
+          } else if (hasStartedListening && childProgress > 0 && childProgress < 90) {
+            inProgressCount += 1;
+          }
         }
         traverse(child);
       });
     };
 
     traverse(root);
-    return { totalSubtopics, audioCount, listenedCount };
+    return { totalSubtopics, audioCount, listenedCount, inProgressCount };
   };
 
-  const { totalSubtopics, audioCount, listenedCount } = computeSubtreeStats(topic as any);
+  const { totalSubtopics, audioCount, listenedCount, inProgressCount } = computeSubtreeStats(topic as any);
   const hasSubtopics = totalSubtopics > 0;
 
 
@@ -248,17 +271,49 @@ const TopicNode: React.FC<TopicNodeProps> = ({
 
                 {/* Audio Status */}
                 {hasSubtopics ? (
-                  <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                    {audioCount}/{totalSubtopics} Audio
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <i className="fas fa-volume-up text-xs"></i>
+                      {audioCount}/{totalSubtopics}
+                    </span>
+                    {listenedCount > 0 && (
+                      <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <i className="fas fa-check text-xs"></i>
+                        {listenedCount}
+                      </span>
+                    )}
+                    {inProgressCount > 0 && (
+                      <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <i className="fas fa-clock text-xs"></i>
+                        {inProgressCount}
+                      </span>
+                    )}
+                  </div>
                 ) : hasAudio ? (
                   <span
-                    className={`px-2 py-0.5 rounded-full ${isListened
+                    className={`px-2 py-0.5 rounded-full flex items-center gap-1 ${listeningStatus === 'completed'
                       ? 'bg-green-100 text-green-700'
-                      : 'bg-blue-100 text-blue-700'
+                      : listeningStatus === 'in_progress'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-blue-100 text-blue-700'
                       }`}
                   >
-                    {isListened ? 'Listened' : 'Ready to Listen'}
+                    {listeningStatus === 'completed' ? (
+                      <>
+                        <i className="fas fa-check-circle text-xs"></i>
+                        Tamamlandı
+                      </>
+                    ) : listeningStatus === 'in_progress' ? (
+                      <>
+                        <i className="fas fa-clock text-xs"></i>
+                        %{Math.round(progressPercentage)} - Yarım Kaldı
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-headphones text-xs"></i>
+                        Dinlenmeye Hazır
+                      </>
+                    )}
                   </span>
                 ) : null}
               </div>
@@ -268,36 +323,52 @@ const TopicNode: React.FC<TopicNodeProps> = ({
           {/* Sağ Taraf - Aksiyonlar (SIMPLIFIED) */}
           <div className="flex items-center space-x-2 w-full md:w-auto mt-2 md:mt-0 justify-end">
 
-            {/* Primary Action: Listen/Create */}
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isTopicAudioLoading) return;
-                if (canPlayFromTree && onOpenAudioModal) {
-                  onOpenAudioModal(topic.id);
-                  return;
-                }
-                handleCreateContent();
-              }}
-              size="sm"
-              className={`rounded-full px-6 font-medium ${canPlayFromTree ? 'bg-green-600 hover:bg-green-700' : 'bg-primary hover:bg-primary/90'}`}
-              disabled={isTopicAudioLoading}
-            >
-              {isTopicAudioLoading ? (
-                <>
-                  <i className="fas fa-circle-notch fa-spin mr-2"></i>
-                  {t('topics_node_button_audio_creating')}
-                </>
-              ) : canPlayFromTree ? (
-                <>
-                  <i className="fas fa-play mr-2"></i> {t('topics_node_button_listen')}
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-magic mr-2"></i> {t('topics_node_button_create_audio')}
-                </>
-              )}
-            </Button>
+            {/* Primary Action: Ana konularda 'Alt Konuları Göster', Alt konularda 'Dinle/Ses Oluştur' */}
+            {hasSubtopics && depth === 0 ? (
+              // Ana konu: Alt Konuları Göster butonu
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(!isExpanded);
+                }}
+                size="sm"
+                className="rounded-full px-6 font-medium bg-blue-600 hover:bg-blue-700"
+              >
+                <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'} mr-2`}></i>
+                {t('topics_node_button_show_subtopics')}
+              </Button>
+            ) : (
+              // Alt konular veya alt konusu olmayan konular: Dinle/Ses Oluştur
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isTopicAudioLoading) return;
+                  if (canPlayFromTree && onOpenAudioModal) {
+                    onOpenAudioModal(topic.id);
+                    return;
+                  }
+                  handleCreateContent();
+                }}
+                size="sm"
+                className={`rounded-full px-6 font-medium ${canPlayFromTree ? 'bg-green-600 hover:bg-green-700' : 'bg-primary hover:bg-primary/90'}`}
+                disabled={isTopicAudioLoading}
+              >
+                {isTopicAudioLoading ? (
+                  <>
+                    <i className="fas fa-circle-notch fa-spin mr-2"></i>
+                    {t('topics_node_button_audio_creating')}
+                  </>
+                ) : canPlayFromTree ? (
+                  <>
+                    <i className="fas fa-play mr-2"></i> {t('topics_node_button_listen')}
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-magic mr-2"></i> {t('topics_node_button_create_audio')}
+                  </>
+                )}
+              </Button>
+            )}
 
             {/* Secondary Actions: Dropdown */}
             <DropdownMenu>

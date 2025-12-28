@@ -234,6 +234,7 @@ export const translations: Translations = {
     topics_node_button_suggest_subtopic: 'Alt Konu Öner',
     topics_node_button_add_manual: 'Manuel Ekle',
     topics_node_button_delete: 'Sil',
+    topics_node_button_show_subtopics: 'Alt Konuları Göster',
     topics_node_delete_title: 'Konuyu silmek istiyor musun?',
     topics_node_delete_description_main:
       'konusunu ve tüm alt konularını kalıcı olarak sileceksin.',
@@ -1960,6 +1961,7 @@ export const translations: Translations = {
     topics_node_button_suggest_subtopic: 'Suggest Subtopics',
     topics_node_button_add_manual: 'Add Manually',
     topics_node_button_delete: 'Delete',
+    topics_node_button_show_subtopics: 'Show Subtopics',
     topics_node_delete_title: 'Do you want to delete this topic?',
     topics_node_delete_description_main:
       'topic and all of its subtopics will be permanently deleted.',
@@ -4036,6 +4038,7 @@ export const translations: Translations = {
     topics_node_button_suggest_subtopic: 'Unterthemen vorschlagen',
     topics_node_button_add_manual: 'Manuell hinzufügen',
     topics_node_button_delete: 'Löschen',
+    topics_node_button_show_subtopics: 'Unterthemen anzeigen',
     topics_node_delete_title: 'Möchtest du dieses Thema löschen?',
     topics_node_delete_description_main:
       'wird zusammen mit allen Unterthemen dauerhaft gelöscht.',

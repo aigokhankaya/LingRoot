@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Topic,
@@ -11,6 +11,7 @@ import {
   ProcessInputData,
   TtsResponseData,
   submitContent,
+  saveListeningProgress,
 } from '../../lib/api';
 import { useTranslation } from '../../lib/i18n';
 import OutputSection from '../OutputSection';
@@ -41,6 +42,55 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
   const [topicAudioResults, setTopicAudioResults] = useState<Record<string, TtsResponseData>>({});
   const [modalTopicId, setModalTopicId] = useState<string | null>(null);
   const [audioCompletedTopicId, setAudioCompletedTopicId] = useState<string | null>(null);
+
+  // Audio element ref for tracking playback position when modal closes
+  const modalAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Modal kapatma fonksiyonu - progress kaydeder
+  const handleCloseModal = useCallback(async () => {
+    if (modalTopicId && topicAudioResults[modalTopicId]) {
+      const audioResult = topicAudioResults[modalTopicId];
+
+      // Sayfadaki tüm audio elementlerini bul ve durdur
+      const audioElements = Array.from(document.querySelectorAll('audio'));
+      let savedProgress = false;
+
+      for (let i = 0; i < audioElements.length; i++) {
+        const audio = audioElements[i];
+        if (!audio.paused && audio.src.includes(audioResult.mp3_url || '')) {
+          const currentTime = audio.currentTime;
+          const duration = audio.duration;
+
+          // Sesi durdur
+          audio.pause();
+
+          // Progress kaydet (tamamlanmadıysa)
+          if (currentTime > 0 && duration > 0 && audioResult.mp3_url) {
+            const progressPercentage = (currentTime / duration) * 100;
+
+            // Sadece %90'dan az tamamlandıysa kaydet (tamamlanmış sayılmıyor)
+            if (progressPercentage < 90) {
+              try {
+                await saveListeningProgress(audioResult.mp3_url, currentTime, duration);
+                console.log(`📊 [MODAL CLOSE] Saved progress: ${currentTime.toFixed(1)}s / ${duration.toFixed(1)}s (${progressPercentage.toFixed(1)}%)`);
+                savedProgress = true;
+              } catch (e) {
+                console.error('[MODAL CLOSE] Failed to save progress:', e);
+              }
+            }
+          }
+          break;
+        }
+      }
+
+      // Ağacı yenile (progress badge'lerini güncellemek için)
+      if (savedProgress) {
+        await loadTopicTree();
+      }
+    }
+
+    setModalTopicId(null);
+  }, [modalTopicId, topicAudioResults]);
 
   // Konu ağacını yükle
   const loadTopicTree = async () => {
@@ -423,7 +473,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
       {modalTopicId && topicAudioResults[modalTopicId] && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
-          onClick={() => setModalTopicId(null)}
+          onClick={handleCloseModal}
         >
           <div
             className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-4"
@@ -434,7 +484,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
                 {topics.find((t) => t.id === modalTopicId)?.title || 'Ses Önizleme'}
               </h3>
               <button
-                onClick={() => setModalTopicId(null)}
+                onClick={handleCloseModal}
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700"
               >
                 ✕
@@ -449,6 +499,7 @@ const TopicHierarchySection: React.FC<TopicHierarchySectionProps> = ({
                   (topicAudioResults[modalTopicId] as any).topic,
               } as any}
               isLoggedIn={true}
+              disableSticky={true}
             />
           </div>
         </div>

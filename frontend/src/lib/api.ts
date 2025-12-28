@@ -2430,3 +2430,82 @@ export const getNotificationHistory = async (
   }
   return await response.json();
 };
+
+// ==========================================
+// LISTENING PROGRESS TRACKING API
+// ==========================================
+
+export interface IncompleteListeningItem {
+  id: string;
+  topic_id: string;
+  mp3_url: string;
+  last_position_seconds: number;
+  total_duration_seconds: number;
+  progress_percentage: number;
+  last_listened_at: string;
+  created_at: string;
+  topics: {
+    id: string;
+    title: string;
+    level: string;
+    parent_id: string | null;
+  };
+}
+
+/**
+ * Dinleme pozisyonunu kaydet
+ */
+export const saveListeningProgress = async (
+  mp3_url: string,
+  position_seconds: number,
+  total_duration: number
+): Promise<ApiResponse<{ position_seconds: number; progress_percentage: number; is_completed: boolean }>> => {
+  const url = getApiUrl('/topic-hierarchy/topics/save-progress');
+  const headers = createHeaders('application/json');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({ mp3_url, position_seconds, total_duration })
+  });
+  return handleApiResponse(response);
+};
+
+/**
+ * Yarıda kalan dinlemeleri getir
+ */
+export const getIncompleteListenings = async (): Promise<ApiResponse<{ incomplete: IncompleteListeningItem[]; count: number }>> => {
+  const url = getApiUrl('/topic-hierarchy/topics/incomplete');
+  const headers = createHeaders();
+  const response = await fetch(url, {
+    method: 'GET',
+    headers,
+    credentials: 'include'
+  });
+  return handleApiResponse(response);
+};
+
+/**
+ * Belirli bir içeriğin dinleme durumunu getir
+ */
+export const getListeningProgress = async (
+  mp3_url: string
+): Promise<ApiResponse<{
+  position_seconds: number;
+  total_duration_seconds: number;
+  progress_percentage: number;
+  is_completed: boolean;
+  last_listened_at: string | null;
+  listened_at: string | null;
+  title: string;
+}>> => {
+  const encodedUrl = encodeURIComponent(mp3_url);
+  const url = getApiUrl(`/topic-hierarchy/topics/progress/${encodedUrl}`);
+  const headers = createHeaders();
+  const response = await fetch(url, {
+    method: 'GET',
+    headers,
+    credentials: 'include'
+  });
+  return handleApiResponse(response);
+};

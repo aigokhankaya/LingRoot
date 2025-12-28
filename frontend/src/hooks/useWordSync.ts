@@ -166,6 +166,11 @@ export const useWordSync = ({
   const isInitializedRef = useRef<boolean>(false);
   const lastSeekTimeRef = useRef<number>(-1);
 
+  // ✅ CRITICAL FIX: onEnded callback'ini ref'te sakla
+  // Böylece her render'da useEffect tetiklenmez
+  const onEndedRef = useRef(onEnded);
+  onEndedRef.current = onEnded;
+
   // ARIA Live Region güncellemesi için callback
   const updateLiveRegion = useCallback((wordIndex: number, word: string) => {
     const liveRegion = document.getElementById('word-sync-live-region');
@@ -253,8 +258,6 @@ export const useWordSync = ({
 
   // Oynatma fonksiyonu
   const play = useCallback(async () => {
-    // console removed
-
     if (!audioRef.current) {
       console.log('❌ [PLAY DEBUG] Missing audio element');
       return;
@@ -265,18 +268,8 @@ export const useWordSync = ({
       const audioDuration = audioRef.current.duration || 0;
       const audioCurrentTime = audioRef.current.currentTime || 0;
 
-      console.log('🔍 [PLAY DEBUG] Audio state before play:', {
-        currentTime: audioCurrentTime,
-        duration: audioDuration,
-        paused: audioRef.current.paused,
-        ended: audioRef.current.ended,
-        readyState: audioRef.current.readyState,
-        src: audioRef.current.src ? audioRef.current.src.substring(0, 80) + '...' : 'NO SRC'
-      });
-
       // If audio is at or past the end, reset to beginning
       if (audioDuration > 0 && audioCurrentTime >= audioDuration - 0.1) {
-        console.log('🔄 [PLAY DEBUG] Audio at end, resetting to beginning');
         audioRef.current.currentTime = 0;
         setCurrentTime(0);
         setActiveWordIndex(-1);
@@ -287,7 +280,6 @@ export const useWordSync = ({
       console.log('✅ [PLAY DEBUG] audio.play() succeeded');
       setIsPlaying(true);
       startSync();
-      // console removed
     } catch (error: any) {
       console.error('❌ [PLAY DEBUG] Oynatma hatası:', error);
       setError(`Oynatma hatası: ${error?.message || 'Bilinmeyen hata'}`);
@@ -495,7 +487,8 @@ export const useWordSync = ({
       stopSync();
       setActiveWordIndex(-1);
       updateLiveRegion(-1, '');
-      if (onEnded) onEnded();
+      // ✅ Use ref instead of direct callback to avoid stale closure
+      if (onEndedRef.current) onEndedRef.current();
     };
 
     const handleWaiting = () => {
@@ -571,7 +564,7 @@ export const useWordSync = ({
       //   audioContextRef.current.close();
       // }
     };
-  }, [audioUrl, onEnded]); // Only rerun when audioUrl changes!
+  }, [audioUrl]); // ✅ CRITICAL: Only audioUrl in deps - onEnded is accessed via ref
 
   return {
     activeWordIndex,
