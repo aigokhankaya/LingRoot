@@ -323,6 +323,38 @@ const TopicNode: React.FC<TopicNodeProps> = ({
           {/* Sağ Taraf - Aksiyonlar (SIMPLIFIED) */}
           <div className="flex items-center space-x-2 w-full md:w-auto mt-2 md:mt-0 justify-end">
 
+            {/* Progress/Status Indicator - Sağ tarafta göster */}
+            {!hasSubtopics && hasAudio && listeningStatus && (
+              <div className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${listeningStatus === 'completed'
+                  ? 'bg-green-100 text-green-700'
+                  : listeningStatus === 'in_progress'
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-blue-100 text-blue-700'
+                }`}>
+                {listeningStatus === 'completed' ? (
+                  <>
+                    <i className="fas fa-check-circle"></i>
+                    <span>Tamamlandı</span>
+                  </>
+                ) : listeningStatus === 'in_progress' ? (
+                  <>
+                    <div className="relative w-16 h-2 bg-amber-200 rounded-full overflow-hidden">
+                      <div
+                        className="absolute left-0 top-0 h-full bg-amber-500 rounded-full transition-all"
+                        style={{ width: `${Math.round(progressPercentage)}%` }}
+                      />
+                    </div>
+                    <span>%{Math.round(progressPercentage)}</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-headphones"></i>
+                    <span>Hazır</span>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Primary Action: Ana konularda 'Alt Konuları Göster', Alt konularda 'Dinle/Ses Oluştur' */}
             {hasSubtopics && depth === 0 ? (
               // Ana konu: Alt Konuları Göster butonu
