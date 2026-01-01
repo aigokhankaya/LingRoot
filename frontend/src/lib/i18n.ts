@@ -4601,11 +4601,20 @@ export const getTranslation = (localeOverride?: Locale) => {
   // getCurrentLanguage is designed to be server-safe
   const currentLocale = localeOverride || getCurrentLanguage();
 
-  const t = (key: string): string => {
+  const t = (key: string, params?: Record<string, string | number>): string => {
     const normalizedKey = key.replace(/__+/g, '_');
-    const value = translations[currentLocale]?.[key] || translations[currentLocale]?.[normalizedKey] || key;
+    let value = translations[currentLocale]?.[key] || translations[currentLocale]?.[normalizedKey] || key;
     // Ensure we always return a string, not an array or object
-    return typeof value === 'string' ? value : String(value);
+    value = typeof value === 'string' ? value : String(value);
+
+    // Params replacement (e.g. %{name})
+    if (params) {
+      Object.entries(params).forEach(([paramKey, paramValue]) => {
+        value = value.replace(new RegExp(`%\\{${paramKey}\\}`, 'g'), String(paramValue));
+      });
+    }
+
+    return value;
   };
 
   return { t, currentLocale };

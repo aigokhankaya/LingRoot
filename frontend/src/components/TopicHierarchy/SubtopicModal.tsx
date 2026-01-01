@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '../ui/button';
-import { useTranslation } from '../../lib/i18n';
+import { useTranslation, locales } from '../../lib/i18n';
 
 interface SubtopicModalProps {
   isOpen: boolean;
@@ -21,7 +21,7 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const [count, setCount] = useState(5);
-  const [language, setLanguage] = useState('Turkish');
+  const [language, setLanguage] = useState('tr');
   const [angle, setAngle] = useState('');
 
   if (!isOpen) return null;
@@ -111,8 +111,11 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
               disabled={isLoading}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             >
-              <option value="Turkish">{t('language_tr')}</option>
-              <option value="English">{t('language_en')}</option>
+              {locales.map((locale) => (
+                <option key={locale} value={locale}>
+                  {t(`language_${locale}`) || locale.toUpperCase()}
+                </option>
+              ))}
             </select>
           </div>
 
