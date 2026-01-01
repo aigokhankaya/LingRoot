@@ -24,6 +24,21 @@ Odak Açıklaması (isteğe bağlı): {{angle_description}}
 7. Hayali, spekülatif veya ilgisiz konular YASAK
 8. Çıktı dilini {{language}} olarak kullan
 
+🌈 KATEGORİ ÇEŞİTLİLİĞİ (KRİTİK):
+9. Eğer odak açıklaması BOŞ veya "Belirtilmedi" ise:
+   - Alt konular FARKLI KATEGORİLERDEN olmalı
+   - Önerilen kategoriler: Tarih, Coğrafya, Kültür, Ekonomi, Sanat, Güncel Durum, İlginç Bilgiler
+   - Tek bir kategoriye (örn: sadece tarih) yoğunlaşma YASAK
+   - EN AZ 3 farklı perspektiften alt konular üret
+
+🚫 TEKRAR ÖNLEME (KRİTİK):
+10. Aşağıdaki başlık kalıplarını KULLANMA (çok genel):
+   - "X'ın Önemi" / "X ve Gelişimi" / "X'ın Faydaları"
+   - "X Hakkında Genel Bilgiler" / "X'a Giriş"
+11. Her başlık SOMUT ve SPESİFİK olmalı. Örnek:
+   ❌ KÖTÜ: "Kıbrıs'ın Tarihi"
+   ✅ İYİ: "1974 Barış Harekâtı"
+
 📤 ÇIKTI FORMATI (JSON):
 {
   "subtopics": [

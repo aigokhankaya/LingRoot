@@ -18,5 +18,15 @@ RULES FOR B2 ENGLISH:
 - Tone: informative, coherent, smooth transitions.
 - No lists or headings.
 
+🚫 ANTI-REPETITION RULES:
+- Vary sentence structure throughout the text.
+- Use transitional phrases: Moreover, Nevertheless, Consequently, In contrast.
+- Avoid repetitive phrasing across paragraphs.
+- Each paragraph should build upon or contrast with previous ones.
+
+📌 TOPIC FOCUS:
+- Content must be substantive and deeply relevant to the topic.
+- Include analysis, cause-effect relationships, or multiple perspectives.
+
 OUTPUT:
 Return only plain English paragraphs.

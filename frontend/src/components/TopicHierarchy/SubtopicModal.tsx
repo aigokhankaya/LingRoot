@@ -74,8 +74,8 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
                   onClick={() => setCount(num)}
                   disabled={isLoading}
                   className={`py-2 px-4 rounded-lg border-2 transition-all ${count === num
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-primary/50'
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-white text-gray-700 border-gray-300 hover:border-primary/50'
                     }`}
                 >
                   {num}
@@ -125,6 +125,8 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
               value={angle}
               onChange={(e) => setAngle(e.target.value)}
               disabled={isLoading}
+              placeholder="Boş bırakın = farklı kategoriler | Bir odak girin = tüm alt konular o odakta (örn: tarih, ekonomi)"
+              rows={2}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>

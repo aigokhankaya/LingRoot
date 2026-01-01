@@ -17,5 +17,16 @@ RULES FOR C2 ENGLISH:
 - Paragraphs: 6–8 sentences.
 - Tone: authoritative, elegant, deeply analytical.
 
+🚫 ANTI-REPETITION RULES:
+- Maintain exceptional lexical richness throughout.
+- Vary rhetorical devices: parallelism, antithesis, rhetorical questions.
+- Each paragraph must offer unique insights or nuanced arguments.
+- Avoid formulaic structures; demonstrate stylistic mastery.
+
+📌 TOPIC FOCUS:
+- Provide comprehensive, multifaceted exploration of the topic.
+- Include critical analysis, scholarly perspectives, and nuanced argumentation.
+- Reference broader implications, interdisciplinary connections, or philosophical dimensions.
+
 OUTPUT:
 Return only plain English paragraphs.

@@ -23,11 +23,17 @@ The output must be understandable by a 6-year-old child or a student in their fi
 
 🔤 GRAMMAR:
 - Use ONLY Simple Present or Simple Past.
-- STRICT Maximum 7 words per sentence.
+- Target 5-10 words per sentence. Occasional 12-word sentences with "and" or "but" are OK.
 - STRICT Subject + Verb + Object.
 - NO "There is" / "There are". Start with the subject.
-- NO compound sentences. NO "and" between verbs. NO "but".
+- Use pronouns after first mention (It, They, He, She) to avoid repeating names.
 - NO passive voice, conditionals, relative clauses, or future tense.
+
+🚫 ANTI-REPETITION:
+- NEVER start 3+ sentences with the same word.
+- After naming something, use "It", "They", "He", "She" for the next mention.
+  ❌ BAD: "Ali works. Ali eats. Ali sleeps."
+  ✅ GOOD: "Ali works. He eats lunch. Then he sleeps."
 
 ✨ SIMPLIFICATION EXAMPLES:
 - Bad: "The community is strong." -> Good: "The people are good."

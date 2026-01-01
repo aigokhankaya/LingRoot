@@ -249,7 +249,7 @@ export const translations: Translations = {
     topics_subtopic_modal_language_label: 'Alt konu dili',
     topics_subtopic_modal_angle_label: 'Açı/Açıklama',
     topics_subtopic_modal_info:
-      'AI, bu ana konu için seçtiğiniz sayıda eğitici ve gerçek alt konu önerecek. Eğer bir açı / açıklama girersen, alt konuları o bakış açısına göre detaylandırmaya çalışır.',
+      '⚠️ Açı/Açıklama alanı boş bırakılırsa farklı kategorilerde (tarih, kültür, ekonomi vb.) çeşitli alt konular üretilir. Bir açı girilirse (örn: \"tarih\") TÜM alt konular bu odakta olacaktır.',
     topics_subtopic_modal_submit_loading: 'Oluşturuluyor...',
     topics_subtopic_modal_submit_button: 'Oluştur',
     topics_manual_modal_title: 'Manuel Alt Konu Ekle',
@@ -1977,7 +1977,7 @@ export const translations: Translations = {
     topics_subtopic_modal_language_label: 'Subtopic language',
     topics_subtopic_modal_angle_label: 'Angle/Description',
     topics_subtopic_modal_info:
-      'AI will suggest the selected number of educational and realistic subtopics for this main topic. If you enter an angle/description, it will try to shape the subtopics according to that perspective.',
+      '⚠️ If the angle field is left empty, subtopics will be generated from different categories (history, culture, economy, etc.). If you enter an angle (e.g., \"history\"), ALL subtopics will focus on that topic.',
     topics_subtopic_modal_submit_loading: 'Generating...',
     topics_subtopic_modal_submit_button: 'Generate',
     topics_manual_modal_title: 'Add Subtopic Manually',

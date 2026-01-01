@@ -326,10 +326,10 @@ const TopicNode: React.FC<TopicNodeProps> = ({
             {/* Progress/Status Indicator - Sağ tarafta göster */}
             {!hasSubtopics && hasAudio && listeningStatus && (
               <div className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${listeningStatus === 'completed'
-                  ? 'bg-green-100 text-green-700'
-                  : listeningStatus === 'in_progress'
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'bg-blue-100 text-blue-700'
+                ? 'bg-green-100 text-green-700'
+                : listeningStatus === 'in_progress'
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-blue-100 text-blue-700'
                 }`}>
                 {listeningStatus === 'completed' ? (
                   <>
@@ -355,73 +355,147 @@ const TopicNode: React.FC<TopicNodeProps> = ({
               </div>
             )}
 
-            {/* Primary Action: Ana konularda 'Alt Konuları Göster', Alt konularda 'Dinle/Ses Oluştur' */}
-            {hasSubtopics && depth === 0 ? (
-              // Ana konu: Alt Konuları Göster butonu
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExpanded(!isExpanded);
-                }}
-                size="sm"
-                className="rounded-full px-6 font-medium bg-blue-600 hover:bg-blue-700"
-              >
-                <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'} mr-2`}></i>
-                {t('topics_node_button_show_subtopics')}
-              </Button>
+            {/* Primary Action: Konunun durumuna göre farklı butonlar */}
+            {/* Ana konular (depth === 0) için ses oluşturulamaz */}
+            {depth === 0 ? (
+              // Ana konu: Alt Konuları Göster veya Alt Konu Ekle
+              hasSubtopics ? (
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsExpanded(!isExpanded);
+                  }}
+                  size="sm"
+                  className="rounded-full px-6 font-medium bg-primary hover:bg-primary/90"
+                >
+                  <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'} mr-2`}></i>
+                  {t('topics_node_button_show_subtopics')}
+                </Button>
+              ) : (
+                // Alt konusu olmayan ana konu: Alt Konu Ekle butonları
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowSubtopicModal(true);
+                    }}
+                    size="sm"
+                    className="rounded-full px-4 font-medium bg-primary hover:bg-primary/90"
+                    disabled={isGenerating}
+                  >
+                    <i className="fas fa-robot mr-2"></i>
+                    {t('topics_node_button_suggest_subtopic')}
+                  </Button>
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowManualModal(true);
+                    }}
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full px-4 font-medium border-primary/50 text-primary hover:bg-primary/10"
+                  >
+                    <i className="fas fa-plus mr-2"></i>
+                    {t('topics_node_button_add_manual')}
+                  </Button>
+                </div>
+              )
             ) : (
-              // Alt konular veya alt konusu olmayan konular: Dinle/Ses Oluştur
+              // Alt konular (depth > 0): Her zaman Ses Oluştur/Dinle + Alt Konuları Göster (varsa)
+              <div className="flex items-center gap-2">
+                {/* Alt konularda HER ZAMAN Ses Oluştur/Dinle butonu görünür */}
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isTopicAudioLoading) return;
+                    if (canPlayFromTree && onOpenAudioModal) {
+                      onOpenAudioModal(topic.id);
+                      return;
+                    }
+                    handleCreateContent();
+                  }}
+                  size="sm"
+                  className={`rounded-full px-6 font-medium ${canPlayFromTree ? 'bg-green-600 hover:bg-green-700' : 'bg-primary hover:bg-primary/90'}`}
+                  disabled={isTopicAudioLoading}
+                >
+                  {isTopicAudioLoading ? (
+                    <>
+                      <i className="fas fa-circle-notch fa-spin mr-2"></i>
+                      {t('topics_node_button_audio_creating')}
+                    </>
+                  ) : canPlayFromTree ? (
+                    <>
+                      <i className="fas fa-play mr-2"></i> {t('topics_node_button_listen')}
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-magic mr-2"></i> {t('topics_node_button_create_audio')}
+                    </>
+                  )}
+                </Button>
+
+                {/* Alt konusu olan alt konular: Alt Konuları Göster butonu da göster */}
+                {hasSubtopics && (
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsExpanded(!isExpanded);
+                    }}
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full px-4 font-medium border-primary/50 text-primary hover:bg-primary/10"
+                  >
+                    <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'} mr-2`}></i>
+                    {t('topics_node_button_show_subtopics')}
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Alt Konu Ekle Butonu - Sadece alt konusu olan ana konularda ve tüm alt konularda görünür */}
+            {/* Alt konusu olmayan ana konularda zaten ayrı butonlar var */}
+            {(depth > 0 || hasSubtopics) && (
               <Button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (isTopicAudioLoading) return;
-                  if (canPlayFromTree && onOpenAudioModal) {
-                    onOpenAudioModal(topic.id);
-                    return;
-                  }
-                  handleCreateContent();
+                  setShowSubtopicModal(true);
                 }}
                 size="sm"
-                className={`rounded-full px-6 font-medium ${canPlayFromTree ? 'bg-green-600 hover:bg-green-700' : 'bg-primary hover:bg-primary/90'}`}
-                disabled={isTopicAudioLoading}
+                variant="outline"
+                className="rounded-full px-4 font-medium border-amber-400 bg-amber-100 text-amber-700 hover:bg-amber-200 hover:border-amber-500"
+                disabled={isGenerating}
               >
-                {isTopicAudioLoading ? (
-                  <>
-                    <i className="fas fa-circle-notch fa-spin mr-2"></i>
-                    {t('topics_node_button_audio_creating')}
-                  </>
-                ) : canPlayFromTree ? (
-                  <>
-                    <i className="fas fa-play mr-2"></i> {t('topics_node_button_listen')}
-                  </>
-                ) : (
-                  <>
-                    <i className="fas fa-magic mr-2"></i> {t('topics_node_button_create_audio')}
-                  </>
-                )}
+                <i className="fas fa-plus-circle mr-2"></i>
+                {t('topics_node_button_suggest_subtopic')}
               </Button>
             )}
 
-            {/* Secondary Actions: Dropdown */}
+            {/* Secondary Actions: Dropdown (Sil ve Manuel Ekle) - Daha kompakt tasarım */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0 border-gray-300 bg-gray-100 hover:bg-gray-200 hover:border-gray-400"
+                >
                   <span className="sr-only">Open menu</span>
-                  <i className="fas fa-ellipsis-v text-gray-500"></i>
+                  <i className="fas fa-ellipsis-v text-gray-700"></i>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setShowSubtopicModal(true)} disabled={isGenerating}>
-                  <i className="fas fa-robot mr-2 w-4"></i>
-                  {t('topics_node_button_suggest_subtopic')}
+              <DropdownMenuContent align="end" className="min-w-[160px] p-1">
+                <DropdownMenuItem
+                  onClick={() => setShowManualModal(true)}
+                  className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-100 rounded-md"
+                >
+                  <i className="fas fa-plus text-primary"></i>
+                  <span>{t('topics_node_button_add_manual')}</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowManualModal(true)}>
-                  <i className="fas fa-plus mr-2 w-4"></i>
-                  {t('topics_node_button_add_manual')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="text-red-600 focus:text-red-600">
-                  <i className="fas fa-trash mr-2 w-4"></i>
-                  {t('topics_node_button_delete')}
+                <DropdownMenuItem
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-red-50 rounded-md text-red-600"
+                >
+                  <i className="fas fa-trash"></i>
+                  <span>{t('topics_node_button_delete')}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

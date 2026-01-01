@@ -18,6 +18,74 @@ class MFAAligner {
     this.useDocker = true; // Always use Docker with local models
     this.modelsReady = false;
     this._dictionaryWordSet = null;
+
+    // Circuit breaker for remote MFA service
+    // Prevents repeated failed requests when service is down
+    this._remoteCircuitBreaker = {
+      failures: 0,
+      lastFailureTime: null,
+      isOpen: false,
+      // Config: 3 failures in a row opens the circuit for 5 minutes
+      maxFailures: 3,
+      resetTimeMs: 5 * 60 * 1000 // 5 minutes
+    };
+  }
+
+  /**
+   * Check if circuit breaker allows remote MFA requests
+   * @returns {boolean} true if requests should be attempted
+   */
+  isRemoteMFAAllowed() {
+    const cb = this._remoteCircuitBreaker;
+
+    // If circuit is open, check if reset time has passed
+    if (cb.isOpen && cb.lastFailureTime) {
+      const timeSinceFailure = Date.now() - cb.lastFailureTime;
+      if (timeSinceFailure >= cb.resetTimeMs) {
+        // Reset circuit breaker - allow one attempt (half-open state)
+        logger.info(`🔄 [MFA Circuit Breaker] Reset after ${Math.round(timeSinceFailure / 1000)}s - allowing remote MFA attempt`);
+        cb.isOpen = false;
+        cb.failures = 0;
+        return true;
+      }
+      // Circuit still open
+      const remainingMs = cb.resetTimeMs - timeSinceFailure;
+      logger.debug(`⏸️ [MFA Circuit Breaker] Still open - ${Math.round(remainingMs / 1000)}s until reset`);
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Record a remote MFA failure for circuit breaker
+   * @param {string} errorType - Type of error (e.g., '502', '503', 'timeout')
+   */
+  recordRemoteMFAFailure(errorType) {
+    const cb = this._remoteCircuitBreaker;
+    cb.failures++;
+    cb.lastFailureTime = Date.now();
+
+    if (cb.failures >= cb.maxFailures) {
+      cb.isOpen = true;
+      const resetMinutes = Math.round(cb.resetTimeMs / 60000);
+      logger.warn(`🔴 [MFA Circuit Breaker] OPEN - ${cb.failures} consecutive failures (${errorType}). Skipping remote MFA for ${resetMinutes} minutes.`);
+    } else {
+      logger.info(`⚠️ [MFA Circuit Breaker] Failure ${cb.failures}/${cb.maxFailures} (${errorType})`);
+    }
+  }
+
+  /**
+   * Record a remote MFA success - resets circuit breaker
+   */
+  recordRemoteMFASuccess() {
+    const cb = this._remoteCircuitBreaker;
+    if (cb.failures > 0 || cb.isOpen) {
+      logger.info(`🟢 [MFA Circuit Breaker] Remote MFA success - resetting circuit breaker`);
+    }
+    cb.failures = 0;
+    cb.isOpen = false;
+    cb.lastFailureTime = null;
   }
 
   async getDictionaryWordSet() {
@@ -467,30 +535,49 @@ class MFAAligner {
     const mfaStartTime = Date.now(); // Track total MFA duration
 
     if (useRemoteMFA) {
-      try {
-        const result = await this.generateWordTimestampsRemote(audioPath, transcriptText, locale, { debug, cleanedTranscript });
-        await this.writeDebugLine(debug, {
-          stage: 'done',
-          mode: 'remote',
-          resultType: Array.isArray(result) ? 'array' : typeof result,
-          resultCount: Array.isArray(result) ? result.length : null,
-          sample: Array.isArray(result) && result.length > 0 ? result[0] : null,
-          TOTAL_DURATION_MS: Date.now() - mfaStartTime,
-        });
-        return result;
-      } catch (remoteErr) {
-        const msg = remoteErr?.message || String(remoteErr);
-        const shouldFallbackToLocal = msg.includes('HTTP 524') || msg.includes('status code 524') || msg.includes('timeout') || msg.includes('Remote MFA not available');
-        await this.writeDebugLine(debug, {
-          stage: 'remote-fallback-to-local',
-          reason: shouldFallbackToLocal ? 'remote_error' : 'remote_error_no_fallback',
-          errorMessage: msg,
-        });
-        if (!allowRemoteFallbackToLocal || !shouldFallbackToLocal) {
-          throw remoteErr;
+      // Check circuit breaker before attempting remote MFA
+      if (!this.isRemoteMFAAllowed()) {
+        logger.info(`⏭️ [MFA] Skipping remote MFA - circuit breaker is open`);
+        // Fall through to local MFA processing
+      } else {
+        try {
+          const result = await this.generateWordTimestampsRemote(audioPath, transcriptText, locale, { debug, cleanedTranscript });
+          this.recordRemoteMFASuccess(); // Reset circuit breaker on success
+          await this.writeDebugLine(debug, {
+            stage: 'done',
+            mode: 'remote',
+            resultType: Array.isArray(result) ? 'array' : typeof result,
+            resultCount: Array.isArray(result) ? result.length : null,
+            sample: Array.isArray(result) && result.length > 0 ? result[0] : null,
+            TOTAL_DURATION_MS: Date.now() - mfaStartTime,
+          });
+          return result;
+        } catch (remoteErr) {
+          const msg = remoteErr?.message || String(remoteErr);
+
+          // Extract error code for circuit breaker tracking
+          const errorCodeMatch = msg.match(/(?:HTTP\s*)?(\d{3})/i);
+          const errorCode = errorCodeMatch ? errorCodeMatch[1] : 'unknown';
+
+          // Record failure for circuit breaker (502, 503, 524, timeout errors)
+          const isServiceError = msg.includes('502') || msg.includes('503') || msg.includes('524') || msg.includes('timeout');
+          if (isServiceError) {
+            this.recordRemoteMFAFailure(errorCode);
+          }
+
+          const shouldFallbackToLocal = msg.includes('HTTP 524') || msg.includes('status code 524') || msg.includes('status code 502') || msg.includes('status code 503') || msg.includes('timeout') || msg.includes('Remote MFA not available');
+          await this.writeDebugLine(debug, {
+            stage: 'remote-fallback-to-local',
+            reason: shouldFallbackToLocal ? 'remote_error' : 'remote_error_no_fallback',
+            errorMessage: msg,
+            errorCode,
+          });
+          if (!allowRemoteFallbackToLocal || !shouldFallbackToLocal) {
+            throw remoteErr;
+          }
+          logger.warn(`[MFA] Remote MFA failed (${msg}). Falling back to local MFA...`);
+          // Continue into local MFA processing below
         }
-        logger.warn(`[MFA] Remote MFA failed (${msg}). Falling back to local MFA...`);
-        // Continue into local MFA processing below
       }
     }
 

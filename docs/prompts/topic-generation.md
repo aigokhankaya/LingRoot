@@ -13,9 +13,12 @@ Topic generation prompts handle the creation of personalized learning content ba
 |------|---------|
 | `topic_extractor.txt` | Extract learning topics from conversations |
 | `topic_detail_suggestions.txt` | Generate detailed topic suggestions |
-| `topic_hierarchy/topic_generation.txt` | Create topic tree structure |
+| `topic_hierarchy/generate_subtopics.txt` | Generate subtopics with anti-repetition rules |
 | `liro_daily_suggestions.txt` | Daily personalized topic recommendations |
 | `hobby_200_suggestions.txt` | Hobby-based topic suggestions |
+| `content/content_generation_A1.txt` | A1 level content with quality rules |
+| `content/content_generation_A2.txt` | A2 level content with anti-repetition |
+| `cefr_A1.txt` | CEFR A1 adaptation with pronoun rules |
 
 ## Topic Hierarchy System
 
@@ -332,6 +335,70 @@ async function findSimilarTopics(userProfile, limit = 5) {
 | B2 | 250-400 | 25-35 |
 | C1 | 400-600 | 35-50 |
 | C2 | 600+ | 50+ |
+
+## Content Quality Validation
+
+**Last Updated:** January 2026  
+**Location:** `/backend/utils/`
+
+### Overview
+
+Content quality is enforced at two levels:
+1. **Prompt-level:** Anti-repetition rules embedded in prompts
+2. **Code-level:** Post-generation validation utilities
+
+### Quality Validator (`contentQualityValidator.js`)
+
+Validates generated content for common quality issues:
+
+| Check | Severity | Threshold |
+|-------|----------|-----------|
+| Consecutive same-starter | HIGH | Max 2 sentences |
+| Forbidden patterns | MEDIUM | Max 1 occurrence |
+| Filler ratio | MEDIUM | Max 15% |
+
+```javascript
+const { validateContent } = require('../utils/contentQualityValidator');
+
+const result = validateContent(generatedText);
+// { valid: boolean, score: 0-100, issues: [...] }
+```
+
+**Forbidden Patterns:**
+- "It is good" / "It is important" / "It is nice"
+- "People like it" / "People are happy"
+- "This is good for..." / "Everyone can..."
+
+### Cross-Topic Duplicate Checker (`crossTopicDuplicateChecker.js`)
+
+Detects content overlap between sibling subtopics:
+
+```javascript
+const { checkCrossTopicDuplicates } = require('../utils/crossTopicDuplicateChecker');
+
+const result = await checkCrossTopicDuplicates(supabase, topicId, parentId, contentText);
+// { hasDuplicates: boolean, duplicates: [...], entities: [...] }
+```
+
+**Detected Entities:**
+- Hagia Sophia, Topkapi Palace, Blue Mosque, Galata Tower
+- Grand Bazaar, Bosphorus
+- Proper nouns (2+ word capitalized phrases)
+
+### Pipeline Integration
+
+Quality validation runs automatically in `topicPipelineController.js`:
+
+```javascript
+// After bilingual content generation
+const qualityValidation = validateContent(result.adapted_text);
+result.qualityScore = qualityValidation.score;
+result.qualityIssues = qualityValidation.issues;
+
+if (!qualityValidation.valid) {
+  logger.warn('Content quality validation failed', qualityValidation.issues);
+}
+```
 
 ## Related Documentation
 

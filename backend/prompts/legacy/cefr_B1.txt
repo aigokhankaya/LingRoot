@@ -9,6 +9,10 @@ Rewrite the given English text into CEFR level B1.
 - Use present perfect, comparatives, and adverbs.
 - Avoid overly academic words.
 
+🚫 ANTI-REPETITION:
+- Vary sentence beginnings throughout the text.
+- Use transitional words: However, Therefore, Additionally.
+
 📌 GENERAL RULES:
 - Keep 100% of the ideas and structure of the input.
 - Do NOT summarize, skip, or combine any sentence.

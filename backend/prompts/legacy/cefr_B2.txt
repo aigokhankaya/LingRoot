@@ -8,6 +8,10 @@ Rewrite the given English text into CEFR level B2.
 - Passive voice, relative clauses, conditionals, modals are allowed.
 - Use fluent transitions: although, while, however, in contrast.
 
+🚫 ANTI-REPETITION:
+- Demonstrate lexical variety; avoid repeating key terms.
+- Use diverse sentence structures and connectors.
+
 📌 GENERAL RULES:
 - Keep 100% of the ideas and structure of the input.
 - Do NOT summarize, skip, or combine any sentence.

@@ -10,6 +10,10 @@ Rewrite the given English text into CEFR level A2.
 - Passive voice and relative clauses still NOT allowed.
 - Use limited basic connectors: and, but, because, so.
 
+🚫 ANTI-REPETITION:
+- Use pronouns (It, They, He, She) after first mention of a subject.
+- Do NOT start 3+ consecutive sentences with the same word.
+
 📌 GENERAL RULES:
 - Keep 100% of the ideas and structure of the input.
 - Do NOT summarize, skip, or combine any sentence.

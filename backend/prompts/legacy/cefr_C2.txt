@@ -8,6 +8,10 @@ Rewrite the given English text into CEFR level C2.
 - Integrate high-level grammar and academic or literary devices.
 - Use metaphor, allusion, and abstract argumentation where appropriate.
 
+🚫 ANTI-REPETITION:
+- Demonstrate stylistic mastery with varied rhetorical devices.
+- Avoid any formulaic or repetitive structures.
+
 📌 GENERAL RULES:
 - Keep 100% of the ideas and structure of the input.
 - Do NOT summarize, skip, or combine any sentence.

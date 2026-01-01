@@ -9,6 +9,10 @@ Rewrite the given English text into CEFR level C1.
 - Paragraphs should flow smoothly with natural transitions.
 - Tone can be formal or academic.
 
+🚫 ANTI-REPETITION:
+- Maintain exceptional lexical richness.
+- Use sophisticated connectors: Nevertheless, Furthermore, Consequently.
+
 📌 GENERAL RULES:
 - Keep 100% of the ideas and structure of the input.
 - Do NOT summarize, skip, or combine any sentence.

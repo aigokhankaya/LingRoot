@@ -18,5 +18,16 @@ RULES FOR C1 ENGLISH:
 - Paragraphs: 5–7 sentences.
 - Tone: advanced but readable.
 
+🚫 ANTI-REPETITION RULES:
+- Demonstrate lexical variety; avoid using the same key terms repeatedly.
+- Employ diverse syntactic structures (passive, conditionals, inversions).
+- Each paragraph should introduce distinct arguments or evidence.
+- Use sophisticated transitions: Furthermore, Notwithstanding, Consequently.
+
+📌 TOPIC FOCUS:
+- Provide in-depth analysis with multiple dimensions of the topic.
+- Include historical context, current implications, or future projections.
+- Support arguments with specific examples or data points.
+
 OUTPUT:
 Return only plain English paragraphs, no sections or lists.

@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const gamificationService = require('../services/gamificationService');
 const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+const promptService = require('../utils/promptService');
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -223,50 +224,23 @@ exports.generateSubtopics = async (req, res) => {
       logger.error('[TOPIC HIERARCHY] Error fetching existing subtopics for similarity check:', existingChildrenError);
     }
 
-    // Prompt template'i yükle
-    const promptPath = path.join(__dirname, '../prompts/topic_hierarchy/generate_subtopics.txt');
-    let promptTemplate = '';
-
+    // Generate Prompt using PromptService
+    let prompt;
     try {
-      promptTemplate = fs.readFileSync(promptPath, 'utf-8');
+      prompt = promptService.getPrompt('topic/subtopics', {
+        main_topic: parentTopic.title,
+        level: parentTopic.level,
+        language,
+        count,
+        angle_description: angle && typeof angle === 'string' && angle.trim().length > 0 ? angle.trim() : 'Belirtilmedi'
+      });
+
+      if (angle && typeof angle === 'string' && angle.trim().length > 0) {
+        prompt += `\n\nÖNEMLİ: Kullanıcının verdiği odak açıklaması: "${angle.trim()}". Lütfen ürettiğin tüm alt konu başlıklarının bu odağı doğrudan işlemesine dikkat et; genel Kıbrıs bilgisi gibi konu dışı başlıklar üretme.`;
+      }
     } catch (err) {
-      // Fallback inline prompt (generate_subtopics.txt ile aynı mantık)
-      promptTemplate = `Ana Konu: "{{main_topic}}"
-CEFR Seviye: {{level}}
-Dil: {{language}}
-Alt Konu Sayısı: {{count}}
-Odak Açıklaması (isteğe bağlı): {{angle_description}}
-
-Görevin:
-- Bu ana konu için {{count}} adet eğitici alt konu listesi üret.
-- Eğer bir odak açıklaması verilmişse (boş değilse), TÜM alt konular doğrudan bu odağa bağlı olmalı ve onu farklı açılardan detaylandırmalıdır. Genel veya konu dışı başlıklar üretme.
-- CEFR seviyesi SADECE açıklama cümlelerinin dil zorluğunu ayarlamak içindir. Alt konu başlıklarını ve seçilen konuları seviyeye göre sınırlama; herkes için geçerli, doğal ve öğretici başlıklar üret.
-- Açıklama cümlelerinde {{level}} seviyesine uygun kelime dağarcığı ve kavramlar kullan:
-  - A1-A2: Günlük, basit, somut konular
-  - B1-B2: Orta seviye, biraz soyut kavramlar
-  - C1-C2: İleri seviye, akademik ve detaylı konular
-
-JSON formatında döndür:
-{
-  "subtopics": [
-    {
-      "title": "Alt Konu Başlığı",
-      "description": "1-2 cümle açıklama",
-      "keywords": ["anahtar", "kelimeler"]
-    }
-  ]
-}`;
-    }
-
-    let prompt = promptTemplate
-      .replace(/\{\{main_topic\}\}/g, parentTopic.title)
-      .replace(/\{\{level\}\}/g, parentTopic.level)
-      .replace(/\{\{language\}\}/g, language)
-      .replace(/\{\{count\}\}/g, count.toString())
-      .replace(/\{\{angle_description\}\}/g, angle && typeof angle === 'string' && angle.trim().length > 0 ? angle.trim() : 'Belirtilmedi');
-
-    if (angle && typeof angle === 'string' && angle.trim().length > 0) {
-      prompt += `\n\nÖNEMLİ: Kullanıcının verdiği odak açıklaması: "${angle.trim()}". Lütfen ürettiğin tüm alt konu başlıklarının bu odağı doğrudan işlemesine dikkat et; genel Kıbrıs bilgisi gibi konu dışı başlıklar üretme.`;
+      logger.error(`[TOPIC HIERARCHY] Failed to generate subtopic prompt:`, err);
+      throw err;
     }
 
     logger.info('[TOPIC HIERARCHY] Calling OpenAI for subtopic generation');
@@ -357,7 +331,7 @@ JSON formatında döndür:
       let isSimilar = false;
       for (const existing of existingNormalized) {
         const sim = jaccardSimilarity(tokens, existing.tokens);
-        if (sim >= 0.75) {
+        if (sim >= 0.60) {
           isSimilar = true;
           break;
         }

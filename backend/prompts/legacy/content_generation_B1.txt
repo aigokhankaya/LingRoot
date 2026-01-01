@@ -18,5 +18,15 @@ RULES FOR B1 ENGLISH:
 - Paragraphs: 4–6 sentences.
 - Tone: clearly explanatory, not academic.
 
+🚫 ANTI-REPETITION RULES:
+- Do NOT start consecutive sentences with the same word.
+- Use pronouns and varied sentence starters (However, Therefore, Additionally, In fact).
+- Each paragraph must introduce NEW information or perspective.
+- Avoid generic statements; be specific with examples and details.
+
+📌 TOPIC FOCUS:
+- 70% of content must be SPECIFIC to the given topic.
+- Include concrete examples, comparisons, or real-world applications.
+
 OUTPUT:
 Only plain English paragraphs.

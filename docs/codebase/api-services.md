@@ -160,6 +160,8 @@ Input → Extract → Translate → CEFR Adapt → Clean → TTS → Merge → U
 | `cefrAdapter.js` | 6KB | CEFR level adaptation |
 | `translateAndAdapt.js` | 18KB | Translation + adaptation |
 | `liroPromptGenerator.js` | 16KB | Liro system prompts |
+| `contentQualityValidator.js` | 5KB | Post-generation quality checks |
+| `crossTopicDuplicateChecker.js` | 6KB | Sibling subtopic overlap detection |
 
 ### Content Processing
 

@@ -6,6 +6,7 @@ const logger = require("./logger");
 const fs = require("fs");
 const path = require("path");
 const { chunkText } = require('./textProcessor');
+const promptService = require('./promptService');
 
 // Initialize OpenAI client
 let openai;
@@ -49,31 +50,24 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
         return { text: "", usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }, model: "" };
     }
 
-    // Select unified prompt file based on level and variant
-    // Narrator variant uses storyteller-style prompts for audiobook/book content
+    // Select unified prompt template based on variant
     const isNarrator = promptVariant === 'narrator';
-    const promptFile = isNarrator
-        ? `translate_and_adapt_narrator_${level.toUpperCase()}.txt`
-        : `translate_and_adapt_${level.toUpperCase()}.txt`;
-    const promptPath = path.join(__dirname, `../prompts/content/${promptFile}`);
+    const templateName = isNarrator
+        ? 'cefr/translate_adapt_narrator'
+        : 'cefr/translate_adapt';
+
+    // For logging compatibility
+    const promptFile = templateName;
 
     // HYBRID MODEL STRATEGY: Use mini for simple levels, 4o for complex levels
     const isSimpleLevel = ['A1', 'A2', 'B1'].includes(level.toUpperCase());
     const model = process.env.OPENAI_TRANSLATE_ADAPT_MODEL || (isSimpleLevel ? "gpt-4o-mini" : "gpt-4o");
 
-    console.log(`🎯 [TRANSLATE+ADAPT OPTIMIZED] Using ${isNarrator ? 'NARRATOR' : 'standard'} prompt: ${promptFile} (Level: ${level})`);
+    console.log(`🎯 [TRANSLATE+ADAPT OPTIMIZED] Using template: ${templateName} (Level: ${level})`);
     if (mood) console.log(`🎭 [MOOD ADAPTATION] Applying emotional tone: ${mood}`);
 
-    logger.info(`🎯 TranslateAndAdapt - ${isNarrator ? 'Narrator' : 'Standard'} prompt: ${promptFile} for ${sourceLanguage} → EN at ${level}${mood ? ` [Mood: ${mood}]` : ''}`);
+    logger.info(`🎯 TranslateAndAdapt - Template: ${templateName} for ${sourceLanguage} → EN at ${level}${mood ? ` [Mood: ${mood}]` : ''}`);
     console.log(`🧠 [MODEL SELECTION] Level: ${level}, Variant: ${promptVariant} -> Selected Model: ${model} (${isSimpleLevel ? 'Cost Optimized' : 'Quality Optimized'})`);
-
-    let promptTemplate;
-    try {
-        promptTemplate = fs.readFileSync(promptPath, "utf-8");
-    } catch (error) {
-        logger.error(`[TranslateAndAdapt] Prompt file not found: ${promptFile}`);
-        throw new Error(`Prompt file not found: ${promptFile}`);
-    }
 
     // Chunk text if needed
     const chunks = chunkText(text);
@@ -85,9 +79,19 @@ async function translateAndAdaptToCEFR(text, sourceLanguage, level, requestLogge
     let totalTokensTotal = 0;
 
     for (let i = 0; i < chunks.length; i++) {
-        const prompt = promptTemplate
-            .replace(/\{\{input_text\}\}/g, chunks[i])
-            .replace(/\{\{source_language\}\}/g, sourceLanguage);
+        // Generate prompt using PromptService
+        let prompt;
+        try {
+            prompt = promptService.getPrompt(templateName, {
+                sourceLanguage,
+                level: level.toUpperCase(),
+                input_text: chunks[i]
+            });
+        } catch (error) {
+            logger.error(`[TranslateAndAdapt] Prompt generation failed: ${error.message}`);
+            // Fallback to simple string if template fails (failsafe)
+            prompt = `Translate to English (Level ${level}):\n${chunks[i]}`;
+        }
 
         if (requestLogger) {
             requestLogger.log(`[translateAndAdapt:prompt:chunk:${i}][input]` + JSON.stringify({
@@ -238,42 +242,31 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
         };
     }
 
-    // Select bilingual prompt file based on level
-    const promptFile = `generate_bilingual_${level.toUpperCase()}.txt`;
-    const promptPath = path.join(__dirname, `../prompts/content/${promptFile}`);
-
-    console.log(`🎯 [BILINGUAL GENERATION OPTIMIZED] Using unified prompt: ${promptFile} (Level: ${level})`);
-    if (mood) console.log(`🎭 [MOOD INJECTION] Generating content with tone: ${mood}`);
-
-    logger.info(`🎯 GenerateBilingual - Unified prompt: ${promptFile} for topic: "${topic}" → EN + ${targetLanguage}${mood ? ` [Mood: ${mood}]` : ''}`);
-
-    let promptTemplate;
-    try {
-        promptTemplate = fs.readFileSync(promptPath, "utf-8");
-    } catch (error) {
-        logger.error(`[GenerateBilingual] Prompt file not found: ${promptFile}`);
-        throw new Error(`Prompt file not found: ${promptFile}`);
-    }
+    // Generate Prompt using PromptService
+    // Replaces manual file reading and string replacement
 
     // Calculate word count based on duration if specified
-    let wordCountInstruction = '';
+    let durationOverride = '';
     if (targetDurationMinutes && targetDurationMinutes > 0) {
         const wordCount = calculateWordCountFromDuration(targetDurationMinutes);
-        wordCountInstruction = `\n\n⚠️ CRITICAL DURATION OVERRIDE:\n- Target audio duration: ${targetDurationMinutes} minutes\n- REQUIRED word count: ${wordCount.target} words per language (±15% tolerance: ${wordCount.min}-${wordCount.max} words)\n- This OVERRIDES the default "Length" requirement in the prompt.\n- Generate EXACTLY this amount of content, NOT the default 800-1500 words.`;
-        console.log(`⏱️ [DURATION] Target: ${targetDurationMinutes} min → ${wordCount.target} words (${wordCount.min}-${wordCount.max})`);
+        durationOverride = `⚠️ CRITICAL DURATION OVERRIDE:\n- Target audio duration: ${targetDurationMinutes} minutes\n- REQUIRED word count: ${wordCount.target} words per language (±15% tolerance: ${wordCount.min}-${wordCount.max} words)\n- This OVERRIDES the default "Length" requirement.\n- Generate EXACTLY this amount of content.`;
+        console.log(`⏱️ [DURATION] Target: ${targetDurationMinutes} min → ${wordCount.target} words`);
     }
 
-    // Build prompt with topic and language replacements
-    let prompt = promptTemplate
-        .replace(/\{\{topic\}\}/g, topic)
-        .replace(/\{\{target_language\}\}/g, targetLanguage);
-
-    // If duration specified, append it right before the OUTPUT FORMAT section
-    if (wordCountInstruction) {
-        // Insert duration instruction before 📤 OUTPUT FORMAT
-        prompt = prompt.replace(/📤 OUTPUT FORMAT/i, wordCountInstruction + '\n\n📤 OUTPUT FORMAT');
-        console.log(`📝 [PROMPT] Duration instruction added before OUTPUT FORMAT section`);
+    let prompt;
+    try {
+        prompt = promptService.getPrompt('content/bilingual', {
+            topic,
+            targetLanguage,
+            level: level.toUpperCase(),
+            durationOverride
+        });
+    } catch (error) {
+        logger.error(`[GenerateBilingual] Prompt generation failed: ${error.message}`);
+        throw error;
     }
+
+    const promptFile = 'content/bilingual'; // For logging consistency
 
     if (requestLogger) {
         requestLogger.log(`[generateBilingual:prompt][input]` + JSON.stringify({
