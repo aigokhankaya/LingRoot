@@ -42,7 +42,7 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <i className="fas fa-robot mr-2 text-primary"></i>
+            <i className="fas fa-robot me-2 text-primary"></i>
             {t('topics_subtopic_modal_title')}
           </h3>
           <button
@@ -125,7 +125,7 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
               value={angle}
               onChange={(e) => setAngle(e.target.value)}
               disabled={isLoading}
-              placeholder="Boş bırakın = farklı kategoriler | Bir odak girin = tüm alt konular o odakta (örn: tarih, ekonomi)"
+              placeholder={t('topics_subtopic_modal_placeholder_angle')}
               rows={2}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
@@ -134,7 +134,7 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
           {/* Bilgilendirme */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
             <p className="text-xs text-gray-700">
-              <i className="fas fa-info-circle mr-1 text-yellow-600"></i>
+              <i className="fas fa-info-circle me-1 text-yellow-600"></i>
               {t('topics_subtopic_modal_info')}
             </p>
           </div>
@@ -157,12 +157,12 @@ const SubtopicModal: React.FC<SubtopicModalProps> = ({
           >
             {isLoading ? (
               <>
-                <i className="fas fa-spinner fa-spin mr-2"></i>
+                <i className="fas fa-spinner fa-spin me-2"></i>
                 {t('topics_subtopic_modal_submit_loading')}
               </>
             ) : (
               <>
-                <i className="fas fa-magic mr-2"></i>
+                <i className="fas fa-magic me-2"></i>
                 {t('topics_subtopic_modal_submit_button')}
               </>
             )}

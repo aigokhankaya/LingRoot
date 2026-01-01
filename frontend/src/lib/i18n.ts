@@ -4,6 +4,7 @@ import { arTranslations } from './translations/ar';
 
 // Dil seçenekleri
 export type Locale = 'tr' | 'en' | 'de' | 'fr' | 'es' | 'pt' | 'hi' | 'id' | 'ar';
+export const locales: Locale[] = ['tr', 'en', 'de', 'fr', 'es', 'pt', 'hi', 'id', 'ar'];
 
 // RTL (sağdan sola) diller
 export const rtlLocales: Locale[] = ['ar'];
@@ -228,6 +229,12 @@ export const translations: Translations = {
     topics_node_status_listened: 'Dinlendi',
     topics_node_status_audio_ready: 'Ses hazır',
     topics_node_status_no_audio: 'Ses yok',
+    topics_node_status_completed: 'Tamamlandı',
+    topics_node_status_in_progress: 'Yarım Kaldı',
+    topics_node_status_ready: 'Dinlenmeye Hazır',
+    topics_node_status_ready_simple: 'Hazır',
+    topics_node_progress_percentage: '%{percentage} - Yarım Kaldı',
+    topics_node_progress_percentage_only: '%{percentage}',
     topics_node_button_audio_creating: 'İçeriğiniz Hazırlanıyor...',
     topics_node_button_listen: 'Dinle',
     topics_node_button_create_audio: 'Ses Oluştur',
@@ -248,6 +255,7 @@ export const translations: Translations = {
     topics_subtopic_modal_count_custom_label: 'Veya kendi sayını gir',
     topics_subtopic_modal_language_label: 'Alt konu dili',
     topics_subtopic_modal_angle_label: 'Açı/Açıklama',
+    topics_subtopic_modal_placeholder_angle: 'Boş bırakın = farklı kategoriler | Bir odak girin = tüm alt konular o odakta (örn: tarih, ekonomi)',
     topics_subtopic_modal_info:
       '⚠️ Açı/Açıklama alanı boş bırakılırsa farklı kategorilerde (tarih, kültür, ekonomi vb.) çeşitli alt konular üretilir. Bir açı girilirse (örn: \"tarih\") TÜM alt konular bu odakta olacaktır.',
     topics_subtopic_modal_submit_loading: 'Oluşturuluyor...',

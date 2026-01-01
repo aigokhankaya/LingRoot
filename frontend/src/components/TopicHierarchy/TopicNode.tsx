@@ -75,7 +75,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
 
   const colors = getDepthColors();
   const hasChildren = topic.children && topic.children.length > 0;
-  const indent = depth * 20; // Her seviye için 20px indent
+  const indent = depth * 20; // Her seviye için 20px indent (mantıksal olarak padding-inline-start kullanılacak)
 
   const audioState = audioStateByTopic?.[topic.id];
   const isTopicAudioLoading = !!audioState?.isLoading;
@@ -218,7 +218,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
   };
 
   return (
-    <div style={{ marginLeft: `${indent}px` }}>
+    <div style={{ paddingInlineStart: `${indent}px` }}>
       {/* Node Container */}
       <div className={`${colors.bg} ${colors.border} border-2 rounded-lg p-4 transition-all hover:shadow-md`}>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -250,7 +250,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
               <h4 className={`${colors.text} font-semibold text-base mb-1`}>
                 {topic.title}
                 {hasSubtopics && (
-                  <span className="ml-2 text-xs font-normal text-gray-500">
+                  <span className="ms-2 text-xs font-normal text-gray-500">
                     ({totalSubtopics} {t('topics_node_subtopic_suffix')})
                   </span>
                 )}
@@ -301,17 +301,17 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                     {listeningStatus === 'completed' ? (
                       <>
                         <i className="fas fa-check-circle text-xs"></i>
-                        Tamamlandı
+                        {t('topics_node_status_completed')}
                       </>
                     ) : listeningStatus === 'in_progress' ? (
                       <>
                         <i className="fas fa-clock text-xs"></i>
-                        %{Math.round(progressPercentage)} - Yarım Kaldı
+                        {t('topics_node_progress_percentage', { percentage: Math.round(progressPercentage) })}
                       </>
                     ) : (
                       <>
                         <i className="fas fa-headphones text-xs"></i>
-                        Dinlenmeye Hazır
+                        {t('topics_node_status_ready')}
                       </>
                     )}
                   </span>
@@ -334,7 +334,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 {listeningStatus === 'completed' ? (
                   <>
                     <i className="fas fa-check-circle"></i>
-                    <span>Tamamlandı</span>
+                    <span>{t('topics_node_status_completed')}</span>
                   </>
                 ) : listeningStatus === 'in_progress' ? (
                   <>
@@ -344,12 +344,12 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                         style={{ width: `${Math.round(progressPercentage)}%` }}
                       />
                     </div>
-                    <span>%{Math.round(progressPercentage)}</span>
+                    <span>{t('topics_node_progress_percentage_only', { percentage: Math.round(progressPercentage) })}</span>
                   </>
                 ) : (
                   <>
                     <i className="fas fa-headphones"></i>
-                    <span>Hazır</span>
+                    <span>{t('topics_node_status_ready_simple')}</span>
                   </>
                 )}
               </div>
@@ -368,7 +368,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                   size="sm"
                   className="rounded-full px-6 font-medium bg-primary hover:bg-primary/90"
                 >
-                  <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'} mr-2`}></i>
+                  <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'} me-2`}></i>
                   {t('topics_node_button_show_subtopics')}
                 </Button>
               ) : (
@@ -383,7 +383,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                     className="rounded-full px-4 font-medium bg-primary hover:bg-primary/90"
                     disabled={isGenerating}
                   >
-                    <i className="fas fa-robot mr-2"></i>
+                    <i className="fas fa-robot me-2"></i>
                     {t('topics_node_button_suggest_subtopic')}
                   </Button>
                   <Button
@@ -395,7 +395,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                     variant="outline"
                     className="rounded-full px-4 font-medium border-primary/50 text-primary hover:bg-primary/10"
                   >
-                    <i className="fas fa-plus mr-2"></i>
+                    <i className="fas fa-plus me-2"></i>
                     {t('topics_node_button_add_manual')}
                   </Button>
                 </div>
@@ -420,16 +420,16 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 >
                   {isTopicAudioLoading ? (
                     <>
-                      <i className="fas fa-circle-notch fa-spin mr-2"></i>
+                      <i className="fas fa-circle-notch fa-spin me-2"></i>
                       {t('topics_node_button_audio_creating')}
                     </>
                   ) : canPlayFromTree ? (
                     <>
-                      <i className="fas fa-play mr-2"></i> {t('topics_node_button_listen')}
+                      <i className="fas fa-play me-2"></i> {t('topics_node_button_listen')}
                     </>
                   ) : (
                     <>
-                      <i className="fas fa-magic mr-2"></i> {t('topics_node_button_create_audio')}
+                      <i className="fas fa-magic me-2"></i> {t('topics_node_button_create_audio')}
                     </>
                   )}
                 </Button>
@@ -445,7 +445,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                     variant="outline"
                     className="rounded-full px-4 font-medium border-primary/50 text-primary hover:bg-primary/10"
                   >
-                    <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'} mr-2`}></i>
+                    <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'} me-2`}></i>
                     {t('topics_node_button_show_subtopics')}
                   </Button>
                 )}
@@ -465,7 +465,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
                 className="rounded-full px-4 font-medium border-amber-400 bg-amber-100 text-amber-700 hover:bg-amber-200 hover:border-amber-500"
                 disabled={isGenerating}
               >
-                <i className="fas fa-plus-circle mr-2"></i>
+                <i className="fas fa-plus-circle me-2"></i>
                 {t('topics_node_button_suggest_subtopic')}
               </Button>
             )}
@@ -549,7 +549,7 @@ const TopicNode: React.FC<TopicNodeProps> = ({
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <i className="fas fa-exclamation-triangle mr-2 text-red-600"></i>
+                <i className="fas fa-exclamation-triangle me-2 text-red-600"></i>
                 {t('topics_node_delete_title')}
               </h3>
               <button
@@ -584,12 +584,12 @@ const TopicNode: React.FC<TopicNodeProps> = ({
               >
                 {isDeleting ? (
                   <>
-                    <i className="fas fa-spinner fa-spin mr-2"></i>
+                    <i className="fas fa-spinner fa-spin me-2"></i>
                     {t('topics_node_delete_confirm_loading')}
                   </>
                 ) : (
                   <>
-                    <i className="fas fa-trash mr-2"></i>
+                    <i className="fas fa-trash me-2"></i>
                     {t('topics_node_delete_confirm')}
                   </>
                 )}
