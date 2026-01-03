@@ -341,7 +341,19 @@ const Welcome: React.FC = () => {
   }, [router.isReady, router.query]);
 
   // Yeni tasarım için state'ler
-  const [contentType, setContentType] = useState<string>('text');
+  const [contentType, setContentType] = useState<string>('topic_tree');
+
+  // URL senkronizasyonu: State değişince URL'i güncelle (Refresh persistence)
+  useEffect(() => {
+    if (!router.isReady) return;
+    // URL zaten güncelse atla
+    if (router.query.contentType === contentType) return;
+
+    router.replace({
+      pathname: router.pathname,
+      query: { ...router.query, contentType },
+    }, undefined, { shallow: true }).catch(() => { });
+  }, [contentType, router.isReady]);
   const [englishLevel, setEnglishLevel] = useState<string>('a1');
   const [speakingRate, setSpeakingRate] = useState<number>(0.8);
   const [voiceType, setVoiceType] = useState<string>('');
@@ -2138,7 +2150,7 @@ const Welcome: React.FC = () => {
   const historyToRender = showAllHistory ? filteredHistory : filteredHistory.slice(0, 5);
 
   // Welcome hero arka plan görseli
-  const heroImageUrl = 'https://readdy.ai/api/search-image?query=Modern%20language%20learning%20concept%20with%20digital%20technology%2C%20AI%20assistant%20helping%20with%20English%20lessons%2C%20abstract%20blue%20gradient%20background%20with%20subtle%20tech%20elements%2C%20professional%20educational%20atmosphere&width=1200&height=600&seq=hero1&orientation=landscape';
+  const heroImageUrl = '/images/welcome-hero.png';
 
   return (
     <div className="min-h-screen bg-background">
