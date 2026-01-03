@@ -224,9 +224,10 @@ function calculateWordCountFromDuration(durationMinutes) {
  * @param {object} requestLogger - Optional request logger
  * @param {number} targetDurationMinutes - Optional target duration in minutes (1.5, 5, 10, 15)
  * @param {string} mood - Optional mood for content generation (e.g. "Melancholic", "Cheerful")
+ * @param {string[]} forbiddenOpenings - Optional list of opening sentences to avoid (for sibling variety)
  * @returns {Promise<{englishText: string, translatedText: string, usage: object, model: string}>}
  */
-async function generateBilingualContent(topic, targetLanguage, level, requestLogger, targetDurationMinutes = null, mood = null) {
+async function generateBilingualContent(topic, targetLanguage, level, requestLogger, targetDurationMinutes = null, mood = null, forbiddenOpenings = []) {
     if (!openai) {
         logger.error("[GenerateBilingual] OpenAI client not initialized.");
         throw new Error("OpenAI client not initialized");
@@ -255,11 +256,17 @@ async function generateBilingualContent(topic, targetLanguage, level, requestLog
 
     let prompt;
     try {
+        // Build forbidden openings string for variety enforcement
+        const forbiddenStr = forbiddenOpenings && forbiddenOpenings.length > 0
+            ? forbiddenOpenings.join('\n- ')
+            : null;
+
         prompt = promptService.getPrompt('content/bilingual', {
             topic,
             targetLanguage,
             level: level.toUpperCase(),
-            durationOverride
+            durationOverride,
+            forbiddenOpenings: forbiddenStr
         });
     } catch (error) {
         logger.error(`[GenerateBilingual] Prompt generation failed: ${error.message}`);

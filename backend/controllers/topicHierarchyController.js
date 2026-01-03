@@ -500,13 +500,13 @@ exports.getTopicTree = async (req, res) => {
       });
     }
 
-    // Her topic için son oluşturulan sesli içeriği getir
+    // Her topic için son oluşturulan sesli içeriği getir (listening progress dahil)
     const topicIds = topics.map(t => t.id);
     let latestContentByTopic = {};
     try {
       const { data: contents, error: contentsError } = await supabase
         .from('topic_contents')
-        .select('*')
+        .select('id, topic_id, mp3_url, vtt_url, text_content, translated_text, adapted_text, level, voice_model, speaking_rate, duration_seconds, words, timepoints, created_at, listened_at, last_position_seconds, total_duration_seconds, progress_percentage, is_completed, last_listened_at')
         .in('topic_id', topicIds)
         .order('created_at', { ascending: false });
 

@@ -144,6 +144,7 @@ if (!fs.existsSync(uploadDir)) {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/content", contentRoutes);
+app.use("/api/content", require("./routes/contentRatingRoutes")); // Content rating & feedback
 app.use(contentRoutes); // legacy fallback
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/subscriptions", subscriptionRoutes); // Support both singular and plural
