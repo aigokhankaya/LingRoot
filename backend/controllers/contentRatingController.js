@@ -1,5 +1,7 @@
 const db = require('../config/db');
 const logger = require('../utils/logger');
+const userInsightService = require('../services/userInsightService');
+const topicMasteryService = require('../services/topicMasteryService');
 
 /**
  * İçeriği beğen/beğenme
@@ -27,6 +29,31 @@ async function rateContent(req, res) {
         `, [userId, content_id, content_type, rating]);
 
         logger.info(`[ContentRating] User ${userId} rated content ${content_id} with ${rating}`);
+
+        // 🔄 Insight extraction ve Topic Mastery güncelleme arka planda
+        setImmediate(async () => {
+            try {
+                // Insight extraction
+                await userInsightService.processContentRating(userId, content_id, rating, null);
+
+                // Topic Mastery güncelleme (contenthistory'den topic_id al)
+                const contentResult = await db.query(
+                    `SELECT topic_id FROM contenthistory WHERE id = $1`,
+                    [content_id]
+                );
+
+                if (contentResult.rows[0]?.topic_id) {
+                    await topicMasteryService.updateMastery(userId, contentResult.rows[0].topic_id, {
+                        rating: rating,
+                        completionPercentage: 0, // Rating tek başına completion değil
+                        listeningSeconds: 0
+                    });
+                }
+            } catch (err) {
+                logger.error('[ContentRating] Background processing failed:', err);
+            }
+        });
+
         res.json({ success: true, message: 'Rating saved' });
     } catch (error) {
         logger.error('[ContentRating] Rating save error:', error);
@@ -58,6 +85,16 @@ async function submitFeedback(req, res) {
         `, [userId, content_id, content_type, feedback_type, feedback_text || null]);
 
         logger.info(`[ContentFeedback] User ${userId} submitted feedback for content ${content_id}: ${feedback_type}`);
+
+        // 🔄 Feedback'e göre insight extraction (arka planda)
+        // Negatif feedback olarak işle (rating = -1)
+        if (['too_easy', 'too_hard', 'boring', 'too_long', 'too_short'].includes(feedback_type)) {
+            setImmediate(() => {
+                userInsightService.processContentRating(userId, content_id, -1, feedback_type)
+                    .catch(err => logger.error('[ContentFeedback] Insight extraction failed:', err));
+            });
+        }
+
         res.json({ success: true, message: 'Feedback saved, thank you!' });
     } catch (error) {
         logger.error('[ContentFeedback] Feedback save error:', error);

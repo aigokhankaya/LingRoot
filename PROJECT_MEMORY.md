@@ -117,6 +117,15 @@ Mobil ve Web API’larını birbirinden ayırma; tek şema üzerinden kullan.
 Kullanıcı ile iletişim dili (cevaplar, raporlar, açıklamalar) kesinlikle TÜRKÇE olmalıdır. İngilizce sadece kod içinde ve loglarda kullanılabilir.
 NO AGENTIC MODE: `task_boundary` tool'unu kullanma, artifact oluşturma, planlama moduna girme. Doğrudan kod değişikliğine odaklan.
 NO BROWSER AUTOMATION: `browser_subagent` aracını kullanma. Tarayıcıda test gerekiyorsa kullanıcıdan manuel test yapmasını iste.
+DB OPERATIONS MANUEL: Supabase veritabanı işlemleri (tablo/kolon ekleme, güncelleme) ASLA otomatik yapılmaz ve Supabase’e doğrudan bağlanılmaz. AI sadece SQL migration dosyasını hazırlar ve kullanıcıya "Bu SQL'i Supabase SQL Editor'de çalıştırın" talimatı verir.
+AUTO-EXECUTE TERMINAL: Terminal komutları (npm, git, fs işlemleri) için kullanıcı onayı beklenmez. `SafeToAutoRun: true` parametresi varsayılan olarak kabul edilir. Sadece yıkıcı (silme, resetleme) işlemlerde onay istenir.
+DOCUMENT VERSIONING: Oluşturulan veya güncellenen her doküman dosyasında (*.md) başlık satırının hemen altında şu format kullanılır:
+  ```
+  > **Oluşturulma:** YYYY-MM-DD | **Güncelleme:** YYYY-MM-DD | **Versiyon:** X.Y
+  ```
+  - İlk oluşturmada Oluşturulma ve Güncelleme tarihi aynıdır, Versiyon 1.0'dır.
+  - Her güncellemede Güncelleme tarihi ve Versiyon numarası artırılır (minor: 1.1, 1.2... major: 2.0).
+CODE-FIRST DOCUMENTATION: Dokümantasyon yazmadan ÖNCE ilgili kaynak kodları okunmalıdır. Varsayım yaparak veya hafızadan doküman yazılmaz. Gerçek kod yapısı, fonksiyon isimleri, parametreler ve iş akışları kaynak dosyalardan doğrulanmalıdır.
 
 [5. PROGRESS & ROADMAP]
 ✓ Phase 1 — Foundation
@@ -130,19 +139,26 @@ Prompt governance structure
 CEFR adaptation accuracy
 ✅ Liro Assistant architecture (v2.0 - User Profiling + Persona Learning)
 ✅ User Insight System (Likes/Dislikes/Habits/Goals extraction)
+✅ Smart Feedback Loop (Adaptive level & content suggestion)
 Multi-level content generation
 Video pipeline (Veo3 integration)
 Full audio synchronization improvement (MFA 2.0)
-Phase 3 — Experience Layer
+Phase 3 — Experience Layer (ACTIVE)
 Web player full redesign
 Mobile UI polish
+✅ SRS (Spaced Repetition) System (SM-2 Algorithm + word_reviews)
 Topic recommendation engine
 Learning analytics dashboard
-Phase 4 — Scaling
-GPU workers autoscaling (Hetzner)
-Hybrid serverless architecture
-Cloudflare R2 migration (full)
-Global CDN optimization
+Phase 4 — Topic Mastery & Detailed Feedback
+✅ user_topic_mastery tablosu (Migration 057)
+✅ Topic bazlı detaylı progress tracking
+✅ Phase 5 — Visual Progression & Stability
+✅ Visualized Progression (MasteryProgressCard, StreakCelebration)
+✅ Self-Healing Services (retryUtils.js - Retry, CircuitBreaker, GracefulDegradation)
+✅ Phase 6 — Scaling & Embedding
+✅ User Insight Embedding (Migration 058 + pgvector)
+✅ Benzer kullanıcı önerileri (cosine similarity)
+✅ AI-powered recommendations API
 
 [NEW ARCHITECTURE]
 Gamified Onboarding & Progression Strategy

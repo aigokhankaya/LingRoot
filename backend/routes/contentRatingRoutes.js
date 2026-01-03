@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../middleware/authMiddleware');
+const { authenticate } = require('../middleware/authMiddleware');
 const {
     rateContent,
     submitFeedback,
@@ -8,10 +8,10 @@ const {
 } = require('../controllers/contentRatingController');
 
 // Rating endpoints
-router.post('/rate', authenticateToken, rateContent);
-router.get('/rating', authenticateToken, getUserRating);
+router.post('/rate', authenticate, rateContent);
+router.get('/rating', authenticate, getUserRating);
 
 // Feedback endpoint
-router.post('/feedback', authenticateToken, submitFeedback);
+router.post('/feedback', authenticate, submitFeedback);
 
 module.exports = router;

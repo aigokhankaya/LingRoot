@@ -33,6 +33,8 @@ Amacın kullanıcıyı 3 aşamalı bir "huni"den geçirmek:
 {{learningPreferences}}
 {{userInsights}}
 
+{{adaptiveContext}}
+
 {{smartSuggestions}}
 
 🚨🚨🚨 EN KRİTİK KURALLAR 🚨🚨🚨

@@ -160,6 +160,10 @@ app.use("/api/books", booksRouter);
 app.use("/api", userRoutes); // ✅ user-interests endpoint burada aktif
 app.use("/api/parameters", parameterRoutes);
 app.use("/api/vocabulary", vocabularyRoutes); // 👈 Vocabulary route eklendi
+app.use("/api/srs", require("./routes/srsRoutes")); // 🧠 SRS (Spaced Repetition) routes eklendi
+app.use("/api/topic-mastery", require("./routes/topicMasteryRoutes")); // 🎯 Topic Mastery routes
+app.use("/api/health", require("./routes/healthRoutes")); // 🏥 Health check & monitoring
+app.use("/api/recommendations", require("./routes/recommendationsRoutes")); // 🎯 AI-powered recommendations
 app.use("/api/chat", chatRoutes); // Chat routes (admin-user support)
 app.use("/api/support-chat", supportChatRoutes); // Support Chat routes (separate from LIRO)
 app.use("/api/ai-chat", aiChatRoutes); // AI Chat routes (Liro assistant)
