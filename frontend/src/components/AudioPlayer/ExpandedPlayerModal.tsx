@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAudioPlayerSafe } from '../../context/AudioPlayerContext';
 import OutputSection from '../OutputSection';
+import { ContentRatingButtons } from '../content/ContentRatingButtons';
 
 const ExpandedPlayerModal: React.FC = () => {
     const player = useAudioPlayerSafe();
@@ -51,7 +52,15 @@ const ExpandedPlayerModal: React.FC = () => {
                     <h3 className="text-lg font-semibold text-gray-800">
                         {activeTrack.title || 'Ses Oynatıcı'}
                     </h3>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                        {/* Rating Buttons */}
+                        {activeTrack.id && (
+                            <ContentRatingButtons
+                                contentId={activeTrack.id}
+                                contentType="topic"
+                                tooltipPosition="bottom"
+                            />
+                        )}
                         {/* Minimize button */}
                         <button
                             onClick={minimize}
@@ -85,3 +94,4 @@ const ExpandedPlayerModal: React.FC = () => {
 };
 
 export default ExpandedPlayerModal;
+

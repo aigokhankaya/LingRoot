@@ -36,14 +36,20 @@ async function rateContent(req, res) {
                 // Insight extraction
                 await userInsightService.processContentRating(userId, content_id, rating, null);
 
-                // Topic Mastery güncelleme (contenthistory'den topic_id al)
-                const contentResult = await db.query(
-                    `SELECT topic_id FROM contenthistory WHERE id = $1`,
-                    [content_id]
-                );
+                // Topic Mastery güncelleme
+                let targetTopicId = null;
+                if (content_type === 'topic') {
+                    targetTopicId = content_id;
+                } else {
+                    const contentResult = await db.query(
+                        `SELECT topic_id FROM contenthistory WHERE id = $1`,
+                        [content_id]
+                    );
+                    targetTopicId = contentResult.rows[0]?.topic_id;
+                }
 
-                if (contentResult.rows[0]?.topic_id) {
-                    await topicMasteryService.updateMastery(userId, contentResult.rows[0].topic_id, {
+                if (targetTopicId) {
+                    await topicMasteryService.updateMastery(userId, targetTopicId, {
                         rating: rating,
                         completionPercentage: 0, // Rating tek başına completion değil
                         listeningSeconds: 0
@@ -118,6 +124,9 @@ async function getUserRating(req, res) {
             SELECT rating FROM content_ratings
             WHERE user_id = $1 AND content_id = $2 AND content_type = $3
         `, [userId, content_id, content_type]);
+
+        logger.info(`[ContentRating] getUserRating: user=${userId}, content=${content_id}, type=${content_type}, found=${result.rows.length > 0 ? result.rows[0].rating : 'null'}`);
+
 
         if (result.rows.length === 0) {
             return res.json({ rating: null });
