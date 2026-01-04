@@ -20,12 +20,17 @@ const ExpandedPlayerModal: React.FC = () => {
     };
 
     // Prepare audioResult format expected by OutputSection
+    // OutputSection expects both snake_case and camelCase versions of some fields
     const audioResult = {
         mp3_url: activeTrack.url,
+        vtt_url: activeTrack.url ? activeTrack.url.replace('.mp3', '.vtt') : '',
         words: activeTrack.words || [],
         timepoints: activeTrack.timepoints || [],
-        adapted_text: activeTrack.originalText,
-        translated_text: activeTrack.translatedText,
+        // Both snake_case and camelCase for compatibility
+        adapted_text: activeTrack.originalText || '',
+        adaptedText: activeTrack.originalText || '',
+        translated_text: activeTrack.translatedText || '',
+        translatedText: activeTrack.translatedText || '',
         dialogue_segments: activeTrack.dialogueSegments,
         level: activeTrack.level,
         topic: activeTrack.topic || activeTrack.title,

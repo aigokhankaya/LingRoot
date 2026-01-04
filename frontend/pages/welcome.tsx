@@ -3848,11 +3848,11 @@ const Welcome: React.FC = () => {
                       {historyToRender.map((item) => (
                         <div
                           key={item.id}
-                          className="bg-white rounded-xl border border-gray-200 hover:border-primary/40 hover:shadow-md transition-all duration-200 overflow-hidden"
+                          className="bg-primary/5 rounded-xl border-2 border-primary/30 hover:border-primary/50 hover:shadow-lg transition-all duration-200 overflow-hidden"
                         >
                           {/* Compact Header - Always Visible */}
                           <div
-                            className="p-4 md:p-5 cursor-pointer hover:bg-primary/5 transition-colors"
+                            className="p-4 md:p-5 cursor-pointer hover:bg-primary/10 transition-colors"
                             onClick={() => {
                               console.log('🎯 [HISTORY DEBUG] Item clicked:', {
                                 itemId: item.id,
@@ -3867,14 +3867,14 @@ const Welcome: React.FC = () => {
                           >
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                               <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2 text-xs">
-                                  <Badge variant="outline" className="text-xs">
+                                <div className="flex flex-wrap items-center gap-2 mb-2 text-xs">
+                                  <span className="bg-primary text-white px-2 py-0.5 rounded-full text-xs font-medium">
                                     {getHistoryTypeLabel(item.input_type)}
-                                  </Badge>
-                                  <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
+                                  </span>
+                                  <span className="bg-primary/20 text-primary px-2 py-0.5 rounded-full text-xs font-medium">
                                     {item.level || 'N/A'}
-                                  </Badge>
-                                  <span className="text-xs text-gray-500">
+                                  </span>
+                                  <span className="text-xs text-primary/70">
                                     {new Date(item.created_at).toLocaleDateString('tr-TR', {
                                       year: 'numeric',
                                       month: 'short',
@@ -3884,138 +3884,32 @@ const Welcome: React.FC = () => {
                                     })}
                                   </span>
                                 </div>
-                                <div className="mb-3">
-                                  <h4 className="font-semibold text-gray-900 mb-1 text-sm md:text-base">{t('welcome_adapted_text_label')}</h4>
-                                  <p className="text-sm text-gray-700 line-clamp-2">
-                                    {item.adapted_text || item.input}
-                                  </p>
-                                  {item.adapted_text && (
-                                    <details className="mt-2">
-                                      <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
-                                        {t('welcome_show_original_text')}
-                                      </summary>
-                                      <p className="text-xs text-gray-500 mt-1 p-2 bg-gray-100 rounded">
-                                        {item.input}
-                                      </p>
-                                    </details>
-                                  )}
+                                <div>
+                                  {/* Konu başlığı - input'tan çıkar (Title: Description formatı veya sadece title) */}
+                                  <h4 className="font-semibold text-primary text-base md:text-lg">
+                                    {(() => {
+                                      // input formatı: "Title: Description" veya sadece "Title"
+                                      const inputText = item.input || '';
+                                      const colonIndex = inputText.indexOf(':');
+                                      if (colonIndex > 0 && colonIndex < 80) {
+                                        // Title: Description formatı
+                                        return inputText.substring(0, colonIndex).trim();
+                                      }
+                                      // Sadece title veya kısa metin - ilk 60 karakteri göster
+                                      return inputText.length > 60 ? inputText.substring(0, 60) + '...' : inputText;
+                                    })()}
+                                  </h4>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <div className="text-xs text-gray-500">
-                                  {expandedHistoryItem === item.id ? t('collapse_button') : t('open_player_button')}
-                                </div>
-                                <i className={`fas ${expandedHistoryItem === item.id ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400`}></i>
-                              </div>
+                              {/* Sağ tarafta buton */}
+                              <button
+                                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 bg-green-600 text-white shadow-md hover:bg-green-700 hover:shadow-lg hover:scale-105"
+                              >
+                                <i className="fas fa-play text-xs"></i>
+                                <span>{t('open_player_button')}</span>
+                              </button>
                             </div>
-                            <button
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${expandedHistoryItem === item.id
-                                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                : 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-sm hover:shadow-md hover:scale-105'
-                                }`}
-                            >
-                              <i className={`fas ${expandedHistoryItem === item.id ? 'fa-times' : 'fa-play'} text-[10px]`}></i>
-                              <span>{expandedHistoryItem === item.id ? t('collapse_button') : t('open_player_button')}</span>
-                            </button>
                           </div>
-
-                          {/* Expanded Player View - Toggleable */}
-                          {expandedHistoryItem === item.id && (
-                            <div className="border-t border-gray-200 bg-white p-6">
-                              {/* GİZLENDİ - Senkronize Oynatıcı başlığı ve debug console.log */}
-
-                              {/* Use OutputSection component for full functionality */}
-                              {(() => {
-                                const looksLikeDialogueTranscript = (text: any) => {
-                                  if (!text || typeof text !== 'string') return false;
-                                  return /^(Speaker\s+[AB]|Host|Guest):/im.test(text);
-                                };
-
-                                const audioResult = {
-                                  message: item.adapted_text || item.input,
-                                  mp3_url: item.mp3_url,
-                                  vtt_url: item.mp3_url.replace('.mp3', '.vtt'), // Assume VTT exists
-                                  level: item.level,
-                                  adapted_text: item.adapted_text || item.input,
-                                  translated_text: item.translated_text || item.input,
-                                  dialogue: looksLikeDialogueTranscript(item.translated_text) ? item.translated_text : undefined,
-                                  topic: getHistoryTypeLabel(item.input_type),
-                                  input_type: item.input_type,
-                                  dialogue_segments: Array.isArray((item as any).dialogue_segments)
-                                    ? (item as any).dialogue_segments
-                                    : (item as any).dialogue_segments
-                                      ? JSON.parse((item as any).dialogue_segments)
-                                      : undefined,
-                                  timepoints: (() => {
-                                    try {
-                                      if (Array.isArray(item.timepoints)) return item.timepoints;
-                                      if (typeof item.timepoints === 'string') return JSON.parse(item.timepoints);
-                                      return [];
-                                    } catch (e) {
-                                      console.error('Error parsing timepoints:', e);
-                                      return [];
-                                    }
-                                  })(),
-                                  words: (() => {
-                                    try {
-                                      return Array.isArray(item.words) ? item.words : (item.words ? JSON.parse(item.words) : (item.adapted_text || item.input).split(/\s+/).filter(word => word.length > 0));
-                                    } catch (e) {
-                                      console.warn('Failed to parse words:', e);
-                                      return (item.adapted_text || item.input).split(/\s+/).filter(word => word.length > 0);
-                                    }
-                                  })(),
-                                  original_turkish: item.input,
-                                  speaking_rate: 1.0
-                                };
-
-                                console.log('🔍 [OUTPUT DEBUG] About to pass to OutputSection:', {
-                                  hasMessage: !!audioResult.message,
-                                  hasMp3Url: !!audioResult.mp3_url,
-                                  messageLength: audioResult.message?.length || 0,
-                                  timepointsLength: audioResult.timepoints?.length || 0,
-                                  wordsLength: audioResult.words?.length || 0,
-                                  mp3_url: audioResult.mp3_url,
-                                  firstFewWords: audioResult.words?.slice(0, 5)
-                                });
-
-                                return (
-                                  <OutputSection
-                                    audioResult={audioResult}
-                                    isLoggedIn={isAuthenticated}
-                                  />
-                                );
-                              })()}
-
-                              {/* Quick actions */}
-                              <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="!rounded-button whitespace-nowrap cursor-pointer"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    window.open(convertToPlayableUrl(item.mp3_url), '_blank');
-                                  }}
-                                >
-                                  <i className="fas fa-external-link-alt mr-2"></i>
-                                  {t('open_in_new_tab')}
-                                </Button>
-
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="!rounded-button whitespace-nowrap cursor-pointer"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setExpandedHistoryItem(null);
-                                  }}
-                                >
-                                  <i className="fas fa-times mr-2"></i>
-                                  {t('close_button')}
-                                </Button>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       ))}
 
@@ -4047,6 +3941,148 @@ const Welcome: React.FC = () => {
           }
         </div >
       </div >
+
+      {/* History Audio Player Modal - Konu ağacındaki gibi popup */}
+      {expandedHistoryItem && (() => {
+        const selectedHistoryItem = contentHistory.find(item => item.id === expandedHistoryItem);
+        if (!selectedHistoryItem) return null;
+
+        const looksLikeDialogueTranscript = (text: any) => {
+          if (!text || typeof text !== 'string') return false;
+          return /^(Speaker\s+[AB]|Host|Guest):/im.test(text);
+        };
+
+        const historyAudioResult = {
+          message: selectedHistoryItem.adapted_text || selectedHistoryItem.input,
+          mp3_url: selectedHistoryItem.mp3_url,
+          vtt_url: selectedHistoryItem.mp3_url.replace('.mp3', '.vtt'),
+          level: selectedHistoryItem.level,
+          adapted_text: selectedHistoryItem.adapted_text || selectedHistoryItem.input,
+          translated_text: selectedHistoryItem.translated_text || selectedHistoryItem.input,
+          dialogue: looksLikeDialogueTranscript(selectedHistoryItem.translated_text) ? selectedHistoryItem.translated_text : undefined,
+          topic: getHistoryTypeLabel(selectedHistoryItem.input_type),
+          input_type: selectedHistoryItem.input_type,
+          dialogue_segments: Array.isArray((selectedHistoryItem as any).dialogue_segments)
+            ? (selectedHistoryItem as any).dialogue_segments
+            : (selectedHistoryItem as any).dialogue_segments
+              ? JSON.parse((selectedHistoryItem as any).dialogue_segments)
+              : undefined,
+          timepoints: (() => {
+            try {
+              if (Array.isArray(selectedHistoryItem.timepoints)) return selectedHistoryItem.timepoints;
+              if (typeof selectedHistoryItem.timepoints === 'string') return JSON.parse(selectedHistoryItem.timepoints);
+              return [];
+            } catch (e) {
+              console.error('Error parsing timepoints:', e);
+              return [];
+            }
+          })(),
+          words: (() => {
+            try {
+              return Array.isArray(selectedHistoryItem.words)
+                ? selectedHistoryItem.words
+                : (selectedHistoryItem.words
+                  ? JSON.parse(selectedHistoryItem.words)
+                  : (selectedHistoryItem.adapted_text || selectedHistoryItem.input).split(/\s+/).filter((word: string) => word.length > 0));
+            } catch (e) {
+              console.warn('Failed to parse words:', e);
+              return (selectedHistoryItem.adapted_text || selectedHistoryItem.input).split(/\s+/).filter((word: string) => word.length > 0);
+            }
+          })(),
+          original_turkish: selectedHistoryItem.input,
+          speaking_rate: 1.0
+        };
+
+        return (
+          <div
+            className="fixed inset-0 z-[9998] flex items-center justify-center bg-black bg-opacity-60"
+            onClick={() => setExpandedHistoryItem(null)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-4 mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col gap-2">
+                  {/* Konu başlığı */}
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {(() => {
+                      const inputText = selectedHistoryItem.input || '';
+                      const colonIndex = inputText.indexOf(':');
+                      if (colonIndex > 0 && colonIndex < 80) {
+                        return inputText.substring(0, colonIndex).trim();
+                      }
+                      return inputText.length > 60 ? inputText.substring(0, 60) + '...' : inputText;
+                    })()}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-primary text-white px-3 py-1 rounded-full text-xs font-medium">
+                      {getHistoryTypeLabel(selectedHistoryItem.input_type)}
+                    </span>
+                    <span className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-medium">
+                      {t('welcome_level_label')}: {selectedHistoryItem.level?.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Minimize button */}
+                  <button
+                    onClick={() => setExpandedHistoryItem(null)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
+                    title={t('minimize_button') || 'Küçült'}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                    </svg>
+                  </button>
+                  {/* Close button */}
+                  <button
+                    onClick={() => setExpandedHistoryItem(null)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-red-100 text-gray-700 hover:text-red-600 transition-colors"
+                    title={t('close_button') || 'Kapat'}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Audio Player Content */}
+              <OutputSection
+                audioResult={historyAudioResult}
+                isLoggedIn={isAuthenticated}
+                disableSticky={true}
+              />
+
+              {/* Quick actions */}
+              <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full px-4 font-medium border-primary/50 text-primary hover:bg-primary/10 whitespace-nowrap cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(convertToPlayableUrl(selectedHistoryItem.mp3_url), '_blank');
+                  }}
+                >
+                  <i className="fas fa-external-link-alt mr-2"></i>
+                  {t('open_in_new_tab')}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full px-4 font-medium border-gray-300 text-gray-600 hover:bg-gray-100 whitespace-nowrap cursor-pointer"
+                  onClick={() => setExpandedHistoryItem(null)}
+                >
+                  <i className="fas fa-times mr-2"></i>
+                  {t('close_button')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Welcome Popup */}
       < WelcomePopup
