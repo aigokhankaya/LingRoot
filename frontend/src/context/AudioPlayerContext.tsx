@@ -31,7 +31,7 @@ interface AudioPlayerState {
 
 interface AudioPlayerContextType extends AudioPlayerState {
     // Actions
-    playTrack: (track: AudioTrack) => void;
+    playTrack: (track: AudioTrack, autoPlay?: boolean) => void;
     play: () => void;
     pause: () => void;
     togglePlayPause: () => void;
@@ -104,9 +104,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
     }, []);
 
-    // Play a new track
-    const playTrack = useCallback((track: AudioTrack) => {
-        console.log('🎵 [GLOBAL PLAYER] Playing new track:', track.title);
+    // Play a new track (autoPlay: false by default to prevent double audio issue)
+    const playTrack = useCallback((track: AudioTrack, autoPlay: boolean = false) => {
+        console.log('🎵 [GLOBAL PLAYER] Loading new track:', track.title, 'autoPlay:', autoPlay);
 
         // Stop existing audio
         if (audioRef.current) {
@@ -172,12 +172,14 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             setIsPlaying(false);
         });
 
-        // Auto-play
-        audio.play().catch(err => {
-            console.error('❌ [GLOBAL PLAYER] Autoplay failed:', err);
-            setError('Otomatik oynatma engellendi. Oynat butonuna basın.');
-            setIsPlaying(false);
-        });
+        // Only auto-play if explicitly requested
+        if (autoPlay) {
+            audio.play().catch(err => {
+                console.error('❌ [GLOBAL PLAYER] Autoplay failed:', err);
+                setError('Otomatik oynatma engellendi. Oynat butonuna basın.');
+                setIsPlaying(false);
+            });
+        }
     }, [startSync, stopSync]);
 
     // Play current track

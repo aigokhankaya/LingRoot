@@ -43,25 +43,33 @@ const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete, initia
         setLoading(true);
         try {
             const token = localStorage.getItem('lingroot_token');
-            let endpoint = '/api/vocabulary/due?limit=20';
+            // Yeni SRS endpoint'i
+            let endpoint = '/api/srs/due?limit=20';
 
-            if (wordSource === 'random') {
-                endpoint = '/api/vocabulary/random?limit=15&excludeRecent=false';
-            } else if (wordSource === 'all') {
-                endpoint = '/api/vocabulary/collection?limit=20';
+            // TODO: random ve all modları için SRS servisine ek metod gerekebilir
+            // Şimdilik sadece due çalışıyor
+            if (wordSource !== 'due') {
+                console.warn('[FlashcardDeck] Only due mode is supported in new SRS currently');
+                // Fallback to due
             }
 
             const res = await fetch(`${API_BASE}${endpoint}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
-            console.log('[FlashcardDeck] API Response:', { source: wordSource, status: res.status, data });
 
-            if (data.success && data.data && data.data.length > 0) {
-                setCards(data.data);
+            if (data.success && data.words && data.words.length > 0) {
+                // Map backend response to frontend Word interface
+                const mappedWords = data.words.map((w: any) => ({
+                    id: w.id,
+                    word: w.word,
+                    definition: w.word_translation,
+                    example_sentence: w.context_sentence,
+                    level: 'A2' // Default
+                }));
+                setCards(mappedWords);
                 setCurrentIndex(0);
             } else {
-                console.log('[FlashcardDeck] No cards returned from API');
                 setCards([]);
             }
         } catch (error) {
@@ -73,27 +81,34 @@ const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete, initia
     };
 
     const handleSwipe = useCallback(async (direction: 'left' | 'right', wordId: number) => {
-        // Rating: left = 1 (Hard), right = 2 (Good)
-        const rating = direction === 'right' ? 2 : 1;
-        let xpEarned = 0;
+        // Find current word
+        const currentCard = cards.find(c => c.id === wordId);
+        if (!currentCard) return;
+        // Rating: left (I forgot) = 1, right (I know) = 4
+        // SM-2 scale: 0-5. 
+        // Sol (unuttum/zor) -> 1 (Hard)
+        // Sağ (biliyorum/kolay) -> 4 (Good)
+        const quality = direction === 'right' ? 4 : 1;
 
         try {
             const token = localStorage.getItem('lingroot_token');
-            const res = await fetch(`${API_BASE}/api/vocabulary/review`, {
+            const res = await fetch(`${API_BASE}/api/srs/review`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ wordId, rating })
+                body: JSON.stringify({
+                    word: currentCard.word,
+                    wordTranslation: currentCard.definition,
+                    quality
+                })
             });
 
+            // Log result
             const data = await res.json();
+            console.log('[SRS] Review submitted:', data);
 
-            if (data.success && data.data && data.data.xp) {
-                xpEarned = data.data.xp.earned || 0;
-                console.log(`[FlashcardDeck] Earned ${xpEarned} XP for word ${wordId}`);
-            }
         } catch (error) {
             console.error('Review submit error:', error);
         }
@@ -102,7 +117,7 @@ const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete, initia
         setStats(prev => ({
             reviewed: prev.reviewed + 1,
             correct: direction === 'right' ? prev.correct + 1 : prev.correct,
-            earnedXP: prev.earnedXP + xpEarned
+            earnedXP: prev.earnedXP + (direction === 'right' ? 5 : 1) // XP logic basitleştirildi
         }));
 
         // Move to next card

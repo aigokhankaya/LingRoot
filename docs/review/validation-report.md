@@ -229,6 +229,38 @@ find frontend/src/app -name "page.tsx" | wc -l
 
 ---
 
+## Developer Validation Notes
+
+### January 3, 2026 - Topic Suggestions Prompt Enhancement
+
+**Changed File:** `backend/prompts/templates/topic/suggestions.hbs`
+
+**Change Type:** Prompt Engineering Enhancement
+
+**Summary:**
+Implemented context-aware mode detection for topic suggestions. The prompt now intelligently distinguishes between:
+- **EXAMPLES MODE:** When topic requests specific instances (e.g., "Popüler Ülkeler" → generates country names)
+- **CATEGORY MODE:** When topic requests thematic expansion (e.g., "Taşınma Süreçleri" → generates process categories)
+
+**Problem Solved:**
+Previously, when users requested "Taşınmak İçin Popüler Ülkeler" (Popular Countries to Move To), the system generated generic categories like "En İyi Ülkeler", "Tercih Edilen Şehirler" instead of specific country names (Kanada, Almanya, Hollanda, etc.).
+
+**Impact:**
+- ✅ Improves user expectation matching
+- ✅ Generates more relevant subtopics based on context
+- ✅ Maintains backward compatibility for abstract topics
+
+**Documentation Updated:**
+- ✅ `docs/prompts/topic-generation.md` - Added detailed mode detection section
+- ✅ Prompt Files table updated with new entry
+
+**Testing Required:**
+- [ ] Test with example-requesting topics (Ülkeler, Şehirler, Kitaplar, etc.)
+- [ ] Test with category-requesting topics (Süreçler, Yöntemler, Stratejiler, etc.)
+- [ ] Verify bilingual mode detection (Turkish/English keywords)
+
+---
+
 ## Next Steps
 
 1. Developer reviews flagged items

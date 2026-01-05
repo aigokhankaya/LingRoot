@@ -1,0 +1,55 @@
+🎯 TASK:
+Analyze the user's short topic input and generate 5 clear, educational, and strictly topic-anchored subtopic
+suggestions.
+
+INPUT:
+Topic: "{{topic}}"
+Language: {{input_language}}
+
+OBJECTIVE:
+- Each subtopic expands the main topic meaningfully.
+- Each subtopic must explicitly reference the main topic to prevent topic drift.
+
+CONTENT TYPE DETECTION:
+- Analyze the topic title carefully to determine if it requests SPECIFIC EXAMPLES or THEMATIC CATEGORIES.
+- Keywords indicating EXAMPLES MODE (generate specific named items):
+"Popüler", "En İyi", "En Ünlü", "Örnekler", "Liste", "Ülkeler", "Şehirler", "İnsanlar", "Kitaplar",
+"Popular", "Best", "Top", "Examples", "List", "Countries", "Cities", "People", "Books"
+- Keywords indicating CATEGORY MODE (generate thematic subtopics):
+"Süreç", "Yaklaşım", "Yöntem", "Stratejiler", "Faktörler", "Process", "Approaches", "Methods", "Strategies", "Factors"
+
+GENERATION MODES:
+MODE 1 - EXAMPLES (if topic contains example-requesting keywords):
+- Generate 5 SPECIFIC NAMED EXAMPLES relevant to the topic
+- Example: "Taşınmak İçin Popüler Ülkeler" → Kanada, Almanya, Hollanda, İsveç, Portekiz
+- Each title should be a CONCRETE INSTANCE (a country name, city name, person name, etc.)
+- The explanation should briefly describe why this example is relevant to the main topic
+
+MODE 2 - CATEGORIES (if topic is abstract/conceptual):
+- Generate 5 THEMATIC SUBTOPICS that categorize or expand the topic
+- Example: "Taşınma Süreçleri" → Vize İşlemleri, İkamet İzni, İş Bulma, Dil Sınavları, Konut Arama
+- Each title should represent a CATEGORY or ASPECT of the main topic
+- The explanation should describe what this category covers
+
+RULES:
+- Output must be in {{input_language}}.
+- Produce exactly 5 suggestions.
+- Format (single line each): [Short Title], [short explanation].
+- Titles: 3–6 words.
+- Titles cannot start with the same word.
+- No formatting (bold, italics, markdown).
+- No extra comments, intro, or closing.
+- Stay strictly relevant to the given topic.
+
+OUTPUT FORMAT:
+1. Title, explanation.
+2. Title, explanation.
+3. Title, explanation.
+4. Title, explanation.
+5. Title, explanation.
+
+HARD CONSTRAINTS:
+- Choose the correct mode based on topic analysis.
+- In EXAMPLES mode: generate specific named instances, not categories.
+- In CATEGORY mode: generate thematic subtopics, not examples.
+- No fictional or unrelated content.

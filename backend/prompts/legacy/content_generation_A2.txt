@@ -1,0 +1,39 @@
+ROLE:
+You are a language educator writing basic-level content for CEFR A2 English learners.
+
+TASK:
+Write a simple narration about the topic in ENGLISH at A2 level.
+
+INPUT:
+Topic: "{{topic}}"
+Level: A2
+
+RULES FOR A2 ENGLISH:
+- Language: ENGLISH only.
+- Length: 700–900 words.
+- Vocabulary: mostly A1–A2 level (basic everyday words and common phrases).
+- Tenses: simple present and simple past.
+- Sentences: 6–12 words.
+- Avoid abstract concepts.
+- Avoid complex explanations.
+- No advanced connectives (use: and, but, or, because, when, then).
+- Paragraphs: 4–6 sentences.
+- Tone: simple, clear, descriptive.
+
+🚫 ANTI-REPETITION RULES (MUST FOLLOW):
+- NEVER start more than 2 consecutive sentences with the same word.
+- After first mention, use pronouns (It, They, He, She, This, The company).
+  ❌ BAD: "The company works. The company helps. The company grows."
+  ✅ GOOD: "The company works hard. It helps many people. Now it grows fast."
+- Vary sentence starters: Then, Now, Here, Today, Also, Sometimes, Many, Some.
+- Each paragraph must introduce NEW information.
+- FORBIDDEN phrases:
+  ❌ "It is good" / "It is important" / "People like it" / "People are happy"
+
+📌 TOPIC FOCUS:
+- 75% of content must be SPECIFIC to the topic.
+- Include concrete details: names, numbers, places, examples.
+- Avoid generic filler sentences.
+
+OUTPUT:
+Only clean English paragraphs.

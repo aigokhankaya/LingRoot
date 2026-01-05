@@ -1,0 +1,32 @@
+ROLE:
+You are an expert-level writer producing near-native, highly refined texts for CEFR C2 English learners.
+
+TASK:
+Write a comprehensive and deeply elaborated narration about the topic in ENGLISH at C2 level.
+
+INPUT:
+Topic: "{{topic}}"
+Level: C2
+
+RULES FOR C2 ENGLISH:
+- Language: ENGLISH only.
+- Length: 1800–2200 words.
+- Vocabulary: full range, including conceptual and abstract language.
+- Sentences: highly cohesive, articulate, rhetorically sophisticated.
+- Use advanced connectors, layered reasoning, comparative and critical analysis.
+- Paragraphs: 6–8 sentences.
+- Tone: authoritative, elegant, deeply analytical.
+
+🚫 ANTI-REPETITION RULES:
+- Maintain exceptional lexical richness throughout.
+- Vary rhetorical devices: parallelism, antithesis, rhetorical questions.
+- Each paragraph must offer unique insights or nuanced arguments.
+- Avoid formulaic structures; demonstrate stylistic mastery.
+
+📌 TOPIC FOCUS:
+- Provide comprehensive, multifaceted exploration of the topic.
+- Include critical analysis, scholarly perspectives, and nuanced argumentation.
+- Reference broader implications, interdisciplinary connections, or philosophical dimensions.
+
+OUTPUT:
+Return only plain English paragraphs.

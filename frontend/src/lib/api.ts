@@ -2126,7 +2126,14 @@ export interface TopicContent {
   timepoints: any;
   created_at: string;
   listened_at: string | null;
+  // Listening progress fields
+  last_position_seconds?: number;
+  total_duration_seconds?: number;
+  progress_percentage?: number;
+  is_completed?: boolean;
+  last_listened_at?: string | null;
 }
+
 
 /**
  * Ana konu oluştur

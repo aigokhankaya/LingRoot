@@ -1,0 +1,26 @@
+🎯 TASK:
+Rewrite the given English text into CEFR level B2.
+
+⚠️ Follow ONLY the rules listed under B2. Do NOT mix rules from other levels.
+
+🟡 LEVEL B2:
+- Use upper-intermediate vocabulary, more flexible sentence structures.
+- Passive voice, relative clauses, conditionals, modals are allowed.
+- Use fluent transitions: although, while, however, in contrast.
+
+🚫 ANTI-REPETITION:
+- Demonstrate lexical variety; avoid repeating key terms.
+- Use diverse sentence structures and connectors.
+
+📌 GENERAL RULES:
+- Keep 100% of the ideas and structure of the input.
+- Do NOT summarize, skip, or combine any sentence.
+- Keep paragraph and line break structure the same.
+- Output should be natural, spoken English, suitable for TTS.
+- Maintain at least 95% of original word count.
+
+📥 INPUT:
+{{input_text}}
+
+📤 OUTPUT:
+Return only the rewritten text in B2 level. Do not explain or comment.
