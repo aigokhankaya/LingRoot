@@ -1,197 +1,182 @@
-/**
- * 🧠 SRS Service (Spaced Repetition System)
- * 
- * Implements a modified SuperMemo-2 (SM-2) algorithm to schedule vocabulary reviews.
- * Optimizes retention by scheduling reviews just before the user is likely to forget.
- */
-
-const db = require('../config/db');
+const pool = require('../config/db');
 const logger = require('../utils/logger');
-const gamificationService = require('./gamificationService');
+const { withRetry, withGracefulDegradation } = require('../utils/retryUtils');
 
 class SrsService {
     /**
-     * Calculate new SRS parameters based on user rating
-     * 
-     * Ratings:
-     * 0: Again (Forgot completely) - Reset interval
-     * 1: Hard (Remembered with difficulty) - Short interval
-     * 2: Good (Remembered perfectly) - Standard increase
-     * 3: Easy (Too easy) - Large increase
-     * 
-     * @param {Object} currentParams - { interval, easeFactor, streak }
-     * @param {number} rating - 0 to 3
+     * SM-2 Algoritması ile bir sonraki tekrar zamanını hesaplar
+     * @param {number} quality - Kullanıcının verdiği puan (0-5)
+     * @param {object} previousData - Önceki review verileri { interval, repetitions, easeFactor }
      */
-    calculateNextReview(currentParams, rating) {
-        let { interval, easeFactor, streak } = currentParams;
+    calculateNextReview(quality, previousData = {}) {
+        let {
+            interval = 0,
+            repetitions = 0,
+            easeFactor = 2.5
+        } = previousData;
 
-        // Defaults
-        interval = interval || 0;
-        easeFactor = easeFactor || 2.5;
-        streak = streak || 0;
-
-        let nextInterval;
-        let nextEase = easeFactor;
-        let nextStreak = streak;
-
-        if (rating < 2) {
-            // Failed or Hard (Reset logic)
-            nextStreak = 0;
-            nextInterval = 1; // 1 Day
-            // Decrease ease factor slightly for hard items
-            nextEase = Math.max(1.3, easeFactor - 0.15);
+        // Quality < 3 ise (yanlış/hatırlamadı) döngüyü sıfırla
+        if (quality < 3) {
+            repetitions = 0;
+            interval = 1; // Ertesi gün tekrar sor
         } else {
-            // Correct (Good/Easy)
-            nextStreak = streak + 1;
-
-            if (nextStreak === 1) {
-                nextInterval = 1;
-            } else if (nextStreak === 2) {
-                nextInterval = 6;
+            // Doğru bildi
+            if (repetitions === 0) {
+                interval = 1;
+            } else if (repetitions === 1) {
+                interval = 6;
             } else {
-                nextInterval = Math.round(interval * easeFactor);
+                interval = Math.round(interval * easeFactor);
             }
-
-            // Ease Factor adjustment (SM-2 formula)
-            // EF' = EF + (0.1 - (3-q) * (0.08 + (3-q) * 0.02))
-            // Here we map 0-3 rating to SM-2's 0-5 scale roughly
-            // Our 2 (Good) -> SM-2 4
-            // Our 3 (Easy) -> SM-2 5
-
-            const q = rating === 3 ? 5 : 4;
-            nextEase = easeFactor + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
-
-            // Allow extra boost for "Easy"
-            if (rating === 3) {
-                nextEase += 0.15;
-            }
+            repetitions++;
         }
 
-        if (nextEase < 1.3) nextEase = 1.3;
+        // Ease Factor güncellemesi (SM-2 formülü)
+        // EF' = EF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
+        easeFactor = easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
 
-        // Calculate Next Date
-        const nextDate = new Date();
-        nextDate.setDate(nextDate.getDate() + nextInterval);
+        // Ease Factor minimum 1.3 olmalı
+        if (easeFactor < 1.3) easeFactor = 1.3;
 
         return {
-            interval: nextInterval,
-            easeFactor: nextEase,
-            streak: nextStreak,
-            nextReviewAt: nextDate,
-            status: nextStreak > 5 ? 'mastered' : (nextStreak > 0 ? 'review' : 'learning')
+            interval,
+            repetitions,
+            easeFactor,
+            nextReviewDate: new Date(Date.now() + interval * 24 * 60 * 60 * 1000)
         };
     }
 
     /**
-     * Process a review for a user word
+     * Günü gelen kelimeleri getir
      */
-    async processReview(userId, wordId, rating) {
+    async getDueWords(userId, limit = 20) {
         try {
-            // Get current word data
-            const res = await db.query(
-                `SELECT * FROM user_vocabulary WHERE user_id = $1 AND id = $2`,
-                [userId, wordId]
-            );
-
-            if (res.rows.length === 0) {
-                throw new Error('Word not found');
-            }
-
-            const word = res.rows[0];
-
-            const currentParams = {
-                interval: word.interval_days,
-                easeFactor: word.ease_factor,
-                streak: word.streak
-            };
-
-            const result = this.calculateNextReview(currentParams, rating);
-
-            // Update DB
-            await db.query(
-                `UPDATE user_vocabulary 
-                 SET 
-                    next_review_at = $1,
-                    last_reviewed_at = NOW(),
-                    interval_days = $2,
-                    ease_factor = $3,
-                    streak = $4,
-                    review_count = review_count + 1,
-                    status = $5,
-                    is_learned = $6
-                 WHERE id = $7`,
-                [
-                    result.nextReviewAt,
-                    result.interval,
-                    result.easeFactor,
-                    result.streak,
-                    result.status,
-                    result.streak > 3, // is_learned if streak > 3
-                    wordId
-                ]
-            );
-
-            // Award XP for correct answers
-            let xpResult = null;
-            try {
-                if (rating >= 2) {
-                    // Good or Easy - award XP
-                    xpResult = await gamificationService.addXP(
-                        userId,
-                        gamificationService.xpRewards?.WORD_REVIEW_CORRECT || 3,
-                        'word_review',
-                        `word_${wordId}`,
-                        'Kelime tekrarı tamamlandı'
-                    );
-                }
-                // Update daily quest progress
-                await gamificationService.updateDailyQuestProgress(userId, 'review_words', 1);
-            } catch (xpError) {
-                logger.warn('[SRS] Gamification update failed:', xpError.message);
-            }
-
-            return {
-                success: true,
-                ...result,
-                xp: xpResult ? {
-                    earned: xpResult.xpAdded,
-                    totalXP: xpResult.totalXP,
-                    currentLevel: xpResult.currentLevel,
-                    leveledUp: xpResult.leveledUp
-                } : null
-            };
-
+            const query = `
+              SELECT * 
+              FROM word_reviews 
+              WHERE user_id = $1 
+                AND next_review_date <= CURRENT_DATE
+              ORDER BY next_review_date ASC
+              LIMIT $2
+            `;
+            const result = await pool.query(query, [userId, limit]);
+            return result.rows;
         } catch (error) {
-            logger.error('[SRS Service] Process review error:', error);
+            logger.error('[SRS] getDueWords error:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Kelimeyi gözden geçir (update or insert)
+     */
+    async reviewWord(userId, word, wordTranslation, quality, definition = '', contextSentence = '', sourceContentId = null) {
+        try {
+            // Input validation
+            if (!word || typeof word !== 'string') {
+                throw new Error('Invalid word parameter');
+            }
+            const sanitizedWord = word.toLowerCase().trim().slice(0, 100); // Max 100 chars
+
+            // 1. Mevcut kaydı bul
+            const existingWordQuery = `SELECT * FROM word_reviews WHERE user_id = $1 AND word = $2`;
+            const existingResult = await pool.query(existingWordQuery, [userId, sanitizedWord]);
+            const existingData = existingResult.rows[0];
+
+            // 2. SM-2 Calculation
+            const prevData = existingData ? {
+                interval: existingData.interval_days,
+                repetitions: existingData.repetition_count,
+                easeFactor: parseFloat(existingData.ease_factor)
+            } : {};
+
+            const calculation = this.calculateNextReview(quality, prevData);
+
+            // 3. Update or Insert Logic
+            if (existingData) {
+                // Update
+                const updateQuery = `
+            UPDATE word_reviews
+            SET 
+              next_review_date = $3,
+              interval_days = $4,
+              ease_factor = $5,
+              repetition_count = $6,
+              streak_correct = CASE WHEN $7 >= 3 THEN streak_correct + 1 ELSE 0 END,
+              total_reviews = total_reviews + 1,
+              correct_reviews = correct_reviews + (CASE WHEN $7 >= 3 THEN 1 ELSE 0 END),
+              last_reviewed_at = NOW()
+            WHERE id = $1 AND user_id = $2
+            RETURNING *
+          `;
+
+                const values = [
+                    existingData.id,
+                    userId,
+                    calculation.nextReviewDate,
+                    calculation.interval,
+                    calculation.easeFactor,
+                    calculation.repetitions,
+                    quality
+                ];
+
+                const res = await pool.query(updateQuery, values);
+                return res.rows[0];
+
+            } else {
+                // Insert (İlk defa review ediliyor)
+                const insertQuery = `
+            INSERT INTO word_reviews (
+              user_id, word, word_translation, context_sentence, source_content_id,
+              next_review_date, interval_days, ease_factor, repetition_count, streak_correct,
+              total_reviews, correct_reviews, last_reviewed_at
+            ) VALUES (
+              $1, $2, $3, $4, $5,
+              $6, $7, $8, $9, $10,
+              1, $11, NOW()
+            )
+            RETURNING *
+          `;
+
+                const values = [
+                    userId, sanitizedWord, wordTranslation, contextSentence, sourceContentId,
+                    calculation.nextReviewDate,
+                    calculation.interval,
+                    calculation.easeFactor,
+                    calculation.repetitions,
+                    quality >= 3 ? 1 : 0, // streak_correct
+                    quality >= 3 ? 1 : 0 // correct_reviews
+                ];
+
+                const res = await pool.query(insertQuery, values);
+                return res.rows[0];
+            }
+        } catch (error) {
+            logger.error('[SRS] reviewWord error:', error);
             throw error;
         }
     }
 
     /**
-     * Get words due for review
-     * @param {string} userId - User ID
-     * @param {number} limit - Max items to return
+     * İstatistikleri getir
      */
-    async getDueWords(userId, limit = 20) {
-        console.log('[SRS] getDueWords called with userId:', userId, 'limit:', limit);
-        // Get user vocabulary joined with word details
-        // Priority: 1) New words (status='new'), 2) Due for review (next_review_at <= NOW())
-        // Order by: new first, then by earliest review date
-        const res = await db.query(
-            `SELECT uv.*, v.word, v.original_word, v.definition, v.example_sentence, 
-                    v.example_sentence_turkish, v.level, v.meanings
-             FROM user_vocabulary uv
-             JOIN vocabulary v ON uv.word_id = v.id
-             WHERE uv.user_id = $1 
-               AND (uv.status = 'new' OR uv.next_review_at <= NOW() OR uv.status = 'learning')
-             ORDER BY 
-               CASE WHEN uv.status = 'new' THEN 0 ELSE 1 END,
-               uv.next_review_at ASC NULLS FIRST
-             LIMIT $2`,
-            [userId, limit]
-        );
-        console.log('[SRS] getDueWords returned', res.rows.length, 'words');
-        return res.rows;
+    async getStats(userId) {
+        try {
+            const query = `
+              SELECT 
+                COUNT(*) as total_words,
+                SUM(CASE WHEN next_review_date <= CURRENT_DATE THEN 1 ELSE 0 END) as due_today,
+                AVG(streak_correct) as avg_streak,
+                AVG(ease_factor) as avg_mastery
+              FROM word_reviews
+              WHERE user_id = $1
+            `;
+            const res = await pool.query(query, [userId]);
+            return res.rows[0];
+        } catch (error) {
+            logger.error('[SRS] getStats error:', error);
+            return { total_words: 0, due_today: 0, avg_streak: 0, avg_mastery: 2.5 };
+        }
     }
 }
 

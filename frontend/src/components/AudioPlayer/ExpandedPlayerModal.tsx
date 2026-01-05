@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAudioPlayerSafe } from '../../context/AudioPlayerContext';
 import OutputSection from '../OutputSection';
+import { ContentRatingButtons } from '../content/ContentRatingButtons';
 
 const ExpandedPlayerModal: React.FC = () => {
     const player = useAudioPlayerSafe();
@@ -20,12 +21,17 @@ const ExpandedPlayerModal: React.FC = () => {
     };
 
     // Prepare audioResult format expected by OutputSection
+    // OutputSection expects both snake_case and camelCase versions of some fields
     const audioResult = {
         mp3_url: activeTrack.url,
+        vtt_url: activeTrack.url ? activeTrack.url.replace('.mp3', '.vtt') : '',
         words: activeTrack.words || [],
         timepoints: activeTrack.timepoints || [],
-        adapted_text: activeTrack.originalText,
-        translated_text: activeTrack.translatedText,
+        // Both snake_case and camelCase for compatibility
+        adapted_text: activeTrack.originalText || '',
+        adaptedText: activeTrack.originalText || '',
+        translated_text: activeTrack.translatedText || '',
+        translatedText: activeTrack.translatedText || '',
         dialogue_segments: activeTrack.dialogueSegments,
         level: activeTrack.level,
         topic: activeTrack.topic || activeTrack.title,
@@ -46,7 +52,15 @@ const ExpandedPlayerModal: React.FC = () => {
                     <h3 className="text-lg font-semibold text-gray-800">
                         {activeTrack.title || 'Ses Oynatıcı'}
                     </h3>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                        {/* Rating Buttons */}
+                        {activeTrack.id && (
+                            <ContentRatingButtons
+                                contentId={activeTrack.id}
+                                contentType="topic"
+                                tooltipPosition="bottom"
+                            />
+                        )}
                         {/* Minimize button */}
                         <button
                             onClick={minimize}
@@ -80,3 +94,4 @@ const ExpandedPlayerModal: React.FC = () => {
 };
 
 export default ExpandedPlayerModal;
+

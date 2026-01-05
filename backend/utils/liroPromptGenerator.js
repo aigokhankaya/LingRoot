@@ -2,6 +2,7 @@ const logger = require('./logger');
 const fs = require('fs');
 const path = require('path');
 const userInsightService = require('../services/userInsightService');
+const feedbackLoopService = require('../services/feedbackLoopService');
 
 /**
  * 🎯 Liro Prompt Generator
@@ -43,11 +44,12 @@ class LiroPromptGenerator {
         knowledgeProfile,
         topicTreeStatus,
         userInsights,
-        smartSuggestions, // NEW: AI-generated smart suggestions
+        smartSuggestions,
+        adaptiveContext, // 🔄 Feedback Loop adaptive context
       } = userProfile;
 
       const username = basicInfo?.username || 'Kullanıcı';
-      const preferredLevel = contentHistory?.preferredLevel || 'B1';
+      const preferredLevel = adaptiveContext?.suggestedLevel || contentHistory?.preferredLevel || 'B1';
 
       // Profil durumuna göre farklı tonlamalar
       const greetingStyle = this.determineGreetingStyle(basicInfo, learningProgress);
@@ -62,6 +64,7 @@ class LiroPromptGenerator {
       const topicTreeSection = this.generateTopicTreeSection(topicTreeStatus);
       const userInsightsSection = userInsightService.formatForPrompt(userInsights);
       const smartSuggestionsSection = userInsightService.formatSmartSuggestionsForPrompt(smartSuggestions);
+      const adaptiveContextSection = feedbackLoopService.formatForPrompt(adaptiveContext);
 
       // Replace all placeholders
       return promptTemplate
@@ -78,6 +81,7 @@ class LiroPromptGenerator {
         .replace(/{{topicTreeStatus}}/g, topicTreeSection)
         .replace(/{{userInsights}}/g, userInsightsSection)
         .replace(/{{smartSuggestions}}/g, smartSuggestionsSection)
+        .replace(/{{adaptiveContext}}/g, adaptiveContextSection)
         .replace(/{{searchResults}}/g, searchResultsText);
     } catch (error) {
       logger.error('Failed to load personalized prompt template:', error);

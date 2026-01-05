@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unknown-property */
 /**
  * 🎉 Level Up Celebration Modal
  * 
@@ -9,111 +10,111 @@ import React, { useEffect, useState } from 'react';
 import { levelToCEFR } from '@/hooks/useGamification';
 
 interface LevelUpModalProps {
-    isOpen: boolean;
-    oldLevel: number;
-    newLevel: number;
-    onClose: () => void;
+  isOpen: boolean;
+  oldLevel: number;
+  newLevel: number;
+  onClose: () => void;
 }
 
 export const LevelUpModal: React.FC<LevelUpModalProps> = ({
-    isOpen,
-    oldLevel,
-    newLevel,
-    onClose
+  isOpen,
+  oldLevel,
+  newLevel,
+  onClose
 }) => {
-    const [showContent, setShowContent] = useState(false);
-    const [counter, setCounter] = useState(oldLevel);
+  const [showContent, setShowContent] = useState(false);
+  const [counter, setCounter] = useState(oldLevel);
 
-    useEffect(() => {
-        if (isOpen) {
-            // Giriş animasyonu
-            setTimeout(() => setShowContent(true), 100);
+  useEffect(() => {
+    if (isOpen) {
+      // Giriş animasyonu
+      setTimeout(() => setShowContent(true), 100);
 
-            // Level sayacı animasyonu
-            const interval = setInterval(() => {
-                setCounter(prev => {
-                    if (prev >= newLevel) {
-                        clearInterval(interval);
-                        return newLevel;
-                    }
-                    return prev + 1;
-                });
-            }, 100);
+      // Level sayacı animasyonu
+      const interval = setInterval(() => {
+        setCounter(prev => {
+          if (prev >= newLevel) {
+            clearInterval(interval);
+            return newLevel;
+          }
+          return prev + 1;
+        });
+      }, 100);
 
-            return () => clearInterval(interval);
-        } else {
-            setShowContent(false);
-            setCounter(oldLevel);
-        }
-    }, [isOpen, oldLevel, newLevel]);
+      return () => clearInterval(interval);
+    } else {
+      setShowContent(false);
+      setCounter(oldLevel);
+    }
+  }, [isOpen, oldLevel, newLevel]);
 
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
-    const oldCEFR = levelToCEFR(oldLevel);
-    const newCEFR = levelToCEFR(newLevel);
-    const cefrChanged = oldCEFR !== newCEFR;
+  const oldCEFR = levelToCEFR(oldLevel);
+  const newCEFR = levelToCEFR(newLevel);
+  const cefrChanged = oldCEFR !== newCEFR;
 
-    return (
-        <div className="level-up-overlay" onClick={onClose}>
+  return (
+    <div className="level-up-overlay" onClick={onClose}>
+      <div
+        className={`level-up-modal ${showContent ? 'show' : ''}`}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Parlayan arka plan */}
+        <div className="glow-bg" />
+
+        {/* Yıldızlar */}
+        <div className="stars">
+          {[...Array(20)].map((_, i) => (
             <div
-                className={`level-up-modal ${showContent ? 'show' : ''}`}
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Parlayan arka plan */}
-                <div className="glow-bg" />
+              key={i}
+              className="star"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 2}s`
+              }}
+            />
+          ))}
+        </div>
 
-                {/* Yıldızlar */}
-                <div className="stars">
-                    {[...Array(20)].map((_, i) => (
-                        <div
-                            key={i}
-                            className="star"
-                            style={{
-                                left: `${Math.random() * 100}%`,
-                                top: `${Math.random() * 100}%`,
-                                animationDelay: `${Math.random() * 2}s`
-                            }}
-                        />
-                    ))}
-                </div>
+        {/* İçerik */}
+        <div className="content">
+          <div className="crown">👑</div>
 
-                {/* İçerik */}
-                <div className="content">
-                    <div className="crown">👑</div>
+          <h1 className="title">SEVİYE ATLADIN!</h1>
 
-                    <h1 className="title">SEVİYE ATLADIN!</h1>
+          <div className="level-display">
+            <div className="level-badge old">{oldLevel}</div>
+            <div className="arrow">→</div>
+            <div className="level-badge new">
+              <span className="level-number">{counter}</span>
+              <div className="pulse-ring" />
+            </div>
+          </div>
 
-                    <div className="level-display">
-                        <div className="level-badge old">{oldLevel}</div>
-                        <div className="arrow">→</div>
-                        <div className="level-badge new">
-                            <span className="level-number">{counter}</span>
-                            <div className="pulse-ring" />
-                        </div>
-                    </div>
+          {cefrChanged && (
+            <div className="cefr-upgrade">
+              <span className="cefr-badge old">{oldCEFR}</span>
+              <span className="upgrade-arrow">⬆️</span>
+              <span className="cefr-badge new">{newCEFR}</span>
+            </div>
+          )}
 
-                    {cefrChanged && (
-                        <div className="cefr-upgrade">
-                            <span className="cefr-badge old">{oldCEFR}</span>
-                            <span className="upgrade-arrow">⬆️</span>
-                            <span className="cefr-badge new">{newCEFR}</span>
-                        </div>
-                    )}
+          <p className="message">
+            {cefrChanged
+              ? `Tebrikler! Artık ${newCEFR} seviyesindesin!`
+              : `Harika gidiyorsun! Level ${newLevel}'e ulaştın!`
+            }
+          </p>
 
-                    <p className="message">
-                        {cefrChanged
-                            ? `Tebrikler! Artık ${newCEFR} seviyesindesin!`
-                            : `Harika gidiyorsun! Level ${newLevel}'e ulaştın!`
-                        }
-                    </p>
+          <button className="continue-btn" onClick={onClose}>
+            <span>Devam Et</span>
+            <span className="btn-glow" />
+          </button>
+        </div>
 
-                    <button className="continue-btn" onClick={onClose}>
-                        <span>Devam Et</span>
-                        <span className="btn-glow" />
-                    </button>
-                </div>
-
-                <style jsx>{`
+        <style jsx>{`
           .level-up-overlay {
             position: fixed;
             inset: 0;
@@ -347,9 +348,9 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({
             to { transform: translateX(100%); }
           }
         `}</style>
-            </div>
-        </div>
-    );
+      </div>
+    </div>
+  );
 };
 
 export default LevelUpModal;

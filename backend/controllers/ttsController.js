@@ -29,6 +29,48 @@ const directorAgentService = require('../services/directorAgentService');
 const tempAudioFiles = new Map();
 const tempVttFiles = new Map();
 
+// Concurrent TTS request limiter per user
+// Prevents resource exhaustion when user clicks multiple topics rapidly
+const activeTtsRequests = new Map(); // userId -> count
+const MAX_CONCURRENT_TTS_PER_USER = 2;
+
+/**
+ * Check and increment active TTS request count for user
+ * @param {string} userId - User ID
+ * @returns {{ allowed: boolean, current: number, max: number }}
+ */
+const acquireTtsSlot = (userId) => {
+  if (!userId) return { allowed: true, current: 0, max: MAX_CONCURRENT_TTS_PER_USER };
+
+  const current = activeTtsRequests.get(userId) || 0;
+  if (current >= MAX_CONCURRENT_TTS_PER_USER) {
+    return { allowed: false, current, max: MAX_CONCURRENT_TTS_PER_USER };
+  }
+
+  activeTtsRequests.set(userId, current + 1);
+  logger.info(`🔒 [TTS Limiter] User ${userId} acquired slot ${current + 1}/${MAX_CONCURRENT_TTS_PER_USER}`);
+  return { allowed: true, current: current + 1, max: MAX_CONCURRENT_TTS_PER_USER };
+};
+
+/**
+ * Release TTS slot for user
+ * @param {string} userId - User ID
+ */
+const releaseTtsSlot = (userId) => {
+  if (!userId) return;
+
+  const current = activeTtsRequests.get(userId) || 0;
+  if (current > 0) {
+    activeTtsRequests.set(userId, current - 1);
+    logger.info(`🔓 [TTS Limiter] User ${userId} released slot, now ${current - 1}/${MAX_CONCURRENT_TTS_PER_USER}`);
+  }
+
+  // Cleanup if no active requests
+  if (current <= 1) {
+    activeTtsRequests.delete(userId);
+  }
+};
+
 // Helper function to create VTT file from text
 const createVTTFile = (text, duration = 30) => {
   const words = text.split(/\s+/).filter(word => word.length > 0);
@@ -213,6 +255,21 @@ const processTtsRequest = async (req, res) => {
   const requestId = uuidv4();
   let stepSequence = 1;
   logger.info(`[${requestId}] Received TTS request.`);
+
+  // Get user ID for rate limiting
+  const userId = req.user?.id || null;
+
+  // Check concurrent TTS limit per user
+  const slotCheck = acquireTtsSlot(userId);
+  if (!slotCheck.allowed) {
+    logger.warn(`[${requestId}] ⚠️ User ${userId} exceeded concurrent TTS limit (${slotCheck.current}/${slotCheck.max})`);
+    return res.status(429).json({
+      success: false,
+      message: `Çok fazla eşzamanlı ses oluşturma isteği. Lütfen mevcut işlemlerin tamamlanmasını bekleyin. (${slotCheck.current}/${slotCheck.max} aktif)`,
+      retryAfter: 30 // Suggest retry after 30 seconds
+    });
+  }
+
   // CRITICAL DEBUG: Log raw request essentials (sanitized)
   try {
     const logBody = {
@@ -1921,6 +1978,10 @@ const processTtsRequest = async (req, res) => {
   } finally {
     // --- Final Step: Ensure Temporary File Cleanup ---
     logger.info(`[${requestId}] Performing final cleanup.`);
+
+    // Release TTS slot for this user
+    releaseTtsSlot(userId);
+
     // Do NOT clean up temp file that we need for API access
     // cleanupTempFile(tempFilePath);
 
