@@ -4,6 +4,7 @@ import {
   Skia,
   Paragraph,
   RoundedRect,
+  Path,
   useFont,
 } from '@shopify/react-native-skia';
 import {
@@ -14,6 +15,7 @@ import {
   GestureResponderEvent,
   Text,
   Modal,
+  Platform,
 } from 'react-native';
 import { useSharedValue, useDerivedValue } from 'react-native-reanimated';
 
@@ -39,15 +41,32 @@ interface SkiaWordHighlightProps {
   onWordPositionChange?: (info: { index: number; top: number; bottom: number; height: number }) => void;
   patternData?: Array<{
     pattern: string;
-    pattern_tr: string;
-    example_sentence: string;
-    example_sentence_tr: string;
+    type?: string;
+    translation?: string;        // Backend: translation (was pattern_tr)
+    example_text?: string;       // Backend: example_text (was example_sentence)
+    example_translation?: string; // Backend: example_translation (was example_sentence_tr)
+    // Keep old field names for backward compatibility
+    pattern_tr?: string;
+    example_sentence?: string;
+    example_sentence_tr?: string;
   }>; // Full pattern data with translations
   showPatterns?: boolean; // Whether to show pattern highlighting
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ACCENT_COLOR = 'rgba(248, 177, 59, 1)';
+
+// Helper to clean a word for comparison (Global Scope - Aggressive Mode)
+const cleanWord = (w: string) => {
+  try {
+    // Keep only Letters and Numbers. Remove everything else (apostrophes, quotes, etc.)
+    // "Don't" -> "dont", "“Don’t" -> "dont"
+    return w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+  } catch (e) {
+    // Fallback if Hermes/JS engine doesn't support unicode properties
+    return w.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+};
 
 export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   words,
@@ -75,33 +94,69 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
   // Calculate pattern phrase ranges (startIndex, endIndex)
   const patternRanges = useMemo(() => {
     if (!showPatterns || patternData.length === 0) return [];
+    // Debug: Log word count and pattern count
+    console.log(`🔍 [SkiaWordHighlight] Words count: ${words.length}, Extract: ${words.slice(0, 5).join(', ')}`);
+    console.log(`🔍 [SkiaWordHighlight] Pattern count: ${patternData.length}`);
 
     const ranges: Array<{ startIndex: number; endIndex: number; patternData: typeof patternData[0] }> = [];
 
     // Check each pattern
     for (const pData of patternData) {
-      const phrase = pData.pattern;
-      const phraseWords = phrase.split(/\s+/);
+      if (!pData.pattern) continue;
+
+      const phraseWords = pData.pattern.toLowerCase().split(/\s+/).map(w => cleanWord(w));
       const phraseLength = phraseWords.length;
+
+      // console.log(`   Checking Pattern: "${pData.pattern}" (Cleaned: "${phraseWords.join(' ')}")`);
 
       // Scan through words to find matches
       for (let startIdx = 0; startIdx <= words.length - phraseLength; startIdx++) {
         const candidateWords = words.slice(startIdx, startIdx + phraseLength);
-        const candidatePhrase = candidateWords.map(w => w.toLowerCase().replace(/[.,!?;:]/g, '')).join(' ');
+        const candidatePhrase = candidateWords.map(w => cleanWord(w)).join(' ');
+        const targetPhrase = phraseWords.join(' ');
 
-        if (candidatePhrase === phrase) {
+        if (candidatePhrase === targetPhrase) {
           ranges.push({
             startIndex: startIdx,
             endIndex: startIdx + phraseLength - 1,
             patternData: pData
           });
-          console.log(`🎯 [SkiaWordHighlight] Found pattern "${phrase}" at indices ${startIdx}-${startIdx + phraseLength - 1}`);
+          console.log(`✅ [SkiaWordHighlight] MATCH: "${pData.pattern}" at ${startIdx}-${startIdx + phraseLength - 1}`);
+        } else if (targetPhrase.includes('eggs') && candidatePhrase.includes('eggs')) {
+          // Debug partial matches for "eggs" pattern
+          console.log(`⚠️ [SkiaWordHighlight] MISMATCH: Target="${targetPhrase}" vs Cand="${candidatePhrase}"`);
         }
       }
     }
 
-    return ranges;
+    // Filter overlapping patterns - keep only the longest one
+    const sortedRanges = [...ranges].sort((a, b) => {
+      const lenA = a.endIndex - a.startIndex;
+      const lenB = b.endIndex - b.startIndex;
+      return lenB - lenA; // Longer first
+    });
+
+    // Debug sorted ranges
+    console.log(`🔍 [SkiaWordHighlight] Sorted Ranges:`, sortedRanges.map(r => `${r.patternData.pattern} (${r.startIndex}-${r.endIndex})`));
+
+    const filteredRanges = sortedRanges.filter((range, idx, arr) => {
+      for (let i = 0; i < idx; i++) {
+        const longer = arr[i];
+        const overlaps = range.startIndex <= longer.endIndex && range.endIndex >= longer.startIndex;
+        if (overlaps) {
+          console.log(`⚠️ [SkiaWordHighlight] Filtered OUT: "${range.patternData.pattern}" because overlaps with "${longer.patternData.pattern}"`);
+          return false;
+        }
+      }
+      return true;
+    });
+
+    console.log(`✅ [SkiaWordHighlight] Final Filtered Ranges:`, filteredRanges.map(r => `${r.patternData.pattern} (${r.startIndex}-${r.endIndex})`));
+
+    return filteredRanges;
   }, [words, showPatterns, patternData]);
+
+
 
   // Helper: Check if a word at index is part of a pattern phrase
   const isWordInPattern = useCallback((wordIndex: number): boolean => {
@@ -289,6 +344,13 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
     return boundaries;
   }, [paragraph, words]);
 
+  // Debug: Log word boundaries
+  useEffect(() => {
+    if (wordBoundaries.length > 0) {
+      console.log(`📏 [SkiaWordHighlight] Word Boundaries (First 3):`, wordBoundaries.slice(0, 3).map(b => `[${b.index}] x:${b.x.toFixed(1)} w:${b.width.toFixed(1)}`));
+    }
+  }, [wordBoundaries]);
+
   useEffect(() => {
     if (!onWordPositionChange) return;
     if (currentWordIndex < 0 || currentWordIndex >= wordBoundaries.length) return;
@@ -452,6 +514,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
 
   return (
     <View style={styles.container}>
+
       {chunks.map((chunk) => {
         const chunkBoundaries = getChunkWordBoundaries(chunk);
 
@@ -464,7 +527,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
               delayLongPress={500}
             >
               <Canvas style={{ width: containerWidth, height: chunk.height }}>
-                {/* Pattern phrase highlights - render first (lowest priority) */}
+                {/* Pattern phrase highlights - render as STROKE (border) */}
                 {patternRanges.map((range, rangeIdx) => {
                   // Get boundaries for all words in this phrase
                   const phraseBoundaries = chunkBoundaries.filter(b =>
@@ -480,28 +543,42 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
                   const paddingX = 4;
                   const paddingY = 3;
                   const relativeY = firstBoundary.y - chunk.startY;
+                  const cornerRadius = 6;
 
                   // Check if phrase spans multiple lines
                   const isSameLine = firstBoundary.y === lastBoundary.y;
 
+                  // Create a rounded rect path for stroke
+                  const createStrokePath = (x: number, y: number, w: number, h: number, r: number) => {
+                    const path = Skia.Path.Make();
+                    path.addRRect({
+                      rect: { x, y, width: w, height: h },
+                      rx: r,
+                      ry: r
+                    });
+                    return path;
+                  };
+
                   if (isSameLine) {
-                    // Single line: one rectangle
-                    const phraseX = firstBoundary.x;
-                    const phraseWidth = (lastBoundary.x + lastBoundary.width) - firstBoundary.x;
+                    // Single line: one rectangle stroke
+                    const phraseX = Math.max(0, firstBoundary.x - paddingX);
+                    const phraseWidth = (lastBoundary.x + lastBoundary.width) - firstBoundary.x + (paddingX * 2);
+                    const rectY = relativeY - paddingY;
+                    const rectHeight = firstBoundary.height + (paddingY * 2);
+
+                    const strokePath = createStrokePath(phraseX, rectY, phraseWidth, rectHeight, cornerRadius);
 
                     return (
-                      <RoundedRect
-                        key={`pattern-${rangeIdx}`}
-                        x={Math.max(0, phraseX - paddingX)}
-                        y={relativeY - paddingY}
-                        width={phraseWidth + (paddingX * 2)}
-                        height={firstBoundary.height + (paddingY * 2)}
-                        r={6}
-                        color="rgba(255, 215, 0, 0.4)"
+                      <Path
+                        key={`pattern-stroke-${rangeIdx}`}
+                        path={strokePath}
+                        style="stroke"
+                        strokeWidth={2}
+                        color={ACCENT_COLOR}
                       />
                     );
                   } else {
-                    // Multi-line: draw rectangle for each line segment
+                    // Multi-line: draw stroke for each line segment
                     const lineGroups = new Map<number, typeof phraseBoundaries>();
                     phraseBoundaries.forEach(b => {
                       if (!lineGroups.has(b.y)) {
@@ -516,15 +593,20 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
                       const lineRelativeY = lineY - chunk.startY;
                       const lineWidth = (last.x + last.width) - first.x;
 
+                      const strokeX = Math.max(0, first.x - paddingX);
+                      const strokeY = lineRelativeY - paddingY;
+                      const strokeWidth = lineWidth + (paddingX * 2);
+                      const strokeHeight = first.height + (paddingY * 2);
+
+                      const strokePath = createStrokePath(strokeX, strokeY, strokeWidth, strokeHeight, cornerRadius);
+
                       return (
-                        <RoundedRect
-                          key={`pattern-${rangeIdx}-line-${lineIdx}`}
-                          x={Math.max(0, first.x - paddingX)}
-                          y={lineRelativeY - paddingY}
-                          width={lineWidth + (paddingX * 2)}
-                          height={first.height + (paddingY * 2)}
-                          r={6}
-                          color="rgba(255, 215, 0, 0.4)"
+                        <Path
+                          key={`pattern-stroke-${rangeIdx}-line-${lineIdx}`}
+                          path={strokePath}
+                          style="stroke"
+                          strokeWidth={2}
+                          color={ACCENT_COLOR}
                         />
                       );
                     });
@@ -611,7 +693,7 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
         );
       })}
 
-      {/* Pattern Popup Modal */}
+      {/* Pattern Popup Modal - New Design with gradient header */}
       <Modal
         visible={selectedPattern !== null}
         transparent
@@ -625,41 +707,73 @@ export const SkiaWordHighlight: React.FC<SkiaWordHighlightProps> = React.memo(({
         >
           <View style={popupStyles.popup}>
             <TouchableOpacity activeOpacity={1}>
-              {/* Header with pattern */}
-              <View style={popupStyles.header}>
-                <Text style={popupStyles.patternText}>{selectedPattern?.pattern}</Text>
+              {/* Gradient Header - Only pattern text */}
+              <View style={popupStyles.gradientHeader}>
+                <View style={popupStyles.headerContent}>
+                  <View style={popupStyles.headerIconContainer}>
+                    <Text style={popupStyles.headerIcon}>📚</Text>
+                  </View>
+                  <Text style={popupStyles.patternText}>{selectedPattern?.pattern}</Text>
+                </View>
                 <TouchableOpacity onPress={() => setSelectedPattern(null)} style={popupStyles.closeButtonContainer}>
                   <Text style={popupStyles.closeButton}>✕</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={popupStyles.content}>
-                {/* Anlamı - Yellow card */}
+                {/* Type Badge - Like web version */}
+                <View style={popupStyles.typeBadge}>
+                  <Text style={popupStyles.typeBadgeText}>
+                    {selectedPattern?.type?.toUpperCase() || 'PATTERN'}
+                  </Text>
+                </View>
+
+                {/* Çeviri - Amber card */}
                 <View style={[popupStyles.card, popupStyles.meaningCard]}>
                   <View style={popupStyles.cardHeader}>
                     <Text style={popupStyles.cardIcon}>🇹🇷</Text>
-                    <Text style={popupStyles.cardTitle}>Anlamı</Text>
+                    <Text style={popupStyles.cardTitle}>Çeviri</Text>
                   </View>
-                  <Text style={popupStyles.cardValue}>{selectedPattern?.pattern_tr || '-'}</Text>
+                  <Text style={popupStyles.cardValue}>
+                    {selectedPattern?.translation || selectedPattern?.pattern_tr || 'Çeviri mevcut değil'}
+                  </Text>
                 </View>
 
                 {/* Örnek Cümle - Blue card */}
-                <View style={[popupStyles.card, popupStyles.exampleCard]}>
-                  <View style={popupStyles.cardHeader}>
-                    <Text style={popupStyles.cardIcon}>🇬🇧</Text>
-                    <Text style={popupStyles.cardTitle}>Örnek Cümle</Text>
+                {(selectedPattern?.example_text || selectedPattern?.example_sentence) && (
+                  <View style={[popupStyles.card, popupStyles.exampleCard]}>
+                    <View style={popupStyles.cardHeader}>
+                      <Text style={popupStyles.cardIcon}>🇬🇧</Text>
+                      <Text style={popupStyles.cardTitle}>Örnek Cümle</Text>
+                    </View>
+                    <Text style={popupStyles.cardValueItalic}>
+                      "{selectedPattern?.example_text || selectedPattern?.example_sentence}"
+                    </Text>
                   </View>
-                  <Text style={popupStyles.cardValue}>{selectedPattern?.example_sentence || '-'}</Text>
-                </View>
+                )}
 
-                {/* Örnek Cümle Çeviri - Green card */}
-                <View style={[popupStyles.card, popupStyles.translationCard]}>
-                  <View style={popupStyles.cardHeader}>
-                    <Text style={popupStyles.cardIcon}>💬</Text>
-                    <Text style={popupStyles.cardTitle}>Çeviri</Text>
+                {/* Örnek Çevirisi - Green card */}
+                {(selectedPattern?.example_translation || selectedPattern?.example_sentence_tr) && (
+                  <View style={[popupStyles.card, popupStyles.translationCard]}>
+                    <View style={popupStyles.cardHeader}>
+                      <Text style={popupStyles.cardIcon}>💬</Text>
+                      <Text style={popupStyles.cardTitle}>Örnek Çevirisi</Text>
+                    </View>
+                    <Text style={popupStyles.cardValue}>
+                      "{selectedPattern?.example_translation || selectedPattern?.example_sentence_tr}"
+                    </Text>
                   </View>
-                  <Text style={popupStyles.cardValue}>{selectedPattern?.example_sentence_tr || '-'}</Text>
-                </View>
+                )}
+              </View>
+
+              {/* Close Button */}
+              <View style={popupStyles.footer}>
+                <TouchableOpacity
+                  style={popupStyles.closeBtn}
+                  onPress={() => setSelectedPattern(null)}
+                >
+                  <Text style={popupStyles.closeBtnText}>Kapat</Text>
+                </TouchableOpacity>
               </View>
             </TouchableOpacity>
           </View>
@@ -748,22 +862,22 @@ const popupStyles = StyleSheet.create({
     borderBottomColor: '#e2e8f0',
   },
   patternText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#fff',  // White for gradient header
     flex: 1,
   },
   closeButtonContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#e2e8f0',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeButton: {
     fontSize: 18,
-    color: '#64748b',
+    color: '#fff',
     fontWeight: '600',
   },
   content: {
@@ -806,5 +920,69 @@ const popupStyles = StyleSheet.create({
     color: '#1f2937',
     lineHeight: 20,
     fontWeight: '400',
+  },
+  cardValueItalic: {
+    fontSize: 14,
+    color: '#1f2937',
+    lineHeight: 20,
+    fontWeight: '400',
+    fontStyle: 'italic',
+  },
+  gradientHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: 20,
+    backgroundColor: '#F8B13B', // Orange accent color
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  headerContent: {
+    flex: 1,
+    marginRight: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  headerIcon: {
+    fontSize: 20,
+  },
+  typeBadge: {
+    backgroundColor: '#ffedd5',  // Light orange for content section
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+  },
+  typeBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#c2410c',  // Orange-700 for content
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  footer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  closeBtn: {
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  closeBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#475569',
   },
 });

@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, CEFRLevel } from '../types';
@@ -21,6 +22,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import AudioPlayer from '../components/AudioPlayer';
 import { COLORS } from '../theme/colors';
 
+type ContentType = 'all' | 'podcast' | 'text' | 'topic' | 'file' | 'book';
+
 const LibraryScreen: React.FC = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
@@ -28,6 +31,7 @@ const LibraryScreen: React.FC = () => {
   const { t, language } = useLanguage();
   const [searchText, setSearchText] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<CEFRLevel | 'all'>('all');
+  const [selectedType, setSelectedType] = useState<ContentType>('all');
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -47,6 +51,15 @@ const LibraryScreen: React.FC = () => {
   const [highlightMode, setHighlightMode] = useState<'word' | 'sentence'>('word');
 
   const levels: (CEFRLevel | 'all')[] = ['all', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+
+  const typeOptions: { id: ContentType; labelTr: string; labelEn: string; icon: string }[] = [
+    { id: 'all', labelTr: 'Tümü', labelEn: 'All', icon: 'apps' },
+    { id: 'podcast', labelTr: 'Podcast', labelEn: 'Podcast', icon: 'podcasts' },
+    { id: 'text', labelTr: 'Metin', labelEn: 'Text', icon: 'text-fields' },
+    { id: 'topic', labelTr: 'Konu Ağacı', labelEn: 'Topic Tree', icon: 'account-tree' },
+    { id: 'file', labelTr: 'Doküman', labelEn: 'Document', icon: 'insert-drive-file' },
+    { id: 'book', labelTr: 'Kitap', labelEn: 'Book', icon: 'menu-book' },
+  ];
 
   // Handle navigation from audio_created notification
   useEffect(() => {
@@ -477,7 +490,19 @@ const LibraryScreen: React.FC = () => {
     const matchesSearch = track.title.toLowerCase().includes(searchText.toLowerCase());
     const matchesLevel = selectedLevel === 'all' || track.level === selectedLevel;
     const matchesFav = !showFavoritesOnly || isFavorite(track.id);
-    return matchesSearch && matchesLevel && matchesFav;
+
+    let matchesType = true;
+    if (selectedType !== 'all') {
+      const type = (track.input_type || '').toLowerCase();
+      // "books" sometimes appears for book
+      if (selectedType === 'book') {
+        matchesType = type === 'book' || type === 'books';
+      } else {
+        matchesType = type === selectedType;
+      }
+    }
+
+    return matchesSearch && matchesLevel && matchesFav && matchesType;
   });
 
   // Favorites görünümünde istemci tarafı sayfalamayı kaldırıyoruz.
@@ -491,7 +516,7 @@ const LibraryScreen: React.FC = () => {
     // Reset pagination when filters or search change
     setPage(1);
     setHasUserScrolled(false);
-  }, [searchText, selectedLevel, showFavoritesOnly]);
+  }, [searchText, selectedLevel, selectedType, showFavoritesOnly]);
 
   // Favoriler görünümüne geçildiğinde, eksik favorileri arka planda hydrate et
   // ve sayfalamayı başlatmak için scroll gating'i aç.
@@ -678,6 +703,41 @@ const LibraryScreen: React.FC = () => {
             onChangeText={setSearchText}
           />
         </View>
+      </View>
+
+      {/* Type Filters */}
+      <View style={styles.typeFilterContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.typeFilterContent}
+        >
+          {typeOptions.map((opt) => (
+            <TouchableOpacity
+              key={opt.id}
+              style={[
+                styles.typeChip,
+                selectedType === opt.id && styles.typeChipActive,
+              ]}
+              onPress={() => setSelectedType(opt.id)}
+            >
+              <Icon
+                name={opt.icon}
+                size={16}
+                color={selectedType === opt.id ? '#FFFFFF' : COLORS.slate500}
+                style={{ marginRight: 6 }}
+              />
+              <Text
+                style={[
+                  styles.typeChipText,
+                  selectedType === opt.id && styles.typeChipTextActive,
+                ]}
+              >
+                {language === 'tr' ? opt.labelTr : opt.labelEn}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       <View style={styles.levelFilter}>
@@ -908,6 +968,39 @@ const styles = StyleSheet.create({
     color: COLORS.slate700,
     padding: 0,
     fontWeight: '500',
+  },
+  typeFilterContainer: {
+    height: 50,
+    marginBottom: 8,
+  },
+  typeFilterContent: {
+    paddingHorizontal: 24,
+    gap: 8,
+    alignItems: 'center',
+  },
+  typeChip: {
+    flexDirection: 'row',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.slate200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+  },
+  typeChipActive: {
+    backgroundColor: COLORS.brandTeal,
+    borderColor: COLORS.brandTeal,
+  },
+  typeChipText: {
+    fontSize: 13,
+    color: COLORS.slate500,
+    fontWeight: '600',
+  },
+  typeChipTextActive: {
+    color: '#FFFFFF',
   },
   levelFilter: {
     paddingHorizontal: 20,

@@ -852,35 +852,8 @@ const NewSyncedTextPlayer = memo(function NewSyncedTextPlayer({
               <option value={2.0}>2.0x</option>
             </select>
 
-            {/* Pattern Toggle Button */}
-            {level && (
-              <button
-                onClick={() => {
-                  if (!showPatterns && patterns.length === 0) {
-                    loadPatterns();
-                  }
-                  setShowPatterns(!showPatterns);
-                }}
-                disabled={loadingPatterns}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${showPatterns
-                  ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                  }`}
-                title="Günlük kullanım kalıplarını göster"
-              >
-                {loadingPatterns ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Yükleniyor...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>✨</span>
-                    <span>Patterns</span>
-                  </>
-                )}
-              </button>
-            )}
+            {/* Pattern Toggle Button - REMOVED */}
+            {/* Patterns are now automatically shown in OutputSection */}
           </div>
 
           {/* Progress Bar */}
