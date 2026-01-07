@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { getAnalytics, isSupported, Analytics } from "firebase/analytics";
 
 const firebaseConfig = {
@@ -11,22 +11,40 @@ const firebaseConfig = {
     measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-let app;
+let app: FirebaseApp | undefined;
 let analytics: Analytics | null = null;
 
 if (typeof window !== "undefined") {
-    // Client-side only
-    if (!getApps().length) {
-        app = initializeApp(firebaseConfig);
-    } else {
-        app = getApp();
-    }
+    // Check for critical config values
+    const missingKeys = Object.entries({
+        apiKey: firebaseConfig.apiKey,
+        authDomain: firebaseConfig.authDomain,
+        projectId: firebaseConfig.projectId,
+        appId: firebaseConfig.appId,
+    }).filter(([_, value]) => !value).map(([key]) => key);
 
-    isSupported().then((supported) => {
-        if (supported) {
-            analytics = getAnalytics(app);
+    if (missingKeys.length > 0) {
+        console.warn(`[Firebase] Missing configuration keys: ${missingKeys.join(', ')}. Analytics will be disabled.`);
+    } else {
+        // Client-side only
+        try {
+            if (!getApps().length) {
+                app = initializeApp(firebaseConfig);
+            } else {
+                app = getApp();
+            }
+
+            isSupported().then((supported) => {
+                if (supported && app) {
+                    analytics = getAnalytics(app);
+                }
+            }).catch(err => {
+                console.warn('[Firebase] Analytics support check failed:', err);
+            });
+        } catch (error) {
+            console.warn('[Firebase] Initialization failed:', error);
         }
-    });
+    }
 }
 
 export { app, analytics };
