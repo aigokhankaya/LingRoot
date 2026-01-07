@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { apiService } from '../services/api';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 interface Pattern {
   pattern: string;
@@ -39,19 +40,20 @@ export default function PatternListScreen() {
 
   useEffect(() => {
     fetchPatterns();
+    AnalyticsHelper.logScreenView('PatternList', 'PatternListScreen');
   }, []);
 
   const fetchPatterns = async () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const response = await apiService.getUserPatternHistory();
-      
+
       if (response.success) {
         setPatterns(response.patterns || []);
       } else {
-        setError(response.message || 'Kalıplar yüklenemedi');
+        setError((response as any).message || 'Kalıplar yüklenemedi');
       }
     } catch (err: any) {
       console.error('Error fetching patterns:', err);
@@ -82,7 +84,14 @@ export default function PatternListScreen() {
   const renderPatternCard = ({ item }: { item: Pattern }) => (
     <TouchableOpacity
       style={styles.patternCard}
-      onPress={() => setSelectedPattern(item)}
+      onPress={() => {
+        setSelectedPattern(item);
+        AnalyticsHelper.logEvent('pattern_view', {
+          pattern_id: item.pattern, // Using pattern string as ID for now
+          pattern_text: item.pattern,
+          level: item.level
+        });
+      }}
       activeOpacity={0.7}
     >
       <Text style={styles.patternText}>{item.pattern}</Text>
@@ -97,7 +106,7 @@ export default function PatternListScreen() {
 
   const renderLevelSection = ({ item }: { item: [string, Pattern[]] }) => {
     const [level, levelPatterns] = item;
-    
+
     return (
       <View style={styles.levelSection}>
         <View style={styles.levelHeader}>

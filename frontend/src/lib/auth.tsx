@@ -3,6 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getApiUrl } from './api';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 // Types
 interface User {
@@ -73,6 +74,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
           setUser(loadedUser);
           setIsAuthenticated(true);
 
+          // Analytics
+          AnalyticsHelper.setUserId(loadedUser.id);
+          AnalyticsHelper.setUserProps({
+            user_type: loadedUser.membershipStatus,
+            user_role: loadedUser.role
+          });
+
           // Token yenileme
           if (data.data?.token) {
             localStorage.setItem('lingroot_token', data.data.token);
@@ -129,6 +137,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
     localStorage.removeItem('lingroot_remember_me');
     setUser(null);
     setIsAuthenticated(false);
+    AnalyticsHelper.logEvent('logout');
+    AnalyticsHelper.setUserId(null);
   }, []);
 
   // Token süresini kontrol et ve gerekirse logout yap
@@ -229,6 +239,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         };
         setUser(user);
         setIsAuthenticated(true);
+
+        // Analytics
+        AnalyticsHelper.logEvent('login', { method: 'email' });
+        AnalyticsHelper.setUserId(user.id);
+        AnalyticsHelper.setUserProps({
+          user_type: user.membershipStatus,
+          user_role: user.role
+        });
         // Eğer backend token döndürüyorsa localStorage'a kaydet
         if (data.data.token) {
           localStorage.setItem('lingroot_token', data.data.token);
@@ -349,6 +367,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         setUser(user);
         setIsAuthenticated(true);
 
+        // Analytics
+        AnalyticsHelper.logEvent('login', { method: 'google' });
+        AnalyticsHelper.setUserId(user.id);
+
         if (data.data.token) {
           localStorage.setItem('lingroot_token', data.data.token);
           localStorage.setItem('lingroot_remember_me', rememberMe.toString());
@@ -424,6 +446,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         return { success: false, message: 'Sunucudan geçersiz yanıt alındı.' };
       }
       console.log('[AUTH] register() response', data);
+
+      if (response.ok && data.success) {
+        AnalyticsHelper.logEvent('sign_up', { method: 'email' });
+      }
+
       // Kayıt başarılı, ancak auto-login yapmıyoruz çünkü e-posta doğrulaması gerekiyor.
       // E-posta doğrulama sayfasına yönlendirme yapılacak.
       return data;

@@ -28,6 +28,7 @@ import { SkiaSentenceHighlight } from './SkiaSentenceHighlight';
 import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
 import { useCustomAlert } from '../contexts/AlertContext';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 interface AudioPlayerProps {
   track: AudioTrack;
@@ -550,6 +551,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     // Only load if visible - prevent duplicate loads
     if (visible) {
       loadAudio();
+
+      // Log content view
+      if (track.id) {
+        AnalyticsHelper.logEvent('content_view', {
+          content_id: track.id,
+          content_title: track.title,
+          content_type: track.input_type || 'unknown',
+          cefr_level: track.level || 'unknown'
+        });
+      }
+
       // Reset elapsed time when new track loads
       setElapsedTime(0);
       accumulatedTimeRef.current = 0;
@@ -704,6 +716,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (status.isLoaded) {
       if (!pauseRequestedRef.current) {
         setPosition(status.positionMillis || 0);
+
+        // Log Play/Pause transitions
+        if (status.isPlaying !== isPlaying) {
+          if (status.isPlaying) {
+            AnalyticsHelper.logEvent('audio_play_start', {
+              content_id: track.id,
+              audio_url: track.url,
+              duration: duration / 1000 // seconds
+            });
+          }
+        }
+
         setIsPlaying(status.isPlaying);
         lastStatusPositionMsRef.current = status.positionMillis || 0;
         lastStatusTsRef.current = Date.now();
@@ -717,6 +741,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       if (!pauseRequestedRef.current && status.isPlaying) {
         setCurrentTrack(track);
       } else if (status.didJustFinish) {
+        // Log completion
+        AnalyticsHelper.logEvent('audio_play_complete', {
+          content_id: track.id,
+          duration_listened: duration / 1000
+        });
+
         // Only clear when audio actually finished, not when paused
         setCurrentTrack(null);
       }

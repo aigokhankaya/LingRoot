@@ -22,6 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../contexts/LanguageContext';
 import { isAppleSignInAvailable } from '../services/socialAuth';
 import { COLORS } from '../theme/colors';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -51,6 +52,7 @@ const LoginScreen: React.FC = () => {
 
   useEffect(() => {
     isAppleSignInAvailable().then(setShowAppleSignIn);
+    AnalyticsHelper.logScreenView('Login', 'LoginScreen');
   }, []);
 
   useEffect(() => {
@@ -120,6 +122,7 @@ const LoginScreen: React.FC = () => {
     setErrorCode(null);
     try {
       await signIn(email, password);
+      AnalyticsHelper.logEvent('login', { method: 'email' });
     } catch (error: any) {
       if ((error as any)?.code === 'EMAIL_NOT_VERIFIED') {
         setErrorText(error.message || 'E-posta adresiniz doğrulanmamış görünüyor.');
@@ -224,6 +227,7 @@ const LoginScreen: React.FC = () => {
     if (!signInWithGoogle) return;
     try {
       await signInWithGoogle();
+      AnalyticsHelper.logEvent('login', { method: 'google' });
     } catch (error: any) {
       Alert.alert(
         language === 'tr' ? 'Google Giriş Hatası' : 'Google Sign-In Error',
@@ -236,6 +240,7 @@ const LoginScreen: React.FC = () => {
     if (!signInWithApple) return;
     try {
       await signInWithApple();
+      AnalyticsHelper.logEvent('login', { method: 'apple' });
     } catch (error: any) {
       Alert.alert(
         language === 'tr' ? 'Apple Giriş Hatası' : 'Apple Sign-In Error',

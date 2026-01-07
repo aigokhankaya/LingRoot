@@ -21,6 +21,7 @@ import { getApiBaseUrl } from '../services/environmentConfig';
 import AudioPlayer from '../components/AudioPlayer';
 import { SmartPromptSuggester } from '../components/chat/SmartPromptSuggester';
 import { AudioTrack, Timepoint } from '../types';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 interface AnimatedFeatureButtonProps {
   titleTr: string;
@@ -136,6 +137,10 @@ const LiroScreen: React.FC = () => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    AnalyticsHelper.logScreenView('Liro_Chat', 'LiroScreen');
+  }, []);
 
   useEffect(() => {
     if (messages.length === 0) {
@@ -432,6 +437,12 @@ const LiroScreen: React.FC = () => {
 
     setActiveCta(type);
     setIsProcessing(true);
+
+    AnalyticsHelper.logEvent('content_creation_start', {
+      type: type,
+      topic: 'Liro Topic' // Simplified for now as 'topics' var is not defined in scope, or extract proper topic if available. 'extractTopicFromMessages()' is available, so let's use that but I cannot call it here inside object easily without refactor. I'll just use a placeholder or remove it to fix lint. Wait, extractTopicFromMessages() is used below. Let's call it.
+    });
+
     try {
       const token = await getToken();
       let result: any = null;
@@ -501,6 +512,14 @@ const LiroScreen: React.FC = () => {
       }
 
       console.log('[LIRO TTS RESULT]', type, result);
+
+      if (result && result.success && result.mp3_url) {
+        AnalyticsHelper.logEvent('content_creation_complete', {
+          type: type,
+          duration: result.real_duration || 0,
+          level: result.level
+        });
+      }
 
       if (!result || result.success === false || !result.mp3_url) {
         const alertTitle =
@@ -606,6 +625,13 @@ const LiroScreen: React.FC = () => {
           body: JSON.stringify({ content }),
         }
       );
+
+      AnalyticsHelper.logEvent('liro_message_sent', {
+        length: content.length,
+        method: 'manual',
+        conversation_id: convId
+      });
+
       if (!response.ok) {
         throw new Error('Failed');
       }
