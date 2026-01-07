@@ -63,9 +63,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Removed complex drift correction - using simple web-like approach
   const [selectedWords, setSelectedWords] = useState<Set<string>>(new Set()); // Seçilen kelimeler
   const [highlightMode, setHighlightMode] = useState<'word' | 'sentence' | 'pattern'>(initialHighlightMode); // Use mode from Library
-  const [showPatterns, setShowPatterns] = useState(false); // Toggle pattern highlighting
+  const [showPatterns, setShowPatterns] = useState(true); // Toggle pattern highlighting - Default true
   const [patterns, setPatterns] = useState<Array<{
     pattern: string;
+    type?: string;
+    translation?: string;        // Backend field name
+    example_text?: string;       // Backend field name
+    example_translation?: string; // Backend field name
+    level?: string;
+    // Keep old field names for backward compatibility
     meaning?: string;
     pattern_tr?: string;
     example_sentence?: string;
@@ -73,46 +79,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }>>([]);
   const [loadingPatterns, setLoadingPatterns] = useState(false);
 
-  // Debug: Log showPatterns changes
-  useEffect(() => {
-    console.log(`🎨 [AudioPlayer] showPatterns changed to: ${showPatterns}`);
-    if (showPatterns && patterns.length === 0) {
-      loadPatterns();
-    }
-  }, [showPatterns]);
 
-  // Load patterns from backend
-  const loadPatterns = async () => {
-    if (loadingPatterns || !textToHighlight || !track.level) return;
-
-    try {
-      setLoadingPatterns(true);
-      console.log(`🔍 [AudioPlayer] Loading patterns for level: ${track.level}`);
-
-      const apiUrl = await getEnvironmentConfig().then(config => config.baseUrl);
-      const token = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
-
-      const response = await fetch(`${apiUrl}/api/patterns/find`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ text: textToHighlight, level: track.level })
-      });
-
-      const data = await response.json();
-      console.log(`📊 [AudioPlayer] Found ${data.patterns?.length || 0} patterns`);
-
-      if (data.success && data.patterns) {
-        setPatterns(data.patterns);
-      }
-    } catch (error) {
-      console.error('❌ [AudioPlayer] Error loading patterns:', error);
-    } finally {
-      setLoadingPatterns(false);
-    }
-  };
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
@@ -284,7 +251,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     };
 
     const textToHighlight = getTextForHighlight();
-    const wordsArray = words.length > 0 ? words : textToHighlight.split(' ');
+    const wordsArray = words.length > 0 ? words : textToHighlight.split(/\s+/).filter(w => w.length > 0);
     const sentences = textToHighlight.split(/[.!?]+/).filter(s => s.trim().length > 0);
 
     // Debug: Check array lengths
@@ -301,6 +268,46 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   }, [track.adapted_text, track.translated_text, track.title, words]);
 
   const { textToHighlight, wordsArray, sentences } = textData;
+
+  // Auto-load patterns when content matches
+  useEffect(() => {
+    // Always reload patterns when article changes
+    if (track.level && textToHighlight && !loadingPatterns) {
+      loadPatterns();
+    }
+  }, [track.level, textToHighlight]);
+
+  // Load patterns from backend
+  const loadPatterns = async () => {
+    if (loadingPatterns || !textToHighlight || !track.level) return;
+
+    try {
+      setLoadingPatterns(true);
+
+      const apiUrl = await getEnvironmentConfig().then(config => config.baseUrl);
+      const token = await AsyncStorage.getItem('auth_token') || await AsyncStorage.getItem('userToken');
+
+      const response = await fetch(`${apiUrl}/api/patterns/find`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: textToHighlight, level: track.level })
+      });
+
+      const data = await response.json();
+      console.log(`📊 [AudioPlayer] Found ${data.patterns?.length || 0} patterns`);
+
+      if (data.success && data.patterns) {
+        setPatterns(data.patterns);
+      }
+    } catch (error) {
+      console.error('❌ [AudioPlayer] Error loading patterns:', error);
+    } finally {
+      setLoadingPatterns(false);
+    }
+  };
 
   const isPodcastTranscript = useMemo(() => {
     if (track.input_type === 'podcast') return true;
@@ -1450,9 +1457,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
     const data = patterns.map(p => ({
       pattern: p.pattern.toLowerCase().trim(),
-      pattern_tr: p.pattern_tr || '',
-      example_sentence: p.example_sentence || '',
-      example_sentence_tr: p.example_sentence_tr || ''
+      type: p.type || 'pattern',
+      // Use new backend field names, fallback to old names for backward compatibility
+      translation: p.translation || p.pattern_tr || '',
+      example_text: p.example_text || p.example_sentence || '',
+      example_translation: p.example_translation || p.example_sentence_tr || '',
+      level: p.level || ''
     }));
 
     console.log(`🎨 [AudioPlayer] Total pattern data: ${data.length}`);
@@ -1688,39 +1698,33 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           >
             <Icon name="close" size={24} color="#333" />
           </TouchableOpacity>
-          {isTestEnvironment && (
-            <View style={styles.centerBadge}>
-              <TouchableOpacity
-                onPress={() => {
-                  console.log(`🔄 [AudioPlayer] Toggling patterns: ${showPatterns} -> ${!showPatterns}, pageIndex: ${pageIndex}`);
-                  setShowPatterns(!showPatterns);
-                }}
-                style={[styles.patternToggle, showPatterns && styles.patternToggleActive]}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Icon name="highlight" size={18} color={showPatterns ? '#FFF' : '#666'} />
-                <Text style={[styles.patternToggleText, showPatterns && styles.patternToggleTextActive]}>
-                  Patterns
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {isPodcastTranscript ? (
-            <TouchableOpacity
-              style={[styles.originalToggleButton, showOriginal ? styles.originalToggleButtonOn : styles.originalToggleButtonOff]}
-              onPress={() => setShowOriginal(prev => !prev)}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Text style={[styles.originalToggleButtonText, showOriginal ? styles.originalToggleButtonTextOn : styles.originalToggleButtonTextOff]}>
-                Show Original Text
-              </Text>
+
+          {/* Show Original Text toggle - works for both podcast and text content */}
+          <TouchableOpacity
+            style={[styles.originalToggleButton, showOriginal ? styles.originalToggleButtonOn : styles.originalToggleButtonOff]}
+            onPress={() => {
+              // Toggle showOriginal state
+              setShowOriginal(prev => !prev);
+              // Also scroll to the original text page
+              if (!showOriginal) {
+                horizontalScrollRef.current?.scrollTo({ x: screenWidth, animated: true });
+                setPageIndex(1);
+              } else {
+                horizontalScrollRef.current?.scrollTo({ x: 0, animated: true });
+                setPageIndex(0);
+              }
+            }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Text style={[styles.originalToggleButtonText, showOriginal ? styles.originalToggleButtonTextOn : styles.originalToggleButtonTextOff]}>
+              {isPodcastTranscript ? 'Show Original Text' : t('audioPlayer.originalTextButton')}
+            </Text>
+            {isPodcastTranscript && (
               <View style={[styles.originalTogglePill, showOriginal ? styles.originalTogglePillOn : styles.originalTogglePillOff]}>
                 <View style={[styles.originalToggleKnob, showOriginal ? styles.originalToggleKnobOn : styles.originalToggleKnobOff]} />
               </View>
-            </TouchableOpacity>
-          ) : (
-            <View />
-          )}
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Extra floating close button to guarantee tappable area */}

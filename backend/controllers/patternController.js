@@ -195,8 +195,9 @@ exports.getUserPatternHistory = async (req, res) => {
 };
 
 /**
- * Get patterns that match specific text
- * Used for highlighting in AudioPlayer
+ * Get patterns that match specific text from pattern_library
+ * Used for highlighting in AudioPlayer (Web & Mobile)
+ * Returns: type, translation, example_text, example_translation
  */
 exports.findPatternsInText = async (req, res) => {
   try {
@@ -204,11 +205,11 @@ exports.findPatternsInText = async (req, res) => {
 
     console.log(`🔍 [PatternController] findPatternsInText called - level: ${level}, text length: ${text?.length || 0}`);
 
-    if (!text || !level) {
-      console.log('⚠️ [PatternController] Missing text or level');
+    if (!text) {
+      console.log('⚠️ [PatternController] Missing text');
       return res.status(400).json({
         success: false,
-        message: 'Text and level are required'
+        message: 'Text is required'
       });
     }
 
@@ -219,58 +220,96 @@ exports.findPatternsInText = async (req, res) => {
       });
     }
 
-    // Get patterns for this level
-    const { data, error } = await supabase
-      .from('daily_usage_patterns')
-      .select('patterns')
-      .eq('level', level.toUpperCase())
-      .order('created_at', { ascending: false })
-      .limit(20);
+    // Query pattern_library table for English patterns
+    // NOTE: Removed level filter - we want to find patterns regardless of CEFR level
+    // The pattern's level can still be returned for display purposes
+    let query = supabase
+      .from('pattern_library')
+      .select('id, text, type, translation, example_text, example_translation, level')
+      .eq('lang', 'en');
+
+    // Level filter disabled - patterns should be highlighted regardless of content level
+    // if (level) {
+    //   query = query.eq('level', level.toUpperCase());
+    // }
+
+    const { data, error } = await query.limit(500);
 
     if (error) {
-      logger.error('[PatternController] Error fetching patterns:', error);
+      logger.error('[PatternController] Error fetching patterns from pattern_library:', error);
       return res.status(500).json({
         success: false,
         message: 'Failed to fetch patterns'
       });
     }
 
-    // Flatten patterns
-    const allPatterns = [];
-    data.forEach(entry => {
-      if (entry.patterns && Array.isArray(entry.patterns)) {
-        allPatterns.push(...entry.patterns);
+    console.log(`📊 [PatternController] Total patterns from pattern_library: ${data?.length || 0}`);
+
+    // Debug: Log first 5 patterns to see what we're getting
+    if (data && data.length > 0) {
+      console.log(`📋 [PatternController] First 5 patterns:`, data.slice(0, 5).map(p => p.text));
+    }
+
+    // Debug: Log part of the text being searched
+    console.log(`📝 [PatternController] Text preview (first 200 chars): ${text.substring(0, 200)}`);
+
+    // Normalize function: Aggressive cleaning (keep only letters, numbers, spaces)
+    const normalizeText = (str) => {
+      try {
+        return str
+          .toLowerCase()
+          // Use Unicode property escapes to keep only Letters (L), Numbers (N) and Whitespace
+          // This removes apostrophes, quotes, punctuation, emojis, etc.
+          .replace(/[^\p{L}\p{N}\s]/gu, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      } catch (e) {
+        // Fallback for older environments
+        return str
+          .toLowerCase()
+          .replace(/[''`\u2018\u2019]/g, '') // Remove apostrophes
+          .replace(/[\u0022\u201C\u201D\u201E\u00AB\u00BB]/g, '') // Remove quotes
+          .replace(/[.,!?;:()\[\]{}]/g, '') // Remove other punctuation
+          .replace(/\s+/g, ' ')
+          .trim();
       }
+    };
+
+    // Find patterns that exist in the text (case-insensitive, quote-normalized)
+    const textNormalized = normalizeText(text);
+
+    const matchedPatterns = (data || []).filter(pattern => {
+      if (!pattern.text) return false;
+      const patternNormalized = normalizeText(pattern.text);
+      return textNormalized.includes(patternNormalized);
     });
 
-    console.log(`📊 [PatternController] Total patterns from DB: ${allPatterns.length}`);
-
-    // Find patterns that exist in the text
-    const textLower = text.toLowerCase();
-    const matchedPatterns = allPatterns.filter(pattern => {
-      const patternLower = pattern.pattern.toLowerCase();
-      return textLower.includes(patternLower);
-    });
-
-    console.log(`🎯 [PatternController] Matched patterns: ${matchedPatterns.length}`);
-
-    // Deduplicate
+    // Deduplicate and format response
     const uniqueMatches = [];
     const seenPatterns = new Set();
     matchedPatterns.forEach(pattern => {
-      const key = pattern.pattern.toLowerCase();
+      const key = pattern.text.toLowerCase();
       if (!seenPatterns.has(key)) {
         seenPatterns.add(key);
-        uniqueMatches.push(pattern);
+        // Debug: Log pattern with translation
+        console.log(`🔍 [PatternController] Pattern "${pattern.text}" -> translation: "${pattern.translation}"`);
+        uniqueMatches.push({
+          pattern: pattern.text,
+          type: pattern.type || 'pattern',
+          translation: pattern.translation || '',
+          example_text: pattern.example_text || '',
+          example_translation: pattern.example_translation || '',
+          level: pattern.level || ''
+        });
       }
     });
 
     console.log(`✨ [PatternController] Unique matches: ${uniqueMatches.length}`);
-    logger.info(`[PatternController] Found ${uniqueMatches.length} matching patterns in text`);
+    logger.info(`[PatternController] Found ${uniqueMatches.length} matching patterns in text from pattern_library`);
 
     res.json({
       success: true,
-      level: level.toUpperCase(),
+      level: level ? level.toUpperCase() : 'ALL',
       patterns: uniqueMatches,
       count: uniqueMatches.length
     });
