@@ -12,8 +12,8 @@
 		55971A54C515B4607415E33E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F0E2872D4471B58B154224A9 /* PrivacyInfo.xcprivacy */; };
 		594283E02E9804F4007056E1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 594283DF2E9804F4007056E1 /* StoreKit.framework */; };
 		59960F842ED61FD5000E5084 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 59960F832ED61FD5000E5084 /* GoogleService-Info.plist */; };
-		C1C047630DE3C1A81CC639CB /* Pods_LingRootMobile.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9520ACB4674BDB4E2A42C133 /* Pods_LingRootMobile.framework */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
+		F3B655E014869AEB89C82C8C /* libPods-LingRootMobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 75342C9AC2415335998D7B05 /* libPods-LingRootMobile.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,8 +24,8 @@
 		59960F832ED61FD5000E5084 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		59B059C92EBE0A9200912727 /* Lingroot.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Lingroot.storekit; sourceTree = "<group>"; };
 		643F5911894823256F8021AB /* Pods-LingRootMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-LingRootMobile.debug.xcconfig"; path = "Target Support Files/Pods-LingRootMobile/Pods-LingRootMobile.debug.xcconfig"; sourceTree = "<group>"; };
+		75342C9AC2415335998D7B05 /* libPods-LingRootMobile.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-LingRootMobile.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		92EAF5B8C818248D876CDDDD /* Pods-LingRootMobile.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-LingRootMobile.release.xcconfig"; path = "Target Support Files/Pods-LingRootMobile/Pods-LingRootMobile.release.xcconfig"; sourceTree = "<group>"; };
-		9520ACB4674BDB4E2A42C133 /* Pods_LingRootMobile.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_LingRootMobile.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = LingRootMobile/SplashScreen.storyboard; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F0E2872D4471B58B154224A9 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = LingRootMobile/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -39,7 +39,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				594283E02E9804F4007056E1 /* StoreKit.framework in Frameworks */,
-				C1C047630DE3C1A81CC639CB /* Pods_LingRootMobile.framework in Frameworks */,
+				F3B655E014869AEB89C82C8C /* libPods-LingRootMobile.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,7 +65,7 @@
 			children = (
 				594283DF2E9804F4007056E1 /* StoreKit.framework */,
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				9520ACB4674BDB4E2A42C133 /* Pods_LingRootMobile.framework */,
+				75342C9AC2415335998D7B05 /* libPods-LingRootMobile.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
