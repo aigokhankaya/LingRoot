@@ -1,6 +1,6 @@
 # API Architecture
 
-**Last Updated:** December 2025  
+**Last Updated:** January 2026  
 **Base URL:** `http://localhost:5001` (development) | `https://api.lingroot.com` (production)
 
 ## Overview
@@ -31,7 +31,7 @@ The LingRoot API is a RESTful service built with Express.js, providing endpoints
 └── /stats                   # Usage statistics
 ```
 
-## Controllers (31 Total)
+## Controllers (42 Total)
 
 | Controller | Endpoints | Responsibility |
 |------------|-----------|----------------|
@@ -48,6 +48,17 @@ The LingRoot API is a RESTful service built with Express.js, providing endpoints
 | `topicPipelineController.js` | 5+ | Content pipeline execution |
 | `contentController.js` | 8+ | Content history, management |
 | `documentController.js` | 5+ | PDF/document processing |
+| `srsController.js` | 4+ | Spaced Repetition System (SM-2) |
+| `vocabularyController.js` | 6+ | User vocabulary management |
+| `accountDeletionController.js` | 2+ | GDPR account deletion |
+| `assessmentController.js` | 4+ | CEFR level assessment |
+| `contentRatingController.js` | 3+ | Content ratings & feedback |
+| `externalServicesController.js` | 5+ | Third-party services config |
+| `googlePlayNotificationsController.js` | 3+ | Google Play RTDN webhooks |
+| `appleNotificationsController.js` | 3+ | Apple Server Notifications |
+| `patternController.js` | 4+ | Daily usage patterns |
+| `topicMasteryController.js` | 4+ | Topic mastery tracking |
+| `userEmbeddingController.js` | 4+ | User embeddings for recommendations |
 
 ## Authentication
 

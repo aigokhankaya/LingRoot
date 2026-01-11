@@ -14,6 +14,12 @@ Primary: Deep Navy (#0A192F). Accent: Electric Blue or Gold glow.
 Atmosphere: Intellectual, cinematic, 8k, octane render. 
 Typography: Montserrat Bold, white (#FFFFFF), centered.
 
+LINGROOT BRAND NAME RULE (MUST FOLLOW):
+- When displaying "LingRoot" brand name, use TWO COLORS:
+  - "Ling" = White (#FFFFFF)
+  - "Root" = Steel Blue (#5889A5)
+- Example: Text "LingRoot" with "Ling" in white and "Root" in steel blue (#5889A5).
+
 TEXT CAPITALIZATION RULES (MUST FOLLOW):
 - Use Title Case: Capitalize The First Letter Of Each Word
 - Example: "Stop Studying. Start Exploring." NOT "STOP STUDYING" or "stop studying"
@@ -549,7 +555,7 @@ This is why LingRoot works.
 #### 📽️ Veo 3.1 Prompt
 
 ```
-Create 8-second cinematic vertical video (9:16).
+Create 8-second cinematic vertical video (16:9).
 
 SCENE: Split screen transformation.
 LEFT (first 3 sec): Person looking frustrated at English book, subtitle "Day 1"
