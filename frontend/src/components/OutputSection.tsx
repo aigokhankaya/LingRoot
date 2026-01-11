@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import NewSyncedTextPlayer from './NewSyncedTextPlayer';
-import { markTopicAudioListened, addWordWithTranslation, lookupVocabularyWord } from '../lib/api';
+import PatternDetailModal from './PatternDetailModal';
+import { markTopicAudioListened, addWordWithTranslation, lookupVocabularyWord, getApiUrl, createHeaders } from '../lib/api';
 
 interface TtsResponseData {
   success?: boolean;
@@ -51,6 +52,16 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [hasPinnedControls, setHasPinnedControls] = useState(false);
 
+  // Pattern highlighting state
+  const [patterns, setPatterns] = useState<Array<{
+    pattern: string;
+    type: string;
+    translation: string;
+    example_text: string;
+    example_translation: string;
+  }>>([]);
+  const [selectedPattern, setSelectedPattern] = useState<typeof patterns[0] | null>(null);
+
   // Word popup state for vocabulary features
   const [wordPopup, setWordPopup] = useState<{
     mode: 'info' | 'confirm';
@@ -84,6 +95,116 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
   const adaptedTextWords = adaptedText.split(/\s+/).filter((word: string) => word.length > 0);
 
   const translatedText = audioResult.translated_text || audioResult.translatedText || '';
+
+  // Fetch patterns from pattern_library when text is available
+  useEffect(() => {
+    const fetchPatterns = async () => {
+      if (!adaptedText || adaptedText.length < 10) return;
+
+      try {
+        const url = getApiUrl('/patterns/find');
+        const headers = createHeaders('application/json');
+        const response = await fetch(url, {
+          method: 'POST',
+          headers,
+          credentials: 'include',
+          body: JSON.stringify({
+            text: adaptedText,
+            level: audioResult.level || null
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.patterns) {
+            console.log(`✨ [OutputSection] Loaded ${data.patterns.length} patterns`);
+            setPatterns(data.patterns);
+          }
+        }
+      } catch (error) {
+        console.error('[OutputSection] Error fetching patterns:', error);
+      }
+    };
+
+    fetchPatterns();
+  }, [adaptedText, audioResult.level]);
+
+  // Calculate pattern ranges (startIndex, endIndex) for highlighting
+  const patternRanges = useMemo(() => {
+    if (patterns.length === 0) return [];
+
+    const ranges: Array<{ startIndex: number; endIndex: number; pattern: typeof patterns[0] }> = [];
+
+    // Helper to clean a word for comparison (remove all punctuation, normalize quotes)
+    const cleanWord = (w: string) => w
+      .toLowerCase()
+      .replace(/[''`]/g, "'")     // Normalize apostrophes first
+      .replace(/[""„]/g, '"')     // Normalize double quotes
+      .replace(/[.,!?;:'"«»()\[\]{}]/g, '')  // Remove punctuation
+      .trim();
+
+    for (const p of patterns) {
+      const phraseWords = p.pattern.toLowerCase().split(/\s+/).map(w => cleanWord(w));
+      const phraseLength = phraseWords.length;
+
+      // Scan through words to find matches
+      for (let startIdx = 0; startIdx <= adaptedTextWords.length - phraseLength; startIdx++) {
+        const candidateWords = adaptedTextWords.slice(startIdx, startIdx + phraseLength);
+        const candidatePhrase = candidateWords.map(w => cleanWord(w)).join(' ');
+        const targetPhrase = phraseWords.join(' ');
+
+        if (candidatePhrase === targetPhrase) {
+          ranges.push({
+            startIndex: startIdx,
+            endIndex: startIdx + phraseLength - 1,
+            pattern: p
+          });
+          console.log(`✨ [OutputSection] Pattern match found: "${p.pattern}" at indices ${startIdx}-${startIdx + phraseLength - 1}`);
+        }
+      }
+    }
+
+    // Filter overlapping patterns - keep only the longest one
+    // Sort by length (descending) so longer patterns take precedence
+    const sortedRanges = [...ranges].sort((a, b) => {
+      const lenA = a.endIndex - a.startIndex;
+      const lenB = b.endIndex - b.startIndex;
+      return lenB - lenA; // Longer first
+    });
+
+    // Filter out patterns that overlap with a longer one
+    const filteredRanges = sortedRanges.filter((range, idx, arr) => {
+      // Check if this range overlaps with any longer range (that comes before in sorted array)
+      for (let i = 0; i < idx; i++) {
+        const longer = arr[i];
+        // Check overlap: ranges overlap if one starts before the other ends
+        const overlaps = range.startIndex <= longer.endIndex && range.endIndex >= longer.startIndex;
+        if (overlaps) {
+          console.log(`🔄 [OutputSection] Filtering out "${range.pattern.pattern}" - overlaps with longer "${longer.pattern.pattern}"`);
+          return false; // Filter out this shorter/equal range
+        }
+      }
+      return true;
+    });
+
+    console.log(`📋 [OutputSection] Total pattern ranges: ${ranges.length}, after filtering: ${filteredRanges.length}`);
+    return filteredRanges;
+  }, [patterns, adaptedTextWords]);
+
+  // Check if word at index is part of a pattern
+  const getPatternForWord = useCallback((wordIndex: number) => {
+    return patternRanges.find(r => wordIndex >= r.startIndex && wordIndex <= r.endIndex)?.pattern || null;
+  }, [patternRanges]);
+
+  // Check if word is first in a pattern (for border rendering)
+  const isFirstInPattern = useCallback((wordIndex: number) => {
+    return patternRanges.some(r => r.startIndex === wordIndex);
+  }, [patternRanges]);
+
+  // Check if word is last in a pattern
+  const isLastInPattern = useCallback((wordIndex: number) => {
+    return patternRanges.some(r => r.endIndex === wordIndex);
+  }, [patternRanges]);
 
   const splitIntoSentences = (text: string): string[] => {
     return text
@@ -545,25 +666,43 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
               <div className="text-gray-800 leading-relaxed" style={{ fontSize: '15px', lineHeight: '1.8' }}>
                 {adaptedTextWords.map((word: string, index: number) => {
                   const isCurrentWord = isAudioPlaying && index === activeWordIndex;
+                  const patternForWord = getPatternForWord(index);
+                  const isInPattern = !!patternForWord;
+                  const isPatternStart = isFirstInPattern(index);
+                  const isPatternEnd = isLastInPattern(index);
+
+                  // Build border classes for pattern highlighting
+                  let patternClasses = '';
+                  if (isInPattern) {
+                    patternClasses = 'border-orange-400 border-y-2 cursor-pointer';
+                    if (isPatternStart) patternClasses += ' border-l-2 rounded-l-md pl-1';
+                    if (isPatternEnd) patternClasses += ' border-r-2 rounded-r-md pr-1';
+                  }
+
                   return (
                     <span
                       key={index}
                       ref={isCurrentWord ? activeWordRef : undefined}
-                      className={`transition-all duration-100 cursor-pointer hover:bg-gray-200 rounded px-0.5 ${isCurrentWord
+                      className={`transition-all duration-100 ${isInPattern ? patternClasses : 'cursor-pointer hover:bg-gray-200 rounded px-0.5'} ${isCurrentWord
                         ? 'bg-yellow-300 text-yellow-900 font-semibold px-1 py-0.5 rounded shadow-sm'
                         : ''
                         }`}
                       style={{ display: 'inline' }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleEnglishWordClick(word, index);
+                        // If word is part of a pattern, show pattern popup
+                        if (patternForWord) {
+                          setSelectedPattern(patternForWord);
+                        } else {
+                          handleEnglishWordClick(word, index);
+                        }
                       }}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         handleEnglishWordClick(word, index);
                       }}
-                      title={`Kelimeye tıklayarak bilgi alın veya ekleyin`}
+                      title={isInPattern ? `📚 ${patternForWord?.pattern} - Tıklayarak detay görün` : `Kelimeye tıklayarak bilgi alın veya ekleyin`}
                     >
                       {word}{' '}
                     </span>
@@ -677,6 +816,12 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
 
       {/* Architecture Comparison - GİZLENDİ */}
       {/* GIZLENDI - Yeni Senkronizasyon Mimarisi başlıklı alanı kaldır */}
+
+      {/* Pattern Detail Modal */}
+      <PatternDetailModal
+        pattern={selectedPattern}
+        onClose={() => setSelectedPattern(null)}
+      />
     </div>
   );
 }
