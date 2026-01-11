@@ -1,6 +1,6 @@
 PROJECT_MEMORY.md
 Project Name: Lingroot
-Last Updated: 2026-01-10
+Last Updated: 2026-01-11
 Current Phase: Phase 2 – Intelligent Content Generation
 Active Context: CEFR-based content engine, prompt governance, audio pipeline stability, mobile/web harmonization.
 
@@ -86,6 +86,18 @@ Folder Structure Standard:
    /mfa-worker
    /models
    /utils
+/docs
+   /architecture
+   /codebase
+   /api
+   /database
+   /prompts
+   /marketing       # Instagram, Launch Plan, Ads Strategy
+   /gamification    # Gamification documentation  
+   /integrations    # Apple IAP, Google Play, Stripe docs
+   /testing         # Test documentation
+   /templates
+   /ui
 /prompts
    /tts
    /translation
@@ -159,6 +171,11 @@ Phase 4 — Topic Mastery & Detailed Feedback
 ✅ User Insight Embedding (Migration 058 + pgvector)
 ✅ Benzer kullanıcı önerileri (cosine similarity)
 ✅ AI-powered recommendations API
+✅ Phase 7 — Marketing & Launch Preparation
+✅ Instagram content strategy (100 posts pack)
+✅ Paid ads strategy (Google, Meta, TikTok)
+✅ Launch execution guide
+✅ Marketing analytics integration
 
 [NEW ARCHITECTURE]
 Gamified Onboarding & Progression Strategy
