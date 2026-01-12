@@ -1,6 +1,6 @@
 # API Services (Backend)
 
-**Last Updated:** December 2025  
+**Last Updated:** January 2026  
 **Location:** `/backend`
 
 ## Overview
@@ -26,7 +26,7 @@ backend/
 ├── server.js               # Entry point (10KB)
 ├── config/
 │   └── database.js         # DB configuration
-├── controllers/            # 31 controllers
+├── controllers/            # 42 controllers
 │   ├── authController.js          # (53KB) Auth operations
 │   ├── ttsController.js           # (109KB) TTS processing
 │   ├── aiChatController.js        # (28KB) Liro assistant
@@ -55,7 +55,7 @@ backend/
 │   ├── azureTTS.js
 │   ├── amazonPolly.js
 │   └── ...
-├── prompts/                # 49 AI prompts
+├── prompts/                # 75+ AI prompts
 ├── migrations/             # 54 SQL migrations
 ├── models/                 # Data models
 ├── scripts/                # Utility scripts
@@ -152,6 +152,22 @@ Input → Extract → Translate → CEFR Adapt → Clean → TTS → Merge → U
 | `submitReview` | POST /srs/review | Submit review result (SM-2) |
 | `addWord` | POST /srs/words | Add new word manually |
 | `getStats` | GET /srs/stats | Get SRS statistics |
+
+### Additional Controllers (New in January 2026)
+
+| Controller | Endpoints | Responsibility |
+|------------|-----------|----------------|
+| `accountDeletionController.js` | 2+ | GDPR-compliant account deletion |
+| `assessmentController.js` | 4+ | CEFR level assessment tests |
+| `contentRatingController.js` | 3+ | User content ratings & feedback |
+| `externalServicesController.js` | 5+ | Third-party service configuration |
+| `googlePlayNotificationsController.js` | 3+ | Google Play RTDN webhooks |
+| `appleNotificationsController.js` | 3+ | Apple App Store Server Notifications |
+| `patternController.js` | 4+ | Daily usage pattern tracking |
+| `topicDetailController.js` | 3+ | Topic detail & metadata |
+| `topicMasteryController.js` | 4+ | Topic mastery progress tracking |
+| `topicSuggestController.js` | 3+ | Smart topic suggestions |
+| `userEmbeddingController.js` | 4+ | User embeddings for recommendations |
 
 ## Utilities
 

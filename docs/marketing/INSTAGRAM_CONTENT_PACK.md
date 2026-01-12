@@ -14,6 +14,11 @@ Tüm tasarımlarda bu kurallara sadık kalın:
     *   **Zemin:** Koyu Lacivert (Deep Navy - #0A192F) veya Simsiyah (Rich Black - #050505).
     *   **Yazılar:** Beyaz (#FFFFFF) veya Gümüş Grisi (#E0E0E0).
     *   **Vurgular:** Elektrik Mavisi (Cyan) veya Altın Sarısı (Gold) - *Çok az kullanılacak.*
+*   **LingRoot Logo Yazısı (2-RENKLİ KURAL):**
+    *   **"Ling"** = Beyaz (#FFFFFF)
+    *   **"Root"** = Steel Blue (#5889A5) - *Logodaki orijinal renk*
+    *   LingRoot yazısı her yerde bu 2 renkte görünmeli: "**Ling**" beyaz, "**Root**" mavi-yeşil.
+    *   Örnek Prompt eki: `Text "LingRoot" with "Ling" in white (#FFFFFF) and "Root" in steel blue (#5889A5).`
 *   **Font:**
     *   **Başlıklar:** Kalın, Modern Sans-Serif (Örn: Montserrat Bold, Futura Heavy).
     *   **Gövde:** Okunabilir Sans-Serif (Örn: Inter, Roboto).
@@ -109,8 +114,9 @@ Style: Clean 3D render, 8k, photorealistic.
 Create a premium Instagram post. Background: A clean empty premium stage with a single dramatic spotlight from above. Dark navy textured background (#0A192F).
 
 Text on image: "LingRoot" (as brand name, prominent)
+- IMPORTANT: Display "Ling" in white (#FFFFFF) and "Root" in steel blue (#5889A5).
 Below: "The content you love, at your level."
-Typography: Brand name in large bold sans-serif, tagline in elegant regular weight below. Both white, centered.
+Typography: Brand name in large bold sans-serif (two-color as specified), tagline in elegant regular weight below in white, centered.
 
 Style: Minimalist, elegant, product reveal atmosphere, 8k.
 ```
