@@ -1,6 +1,6 @@
 # Frontend Structure
 
-**Last Updated:** December 2025  
+**Last Updated:** January 2026  
 **Framework:** Next.js 14 (App Router)
 
 ## Directory Structure

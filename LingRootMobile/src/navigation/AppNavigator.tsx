@@ -8,6 +8,7 @@ import { Alert, View, ActivityIndicator, TouchableOpacity, Text, StyleSheet } fr
 import { Platform } from 'react-native';
 import { getEnvironmentConfig } from '../services/environmentConfig';
 import { COLORS } from '../theme/colors';
+import BlurHeader from '../components/BlurHeader';
 
 import { useAuth } from '../contexts/AuthContext';
 import NotificationService from '../services/notificationService';
@@ -213,14 +214,12 @@ const MainTabs = () => {
           marginVertical: 8,
         },
         headerShown: true,
-        headerStyle: {
-          backgroundColor: COLORS.brandTeal,
-          shadowColor: 'transparent',
-          elevation: 0,
-        },
-        headerTintColor: '#fff',
+        headerTransparent: true,
+        headerBackground: () => <BlurHeader />,
+        headerTintColor: COLORS.slate900,
         headerTitleStyle: {
           fontWeight: '700',
+          color: COLORS.slate900,
         },
         headerRight: () => <TestBadge />,
       })}
@@ -532,9 +531,10 @@ const AppNavigator = () => {
               component={TopicTreeScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: language === 'tr' ? 'Konu Ağacım' : 'My Topic Tree',
               }}
             />
@@ -543,9 +543,10 @@ const AppNavigator = () => {
               component={VocabularyScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: language === 'tr' ? 'Kelimelerim' : 'My Vocabulary',
               }}
             />
@@ -554,9 +555,10 @@ const AppNavigator = () => {
               component={LiroScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: 'LIRO',
               }}
             />
@@ -565,9 +567,10 @@ const AppNavigator = () => {
               component={AccountSettingsScreen}
               options={({ navigation }) => ({
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: t('profile.accountSettings'),
               })}
             />
@@ -576,9 +579,10 @@ const AppNavigator = () => {
               component={MembershipScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
               }}
             />
             <Stack.Screen
@@ -593,9 +597,10 @@ const AppNavigator = () => {
               component={ChatScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: language === 'tr' ? 'Destek' : 'Support',
               }}
             />
@@ -611,9 +616,10 @@ const AppNavigator = () => {
               component={PrivacyPolicyScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy',
               }}
             />
@@ -622,9 +628,10 @@ const AppNavigator = () => {
               component={TermsOfServiceScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: language === 'tr' ? 'Kullanım Koşulları' : 'Terms of Service',
               }}
             />
@@ -633,9 +640,10 @@ const AppNavigator = () => {
               component={ReminderSettingsScreen}
               options={{
                 headerShown: true,
-                headerStyle: { backgroundColor: COLORS.brandTeal },
-                headerTintColor: '#fff',
-                headerTitleStyle: { fontWeight: 'bold' },
+                headerTransparent: true,
+                headerBackground: () => <BlurHeader />,
+                headerTintColor: COLORS.slate900,
+                headerTitleStyle: { fontWeight: 'bold', color: COLORS.slate900 },
                 headerTitle: language === 'tr' ? 'Hatırlatıcı Ayarları' : 'Reminder Settings',
               }}
             />

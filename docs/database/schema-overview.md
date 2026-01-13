@@ -1,8 +1,8 @@
 # Database Schema Overview
 
-**Last Updated:** December 2025  
+**Last Updated:** January 2026  
 **Database:** PostgreSQL (Supabase)  
-**Migrations:** 54 files in `/backend/migrations/`
+**Migrations:** 84 files in `/backend/migrations/`
 
 ## Entity Relationship Diagram
 

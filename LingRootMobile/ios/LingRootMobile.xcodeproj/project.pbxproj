@@ -10,7 +10,6 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		55971A54C515B4607415E33E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F0E2872D4471B58B154224A9 /* PrivacyInfo.xcprivacy */; };
-		594283E02E9804F4007056E1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 594283DF2E9804F4007056E1 /* StoreKit.framework */; };
 		59960F842ED61FD5000E5084 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 59960F832ED61FD5000E5084 /* GoogleService-Info.plist */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 		F3B655E014869AEB89C82C8C /* libPods-LingRootMobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 75342C9AC2415335998D7B05 /* libPods-LingRootMobile.a */; };
@@ -20,7 +19,7 @@
 		13B07F961A680F5B00A75B9A /* LingRootMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LingRootMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = LingRootMobile/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = LingRootMobile/Info.plist; sourceTree = "<group>"; };
-		594283DF2E9804F4007056E1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		2E190C4B067AB5A8DB183DCA /* Pods_LingRootMobile.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_LingRootMobile.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		59960F832ED61FD5000E5084 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		59B059C92EBE0A9200912727 /* Lingroot.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Lingroot.storekit; sourceTree = "<group>"; };
 		643F5911894823256F8021AB /* Pods-LingRootMobile.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-LingRootMobile.debug.xcconfig"; path = "Target Support Files/Pods-LingRootMobile/Pods-LingRootMobile.debug.xcconfig"; sourceTree = "<group>"; };
@@ -63,7 +62,6 @@
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				594283DF2E9804F4007056E1 /* StoreKit.framework */,
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
 				75342C9AC2415335998D7B05 /* libPods-LingRootMobile.a */,
 			);
@@ -383,7 +381,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 3KV8B9ZKWT;
+				DEVELOPMENT_TEAM = K7F8TXV5JY;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -403,7 +401,7 @@
 					"-ObjC",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.lingroot.mobile;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gokhankaya.lingroottest;
 				PRODUCT_NAME = LingRootMobile;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -427,7 +425,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 3KV8B9ZKWT;
+				DEVELOPMENT_TEAM = K7F8TXV5JY;
 				INFOPLIST_FILE = LingRootMobile/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = LingRoot;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
@@ -442,7 +440,7 @@
 					"-ObjC",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.lingroot.mobile;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gokhankaya.lingroottest;
 				PRODUCT_NAME = LingRootMobile;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
