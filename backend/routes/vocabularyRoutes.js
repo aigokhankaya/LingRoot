@@ -7,8 +7,7 @@
 const express = require('express');
 const router = express.Router();
 const vocabularyController = require('../controllers/vocabularyController');
-const { authenticate } = require('../middleware/auth');
-
+const { authenticate } = require('../middleware/authMiddleware');
 const { supabase } = require('../utils/supabaseClient');
 const logger = require('../utils/logger');
 const { processWordForVocabulary } = require('../utils/wordTranslationService');
