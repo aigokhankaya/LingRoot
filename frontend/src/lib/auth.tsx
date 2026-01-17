@@ -241,7 +241,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         setIsAuthenticated(true);
 
         // Analytics
-        AnalyticsHelper.logEvent('login', { method: 'email' });
+        AnalyticsHelper.logEvent('login', { method: 'email', platform: 'web' });
         AnalyticsHelper.setUserId(user.id);
         AnalyticsHelper.setUserProps({
           user_type: user.membershipStatus,
@@ -368,7 +368,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
         setIsAuthenticated(true);
 
         // Analytics
-        AnalyticsHelper.logEvent('login', { method: 'google' });
+        AnalyticsHelper.logEvent('login', { method: 'google', platform: 'web' });
         AnalyticsHelper.setUserId(user.id);
 
         if (data.data.token) {
@@ -448,7 +448,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }: { 
       console.log('[AUTH] register() response', data);
 
       if (response.ok && data.success) {
-        AnalyticsHelper.logEvent('sign_up', { method: 'email' });
+        AnalyticsHelper.logEvent('sign_up', { method: 'email', platform: 'web' });
       }
 
       // Kayıt başarılı, ancak auto-login yapmıyoruz çünkü e-posta doğrulaması gerekiyor.

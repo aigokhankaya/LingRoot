@@ -1,4 +1,7 @@
-import analytics from '@react-native-firebase/analytics';
+import { getAnalytics, logEvent, setUserProperties, setUserId, logScreenView } from '@react-native-firebase/analytics';
+
+// Firebase modular API ile analytics instance
+const analyticsInstance = getAnalytics();
 
 export const AnalyticsHelper = {
     /**
@@ -8,7 +11,7 @@ export const AnalyticsHelper = {
      */
     logEvent: async (eventName: string, params: Record<string, any> = {}) => {
         try {
-            await analytics().logEvent(eventName, params);
+            await logEvent(analyticsInstance, eventName, params);
             // Optional: Add dev logging
             if (__DEV__) {
                 console.log(`[Analytics] Event: ${eventName}`, params);
@@ -24,7 +27,7 @@ export const AnalyticsHelper = {
      */
     setUserProps: async (props: Record<string, string | null>) => {
         try {
-            await analytics().setUserProperties(props);
+            await setUserProperties(analyticsInstance, props);
             if (__DEV__) {
                 console.log(`[Analytics] User Props Set:`, props);
             }
@@ -39,7 +42,7 @@ export const AnalyticsHelper = {
      */
     setUserId: async (userId: string | null) => {
         try {
-            await analytics().setUserId(userId);
+            await setUserId(analyticsInstance, userId);
             if (__DEV__) {
                 console.log(`[Analytics] User ID Set: ${userId}`);
             }
@@ -55,7 +58,7 @@ export const AnalyticsHelper = {
      */
     logScreenView: async (screenName: string, screenClass: string = screenName) => {
         try {
-            await analytics().logScreenView({
+            await logScreenView(analyticsInstance, {
                 screen_name: screenName,
                 screen_class: screenClass,
             });

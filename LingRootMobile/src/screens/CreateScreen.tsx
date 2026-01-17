@@ -26,6 +26,7 @@ import { apiService, saveDefaultVoiceSetting, getUserSettings, getMyPlanFeatures
 import AudioPlayer from '../components/AudioPlayer';
 import { getVoiceDisplayName } from '../utils/voiceDisplayNames';
 import { COLORS } from '../theme/colors';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 const CreateScreen: React.FC = () => {
   const route = useRoute<any>();
@@ -113,6 +114,9 @@ const CreateScreen: React.FC = () => {
 
       // Ekrana her odaklanıldığında aktif job durumunu kontrol et
       checkActiveJob();
+
+      // Firebase Analytics: Screen View
+      AnalyticsHelper.logScreenView('Create', 'CreateScreen');
 
       // Topic Tree'den gelen hazır uzun metni sadece text modunda ve input boşken uygula
       if (
@@ -250,6 +254,7 @@ const CreateScreen: React.FC = () => {
       Alert.alert(t('common.info'), msg);
       return;
     }
+    AnalyticsHelper.logEvent('action_fetch_youtube_click_mobile', { url: youtubeUrl });
     if (!youtubeUrl || !/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(youtubeUrl)) {
       Alert.alert(t('common.error'), 'Geçerli bir YouTube linki girin');
       return;
@@ -879,6 +884,13 @@ const CreateScreen: React.FC = () => {
   }, [selectedAccent, selectedGender, selectedVoiceCategory]);
 
   const handleCreateAudio = async () => {
+    // Log analytics event
+    AnalyticsHelper.logEvent('action_generate_audio_click_mobile', {
+      content_type: mode,
+      level: selectedLevel,
+      voice: selectedVoice,
+      speaking_rate: speechRate
+    });
     if (isTtsJobLocked) {
       if (ttsJobMessage) {
         Alert.alert(t('common.info'), ttsJobMessage);
@@ -1011,6 +1023,15 @@ const CreateScreen: React.FC = () => {
           engine: mapCategoryForBackend(selectedVoiceCategory),
         };
 
+        // Firebase Analytics: Content creation started
+        AnalyticsHelper.logEvent('content_creation_start', {
+          type: 'narration',
+          content_type: mode,
+          level: selectedLevel,
+          voice: selectedVoice,
+          text_length: textToProcess.length,
+        });
+
         console.log('🎯 [CREATE] Calling processTextToSpeechAsync...');
         const response = await apiService.processTextToSpeechAsync(request);
 
@@ -1026,6 +1047,15 @@ const CreateScreen: React.FC = () => {
           setSuccessAlertEstimatedTime(response.estimatedTime || '2-5 minutes');
           setShowSuccessAlert(true);
           setIsCreatingVoice(true);
+
+          // Firebase Analytics: Content creation completed (async job started successfully)
+          AnalyticsHelper.logEvent('content_creation_complete', {
+            type: 'narration',
+            content_type: mode,
+            level: selectedLevel,
+            voice: selectedVoice,
+            status: 'async_started',
+          });
         } else {
           Alert.alert(t('common.error'), t('create.alerts.audioCreateFailed'));
         }
@@ -1078,6 +1108,13 @@ const CreateScreen: React.FC = () => {
   };
 
   const handleCreatePodcast = async () => {
+    // Podcast Log
+    AnalyticsHelper.logEvent('action_create_podcast_click_mobile', {
+      topic: podcastTopic,
+      level: selectedLevel,
+      duration: podcastDuration,
+    });
+
     if (!podcastTopic || podcastTopic.trim().length === 0) {
       Alert.alert(
         t('common.error'),
@@ -1095,6 +1132,15 @@ const CreateScreen: React.FC = () => {
 
     setIsCreatingPodcast(true);
     setPodcastError(null);
+
+    // Firebase Analytics: Podcast creation started
+    AnalyticsHelper.logEvent('content_creation_start', {
+      type: 'podcast',
+      topic: podcastTopic.trim(),
+      level: selectedLevel,
+      duration: podcastDuration,
+      tts_provider: podcastTtsProvider,
+    });
 
     try {
       // Google podcast: run async in background and notify when ready
@@ -1247,6 +1293,16 @@ const CreateScreen: React.FC = () => {
 
       setCreatedTrack(newTrack);
       setShowPlayer(true);
+
+      // Firebase Analytics: Podcast creation completed
+      AnalyticsHelper.logEvent('content_creation_complete', {
+        type: 'podcast',
+        topic: podcastTopic.trim(),
+        level: selectedLevel,
+        duration: podcastDuration,
+        tts_provider: podcastTtsProvider,
+        status: 'completed',
+      });
     } catch (e: any) {
       const msg =
         e?.message ||
@@ -1830,7 +1886,10 @@ const CreateScreen: React.FC = () => {
                   styles.levelButton,
                   selectedLevel === level && styles.levelButtonActive,
                 ]}
-                onPress={() => setSelectedLevel(level)}
+                onPress={() => {
+                  setSelectedLevel(level);
+                  AnalyticsHelper.logEvent('interaction_setting_level_mobile', { level });
+                }}
               >
                 <Text
                   style={[
@@ -1930,7 +1989,10 @@ const CreateScreen: React.FC = () => {
                         styles.filterButton,
                         selectedAccent === accent.value && styles.filterButtonActive,
                       ]}
-                      onPress={() => setSelectedAccent(accent.value)}
+                      onPress={() => {
+                        setSelectedAccent(accent.value);
+                        AnalyticsHelper.logEvent('interaction_setting_accent_mobile', { accent: accent.value });
+                      }}
                     >
                       <Text style={[
                         styles.filterButtonText,
@@ -1953,7 +2015,10 @@ const CreateScreen: React.FC = () => {
                         styles.filterButton,
                         selectedGender === gender.value && styles.filterButtonActive,
                       ]}
-                      onPress={() => setSelectedGender(gender.value)}
+                      onPress={() => {
+                        setSelectedGender(gender.value);
+                        AnalyticsHelper.logEvent('interaction_setting_gender_mobile', { gender: gender.value });
+                      }}
                     >
                       <Text style={[
                         styles.filterButtonText,

@@ -122,7 +122,11 @@ const LoginScreen: React.FC = () => {
     setErrorCode(null);
     try {
       await signIn(email, password);
-      AnalyticsHelper.logEvent('login', { method: 'email' });
+      AnalyticsHelper.logEvent('login', { method: 'email', platform: 'mobile' });
+      // Note: User ID validation happens in AuthContext state change usually.
+      // But we can set a temporary identifier or rely on AuthContext updates.
+      // Ideally AuthContext should handle setUserId on state change.
+      // Proceeding with event logging only here.
     } catch (error: any) {
       if ((error as any)?.code === 'EMAIL_NOT_VERIFIED') {
         setErrorText(error.message || 'E-posta adresiniz doğrulanmamış görünüyor.');
@@ -227,7 +231,7 @@ const LoginScreen: React.FC = () => {
     if (!signInWithGoogle) return;
     try {
       await signInWithGoogle();
-      AnalyticsHelper.logEvent('login', { method: 'google' });
+      AnalyticsHelper.logEvent('login', { method: 'google', platform: 'mobile' });
     } catch (error: any) {
       Alert.alert(
         language === 'tr' ? 'Google Giriş Hatası' : 'Google Sign-In Error',
@@ -240,7 +244,7 @@ const LoginScreen: React.FC = () => {
     if (!signInWithApple) return;
     try {
       await signInWithApple();
-      AnalyticsHelper.logEvent('login', { method: 'apple' });
+      AnalyticsHelper.logEvent('login', { method: 'apple', platform: 'mobile' });
     } catch (error: any) {
       Alert.alert(
         language === 'tr' ? 'Apple Giriş Hatası' : 'Apple Sign-In Error',

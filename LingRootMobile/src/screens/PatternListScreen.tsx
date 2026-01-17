@@ -12,8 +12,10 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiService } from '../services/api';
 import { AnalyticsHelper } from '../utils/AnalyticsHelper';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Pattern {
   pattern: string;
@@ -31,6 +33,7 @@ interface GroupedPatterns {
 
 export default function PatternListScreen() {
   const navigation = useNavigation();
+  const { language } = useLanguage();
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -42,6 +45,20 @@ export default function PatternListScreen() {
     fetchPatterns();
     AnalyticsHelper.logScreenView('PatternList', 'PatternListScreen');
   }, []);
+
+  // Debounced search logging
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchTerm.length > 2) {
+        AnalyticsHelper.logEvent('search', {
+          search_term: searchTerm,
+          screen: 'PatternList'
+        });
+      }
+    }, 1500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
 
   const fetchPatterns = async () => {
     try {
@@ -156,43 +173,65 @@ export default function PatternListScreen() {
       </View>
 
       {/* Search */}
+      {/* Search */}
       <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Kalıp ara..."
-          value={searchTerm}
-          onChangeText={setSearchTerm}
-          placeholderTextColor="#9ca3af"
-        />
+        <View style={styles.searchBar}>
+          <Icon name="search" size={20} color="#9ca3af" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={language === 'tr' ? "Kalıp ara..." : "Search patterns..."}
+            value={searchTerm}
+            onChangeText={(text) => {
+              setSearchTerm(text);
+              // Simple debounce log would be good here but avoiding state complexity for now
+              if (text.length > 2) {
+                // This logs frequently, better to debounce.
+                // Adding a separate useEffect for logging is safer than inline if I don't have a debounce hook ready.
+                // I will add the useEffect below separately.
+              }
+            }}
+            placeholderTextColor="#9ca3af"
+          />
+          {searchTerm.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchTerm('')}>
+              <Icon name="close" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
+
       {/* Error */}
-      {error ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      ) : null}
+      {
+        error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null
+      }
 
       {/* Patterns List */}
-      {Object.keys(groupedByLevel).length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>📚</Text>
-          <Text style={styles.emptyTitle}>Henüz kalıp bulunamadı</Text>
-          <Text style={styles.emptySubtitle}>
-            İçerik oluşturmaya başladığınızda kalıplar burada görünecek
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={Object.entries(groupedByLevel)}
-          renderItem={renderLevelSection}
-          keyExtractor={([level]) => level}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        />
-      )}
+      {
+        Object.keys(groupedByLevel).length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>📚</Text>
+            <Text style={styles.emptyTitle}>Henüz kalıp bulunamadı</Text>
+            <Text style={styles.emptySubtitle}>
+              İçerik oluşturmaya başladığınızda kalıplar burada görünecek
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={Object.entries(groupedByLevel)}
+            renderItem={renderLevelSection}
+            keyExtractor={([level]) => level}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+          />
+        )
+      }
 
       {/* Pattern Detail Modal */}
       <Modal
@@ -266,7 +305,7 @@ export default function PatternListScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }
 
@@ -312,17 +351,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
   },
-  searchContainer: {
-    padding: 16,
-    backgroundColor: '#fff',
-  },
-  searchInput: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 16,
-    color: '#1f2937',
-  },
+
   errorContainer: {
     margin: 16,
     padding: 16,
@@ -534,5 +563,25 @@ const styles = StyleSheet.create({
   metadataValue: {
     fontSize: 12,
     color: '#374151',
+  },
+  searchContainer: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+  },
+  searchInput: {
+    flex: 1,
+    height: 48,
+    fontSize: 16,
+    color: '#1f2937',
+    marginLeft: 8,
   },
 });
