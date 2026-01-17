@@ -113,6 +113,10 @@ export const translations: Translations = {
     register_invalid_phone: 'Lütfen geçerli bir telefon numarası girin (10 haneli)',
     register_button: 'Kayıt Ol',
     register_button_loading: 'Kayıt yapılıyor...',
+    register_accept_terms_error: 'Lütfen Hizmet Şartları ve Gizlilik Politikasını kabul edin.',
+    accept_terms_prefix: '',
+    accept_terms_suffix: "'nı kabul ediyorum.",
+    and: 've',
     // Welcome popup
     welcome_popup_title: 'Hoş Geldiniz! 🎉',
     welcome_popup_congrats: 'Tebrikler! Hesabınız başarıyla oluşturuldu.',
@@ -1456,9 +1460,73 @@ export const translations: Translations = {
     terms_section6_list2: "Üçüncü taraf hizmet sağlayıcıların sorunları",
     terms_section6_list3: "Kullanıcı hatalarından kaynaklanan veri kayıpları",
     terms_section6_list4: "İnternet bağlantısı ve cihaz uyumluluk sorunları",
-    terms_section7_title: "İletişim ve Şikayetler",
-    terms_section7_subtitle: "Kullanım şartları hakkında sorularınız mı var?",
-    terms_section7_text: "Kullanım şartları veya platform kullanımı hakkında herhangi bir sorunuz varsa, hukuk ekibimizle iletişime geçebilirsiniz.",
+    terms_section7_title: "Yapay Zeka ve Teknoloji Riski",
+    terms_section7_subtitle: "AI Sorumluluk Reddi",
+    terms_ai_disclaimer_text: "LingRoot tarafından sunulan içerikler, yapay zeka teknolojileri kullanılarak üretilmektedir. Yapay zeka modelleri, zaman zaman 'halüsinasyon' olarak adlandırılan yanlış, yanıltıcı veya uydurma bilgiler üretebilir. Hizmet tarafından üretilen çeviriler, özetler veya seslendirmeler profesyonel tavsiye (tıbbi, hukuki, finansal vb.) niteliği taşımaz. Kullanıcılar, kritik kararlar almadan önce üretilen içeriklerin doğruluğunu bağımsız kaynaklardan teyit etmelidir.",
+
+    // Distance Sales Agreement & Pre-Info Form
+    checkout_contracts_title: "Sözleşmeler ve Onay",
+    checkout_contracts_accept: "Ön Bilgilendirme Formu'nu ve Mesafeli Satış Sözleşmesi'ni okudum, onaylıyorum.",
+    checkout_contracts_error: "Lütfen Mesafeli Satış Sözleşmesi'ni ve Ön Bilgilendirme Formu'nu onaylayın.",
+    checkout_contract_view_pre_info: "Ön Bilgilendirme Formu",
+    checkout_contract_view_distance_sales: "Mesafeli Satış Sözleşmesi",
+
+    pre_info_title: "Ön Bilgilendirme Formu",
+    pre_info_text: `
+    1. SATICI BİLGİLERİ
+    Ünvanı: LingRoot Teknoloji Ltd. Şti.
+    Adres: İstanbul, Türkiye
+    Telefon: +90 212 123 45 67
+    E-posta: destek@lingroot.com
+    
+    2. KONU
+    İşbu formun konusu, ALICI'nın SATICI'ya ait www.lingroot.com internet sitesinden elektronik ortamda siparişini yaptığı aşağıda nitelikleri ve satış fiyatı belirtilen hizmetin satışı ve teslimi ile ilgili olarak 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği hükümleri gereğince bilgilendirilmesidir.
+    
+    3. HİZMETİN TEMEL NİTELİKLERİ
+    Hizmet: Dijital Dil Öğrenme Platformu Aboneliği
+    Süre: Seçilen pakete göre (Aylık/Yıllık)
+    Teslimat: Elektronik ortamda anında erişim
+    
+    4. CAYMA HAKKI
+    Mesafeli Sözleşmeler Yönetmeliği'nin 15. maddesi uyarınca, elektronik ortamda anında ifa edilen hizmetler ve tüketiciye anında teslim edilen gayrimaddi mallara ilişkin sözleşmelerde cayma hakkı bulunmamaktadır. LingRoot aboneliği, satın alma işlemi tamamlandıktan hemen sonra aktif hale geldiği ve hizmet ifası başladığı için, yasal olarak cayma hakkı kapsamı dışındadır.
+    ancak, LingRoot müşteri memnuniyeti kapsamında ilk 14 gün içinde yapılan iade taleplerini değerlendirmeye alabilir.
+    `,
+
+    distance_sales_title: "Mesafeli Satış Sözleşmesi",
+    distance_sales_text: `
+    MADDE 1 - TARAFLAR
+    
+    1.1. SATICI
+    Ünvanı: LingRoot Teknoloji Ltd. Şti.
+    Adres: İstanbul, Türkiye
+    E-posta: destek@lingroot.com
+    
+    1.2. ALICI
+    Hizmeti satın alan platform kullanıcısıdır. Kayıt olurken beyan edilen bilgiler esas alınır.
+    
+    MADDE 2 - KONU
+    İşbu sözleşmenin konusu, ALICI'nın SATICI'ya ait internet sitesinden elektronik ortamda siparişini yaptığı, sözleşmede bahsi geçen nitelikleri haiz ve satış fiyatı belirtilen hizmetin satışı ve ifası ile ilgili olarak 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği hükümleri gereğince tarafların hak ve yükümlülüklerinin saptanmasıdır.
+    
+    MADDE 3 - SÖZLEŞME KONUSU HİZMET VE FİYAT
+    Hizmetin Adı: LingRoot Premium Abonelik
+    Fiyat: Ödeme adımında belirtilen tutardır.
+    Ödeme Şekli: Kredi Kartı / Banka Kartı
+    
+    MADDE 4 - GENEL HÜKÜMLER
+    4.1. ALICI, SATICI'ya ait internet sitesinde sözleşme konusu hizmetin temel nitelikleri, satış fiyatı ve ödeme şekli ile teslimata ilişkin ön bilgileri okuyup bilgi sahibi olduğunu ve elektronik ortamda gerekli teyidi verdiğini beyan eder.
+    4.2. Hizmet, ödemenin gerçekleşmesiyle birlikte ALICI'nın kullanımına derhal açılır.
+    4.3. SATICI, sözleşme konusu hizmetin sağlam, eksiksiz ve siparişte belirtilen niteliklere uygun olarak sunulmasından sorumludur.
+    
+    MADDE 5 - CAYMA HAKKI
+    Mesafeli Sözleşmeler Yönetmeliği'nin "Cayma Hakkının İstisnaları" başlıklı 15. maddesi (ğ) bendi uyarınca; "Elektronik ortamda anında ifa edilen hizmetler veya tüketiciye anında teslim edilen gayrimaddi mallara ilişkin sözleşmeler"de cayma hakkı kullanılamaz. LingRoot hizmetleri bu kapsamdadır.
+    
+    MADDE 6 - UYUŞMAZLIKLARIN ÇÖZÜMÜ
+    İşbu sözleşmenin uygulanmasında, Sanayi ve Ticaret Bakanlığınca ilan edilen değere kadar Tüketici Hakem Heyetleri ile SATICI'nın yerleşim yerindeki Tüketici Mahkemeleri yetkilidir.
+    `,
+
+    terms_section8_title: "İletişim ve Şikayetler",
+    terms_section8_subtitle: "Kullanım şartları hakkında sorularınız mı var?",
+    terms_section8_text: "Kullanım şartları veya platform kullanımı hakkında herhangi bir sorunuz varsa, hukuk ekibimizle iletişime geçebilirsiniz.",
     terms_contact_button: "İletişime Geç",
     terms_privacy_title: "Gizlilik",
     terms_privacy_text:
@@ -1491,6 +1559,26 @@ export const translations: Translations = {
     cookie_section2_mandatory_title: "Zorunlu Çerezler",
     cookie_section2_mandatory_desc: "Bu çerezler sitenin çalışması için gereklidir",
     cookie_section2_mandatory_list1: "Oturum Çerezleri: Giriş durumunuzu ve güvenlik tokenlarını saklar",
+
+    // New Advanced Cookie Consent Keys
+    cookie_accept_all: "Tümünü Kabul Et",
+    cookie_reject_all: "Tümünü Reddet",
+    cookie_save_preferences: "Seçimi Kaydet",
+    cookie_customize: "Özelleştir",
+    cookie_settings: "Çerez Ayarları",
+    cookie_modal_title: "Çerez Tercihleri",
+    cookie_cat_necessary: "Zorunlu",
+    cookie_cat_necessary_desc: "Sitenin çalışması için gerekli temel çerezler. Kapatılamaz.",
+    cookie_cat_analytics: "Analitik",
+    cookie_cat_analytics_desc: "Sitemizi nasıl kullandığınızı anlamamıza ve geliştirmemize yardımcı olur.",
+    cookie_cat_marketing: "Pazarlama",
+    cookie_cat_marketing_desc: "Size özel teklifler ve kampanyalar sunmamızı sağlar.",
+    cookie_cat_preferences: "Tercihler",
+    cookie_cat_preferences_desc: "Dil ve görünüm gibi tercihlerinizi hatırlar.",
+    cookie_status_on: "AÇIK",
+    cookie_status_off: "KAPALI",
+
+
     cookie_section2_mandatory_list2: "Güvenlik Çerezleri: CSRF koruması ve güvenlik kontrolleri",
     cookie_section2_mandatory_list3: "Load Balancer: Sunucu yük dengelemesi için teknik çerezler",
     cookie_section2_functional_title: "Fonksiyonel Çerezler",
@@ -1598,6 +1686,8 @@ export const translations: Translations = {
     kvkk_purpose_security_list1: "Hesap güvenliği sağlama",
     kvkk_purpose_security_list2: "Dolandırıcılık önleme",
     kvkk_purpose_security_list3: "Sistem güvenliği izleme",
+
+
     kvkk_purpose_communication_title: "İletişim",
     kvkk_purpose_communication_list1: "Müşteri destek hizmetleri",
     kvkk_purpose_communication_list2: "Önemli bildirimler",
@@ -1849,6 +1939,10 @@ export const translations: Translations = {
     register_password_too_short: 'Password must be at least 6 characters',
     register_button: 'Register',
     register_button_loading: 'Registering...',
+    register_accept_terms_error: 'Please accept the Terms of Service and Privacy Policy.',
+    accept_terms_prefix: 'I accept the ',
+    accept_terms_suffix: '.',
+    and: 'and',
     // Welcome popup
     welcome_popup_title: 'Welcome! 🎉',
     welcome_popup_congrats: 'Congratulations! Your account has been created successfully.',

@@ -6,6 +6,7 @@ import AuthProvider from '../src/lib/auth';
 import { MembershipProvider } from '../src/context/MembershipContext';
 import { AudioPlayerProvider } from '../src/context/AudioPlayerContext';
 import { GlobalAudioContainer } from '../src/components/AudioPlayer';
+import { CookieConsent } from '../src/components/CookieConsent';
 
 function MyApp({ Component, pageProps }: AppProps) {
   useEffect(() => {
@@ -31,6 +32,7 @@ function MyApp({ Component, pageProps }: AppProps) {
   return (
     <>
       <Head>
+        <title>LingRoot</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -41,6 +43,7 @@ function MyApp({ Component, pageProps }: AppProps) {
           <AudioPlayerProvider>
             <Component {...pageProps} />
             <GlobalAudioContainer />
+            <CookieConsent />
           </AudioPlayerProvider>
         </MembershipProvider>
       </AuthProvider>
