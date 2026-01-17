@@ -9,6 +9,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import AudioPlayer from '../components/AudioPlayer';
 import CustomAlert, { CustomAlertButton } from '../components/CustomAlert';
 import { COLORS } from '../theme/colors';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 const TopicTreeScreen: React.FC = () => {
   const { language } = useLanguage();
@@ -79,7 +80,10 @@ const TopicTreeScreen: React.FC = () => {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { loadTopics(); }, [loadTopics]));
+  useFocusEffect(useCallback(() => {
+    loadTopics();
+    AnalyticsHelper.logScreenView('TopicTree', 'TopicTreeScreen');
+  }, [loadTopics]));
 
   // --- Helpers ---
   const getTopicAtPath = (path: string[]): Topic | null => {

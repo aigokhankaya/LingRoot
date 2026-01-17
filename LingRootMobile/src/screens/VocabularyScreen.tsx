@@ -30,6 +30,7 @@ import {
 import { ReminderSettingsService } from '../services/reminderSettingsService';
 import NotificationService from '../services/notificationService';
 import { COLORS } from '../theme/colors';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 const { width } = Dimensions.get('window');
 
@@ -100,6 +101,7 @@ export default function VocabularyScreen({ navigation, route }: any) {
     if (user) {
       loadVocabulary();
       loadReminderSettings();
+      AnalyticsHelper.logScreenView('Vocabulary', 'VocabularyScreen');
     }
   }, [user]);
 
@@ -305,6 +307,12 @@ export default function VocabularyScreen({ navigation, route }: any) {
       setVocabulary(vocabulary.map(w =>
         w.id === wordId ? updatedWord : w
       ));
+
+      AnalyticsHelper.logEvent('word_learned_toggle', {
+        word: word.word,
+        is_learned: !word.is_learned,
+        level: word.level
+      });
     } catch (error: any) {
       Alert.alert(
         language === 'tr' ? 'Hata' : 'Error',
@@ -387,6 +395,12 @@ export default function VocabularyScreen({ navigation, route }: any) {
             : `"${cleanWord}" was successfully added!\n\nMeaning: ${result.data.definition}\nExample: ${result.data.example_sentence}\nLevel: ${result.data.level}`,
           [{ text: language === 'tr' ? 'Tamam' : 'OK' }]
         );
+
+        AnalyticsHelper.logEvent('word_add', {
+          word: cleanWord,
+          level: result.data.level,
+          auto_generated: true
+        });
       }
     } catch (error: any) {
       Alert.alert(
@@ -488,6 +502,11 @@ export default function VocabularyScreen({ navigation, route }: any) {
               setTimeout(() => {
                 scrollToWord(item.id!);
               }, 300);
+
+              AnalyticsHelper.logEvent('word_view', {
+                word: item.word,
+                level: item.level
+              });
             }
           }}
         >

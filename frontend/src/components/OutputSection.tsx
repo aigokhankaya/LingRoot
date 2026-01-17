@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import NewSyncedTextPlayer from './NewSyncedTextPlayer';
 import PatternDetailModal from './PatternDetailModal';
 import { markTopicAudioListened, addWordWithTranslation, lookupVocabularyWord, getApiUrl, createHeaders } from '../lib/api';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 interface TtsResponseData {
   success?: boolean;
@@ -502,7 +503,14 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
         {shouldShowPlainTextArea && (audioResult.translated_text || audioResult.translatedText) && (
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setShowTranslation(!showTranslation)}
+              onClick={() => {
+                const newState = !showTranslation;
+                setShowTranslation(newState);
+                AnalyticsHelper.logEvent('interaction_toggle_language', {
+                  state: newState ? 'visible' : 'hidden',
+                  content_id: audioResult.mp3_url
+                });
+              }}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
               style={{
                 backgroundColor: showTranslation
@@ -574,7 +582,14 @@ export default function OutputSection({ audioResult, isLoggedIn, onAudioComplete
                 wordsCount: audioResult.words?.length,
                 timepointsCount: audioResult.timepoints?.length
               }}
-              onPlay={() => { }}
+              onPlay={() => {
+                AnalyticsHelper.logEvent('audio_play_start', {
+                  content_id: audioResult.mp3_url,
+                  content_title: audioResult.topic || 'Unknown Topic',
+                  content_type: 'output_section_audio',
+                  level: audioResult.level
+                });
+              }}
               onActiveSegmentChange={(hasDialogueTranscript || (audioResult.dialogue_segments && audioResult.dialogue_segments.length > 0)) ? setActiveDialogueIndex : undefined}
               onWordChange={handleWordChange}
               onComplete={async () => {

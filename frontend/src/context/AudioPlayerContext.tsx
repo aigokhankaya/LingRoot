@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
+import { AnalyticsHelper } from '../utils/AnalyticsHelper';
 
 // Audio track metadata
 export interface AudioTrack {
@@ -121,6 +122,15 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setCurrentTime(0);
         setDuration(0);
         setActiveTrack(track);
+
+        // Log content view
+        AnalyticsHelper.logEvent('content_view', {
+            content_id: track.id,
+            content_title: track.title,
+            content_type: 'audio', // Generic for now, context might know better
+            cefr_level: track.level
+        });
+
         setIsMinimized(false); // Start expanded
 
         // Create new audio element
@@ -141,6 +151,10 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         audio.addEventListener('play', () => {
             console.log('▶️ [GLOBAL PLAYER] Playing');
             setIsPlaying(true);
+            AnalyticsHelper.logEvent('audio_play_start', {
+                content_id: track.id,
+                audio_url: track.url
+            });
             startSync();
         });
 
@@ -153,6 +167,10 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         audio.addEventListener('ended', () => {
             console.log('⏹️ [GLOBAL PLAYER] Ended');
             setIsPlaying(false);
+            AnalyticsHelper.logEvent('audio_play_complete', {
+                content_id: track.id,
+                duration_listened: audio.duration
+            });
             stopSync();
             setCurrentTime(0);
         });
