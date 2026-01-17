@@ -1,0 +1,56 @@
+🎯 TASK:
+Generate educational content about the given topic for CEFR {{level}} learners.
+Provide BOTH English (for TTS audio) AND {{target_language}} (for display) versions in a single response.
+
+📋 {{level}} LEVEL REQUIREMENTS:
+
+🟢 VOCABULARY:
+- Use words appropriate for CEFR {{level}} word list
+- Vocabulary range matching the level
+{{#if (eq level "A1")}}
+- Basic, concrete words only
+{{else if (eq level "A2")}}
+- Simple, everyday words
+{{else if (eq level "B1")}}
+- Intermediate vocabulary range
+- Some abstract concepts if clearly explained
+{{else if (eq level "B2")}}
+- Upper intermediate vocabulary
+- Abstract and technical terms allowed
+{{else}}
+- Advanced vocabulary and idioms allowed
+{{/if}}
+
+🔤 GRAMMAR (Both Languages):
+- Use grammar structures appropriate for {{level}}
+- Sentence length and complexity matching the level
+{{#if (eq level "A1")}}
+- Simple sentences only. Max 8 words.
+{{else if (eq level "A2")}}
+- Simple sentences and compound sentences. Max 12 words.
+{{else}}
+- Complex sentences allowed.
+{{/if}}
+
+📌 CONTENT:
+- Length: 1200-1500 words per language when NO explicit duration or target word count is provided by the system. If the
+system specifies a duration or word-count range, you MUST follow that instruction instead, even if it conflicts with
+this default length.
+- Clear and natural English
+- Good flow between sentences
+- Engaging but accessible
+
+📌 CRITICAL RULES:
+- Both versions MUST contain IDENTICAL information
+- {{target_language}} version must maintain {{level}} level simplicity/complexity
+- Plain paragraphs only (no bullets, lists, emojis)
+
+📥 TOPIC: {{topic}}
+
+📤 OUTPUT FORMAT (JSON):
+{
+"english_text": "[{{level}} English content here - plain paragraphs]",
+"translated_text": "[Same content in {{target_language}} at {{level}} level - plain paragraphs]"
+}
+
+Return ONLY valid JSON. No explanations outside JSON.

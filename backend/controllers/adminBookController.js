@@ -1,7 +1,7 @@
-const { supabase } = require("../utils/supabaseClient");
-const logger = require("../utils/logger");
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js');
 const pdfParse = require("pdf-parse");
-const bookTextExtractor = require("../utils/bookTextExtractor");
+const bookTextExtractor = require('../utils/content/bookTextExtractor.js');
 const directorAgentService = require("../services/directorAgentService"); // Ensure this path is correct
 const { v4: uuidv4 } = require("uuid");
 const mammoth = require("mammoth");

@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 
 /**
  * Toggle favorite status for an item

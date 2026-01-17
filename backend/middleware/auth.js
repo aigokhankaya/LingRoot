@@ -2,8 +2,8 @@
 const jwt = require("jsonwebtoken");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "../.env") });
-const { supabase } = require("../utils/supabaseClient");
-const logger = require("../utils/logger"); // Import logger
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js'); // Import logger
 
 // Supabase client comes from shared client; if missing, middleware will respond 500 on protected routes
 

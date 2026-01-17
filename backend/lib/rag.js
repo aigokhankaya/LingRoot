@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 const { embedText, findSimilar } = require('./embedding');
 const directorAgentService = require('../services/directorAgentService');
 
@@ -200,7 +200,7 @@ async function extractAndStoreTopic(conversationId, userId) {
     }
 
     // Use OpenAI to extract topic
-    const openaiClient = require('../utils/openaiClient');
+    const openaiClient = require('../utils/ai/openaiClient.js');
     const extracted = await openaiClient.extractSuggestedTopic(messages);
 
     // Analyze mood of the topic

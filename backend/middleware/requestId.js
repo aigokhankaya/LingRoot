@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 
 const requestIdMiddleware = (req, res, next) => {
   // Generate unique request ID

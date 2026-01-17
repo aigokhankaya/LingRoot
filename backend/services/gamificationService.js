@@ -6,7 +6,7 @@
  */
 
 const db = require('../config/db');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 
 // Level başına gereken XP (kümülatif değil, o level için gereken)
 const XP_PER_LEVEL_BASE = 50;

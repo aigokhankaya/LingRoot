@@ -5,8 +5,8 @@
  * Supports exclusion of existing patterns to avoid duplicates
  */
 
-const { supabase } = require('../utils/supabaseClient');
-const logger = require('../utils/logger');
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js');
 const OpenAI = require('openai');
 
 // Fixed model - GPT-4o-mini

@@ -1,0 +1,71 @@
+[2026-01-17T07:48:38.790Z] [input:parse]
+{
+  "body": {
+    "level": "A1",
+    "type": "subject",
+    "topic_id": "0cdccf68-1b16-4cbc-9d07-7feb84f0a56a",
+    "targetDurationMinutes": "5",
+    "input": "Kız Kulesi'nin Tarihi: Kız Kulesi, Üsküdar'da yer alan önemli bir yapıdır. Tarihi, birçok efsane ve hikaye ile doludur."
+  }
+}
+
+-------------------- extractText --------------------
+[2026-01-17T07:48:38.793Z] [extractText:start]
+{
+  "inputData": "Kız Kulesi'nin Tarihi: Kız Kulesi, Üsküdar'da yer alan önemli bir yapıdır. Tarihi, birçok efsane ve hikaye ile doludur.",
+  "inputType": "topic",
+  "level": "A1",
+  "detectedLang": "tr"
+}
+
+[2026-01-17T07:48:59.949Z] [extractText:end]
+{
+  "rawText": "The Maiden's Tower is in Üsküdar. It is an important building. The tower is very old. It has a long history. Many legends tell about the tower. These legends are interesting. Some say it is for a princess. Other stories say it is for a girl. The tower is on a small island. The island is in the sea. People can see the tower from the shore. The view is beautiful. Many tourists visit the tower. They take photos. They also enjoy the sea view. The Maiden's Tower is a symbol of Istanbul. It is very famous. Many people know it. The tower is not very tall. It is about 23 meters high. The tower has a round shape. It also has a small roof. Inside the tower, there is a café. People can drink tea and eat snacks. The café has a nice view. Visitors can sit and relax. The history of the Maiden's Tower is rich. It has many stories. Some say it was built in ancient times. Others say it was built in the Byzantine period. The tower has changed many times. The Ottomans also used the tower. They used it as a lighthouse. The tower helped ships find the way. Many sailors saw the light. They felt safe. The Maiden's Tower is a part of the sea. It is also a part of the city. There are many events at the tower. Some people get married there. Others celebrate birthdays. It is a popular place for special days. The tower is beautiful at night. It lights up with colors. The view is magical. People love to visit the tower. They learn about its history. They hear the legends. The Maiden's Tower is a treasure of Istanbul. It tells stories of the past. When you visit, you feel the history. You can imagine the princess. You can think of the sailors. The stories make the tower special. Every visitor can create their own story. The Maiden's Tower connects the past and the present. It is a bridge to history. Many people love this tower. It is a place of beauty and stories. You should visit it when you are in Istanbul. You will enjoy it very much. You will remember your visit. The stories will stay with you. The Maiden's Tower is waiting for you. Come see it and enjoy the magic."
+}
+-----------------------------------------------------
+
+-------------------- cleanText --------------------
+[2026-01-17T07:48:59.954Z] [cleanText]
+{
+  "rawText": "The Maiden's Tower is in Üsküdar. It is an important building. The tower is very old. It has a long history. Many legends tell about the tower. These legends are interesting. Some say it is for a princess. Other stories say it is for a girl. The tower is on a small island. The island is in the sea. People can see the tower from the shore. The view is beautiful. Many tourists visit the tower. They take photos. They also enjoy the sea view. The Maiden's Tower is a symbol of Istanbul. It is very famous. Many people know it. The tower is not very tall. It is about 23 meters high. The tower has a round shape. It also has a small roof. Inside the tower, there is a café. People can drink tea and eat snacks. The café has a nice view. Visitors can sit and relax. The history of the Maiden's Tower is rich. It has many stories. Some say it was built in ancient times. Others say it was built in the Byzantine period. The tower has changed many times. The Ottomans also used the tower. They used it as a lighthouse. The tower helped ships find the way. Many sailors saw the light. They felt safe. The Maiden's Tower is a part of the sea. It is also a part of the city. There are many events at the tower. Some people get married there. Others celebrate birthdays. It is a popular place for special days. The tower is beautiful at night. It lights up with colors. The view is magical. People love to visit the tower. They learn about its history. They hear the legends. The Maiden's Tower is a treasure of Istanbul. It tells stories of the past. When you visit, you feel the history. You can imagine the princess. You can think of the sailors. The stories make the tower special. Every visitor can create their own story. The Maiden's Tower connects the past and the present. It is a bridge to history. Many people love this tower. It is a place of beauty and stories. You should visit it when you are in Istanbul. You will enjoy it very much. You will remember your visit. The stories will stay with you. The Maiden's Tower is waiting for you. Come see it and enjoy the magic.",
+  "cleanedText": "The Maiden's Tower is in Üsküdar. It is an important building. The tower is very old. It has a long history. Many legends tell about the tower. These legends are interesting. Some say it is for a princess. Other stories say it is for a girl. The tower is on a small island. The island is in the sea. People can see the tower from the shore. The view is beautiful. Many tourists visit the tower. They take photos. They also enjoy the sea view. The Maiden's Tower is a symbol of Istanbul. It is very famous. Many people know it. The tower is not very tall. It is about 23 meters high. The tower has a round shape. It also has a small roof. Inside the tower, there is a café. People can drink tea and eat snacks. The café has a nice view. Visitors can sit and relax. The history of the Maiden's Tower is rich. It has many stories. Some say it was built in ancient times. Others say it was built in the Byzantine period. The tower has changed many times. The Ottomans also used the tower. They used it as a lighthouse. The tower helped ships find the way. Many sailors saw the light. They felt safe. The Maiden's Tower is a part of the sea. It is also a part of the city. There are many events at the tower. Some people get married there. Others celebrate birthdays. It is a popular place for special days. The tower is beautiful at night. It lights up with colors. The view is magical. People love to visit the tower. They learn about its history. They hear the legends. The Maiden's Tower is a treasure of Istanbul. It tells stories of the past. When you visit, you feel the history. You can imagine the princess. You can think of the sailors. The stories make the tower special. Every visitor can create their own story. The Maiden's Tower connects the past and the present. It is a bridge to history. Many people love this tower. It is a place of beauty and stories. You should visit it when you are in Istanbul. You will enjoy it very much. You will remember your visit. The stories will stay with you. The Maiden's Tower is waiting for you. Come see it and enjoy the magic."
+}
+-----------------------------------------------------
+
+[2026-01-17T07:49:00.283Z] [topic:skip_translate_adapt]
+{
+  "reason": "Topic input already processed"
+}
+
+-------------------- dailyPatterns --------------------
+[2026-01-17T07:49:00.283Z] [dailyPatterns:start]
+{
+  "textLength": 2075
+}
+
+[2026-01-17T07:49:00.460Z] [dailyPatterns:end]
+{
+  "count": 0,
+  "skipped": false
+}
+-----------------------------------------------------
+
+[2026-01-17T07:49:00.461Z] [chunkText:preTTS:start]
+{
+  "textToAdapt": "The Maiden's Tower is in Üsküdar. It is an important building. The tower is very old. It has a long history. Many legends tell about the tower. These legends are interesting. Some say it is for a princess. Other stories say it is for a girl. The tower is on a small island. The island is in the sea. People can see the tower from the shore. The view is beautiful. Many tourists visit the tower. They take photos. They also enjoy the sea view. The Maiden's Tower is a symbol of Istanbul. It is very famous. Many people know it. The tower is not very tall. It is about 23 meters high. The tower has a round shape. It also has a small roof. Inside the tower, there is a café. People can drink tea and eat snacks. The café has a nice view. Visitors can sit and relax. The history of the Maiden's Tower is rich. It has many stories. Some say it was built in ancient times. Others say it was built in the Byzantine period. The tower has changed many times. The Ottomans also used the tower. They used it as a lighthouse. The tower helped ships find the way. Many sailors saw the light. They felt safe. The Maiden's Tower is a part of the sea. It is also a part of the city. There are many events at the tower. Some people get married there. Others celebrate birthdays. It is a popular place for special days. The tower is beautiful at night. It lights up with colors. The view is magical. People love to visit the tower. They learn about its history. They hear the legends. The Maiden's Tower is a treasure of Istanbul. It tells stories of the past. When you visit, you feel the history. You can imagine the princess. You can think of the sailors. The stories make the tower special. Every visitor can create their own story. The Maiden's Tower connects the past and the present. It is a bridge to history. Many people love this tower. It is a place of beauty and stories. You should visit it when you are in Istanbul. You will enjoy it very much. You will remember your visit. The stories will stay with you. The Maiden's Tower is waiting for you. Come see it and enjoy the magic.",
+  "chunkCount": 1
+}
+
+[2026-01-17T07:49:00.462Z] [chunkText:preTTS:end]
+{
+  "chunkCount": 1
+}
+
+-------------------- error --------------------
+[2026-01-17T07:49:00.624Z] [error]
+{
+  "error": "TTS synthesis failed for chunk 1: ENOENT: no such file or directory, open '/Users/gokhankaya/Documents/GitHub/LingRoot/backend/google-credentials.json'",
+  "stack": "Error: TTS synthesis failed for chunk 1: ENOENT: no such file or directory, open '/Users/gokhankaya/Documents/GitHub/LingRoot/backend/google-credentials.json'\n    at processTtsRequest (/Users/gokhankaya/Documents/GitHub/LingRoot/backend/controllers/ttsController.js:1249:15)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)"
+}
+-----------------------------------------------------
+

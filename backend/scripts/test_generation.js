@@ -1,7 +1,7 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
-const { generateBilingualContent } = require('../utils/translateAndAdapt');
-const logger = require('../utils/logger');
+const { generateBilingualContent } = require('../utils/ai/translateAndAdapt.js');
+const logger = require('../utils/common/logger.js');
 
 // Mock logger to avoid errors if utils expect it
 logger.info = console.log;

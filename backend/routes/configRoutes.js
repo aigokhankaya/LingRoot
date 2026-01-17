@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getSetting } = require('../utils/settings');
+const { getSetting } = require('../utils/infra/settings.js');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 

@@ -2,7 +2,7 @@ const { Pool } = require('pg');
 const winston = require('winston');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 
 // Logger yapılandırması
 const logger = winston.createLogger({

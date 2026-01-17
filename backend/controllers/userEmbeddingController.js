@@ -3,7 +3,7 @@
  */
 
 const userEmbeddingService = require('../services/userEmbeddingService');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 
 /**
  * GET /api/recommendations

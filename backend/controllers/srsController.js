@@ -1,5 +1,5 @@
 const srsService = require('../services/srsService');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 
 /**
  * GET /api/srs/due

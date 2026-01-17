@@ -8,9 +8,9 @@ const express = require('express');
 const router = express.Router();
 const vocabularyController = require('../controllers/vocabularyController');
 const { authenticate } = require('../middleware/authMiddleware');
-const { supabase } = require('../utils/supabaseClient');
-const logger = require('../utils/logger');
-const { processWordForVocabulary } = require('../utils/wordTranslationService');
+const { supabase } = require('../utils/storage/supabaseClient.js');
+const logger = require('../utils/common/logger.js');
+const { processWordForVocabulary } = require('../utils/content/wordTranslationService.js');
 
 // Supabase client provided by shared utility
 

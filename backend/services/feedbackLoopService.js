@@ -10,9 +10,9 @@
  */
 
 const db = require('../config/db');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 const srsService = require('./srsService');
-const { withGracefulDegradation } = require('../utils/retryUtils');
+const { withGracefulDegradation } = require('../utils/common/retryUtils.js');
 
 class FeedbackLoopService {
 

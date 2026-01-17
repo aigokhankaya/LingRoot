@@ -9,7 +9,7 @@
 
 const srsService = require('../services/srsService');
 const db = require('../config/db');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 
 /**
  * GET /api/vocabulary/lookup?word=xxx

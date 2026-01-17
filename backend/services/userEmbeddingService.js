@@ -11,9 +11,9 @@
  */
 
 const pool = require('../config/db');
-const logger = require('../utils/logger');
-const openaiClient = require('../utils/openaiClient');
-const { withRetry, withGracefulDegradation } = require('../utils/retryUtils');
+const logger = require('../utils/common/logger.js');
+const openaiClient = require('../utils/ai/openaiClient.js');
+const { withRetry, withGracefulDegradation } = require('../utils/common/retryUtils.js');
 
 class UserEmbeddingService {
 

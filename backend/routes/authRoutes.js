@@ -1,19 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, optionalAuth } = require('../middleware/auth');
+const { authLimiter, registerLimiter, passwordResetLimiter } = require('../middleware/security');
 const authController = require('../controllers/authController');
 
-// Public routes
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-router.post('/forgot-password', authController.forgotPassword);
-router.post('/reset-password', authController.resetPassword);
-// Refresh token route
+// Public routes with rate limiting
+router.post('/register', registerLimiter, authController.register);
+router.post('/login', authLimiter, authController.login);
+router.post('/forgot-password', passwordResetLimiter, authController.forgotPassword);
+router.post('/reset-password', passwordResetLimiter, authController.resetPassword);
+// Refresh token route (no rate limit - needed for session continuity)
 router.post('/refresh', authController.refreshToken);
 // Support both POST and GET for verification to allow email link clicks
 router.post('/verify-email/:token', authController.verifyEmail);
 router.get('/verify-email/:token', authController.verifyEmail);
-router.post('/resend-verification', authController.resendVerificationEmail);
+router.post('/resend-verification', passwordResetLimiter, authController.resendVerificationEmail);
 
 // Protected routes
 router.get('/me', authenticate, authController.getCurrentUser);

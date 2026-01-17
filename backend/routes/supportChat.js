@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 const supportChatController = require('../controllers/supportChatController');
 const { authenticate, authorizeAdmin } = require('../middleware/auth');
 

@@ -21,10 +21,13 @@ const {
   logSyncFeedback,
   analyzeSyncFeedback
 } = require("../controllers/syncFeedbackController");
-const logger = require("../utils/logger");
+const logger = require('../utils/common/logger.js');
 const { authenticate } = require('../middleware/auth');
-const jobQueue = require('../utils/jobQueue');
-const { sendPushNotification, getUnreadNotifications, markNotificationAsRead } = require('../utils/pushNotification');
+const { ttsLimiter, podcastLimiter } = require('../middleware/security');
+const { limiters } = require('../utils/infra/concurrencyLimiter.js');
+const { addJob, getPriorityByPlan } = require('../utils/infra/bullQueue.js'); // ✅ BullMQ
+const jobQueue = require('../utils/infra/jobQueue.js'); // Legacy support
+const { sendPushNotification, getUnreadNotifications, markNotificationAsRead } = require('../utils/notifications/pushNotification.js');
 
 // Helper function to write podcast-specific logs
 const podcastLogPath = path.join(__dirname, '../logs/podcast_logs.log');
@@ -35,10 +38,10 @@ function logPodcast(message, data = {}) {
   logger.info(`[PODCAST-LOG] ${message}`, data);
 }
 const fetch = require('node-fetch');
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 const fsPromises = require('fs').promises;
 const os = require('os');
-const { mfaAligner } = require('../utils/mfaAligner');
+const { mfaAligner } = require('../utils/audio/mfaAligner.js');
 
 const router = express.Router();
 
@@ -67,6 +70,7 @@ const upload = multer({
 // POST /api/tts/process – Handles both JSON and multipart/form-data (SYNC)
 router.post(
   "/process",
+  ttsLimiter,
   authenticate,
   upload.single("file"),
   (req, res, next) => {
@@ -91,6 +95,7 @@ router.post(
 // POST /api/tts/process-async – Async TTS processing with notification
 router.post(
   "/process-async",
+  ttsLimiter,
   authenticate,
   upload.single("file"),
   async (req, res, next) => {
@@ -105,28 +110,35 @@ router.post(
         return res.status(401).json({ success: false, message: 'User not authenticated' });
       }
 
-      // Prevent multiple concurrent async TTS jobs per user
-      const existingJob = jobQueue.getActiveJobForUser(userId);
-      if (existingJob) {
-        logger.info(`[AsyncTTS] Existing active job ${existingJob.id} for user ${userId}; rejecting new request`);
-        return res.status(409).json({
-          success: false,
-          code: 'TTS_JOB_IN_PROGRESS',
-          message: 'Zaten devam eden bir ses oluşturma işleminiz var. Lütfen bitmesini bekleyin.',
-          jobId: existingJob.id,
-          status: existingJob.status,
-        });
-      }
+      // Check for existing active jobs using BullMQ?
+      // Note: BullMQ doesn't easily support "one active job per user" check without scanning.
+      // For now, we rely on the worker to handle concurrency or rate limits.
+      // Or we can keep using a lightweight Redis key for this check if strictly needed.
 
-      // Create job
-      const job = jobQueue.createJob(userId, {
+      // Prepare job data
+      const jobData = {
+        userId,
+        requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         requestBody: req.body,
         file: req.file ? {
           originalname: req.file.originalname,
           mimetype: req.file.mimetype,
-          buffer: req.file.buffer
+          buffer: req.file.buffer.toString('base64'), // Buffer to string for JSON safety
+          encoding: req.file.encoding
         } : null
+      };
+
+      // Get priority based on user plan
+      const userPlan = req.user.current_plan || 'free';
+      const priority = getPriorityByPlan(userPlan);
+
+      // Add to BullMQ
+      const job = await addJob('tts-processing', 'process-tts', jobData, {
+        priority,
+        removeOnComplete: true
       });
+
+      logger.info(`[AsyncTTS] Job ${job.id} created for user ${userId} with priority ${priority}`);
 
       // Return job ID immediately
       res.json({
@@ -136,117 +148,9 @@ router.post(
         estimatedTime: '2-5 minutes'
       });
 
-      // Process in background
-      setImmediate(async () => {
-        try {
-          jobQueue.updateJob(job.id, { status: 'processing', progress: 10 });
-
-          // Create a mock request/response for handleTTSRequest, preserving Express helpers like req.is()
-          const mockReq = Object.assign(
-            Object.create(Object.getPrototypeOf(req)),
-            req,
-            {
-              body: job.data.requestBody,
-              file: job.data.file
-                ? {
-                  originalname: job.data.file.originalname,
-                  mimetype: job.data.file.mimetype,
-                  buffer: job.data.file.buffer,
-                }
-                : null,
-              user: req.user,
-            }
-          );
-
-          let ttsResult = null;
-          const mockRes = {
-            status: (code) => mockRes,
-            json: (data) => {
-              ttsResult = data;
-              return mockRes;
-            },
-          };
-
-          // Call the actual TTS handler
-          await handleTTSRequest(mockReq, mockRes, () => { });
-
-          if (ttsResult && ttsResult.success) {
-            // Update job as completed
-            jobQueue.updateJob(job.id, {
-              status: 'completed',
-              progress: 100,
-              result: ttsResult
-            });
-
-            // Send push notification
-            await sendPushNotification(userId, {
-              title: '🎵 Ses Oluşturuldu!',
-              body: 'Sesiniz hazır. Dinlemek için tıklayın.',
-              type: 'audio_created',
-              data: {
-                jobId: job.id,
-                audioId: ttsResult.id || job.id,
-                mp3_url: ttsResult.mp3_url,
-                title: ttsResult.adapted_text || ttsResult.translated_text || 'Yeni Ses',
-                level: ttsResult.level,
-                duration: ttsResult.real_duration,
-                // Highlight & text metadata for mobile client
-                words: Array.isArray(ttsResult.words) ? ttsResult.words : [],
-                timepoints: Array.isArray(ttsResult.timepoints) ? ttsResult.timepoints : [],
-                translated_text: ttsResult.translated_text,
-                adapted_text: ttsResult.adapted_text,
-                // Use original request body for original Turkish text so mobile can show it immediately
-                original_turkish:
-                  (job?.data?.requestBody &&
-                    (job.data.requestBody.input || job.data.requestBody.text)) ||
-                  ''
-              }
-            });
-
-            logger.info(`[AsyncTTS] Job ${job.id} completed successfully`);
-          } else {
-            // Update job as failed
-            jobQueue.updateJob(job.id, {
-              status: 'failed',
-              error: ttsResult?.message || 'TTS processing failed'
-            });
-
-            // Send failure notification
-            await sendPushNotification(userId, {
-              title: '❌ Ses Oluşturulamadı',
-              body: ttsResult?.message || 'Bir hata oluştu. Lütfen tekrar deneyin.',
-              type: 'audio_failed',
-              data: {
-                jobId: job.id,
-                error: ttsResult?.message
-              }
-            });
-
-            logger.error(`[AsyncTTS] Job ${job.id} failed:`, ttsResult?.message);
-          }
-        } catch (error) {
-          logger.error(`[AsyncTTS] Job ${job.id} error:`, error);
-
-          jobQueue.updateJob(job.id, {
-            status: 'failed',
-            error: error.message
-          });
-
-          // Send failure notification
-          await sendPushNotification(userId, {
-            title: '❌ Ses Oluşturulamadı',
-            body: 'Bir hata oluştu. Lütfen tekrar deneyin.',
-            type: 'audio_failed',
-            data: {
-              jobId: job.id,
-              error: error.message
-            }
-          });
-        }
-      });
     } catch (error) {
       logger.error(`[AsyncTTS] Error creating job:`, error);
-      return res.status(500).json({ success: false, message: error.message });
+      res.status(500).json({ success: false, message: 'Failed to start audio processing' });
     }
   },
   (error, req, res, next) => {
@@ -340,10 +244,22 @@ router.post("/synthesizeChunk", synthesizeChunkAPI);
 router.post("/mergeAudio", mergeAudioAPI);
 
 // Google TTS Multi-Speaker Podcast Creator
-const { createGoogleTTSPodcast } = require("../utils/googleTTSMultiSpeaker");
+const { createGoogleTTSPodcast } = require('../utils/audio/googleTTSMultiSpeaker.js');
 
 // Create podcast from topic (Direct Google TTS Implementation)
-router.post("/create-podcast", authenticate, async (req, res) => {
+router.post("/create-podcast", podcastLimiter, authenticate, async (req, res) => {
+  // Global podcast limiti kontrolü
+  const globalSlot = await limiters.podcast.acquire(60000); // 60 saniye timeout
+  if (!globalSlot.acquired) {
+    logger.warn(`🚫 [PODCAST] Global limit - reason: ${globalSlot.reason}`);
+    return res.status(503).json({
+      success: false,
+      code: globalSlot.reason === 'QUEUE_FULL' ? 'SERVER_BUSY' : 'TIMEOUT',
+      message: 'Podcast sunucusu şu anda yoğun. Lütfen 1 dakika sonra tekrar deneyin.',
+      retryAfter: 60
+    });
+  }
+
   try {
     const body = req.body || {};
     const rawTopic = body.topic;
@@ -396,11 +312,13 @@ router.post("/create-podcast", authenticate, async (req, res) => {
       message: 'Failed to create podcast',
       error: error.message,
     });
+  } finally {
+    limiters.podcast.release();
   }
 });
 
 // Async Podcast Creation with Notification
-router.post("/create-podcast-async", authenticate, async (req, res) => {
+router.post("/create-podcast-async", podcastLimiter, authenticate, async (req, res) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -462,6 +380,23 @@ router.post("/create-podcast-async", authenticate, async (req, res) => {
 
     // Process in background
     setImmediate(async () => {
+      // Global podcast limiti - arka plan işlemi için
+      const globalSlot = await limiters.podcast.acquire(120000); // 2 dakika timeout
+      if (!globalSlot.acquired) {
+        logger.warn(`🚫 [AsyncPodcast] Global limit - reason: ${globalSlot.reason}, jobId: ${job.id}`);
+        jobQueue.updateJob(job.id, {
+          status: 'failed',
+          error: 'Sunucu yoğun, lütfen daha sonra tekrar deneyin'
+        });
+        await sendPushNotification(userId, {
+          title: '❌ Podcast Oluşturulamadı',
+          body: 'Sunucu yoğun. Lütfen daha sonra tekrar deneyin.',
+          type: 'podcast_failed',
+          data: { jobId: job.id, error: 'SERVER_BUSY' }
+        });
+        return;
+      }
+
       try {
         jobQueue.updateJob(job.id, { status: 'processing', progress: 10 });
 
@@ -558,6 +493,8 @@ router.post("/create-podcast-async", authenticate, async (req, res) => {
             error: error.message
           }
         });
+      } finally {
+        limiters.podcast.release();
       }
     });
   } catch (error) {
@@ -575,8 +512,8 @@ router.post("/polly", (req, res) => {
 // Get current TTS provider setting (public endpoint for mobile app)
 router.get('/provider', async (req, res) => {
   try {
-    const { supabase } = require('../utils/supabaseClient');
-    const { isPollyAvailable } = require('../utils/amazonPolly');
+    const { supabase } = require('../utils/storage/supabaseClient.js');
+    const { isPollyAvailable } = require('../utils/audio/amazonPolly.js');
 
     const { data, error } = await supabase
       .from('settings')
@@ -635,7 +572,7 @@ router.get('/test-ssml-voices', async (req, res) => {
     console.log(`🎯 Testing SSML-compatible voices for language: ${languageCode}`);
 
     // Tüm sesler ve SSML destekli olanları al
-    const { listGoogleVoices } = require('../utils/googleTTS');
+    const { listGoogleVoices } = require('../utils/audio/googleTTS.js');
     const allVoices = await listGoogleVoices(languageCode);
 
     // SSML destekli olanları filtrele
@@ -703,7 +640,7 @@ router.post('/test-ultra-precision', async (req, res) => {
       - Language: ${languageCode || 'en-US'}`);
 
     // Google TTS ile ultra hassas timing test
-    const { synthesizeWithGoogle } = require('../utils/googleTTS');
+    const { synthesizeWithGoogle } = require('../utils/audio/googleTTS.js');
 
     const startTime = Date.now();
     const result = await synthesizeWithGoogle({
@@ -761,7 +698,7 @@ router.post('/test-ultra-precision', async (req, res) => {
 // Test endpoint for SSML filter debug
 router.get('/test-client', (req, res) => {
   try {
-    const { listGoogleVoices } = require('../utils/googleTTS');
+    const { listGoogleVoices } = require('../utils/audio/googleTTS.js');
     res.json({
       message: 'Google TTS client test',
       hasClient: !!listGoogleVoices,

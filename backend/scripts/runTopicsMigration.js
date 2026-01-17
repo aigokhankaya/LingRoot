@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const db = require('../config/db');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 
 async function runTopicsMigration() {
   try {

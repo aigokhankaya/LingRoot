@@ -1,5 +1,5 @@
-const promptService = require('../utils/promptService');
-const logger = require('../utils/logger');
+const promptService = require('../utils/ai/promptService.js');
+const logger = require('../utils/common/logger.js');
 
 async function testPrompt() {
     try {

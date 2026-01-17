@@ -7,7 +7,7 @@
 
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
-const { synthesizeWithOpenAI, listOpenAIVoices, isOpenAITTSAvailable } = require('../utils/openaiTTS');
+const { synthesizeWithOpenAI, listOpenAIVoices, isOpenAITTSAvailable } = require('../utils/audio/openaiTTS.js');
 const fs = require('fs');
 const path = require('path');
 

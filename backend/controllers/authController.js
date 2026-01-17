@@ -1,19 +1,39 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const { supabase } = require("../utils/supabaseClient");
+const { supabase } = require('../utils/storage/supabaseClient.js');
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "../.env") });
-const logger = require("../utils/logger");
-const { logStep } = require('../utils/stepLogger');
+const logger = require('../utils/common/logger.js');
+const { logStep } = require('../utils/common/stepLogger.js');
 const { v4: uuidv4 } = require('uuid');
-const { sendRegistrationNotification } = require('../utils/registrationNotifier');
-const { sendMail } = require('../utils/mailer');
+const { sendRegistrationNotification } = require('../utils/notifications/registrationNotifier.js');
+const { sendMail } = require('../utils/notifications/mailer.js');
 
-const JWT_SECRET = process.env.JWT_SECRET || "lingroot-secret-key-for-development";
+const _JWT_SECRET = process.env.JWT_SECRET;
+const _JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
+// CRITICAL SECURITY CHECK
+if (process.env.NODE_ENV === 'production') {
+  if (!_JWT_SECRET || _JWT_SECRET === "lingroot-secret-key-for-development") {
+    logger.error('🚨 [SECURITY_CRITICAL] JWT_SECRET is not set or using default insecure key in PRODUCTION! Exiting...');
+    process.exit(1);
+  }
+  if (!_JWT_REFRESH_SECRET || _JWT_REFRESH_SECRET === "lingroot-refresh-secret-key") {
+    logger.error('🚨 [SECURITY_CRITICAL] JWT_REFRESH_SECRET is not set or using default insecure key in PRODUCTION! Exiting...');
+    process.exit(1);
+  }
+} else {
+  // Development fallbacks
+  if (!_JWT_SECRET) logger.warn('⚠️ [SECURITY_WARN] JWT_SECRET not set, using insecure dev default.');
+  if (!_JWT_REFRESH_SECRET) logger.warn('⚠️ [SECURITY_WARN] JWT_REFRESH_SECRET not set, using insecure dev default.');
+}
+
+const JWT_SECRET = _JWT_SECRET || "lingroot-secret-key-for-development";
+const JWT_REFRESH_SECRET = _JWT_REFRESH_SECRET || "lingroot-refresh-secret-key";
+
 // Make tokens effectively non-expiring by default (very long lifetime)
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "3650d"; // ~10 years
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "lingroot-refresh-secret-key";
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "3650d"; // ~10 years
 
 logger.info('JWT_SECRET exists:', !!JWT_SECRET);
@@ -336,7 +356,7 @@ exports.register = async (req, res) => {
           : `${req.protocol}://${req.get('host')}/api/auth/verify-email/${encodeURIComponent(verificationCode)}`;
 
         try {
-          const { sendMail } = require('../utils/mailer');
+          const { sendMail } = require('../utils/notifications/mailer.js');
           const fullName = [newUser[0].firstname, newUser[0].lastname].filter(Boolean).join(' ').trim() || 'LingRoot Kullanıcısı';
           await sendMail({
             to: newUser[0].email,
@@ -1001,7 +1021,7 @@ exports.appleLogin = async (req, res) => {
 
       // Send registration notification
       try {
-        const registrationNotifier = require('../utils/registrationNotifier');
+        const registrationNotifier = require('../utils/notifications/registrationNotifier.js');
         await registrationNotifier.sendRegistrationNotification(user);
       } catch (notifError) {
         logger.error('[APPLE_LOGIN] Registration notification failed:', notifError);
@@ -1250,7 +1270,7 @@ exports.forgotPassword = async (req, res) => {
 
     // Mail gönder (SMTP varsa), yoksa logla
     try {
-      const { sendMail } = require('../utils/mailer');
+      const { sendMail } = require('../utils/notifications/mailer.js');
       await sendMail({
         to: email,
         subject: 'Şifre Sıfırlama Kodu',
@@ -1468,7 +1488,7 @@ exports.resendVerificationEmail = async (req, res) => {
       : `${req.protocol}://${req.get('host')}/api/auth/verify-email/${encodeURIComponent(code)}`;
 
     try {
-      const { sendMail } = require('../utils/mailer');
+      const { sendMail } = require('../utils/notifications/mailer.js');
       const fullName = [user.firstname, user.lastname].filter(Boolean).join(' ').trim() || 'LingRoot Kullanıcısı';
       await sendMail({
         to: email,

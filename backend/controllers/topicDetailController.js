@@ -7,9 +7,9 @@ if (process.env.OPENAI_API_KEY) {
     openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   } catch { }
 }
-const { logRequestStep } = require('../utils/requestLogger');
+const { logRequestStep } = require('../utils/common/requestLogger.js');
 const { v4: uuidv4 } = require('uuid');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 const { supabase } = require('../config/db');
 
 exports.getTopicDetailSuggestions = async (req, res) => {
@@ -113,7 +113,7 @@ exports.getTopicDetailSuggestions = async (req, res) => {
 
     // Log cost to api_costs table
     try {
-      const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+      const { calculateOpenAiCost, logApiCost } = require('../utils/infra/costTracker.js');
       const usage = completion.usage;
       if (usage && req.user?.id) {
         const costInfo = calculateOpenAiCost(usage, 'gpt-4o-mini');

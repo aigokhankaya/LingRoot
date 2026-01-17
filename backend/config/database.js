@@ -1,6 +1,6 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
-const logger = require('../utils/logger'); // Import the logger
+const logger = require('../utils/common/logger.js'); // Import the logger
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,

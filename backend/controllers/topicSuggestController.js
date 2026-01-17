@@ -1,12 +1,12 @@
 const OpenAI = require("openai");
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 let openai = null;
 if (process.env.OPENAI_API_KEY) {
   try {
     openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   } catch { }
 }
-const { logRequestStep } = require('../utils/requestLogger');
+const { logRequestStep } = require('../utils/common/requestLogger.js');
 const { v4: uuidv4 } = require('uuid');
 
 exports.suggestTopics = async (req, res) => {
@@ -35,7 +35,7 @@ exports.suggestTopics = async (req, res) => {
 
     // Log cost to api_costs table
     try {
-      const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
+      const { calculateOpenAiCost, logApiCost } = require('../utils/infra/costTracker.js');
       const usage = completion.usage;
       if (usage && req.user?.id) {
         const costInfo = calculateOpenAiCost(usage, 'gpt-4o-mini');

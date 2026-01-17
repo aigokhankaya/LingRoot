@@ -9,10 +9,16 @@ require("dotenv").config({
 });
 
 // Import custom modules
-const logger = require("./utils/logger"); // Winston logger
+const logger = require('./utils/common/logger.js'); // Winston logger
 const { errorHandler, notFound } = require("./middleware/errorHandler");
 const { configureSecurity } = require("./middleware/security");
 const requestIdMiddleware = require("./middleware/requestId");
+
+// Import queue modules
+const { getBullBoardRouter } = require('./utils/infra/bullBoard.js');
+const { startHealthCheck } = require("./workers/healthCheck");
+const { initTtsWorker } = require('./workers/ttsWorker');
+const { handleTTSRequest } = require('./controllers/ttsController');
 
 // Import database connection
 // const { sequelize } = require("./models"); // Removed Sequelize
@@ -22,6 +28,7 @@ const authRoutes = require("./routes/authRoutes");
 const contentRoutes = require("./routes/contentRoutes");
 const subscriptionRoutes = require("./routes/subscriptionRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const metricsRoutes = require("./routes/metricsRoutes");
 const ttsRoutes = require("./routes/ttsRoutes");
 const topicSuggestRoutes = require("./routes/topicSuggestRoutes");
 const topicDetailRoutes = require("./routes/topicDetailRoutes");
@@ -58,7 +65,7 @@ const apiCostsRoutes = require("./routes/apiCostsRoutes"); // API Costs Analytic
 
 // Initialize Express app
 const app = express();
-const { initSocket } = require('./utils/socketManager');
+const { initSocket } = require('./utils/notifications/socketManager.js');
 
 // Dev-only env diagnostics (no secrets printed)
 if (process.env.NODE_ENV === 'development') {
@@ -149,7 +156,62 @@ app.use(contentRoutes); // legacy fallback
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/subscriptions", subscriptionRoutes); // Support both singular and plural
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin/metrics", metricsRoutes);
 app.use("/api/admin", apiCostsRoutes); // API Costs Analytics
+
+// Bull Board Dashboard (if Redis available)
+const bullBoardRouter = getBullBoardRouter();
+if (bullBoardRouter) {
+  app.use("/api/admin/queues", bullBoardRouter);
+  logger.info("📊 Bull Board dashboard mounted at /api/admin/queues");
+}
+
+// Start queue health monitoring
+startHealthCheck();
+
+// Initialize TTS Worker (Process jobs from BullMQ)
+initTtsWorker(async (data, jobInfo) => {
+  return new Promise(async (resolve, reject) => {
+    // Mock Express Request
+    const mockReq = {
+      body: data.requestBody,
+      file: data.file ? {
+        ...data.file,
+        buffer: Buffer.from(data.file.buffer, 'base64') // Restore buffer
+      } : null,
+      user: { id: jobInfo.userId },
+      headers: {},
+      get: () => { },
+      is: (type) => type === 'multipart/form-data', // Mock helper
+      // Helper function often used in controllers
+      header: () => { }
+    };
+
+    // Mock Express Response
+    const mockRes = {
+      status: (code) => mockRes,
+      json: (result) => {
+        if (result.success) {
+          resolve(result);
+        } else {
+          // If the controller returns { success: false }, treat it as an error
+          reject(new Error(result.message || 'Unknown TTS error'));
+        }
+      },
+      send: (msg) => reject(new Error(msg instanceof Error ? msg.message : msg))
+    };
+
+    try {
+      // Call the controller
+      await handleTTSRequest(mockReq, mockRes, (err) => {
+        if (err) reject(err);
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+});
+
 app.use("/api/tts", ttsRoutes);
 app.use("/api/topic-suggest", topicSuggestRoutes);
 app.use("/api/topic-detail", topicDetailRoutes);

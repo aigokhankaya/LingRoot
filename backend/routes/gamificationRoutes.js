@@ -9,7 +9,7 @@ const router = express.Router();
 const gamificationService = require('../services/gamificationService');
 const onboardingService = require('../services/onboardingService');
 const { authenticate } = require('../middleware/auth');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 
 // Tüm route'lar authentication gerektirir
 router.use(authenticate);

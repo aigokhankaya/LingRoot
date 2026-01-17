@@ -1,7 +1,7 @@
 // Test script to check what API returns for mobile.android.tr@gmail.com
 // Run: node backend/scripts/test_api_features.js
 
-const { supabase } = require("../utils/supabaseClient");
+const { supabase } = require('../utils/storage/supabaseClient.js');
 
 async function testUserFeatures() {
   const email = 'mobile.android.tr@gmail.com';

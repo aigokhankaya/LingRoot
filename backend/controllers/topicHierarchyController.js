@@ -1,11 +1,11 @@
-const { supabase } = require('../utils/supabaseClient');
+const { supabase } = require('../utils/storage/supabaseClient.js');
 const OpenAI = require('openai');
-const logger = require('../utils/logger');
+const logger = require('../utils/common/logger.js');
 const path = require('path');
 const fs = require('fs');
 const gamificationService = require('../services/gamificationService');
-const { calculateOpenAiCost, logApiCost } = require('../utils/costTracker');
-const promptService = require('../utils/promptService');
+const { calculateOpenAiCost, logApiCost } = require('../utils/infra/costTracker.js');
+const promptService = require('../utils/ai/promptService.js');
 
 // Initialize OpenAI
 const openai = new OpenAI({
