@@ -17,7 +17,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { apiService } from '../services/api';
+import { resendVerificationEmail } from '../services/authService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../contexts/LanguageContext';
 import { isAppleSignInAvailable } from '../services/socialAuth';
@@ -207,7 +207,7 @@ const LoginScreen: React.FC = () => {
     setResendMessage(null);
     setResendLoading(true);
     try {
-      await apiService.resendVerificationEmail(email);
+      await resendVerificationEmail(email);
       setResendMessage(language === 'tr'
         ? 'Aktivasyon e-postası gönderildi. Lütfen gelen kutunuzu kontrol edin.'
         : 'Activation email sent. Please check your inbox.');

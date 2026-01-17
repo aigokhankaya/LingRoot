@@ -12,7 +12,7 @@ import BlurHeader from '../components/BlurHeader';
 
 import { useAuth } from '../contexts/AuthContext';
 import NotificationService from '../services/notificationService';
-import { apiService } from '../services/api';
+import { getUnreadNotifications, markNotificationAsRead } from '../services/userService';
 
 import { useLanguage } from '../contexts/LanguageContext';
 import { RootStackParamList, MainTabParamList } from '../types';
@@ -75,7 +75,7 @@ const MainTabs = () => {
     // Poll for notifications every 30 seconds
     const pollNotifications = async () => {
       try {
-        const notifications = await apiService.getUnreadNotifications();
+        const notifications = await getUnreadNotifications();
 
         if (!Array.isArray(notifications) || notifications.length === 0) {
           return;
@@ -134,7 +134,7 @@ const MainTabs = () => {
         try {
           await Promise.all(
             audioNotifications.map((notification: any) =>
-              apiService.markNotificationAsRead(notification.id).catch(() => { })
+              markNotificationAsRead(notification.id).catch(() => { })
             )
           );
         } catch {

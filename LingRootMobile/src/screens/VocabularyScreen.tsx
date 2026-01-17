@@ -23,10 +23,12 @@ import {
   deleteWordFromVocabulary,
   updateWordInVocabulary,
   VocabularyWord,
+} from '../services/vocabularyService';
+import {
   getReminderSettings,
   saveReminderSettings,
   ReminderSettings
-} from '../services/api';
+} from '../services/userService';
 import { ReminderSettingsService } from '../services/reminderSettingsService';
 import NotificationService from '../services/notificationService';
 import { COLORS } from '../theme/colors';

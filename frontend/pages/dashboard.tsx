@@ -3,6 +3,7 @@ import Link from 'next/link';
 import MembershipBadge from '../src/components/user/MembershipBadge';
 import { useAuth } from '../src/lib/auth';
 import { useRouter } from 'next/router';
+import Head from 'next/head';
 import { getUserStats, UserStats, getTopicTree, Topic, getUserBookHistory, BookHistoryItem, FavoriteBookItem, getUserBookFavoritesDetails, DocumentRecord, DocumentSection, getUserDocuments, getDocumentSections, getContentHistory } from '../src/lib/api';
 import { Badge } from '../src/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../src/components/ui/card';
@@ -431,6 +432,9 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background fadeIn">
+      <Head>
+        <title>{t('dashboard')} | LingRoot</title>
+      </Head>
       {/* Top Navigation Header */}
       <AppHeader />
 

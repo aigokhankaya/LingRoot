@@ -12,7 +12,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { apiService } from '../services/api';
+import { getUserPatternHistory } from '../services/patternService';
 
 interface Pattern {
   pattern: string;
@@ -45,9 +45,9 @@ export default function PatternListScreen() {
     try {
       setLoading(true);
       setError('');
-      
-      const response = await apiService.getUserPatternHistory();
-      
+
+      const response = await getUserPatternHistory();
+
       if (response.success) {
         setPatterns(response.patterns || []);
       } else {
@@ -97,7 +97,7 @@ export default function PatternListScreen() {
 
   const renderLevelSection = ({ item }: { item: [string, Pattern[]] }) => {
     const [level, levelPatterns] = item;
-    
+
     return (
       <View style={styles.levelSection}>
         <View style={styles.levelHeader}>

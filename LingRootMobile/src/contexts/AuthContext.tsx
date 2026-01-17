@@ -1,19 +1,20 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AuthContextType, User } from '../types';
 import { authService } from '../services/supabase';
-import { apiService } from '../services/api';
+import { checkConnectivity, updateProfile, getMe } from '../services/userService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationService from '../services/notificationService';
 import { registerPushTokenWithBackend, setupPushTokenRefreshListener } from '../services/pushTokenService';
-import { 
-  signInWithGoogle, 
-  signInWithFacebook, 
+import {
+  signInWithGoogle,
+  signInWithFacebook,
   signInWithApple,
   signOutFromSocialProviders,
   configureGoogleSignIn,
   type SocialAuthResult
 } from '../services/socialAuth';
 import { getApiBaseUrl } from '../services/environmentConfig';
+import { setUnauthorizedHandler } from '../services/apiClient';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -37,21 +38,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     // Configure Google Sign-In on app start
     configureGoogleSignIn();
-    
+
     // Configure Facebook SDK on app start
     const { configureFacebookSDK } = require('../services/socialAuth');
     configureFacebookSDK();
-    
+
     // Initial auth state check
     checkAuthState();
 
     // Listen for auth changes - web projesindeki gibi basitleştirildi
-    const { data: { subscription } } = authService.onAuthStateChange(async (authUser) => {
+    const { data: { subscription } } = authService.onAuthStateChange(async (session) => {
       // Avoid flashing login at app start: ignore auth change callbacks until initial check completes
       if (isBootstrappingRef.current) {
         return;
       }
-      if (authUser) {
+
+      const authUser = session?.user;
+
+      if (authUser && session?.access_token) {
+        // Save tokens for apiClient
+        try {
+          await AsyncStorage.setItem('auth_token', session.access_token);
+          if (session.refresh_token) {
+            await AsyncStorage.setItem('refresh_token', session.refresh_token);
+          }
+        } catch { }
+
         // Build robust full name from Supabase user metadata
         const umd = authUser.user_metadata || {};
         const builtFullName = (
@@ -73,7 +85,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           updated_at: authUser.updated_at || authUser.created_at,
         };
         setUser(appUser);
-        
+
         // Start notification reminders after user login
         try {
           await NotificationService.setupPeriodicVocabularyNotifications();
@@ -82,7 +94,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } else {
         setUser(null);
-        
+        // Clear tokens
+        try {
+          await AsyncStorage.removeItem('auth_token');
+          await AsyncStorage.removeItem('refresh_token');
+          await AsyncStorage.removeItem('user_data');
+        } catch { }
+
         // Stop notifications when user logs out
         try {
           await NotificationService.stopVocabularyReminders();
@@ -92,17 +110,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     });
 
-    // Setup global unauthorized handler (401)
-    // Note: Temporarily disabled to fix circular dependency
-    // Will be re-enabled after fixing module structure
-    // setUnauthorizedHandler(async () => {
-    //   try {
-    //     await AsyncStorage.removeItem('auth_token');
-    //     await AsyncStorage.removeItem('user_data');
-    //     try { await AsyncStorage.removeItem('refresh_token'); } catch {}
-    //   } catch {}
-    //   setUser(null);
-    // });
+    // Setup global unauthorized handler (401) - Now enabled with new apiClient
+    setUnauthorizedHandler(async () => {
+      console.log('⚠️ [AUTH] Unauthorized handler triggered - clearing tokens');
+      try {
+        await AsyncStorage.removeItem('auth_token');
+        await AsyncStorage.removeItem('user_data');
+        try { await AsyncStorage.removeItem('refresh_token'); } catch { }
+      } catch { }
+      setUser(null);
+    });
 
     return () => {
       subscription?.unsubscribe();
@@ -114,26 +131,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Check if we have a stored token first
       const token = await AsyncStorage.getItem('auth_token');
       const storedUser = await AsyncStorage.getItem('user_data');
-      
+
       console.log('🔍 [AUTH CHECK] Token exists:', !!token);
       console.log('🔍 [AUTH CHECK] User data exists:', !!storedUser);
-      
+
       if (token && storedUser) {
         console.log('✅ [AUTH CHECK] Token and user found, validating...');
-        
+
         // Validate token by making a test API call with timeout
         try {
           // Get API base URL from environment config
           const { getApiBaseUrl } = require('../services/environmentConfig');
           const API_BASE_URL = await getApiBaseUrl();
           console.log('🔍 [AUTH CHECK] Using API URL:', API_BASE_URL);
-          
+
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-          
+
           const response = await fetch(`${API_BASE_URL}/api/health`, {
             method: 'GET',
-            headers: { 
+            headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
               'Accept': 'application/json',
@@ -143,9 +160,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             credentials: 'omit',
             signal: controller.signal,
           });
-          
+
           clearTimeout(timeoutId);
-          
+
           if (response.ok) {
             console.log('✅ [AUTH CHECK] Token is valid');
             const appUser: User = JSON.parse(storedUser);
@@ -178,9 +195,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                   appUser.full_name = (built && built.length > 0) ? built : (appUser.email?.split('@')[0] || '');
                 }
               }
-            } catch {}
+            } catch { }
             setUser(appUser);
-            
+
             // Start notification reminders for stored user
             try {
               await NotificationService.setupPeriodicVocabularyNotifications();
@@ -203,7 +220,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (response.status === 401) {
               await AsyncStorage.removeItem('auth_token');
               await AsyncStorage.removeItem('user_data');
-              try { await AsyncStorage.removeItem('refresh_token'); } catch {}
+              try { await AsyncStorage.removeItem('refresh_token'); } catch { }
               setUser(null);
             } else {
               try {
@@ -217,7 +234,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 } catch (pushError) {
                   console.error('[AUTH][PushToken] Error during push token registration (checkAuthState_response_not_ok):', pushError);
                 }
-              } catch {}
+              } catch { }
             }
           }
         } catch (validateError: any) {
@@ -252,19 +269,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      
+
       // First check network connectivity
-      const isConnected = await apiService.checkConnectivity();
+      const isConnected = await checkConnectivity();
       if (!isConnected) {
         throw new Error('Backend serveri ile bağlantı kurulamıyor. Lütfen internet bağlantınızı kontrol edin.');
       }
-      
+
       // Web uygulaması gibi backend API'sini kullan
       const API_BASE_URL = await getApiBaseUrl();
-      
+
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'User-Agent': 'LingRootMobile/1.0',
@@ -274,16 +291,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Always request long-lived token on mobile
         body: JSON.stringify({ email, password, rememberMe: true }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         const err = new Error(errorData.message || 'Login failed');
         (err as any).code = errorData.code;
         throw err;
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success && data.data.user) {
         // Transform backend user to our User type
         const backendUser = data.data.user;
@@ -305,7 +322,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           created_at: backendUser.created_at,
           updated_at: backendUser.updated_at,
         };
-        
+
         // Store token and user data in AsyncStorage
         if (data.data.token) {
           console.log('🔐 [AUTH] Saving token to AsyncStorage:', data.data.token.substring(0, 20) + '...');
@@ -318,11 +335,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               await AsyncStorage.setItem('refresh_token', data.data.refreshToken);
               console.log('✅ [AUTH] Refresh token saved');
             }
-          } catch {}
+          } catch { }
         }
-        
+
         setUser(appUser);
-        
+
         // Refresh environment config after login to check user's test status
         try {
           const { refreshEnvironmentConfig } = require('../services/environmentConfig');
@@ -342,7 +359,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.error('[AUTH][PushToken] Error during push token registration (signIn):', pushError);
           // Push token hatası uygulamayı bozmasın
         }
-        
+
         setIsLoading(false);
       } else {
         const err = new Error(data.message || 'Login failed');
@@ -375,11 +392,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Clear AsyncStorage
       await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user_data');
-      try { await AsyncStorage.removeItem('refresh_token'); } catch {}
-      
+      try { await AsyncStorage.removeItem('refresh_token'); } catch { }
+
       // Sign out from social providers
       await signOutFromSocialProviders();
-      
+
       await authService.signOut();
       setUser(null);
       // Ensure UI leaves loading state after successful logout
@@ -394,30 +411,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Social authentication handler
   const handleSocialAuth = async (socialResult: SocialAuthResult) => {
     const API_BASE_URL = await getApiBaseUrl();
-    
+
     // Determine endpoint based on provider
-    const endpoint = socialResult.provider === 'google' 
+    const endpoint = socialResult.provider === 'google'
       ? '/api/auth/google-login'
       : socialResult.provider === 'facebook'
-      ? '/api/auth/facebook-login'
-      : '/api/auth/apple-login';
-    
+        ? '/api/auth/facebook-login'
+        : '/api/auth/apple-login';
+
     // Prepare request body
-    const requestBody: any = { 
+    const requestBody: any = {
       credential: socialResult.credential,
-      rememberMe: true 
+      rememberMe: true
     };
-    
+
     // For Apple, include email and name if available (first login only)
     if (socialResult.provider === 'apple') {
       if (socialResult.email) requestBody.email = socialResult.email;
       if (socialResult.name) requestBody.name = socialResult.name;
     }
-    
+
     // Send social auth credential to backend
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'User-Agent': 'LingRootMobile/1.0',
@@ -426,20 +443,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       credentials: 'omit',
       body: JSON.stringify(requestBody),
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
-      
+
       // Email doğrulanmamışsa özel hata mesajı
       if (errorData.code === 'EMAIL_NOT_VERIFIED') {
         throw new Error(errorData.message || 'Email adresiniz doğrulanmamış. Lütfen email adresinize gönderilen doğrulama linkine tıklayın.');
       }
-      
+
       throw new Error(errorData.message || 'Sosyal giriş başarısız');
     }
-    
+
     const data = await response.json();
-    
+
     if (data.success && data.data.user) {
       const backendUser = data.data.user;
       const builtFullName = (
@@ -459,7 +476,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         created_at: backendUser.created_at,
         updated_at: backendUser.updated_at,
       };
-      
+
       if (data.data.token) {
         await AsyncStorage.setItem('auth_token', data.data.token);
         await AsyncStorage.setItem('user_data', JSON.stringify(appUser));
@@ -467,9 +484,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (data.data.refreshToken) {
             await AsyncStorage.setItem('refresh_token', data.data.refreshToken);
           }
-        } catch {}
+        } catch { }
       }
-      
+
       setUser(appUser);
 
       // Backend oturumu kurulduktan sonra push token kaydını yap
@@ -490,11 +507,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signInWithGoogleProvider = async () => {
     setIsLoading(true);
     try {
-      const isConnected = await apiService.checkConnectivity();
+      const isConnected = await checkConnectivity();
       if (!isConnected) {
         throw new Error('Backend serveri ile bağlantı kurulamıyor. Lütfen internet bağlantınızı kontrol edin.');
       }
-      
+
       const socialResult = await signInWithGoogle();
       await handleSocialAuth(socialResult);
       setIsLoading(false);
@@ -507,11 +524,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signInWithFacebookProvider = async () => {
     setIsLoading(true);
     try {
-      const isConnected = await apiService.checkConnectivity();
+      const isConnected = await checkConnectivity();
       if (!isConnected) {
         throw new Error('Backend serveri ile bağlantı kurulamıyor. Lütfen internet bağlantınızı kontrol edin.');
       }
-      
+
       const socialResult = await signInWithFacebook();
       await handleSocialAuth(socialResult);
       setIsLoading(false);
@@ -524,20 +541,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signInWithAppleProvider = async () => {
     setIsLoading(true);
     try {
-      const isConnected = await apiService.checkConnectivity();
+      const isConnected = await checkConnectivity();
       if (!isConnected) {
         throw new Error('Backend serveri ile bağlantı kurulamıyor. Lütfen internet bağlantınızı kontrol edin.');
       }
-      
+
       const socialResult = await signInWithApple();
-      
+
       // Log Apple name data for debugging
       console.log('[AUTH_CONTEXT] Apple Sign-In result:', {
         hasName: !!socialResult.name,
         name: socialResult.name,
         email: socialResult.email
       });
-      
+
       await handleSocialAuth(socialResult);
       setIsLoading(false);
     } catch (error: any) {
@@ -549,14 +566,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const updateUserProfile = async (data: Partial<User> & { phoneNumber?: string; full_name?: string }) => {
     if (!user) throw new Error('Oturum bulunamadı');
     try {
-      await apiService.updateProfile(user.id, data as any);
+      await updateProfile(data as any);
       const updatedUser: User = {
         ...user,
         full_name: (data.full_name ?? user.full_name) as any,
         updated_at: new Date().toISOString(),
       };
       setUser(updatedUser);
-      try { await AsyncStorage.setItem('user_data', JSON.stringify(updatedUser)); } catch {}
+      try { await AsyncStorage.setItem('user_data', JSON.stringify(updatedUser)); } catch { }
     } catch (error: any) {
       throw new Error(error?.message || 'Profil güncelleme başarısız');
     }

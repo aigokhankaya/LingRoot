@@ -1,11 +1,13 @@
 # API Services (Backend)
 
-**Last Updated:** January 2026  
+**Last Updated:** January 16, 2026
 **Location:** `/backend`
 
 ## Overview
 
 The backend API is built with Express.js, providing RESTful endpoints for all LingRoot functionality including TTS processing, AI chat, user management, and subscription handling.
+
+> **NEW (2026-01-16):** A shared API client package (`@lingroot/api-client`) is now available at `packages/api-client/`. This provides type-safe API access for both Web and Mobile frontends. See `packages/api-client/README.md` for usage.
 
 ## Technology Stack
 
@@ -49,11 +51,17 @@ backend/
 │   ├── errorHandler.js
 │   ├── security.js
 │   └── ...
-├── utils/                  # 45 utility modules
-│   ├── openaiClient.js
-│   ├── googleTTS.js
-│   ├── azureTTS.js
-│   ├── amazonPolly.js
+├── utils/                  # 60+ utility modules (Domain-Driven)
+│   ├── ai/                 # AI & LLM clients (openai, claude, cefr)
+│   ├── audio/              # TTS & MFA logic (googleTTS, polly, mfa)
+│   ├── content/            # Text & Content processing
+│   ├── storage/            # DB & File storage (supabase, redis)
+│   ├── infra/              # Queue, Limiter, Settings
+│   ├── notifications/      # Email, Push, Socket
+│   └── common/             # Logger, Helpers
+├── services/               # Business Logic Services (New Layer)
+│   ├── subtitleService.js
+│   ├── voiceModelService.js
 │   └── ...
 ├── prompts/                # 75+ AI prompts
 ├── migrations/             # 54 SQL migrations
@@ -169,64 +177,38 @@ Input → Extract → Translate → CEFR Adapt → Clean → TTS → Merge → U
 | `topicSuggestController.js` | 3+ | Smart topic suggestions |
 | `userEmbeddingController.js` | 4+ | User embeddings for recommendations |
 
-## Utilities
+## Utilities (Reorganized)
+> **Note:** Utilities are now grouped by domain in `backend/utils/`.
 
-### TTS Services
+### AI Utilities (`utils/ai/`)
+- `openaiClient.js`, `claudeClient.js`
+- `cefrAdapter.js`, `translateAndAdapt.js`
+- `liroPromptGenerator.js`
+- `userProfileAnalyzer.js`, `userKnowledgeAnalyzer.js`
+- `semanticAudit.js`, `topicMemoryVerdict.js`
 
-| Utility | Size | Provider |
-|---------|------|----------|
-| `googleTTS.js` | 23KB | Google Cloud TTS |
-| `azureTTS.js` | 13KB | Azure Cognitive Services |
-| `amazonPolly.js` | 11KB | AWS Polly |
+### Audio Services (`utils/audio/`)
+- `googleTTS.js` (Google Cloud TTS)
+- `azureTTS.js` (Azure Cognitive Services)
+- `amazonPolly.js` (AWS Polly)
+- `mfaAligner.js` (Montreal Forced Aligner)
+- `audioMerger.js` (FFmpeg)
 
-### AI Utilities
+### Content Processing (`utils/content/`)
+- `inputExtractor.js` (Multi-source extraction)
+- `textProcessor.js` (Text cleaning/chunking)
+- `bookTextExtractor.js` (Book parsing)
+- `newsService.js`, `webSearchService.js`
 
-| Utility | Size | Purpose |
-|---------|------|---------|
-| `openaiClient.js` | 9KB | OpenAI API wrapper |
-| `cefrAdapter.js` | 6KB | CEFR level adaptation |
-| `translateAndAdapt.js` | 18KB | Translation + adaptation |
-| `liroPromptGenerator.js` | 17KB | Liro system prompts |
-| `userProfileAnalyzer.js` | 21KB | 13-dimension user profiling |
-| `contentQualityValidator.js` | 5KB | Post-generation quality checks |
-| `crossTopicDuplicateChecker.js` | 6KB | Sibling subtopic overlap detection |
+### Storage & Infra (`utils/storage/`, `utils/infra/`)
+- `supabaseClient.js`, `redisClient.js`
+- `storageUploader.js`, `cloudflareR2Client.js`
+- `bullQueue.js`, `usageLimiter.js`
 
-### User Intelligence Services
-
-| Service | Size | Purpose |
-|---------|------|---------|
-| `userInsightService.js` | 36KB | Extracts user preferences from conversations |
-| `feedbackLoopService.js` | 8KB | Adaptive level recommendations based on feedback |
-| `srsService.js` | 8KB | Spaced Repetition (SM-2) Algorithm |
-| `topicMasteryService.js` | 8KB | Topic-based progress and mastery tracking |
-| `userEmbeddingService.js` | 10KB | OpenAI embeddings for user similarity & recommendations |
-
-**FeedbackLoopService Functions:**
-- `calculateOptimalLevel(userId)` - Compute optimal CEFR level from ratings/completion
-- `getPreferredContentType(userId)` - Analyze preferred content formats
-- `getPreferredContentLength(userId)` - Analyze preferred content duration
-- `generateAdaptiveContext(userId)` - Generate Liro context with all preferences
-
-**UserInsightService Functions:**
-- `extractInsights(userId, conversationId, messages)` - AI-powered insight extraction
-- `processContentRating(userId, contentId, rating, feedbackType)` - Learn from ratings
-- `generateSmartSuggestions(userId)` - Topic-depth based recommendations
-
-### Content Processing
-
-| Utility | Size | Purpose |
-|---------|------|---------|
-| `inputExtractor.js` | 19KB | Multi-source extraction |
-| `textProcessor.js` | 15KB | Text cleaning/chunking |
-| `audioMerger.js` | 10KB | FFmpeg audio merging |
-| `bookTextExtractor.js` | 7KB | Book content extraction |
-
-### Storage & Upload
-
-| Utility | Size | Purpose |
-|---------|------|---------|
-| `storageUploader.js` | 5KB | Supabase storage upload |
-| `supabaseClient.js` | 2KB | Supabase client |
+### Notifications (`utils/notifications/`)
+- `mailer.js` (Email)
+- `pushNotification.js` (FCM)
+- `socketManager.js` (Real-time)
 
 ## Middleware
 

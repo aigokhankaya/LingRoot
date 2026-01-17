@@ -13,7 +13,13 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AudioTrack, CEFRLevel } from '../types';
-import { apiService } from '../services/api';
+import {
+  getUserAudioHistory,
+  getUserContentById,
+  getUserFavorites,
+  saveUserFavorites,
+  getUserFavoriteDetails
+} from '../services/contentService';
 import { useFocusEffect, useRoute, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -93,7 +99,7 @@ const LibraryScreen: React.FC = () => {
 
         if (needsHydration && audioId) {
           try {
-            const res: any = await apiService.getUserContentById(String(audioId));
+            const res: any = await getUserContentById(String(audioId));
             if (res?.success && res?.data) {
               const backendData = res.data;
               let words = backendData.words;
@@ -200,7 +206,7 @@ const LibraryScreen: React.FC = () => {
       }
 
       const currentPage = nextPage || 1;
-      const response = await apiService.getUserAudioHistory(user.id, currentPage, PAGE_SIZE);
+      const response = await getUserAudioHistory(user.id, currentPage, PAGE_SIZE);
 
       if (response.success && response.data) {
 
@@ -305,7 +311,7 @@ const LibraryScreen: React.FC = () => {
     try {
       if (!user?.id) return;
       // pull from backend first
-      const remote = await apiService.getUserFavorites();
+      const remote = await getUserFavorites();
       if (Array.isArray(remote) && remote.length > 0) {
         const normalized = remote.map((x: any) => String(x));
         setFavoriteIds(normalized);
@@ -329,7 +335,7 @@ const LibraryScreen: React.FC = () => {
       if (!user?.id) return;
       await AsyncStorage.setItem(favoritesKey, JSON.stringify(ids));
       // fire and forget remote save
-      apiService.saveUserFavorites(ids).then((ok) => {
+      saveUserFavorites(ids).then((ok: boolean) => {
         if (!ok) {
           // ignore silently in production
         }
@@ -360,7 +366,7 @@ const LibraryScreen: React.FC = () => {
       }
       // 2) Backend'ten favori detaylarını tek çağrıda çek ve listeye ekle
       try {
-        const favDetails = await apiService.getUserFavoriteDetails();
+        const favDetails = await getUserFavoriteDetails();
         if (Array.isArray(favDetails) && favDetails.length > 0) {
           const mapped = favDetails.map((item: any) => ({
             id: String(item.id),

@@ -1637,8 +1637,8 @@ export const addWordWithTranslation = async (
   try {
     // Use the existing /add endpoint which already does AI enrichment
     const url = process.env.NODE_ENV === 'development'
-      ? 'http://localhost:5001/api/vocabulary/add'
-      : '/api/vocabulary/add';
+      ? 'http://localhost:5001/api/vocabulary/add-with-translation'
+      : '/api/vocabulary/add-with-translation';
 
     const headers = createHeaders('application/json');
 

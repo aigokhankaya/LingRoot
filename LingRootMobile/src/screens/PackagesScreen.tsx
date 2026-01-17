@@ -14,7 +14,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../contexts/LanguageContext';
 import { IAP_PRODUCTS, requestSubscription, restorePurchases } from '../services/iap';
-import { apiService } from '../services/api';
+import { getSubscriptionPlans, getUsageSummary } from '../services/subscriptionService';
 import { COLORS } from '../theme/colors';
 
 interface SubscriptionPlan {
@@ -52,12 +52,12 @@ const PackagesScreen: React.FC = () => {
   const fetchPlans = async () => {
     try {
       setLoading(true);
-      // apiService kullanarak backend'den paketleri çek
-      const response = await apiService.getSubscriptionPlans();
+      // subscriptionService kullanarak backend'den paketleri çek
+      const plans = await getSubscriptionPlans();
 
-      if (response.success && Array.isArray(response.data)) {
+      if (Array.isArray(plans)) {
         // Sadece aktif ve satın alınabilir paketleri göster (Free Trial hariç)
-        const purchasablePlans = response.data.filter((p: SubscriptionPlan) => {
+        const purchasablePlans = plans.filter((p: SubscriptionPlan) => {
           const hasProductId = Platform.OS === 'ios' ? p.apple_product_id : p.google_product_id;
           return p.is_active && hasProductId;
         });
@@ -74,10 +74,9 @@ const PackagesScreen: React.FC = () => {
 
   const fetchActivePackage = async () => {
     try {
-      const response = await apiService.getUsageSummary();
-      const data: any = response?.data;
+      const data = await getUsageSummary();
 
-      if (response.success && data) {
+      if (data) {
         if (data.plan?.name) {
           setActivePackageName(data.plan.name);
         } else if (data.subscription?.plantype) {
