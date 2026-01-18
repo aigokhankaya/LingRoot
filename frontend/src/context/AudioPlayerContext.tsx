@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
+import { saveListeningProgress, getListeningProgress } from '../lib/api';
 
 // Audio track metadata
 export interface AudioTrack {
@@ -70,6 +71,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const syncIntervalRef = useRef<number | null>(null);
+    const lastSavedTimeRef = useRef<number>(0); // Debounce progress saves
 
     // Cleanup on unmount
     useEffect(() => {
@@ -148,6 +150,18 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             console.log('⏸️ [GLOBAL PLAYER] Paused');
             setIsPlaying(false);
             stopSync();
+
+            // Save progress when paused (debounced - only if 5+ seconds passed since last save)
+            if (audio.currentTime > 0 && audio.duration > 0) {
+                const now = Date.now();
+                if (now - lastSavedTimeRef.current > 5000) {
+                    lastSavedTimeRef.current = now;
+                    const trackUrl = audio.src;
+                    saveListeningProgress(trackUrl, audio.currentTime, audio.duration)
+                        .then(() => console.log('💾 [GLOBAL PLAYER] Progress saved on pause'))
+                        .catch(err => console.error('Progress save error:', err));
+                }
+            }
         });
 
         audio.addEventListener('ended', () => {
@@ -155,6 +169,12 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             setIsPlaying(false);
             stopSync();
             setCurrentTime(0);
+
+            // Mark as completed (100%)
+            const trackUrl = audio.src;
+            saveListeningProgress(trackUrl, audio.duration, audio.duration)
+                .then(() => console.log('✅ [GLOBAL PLAYER] Marked as completed'))
+                .catch(err => console.error('Progress save error:', err));
         });
 
         audio.addEventListener('waiting', () => {
@@ -180,6 +200,17 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 setIsPlaying(false);
             });
         }
+
+        // Try to resume from saved position
+        getListeningProgress(track.url)
+            .then(res => {
+                if (res.success && res.data && res.data.position_seconds > 0 && !res.data.is_completed) {
+                    console.log('📍 [GLOBAL PLAYER] Resuming from', res.data.position_seconds, 'seconds');
+                    audio.currentTime = res.data.position_seconds;
+                    setCurrentTime(res.data.position_seconds);
+                }
+            })
+            .catch(err => console.log('Could not load saved progress:', err));
     }, [startSync, stopSync]);
 
     // Play current track
@@ -230,6 +261,17 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // Close player completely
     const close = useCallback(() => {
         console.log('❌ [GLOBAL PLAYER] Closing');
+
+        // Save progress before closing
+        if (audioRef.current && audioRef.current.currentTime > 0 && audioRef.current.duration > 0) {
+            const trackUrl = audioRef.current.src;
+            const currentPos = audioRef.current.currentTime;
+            const totalDur = audioRef.current.duration;
+            saveListeningProgress(trackUrl, currentPos, totalDur)
+                .then(() => console.log('💾 [GLOBAL PLAYER] Progress saved on close'))
+                .catch(err => console.error('Progress save error:', err));
+        }
+
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current = null;

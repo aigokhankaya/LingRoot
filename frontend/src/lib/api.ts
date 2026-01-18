@@ -2452,11 +2452,16 @@ export interface IncompleteListeningItem {
   id: string;
   topic_id: string;
   mp3_url: string;
+  vtt_url?: string;
   last_position_seconds: number;
   total_duration_seconds: number;
   progress_percentage: number;
   last_listened_at: string;
   created_at: string;
+  words?: string[];
+  timepoints?: Array<{ timeSeconds: number; endTimeSeconds?: number; word?: string }>;
+  adapted_text?: string;
+  translated_text?: string;
   topics: {
     id: string;
     title: string;

@@ -11,6 +11,7 @@ const db = require('../config/db');
 const logger = require('../utils/common/logger.js');
 const openaiClient = require('../utils/ai/openaiClient.js');
 const gamificationService = require('./gamificationService');
+const questContentService = require('./questContentService');
 const fs = require('fs');
 const path = require('path');
 
@@ -544,6 +545,7 @@ Generate a JSON roadmap with weekly milestones:
 
     /**
      * Kullanıcının yol haritasını getir
+     * Quest'leri içerik URL'leri ile zenginleştirir
      */
     async getUserRoadmap(userId) {
         const quests = await db.query(`
@@ -557,6 +559,14 @@ Generate a JSON roadmap with weekly milestones:
             ORDER BY qn.step_order
         `, [userId]);
 
+        // İçerik bilgilerini zenginleştir
+        let enrichedQuests = quests.rows;
+        try {
+            enrichedQuests = await questContentService.enrichQuestsWithContent(quests.rows);
+        } catch (error) {
+            logger.warn('[OnboardingService] Could not enrich quests with content:', error.message);
+        }
+
         // Aktif, yakın gelecek ve kilitli olarak grupla
         const roadmap = {
             current: null,
@@ -565,7 +575,7 @@ Generate a JSON roadmap with weekly milestones:
             locked: []
         };
 
-        for (const quest of quests.rows) {
+        for (const quest of enrichedQuests) {
             if (quest.status === 'in_progress') {
                 roadmap.current = quest;
             } else if (quest.status === 'unlocked') {
@@ -651,6 +661,96 @@ Generate a JSON roadmap with weekly milestones:
         } catch (error) {
             await client.query('ROLLBACK');
             logger.error('[OnboardingService] completeQuest failed:', error);
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+    /**
+     * Tipe göre aktif görevi tamamla
+     * Örn: 'vocabulary' tipindeki 'in_progress' veya 'unlocked' (ilk sıradaki) görevi bulur ve tamamlar
+     */
+    async completeActiveQuestByType(userId, taskType) {
+        const client = await db.pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // 1. İlgili tipteki aktif görevi bul
+            // Öncelik: in_progress -> unlocked (ve step order'ı en düşük olan)
+            const activeQuest = await client.query(`
+                SELECT qn.* 
+                FROM quest_nodes qn
+                JOIN user_quest_progress uqp ON qn.id = uqp.node_id
+                WHERE uqp.user_id = $1 
+                  AND qn.task_type = $2
+                  AND uqp.status IN ('in_progress', 'unlocked')
+                ORDER BY 
+                  CASE WHEN uqp.status = 'in_progress' THEN 1 ELSE 2 END,
+                  qn.step_order ASC
+                LIMIT 1
+            `, [userId, taskType]);
+
+            if (activeQuest.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return { success: false, message: 'Aktif görev bulunamadı' };
+            }
+
+            const quest = activeQuest.rows[0];
+
+            // 2. Görevi tamamla (completeQuest mantığını tekrar kullanıyoruz ama transaction içinde)
+            // Görevi tamamlandı olarak işaretle
+            await client.query(`
+                UPDATE user_quest_progress 
+                SET status = 'completed', completed_at = NOW(), score = 100
+                WHERE user_id = $1 AND node_id = $2
+            `, [userId, quest.id]);
+
+            // Sonraki görevi aç
+            let nextQuestNodes = await client.query(`
+                SELECT id FROM quest_nodes 
+                WHERE prerequisite_node_id = $1
+            `, [quest.id]);
+
+            // Fallback: Prerequisite yoksa step_order'a göre sonrakini bul
+            if (nextQuestNodes.rows.length === 0) {
+                const currentQuestStep = quest.step_order;
+                nextQuestNodes = await client.query(`
+                    SELECT id FROM quest_nodes 
+                    WHERE step_order > $1
+                    ORDER BY step_order ASC
+                    LIMIT 1
+                `, [currentQuestStep]);
+            }
+
+            if (nextQuestNodes.rows.length > 0) {
+                await client.query(`
+                    UPDATE user_quest_progress 
+                    SET status = 'unlocked'
+                    WHERE user_id = $1 AND node_id = $2 AND status = 'locked'
+                `, [userId, nextQuestNodes.rows[0].id]);
+            }
+
+            await client.query('COMMIT');
+
+            // XP ekle (Transaction dışı)
+            const xpResult = await gamificationService.addXP(
+                userId,
+                quest.reward_xp,
+                'quest',
+                quest.id.toString(),
+                `Görev tamamlandı: ${quest.title}`
+            );
+
+            return {
+                success: true,
+                quest: quest,
+                xpEarned: quest.reward_xp,
+                ...xpResult
+            };
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            logger.error('[OnboardingService] completeActiveQuestByType failed:', error);
             throw error;
         } finally {
             client.release();

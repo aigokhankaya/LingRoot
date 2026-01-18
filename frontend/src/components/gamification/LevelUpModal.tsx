@@ -4,9 +4,13 @@
  * 
  * Kullanıcı level atladığında gösterilen animasyonlu kutlama.
  * Epik ses ve görsel efektlerle.
+ * 
+ * React Portal kullanılarak document.body altında render edilir,
+ * böylece tam ekran overlay olarak görünür.
  */
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { levelToCEFR } from '@/hooks/useGamification';
 
 interface LevelUpModalProps {
@@ -24,6 +28,12 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({
 }) => {
   const [showContent, setShowContent] = useState(false);
   const [counter, setCounter] = useState(oldLevel);
+  const [mounted, setMounted] = useState(false);
+
+  // Client-side mounting for Portal
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -48,13 +58,13 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({
     }
   }, [isOpen, oldLevel, newLevel]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const oldCEFR = levelToCEFR(oldLevel);
   const newCEFR = levelToCEFR(newLevel);
   const cefrChanged = oldCEFR !== newCEFR;
 
-  return (
+  const modalContent = (
     <div className="level-up-overlay" onClick={onClose}>
       <div
         className={`level-up-modal ${showContent ? 'show' : ''}`}
@@ -351,6 +361,10 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({
       </div>
     </div>
   );
+
+  // React Portal ile document.body altında render et
+  return createPortal(modalContent, document.body);
 };
 
 export default LevelUpModal;
+

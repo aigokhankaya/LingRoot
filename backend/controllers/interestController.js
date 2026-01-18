@@ -4,7 +4,7 @@ const logger = require('../utils/common/logger.js');
 const getUserInterests = async (req, res) => {
   try {
     // Gelen isteği logla - debug için daha detaylı
-    logger.debug('User interests requested', { 
+    logger.debug('User interests requested', {
       path: req.path,
       headers: req.headers,
       userId: req.user?.id || 'no_user_id'
@@ -29,7 +29,7 @@ const getUserInterests = async (req, res) => {
     // Supabase'den kullanıcı ilgi alanlarını çek
     try {
       logger.debug(`Querying user_interests for user ${userId}`);
-      
+
       const { data, error } = await supabase
         .from('user_interests')
         .select('interest_keyword')
@@ -41,20 +41,15 @@ const getUserInterests = async (req, res) => {
         return res.status(500).json({ success: false, error: error.message });
       }
 
-      // Veri yoksa boş liste döndür
+      // Veri yoksa boş dizi döndür - Frontend onboarding akışında ilgi alanı seçtirebilir
       if (!data || data.length === 0) {
-        logger.info(`No interests found for user ${userId}`);
-        // Geliştirme aşamasında varsayılan değerler ekliyoruz
-        const defaultInterests = [
-          { interest_keyword: 'İngilizce' },
-          { interest_keyword: 'Yapay Zeka' },
-          { interest_keyword: 'Seyahat' },
-          { interest_keyword: 'Teknoloji' },
-          { interest_keyword: 'İş İngilizcesi' }
-        ];
-        
-        logger.info(`Returning default interests for user ${userId}`);
-        return res.status(200).json(defaultInterests);
+        logger.info(`No interests found for user ${userId} - returning empty array for onboarding`);
+        return res.status(200).json({
+          success: true,
+          data: [],
+          needsOnboarding: true,
+          message: 'Henüz ilgi alanı eklenmemiş. Lütfen ilgi alanlarınızı seçin.'
+        });
       }
 
       // Başarılı yanıt
@@ -85,11 +80,11 @@ const updateUserInterests = async (req, res) => {
 
     // Gelen veriyi kontrol et
     const { interests } = req.body;
-    
+
     if (!interests || !Array.isArray(interests)) {
       logger.warn(`Invalid interests data received`, { userId, interests });
-      return res.status(400).json({ 
-        success: false, 
+      return res.status(400).json({
+        success: false,
         error: 'Interests must be provided as an array'
       });
     }
@@ -137,8 +132,8 @@ const updateUserInterests = async (req, res) => {
     }
 
     logger.info(`Successfully updated interests for user ${userId}`);
-    return res.status(200).json({ 
-      success: true, 
+    return res.status(200).json({
+      success: true,
       message: 'Interests updated successfully',
       data: data
     });

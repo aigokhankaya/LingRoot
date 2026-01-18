@@ -1,6 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import AudioPlayer from './AudioPlayer';
+import { getAudioHistory, toggleFavorite as apiToggleFavorite, AudioContent as ApiAudioContent } from '../services/apiService';
 
 interface LibraryDetailProps {
   onBack: () => void;
@@ -16,80 +17,59 @@ export interface AudioContent {
   isFavorite: boolean;
   date: string;
   type: SoundType;
-  transcript?: string; 
-  originalTranscript?: string; // Original text for comparison
+  transcript?: string;
+  originalTranscript?: string;
+  mp3_url?: string;
+  vtt_url?: string;
 }
 
-const MOCK_DATA: AudioContent[] = [
-  { 
-    id: '1', 
-    title: 'The Great Gatsby - Chapter 1', 
-    level: 'B2', 
-    duration: '12:45', 
-    isFavorite: true, 
-    date: '2 days ago', 
-    type: 'books',
-    transcript: "In my younger and more vulnerable years my father gave me some advice that I've been turning over in my mind ever since. 'Whenever you feel like criticizing anyone,' he told me, 'just remember that all the people in this world haven't had the advantages that you've had.' He didn't say any more, but we've always been unusually communicative in a reserved way, and I understood that he meant a great deal more than that.",
-    originalTranscript: "In my younger and more vulnerable years my father gave me some advice that I've been turning over in my mind ever since. 'Whenever you feel like criticizing anyone,' he told me, 'just remember that all the people in this world haven't had the advantages that you've had.'"
-  },
-  { 
-    id: '2', 
-    title: 'Daily Conversations: Coffee Shop', 
-    level: 'A1', 
-    duration: '04:20', 
-    isFavorite: false, 
-    date: 'Yesterday', 
-    type: 'podcast',
-    transcript: "Host: Hello! What can I get for you today?\nGuest: Hi, I'd like a medium latte, please.\nHost: Sure! Would you like any flavor or milk alternatives?\nGuest: No, just regular milk and no sugar, thanks.\nHost: That will be $4.50. Would you like a receipt?\nGuest: No thank you.",
-    originalTranscript: "Sunucu: Merhaba! Bugün sizin için ne alabilirim?\nKonuk: Selam, orta boy bir latte rica ediyorum lütfen.\nSunucu: Tabii! Herhangi bir aroma veya süt alternatifi ister misiniz?\nKonuk: Hayır, sadece normal süt ve şekersiz olsun, teşekkürler.\nSunucu: 4.50 dolar tutuyor. Makbuz ister misiniz?\nKonuk: Hayır teşekkürler."
-  },
-  { 
-    id: '3', 
-    title: 'AI Trends Podcast', 
-    level: 'C1', 
-    duration: '15:10', 
-    isFavorite: true, 
-    date: '3 days ago', 
-    type: 'podcast',
-    transcript: "Host: Welcome back to the show. Today we are talking about AI trends.\nGuest: Thanks for having me. It's an exciting time for technology.\nHost: Indeed. What is the most significant breakthrough recently?\nGuest: I would say Large Language Models and their impact on productivity.\nHost: Do you think it will replace human creativity?\nGuest: Not replace, but enhance it in ways we never imagined.",
-    originalTranscript: "Sunucu: Programa tekrar hoş geldiniz. Bugün yapay zeka trendleri hakkında konuşuyoruz.\nKonuk: Beni ağırladığınız için teşekkürler. Teknoloji için heyecan verici bir zaman.\nSunucu: Kesinlikle. Son zamanlardaki en önemli buluş nedir?\nKonuk: Büyük Dil Modelleri ve onların üretkenlik üzerindeki etkisini söyleyebilirim.\nSunucu: Sizce insan yaratıcılığının yerini alacak mı?\nKonuk: Yerini almayacak, ancak hayal bile edemeyeceğimiz şekillerde geliştirecek."
-  },
-  { 
-    id: '4', 
-    title: 'Spanish Basics: Greetings', 
-    level: 'A1', 
-    duration: '03:45', 
-    isFavorite: false, 
-    date: '5 days ago', 
-    type: 'text', 
-    transcript: "Hola, ¿cómo estás? Buenos días. Mucho gusto en conocerte. Hasta luego.",
-    originalTranscript: "Hola, ¿cómo estás? Buenos días."
-  },
-  { 
-    id: '5', 
-    title: 'Business French: Networking', 
-    level: 'B1', 
-    duration: '08:30', 
-    isFavorite: false, 
-    date: '1 week ago', 
-    type: 'file', 
-    transcript: "Bonjour, je m'appelle Marc. Je travaille dans le marketing. C'est un plaisir de vous rencontrer.",
-    originalTranscript: "Bonjour, je m'appelle Marc."
-  }
-];
+// Helper: API verisini UI formatına dönüştür
+const mapApiContentToAudioContent = (apiContent: ApiAudioContent): AudioContent => ({
+  id: apiContent.id,
+  title: apiContent.title,
+  level: apiContent.level,
+  duration: apiContent.duration,
+  isFavorite: apiContent.isFavorite,
+  date: apiContent.date,
+  type: apiContent.type as SoundType,
+  transcript: apiContent.transcript,
+  originalTranscript: apiContent.originalTranscript,
+  mp3_url: apiContent.mp3_url,
+  vtt_url: apiContent.vtt_url
+});
 
 const LibraryDetail: React.FC<LibraryDetailProps> = ({ onBack }) => {
   const [search, setSearch] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [data, setData] = useState<AudioContent[]>(MOCK_DATA);
+  const [data, setData] = useState<AudioContent[]>([]);
   const [activePlayerItem, setActivePlayerItem] = useState<AudioContent | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const brandTeal = 'hsl(172, 66%, 45%)';
   const brandTealLight = 'hsla(172, 66%, 45%, 0.1)';
   const brandOrange = 'hsl(38, 92%, 60%)';
 
   const levels = ['A1', 'A2', 'B1', 'B2', 'C1'];
+
+  // Fetch audio history from API
+  useEffect(() => {
+    const loadAudioHistory = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const apiContent = await getAudioHistory(1, 50);
+        setData(apiContent.map(mapApiContentToAudioContent));
+      } catch (err) {
+        console.error('Error loading audio history:', err);
+        setError('Ses geçmişi yüklenirken hata oluştu');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadAudioHistory();
+  }, []);
 
   const filteredItems = useMemo(() => {
     return data.filter(item => {
@@ -100,10 +80,25 @@ const LibraryDetail: React.FC<LibraryDetailProps> = ({ onBack }) => {
     });
   }, [search, selectedLevel, showFavoritesOnly, data]);
 
-  const toggleFavorite = (id: string) => {
-    setData(prev => prev.map(item => 
-      item.id === id ? { ...item, isFavorite: !item.isFavorite } : item
+  const toggleFavorite = async (id: string) => {
+    const item = data.find(i => i.id === id);
+    if (!item) return;
+
+    // Optimistic update
+    setData(prev => prev.map(i =>
+      i.id === id ? { ...i, isFavorite: !i.isFavorite } : i
     ));
+
+    // API call
+    try {
+      await apiToggleFavorite(id, !item.isFavorite);
+    } catch (err) {
+      // Revert on error
+      console.error('Error toggling favorite:', err);
+      setData(prev => prev.map(i =>
+        i.id === id ? { ...i, isFavorite: item.isFavorite } : i
+      ));
+    }
   };
 
   const getTypeIcon = (type: SoundType) => {
@@ -121,7 +116,7 @@ const LibraryDetail: React.FC<LibraryDetailProps> = ({ onBack }) => {
     <div className="relative w-full flex flex-col bg-transparent overflow-hidden animate-slide-up">
       {/* Header */}
       <div className="px-6 pt-12 pb-6 flex items-center justify-between">
-        <button 
+        <button
           onClick={onBack}
           className="w-10 h-10 flex items-center justify-center text-slate-400 bg-white/50 backdrop-blur rounded-full border border-slate-100 shadow-sm active:scale-95 transition-all"
         >
@@ -130,7 +125,7 @@ const LibraryDetail: React.FC<LibraryDetailProps> = ({ onBack }) => {
         <h1 className="text-xl font-bold text-slate-700 tracking-tight">
           Generated Sounds
         </h1>
-        <button 
+        <button
           onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
           className={`w-10 h-10 flex items-center justify-center transition-all active:scale-95 ${showFavoritesOnly ? 'text-red-400' : 'text-slate-300'}`}
         >
@@ -142,7 +137,7 @@ const LibraryDetail: React.FC<LibraryDetailProps> = ({ onBack }) => {
       <div className="px-6 mb-6">
         <div className="relative group">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 material-icons-round text-slate-300 group-focus-within:text-teal-500 transition-colors">search</span>
-          <input 
+          <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -180,31 +175,31 @@ const LibraryDetail: React.FC<LibraryDetailProps> = ({ onBack }) => {
         <div className="space-y-3">
           {filteredItems.length > 0 ? (
             filteredItems.map(item => (
-              <div 
+              <div
                 key={item.id}
                 onClick={() => setActivePlayerItem(item)}
                 className="bg-white/80 glass rounded-[1.5rem] p-4 shadow-sm border border-white/60 flex items-center gap-4 active:scale-[0.98] transition-all cursor-pointer"
               >
                 {/* Icon Container */}
-                <div 
+                <div
                   className="w-12 h-12 rounded-full flex items-center justify-center shadow-inner shrink-0 relative"
                   style={{ backgroundColor: brandTealLight }}
                 >
                   <span className="material-icons-round text-xl" style={{ color: brandTeal }}>graphic_eq</span>
                 </div>
-                
+
                 <div className="flex-1 overflow-hidden">
                   <h4 className="font-bold text-[14px] text-slate-700 truncate">{item.title}</h4>
-                  
+
                   {/* Metadata Row 1: Level, Duration, Date */}
                   <div className="flex items-center gap-2 mt-1">
-                    <span 
+                    <span
                       className="text-[9px] font-black text-white px-1.5 py-0.5 rounded shadow-sm shrink-0"
                       style={{ backgroundColor: brandOrange }}
                     >
                       {item.level}
                     </span>
-                    
+
                     <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
                       <span className="flex items-center gap-0.5">
                         <span className="material-icons-round text-[12px]">schedule</span>
@@ -222,7 +217,7 @@ const LibraryDetail: React.FC<LibraryDetailProps> = ({ onBack }) => {
                   </div>
                 </div>
 
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleFavorite(item.id);
@@ -246,9 +241,9 @@ const LibraryDetail: React.FC<LibraryDetailProps> = ({ onBack }) => {
 
       {/* Audio Player Modal */}
       {activePlayerItem && (
-        <AudioPlayer 
-          content={activePlayerItem} 
-          onClose={() => setActivePlayerItem(null)} 
+        <AudioPlayer
+          content={activePlayerItem}
+          onClose={() => setActivePlayerItem(null)}
         />
       )}
     </div>

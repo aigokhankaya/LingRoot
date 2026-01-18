@@ -14,7 +14,7 @@ export default function Header() {
     <header className="w-full bg-white/90 border-b border-border backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-20">
         {/* Logo */}
-        <Link href="/" className="flex items-center select-none space-x-3">
+        <Link href="/welcome" className="flex items-center select-none space-x-3">
           <Image
             src="/lingroot-logo.svg"
             alt="LingRoot Logo"

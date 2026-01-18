@@ -1,4 +1,5 @@
 const srsService = require('../services/srsService');
+const gamificationService = require('../services/gamificationService');
 const logger = require('../utils/common/logger.js');
 
 /**
@@ -54,10 +55,19 @@ const reviewWord = async (req, res) => {
             sourceContentId
         );
 
+        // Gamification Sync (Fire & Forget)
+        try {
+            await gamificationService.updateDailyQuestProgress(userId, 'review_words', 1);
+            await gamificationService.updateDailyQuestProgress(userId, 'learn_words', 1);
+        } catch (gamiError) {
+            logger.warn('[SRS Controller] Gamification sync failed:', gamiError.message);
+        }
+
         return res.json({
             success: true,
             result: result
         });
+
 
     } catch (error) {
         logger.error('[SRS Controller] reviewWord error:', error);

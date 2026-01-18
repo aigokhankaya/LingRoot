@@ -6,8 +6,10 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import { motion, AnimatePresence } from 'framer-motion';
 import VocabularyCard from './VocabularyCard';
+import { useGamification } from '../../hooks/useGamification';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
@@ -26,6 +28,17 @@ interface FlashcardDeckProps {
     initialMode?: 'due' | 'random' | 'all';
 }
 
+// Session storage key for persistence
+const SESSION_STORAGE_KEY = 'lingroot_flashcard_session';
+
+interface SessionState {
+    cards: Word[];
+    currentIndex: number;
+    stats: { reviewed: number; correct: number; earnedXP: number };
+    wordSource: 'due' | 'random' | 'all';
+    timestamp: number;
+}
+
 const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete, initialMode }) => {
     const [cards, setCards] = useState<Word[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -33,11 +46,92 @@ const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete, initia
     const [stats, setStats] = useState({ reviewed: 0, correct: 0, earnedXP: 0 });
     const [sessionComplete, setSessionComplete] = useState(false);
     const [wordSource, setWordSource] = useState<'due' | 'random' | 'all'>(initialMode || 'due');
+    const [sessionRestored, setSessionRestored] = useState(false);
+    const router = useRouter();
 
-    // Fetch due words
+    // Gamification hook
+    const { addXP, fireCelebration } = useGamification();
+
+    const completeDailyQuest = useCallback(async () => {
+        try {
+            const token = localStorage.getItem('lingroot_token');
+            if (!token) return;
+
+            await fetch(`${API_BASE}/api/gamification/quests/auto-complete`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ type: 'vocabulary' })
+            });
+            console.log('[FlashcardDeck] Daily quest completion triggered');
+        } catch (e) {
+            console.error('[FlashcardDeck] Failed to complete daily quest', e);
+        }
+    }, []);
+
+    // Restore session from sessionStorage on mount
     useEffect(() => {
-        fetchDueWords();
-    }, [wordSource]); // Refetch when source mode changes
+        try {
+            const savedSession = sessionStorage.getItem(SESSION_STORAGE_KEY);
+            if (savedSession) {
+                const session: SessionState = JSON.parse(savedSession);
+                // Only restore if session is less than 1 hour old
+                const ONE_HOUR = 60 * 60 * 1000;
+                if (Date.now() - session.timestamp < ONE_HOUR && session.cards.length > 0) {
+                    console.log('[FlashcardDeck] Restoring session:', {
+                        currentIndex: session.currentIndex,
+                        totalCards: session.cards.length,
+                        stats: session.stats
+                    });
+                    setCards(session.cards);
+                    setCurrentIndex(session.currentIndex);
+                    setStats(session.stats);
+                    setWordSource(session.wordSource);
+                    setLoading(false);
+                    setSessionRestored(true);
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error('[FlashcardDeck] Error restoring session:', e);
+        }
+        setSessionRestored(true);
+    }, []);
+
+    // Save session to sessionStorage whenever state changes
+    useEffect(() => {
+        if (!sessionRestored || loading || cards.length === 0) return;
+
+        const sessionState: SessionState = {
+            cards,
+            currentIndex,
+            stats,
+            wordSource,
+            timestamp: Date.now()
+        };
+
+        try {
+            sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionState));
+        } catch (e) {
+            console.error('[FlashcardDeck] Error saving session:', e);
+        }
+    }, [cards, currentIndex, stats, wordSource, sessionRestored, loading]);
+
+    // Clear session when complete
+    useEffect(() => {
+        if (sessionComplete) {
+            sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        }
+    }, [sessionComplete]);
+
+    // Fetch due words (only if session not restored)
+    useEffect(() => {
+        if (sessionRestored && cards.length === 0) {
+            fetchDueWords();
+        }
+    }, [sessionRestored, wordSource]); // Refetch when source mode changes
 
     const fetchDueWords = async () => {
         setLoading(true);
@@ -60,12 +154,13 @@ const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete, initia
 
             if (data.success && data.words && data.words.length > 0) {
                 // Map backend response to frontend Word interface
+                // word_reviews tablosundaki gerçek field isimleri kullanılıyor
                 const mappedWords = data.words.map((w: any) => ({
                     id: w.id,
                     word: w.word,
-                    definition: w.word_translation,
-                    example_sentence: w.context_sentence,
-                    level: 'A2' // Default
+                    definition: w.definition || w.word_translation || '',
+                    example_sentence: w.example_sentence || w.context_sentence || '',
+                    level: w.level || 'A2' // Default
                 }));
                 setCards(mappedWords);
                 setCurrentIndex(0);
@@ -121,15 +216,28 @@ const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete, initia
         }));
 
         // Move to next card
-        setTimeout(() => {
+        setTimeout(async () => {
             if (currentIndex < cards.length - 1) {
                 setCurrentIndex(prev => prev + 1);
             } else {
                 setSessionComplete(true);
                 onSessionComplete?.(stats);
+                completeDailyQuest(); // Mark roadmap quest as complete
+
+                // 🎮 Gamification: Session tamamlandığında XP gönder
+                try {
+                    const xpToAdd = stats.earnedXP + (direction === 'right' ? 5 : 1);
+                    const result = await addXP(xpToAdd, 'word', `flashcard_session_${Date.now()}`);
+                    if (result) {
+                        console.log(`🎮 Flashcard session: +${result.xpAdded} XP!`);
+                        fireCelebration('quest');
+                    }
+                } catch (e) {
+                    console.error('Flashcard XP error:', e);
+                }
             }
         }, 300);
-    }, [currentIndex, cards.length, stats, onSessionComplete]);
+    }, [currentIndex, cards.length, stats, onSessionComplete, addXP, fireCelebration]);
 
     // Progress percentage
     const progress = cards.length > 0 ? ((currentIndex + 1) / cards.length) * 100 : 0;
@@ -193,18 +301,18 @@ const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete, initia
 
                     <div className="flex gap-3">
                         <button
-                            onClick={async () => {
-                                setSessionComplete(false);
-                                setCurrentIndex(0);
-                                await fetchDueWords();
+                            onClick={() => {
+                                sessionStorage.removeItem(SESSION_STORAGE_KEY);
+                                router.push('/');
                             }}
                             className="flex-1 px-4 py-3 bg-white border-2 border-slate-100 text-slate-600 rounded-xl font-semibold hover:border-slate-200 hover:bg-slate-50 transition-all"
                         >
-                            📚 Çalışmaya Devam
+                            🏠 Ana Sayfaya Dön
                         </button>
 
                         <button
                             onClick={() => {
+                                sessionStorage.removeItem(SESSION_STORAGE_KEY);
                                 setCurrentIndex(0);
                                 setStats({ reviewed: 0, correct: 0, earnedXP: 0 });
                                 setSessionComplete(false);
@@ -251,29 +359,44 @@ const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ onSessionComplete, initia
                         ? 'Tekrar bekleyen kelimen yok. Farklı bir mod dene!'
                         : 'İçerik okurken kelimelere tıklayarak listeye ekleyebilirsin.'}
                 </p>
-                <div className="flex gap-3">
+                <div className="flex flex-col gap-3 w-full max-w-sm">
                     {wordSource === 'due' && (
                         <button
-                            onClick={() => setWordSource('random')}
-                            className="px-6 py-3 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+                            onClick={async () => {
+                                await completeDailyQuest();
+                                router.push('/');
+                            }}
+                            className="w-full px-6 py-4 bg-teal-600 text-white rounded-xl font-bold shadow-lg shadow-teal-200 hover:bg-teal-700 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
                         >
-                            🎲 Rastgele Çalış
+                            <span>✅</span>
+                            <span>Görevi Tamamla & Ana Sayfa</span>
                         </button>
                     )}
-                    {wordSource !== 'due' ? (
+
+                    <div className="flex gap-3 justify-center">
+                        {wordSource === 'due' && (
+                            <button
+                                onClick={() => setWordSource('random')}
+                                className="flex-1 px-4 py-3 bg-white border-2 border-slate-100 text-slate-600 rounded-xl font-semibold hover:border-slate-200 hover:bg-slate-50"
+                            >
+                                🎲 Rastgele Çalış
+                            </button>
+                        )}
+                        {wordSource !== 'due' && (
+                            <button
+                                onClick={() => fetchDueWords()}
+                                className="flex-1 px-4 py-3 bg-teal-500 text-white rounded-xl font-semibold hover:bg-teal-600"
+                            >
+                                🔄 Yenile
+                            </button>
+                        )}
                         <button
-                            onClick={() => fetchDueWords()}
-                            className="px-6 py-3 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+                            onClick={() => router.push('/welcome')}
+                            className="flex-1 px-4 py-3 bg-white border-2 border-slate-100 text-slate-600 rounded-xl font-semibold hover:border-slate-200 hover:bg-slate-50"
                         >
-                            🔄 Yenile
+                            İçerik Keşfet
                         </button>
-                    ) : null}
-                    <button
-                        onClick={() => window.location.href = '/welcome'}
-                        className="px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold hover:bg-slate-200 transition-colors"
-                    >
-                        İçerik Keşfet
-                    </button>
+                    </div>
                 </div>
             </div>
         );

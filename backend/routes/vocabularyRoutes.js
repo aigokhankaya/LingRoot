@@ -349,6 +349,26 @@ router.post('/add', authenticate, async (req, res) => {
             });
         }
 
+        // 🔄 Sync to word_reviews for SRS flashcard system
+        try {
+            await supabase
+                .from('word_reviews')
+                .upsert({
+                    user_id: userId,
+                    word: normalizedWord,
+                    definition: vocabularyRow.definition || '',
+                    example_sentence: vocabularyRow.example_sentence || '',
+                    next_review_date: new Date().toISOString().split('T')[0], // Today
+                    interval_days: 1,
+                    ease_factor: 2.5,
+                    repetition_count: 0,
+                    streak_correct: 0
+                }, { onConflict: 'user_id,word' });
+            logger.info(`[Vocabulary Routes] Word "${normalizedWord}" synced to word_reviews for SRS`);
+        } catch (srsError) {
+            logger.warn('[Vocabulary Routes] word_reviews sync failed:', srsError.message);
+        }
+
         const mappedWord = mapUserVocabularyRow(newUserWord);
 
         logger.info(`New word added by user ${userId}: ${word}`);
@@ -700,6 +720,26 @@ router.post('/add-with-translation', authenticate, async (req, res) => {
                 });
             }
 
+            // 🔄 Sync to word_reviews for SRS flashcard system
+            try {
+                await supabase
+                    .from('word_reviews')
+                    .upsert({
+                        user_id: userId,
+                        word: normalizedWord,
+                        definition: existingVocabulary.definition || '',
+                        example_sentence: existingVocabulary.example_sentence || '',
+                        next_review_date: new Date().toISOString().split('T')[0],
+                        interval_days: 1,
+                        ease_factor: 2.5,
+                        repetition_count: 0,
+                        streak_correct: 0
+                    }, { onConflict: 'user_id,word' });
+                logger.info(`[Vocabulary Routes] Existing word "${normalizedWord}" synced to word_reviews`);
+            } catch (srsError) {
+                logger.warn('[Vocabulary Routes] word_reviews sync failed:', srsError.message);
+            }
+
             const mappedNew = mapUserVocabularyRow(newUserWord);
 
             return res.json({
@@ -817,6 +857,26 @@ router.post('/add-with-translation', authenticate, async (req, res) => {
                 });
             }
 
+            // 🔄 Sync to word_reviews for SRS flashcard system
+            try {
+                await supabase
+                    .from('word_reviews')
+                    .upsert({
+                        user_id: userId,
+                        word: wordData.word.toLowerCase(),
+                        definition: wordData.definition || '',
+                        example_sentence: wordData.example_sentence || '',
+                        next_review_date: new Date().toISOString().split('T')[0],
+                        interval_days: 1,
+                        ease_factor: 2.5,
+                        repetition_count: 0,
+                        streak_correct: 0
+                    }, { onConflict: 'user_id,word' });
+                logger.info(`[Vocabulary Routes] New word "${wordData.word}" synced to word_reviews`);
+            } catch (srsError) {
+                logger.warn('[Vocabulary Routes] word_reviews sync failed:', srsError.message);
+            }
+
             const mappedNew = mapUserVocabularyRow(newUserWord);
 
             logger.info(`New word with translation added by user ${userId}: ${word}`);
@@ -830,41 +890,10 @@ router.post('/add-with-translation', authenticate, async (req, res) => {
         } catch (translationError) {
             logger.error('Error translating word:', translationError);
 
-            // Çeviri hatası durumunda minimum bilgi ile vocabulary + pivot kaydı oluştur
-            let vocabularyRow = null;
-
-            const { data: existingAfterError, error: existingAfterErrorCheck } = await supabase
-                .from('vocabulary')
-                .select('*')
-                .eq('word', normalizedWord)
-                .single();
-
-            router.use(authenticate);
-
-            // Lookup word in global vocabulary
-            router.get('/lookup', vocabularyController.lookupWord);
-
-            // Get Flashcards (Daily Mix)
-            router.get('/due', vocabularyController.getDueWords);
-
-            // Get User Stats (for dashboard)
-            router.get('/stats', vocabularyController.getStats);
-
-            // Get User Collection (all words)
-            router.get('/collection', vocabularyController.getCollection);
-
-            // Get Random Words (for variety practice)
-            router.get('/random', vocabularyController.getRandomWords);
-
-            // Submit Review (Flashcard Swipe)
-            router.post('/review', vocabularyController.submitReview);
-
-            // Add Word (from Context Menu etc.)
-            router.post('/add', vocabularyController.addWord);
-            res.json({
-                success: true,
-                data: mappedNew,
-                message: 'Kelime eklendi ancak çeviri yapılamadı. Anlamı manuel olarak ekleyebilirsiniz.',
+            // Çeviri hatası durumunda hata döndür - kelime eklenmedi
+            return res.status(500).json({
+                success: false,
+                error: 'Kelime çevirisi yapılamadı. Lütfen tekrar deneyin.',
                 translationError: true
             });
         }
@@ -877,5 +906,24 @@ router.post('/add-with-translation', authenticate, async (req, res) => {
         });
     }
 });
+
+// =============================================================================
+// 📊 VOCABULARY CONTROLLER ROUTES (Collection, Stats, Due, etc.)
+// =============================================================================
+
+// Get User Stats (for dashboard)
+router.get('/stats', authenticate, vocabularyController.getStats);
+
+// Get User Collection (all words) - Koleksiyon sekmesi için
+router.get('/collection', authenticate, vocabularyController.getCollection);
+
+// Get Flashcards Due Today (Daily Mix)
+router.get('/due', authenticate, vocabularyController.getDueWords);
+
+// Get Random Words (for variety practice)
+router.get('/random', authenticate, vocabularyController.getRandomWords);
+
+// Submit Review (Flashcard Swipe)
+router.post('/review', authenticate, vocabularyController.submitReview);
 
 module.exports = router;

@@ -42,11 +42,14 @@ import BrandWordmark from "../src/components/BrandWordmark";
 import LiroAvatar from "../src/components/LiroAvatar";
 import { ProfileDropdownMenu } from "../src/components/shared/ProfileDropdownMenu";
 import NotificationBell from "../src/components/NotificationBell";
-import { OnboardingFlow, LevelProgressBar, LevelUpModal, AchievementModal } from "../src/components/gamification";
+import { OnboardingFlow, LevelProgressBar, LevelUpModal, AchievementModal, GamificationBanner } from "../src/components/gamification";
 import { useGamification } from "../src/hooks/useGamification";
 import ResumeContentCard from "../src/components/content/ResumeContentCard";
 import ContentQuizModal from "../src/components/quiz/ContentQuizModal";
 import AppHeader from "../src/components/AppHeader";
+import { useAudioPlayerSafe } from "../src/context/AudioPlayerContext";
+import { IncompleteListeningItem, getListeningProgress } from "../src/lib/api";
+import { preloadSounds } from "../src/utils/soundEffects";
 
 interface InputData {
   type: ProcessInputData['type'];
@@ -149,6 +152,7 @@ const Welcome: React.FC = () => {
   const { badge, dailyLimit, remaining, currentPlanName } = useMembership();
   const { t } = useTranslation();
   const router = useRouter();
+  const audioPlayer = useAudioPlayerSafe();
 
   const getHistoryTypeLabel = (inputType: string): string => {
     const key = (inputType || '').toLowerCase();
@@ -265,6 +269,7 @@ const Welcome: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated && user) {
       checkIn();
+      preloadSounds(); // Sesleri önceden yükle
     }
   }, [isAuthenticated, user]);
 
@@ -473,12 +478,19 @@ const Welcome: React.FC = () => {
 
   // 🎮 Gamification: Onboarding tamamlanmadıysa modalı göster
   useEffect(() => {
-    if (!isAuthenticated) return; // Henüz login değilse işlem yapma
+    // Test için URL parametresi kontrolü
+    const { forceOnboarding } = router.query;
+    if (forceOnboarding === 'true') {
+      setShowOnboardingFlow(true);
+      return;
+    }
 
-    // LocalStorage'da onboarding tamamlandı flag'i varsa, asla gösterme
+    // LocalStorage'da onboarding tamamlandı flag'i varsa, onboarding modalını gösterme
+    // NOT: Artık dashboard'a yönlendirmiyoruz - welcome ana sayfa
     try {
       const localOnboardingDone = localStorage.getItem('onboarding_completed');
       if (localOnboardingDone === 'true') {
+        // Onboarding tamamlanmış, modal gösterme, sayfada kal
         return;
       }
     } catch { }
@@ -489,19 +501,19 @@ const Welcome: React.FC = () => {
     // Gamification datası henüz gelmediyse (null/undefined), bekle
     if (!gamificationStats) return;
 
-    // Gamification datası geldi ve onboarding zaten tamamlanmışsa, gösterme
+    // Gamification datası geldi ve onboarding zaten tamamlanmışsa, gösterme (normal sayfa akışına devam et)
     if (gamificationStats.onboardingCompleted) {
       return;
     }
 
-    // Kullanıcının geçmişi varsa (eski kullanıcı), onboarding'i atla
+    // Kullanıcının geçmişi varsa (eski kullanıcı), onboarding'i atla (normal sayfa akışına devam et)
     if (contentHistory && contentHistory.length > 0) {
       return;
     }
 
     // Gerçekten yeni kullanıcı ise modalı göster
     setShowOnboardingFlow(true);
-  }, [gamificationLoading, gamificationStats, contentHistory, loadingHistory, isAuthenticated]);
+  }, [gamificationLoading, gamificationStats, contentHistory, loadingHistory, isAuthenticated, router]);
 
   const levelOptions = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
   const rateOptions = [
@@ -757,32 +769,66 @@ const Welcome: React.FC = () => {
     }
   };
 
-  const handleResumeContent = (item: any) => {
-    // Scroll to player first
-    setTimeout(() => {
-      const outputSection = document.getElementById('output-section');
-      if (outputSection) {
-        const rect = outputSection.getBoundingClientRect();
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        window.scrollTo({
-          top: rect.top + scrollTop - 100, // Header için pay
-          behavior: 'smooth'
+  const handleResumeContent = async (item: IncompleteListeningItem) => {
+    console.log('🔄 [RESUME] Opening content:', item.topics?.title);
+
+    // Use AudioPlayerContext to open the global player modal
+    if (audioPlayer) {
+      try {
+        // Use words/timepoints/text directly from the item (now included in API response)
+        const words = item.words || [];
+        const timepoints = item.timepoints || [];
+        const originalText = item.adapted_text || '';
+        const translatedText = item.translated_text || '';
+
+        console.log('📍 [RESUME] Content data:', {
+          wordsCount: words.length,
+          timepointsCount: timepoints.length,
+          hasText: !!originalText
         });
+
+        // Play the track via global audio player with full text data
+        audioPlayer.playTrack({
+          id: item.topic_id,
+          url: item.mp3_url,
+          title: item.topics?.title || 'İçerik',
+          level: item.topics?.level || 'A2',
+          words: words,
+          timepoints: timepoints,
+          originalText: originalText,
+          translatedText: translatedText,
+          topic: item.topics?.title,
+        });
+      } catch (err) {
+        console.error('Resume playback error:', err);
       }
-    }, 100);
+    } else {
+      // Fallback: scroll to output section and set local state
+      setTimeout(() => {
+        const outputSection = document.getElementById('output-section');
+        if (outputSection) {
+          const rect = outputSection.getBoundingClientRect();
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          window.scrollTo({
+            top: rect.top + scrollTop - 100,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
 
-    const audioData: AudioResult = {
-      message: item.input,
-      mp3_url: item.mp3_url,
-      vtt_url: '',
-      translated_text: undefined,
-      words: [],
-      contentId: item.id,
-      topic: item.input_type === 'podcast' ? 'Podcast' : 'İçerik',
-      level: item.level
-    };
+      const audioData: AudioResult = {
+        message: item.adapted_text || '',
+        mp3_url: item.mp3_url,
+        vtt_url: item.vtt_url || '',
+        translated_text: item.translated_text,
+        words: item.words || [],
+        contentId: item.id,
+        topic: item.topics?.title || 'İçerik',
+        level: item.topics?.level || 'A2'
+      };
 
-    setAudioResult(audioData);
+      setAudioResult(audioData);
+    }
   };
 
   // Konu önerileri alma fonksiyonu
@@ -2205,6 +2251,9 @@ const Welcome: React.FC = () => {
 
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-5xl mx-auto">
+          {/* Gamification Status Banner */}
+          <GamificationBanner alwaysShow={true} />
+
           {error && (
             <div className="mb-8">
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-3">
@@ -2216,8 +2265,7 @@ const Welcome: React.FC = () => {
             </div>
           )}
 
-          {/* Kaldığın Yerden Devam Et */}
-          {/* Kaldığın Yerden Devam Et */}
+          {/* Dinlemeye Devam Et */}
           <ResumeContentCard onResumePlay={handleResumeContent} />
 
           {/* AI Content Entry Card */}

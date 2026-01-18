@@ -310,6 +310,31 @@ router.get('/roadmap', async (req, res) => {
 });
 
 /**
+ * POST /api/gamification/quests/auto-complete
+ * Belirli tipteki aktif görevi otomatik tamamla
+ */
+router.post('/quests/auto-complete', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { type } = req.body;
+
+        if (!type) {
+            return res.status(400).json({ success: false, error: 'Task type required' });
+        }
+
+        const result = await onboardingService.completeActiveQuestByType(userId, type);
+
+        res.json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        logger.error('[Gamification API] Auto complete quest error:', error);
+        res.status(500).json({ success: false, error: 'Otomatik tamamlama başarısız' });
+    }
+});
+
+/**
  * POST /api/gamification/quests/:nodeId/complete
  * Görevi tamamla
  */
@@ -356,4 +381,161 @@ router.post('/quests/:nodeId/start', async (req, res) => {
     }
 });
 
+// ============================================
+// LEADERBOARD
+// ============================================
+
+/**
+ * GET /api/gamification/leaderboard
+ * Haftalık liderlik tablosunu getir
+ */
+router.get('/leaderboard', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const limit = parseInt(req.query.limit) || 30;
+
+        const result = await gamificationService.getLeaderboard(userId, limit);
+
+        res.json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        logger.error('[Gamification API] Leaderboard error:', error);
+        res.status(500).json({ success: false, error: 'Leaderboard alınamadı' });
+    }
+});
+
+/**
+ * GET /api/gamification/leagues
+ * Tüm ligleri getir
+ */
+router.get('/leagues', async (req, res) => {
+    try {
+        const leagues = await gamificationService.getLeagues();
+
+        res.json({
+            success: true,
+            data: leagues
+        });
+    } catch (error) {
+        logger.error('[Gamification API] Leagues error:', error);
+        res.status(500).json({ success: false, error: 'Ligler alınamadı' });
+    }
+});
+
+/**
+ * GET /api/gamification/my-league
+ * Kullanıcının mevcut ligini getir
+ */
+router.get('/my-league', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const league = await gamificationService.getUserLeague(userId);
+
+        res.json({
+            success: true,
+            data: league
+        });
+    } catch (error) {
+        logger.error('[Gamification API] My league error:', error);
+        res.status(500).json({ success: false, error: 'Lig bilgisi alınamadı' });
+    }
+});
+
+// ============================================
+// WEEKLY CHALLENGES
+// ============================================
+
+/**
+ * GET /api/gamification/challenges
+ * Aktif haftalık challenge'ları getir
+ */
+router.get('/challenges', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const challenges = await gamificationService.getActiveChallenges();
+        const userProgress = await gamificationService.getUserChallengeProgress(userId);
+
+        // Challenge'lara kullanıcı ilerlemesini ekle
+        const challengesWithProgress = challenges.map(challenge => {
+            const progress = userProgress.find(p => p.challenge_id === challenge.id);
+            return {
+                ...challenge,
+                joined: !!progress,
+                progress: progress || null
+            };
+        });
+
+        res.json({
+            success: true,
+            data: challengesWithProgress
+        });
+    } catch (error) {
+        logger.error('[Gamification API] Challenges error:', error);
+        res.status(500).json({ success: false, error: 'Challenge\'lar alınamadı' });
+    }
+});
+
+/**
+ * POST /api/gamification/challenges/:id/join
+ * Challenge'a katıl
+ */
+router.post('/challenges/:id/join', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const challengeId = parseInt(req.params.id);
+
+        const result = await gamificationService.joinChallenge(userId, challengeId);
+
+        res.json(result);
+    } catch (error) {
+        logger.error('[Gamification API] Join challenge error:', error);
+        res.status(500).json({ success: false, error: 'Challenge\'a katılınamadı' });
+    }
+});
+
+/**
+ * GET /api/gamification/challenges/my-progress
+ * Kullanıcının tüm challenge ilerlemesini getir
+ */
+router.get('/challenges/my-progress', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const progress = await gamificationService.getUserChallengeProgress(userId);
+
+        res.json({
+            success: true,
+            data: progress
+        });
+    } catch (error) {
+        logger.error('[Gamification API] Challenge progress error:', error);
+        res.status(500).json({ success: false, error: 'İlerleme alınamadı' });
+    }
+});
+
+// ============================================
+// STREAK SOCIETY
+// ============================================
+
+/**
+ * GET /api/gamification/streak-society
+ * Streak Society bilgisini getir
+ */
+router.get('/streak-society', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const society = await gamificationService.getStreakSociety(userId);
+
+        res.json({
+            success: true,
+            data: society
+        });
+    } catch (error) {
+        logger.error('[Gamification API] Streak society error:', error);
+        res.status(500).json({ success: false, error: 'Streak Society bilgisi alınamadı' });
+    }
+});
+
 module.exports = router;
+

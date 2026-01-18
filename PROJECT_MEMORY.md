@@ -335,6 +335,37 @@ Supabase 429: 2s exponential retry
 Cloudflare 525: automatic fallback → local API
 MFA timeout: redispatch to Worker #2
 
+[11. TESTING & VERIFICATION PROTOCOL]
+11.1. Interactive Screen Tests Rule
+Geliştirme tamamlandığında agent, kullanıcıyı test etmeye yönlendirmek ZORUNDADIR.
+- Kullanıcıdan ilgili ekranın ekran görüntüsünü iste.
+- Kullanıcıdan bir aksiyon (buton tıklama, akış başlatma) iste.
+- Arka planda logları kontrol ederek işlemin başarısını doğrula.
+
+11.2. Verification Workflow
+Her "EXECUTION" fazının sonunda "VERIFICATION" moduna geçildiğinde:
+1) Değişen bileşenleri listele.
+2) Kullanıcıya "Şu adımları takip ederek X ekranına gidin ve ekran görüntüsü paylaşın" talimatı ver.
+3) Kullanıcı aksiyonu sonrası backend/frontend loglarını analiz et.
+4) Hata varsa düzelt ve 1. adıma dön; yoksa görevi tamamla.
+
+[12. DESIGN & UI RULES]
+12.1. Renk Paleti (Strict Color Palette)
+LingRoot marka kimliği "Organik Öğrenme" üzerinedir. "Yapay Zeka" klişelerinden kaçınılmalıdır.
+- **Onaylı Renkler (Approved):**
+  - **Primary:** Teal / Turkuaz (`--primary`, `teal-*`, `cyan-*`) - Güven ve sakinlik.
+  - **Accent:** Orange / Amber (`--accent`, `orange-*`, `amber-*`) - Enerji ve motivasyon.
+  - **Neutral:** Slate / Gray (`slate-*`) - Okunabilirlik.
+- **YASAKLI RENKLER (BANNED):**
+  - **"AI Purple" / "Generic Tech Violet":**
+  - `purple-*`, `violet-*`, `fuchsia-*` renkleri ve bu renkleri içeren gradientlar KESİNLİKLE YASAK.
+  - Sebeb: Kullanıcıda "samimiyetsiz yapay zeka ürünü" algısı yaratıyor.
+  - Mevcut "Secondary" (Lavender) rengini UI bileşenlerinde baskın kullanma.
+
+12.2. Görsel Stil
+- Gradient kullanıyorsan: `from-teal-500 to-emerald-500` veya `from-orange-400 to-amber-500` gibi doğal geçişler kullan.
+- "Neon" veya "Cyberpunk" estetiğinden kaçın. "Clean & Modern Textbook" havasını hedefle.
+
 OPERATIONAL DIRECTIVE
 Yapay zeka için zorunlu talimatlar:
 Read First:
