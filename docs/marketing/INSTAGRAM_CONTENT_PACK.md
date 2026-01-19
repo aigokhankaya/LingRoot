@@ -14,6 +14,11 @@ Tüm tasarımlarda bu kurallara sadık kalın:
     *   **Zemin:** Koyu Lacivert (Deep Navy - #0A192F) veya Simsiyah (Rich Black - #050505).
     *   **Yazılar:** Beyaz (#FFFFFF) veya Gümüş Grisi (#E0E0E0).
     *   **Vurgular:** Elektrik Mavisi (Cyan) veya Altın Sarısı (Gold) - *Çok az kullanılacak.*
+*   **LingRoot Logo Yazısı (2-RENKLİ KURAL):**
+    *   **"Ling"** = Beyaz (#FFFFFF)
+    *   **"Root"** = Steel Blue (#5889A5) - *Logodaki orijinal renk*
+    *   LingRoot yazısı her yerde bu 2 renkte görünmeli: "**Ling**" beyaz, "**Root**" mavi-yeşil.
+    *   Örnek Prompt eki: `Text "LingRoot" with "Ling" in white (#FFFFFF) and "Root" in steel blue (#5889A5).`
 *   **Font:**
     *   **Başlıklar:** Kalın, Modern Sans-Serif (Örn: Montserrat Bold, Futura Heavy).
     *   **Gövde:** Okunabilir Sans-Serif (Örn: Inter, Roboto).
@@ -52,41 +57,76 @@ Bu döngü, profilinize giren birine "Kaotik" değil "Küratörlü bir Sergi" ge
 **Amaç:** Markanın felsefesini anlatmak.
 
 ### 🎨 GEMINI MASTER PROMPT (SABİT STİL)
-*Her görseli oluştururken bu paragrafı promptun EN SONUNA ekleyin. Bu sayede tüm görseller aynı 'marka dilinde' olur.*
+*Her görseli oluştururken bu paragrafı promptun EN SONUNA ekleyin.*
 
 > **Master Style Prompt:**
-> "Style: Premium, minimalist, futuristic ed-tech brand identity. Primary Color: Deep Matte Navy Blue (#0A192F). Accent Color: Subtle Electric Blue glow. Atmosphere: Intellectual, curious, high-end, cinematic lighting, 8k resolution, octave render, photorealistic but clean like an Apple product advertisement. No text on image."
+> "**Aspect ratio: 1:1 square format (1080x1080 pixels) for Instagram post.** Style: Premium, minimalist, futuristic ed-tech brand identity. Primary Color: Deep Matte Navy Blue (#0A192F). Accent Color: Subtle Electric Blue glow. Atmosphere: Intellectual, curious, high-end, cinematic lighting, 8k resolution, octane render. Typography: Clean modern sans-serif font similar to Montserrat or Inter, white color (#FFFFFF), centered on image, use Title Case capitalization (first letter of each word uppercase, rest lowercase). Text should be elegant, readable, and well-spaced."
 
 ---
 
-### SLIDE-BY-SLIDE CONTENT (GÖRSEL + YAZI + PROMPT)
+### SLIDE-BY-SLIDE CONTENT (TAM PROMPTLAR)
 
 **Slide 1: Kapak**
-*   **Yazı (Typo):** "Stop Studying. Start Exploring."
-*   **Gemini Prompt:**
-    > "A young person (silhouette back view) wearing high-end headphones, looking at a giant glowing horizon line in a dark void. The horizon represents infinite knowledge. [Insert Master Style Prompt]"
+```
+    Create a premium Instagram post. Background: A young person silhouette from behind wearing high-end headphones, looking at a glowing horizon in deep dark navy void (#0A192F). The horizon radiates soft electric blue light. 
+
+    Text on image: "Stop Studying. Start Exploring." 
+    Typography: Large, bold, clean sans-serif font (like Montserrat Bold), white color, centered in the upper third of the image. Use Title Case. Elegant spacing between words.
+
+    Style: Cinematic, minimal, 8k, photorealistic, Apple advertisement quality.
+    ```
 
 **Slide 2: Sorun**
-*   **Yazı (Typo):** "İngilizce bir ders değildir."
-*   **Gemini Prompt:**
-    > "A classic, old, dusty grammar textbook floating in zero gravity, slowly disintegrating into particles or dust. Dark background. Symbolizing the end of boring education. [Insert Master Style Prompt]"
+```
+Create a premium Instagram post. Background: An old dusty grammar textbook floating in zero gravity, slowly disintegrating into particles and dust. Dark navy background (#0A192F). Dramatic side lighting.
+
+Text on image: "English Is Not a Lesson."
+Typography: Large, bold, clean sans-serif font (like Montserrat Bold), white color, centered. Use Title Case. Elegant and readable.
+
+Style: Cinematic, minimal, 8k, photorealistic, Apple advertisement quality.
+```
 
 **Slide 3: Çözüm**
-*   **Yazı (Typo):** "İngilizce bir araçtır."
-*   **Gemini Prompt:**
-    > "A futuristic, glowing golden key floating in the center of a deep navy void. The key is made of light and data streams. Minimalist and magical. [Insert Master Style Prompt]"
+```
+Create a premium Instagram post. Background: A futuristic glowing golden key floating in a deep navy void. The key is made of light particles with soft data streams flowing around it. Single spotlight effect.
+
+Text on image: "English Is a Tool."
+Typography: Large, bold, clean sans-serif font (like Montserrat Bold), white color, centered. Use Title Case.
+
+Style: Minimalist, magical, 8k, photorealistic, high-end.
+```
 
 **Slide 4: Konular**
-*   **Yazı (Typo):** "Kara Delikler. Roma Tarihi. Yapay Zeka."
-*   **Alt Yazı:** "Sen neyi merak ediyorsan, dersin konusu o."
-*   **Gemini Prompt:**
-    > "Abstract 3D icons floating together: A small black hole swirling, a roman marble bust, and a microchip. They are arranged artistically in a dark space. Clean, 3D render style. [Insert Master Style Prompt]"
+```
+Create a premium Instagram post. Background: Abstract 3D icons floating in dark space - a small swirling black hole, a classical Roman marble bust, and a glowing microchip. Soft ambient lighting, dark navy background (#0A192F).
 
-**Slide 5: Final**
-*   **Yazı (Typo):** "LingRoot.ai"
-*   **Alt Yazı:** "The content you love, at your level."
-*   **Gemini Prompt:**
-    > "A clean, empty, premium Stage or Podium with a single spotlight shining on the center. Ready for a logo placement. Dark navy textured background. [Insert Master Style Prompt]"
+Text on image: "Black Holes. Roman History. Artificial Intelligence."
+Typography: Large, bold, clean sans-serif font (like Montserrat Bold), white color, centered. Use Title Case.
+
+Subtext below: "Your curiosity becomes your lesson."
+Subtext typography: Smaller, regular weight, same font, slightly muted white.
+
+Style: Clean 3D render, 8k, photorealistic.
+```
+
+**Slide 5: Final (Logo)**
+```
+Create a premium Instagram post. Background: A clean empty premium stage with a single dramatic spotlight from above. Dark navy textured background (#0A192F).
+
+Text on image: "LingRoot" (as brand name, prominent)
+- IMPORTANT: Display "Ling" in white (#FFFFFF) and "Root" in steel blue (#5889A5).
+Below: "The content you love, at your level."
+Typography: Brand name in large bold sans-serif (two-color as specified), tagline in elegant regular weight below in white, centered.
+
+Style: Minimalist, elegant, product reveal atmosphere, 8k.
+```
+
+### 🎵 MÜZİK (POST 1 İÇİN)
+
+**Müzik:** "Time" - Hans Zimmer  
+**Instagram'da Ara:** `Hans Zimmer Time`
+
+> Bu parça epik, entelektüel ve ilham verici. LingRoot'un "Keşif" ruhuna tam uyuyor.
 
 ---
 
@@ -120,18 +160,52 @@ Are you one of them?
 
 ---
 
-## 🎥 POST 2: THE MAGIC (Reels / Video)
+## 🎥 POST 2: THE BOOK DREAM (Veo 3.1 Video - Reels)
 
-**Amaç:** Ürünün ne kadar hızlı ve büyüleyici olduğunu göstermek.
+**Amaç:** "Kitabı kendi seviyende dinle" özelliğini merak uyandırarak tanıtmak. Telefon ekranı YOK.
 
-### Senaryo (Süre: 10-15 sn)
-1.  **Ekran (0-3 sn):** LingRoot uygulama ekranı görünür. "Konu" kutusuna biri "Dark Matter (Kara Madde)" yazar. (Hızlı yazma efekti).
-2.  **İşlem (3-5 sn):** Ekranda "Generating A2 Level Content..." yazısı ve havalı bir yükleme animasyonu (dalgalar).
-3.  **Ses (5-15 sn):** Ekranda "Play" tuşuna basılır. Ve çok karizmatik, tok bir İngiliz aksanı duyulur:
-    *   *"Dark matter is invisible. It holds the universe together..."* (Ekranda kelimeler karaoke gibi akar).
-4.  **Kapanış:** Logo belirir + "Denemek için Link Bio'da."
+### 📽️ VEO 3.1 VIDEO PROMPT
 
-**Not:** Bunu CapCut veya Canva ile yapabilirsiniz. Önemli olan "Hız" vurgusu.
+**Konsept:** Sinematik, duygusal, merak uyandıran. "Keşke bunu yapabilsem..." hissi yaratır.
+
+```
+Create a 15-second cinematic vertical video (9:16 aspect ratio for Instagram Reels).
+
+Scene 1 (0-4 sec): 
+A cozy evening scene. A person sits by a window with rain outside, holding a classic book (like "1984" or "The Great Gatsby"). They look frustrated, flipping pages, clearly struggling to understand. Soft warm lighting, melancholic mood.
+
+Scene 2 (4-8 sec):
+Close-up of the book pages. The complex English text blurs and transforms into simpler, cleaner text. A magical golden glow effect appears around the words as they become easier.
+
+Scene 3 (8-12 sec):
+The person now has wireless earbuds on, eyes closed, smiling peacefully. We hear a brief snippet of a calm, professional English narration in the background. They are clearly enjoying and understanding now.
+
+Scene 4 (12-15 sec):
+Fade to dark navy background (#0A192F). 
+Text appears: "Your favorite books. At your level."
+Below: "LingRoot" logo.
+
+Style: Cinematic, emotional, warm and cool color contrast, soft focus, premium feel like a Netflix documentary intro. No phone screens visible. Focus on human emotion and transformation.
+```
+
+### 🎵 Müzik
+**"Experience" - Ludovico Einaudi**  
+*(Instagram'da ara: Ludovico Einaudi Experience)*
+
+### 📝 Caption
+> Ever picked up a book you've always wanted to read... only to give up after page 3?
+>
+> What if you could listen to it. In English. At YOUR level.
+>
+> From A1 to C2 – we adapt the language, not the story.
+>
+> 📚 Your favorite books. Finally accessible.
+>
+> Link in bio 👇
+> @lingroot.ai
+
+### Hashtags
+#LingRoot #ReadInEnglish #AudioBooks #EnglishLearning #BookLovers #LanguageLearning #AIAudio #LearnEnglish #Bookstagram #EdTech
 
 ---
 

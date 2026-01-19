@@ -1,6 +1,6 @@
 PROJECT_MEMORY.md
 Project Name: Lingroot
-Last Updated: 2025-12-04
+Last Updated: 2026-01-11
 Current Phase: Phase 2 – Intelligent Content Generation
 Active Context: CEFR-based content engine, prompt governance, audio pipeline stability, mobile/web harmonization.
 
@@ -86,6 +86,18 @@ Folder Structure Standard:
    /mfa-worker
    /models
    /utils
+/docs
+   /architecture
+   /codebase
+   /api
+   /database
+   /prompts
+   /marketing       # Instagram, Launch Plan, Ads Strategy
+   /gamification    # Gamification documentation  
+   /integrations    # Apple IAP, Google Play, Stripe docs
+   /testing         # Test documentation
+   /templates
+   /ui
 /prompts
    /tts
    /translation
@@ -159,6 +171,11 @@ Phase 4 — Topic Mastery & Detailed Feedback
 ✅ User Insight Embedding (Migration 058 + pgvector)
 ✅ Benzer kullanıcı önerileri (cosine similarity)
 ✅ AI-powered recommendations API
+✅ Phase 7 — Marketing & Launch Preparation
+✅ Instagram content strategy (100 posts pack)
+✅ Paid ads strategy (Google, Meta, TikTok)
+✅ Launch execution guide
+✅ Marketing analytics integration
 
 [NEW ARCHITECTURE]
 Gamified Onboarding & Progression Strategy
@@ -200,6 +217,49 @@ Sözler okunabilir olmalı (numbers → words)
 prompts/{category}/v1/
 prompts/{category}/v2/
 Output diffs Supabase’de tutulur
+
+7.4. Advanced Prompt Engineering Rules
+Bu kurallar tüm LingRoot promptlarında uygulanmalıdır.
+
+7.4.1. Persona + Expertise Context (Kimlik Yükleme)
+Promptlara sadece rol değil, uzmanlık geçmişi de yükle:
+- ❌ YANLIŞ: "You are a language expert"
+- ✅ DOĞRU: "You are a CEFR-certified language methodologist with 15 years of ESL teaching experience, specialized in second language acquisition (SLA) and pedagogical content adaptation."
+- Her CEFR seviyesi için uygun uzmanlık profili tanımla.
+- Liro Assistant için tutarlı bir kişilik ve iletişim tarzı belirle.
+
+7.4.2. Reference Context (Few-shot Prompting)
+AI'ya örnek göstererek kalite standardını belirle:
+- Her CEFR seviyesi için 2-3 "altın standart" input/output örneği sağla.
+- Örnekler, istenen stilin, tonun ve karmaşıklığın somut gösterimi olmalı.
+- Format: "Referans Örnek 1: [Input] → [Beklenen Output]"
+
+7.4.3. Constraint Context (Sınırlama ve Bariyerler)
+Ne yapılacağı kadar, ne yapıLMAYACAĞI da belirtilmeli:
+- Prohibited patterns açıkça listele.
+- Örnek: "Pasif cümle kurma", "Teknik jargon kullanma", "Cevabı X kelime ile sınırla"
+- Bu bariyerler hallucination'ı önler ve yaratıcılığı doğru kanala yönlendirir.
+
+7.4.4. Audience Context (Hedef Kitle Tanımı)
+İçeriği kimin tüketeceği bağlamın parçasıdır:
+- PROJECT_MEMORY'deki persona tanımlarını promptlara enjekte et:
+  - "Meraklı Entelektüel" → Öğrenme merakı yüksek, zaman kısıtlı
+  - "Meşgul Profesyonel" → İş odaklı, verimlilik öncelikli
+  - "Kitap Sevler" → Derinlik ve zenginlik arayan
+- Kullanıcının CEFR seviyesi + persona kombinasyonu içerik tonunu belirler.
+
+7.4.5. Chain-of-Thought Context (Düşünme Silsilesi)
+Karmaşık görevlerde AI'dan adım adım analiz iste:
+- CEFR dönüşümlerinde: "Önce cümle uzunluklarını analiz et → Zor kelimeleri listele → Gramer yapılarını değerlendir → Alternatifler öner → Çıktı oluştur"
+- Topic önerilerinde: "Kullanıcı profilini analiz et → İlgi alanlarını eşleştir → Uygun zorluk seviyesi belirle → Öneri listesi oluştur"
+- CoT, modelin işlem kapasitesini optimize eder ve tutarlı sonuçlar üretir.
+
+7.4.6. Output Format Context (Çıktı Mimarisi)
+Çıktı formatını tesadüfe bırakma:
+- Yapısal çıktılar için JSON Schema tanımla.
+- Tablo, liste, paragraf formatlarını açıkça belirt.
+- Örnek: "Çıktıyı JSON objesi olarak ver: {text: string, difficulty_score: number, key_vocabulary: string[]}"
+- Format tutarlılığı, downstream işlemleri (TTS, MFA) kolaylaştırır.
 
 [8. AUDIO PIPELINE MEMORY]
 8.1. Zorunlu Akış
